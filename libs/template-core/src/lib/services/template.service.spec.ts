@@ -1,4 +1,6 @@
 import { TemplateEntityBuilder } from '../builder/template-entity.builder';
+import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { TemplateRepository } from '../repositories/template.repository';
 import { TemplateService } from './template.service';
 
 describe('TemplateEntityBuilder', () => {
@@ -190,5 +192,141 @@ describe('TemplateService', () => {
     const summary = svc.toCreateResponse(record);
     expect(summary.templateId).toBe('CP-HTN-STANDARD');
     expect(summary.status).toBe('DRAFT');
+  });
+});
+
+function masterRow(opts: {
+  code: string;
+  status: string;
+  condition?: string;
+  scope?: string;
+  version?: number;
+}): TemplateDdbRecord {
+  const ctx = TemplateEntityBuilder.buildCreateContext({
+    templateCode: opts.code,
+    templateName: opts.code,
+    templateType: 'TASK',
+    status: opts.status as never,
+    condition: opts.condition,
+    version: opts.version,
+  });
+  return TemplateEntityBuilder.buildVersionRow(ctx, {
+    templateCode: opts.code,
+    templateName: opts.code,
+    templateType: 'TASK',
+    shareScope: opts.scope,
+  });
+}
+
+describe('buildVersionHistory', () => {
+  const { buildVersionHistory } = jest.requireActual<typeof import('../mappers/template-http.dto')>(
+    '../mappers/template-http.dto',
+  );
+
+  it('builds newest-first timeline with create on lowest version', () => {
+    const v1 = masterRow({ code: 'ALT-1', status: 'DRAFT', version: 1 });
+    const v2Ctx = TemplateEntityBuilder.buildVersionWriteContext('ALT-1', 2);
+    const v2Meta = TemplateEntityBuilder.buildMetaFromExisting(
+      v1.meta,
+      { status: 'PUBLISHED' as never, reviewComments: 'Approved' },
+      v2Ctx,
+      'admin-1',
+    );
+    const v2 = TemplateEntityBuilder.buildVersionRowFromMeta(v2Meta, v2Ctx, {});
+
+    const history = buildVersionHistory([v1, v2]);
+    expect(history).toHaveLength(2);
+    expect(history[0].version).toBe(2);
+    expect(history[0].title).toBe('Template Published');
+    expect(history[1].title).toBe('Template Created');
+    expect(history[0].changes).toEqual(['Approved']);
+  });
+});
+
+describe('TemplateService.listMasterTemplates', () => {
+  let spy: jest.SpyInstance;
+
+  afterEach(() => spy?.mockRestore());
+
+  function mockRows(rows: TemplateDdbRecord[]) {
+    spy = jest
+      .spyOn(TemplateRepository.prototype, 'listAllMasterVersionsAcrossStatuses')
+      .mockResolvedValue(rows);
+  }
+
+  it('returns counts and filter options across the whole type scope', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED', condition: 'Hypertension', scope: 'Public' }),
+      masterRow({ code: 'T2', status: 'DRAFT', condition: 'Diabetes', scope: 'Private' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED', condition: 'Diabetes', scope: 'Organization' }),
+      masterRow({ code: 'T4', status: 'SAVED', condition: 'Asthma', scope: 'Private' }),
+    ]);
+
+    const result = await new TemplateService().listMasterTemplates({ templateType: 'TASK' });
+
+    expect(result.counts.total).toBe(4);
+    expect(result.counts.published).toBe(2);
+    expect(result.counts.draft).toBe(1);
+    expect(result.counts.saved).toBe(1);
+    expect(result.counts.active).toBe(4);
+    expect(result.filterOptions.status.map((o) => o.value)).toContain('PUBLISHED');
+    expect(result.filterOptions.scope.map((o) => o.value)).toEqual(['PRIVATE', 'ORGANIZATION', 'PUBLIC']);
+    expect(result.filterOptions.condition.map((o) => o.value)).toEqual(
+      expect.arrayContaining(['ASTHMA', 'DIABETES', 'HYPERTENSION']),
+    );
+    expect(result.items).toHaveLength(4);
+    expect(result.items[0].history).toBeDefined();
+    expect(Array.isArray(result.items[0].history)).toBe(true);
+  });
+
+  it('filters items by status, shareScope, and conditionCode without changing counts', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED', condition: 'Hypertension', scope: 'Public' }),
+      masterRow({ code: 'T2', status: 'DRAFT', condition: 'Diabetes', scope: 'Private' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED', condition: 'Diabetes', scope: 'Organization' }),
+    ]);
+
+    const byStatus = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      status: 'PUBLISHED' as never,
+    });
+    expect(byStatus.items).toHaveLength(2);
+    expect(byStatus.counts.total).toBe(3);
+
+    const byCondition = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      conditionCode: 'DIABETES',
+    });
+    expect(byCondition.items.map((i) => i.templateId).sort()).toEqual(['T2', 'T3']);
+
+    const byScope = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      shareScope: 'PUBLIC' as never,
+    });
+    expect(byScope.items.map((i) => i.templateId)).toEqual(['T1']);
+  });
+
+  it('paginates with a stable nextToken', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED' }),
+      masterRow({ code: 'T2', status: 'PUBLISHED' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED' }),
+    ]);
+
+    const svc = new TemplateService();
+    const page1 = await svc.listMasterTemplates({ templateType: 'TASK', limit: 2 });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.pagination.hasMore).toBe(true);
+    expect(page1.pagination.total).toBe(3);
+    expect(page1.pagination.nextToken).toBeDefined();
+
+    const page2 = await svc.listMasterTemplates({
+      templateType: 'TASK',
+      limit: 2,
+      nextToken: page1.pagination.nextToken,
+    });
+    expect(page2.items).toHaveLength(1);
+    expect(page2.pagination.hasMore).toBe(false);
+    expect(page2.pagination.nextToken).toBeUndefined();
   });
 });

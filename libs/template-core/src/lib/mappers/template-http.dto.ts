@@ -44,10 +44,38 @@ export interface MasterTemplateListItem {
   category?: string;
   condition?: string;
   countries?: string[];
+  languages?: string[];
+  shareScope?: string | null;
   version: number;
   status: string;
   isActive: boolean;
   publishedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  /** Version timeline for this template (newest first). */
+  history?: TemplateHistoryEntry[];
+}
+
+export interface TemplateHistoryEntry {
+  version: number;
+  templateVersionId: string;
+  status: string;
+  /** Machine-friendly action derived from status/version. */
+  action: string;
+  /** Human-friendly label for the timeline (e.g. "Template Published"). */
+  title: string;
+  isActive: boolean;
+  isLatestVersion: boolean;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  createdAt?: string | null;
+  publishedAt?: string | null;
+  publishedBy?: string | null;
+  /** Reviewer/lifecycle note when present (reviewComments). */
+  notes?: string | null;
+  /** Best-effort change bullets (currently derived from notes; empty when none stored). */
+  changes: string[];
 }
 
 export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryData {
@@ -130,11 +158,86 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
     category: firstString(meta.category),
     condition: firstString(meta.condition ?? meta.conditions),
     countries: meta.countries,
+    languages: meta.languages,
+    shareScope: (firstString(meta.shareScope) as string | undefined) ?? null,
     version: meta.version ?? 1,
     status: meta.status ?? 'DRAFT',
     isActive: meta.isActive ?? true,
     publishedAt: meta.publishedAt ?? null,
+    createdAt: meta.createdAt ?? null,
+    updatedAt: meta.lastModifiedAt ?? null,
+    updatedBy: (firstString(meta.lastModifiedBy) as string | undefined) ?? null,
   };
+}
+
+const HISTORY_STATUS_TITLE: Record<string, string> = {
+  DRAFT: 'Template Updated',
+  SAVED: 'Template Saved',
+  IN_REVIEW: 'Submitted for Review',
+  PUBLISHED: 'Template Published',
+  ARCHIVED: 'Template Archived',
+  DEPRECATED: 'Template Deprecated',
+};
+
+const HISTORY_STATUS_ACTION: Record<string, string> = {
+  DRAFT: 'UPDATED',
+  SAVED: 'SAVED',
+  IN_REVIEW: 'SUBMITTED_FOR_REVIEW',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED',
+  DEPRECATED: 'DEPRECATED',
+};
+
+/** Build a single version-history timeline entry from a stored VERSION row. */
+export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boolean): TemplateHistoryEntry {
+  const meta = record.meta;
+  const status = (meta.status ?? 'DRAFT') as string;
+  const notes = (firstString(meta.reviewComments) as string | undefined) ?? null;
+  const isCreate = isLowestVersion;
+  return {
+    version: meta.version ?? 1,
+    templateVersionId: meta.templateVersionId,
+    status,
+    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[status] ?? 'UPDATED',
+    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[status] ?? 'Template Updated',
+    isActive: meta.isActive ?? true,
+    isLatestVersion: meta.isLatestVersion ?? false,
+    updatedAt: meta.lastModifiedAt ?? null,
+    updatedBy: (firstString(meta.lastModifiedBy) as string | undefined) ?? null,
+    createdAt: meta.createdAt ?? null,
+    publishedAt: meta.publishedAt ?? null,
+    publishedBy: (firstString(meta.publishedBy) as string | undefined) ?? null,
+    notes,
+    changes: notes ? [notes] : [],
+  };
+}
+
+/** Group all VERSION rows by templateId and build a history timeline per template. */
+export function buildHistoryByTemplateId(
+  records: TemplateDdbRecord[],
+): Map<string, TemplateHistoryEntry[]> {
+  const byTemplate = new Map<string, TemplateDdbRecord[]>();
+  for (const row of records) {
+    const id = row.meta?.templateId;
+    if (!id) continue;
+    const list = byTemplate.get(id) ?? [];
+    list.push(row);
+    byTemplate.set(id, list);
+  }
+  const out = new Map<string, TemplateHistoryEntry[]>();
+  for (const [templateId, versions] of byTemplate) {
+    out.set(templateId, buildVersionHistory(versions));
+  }
+  return out;
+}
+
+/** Build a version-history timeline (newest first) from VERSION rows of one template. */
+export function buildVersionHistory(records: TemplateDdbRecord[]): TemplateHistoryEntry[] {
+  const sortedAsc = [...records].sort((a, b) => (a.meta.version ?? 0) - (b.meta.version ?? 0));
+  const lowestVersion = sortedAsc[0]?.meta.version ?? 1;
+  return sortedAsc
+    .map((row) => toHistoryEntry(row, (row.meta.version ?? 1) === lowestVersion))
+    .sort((a, b) => b.version - a.version);
 }
 
 const MASTER_RECORD_SYSTEM_KEYS = new Set([

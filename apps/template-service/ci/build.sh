@@ -16,9 +16,14 @@ pwd
 echo "Cleaning old artifacts..."
 rm -rf .serverless
 
-export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 
-echo "Packaging Serverless service..."
+echo "Packaging Serverless service (NODE_OPTIONS=$NODE_OPTIONS)..."
+echo "Node heap limit: $NODE_OPTIONS"
+if command -v free >/dev/null 2>&1; then
+  echo "Container memory:"
+  free -h || true
+fi
 
 npx serverless package \
   --stage "$STAGE" \

@@ -71,7 +71,11 @@ custom:
 
   esbuild:
     bundle: true
-    minify: true
+    # Minify is esbuild's most memory-hungry pass and is unnecessary for Lambda. On the
+    # SMALL (~3.6 GiB) CodeBuild container it pushes the esbuild subprocess over the limit
+    # and the kernel kills it ("Error: The service was stopped"). Disabling it is the
+    # single biggest peak-memory reduction for the 22 individually-packaged functions.
+    minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
     target: node20
     platform: node

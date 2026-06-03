@@ -10,7 +10,7 @@ import {
 } from '../constants/template.constants';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
 import { normalizeShareScope } from '../utils/share-scope.utils';
-import { firstString } from '../utils/template.utils';
+import { firstString, isActiveForStatus } from '../utils/template.utils';
 import { TemplateKeyBuilder } from './template-key.builder';
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -30,7 +30,7 @@ function asStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
-/** Top-level create keys duplicated on `meta` — omit from VERSION document root spread. */
+/** Top-level keys stored on `meta` or only inside `fieldValues` — omit from VERSION document root. */
 const META_BODY_KEYS = [
   'templateCode',
   'templateName',
@@ -38,6 +38,26 @@ const META_BODY_KEYS = [
   'status',
   'version',
   'templateId',
+  'category',
+  'condition',
+  'shareScope',
+  'categoryCode',
+  'conditionCode',
+  'conditions',
+  'countries',
+  'countryCodes',
+  'languages',
+  'languageCodes',
+  'templateDescription',
+  'TEMPLATE_NAME',
+  'templateLevel',
+  'createdBy',
+  'active',
+  'measurementType',
+  'templateMetadata',
+  'templateProfile',
+  'specialty',
+  'specialties',
 ] as const;
 
 function stripMetaBodyFields(body: Record<string, unknown>): Record<string, unknown> {
@@ -129,9 +149,7 @@ export class TemplateEntityBuilder {
   ): TemplateMeta {
     const status = (overrides.status ?? existing.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
     const isActive =
-      overrides.isActive !== undefined
-        ? overrides.isActive
-        : status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED;
+      overrides.isActive !== undefined ? overrides.isActive : isActiveForStatus(status);
     return {
       ...existing,
       ...overrides,
@@ -179,12 +197,17 @@ export class TemplateEntityBuilder {
     const templateMetadata = asRecord(rawBody.templateMetadata);
     const templateProfile = asRecord(rawBody.templateProfile);
 
+    const fieldValues = asRecord(rawBody.fieldValues);
     const status = (input.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
     const activeExplicit =
       typeof rawBody.active === 'boolean' ? rawBody.active : undefined;
     const category =
-      input.category ?? templateProfile.category ?? input.conditions?.[0];
+      firstString(fieldValues.categoryCode) ??
+      input.category ??
+      templateProfile.category ??
+      input.conditions?.[0];
     const condition =
+      firstString(fieldValues.conditionCode) ??
       input.condition ??
       templateProfile.condition ??
       (Array.isArray(input.conditions) ? input.conditions[0] : undefined);
@@ -209,7 +232,10 @@ export class TemplateEntityBuilder {
       templateType: TemplateEntityBuilder.normalizeTemplateType(
         input.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
       ),
-      templateDescription: input.templateDescription as string | undefined,
+      templateDescription:
+        typeof input.templateDescription === 'string' && input.templateDescription.trim()
+          ? input.templateDescription.trim()
+          : undefined,
       category,
       condition,
       conditions: input.conditions,
@@ -219,12 +245,11 @@ export class TemplateEntityBuilder {
       version: versionNum,
       status,
       isActive:
-        activeExplicit !== undefined
-          ? activeExplicit
-          : status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+        activeExplicit !== undefined ? activeExplicit : isActiveForStatus(status),
       isLatestVersion: true,
       isMaster: true,
       shareScope:
+        normalizeShareScope(fieldValues.shareScope) ??
         normalizeShareScope(rawBody.shareScope) ??
         normalizeShareScope(templateMetadata.shareScope) ??
         firstString(templateMetadata.shareScope),

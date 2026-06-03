@@ -103,10 +103,16 @@ function asStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+const MASTER_API_STATUSES = new Set<string>([
+  TEMPLATE_STATUS.DRAFT,
+  TEMPLATE_STATUS.PUBLISHED,
+]);
+
 function normalizeStatus(raw: unknown): string | undefined {
   if (typeof raw !== 'string' || !raw.trim()) return undefined;
-  const canonical = raw.trim().replace(/\s+/g, '_').toUpperCase();
-  if (canonical in TEMPLATE_STATUS) return canonical;
+  let canonical = raw.trim().replace(/\s+/g, '_').toUpperCase();
+  if (canonical === 'PUBLISH') canonical = TEMPLATE_STATUS.PUBLISHED;
+  if (MASTER_API_STATUSES.has(canonical)) return canonical;
   return undefined;
 }
 
@@ -114,7 +120,7 @@ function normalizeStatusOrThrow(raw: unknown, fieldName: string): string | undef
   if (raw === undefined || raw === null || raw === '') return undefined;
   const normalized = normalizeStatus(raw);
   if (!normalized) {
-    throwVal(`Invalid ${fieldName}. Allowed values: ${Object.keys(TEMPLATE_STATUS).join(', ')}`);
+    throwVal(`Invalid ${fieldName}. Allowed values: DRAFT, PUBLISHED (or PUBLISH)`, 400, 'VALIDATION_ERROR');
   }
   return normalized;
 }
@@ -129,6 +135,61 @@ function normalizeTemplateType(raw: unknown): string | undefined {
   return TemplateEntityBuilder.normalizeTemplateType(raw);
 }
 
+/**
+ * Derive a stable templateCode from a human name when the client does not send one.
+ * "Task Monitoring Master" -> "TASK-MONITORING-MASTER" (becomes the templateId path param).
+ */
+function deriveTemplateCodeFromName(name: string | undefined): string | undefined {
+  if (typeof name !== 'string' || !name.trim()) return undefined;
+  const slug = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || undefined;
+}
+
+/** Canonical profile fields live only in fieldValues (not duplicated on the VERSION document root). */
+function mergeProfileFieldsIntoFieldValues(
+  body: Record<string, unknown>,
+  templateProfile: Record<string, unknown>,
+): Record<string, unknown> {
+  const fv = { ...asRecord(body.fieldValues) };
+  const pick = (key: string, ...sources: unknown[]): void => {
+    for (const raw of sources) {
+      const v = firstString(raw);
+      if (v) {
+        fv[key] = v;
+        return;
+      }
+    }
+  };
+  pick(
+    'categoryCode',
+    body.categoryCode,
+    body.category,
+    fv.categoryCode,
+    templateProfile.category,
+  );
+  pick(
+    'conditionCode',
+    body.conditionCode,
+    body.condition,
+    fv.conditionCode,
+    templateProfile.condition,
+  );
+  pick('shareScope', body.shareScope, fv.shareScope);
+  return fv;
+}
+
+function stripRootProfileFields(body: Record<string, unknown>): void {
+  delete body.category;
+  delete body.condition;
+  delete body.shareScope;
+  delete body.categoryCode;
+  delete body.conditionCode;
+}
+
 function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody & {
   templateCode: string;
   templateName: string;
@@ -138,17 +199,24 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
   const templateProfile = asRecord(body.templateProfile);
 
   const fieldValues = asRecord(body.fieldValues);
-  const templateCode = firstString(body.templateCode);
   const templateName =
     firstString(body.templateName) ??
+    firstString(body.TEMPLATE_NAME) ??
     firstString(templateMetadata.templateName) ??
-    firstString(fieldValues.TASK_NAME) ??
     firstString(fieldValues.TEMPLATE_NAME) ??
-    firstString(fieldValues.templateName);
-  const templateType = normalizeTemplateType(body.templateType);
-  const templateDescription =
-    firstString(body.templateDescription) ?? firstString(templateMetadata.templateDescription);
-  const status = normalizeStatus(body.status) ?? normalizeStatus(templateMetadata.status);
+    firstString(fieldValues.templateName) ??
+    firstString(fieldValues.TASK_NAME);
+  // templateCode is optional in the payload: derive it from the name so the client
+  // can create with just a name (templateId is built from this code).
+  const templateCode =
+    firstString(body.templateCode) ??
+    firstString(fieldValues.templateCode) ??
+    deriveTemplateCodeFromName(templateName);
+  const templateType = normalizeTemplateType(body.templateType ?? fieldValues.templateType);
+  const status =
+    normalizeStatus(body.status) ??
+    normalizeStatus(fieldValues.status) ??
+    normalizeStatus(templateMetadata.status);
 
   const versionRaw = body.version ?? templateMetadata.version;
   const version =
@@ -161,43 +229,49 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
     firstString(templateMetadata.createdBy) ??
     firstString(templateMetadata.lastModifiedBy);
 
-  const shareScopeRaw = body.shareScope ?? templateMetadata.shareScope;
-  const shareScope =
-    shareScopeRaw !== undefined && shareScopeRaw !== null && shareScopeRaw !== ''
-      ? normalizeShareScopeOrThrow(shareScopeRaw)
-      : undefined;
+  const mergedFieldValues = mergeProfileFieldsIntoFieldValues(body, templateProfile);
+  const shareScopeRaw =
+    mergedFieldValues.shareScope ?? body.shareScope ?? templateMetadata.shareScope;
+  if (
+    shareScopeRaw !== undefined &&
+    shareScopeRaw !== null &&
+    shareScopeRaw !== '' &&
+    typeof shareScopeRaw === 'string'
+  ) {
+    mergedFieldValues.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
+  }
 
   const normalized: CreateMasterTemplateBody & { templateCode: string; templateName: string } = {
     ...body,
+    fieldValues: mergedFieldValues,
     templateCode: templateCode ?? '',
     templateName: templateName ?? '',
     ...(templateType ? { templateType } : {}),
-    ...(templateDescription ? { templateDescription } : {}),
     ...(status ? { status } : {}),
     ...(version ? { version } : {}),
     ...(createdBy ? { createdBy } : {}),
-    ...(shareScope ? { shareScope } : {}),
-    category:
-      body.category ?? body.categoryCode ?? templateProfile.category,
-    condition:
-      body.condition ?? body.conditionCode ?? templateProfile.condition,
-    conditions: asStringArray(body.conditions),
+    conditions: asStringArray(body.conditions ?? mergedFieldValues.conditionCodes),
     countries: asStringArray(
-      body.countries ?? body.countryCodes ?? templateProfile.country,
+      body.countries ?? body.countryCodes ?? mergedFieldValues.countryCodes ?? templateProfile.country,
     ),
     languages: asStringArray(
-      body.languages ?? body.languageCodes ?? templateProfile.language,
+      body.languages ?? body.languageCodes ?? mergedFieldValues.languageCodes ?? templateProfile.language,
     ),
-    specialty: asStringArray(body.specialty ?? templateProfile.specialty),
+    specialty: asStringArray(body.specialty ?? mergedFieldValues.specialty ?? templateProfile.specialty),
     specialties: asStringArray(body.specialties),
   };
+  stripRootProfileFields(normalized);
 
-  if (!normalized.templateCode) {
-    throwVal('templateCode is required', 400, 'VALIDATION_ERROR');
-  }
   if (!normalized.templateName) {
     throwVal(
-      'templateName is required (templateName, templateMetadata.templateName, or fieldValues.TASK_NAME / TEMPLATE_NAME)',
+      'templateName is required (templateName, TEMPLATE_NAME, templateMetadata.templateName, or fieldValues.TEMPLATE_NAME / TASK_NAME)',
+      400,
+      'VALIDATION_ERROR',
+    );
+  }
+  if (!normalized.templateCode) {
+    throwVal(
+      'templateCode could not be derived; provide templateCode or a valid templateName',
       400,
       'VALIDATION_ERROR',
     );
@@ -215,36 +289,42 @@ function normalizeMasterSaveBody(rawBody: unknown): Record<string, unknown> {
 
   const templateName =
     firstString(body.templateName) ??
+    firstString(body.TEMPLATE_NAME) ??
     firstString(templateMetadata.templateName) ??
-    firstString(fieldValues.TASK_NAME) ??
     firstString(fieldValues.TEMPLATE_NAME) ??
-    firstString(fieldValues.templateName);
+    firstString(fieldValues.templateName) ??
+    firstString(fieldValues.TASK_NAME);
 
-  const templateType = normalizeTemplateType(body.templateType);
-  const status = normalizeStatus(body.status) ?? normalizeStatus(templateMetadata.status);
+  const templateType = normalizeTemplateType(body.templateType ?? fieldValues.templateType);
+  const status =
+    normalizeStatus(body.status) ??
+    normalizeStatus(fieldValues.status) ??
+    normalizeStatus(templateMetadata.status);
 
-  const shareScopeRaw = body.shareScope ?? templateMetadata.shareScope;
-  const shareScope =
-    shareScopeRaw !== undefined && shareScopeRaw !== null && shareScopeRaw !== ''
-      ? normalizeShareScopeOrThrow(shareScopeRaw)
-      : undefined;
+  const mergedFieldValues = mergeProfileFieldsIntoFieldValues(body, templateProfile);
+  const shareScopeRaw =
+    mergedFieldValues.shareScope ?? body.shareScope ?? templateMetadata.shareScope;
+  if (
+    shareScopeRaw !== undefined &&
+    shareScopeRaw !== null &&
+    shareScopeRaw !== '' &&
+    typeof shareScopeRaw === 'string'
+  ) {
+    mergedFieldValues.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
+  }
 
-  const normalized: Record<string, unknown> = { ...body };
+  const normalized: Record<string, unknown> = { ...body, fieldValues: mergedFieldValues };
   if (templateName) normalized.templateName = templateName;
   if (templateType) normalized.templateType = templateType;
   if (status) normalized.status = status;
-  if (shareScope) normalized.shareScope = shareScope;
+  stripRootProfileFields(normalized);
 
-  if (body.categoryCode !== undefined || body.conditionCode !== undefined) {
-    normalized.category = body.category ?? body.categoryCode ?? templateProfile.category;
-    normalized.condition = body.condition ?? body.conditionCode ?? templateProfile.condition;
-  }
   const countries = asStringArray(
-    body.countries ?? body.countryCodes ?? templateProfile.country,
+    body.countries ?? body.countryCodes ?? mergedFieldValues.countryCodes ?? templateProfile.country,
   );
   if (countries) normalized.countries = countries;
   const languages = asStringArray(
-    body.languages ?? body.languageCodes ?? templateProfile.language,
+    body.languages ?? body.languageCodes ?? mergedFieldValues.languageCodes ?? templateProfile.language,
   );
   if (languages) normalized.languages = languages;
 
@@ -404,16 +484,7 @@ export async function validateSaveMasterTemplateRequest(req: LambdaRequest): Pro
   }
 
   const rawBody = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
-  const hasLifecycle =
-    typeof rawBody.lifecycleAction === 'string' || typeof rawBody.action === 'string';
-
-  let body: Record<string, unknown>;
-  if (hasLifecycle) {
-    const parsed = saveMasterTemplateBodySchema.parse(rawBody);
-    body = parsed as Record<string, unknown>;
-  } else {
-    body = normalizeMasterSaveBody(rawBody);
-  }
+  const body = normalizeMasterSaveBody(rawBody);
 
   const resolved = TemplateEntityBuilder.resolveMasterPathParam(path.data.templateId);
 

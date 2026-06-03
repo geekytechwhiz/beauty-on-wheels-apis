@@ -42,12 +42,14 @@ export const TEMPLATE_STATUS = {
 
 export type TemplateStatus = (typeof TEMPLATE_STATUS)[keyof typeof TEMPLATE_STATUS];
 
-/** Master VERSION rows with these statuses may be edited (PUT update). */
-export const MASTER_EDITABLE_STATUSES: TemplateStatus[] = [
+/** Master templates: only DRAFT and PUBLISHED (API + edits). */
+export const MASTER_SIMPLE_STATUSES: TemplateStatus[] = [
   TEMPLATE_STATUS.DRAFT,
-  TEMPLATE_STATUS.SAVED,
-  TEMPLATE_STATUS.IN_REVIEW,
+  TEMPLATE_STATUS.PUBLISHED,
 ];
+
+/** Master VERSION rows with these statuses may be updated via POST /templates/{id}. */
+export const MASTER_EDITABLE_STATUSES: TemplateStatus[] = [...MASTER_SIMPLE_STATUSES];
 
 export const STATUS_TRANSITION_ACTION = {
   SUBMIT_REVIEW: 'SUBMIT_REVIEW',

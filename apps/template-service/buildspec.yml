@@ -3,15 +3,20 @@ version: 0.2
 # Deploy must use the artifact at apps/template-service/packaged.yaml (see artifacts.files).
 
 env:
-  # Default SMALL (3 GiB) OOMs on 22 individually-packaged Lambdas; MEDIUM gives headroom for esbuild.
-  compute-type: BUILD_GENERAL1_MEDIUM
+  # NOTE: `compute-type` is NOT a valid field in a non-batch buildspec — AWS ignores it.
+  # Compute type must be set on the CodeBuild PROJECT (console/CLI/IaC) or via
+  # `--compute-type-override`. This project currently runs on SMALL (~3.6 GiB), so the
+  # settings below are tuned to fit SMALL. To get more memory, change the project to
+  # BUILD_GENERAL1_MEDIUM and you can then raise NODE_OPTIONS to ~6144.
   shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-template-service-bucket'
     STACK_NAME: 'dev-template-service'
-    # Match MEDIUM (7 GiB); do not set 8192 on SMALL containers.
-    NODE_OPTIONS: '--max-old-space-size=6144'
+    # Cap Node heap well below the ~3.6 GiB container so the esbuild subprocess has
+    # headroom. A 6144 cap on a 3.6 GiB box prevents GC and OOM-kills esbuild
+    # ("Error: The service was stopped").
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:

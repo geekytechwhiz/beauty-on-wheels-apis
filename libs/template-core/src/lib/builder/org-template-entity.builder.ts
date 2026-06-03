@@ -9,8 +9,15 @@ import {
   type TemplateStatus,
 } from '../constants/template.constants';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { firstString } from '../utils/template.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
 export type CloneOrgTemplateContext = {
   organizationId: string;
@@ -97,7 +104,12 @@ export class OrgTemplateEntityBuilder {
     actorUserId?: string,
   ): TemplateMeta {
     const masterMeta = masterVersion.meta;
-    const status = TEMPLATE_STATUS.SAVED as TemplateStatus;
+    const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
+    const masterFv = asRecord(masterVersion.fieldValues);
+    const categoryCode = firstString(masterFv.categoryCode);
+    const conditionCode = firstString(masterFv.conditionCode);
+    const countries = masterMeta.countries;
+    const templateType = masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN;
 
     return {
       ...masterMeta,
@@ -106,7 +118,7 @@ export class OrgTemplateEntityBuilder {
       templateName: ctx.newTemplateName,
       version: ctx.versionNum,
       status,
-      isActive: true,
+      isActive: false,
       isLatestVersion: true,
       isMaster: false,
       ownerOrgId: ctx.organizationId,
@@ -118,7 +130,10 @@ export class OrgTemplateEntityBuilder {
       lastModifiedAt: ctx.nowIso,
       createdBy: actorUserId ?? masterMeta.createdBy,
       lastModifiedBy: actorUserId ?? masterMeta.lastModifiedBy,
-      templateType: masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
+      templateType,
+      ...(categoryCode ? { category: categoryCode } : {}),
+      ...(conditionCode ? { condition: conditionCode } : {}),
+      ...(countries ? { countries } : {}),
     };
   }
 

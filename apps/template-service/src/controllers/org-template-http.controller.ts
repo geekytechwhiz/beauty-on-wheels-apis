@@ -43,14 +43,14 @@ export class OrgTemplateHttpController {
     }
 
     try {
-      const record = await this.svc.cloneTemplateVersion({
+      const result = await this.svc.cloneTemplateVersion({
         organizationId: v.organizationId,
         masterTemplateId: v.templateId,
         masterVersionId: v.versionId,
         body: v.body,
         actorUserId: v.actorUserId,
       });
-      return this.svc.toCreateResponse(record);
+      return this.svc.toDeriveEnableResponse(result, v.body?.templateName);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'clone_org_template_error',
@@ -142,14 +142,17 @@ export class OrgTemplateHttpController {
     }
 
     try {
-      return await this.svc.listOrgTemplates({
+      return await this.svc.listOrgEnableCatalog({
         organizationId: v.organizationId,
+        categoryCode: v.query.categoryCode ?? v.query.category,
         condition: v.query.condition,
-        status: v.query.status as TemplateStatus | undefined,
+        conditionCode: v.query.conditionCode,
         templateType: v.query.templateType,
-        specialty: v.query.specialty,
+        templateName: v.query.templateName,
+        country: v.query.country,
+        status: v.query.status,
         nextToken: v.query.nextToken,
-        limit: 25,
+        limit: v.query.limit ?? 25,
       });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {

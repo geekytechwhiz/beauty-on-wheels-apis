@@ -5,7 +5,10 @@ import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/
 
 export type CloneTemplateBody = {
   newTemplateName?: string;
+  /** Selected master display name from enable UI. */
+  templateName?: string;
   inheritLinks?: boolean;
+  derivationType?: 'ENABLE' | 'CLONE';
 };
 
 export type CloneOrgTemplateParams = {
@@ -16,6 +19,12 @@ export type CloneOrgTemplateParams = {
   masterVersionId?: string;
   body?: CloneTemplateBody;
   actorUserId?: string;
+};
+
+export type DeriveOrgTemplateResult = {
+  record: TemplateDdbRecord;
+  masterVersion: TemplateDdbRecord;
+  templateEnabled: boolean;
 };
 
 export type ListOrgTemplatesParams = {

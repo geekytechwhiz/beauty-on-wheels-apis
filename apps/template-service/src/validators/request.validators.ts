@@ -653,16 +653,19 @@ export async function validateDeriveTemplateRequest(req: LambdaRequest): Promise
 
   const body = deriveTemplateBodySchema.parse(req.body ?? {});
   const organizationId = resolveOrganizationId(req, body.organizationId);
+  const resolved = TemplateEntityBuilder.resolveMasterPathParam(path.data.templateId);
 
   (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate }).validatedCloneOrgTemplate =
     {
       organizationId,
-      templateId: normalizePathTemplateId(path.data.templateId),
-      versionId: body.sourceVersionId?.trim() ?? '',
+      templateId: resolved.templateId,
+      versionId: body.sourceVersionId?.trim() ?? resolved.templateVersionId ?? '',
       actorUserId,
       body: {
         newTemplateName: body.newTemplateName,
+        templateName: body.templateName,
         inheritLinks: body.inheritLinks,
+        derivationType: body.derivationType,
       },
     };
 }
@@ -679,7 +682,7 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
   );
   const query: ListOrgTemplatesQuery = {
     ...rawQuery,
-    status: normalizeStatusOrThrow(rawQuery.status, 'status'),
+    status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
   };
   const organizationId = resolveOrganizationId(req, query.organizationId);
 

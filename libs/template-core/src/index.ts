@@ -15,6 +15,7 @@ export * from './lib/services/compatible-templates.service';
 export * from './lib/repositories/org-template.repository';
 export * from './lib/repositories/enablement.repository';
 export * from './lib/models/api/org-template.types';
+export * from './lib/models/api/list-org-catalog.types';
 export * from './lib/models/api/org-update.types';
 export * from './lib/models/api/enablement.types';
 export * from './lib/models/api/compatible-templates.types';

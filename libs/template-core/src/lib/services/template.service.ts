@@ -3,8 +3,9 @@ import {
   type CreateMasterTemplateInput,
 } from '../builder/template-entity.builder';
 import {
-  buildHistoryByTemplateId,
   buildVersionHistory,
+  resolveTemplateHistory,
+  toMasterFullRecord,
   toMasterListItem,
   toTemplateSummary,
   toVersionSummary,
@@ -41,11 +42,7 @@ import {
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Draft',
-  SAVED: 'Saved',
-  IN_REVIEW: 'In Review',
   PUBLISHED: 'Published',
-  ARCHIVED: 'Archived',
-  DEPRECATED: 'Deprecated',
 };
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -92,21 +89,41 @@ function arrayHasCi(values: unknown, needle: string): boolean {
   return values.some((v) => typeof v === 'string' && v.trim().toUpperCase() === needle.trim().toUpperCase());
 }
 
-function matchesActiveFilters(meta: TemplateMeta, params: ListMasterTemplatesParams): boolean {
+function fieldValuesOf(record: TemplateDdbRecord): Record<string, unknown> {
+  const fv = record.fieldValues;
+  return fv && typeof fv === 'object' && !Array.isArray(fv) ? (fv as Record<string, unknown>) : {};
+}
+
+function matchesActiveFilters(record: TemplateDdbRecord, params: ListMasterTemplatesParams): boolean {
+  const meta = record.meta;
+  const fv = fieldValuesOf(record);
+
   if (params.status && (meta.status ?? TEMPLATE_STATUS.DRAFT) !== params.status) return false;
-  if (params.shareScope && normalizeShareScope(meta.shareScope) !== params.shareScope) return false;
+
+  if (params.shareScope) {
+    const scope =
+      normalizeShareScope(meta.shareScope) ?? normalizeShareScope(firstString(fv.shareScope));
+    if (scope !== params.shareScope) return false;
+  }
 
   const condition = params.conditionCode ?? params.condition;
   if (condition) {
     const hit =
+      eqCi(firstString(fv.conditionCode), condition) ||
       eqCi(firstString(meta.condition), condition) ||
       arrayHasCi(meta.conditions, condition) ||
       arrayHasCi(meta.condition as unknown, condition) ||
+      eqCi(firstString(fv.categoryCode), condition) ||
       eqCi(firstString(meta.category), condition);
     if (!hit) return false;
   }
 
-  if (params.category && !eqCi(firstString(meta.category), params.category) && !arrayHasCi(meta.category as unknown, params.category)) {
+  if (
+    params.category &&
+    !eqCi(firstString(fv.categoryCode), params.category) &&
+    !eqCi(firstString(meta.category), params.category) &&
+    !arrayHasCi(meta.category as unknown, params.category)
+  ) {
     return false;
   }
   if (params.country && !arrayHasCi(meta.countries, params.country)) return false;
@@ -148,7 +165,7 @@ function computeCounts(reps: TemplateDdbRecord[]): ListStatusCounts {
 }
 
 function buildFilterOptions(reps: TemplateDdbRecord[]): ListFilterOptions {
-  const status = Object.values(TEMPLATE_STATUS).map((value) => ({
+  const status = [TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED].map((value) => ({
     label: STATUS_LABELS[value] ?? value,
     value,
   }));
@@ -230,13 +247,20 @@ export class TemplateService {
         templateType: params.templateType,
       });
       const reps = representativePerTemplate(allRows);
-      const historyByTemplateId = buildHistoryByTemplateId(allRows);
+      const versionsByTemplateId = new Map<string, TemplateDdbRecord[]>();
+      for (const row of allRows) {
+        const id = row.meta?.templateId;
+        if (!id) continue;
+        const list = versionsByTemplateId.get(id) ?? [];
+        list.push(row);
+        versionsByTemplateId.set(id, list);
+      }
 
       const counts = computeCounts(reps);
       const filterOptions = buildFilterOptions(reps);
 
       const filtered = reps
-        .filter((row) => matchesActiveFilters(row.meta, params))
+        .filter((row) => matchesActiveFilters(row, params))
         .sort((a, b) => {
           const aTs = Date.parse(a.meta.lastModifiedAt ?? '') || 0;
           const bTs = Date.parse(b.meta.lastModifiedAt ?? '') || 0;
@@ -254,7 +278,10 @@ export class TemplateService {
           const item = toMasterListItem(row);
           return {
             ...item,
-            history: historyByTemplateId.get(row.meta.templateId) ?? [],
+            history: resolveTemplateHistory(
+              row,
+              versionsByTemplateId.get(row.meta.templateId) ?? [],
+            ),
           };
         }),
         pagination: {
@@ -347,8 +374,7 @@ export class TemplateService {
   }
 
   /**
-   * Single master write API: optional `lifecycleAction` (PUBLISH, SUBMIT_REVIEW, …) or content update.
-   * Resolves the current head `templateVersionId` — clients do not pass version in the URL.
+   * Master update: send `status` DRAFT or PUBLISHED (or PUBLISH) plus `fieldValues` — no lifecycle actions.
    */
   async saveMasterTemplate(params: SaveMasterTemplateParams): Promise<TemplateDdbRecord> {
     try {
@@ -361,28 +387,6 @@ export class TemplateService {
         params.templateVersionId?.trim() || metaRow.meta.templateVersionId;
       if (!versionId?.trim()) {
         templateNotFoundError('Master template version not found');
-      }
-
-      const lifecycleAction =
-        typeof params.body.lifecycleAction === 'string'
-          ? params.body.lifecycleAction.trim()
-          : typeof params.body.action === 'string'
-            ? params.body.action.trim()
-            : '';
-
-      if (lifecycleAction) {
-        return await this.transitionMasterTemplateStatus({
-          templateId: params.templateId,
-          versionId,
-          body: {
-            action: lifecycleAction,
-            comment:
-              typeof params.body.comment === 'string' ? params.body.comment : null,
-            reason:
-              typeof params.body.reason === 'string' ? params.body.reason : null,
-          },
-          actorUserId: params.actorUserId,
-        });
       }
 
       return await this.updateMasterTemplateVersion({
@@ -400,8 +404,9 @@ export class TemplateService {
     return this.compatibleSvc.listCompatibleTemplates(params);
   }
 
+  /** Full VERSION document so create round-trips fieldValues and nested sections. */
   toCreateResponse(record: TemplateDdbRecord) {
-    return toTemplateSummary(record);
+    return toMasterFullRecord(record);
   }
 
   toSummary(record: TemplateDdbRecord) {

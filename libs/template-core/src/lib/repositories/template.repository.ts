@@ -13,6 +13,7 @@ import {
 import type { ListMasterTemplatesParams } from '../models/api/list-master.types';
 import type { ListMasterVersionsParams } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { appendVersionHistoryToRecord } from '../mappers/template-http.dto';
 import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../utils/template.utils';
 
 export type MasterListFilters = Pick<
@@ -125,17 +126,7 @@ export class TemplateRepository extends BaseRepository {
     filters: MasterListFilters = {},
     scanLimitPerStatus = 200,
   ): Promise<TemplateDdbRecord[]> {
-    const statuses = [
-      ...new Set([
-        ...Object.values(TEMPLATE_STATUS),
-        'Draft',
-        'Saved',
-        'InReview',
-        'Published',
-        'Archived',
-        'Deprecated',
-      ]),
-    ] as TemplateStatus[];
+    const statuses = [TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED] as TemplateStatus[];
 
     const pages = await Promise.all(
       statuses.map((status) =>
@@ -233,6 +224,7 @@ export class TemplateRepository extends BaseRepository {
     const table = assertTemplateTable();
     const ctx = TemplateEntityBuilder.buildCreateContext(input);
     const versionRow = TemplateEntityBuilder.buildVersionRow(ctx, input);
+    appendVersionHistoryToRecord(versionRow, { isCreate: true });
 
     await this.transactWrite({
       TransactItems: [

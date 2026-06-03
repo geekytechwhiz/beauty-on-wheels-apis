@@ -189,9 +189,10 @@ describe('TemplateService', () => {
       templateName: 'Test',
     });
 
-    const summary = svc.toCreateResponse(record);
-    expect(summary.templateId).toBe('CP-HTN-STANDARD');
-    expect(summary.status).toBe('DRAFT');
+    const full = svc.toCreateResponse(record);
+    expect(full.meta).toEqual(
+      expect.objectContaining({ templateId: 'CP-HTN-STANDARD', status: 'DRAFT' }),
+    );
   });
 });
 

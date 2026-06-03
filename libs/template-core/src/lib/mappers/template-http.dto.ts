@@ -1,5 +1,5 @@
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
-import { firstString } from '../utils/template.utils';
+import { firstString, sanitizeMetaForApi } from '../utils/template.utils';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -41,11 +41,8 @@ export interface MasterTemplateListItem {
   templateVersionId: string;
   templateName?: string;
   templateType?: string;
-  category?: string;
-  condition?: string;
   countries?: string[];
   languages?: string[];
-  shareScope?: string | null;
   version: number;
   status: string;
   isActive: boolean;
@@ -53,6 +50,8 @@ export interface MasterTemplateListItem {
   createdAt?: string | null;
   updatedAt?: string | null;
   updatedBy?: string | null;
+  /** Full field payload as sent on create/update (round-trips create -> read). */
+  fieldValues?: Record<string, unknown>;
   /** Version timeline for this template (newest first). */
   history?: TemplateHistoryEntry[];
 }
@@ -150,16 +149,18 @@ export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSumm
 
 export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListItem {
   const meta = record.meta;
+  const fieldValues =
+    record.fieldValues && typeof record.fieldValues === 'object' && !Array.isArray(record.fieldValues)
+      ? (record.fieldValues as Record<string, unknown>)
+      : undefined;
   return {
     templateId: meta.templateId,
     templateVersionId: meta.templateVersionId,
     templateName: meta.templateName,
     templateType: meta.templateType,
-    category: firstString(meta.category),
-    condition: firstString(meta.condition ?? meta.conditions),
+    templateDescription: meta.templateDescription,
     countries: meta.countries,
     languages: meta.languages,
-    shareScope: (firstString(meta.shareScope) as string | undefined) ?? null,
     version: meta.version ?? 1,
     status: meta.status ?? 'DRAFT',
     isActive: meta.isActive ?? true,
@@ -167,25 +168,18 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
     createdAt: meta.createdAt ?? null,
     updatedAt: meta.lastModifiedAt ?? null,
     updatedBy: (firstString(meta.lastModifiedBy) as string | undefined) ?? null,
+    ...(fieldValues ? { fieldValues } : {}),
   };
 }
 
 const HISTORY_STATUS_TITLE: Record<string, string> = {
   DRAFT: 'Template Updated',
-  SAVED: 'Template Saved',
-  IN_REVIEW: 'Submitted for Review',
   PUBLISHED: 'Template Published',
-  ARCHIVED: 'Template Archived',
-  DEPRECATED: 'Template Deprecated',
 };
 
 const HISTORY_STATUS_ACTION: Record<string, string> = {
   DRAFT: 'UPDATED',
-  SAVED: 'SAVED',
-  IN_REVIEW: 'SUBMITTED_FOR_REVIEW',
   PUBLISHED: 'PUBLISHED',
-  ARCHIVED: 'ARCHIVED',
-  DEPRECATED: 'DEPRECATED',
 };
 
 /** Build a single version-history timeline entry from a stored VERSION row. */
@@ -210,6 +204,34 @@ export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boole
     notes,
     changes: notes ? [notes] : [],
   };
+}
+
+/** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */
+export function appendVersionHistoryToRecord(
+  record: TemplateDdbRecord,
+  opts?: { isCreate?: boolean },
+): void {
+  const existing = Array.isArray(record.versionHistory)
+    ? (record.versionHistory as TemplateHistoryEntry[])
+    : [];
+  const entry = toHistoryEntry(record, opts?.isCreate ?? existing.length === 0);
+  entry.isLatestVersion = true;
+  const prior = existing.map((h) => ({ ...h, isLatestVersion: false }));
+  record.versionHistory = [entry, ...prior].sort((a, b) => b.version - a.version);
+}
+
+/** Prefer stored `versionHistory`; fall back to VERSION rows when present. */
+export function resolveTemplateHistory(
+  rep: TemplateDdbRecord,
+  allVersionsForTemplate: TemplateDdbRecord[],
+): TemplateHistoryEntry[] {
+  if (Array.isArray(rep.versionHistory) && rep.versionHistory.length > 0) {
+    return rep.versionHistory as TemplateHistoryEntry[];
+  }
+  if (allVersionsForTemplate.length > 0) {
+    return buildVersionHistory(allVersionsForTemplate);
+  }
+  return [];
 }
 
 /** Group all VERSION rows by templateId and build a history timeline per template. */
@@ -266,7 +288,7 @@ export function toMasterFullRecord(record: TemplateDdbRecord): Record<string, un
     pk: record.pk,
     sk: record.sk,
     entityType: record.entityType,
-    meta: record.meta,
+    meta: sanitizeMetaForApi(record.meta),
   };
 
   if (record.schemaRef !== undefined) out.schemaRef = record.schemaRef;

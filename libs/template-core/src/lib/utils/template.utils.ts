@@ -1,4 +1,10 @@
-import { ENV_TEMPLATE_TABLE, VERSION_SK_PREFIX } from '../constants/template.constants';
+import {
+  ENV_TEMPLATE_TABLE,
+  TEMPLATE_STATUS,
+  VERSION_SK_PREFIX,
+  type TemplateStatus,
+} from '../constants/template.constants';
+import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 
@@ -85,6 +91,30 @@ export function templateNotFoundError(message = 'Master template not found'): ne
   e.statusCode = 404;
   e.code = 'NOT_FOUND';
   throw e;
+}
+
+/** First version on create; each in-place save bumps minor (1 → 1.1 → 1.2). */
+export function bumpMinorVersion(current: number | undefined): number {
+  const v = current ?? 1;
+  if (Number.isInteger(v)) {
+    return Math.round((v + 0.1) * 10) / 10;
+  }
+  return Math.round((v + 0.1) * 10) / 10;
+}
+
+/** PUBLISHED → active; DRAFT and other non-published statuses → inactive unless `active` is sent. */
+export function isActiveForStatus(status: TemplateStatus | string): boolean {
+  return status === TEMPLATE_STATUS.PUBLISHED;
+}
+
+/** API responses: profile fields are only in `fieldValues`, not duplicated on `meta`. */
+export function sanitizeMetaForApi(meta: TemplateMeta): TemplateMeta {
+  const copy = { ...meta };
+  delete copy.category;
+  delete copy.condition;
+  delete copy.shareScope;
+  delete copy.templateDescription;
+  return copy;
 }
 
 export function pickHighestVersionRow(items: TemplateDdbRecord[]): TemplateDdbRecord | null {

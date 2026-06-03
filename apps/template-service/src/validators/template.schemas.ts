@@ -13,14 +13,7 @@ const shareScopeInputZ = z
     { message: 'shareScope must be Private, Organization, or Public' },
   );
 
-const templateStatusZ = z.enum([
-  TEMPLATE_STATUS.DRAFT,
-  TEMPLATE_STATUS.SAVED,
-  TEMPLATE_STATUS.IN_REVIEW,
-  TEMPLATE_STATUS.PUBLISHED,
-  TEMPLATE_STATUS.ARCHIVED,
-  TEMPLATE_STATUS.DEPRECATED,
-]);
+const templateStatusZ = z.enum([TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED]);
 
 export const templateLevelZ = z.enum(['MASTER', 'ORG']);
 
@@ -37,20 +30,8 @@ export const deriveTemplateBodySchema = z.object({
 
 export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
 
-export const lifecycleActionZ = z.enum([
-  'SUBMIT_REVIEW',
-  'PUBLISH',
-  'REJECT',
-  'ARCHIVE',
-  'DEPRECATE',
-]);
-
 export const saveMasterTemplateBodySchema = z
   .object({
-    lifecycleAction: lifecycleActionZ.optional(),
-    action: lifecycleActionZ.optional(),
-    comment: z.string().nullable().optional(),
-    reason: z.string().nullable().optional(),
     shareScope: shareScopeInputZ.optional(),
     templateCode: z.string().trim().min(1).optional(),
     templateName: z.string().trim().min(1).max(150).optional(),
@@ -70,7 +51,8 @@ export type SaveMasterTemplateBody = z.infer<typeof saveMasterTemplateBodySchema
 
 export const createMasterTemplateBodySchema = z
   .object({
-    templateCode: z.string().trim().min(1),
+    // Optional: when omitted, the validator derives templateCode from the template name.
+    templateCode: z.string().trim().min(1).optional(),
     templateLevel: templateLevelZ.optional(),
     shareScope: shareScopeInputZ.optional(),
     categoryCode: z.string().trim().min(1).optional(),
@@ -106,10 +88,6 @@ export type CreateMasterTemplateBody = z.infer<typeof createMasterTemplateBodySc
 export const upsertMasterTemplateBodySchema = createMasterTemplateBodySchema
   .extend({
     templateCode: z.string().trim().min(1).optional(),
-    lifecycleAction: lifecycleActionZ.optional(),
-    action: lifecycleActionZ.optional(),
-    comment: z.string().nullable().optional(),
-    reason: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -367,6 +345,12 @@ export function parseListOrgTemplatesQuery(
   return listOrgTemplatesQuerySchema.parse(params);
 }
 
+function isAbsentQueryValue(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  const v = value.trim().toLowerCase();
+  return v === '' || v === 'null' || v === 'undefined' || v === 'all';
+}
+
 export function parseListMasterTemplatesQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): ListMasterTemplatesQuery {
@@ -374,7 +358,9 @@ export function parseListMasterTemplatesQuery(
   if (raw) {
     for (const [key, value] of Object.entries(raw)) {
       if (value === undefined || value === null) continue;
-      params[key] = Array.isArray(value) ? value[0] : value;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
     }
   }
   return listMasterTemplatesQuerySchema.parse(params);

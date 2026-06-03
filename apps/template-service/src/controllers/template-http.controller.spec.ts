@@ -137,7 +137,7 @@ describe('TemplateHttpController', () => {
 
     expect(out.items).toHaveLength(1);
     expect(mockListMasterTemplates).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'DRAFT', limit: 25 }),
+      expect.objectContaining({ status: 'DRAFT' }),
     );
   });
 

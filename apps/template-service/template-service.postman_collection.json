@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "template-service-api-hub",
     "name": "Template Service API",
-    "description": "Master template: **one POST API**\n- `POST /templates` → create (no id in path)\n- `POST /templates/{{templateId}}` → update or lifecycle\n\nSet `authToken`. After create, `templateId` is auto-set (e.g. TASK-CODE).\n\nshareScope: Private | Organization | Public",
+    "description": "Master template: **one POST API**\n- `POST /templates` → create (no id in path)\n- `POST /templates/{{templateId}}` → update or lifecycle\n\nSet `authToken`. After create, `templateId` is auto-set (e.g. TASK-CODE).\n\nshareScope: Private | Organization | Public\n\nGET /templates returns `items`, `pagination`, `counts`, `filterOptions`. Version history: GET /templates/{{templateId}}/versions.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -18,7 +18,8 @@
     { "key": "versionId", "value": "" },
     { "key": "masterVersionId", "value": "" },
     { "key": "enablementId", "value": "" },
-    { "key": "configId", "value": "TASK-MASTER-001" }
+    { "key": "configId", "value": "TASK-MASTER-001" },
+    { "key": "listNextToken", "value": "" }
   ],
   "item": [
     {
@@ -152,34 +153,98 @@
       "name": "Templates — List & Read",
       "item": [
         {
-          "name": "GET List Masters — TASK",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates"],
-              "query": [
-                { "key": "templateLevel", "value": "MASTER" },
-                { "key": "templateType", "value": "TASK" }
-              ]
+          "name": "GET List Masters — TASK (dashboard)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.data?.pagination?.nextToken) {",
+                  "  pm.collectionVariables.set('listNextToken', j.data.pagination.nextToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
             }
-          }
-        },
-        {
-          "name": "GET List Masters — TASK DRAFT",
+          ],
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&status=DRAFT",
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&limit=25",
               "host": ["{{baseUrl}}"],
               "path": ["templates"],
               "query": [
                 { "key": "templateLevel", "value": "MASTER" },
                 { "key": "templateType", "value": "TASK" },
-                { "key": "status", "value": "DRAFT" }
+                { "key": "limit", "value": "25" }
+              ]
+            },
+            "description": "Returns items, pagination (limit/count/total/nextToken/hasMore), counts (total/active/draft/published/...), filterOptions (status/scope/condition)."
+          }
+        },
+        {
+          "name": "GET List Masters — TASK PUBLISHED",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&status=PUBLISHED",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "templateType", "value": "TASK" },
+                { "key": "status", "value": "PUBLISHED" }
               ]
             }
+          }
+        },
+        {
+          "name": "GET List Masters — filter shareScope + conditionCode",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&shareScope=Public&conditionCode=DIABETES",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "templateType", "value": "TASK" },
+                { "key": "shareScope", "value": "Public" },
+                { "key": "conditionCode", "value": "DIABETES" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET List Masters — page 2 (nextToken)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&limit=10&nextToken={{listNextToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates"],
+              "query": [
+                { "key": "templateLevel", "value": "MASTER" },
+                { "key": "templateType", "value": "TASK" },
+                { "key": "limit", "value": "10" },
+                { "key": "nextToken", "value": "{{listNextToken}}" }
+              ]
+            },
+            "description": "Set collection variable listNextToken from data.pagination.nextToken after the first list call."
+          }
+        },
+        {
+          "name": "GET Versions — all + history timeline",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=MASTER",
+              "host": ["{{baseUrl}}"],
+              "path": ["templates", "{{templateId}}", "versions"],
+              "query": [{ "key": "templateLevel", "value": "MASTER" }]
+            },
+            "description": "Returns items (version summaries) and history (timeline: title, action, version, updatedAt, updatedBy, notes, changes). Use for the Version History drawer in the UI."
           }
         },
         {

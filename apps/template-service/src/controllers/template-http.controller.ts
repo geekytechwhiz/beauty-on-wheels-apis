@@ -4,6 +4,7 @@ import {
   OrgTemplateService,
   TemplateService,
   toMasterFullRecord,
+  type ShareScope,
   type TemplateStatus,
 } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
@@ -84,20 +85,19 @@ export class TemplateHttpController {
       const result = await this.svc.listMasterTemplates({
         category: query.category,
         condition: query.condition,
+        conditionCode: query.conditionCode,
         country: query.country,
         status: query.status as TemplateStatus | undefined,
+        shareScope: query.shareScope as ShareScope | undefined,
         templateType: query.templateType,
         language: query.language,
         specialty: query.specialty,
         templateCode: query.templateCode,
         nextToken: query.nextToken,
-        limit: 25,
+        limit: query.limit,
       });
 
-      return {
-        items: result.items,
-        ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-      };
+      return result;
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_master_templates_error',
@@ -134,6 +134,7 @@ export class TemplateHttpController {
       if (result.mode === 'list') {
         return {
           items: result.items,
+          history: result.history,
           ...(result.nextToken ? { nextToken: result.nextToken } : {}),
         };
       }

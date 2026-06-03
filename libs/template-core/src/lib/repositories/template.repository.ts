@@ -116,6 +116,45 @@ export class TemplateRepository extends BaseRepository {
     return { items: combined.slice(0, limit) };
   }
 
+  /**
+   * Fetch every master VERSION row matching the base filters across all lifecycle statuses.
+   * Used by the dashboard list endpoint to compute counts, filter options, and in-app pagination.
+   * Bounded by `scanLimitPerStatus` per status partition to stay within reasonable RCUs.
+   */
+  async listAllMasterVersionsAcrossStatuses(
+    filters: MasterListFilters = {},
+    scanLimitPerStatus = 200,
+  ): Promise<TemplateDdbRecord[]> {
+    const statuses = [
+      ...new Set([
+        ...Object.values(TEMPLATE_STATUS),
+        'Draft',
+        'Saved',
+        'InReview',
+        'Published',
+        'Archived',
+        'Deprecated',
+      ]),
+    ] as TemplateStatus[];
+
+    const pages = await Promise.all(
+      statuses.map((status) =>
+        this.queryMasterByStatusGsi5Page(status, { limit: scanLimitPerStatus, ...filters }),
+      ),
+    );
+
+    const seen = new Set<string>();
+    const rows: TemplateDdbRecord[] = [];
+    for (const row of pages.flatMap((p) => p.items)) {
+      if (!isMasterVersionSk(row.sk)) continue;
+      const key = `${row.pk}#${row.sk}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+    }
+    return rows;
+  }
+
   async getMasterMeta(templateId: string): Promise<TemplateDdbRecord | null> {
     const table = assertTemplateTable();
     const pk = TemplateKeyBuilder.toMasterPk(templateId);

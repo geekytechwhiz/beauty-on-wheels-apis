@@ -121,13 +121,16 @@ export const listMasterTemplatesQuerySchema = z.object({
   organizationId: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
+  conditionCode: z.string().trim().min(1).optional(),
   country: z.string().trim().min(1).optional(),
   status: z.string().trim().min(1).optional(),
+  shareScope: shareScopeInputZ.optional(),
   templateType: z.string().trim().min(1).optional(),
   language: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   templateCode: z.string().trim().min(1).optional(),
   nextToken: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type ListMasterTemplatesQuery = z.infer<typeof listMasterTemplatesQuerySchema>;

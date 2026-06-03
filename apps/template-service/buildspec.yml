@@ -1,16 +1,17 @@
 version: 0.2
 # Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must (1) use the artifact template at apps/alert-service/packaged.yaml (see artifacts.files),
-# (2) use the same AWS account and region as this build so S3 keys in the template resolve.
-# Deploy CodeBuild: set ALERT_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
-# Optional: PACKAGED_TEMPLATE (default apps/alert-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
+# Deploy must use the artifact at apps/template-service/packaged.yaml (see artifacts.files).
 
 env:
+  # Default SMALL (3 GiB) OOMs on 22 individually-packaged Lambdas; MEDIUM gives headroom for esbuild.
+  compute-type: BUILD_GENERAL1_MEDIUM
   shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-template-service-bucket'
     STACK_NAME: 'dev-template-service'
+    # Match MEDIUM (7 GiB); do not set 8192 on SMALL containers.
+    NODE_OPTIONS: '--max-old-space-size=6144'
 
 phases:
   install:

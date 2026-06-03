@@ -71,7 +71,7 @@ custom:
 
   esbuild:
     bundle: true
-    minify: false
+    minify: true
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
     target: node20
     platform: node
@@ -108,8 +108,10 @@ custom:
       - swagger.json
     useStage: true
     swaggerPath: swagger
+    # CI packages with STAGE=dev; skipping swagger here avoids extra work/memory during CodeBuild.
     excludeStages:
       - production
+      - dev
 
   serverless-offline:
     httpPort: 3000

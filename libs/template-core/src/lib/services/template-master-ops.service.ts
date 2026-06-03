@@ -12,7 +12,6 @@ import {
 import { toTemplateSummary } from '../mappers/template-http.dto';
 import type {
   MasterTemplateUpdateBody,
-  StatusTransitionBody,
   TransitionMasterStatusParams,
   UpdateMasterVersionParams,
 } from '../models/api/master-version-ops.types';

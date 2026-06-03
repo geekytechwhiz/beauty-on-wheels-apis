@@ -299,6 +299,22 @@ export class TemplateService {
     }
   }
 
+  /**
+   * All published master representatives (for org-enable dropdown options).
+   * Independent of list table filters so empty pages still expose full filterOptions.
+   */
+  async listPublishedMasterCatalogItems(templateType?: string) {
+    try {
+      const allRows = await this.repo.listAllMasterVersionsAcrossStatuses({ templateType });
+      const reps = representativePerTemplate(allRows).filter(
+        (row) => row.meta?.status === TEMPLATE_STATUS.PUBLISHED,
+      );
+      return reps.map((row) => toMasterListItem(row));
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
   async getMasterTemplateVersions(params: GetMasterVersionsParams): Promise<GetMasterVersionsResult> {
     try {
       const meta = await this.repo.getMasterMeta(params.templateId);

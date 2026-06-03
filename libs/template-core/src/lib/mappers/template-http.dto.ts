@@ -73,8 +73,42 @@ export interface TemplateHistoryEntry {
   publishedBy?: string | null;
   /** Reviewer/lifecycle note when present (reviewComments). */
   notes?: string | null;
-  /** Best-effort change bullets (currently derived from notes; empty when none stored). */
+  /** Field-level diffs vs the previous history entry. */
   changes: string[];
+  /** Snapshot of fieldValues at this point in time (for diffing). */
+  fieldValues?: Record<string, unknown>;
+}
+
+function formatChangeValue(value: unknown): string {
+  if (value === undefined || value === null) return '—';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (Array.isArray(value)) return value.join(', ');
+  return JSON.stringify(value);
+}
+
+function diffFieldValues(
+  previous: Record<string, unknown> | undefined,
+  current: Record<string, unknown> | undefined,
+): string[] {
+  if (!current) return [];
+  const prev = previous ?? {};
+  const keys = new Set([...Object.keys(prev), ...Object.keys(current)]);
+  const changes: string[] = [];
+  for (const key of keys) {
+    const before = prev[key];
+    const after = current[key];
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      if (before === undefined) {
+        changes.push(`${key}: set to ${formatChangeValue(after)}`);
+      } else if (after === undefined) {
+        changes.push(`${key}: cleared (was ${formatChangeValue(before)})`);
+      } else {
+        changes.push(`${key}: ${formatChangeValue(before)} → ${formatChangeValue(after)}`);
+      }
+    }
+  }
+  return changes;
 }
 
 export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryData {
@@ -206,6 +240,37 @@ export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boole
   };
 }
 
+function diffHistoryMeta(
+  previous: TemplateHistoryEntry | undefined,
+  current: TemplateHistoryEntry,
+): string[] {
+  if (!previous) return [];
+  const changes: string[] = [];
+  if (previous.status !== current.status) {
+    changes.push(`status: ${previous.status ?? '—'} → ${current.status ?? '—'}`);
+  }
+  if (previous.version !== current.version) {
+    changes.push(`version: ${previous.version ?? '—'} → ${current.version ?? '—'}`);
+  }
+  if (previous.isActive !== current.isActive) {
+    changes.push(
+      `isActive: ${formatChangeValue(previous.isActive)} → ${formatChangeValue(current.isActive)}`,
+    );
+  }
+  if (previous.notes !== current.notes && current.notes) {
+    changes.push(`note: ${current.notes}`);
+  }
+  return changes;
+}
+
+/** API responses omit internal fieldValue snapshots used for diffs. */
+export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return entries.map(({ fieldValues: _fv, ...entry }) => ({
+    ...entry,
+    changes: entry.changes ?? [],
+  }));
+}
+
 /** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */
 export function appendVersionHistoryToRecord(
   record: TemplateDdbRecord,
@@ -214,7 +279,24 @@ export function appendVersionHistoryToRecord(
   const existing = Array.isArray(record.versionHistory)
     ? (record.versionHistory as TemplateHistoryEntry[])
     : [];
-  const entry = toHistoryEntry(record, opts?.isCreate ?? existing.length === 0);
+  const fv =
+    record.fieldValues && typeof record.fieldValues === 'object' && !Array.isArray(record.fieldValues)
+      ? (record.fieldValues as Record<string, unknown>)
+      : undefined;
+  const previous = existing[0];
+  const isCreate = opts?.isCreate ?? existing.length === 0;
+  const entry = toHistoryEntry(record, isCreate);
+  entry.fieldValues = fv ? { ...fv } : undefined;
+  if (isCreate) {
+    entry.changes = [];
+  } else {
+    const fieldChanges = diffFieldValues(previous?.fieldValues, entry.fieldValues);
+    const metaChanges = diffHistoryMeta(previous, entry);
+    entry.changes = [...metaChanges, ...fieldChanges];
+    if (entry.notes && !entry.changes.includes(`note: ${entry.notes}`)) {
+      entry.changes.push(`note: ${entry.notes}`);
+    }
+  }
   entry.isLatestVersion = true;
   const prior = existing.map((h) => ({ ...h, isLatestVersion: false }));
   record.versionHistory = [entry, ...prior].sort((a, b) => b.version - a.version);
@@ -226,10 +308,10 @@ export function resolveTemplateHistory(
   allVersionsForTemplate: TemplateDdbRecord[],
 ): TemplateHistoryEntry[] {
   if (Array.isArray(rep.versionHistory) && rep.versionHistory.length > 0) {
-    return rep.versionHistory as TemplateHistoryEntry[];
+    return sanitizeHistoryForApi(rep.versionHistory as TemplateHistoryEntry[]);
   }
   if (allVersionsForTemplate.length > 0) {
-    return buildVersionHistory(allVersionsForTemplate);
+    return sanitizeHistoryForApi(buildVersionHistory(allVersionsForTemplate));
   }
   return [];
 }

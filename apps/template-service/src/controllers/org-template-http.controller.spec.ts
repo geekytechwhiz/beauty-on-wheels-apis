@@ -6,8 +6,8 @@ import { OrgTemplateHttpController } from './org-template-http.controller';
 const mockCloneTemplateVersion = jest.fn();
 const mockGetOrgTemplateVersions = jest.fn();
 const mockUpdateOrgTemplateVersion = jest.fn();
-const mockListOrgTemplates = jest.fn();
-const mockToCreateResponse = jest.fn();
+const mockListOrgEnableCatalog = jest.fn();
+const mockToDeriveEnableResponse = jest.fn();
 const mockToSummary = jest.fn();
 
 jest.mock('@api-hub/template-core', () => {
@@ -18,8 +18,8 @@ jest.mock('@api-hub/template-core', () => {
       cloneTemplateVersion: mockCloneTemplateVersion,
       getOrgTemplateVersions: mockGetOrgTemplateVersions,
       updateOrgTemplateVersion: mockUpdateOrgTemplateVersion,
-      listOrgTemplates: mockListOrgTemplates,
-      toCreateResponse: mockToCreateResponse,
+      listOrgEnableCatalog: mockListOrgEnableCatalog,
+      toDeriveEnableResponse: mockToDeriveEnableResponse,
       toSummary: mockToSummary,
     })),
   };
@@ -45,14 +45,19 @@ describe('OrgTemplateHttpController', () => {
     jest.clearAllMocks();
   });
 
-  it('handleCloneToOrg returns create response', async () => {
+  it('handleCloneToOrg returns derive enable response', async () => {
     const record = minimalMasterTemplateRecord();
-    mockCloneTemplateVersion.mockResolvedValue(record);
-    mockToCreateResponse.mockReturnValue({
+    mockCloneTemplateVersion.mockResolvedValue({
+      record,
+      masterVersion: record,
+      templateEnabled: true,
+    });
+    mockToDeriveEnableResponse.mockReturnValue({
       templateId: 'CP-ORG-001',
       templateVersionId: 'CP-ORG-001-V01',
       version: 1,
       status: 'DRAFT',
+      templateEnabled: true,
     });
 
     const c = new OrgTemplateHttpController();
@@ -69,11 +74,17 @@ describe('OrgTemplateHttpController', () => {
     );
 
     expect(out.templateId).toBe('CP-ORG-001');
+    expect(out.templateEnabled).toBe(true);
     expect(mockCloneTemplateVersion).toHaveBeenCalled();
   });
 
   it('handleListOrg returns items from service', async () => {
-    mockListOrgTemplates.mockResolvedValue({ items: [{ templateId: 'CP-ORG-001' }] });
+    mockListOrgEnableCatalog.mockResolvedValue({
+      items: [{ templateId: 'CP-HTN-001', templateEnabled: false }],
+      counts: { total: 1, active: 1, inactive: 0, templateEnabled: 0 },
+      pagination: { limit: 25, count: 1, total: 1, hasMore: false },
+      filterOptions: { status: [], scope: [], condition: [], category: [], templateType: [], templateName: [], country: [] },
+    });
 
     const c = new OrgTemplateHttpController();
     const out = await c.handleListOrg(

@@ -25,6 +25,8 @@ export const deriveTemplateBodySchema = z.object({
   sourceVersionId: z.string().trim().min(1).optional(),
   derivationType: z.enum(['ENABLE', 'CLONE']).default('ENABLE'),
   newTemplateName: z.string().trim().min(1).max(150).optional(),
+  /** Selected master display name (validation / audit only; org copy name uses newTemplateName). */
+  templateName: z.string().trim().min(1).max(150).optional(),
   inheritLinks: z.boolean().optional(),
 });
 
@@ -226,11 +228,17 @@ export const orgClonePathSchema = z.object({
 export const listOrgTemplatesQuerySchema = z.object({
   templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
+  categoryCode: z.string().trim().min(1).optional(),
+  category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
+  conditionCode: z.string().trim().min(1).optional(),
   status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
+  templateName: z.string().trim().min(1).optional(),
+  country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   nextToken: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
@@ -339,7 +347,9 @@ export function parseListOrgTemplatesQuery(
   if (raw) {
     for (const [key, value] of Object.entries(raw)) {
       if (value === undefined || value === null) continue;
-      params[key] = Array.isArray(value) ? value[0] : value;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
     }
   }
   return listOrgTemplatesQuerySchema.parse(params);

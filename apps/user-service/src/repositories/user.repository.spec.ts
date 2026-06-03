@@ -115,9 +115,11 @@ describe('UserRepository', () => {
 
   describe('updateUser', () => {
     it('should update user successfully', async () => {
-      mockSend.mockResolvedValue({});
+      mockSend.mockResolvedValue({ Attributes: { userID: 'test-id', firstName: 'Updated Name' } });
 
-      await expect(repo.updateUser('test-id', { name: 'Updated Name' })).resolves.toBeUndefined();
+      await expect(
+        repo.updateUser('test-id', 'org-id', { firstName: 'Updated Name' }),
+      ).resolves.toMatchObject({ userID: 'test-id' });
 
       expect(mockSend).toHaveBeenCalled();
     });
@@ -126,9 +128,9 @@ describe('UserRepository', () => {
       const error = new ConditionalCheckFailedException({ message: 'Conditional check failed', $metadata: {} });
       mockSend.mockRejectedValue(error);
 
-      await expect(repo.updateUser('non-existent-id', { name: 'New Name' })).rejects.toThrow(
-        UserNotFoundError
-      );
+      await expect(
+        repo.updateUser('non-existent-id', 'org-id', { firstName: 'New Name' }),
+      ).rejects.toThrow(UserNotFoundError);
     });
   });
 

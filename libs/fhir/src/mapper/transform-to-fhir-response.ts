@@ -1,4 +1,6 @@
 import { BundleBuilder } from '../builders/BundleBuilder';
+import { transformOrganizationDetailToFhirBundle } from './organization-detail-fhir.transform';
+import { transformOrganizationMetadataToFhirBundle } from './organization-metadata-fhir.transform';
 import { FhirTransformationService } from '../services/fhir-transformation.service';
 import type { FhirCollectionBundle } from '../types/fhir-bundle';
 import type { LambdaRequest } from '@api-hub/utils';
@@ -25,7 +27,15 @@ export type FhirHandlerOptions = {
   /**
    * Shapes inbound FHIR bodies into handler-specific canonical contracts.
    */
-  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate';
+  inboundProfile?:
+    | 'createUser'
+    | 'createOrganization'
+    | 'assignDoctor'
+    | 'activateDeactivate';
+  /**
+   * Composite outbound projections (e.g. getOrganization → multi-resource Bundle).
+   */
+  outboundProfile?: 'organizationDetail' | 'organizationMetadata';
 };
 
 export type FhirResponsePayload = {
@@ -64,8 +74,11 @@ export function isFhirEnabled(options?: FhirHandlerOptions): boolean {
     typeof options.inferResourceType === 'function' ||
     options.resourceTypeFromContext === true ||
     options.inboundProfile === 'createUser' ||
+    options.inboundProfile === 'createOrganization' ||
     options.inboundProfile === 'assignDoctor' ||
-    options.inboundProfile === 'activateDeactivate'
+    options.inboundProfile === 'activateDeactivate' ||
+    options.outboundProfile === 'organizationDetail' ||
+    options.outboundProfile === 'organizationMetadata'
   );
 }
 
@@ -170,6 +183,14 @@ export async function transformToFhirResponse(
   options: FhirHandlerOptions,
   req: LambdaRequest,
 ): Promise<FhirCollectionBundle | undefined> {
+  if (options.outboundProfile === 'organizationDetail') {
+    return transformOrganizationDetailToFhirBundle(result);
+  }
+
+  if (options.outboundProfile === 'organizationMetadata') {
+    return transformOrganizationMetadataToFhirBundle(result);
+  }
+
   const clientId = resolveClientId(req);
 
   const usePerRowResolution =

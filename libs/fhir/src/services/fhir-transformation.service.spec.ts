@@ -194,6 +194,47 @@ describe('FhirTransformationService', () => {
 
       expect(validator.validateResource).not.toHaveBeenCalled();
     });
+
+    it('maps nested organizationInfo to FHIR Organization id and name', async () => {
+      const service = new FhirTransformationService();
+
+      const result = await service.transformCanonicalToFhir('Organization', {
+        accountAlias: 'mm3208au877eaa2d',
+        organizationInfo: {
+          organizationID: 'mm3208au877eaa2d',
+          organizationName: 'papers',
+          emailAddress: 'paper@yopmail.com',
+          phoneNumber: '8933434334',
+          organizationType: 'HOSPITAL',
+          address: {
+            address: 'road',
+            city: 'Gho Brahmanan de',
+            state: 'Jammu and Kashmir',
+            country: 'India',
+            postalCode: '120021',
+          },
+        },
+      });
+
+      expect(result.resourceType).toBe('Organization');
+      expect(result.id).toBe('mm3208au877eaa2d');
+      expect(result.name).toBe('papers');
+      expect(result.telecom).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ system: 'email', value: 'paper@yopmail.com' }),
+          expect.objectContaining({ system: 'phone', value: '8933434334' }),
+        ]),
+      );
+      expect(result.address).toEqual([
+        expect.objectContaining({
+          line: ['road'],
+          city: 'Gho Brahmanan de',
+          state: 'Jammu and Kashmir',
+          country: 'India',
+          postalCode: '120021',
+        }),
+      ]);
+    });
   });
 
   describe('transformFhirToCanonical', () => {

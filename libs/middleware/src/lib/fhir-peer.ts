@@ -11,7 +11,12 @@ export type FhirHandlerOptions = {
   inferResourceType?: (payload: unknown) => string | undefined;
   resourceTypeFromContext?: boolean;
   resourceListPath?: string;
-  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate';
+  inboundProfile?:
+    | 'createUser'
+    | 'createOrganization'
+    | 'assignDoctor'
+    | 'activateDeactivate';
+  outboundProfile?: 'organizationDetail' | 'organizationMetadata';
 };
 
 export interface FhirPeerModule {

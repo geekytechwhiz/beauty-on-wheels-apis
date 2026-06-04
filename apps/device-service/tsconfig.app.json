@@ -68,6 +68,12 @@
       ],
       "@api-hub/utils": [
         "libs/utils/src/index.ts"
+      ],
+      "@api-hub/fhir": [
+        "libs/fhir/src/index.ts"
+      ],
+      "@api-hub/middleware": [
+        "libs/middleware/src/index.ts"
       ]
     }
   },

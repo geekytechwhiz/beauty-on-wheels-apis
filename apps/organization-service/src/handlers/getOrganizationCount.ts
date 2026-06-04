@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
+import { fhirOrganizationCountHandlerOptions } from '../utils/fhir-handler-options';
 
 const organizationService = new OrganizationService();
  
@@ -9,4 +10,7 @@ const handler = async (req: LambdaRequest) => {
   return organizationService.getOrganizationCounts(correlationId);
 };
 
-export const main = withApiHandler({ operation: 'getOrganizationCount' }, handler);
+export const main = withApiHandler(
+  { operation: 'getOrganizationCount', fhir: fhirOrganizationCountHandlerOptions },
+  handler,
+);

@@ -81,6 +81,36 @@ const ADMIN_DASHBOARD_PROJECTION_ATTRIBUTES = [
   'isRpmUser',
 ] as const;
 
+const DOCTOR_PATIENT_BATCH_PROJECTION_ATTRIBUTES = [
+  'pk',
+  'sk',
+  'userID',
+  'organizationID',
+  'firstName',
+  'lastName',
+  'fullName',
+  'emailAddress',
+  'phoneNumber',
+  'phoneCode',
+  'profilePic',
+  'userType',
+  'roleName',
+  'definedRoleCode',
+  'isActive',
+  'status',
+  'isRpmUser',
+  'createdDate',
+  'modifiedDate',
+  'mrn',
+  'dateOfBirth',
+  'country',
+  'gender',
+  'accountType',
+  'doctorName',
+  'reporterName',
+  'specialty',
+] as const;
+
 function projectionAliasForAttr(
   attr: string,
   exprNames: Record<string, string>,
@@ -92,6 +122,19 @@ function projectionAliasForAttr(
   const alias = `#proj_${attr}`;
   exprNames[alias] = attr;
   return alias;
+}
+
+function buildProjectionExpression(
+  attributes: readonly string[],
+): {
+  ProjectionExpression: string;
+  ExpressionAttributeNames: Record<string, string>;
+} {
+  const exprNames: Record<string, string> = {};
+  const ProjectionExpression = attributes
+    .map((attr) => projectionAliasForAttr(attr, exprNames))
+    .join(', ');
+  return { ProjectionExpression, ExpressionAttributeNames: exprNames };
 }
 
 function buildAdminDashboardProjection(
@@ -616,6 +659,10 @@ export class V2UserListRepository {
         );
       }
       
+      const doctorPatientProjection = buildProjectionExpression(
+        DOCTOR_PATIENT_BATCH_PROJECTION_ATTRIBUTES,
+      );
+
       const batchPromises = chunks.map((chunk) => {
         const keys = chunk.map((link) => ({
           pk: `ORG#${
@@ -630,40 +677,13 @@ export class V2UserListRepository {
             RequestItems: {
               [USER_TABLE_NAME]: {
                 Keys: keys,
-      
                 /**
                  * Only fetch fields required for listing.
-                 * Keeps response contract intact.
+                 * Aliases reserved attribute names (e.g. status).
                  */
-                ProjectionExpression: `
-                  pk,
-                  sk,
-                  userID,
-                  organizationID,
-                  firstName,
-                  lastName,
-                  fullName,
-                  emailAddress,
-                  phoneNumber,
-                  phoneCode,
-                  profilePic,
-                  userType,
-                  roleName,
-                  definedRoleCode,
-                  isActive,
-                  status,
-                  isRpmUser,
-                  createdDate,
-                  modifiedDate,
-                  mrn,
-                  dateOfBirth,
-                  country,
-                  gender,
-                  accountType,
-                  doctorName,
-                  reporterName,
-                  specialty
-                `,
+                ProjectionExpression: doctorPatientProjection.ProjectionExpression,
+                ExpressionAttributeNames:
+                  doctorPatientProjection.ExpressionAttributeNames,
               },
             },
           }),

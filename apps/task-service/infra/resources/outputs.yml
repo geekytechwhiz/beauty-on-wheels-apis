@@ -1,0 +1,15 @@
+Outputs:
+  TemplateEventBusName:
+    Description: Name of the Template Service Event Bus
+    Value:
+      Ref: TemplateEventBus
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventBusName
+  TemplateEventBusArn:
+    Description: ARN of the Template Service Event Bus
+    Value:
+      Fn::GetAtt:
+        - TemplateEventBus
+        - Arn
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventBusArn

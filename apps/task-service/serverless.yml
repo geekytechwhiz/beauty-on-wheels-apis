@@ -1,0 +1,42 @@
+service: task-service
+
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-task-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+package:
+  individually: true
+  patterns:
+    - 'services-json/**'
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+ 

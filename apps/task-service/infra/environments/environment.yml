@@ -1,0 +1,4 @@
+AWS_REGION_TASK_SERVICE: ${self:provider.region} 
+STAGE: ${self:provider.stage}
+NODE_ENV: ${self:provider.stage}
+SERVICE_NAME: ${self:service} 

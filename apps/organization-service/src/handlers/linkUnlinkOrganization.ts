@@ -4,18 +4,13 @@ import { OrganizationService } from '../services/organization.service';
 import { validateLinkUnlinkOrganization } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
+ 
 
-interface Body {
-  fromOrg: string;
-  toOrg: string;
-  action: 'LINK' | 'UNLINK';
-}
-
-const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
+const handler = async (req: LambdaRequest) => {
   const body = req.body ?? {};
   const { fromOrg, toOrg, action } = body;
   const actionNormalized = action.toUpperCase() as 'LINK' | 'UNLINK';
-  const userId = req.context.user?.userId ?? '';
+  const userId = req.context?.userContext?.userId ?? '';
   const userType = req.event?.requestContext?.authorizer?.userType as string | undefined;
   const { correlationId, authHeader } = req.context;
 

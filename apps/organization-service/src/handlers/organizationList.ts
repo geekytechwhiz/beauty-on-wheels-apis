@@ -3,10 +3,10 @@ import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
 import { validateOrganizationListPost } from '../validation/request.validators';
 import { mapOrganizationListItem } from '../utils/organizationList.mapper';
+import { resolveOrgListPaginationKey } from '../utils/organizationList.pagination';
+import { DEFAULT_ORG_LIST_LIMIT, MAX_ORG_LIST_LIMIT } from '../utils/organizationList.constants';
 
 const organizationService = new OrganizationService();
-
-const DEFAULT_LIST_LIMIT = 40;
 
 interface ListBody {
   organizationId?: string;
@@ -21,6 +21,7 @@ interface ListBody {
   city?: string;
   limit?: number | string;
   nextPaginationKey?: string;
+  lastEvaluatedKey?: string | Record<string, unknown> | null;
 }
 
 export function toArray<T>(value?: T | T[] | null): T[] {
@@ -28,21 +29,23 @@ export function toArray<T>(value?: T | T[] | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-const handler = async (req: LambdaRequest<ListBody>) => {
+const handler = async (req: LambdaRequest) => {
   const body = req.body ?? {};
   const event = req.event as unknown as Record<string, unknown>;
   let organizationId = body.organizationId ?? body.organizationID ?? (event?.organizationID as string | undefined);
   if (organizationId === 'ROOT') organizationId = undefined;
 
   const limitRaw = body.limit;
-  const parsedLimit = typeof limitRaw === 'string' ? Number(limitRaw) : typeof limitRaw === 'number' ? limitRaw : undefined;
-  const limit = Number.isFinite(parsedLimit) && parsedLimit! > 0 ? parsedLimit! : DEFAULT_LIST_LIMIT;
+  const parsedLimit = typeof limitRaw === 'number' ? limitRaw : undefined;
+  const limit =
+    parsedLimit !== undefined && Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, MAX_ORG_LIST_LIMIT)
+      : DEFAULT_ORG_LIST_LIMIT;
 
-  const paginationKeyRaw = body.nextPaginationKey;
-  const nextPaginationKey =
-    typeof paginationKeyRaw === 'string' && paginationKeyRaw.trim().length > 0
-      ? paginationKeyRaw.trim()
-      : undefined;
+  const nextPaginationKey = resolveOrgListPaginationKey({
+    nextPaginationKey: body.nextPaginationKey,
+    lastEvaluatedKey: body.lastEvaluatedKey,
+  });
 
   const result = await organizationService.listOrganizations({
     organizationId,

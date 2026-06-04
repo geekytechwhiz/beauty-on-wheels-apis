@@ -25,14 +25,22 @@ import {
   organizationUpdatesSk,
   organizationUserSk
 } from '../utils/helpers';
+import {
+  buildOrgListCursorKey,
+  decodeOrgListPaginationKey,
+  encodeOrgListPaginationKey,
+} from '../utils/organizationList.pagination';
+import { DEFAULT_ORG_LIST_LIMIT, MAX_ORG_LIST_LIMIT } from '../utils/organizationList.constants';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 
 const ORGANIZATION_TABLE_NAME = process.env.ORGANIZATION_TABLE || '';
 
-const DEFAULT_ORG_LIST_LIMIT = 40;
-
 const ORG_LIST_PROJECTION_ATTRIBUTES = [
+  'pk',
+  'sk',
+  'gsi1pk',
+  'gsi1sk',
   'organizationId',
   'name',
   'organizationType',
@@ -1121,6 +1129,8 @@ export class OrganizationRepository {
         ExpressionAttributeNames?: Record<string, string>;
         FilterExpression?: string;
         ExclusiveStartKey?: Record<string, unknown>;
+        Limit?: number;
+        ProjectionExpression?: string;
       } = {
         TableName: ORGANIZATION_TABLE_NAME,
         IndexName: 'GSI1',
@@ -1221,12 +1231,14 @@ export class OrganizationRepository {
 
       const paginationKey = filters?.nextPaginationKey?.trim();
       let lastEvaluatedKey = paginationKey
-        ? (JSON.parse(Buffer.from(paginationKey, 'base64').toString()) as Record<string, unknown>)
+        ? decodeOrgListPaginationKey(paginationKey)
         : undefined;
 
       const items: Organization[] = [];
       const limit =
-        filters?.limit && filters.limit > 0 ? filters.limit : DEFAULT_ORG_LIST_LIMIT;
+        filters?.limit && filters.limit > 0 ? Math.min(filters.limit, MAX_ORG_LIST_LIMIT) : DEFAULT_ORG_LIST_LIMIT;
+
+      let nextPaginationKey: string | null = null;
 
       do {
         if (lastEvaluatedKey) {
@@ -1235,26 +1247,43 @@ export class OrganizationRepository {
           delete params.ExclusiveStartKey;
         }
 
-        const response:any = await ddbDocClient.send(new QueryCommand(params) as any);
-        if (response.Items?.length) {
-          items.push(...(response.Items as Organization[]));
+        const remaining = limit - items.length;
+        params.Limit = Math.min(Math.max(remaining, 1), MAX_ORG_LIST_LIMIT);
+
+        const response = await ddbDocClient.send(new QueryCommand(params));
+        const pageItems = (response.Items ?? []) as Organization[];
+        if (pageItems.length) {
+          items.push(...pageItems);
         }
 
-        lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+        const dynamoLastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
 
-        if (limit && items.length >= limit) {
-          items.splice(limit);
+        if (items.length >= limit) {
+          const pageItemsCount = pageItems.length;
+          const hasMoreInCurrentBatch = pageItemsCount > remaining;
+          const trimmedItems = items.slice(0, limit);
+          items.length = 0;
+          items.push(...trimmedItems);
+
+          if (hasMoreInCurrentBatch) {
+            nextPaginationKey =
+              encodeOrgListPaginationKey(
+                buildOrgListCursorKey(trimmedItems[trimmedItems.length - 1] as unknown as Record<string, unknown>),
+              ) ?? null;
+          } else if (dynamoLastEvaluatedKey) {
+            nextPaginationKey = encodeOrgListPaginationKey(dynamoLastEvaluatedKey);
+          }
           break;
         }
+
+        lastEvaluatedKey = dynamoLastEvaluatedKey;
       } while (lastEvaluatedKey);
 
       const sanitized = items.map((item) => this.sanitizeOrganization(item));
 
       return {
         items: sanitized,
-        nextPaginationKey: lastEvaluatedKey
-          ? Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64')
-          : null,
+        nextPaginationKey,
       };
     } catch (err) {
       const logger = createChildLogger(baseLogger, {});

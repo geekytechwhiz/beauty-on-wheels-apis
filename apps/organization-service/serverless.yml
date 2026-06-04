@@ -141,17 +141,29 @@ custom:
     dev: DEV_DEMO_SECRETMANAGER
     stg: STG_DEMO_SECRETMANAGER
     prd: PRD_DEMO_SECRETMANAGER
+
+  # Disable sourcemaps in CI to reduce memory (avoids esbuild "The service was stopped: write EPIPE").
+  # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
+  sourcemapsByStage:
+    dev: false
+    stg: false
+    prd: false
+
   esbuild:
     bundle: true
     minify: false
-    sourcemap: true
-    target: node18
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
     keepNames: true
+    # Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
+    # service instances exhaust the CodeBuild container and crash with "The service was stopped".
+    concurrency: 1
+    zipConcurrency: 1
     plugins: esbuild-plugins.js
     resolveExtensions:
       - '.ts'
@@ -204,6 +216,9 @@ custom:
   warmup:
     default: {}
 
+  dotenv:
+    logging: false
+
   cors:
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
@@ -225,22 +240,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Health check endpoint
-            description: Returns the health status of the service
-            tags:
-              - Health
-            responses:
-              200:
-                description: Service is healthy
-                content:
-                  application/json:
-                    schema:
-                      type: object
-                      properties:
-                        status:
-                          type: string
-                          example: "ok"
 
   createOrganization:
     handler: src/handlers/createOrganization.main
@@ -259,69 +258,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Create a new organization
-            description: Creates a new organization in the system
-            tags:
-              - Organizations
-            requestBody:
-              description: Organization creation data
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - name
-                    properties:
-                      organizationId:
-                        type: string
-                        format: uuid
-                      name:
-                        type: string
-                        minLength: 1
-                        maxLength: 255
-                      email:
-                        type: string
-                        format: email
-                      phone:
-                        type: string
-                      address:
-                        type: string
-                      city:
-                        type: string
-                      state:
-                        type: string
-                      country:
-                        type: string
-                      postalCode:
-                        type: string
-                      status:
-                        type: string
-                        enum: [ACTIVE, INACTIVE, SUSPENDED]
-                      website:
-                        type: string
-                      taxId:
-                        type: string
-                      registrationNumber:
-                        type: string
-                      description:
-                        type: string
-                      industry:
-                        type: string
-                      size:
-                        type: string
-                        enum: [SMALL, MEDIUM, LARGE]
-                        default: ACTIVE
-            responses:
-              201:
-                description: Organization created successfully
-              400:
-                description: Bad request
-              409:
-                description: Organization already exists
-              500:
-                description: Internal server error
 
   getOrganization:
     handler: src/handlers/getOrganization.main
@@ -343,39 +279,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Get organization by ID
-            description: |
-              Retrieves organization information by organization ID.
-              Supports an optional `view` query param:
-              - omitted: full organization payload
-              - `minimal`: trimmed organization payload
-              - `config`: only `{ organizationId, organizationConfig, organizationConfigVersion }`
-            tags:
-              - Organizations
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            queryParams:
-              - name: view
-                description: Response shape selector
-                required: false
-                schema:
-                  type: string
-                  enum: [minimal, config]
-            responses:
-              200:
-                description: Organization retrieved successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   organizationList:
     handler: src/handlers/organizationList.main
@@ -394,16 +297,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 300
-          documentation:
-            summary: List organizations
-            description: Retrieves all organizations
-            tags:
-              - Organizations
-            responses:
-              200:
-                description: Organizations retrieved successfully
-              500:
-                description: Internal server error
 
   updateOrganization:
     handler: src/handlers/updateOrganization.main
@@ -422,61 +315,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Update organization information
-            description: Updates organization information. Only provided fields will be updated.
-            tags:
-              - Organizations
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            requestBody:
-              description: Organization update data (all fields are optional)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                        minLength: 1
-                        maxLength: 255
-                      email:
-                        type: string
-                        format: email
-                      phone:
-                        type: string
-                      address:
-                        type: string
-                      city:
-                        type: string
-                      state:
-                        type: string
-                      country:
-                        type: string
-                      postalCode:
-                        type: string
-                      status:
-                        type: string
-                        enum: [ACTIVE, INACTIVE, SUSPENDED]
-                      supportedVitals:
-                        type: array
-                        items:
-                          type: string
-            responses:
-              200:
-                description: Organization updated successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   deleteOrganization:
     handler: src/handlers/deleteOrganization.main
@@ -495,27 +333,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Delete an organization
-            description: Deletes an organization from the system by organization ID (soft delete)
-            tags:
-              - Organizations
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization to delete (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Organization deleted successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   linkUnlinkOrganization:
     handler: src/handlers/linkUnlinkOrganization.main
@@ -534,43 +351,6 @@ functions:
             identitySource: method.request.header.Authorization
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
-          documentation:
-            summary: Link or unlink organizations
-            description: Links or unlinks two organizations. ROOT_ADMIN only. For LINK, target org must be ACTIVE.
-            tags:
-              - Organizations
-            requestBody:
-              description: fromOrg, toOrg, action (LINK or UNLINK)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - fromOrg
-                      - toOrg
-                      - action
-                    properties:
-                      fromOrg:
-                        type: string
-                        description: Source organization ID
-                      toOrg:
-                        type: string
-                        description: Target organization ID
-                      action:
-                        type: string
-                        enum: [LINK, UNLINK]
-            responses:
-              201:
-                description: Organizations linked or unlinked successfully
-              400:
-                description: Bad request (missing ids, invalid action, or target org not ACTIVE)
-              403:
-                description: Forbidden (not ROOT_ADMIN)
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   setOrgStatus:
     handler: src/handlers/setOrgStatus.main
@@ -583,38 +363,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Set organization status
-            description: Sets organization status (ACTIVE, HOLD, DISABLED). ROOT_ADMIN only.
-            tags:
-              - Organizations
-            requestBody:
-              description: organizationId, status
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - organizationId
-                      - status
-                    properties:
-                      organizationId:
-                        type: string
-                      status:
-                        type: string
-                        enum: [ACTIVE, HOLD, DISABLED]
-            responses:
-              201:
-                description: Organization status updated
-              400:
-                description: Bad request
-              403:
-                description: Forbidden (not ROOT_ADMIN)
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   getOrganizationCount:
     handler: src/handlers/getOrganizationCount.main
@@ -627,16 +375,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Get organization count
-            description: Returns total and count by org type (pk=ORG_COUNT).
-            tags:
-              - Organizations
-            responses:
-              200:
-                description: { total, orgType }
-              500:
-                description: Internal server error
 
   getLinkedOrganizations:
     handler: src/handlers/getLinkedOrganizations.main
@@ -649,46 +387,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Get linked organizations
-            description: Returns organizations linked to the given organization. Optional orgType filter and preferredOrgId for isPreferredOrg flag.
-            tags:
-              - Organizations
-            requestBody:
-              description: organizationId (required), orgType, userId, preferredOrgId, limit, nextPaginationKey
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - organizationId
-                    properties:
-                      organizationId:
-                        type: string
-                        description: Organization whose linked orgs to fetch
-                      orgType:
-                        type: string
-                        description: Optional filter by org type
-                      userId:
-                        type: string
-                        description: Optional; for preferred-org resolution (BFF may pass preferredOrgId instead)
-                      preferredOrgId:
-                        type: string
-                        description: Optional; when set, matching item gets isPreferredOrg true
-                      limit:
-                        type: integer
-                        description: Max items per page (default 100)
-                      nextPaginationKey:
-                        type: string
-                        description: Opaque pagination token (base64)
-            responses:
-              200:
-                description: Linked organizations retrieved successfully
-              400:
-                description: Bad request (missing organizationId or no linked orgs found)
-              500:
-                description: Internal server error
 
   # assignUserToOrganization:
   #   handler: src/handlers/assignUserToOrganization.main
@@ -782,48 +480,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Update organization metadata
-            description: Updates custom metadata for an organization. Metadata can contain any key-value pairs.
-            tags:
-              - Organizations
-              - Metadata
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            requestBody:
-              description: Organization metadata object (key-value pairs)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - metadata
-                    properties:
-                      metadata:
-                        type: object
-                        description: Custom metadata as key-value pairs
-                        additionalProperties: true
-                      updatedBy:
-                        type: string
-                        description: Identifier of the user or system updating metadata
-                      version:
-                        type: number
-                        description: Optional metadata version number
-            responses:
-              200:
-                description: Organization metadata updated successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   getOrganizationMetadata:
     handler: src/handlers/getOrganizationMetadata.main
@@ -836,26 +492,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Get organization metadata
-            description: Retrieves organization metadata configuration such as types, sizes, schedules, and supported values
-            tags:
-              - Organizations
-              - Metadata
-            queryParams:
-              - name: type
-                description: ROOT or ORGANIZATION (default ORGANIZATION)
-                required: false
-                schema:
-                  type: string
-                  example: ORGANIZATION
-            responses:
-              200:
-                description: Organization metadata retrieved successfully
-              400:
-                description: Bad request
-              500:
-                description: Internal server error
 
   getExternalTenant:
     handler: src/handlers/getExternalTenant.main
@@ -868,33 +504,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: Resolve tenant by subdomain
-            description: Extracts subdomain from apiBaseUrl and resolves organization tenant via GSI2.
-            tags:
-              - Organizations
-            requestBody:
-              description: URL used to derive subdomain and optional provider (for GSI2 lookup)
-              required: true
-              content:
-                application/json:
-                  schema:
-                    type: object
-                    required:
-                      - apiBaseUrl
-                    properties:
-                      apiBaseUrl:
-                        type: string
-                        format: uri
-                      provider:
-                        type: string
-            responses:
-              200:
-                description: Tenant resolved successfully
-              400:
-                description: Validation error or invalid URL
-              404:
-                description: Tenant mapping not found
 
   listOrganizationFiles:
     handler: src/handlers/listOrganizationFiles.main
@@ -907,28 +516,6 @@ functions:
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}
-          documentation:
-            summary: List organization files
-            description: Retrieves all files associated with an organization
-            tags:
-              - Organizations
-              - Files
-            pathParameters:
-              - name: organizationId
-                description: Unique identifier of the organization (UUID format)
-                required: true
-                schema:
-                  type: string
-                  format: uuid
-            responses:
-              200:
-                description: Organization files retrieved successfully
-              400:
-                description: Bad request
-              404:
-                description: Organization not found
-              500:
-                description: Internal server error
 
   # S3 → EventBridge trigger
   uploadOrganizationFile:

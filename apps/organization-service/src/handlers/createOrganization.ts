@@ -8,14 +8,10 @@ import { validateCreateOrganization } from '../validation/request.validators';
 const organizationService = new OrganizationService();
 const roleRepository = new RoleRepository();
 
-interface Params {
-  [key: string]: unknown;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+const handler = async (req: LambdaRequest) => {
   const validatedData = (req as any).validatedCreateBody;
   const creatorId =
-    req.context.user?.userId ??
+    req.context?.userContext?.userId ??
     req.event?.requestContext?.authorizer?.userId ??
     req.event?.requestContext?.authorizer?.userID ??
     req.event?.requestContext?.authorizer?.claims?.sub ??

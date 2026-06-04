@@ -103,6 +103,7 @@ const DOCTOR_PATIENT_BATCH_PROJECTION_ATTRIBUTES = [
   'modifiedDate',
   'mrn',
   'dateOfBirth',
+  'age',
   'country',
   'gender',
   'accountType',

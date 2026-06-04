@@ -11,6 +11,9 @@ import { DeviceDynamoDBItem, DevicesData } from './types';
 // In CodeBuild, we run from device-service root, so __dirname is deviceScripts/device-list/dist/
 // We need to go up 3 levels: dist -> device-list -> deviceScripts -> device-service root
 const getDeviceServiceRoot = (): string => {
+	if (process.env.DEVICE_SERVICE_ROOT) {
+		return path.resolve(process.env.DEVICE_SERVICE_ROOT);
+	}
 	// @ts-ignore - __dirname exists at runtime after compilation to CommonJS
 	if (typeof __dirname !== 'undefined') {
 		// @ts-ignore
@@ -128,7 +131,9 @@ const start = async (): Promise<void> => {
 		// console.log(`📂 Reading devices.json from: ${devicesJsonPath}`);
 		
 		if (!require('fs').existsSync(devicesJsonPath)) {
-			console.error(`❌ Error: Devices JSON file not found at: ${devicesJsonPath}`);
+			console.error(
+				`❌ Error: Devices JSON file not found at: ${devicesJsonPath} (deviceServiceRoot: ${deviceServiceRoot})`,
+			);
 			process.exit(1);
 		}
 		

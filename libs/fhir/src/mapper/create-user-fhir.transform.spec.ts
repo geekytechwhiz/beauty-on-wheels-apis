@@ -188,4 +188,169 @@ describe('enrichCreateUserCanonical', () => {
     expect(result.userRole).toEqual(['f76507ca-b5a0-4de2-875c-fed63ccd9107']);
     expect(result.userType).toBe('USER');
   });
+
+  it('fixes phone mapped onto email when telecom order does not match mapping indices', () => {
+    const fhirResource = {
+      resourceType: 'Practitioner',
+      name: [{ text: 'Jane Doe' }],
+      telecom: [
+        { system: 'email', value: 'jane@example.com' },
+        { system: 'phone', value: '9403505712' },
+      ],
+      extension: [
+        {
+          url: 'https://myvirtualrx.com/fhir/create-user/userRole',
+          valueString: 'role-uuid',
+        },
+      ],
+    };
+
+    const result = enrichCreateUserCanonical(
+      fhirResource,
+      {
+        userInfo: {
+          name: 'Jane Doe',
+          contact: {
+            phone: 'jane@example.com',
+            email: '9403505712',
+          },
+        },
+      },
+      'Practitioner',
+    );
+
+    expect(result.userInfo.contact).toMatchObject({
+      phone: '9403505712',
+      email: 'jane@example.com',
+    });
+    expect(result.userRole).toEqual(['role-uuid']);
+  });
+
+  it('reads userRole from valueCoding extension', () => {
+    const result = enrichCreateUserCanonical(
+      {
+        resourceType: 'Practitioner',
+        extension: [
+          {
+            url: 'https://myvirtualrx.com/fhir/create-user/userRole',
+            valueCoding: { code: 'role-from-coding' },
+          },
+        ],
+        name: [{ text: 'Jane Doe' }],
+        telecom: [{ system: 'email', value: 'jane@test.com' }],
+      },
+      { userInfo: { name: 'Jane Doe', contact: { email: 'jane@test.com' } } },
+      'Practitioner',
+    );
+
+    expect(result.userRole).toEqual(['role-from-coding']);
+  });
+
+  it('reads organizationID from Patient.managingOrganization', () => {
+    const result = enrichCreateUserCanonical(
+      {
+        resourceType: 'Patient',
+        managingOrganization: { reference: 'Organization/org-abc' },
+        name: [{ text: 'Patient One' }],
+        telecom: [{ system: 'email', value: 'p@test.com' }],
+        extension: [
+          {
+            url: 'https://myvirtualrx.com/fhir/create-user/userRole',
+            valueString: 'role-1',
+          },
+        ],
+      },
+      {
+        organizationID: 'org-abc',
+        userInfo: { name: 'Patient One', contact: { email: 'p@test.com' } },
+      },
+      'Patient',
+    );
+
+    expect(result.organizationID).toBe('org-abc');
+  });
+
+  it('maps transaction Bundle Patient with email-first telecom and no userRole', () => {
+    const fhirPatient = {
+      resourceType: 'Patient',
+      active: true,
+      name: [
+        {
+          use: 'official',
+          prefix: ['Mr'],
+          text: 'Patient Jasir Hassan',
+          family: 'Hassan',
+          given: ['Patient', 'Jasir'],
+        },
+      ],
+      gender: 'male',
+      birthDate: '1997-07-12',
+      telecom: [
+        { system: 'email', value: 'pat.jasir.has@yopmail.com' },
+        { system: 'phone', value: '+919995123094' },
+      ],
+      address: [
+        {
+          line: ['Kochi'],
+          city: 'Cochin',
+          state: 'Kerala',
+          postalCode: '123456',
+          country: 'India',
+        },
+      ],
+      contact: [
+        {
+          relationship: [{ text: 'father' }],
+          name: { text: 'Father Jasir' },
+          telecom: [
+            { system: 'phone', value: '+919809123456' },
+            { system: 'email', value: 'father.jasir.fmq@yopmail.com' },
+          ],
+        },
+      ],
+    };
+
+    const result = enrichCreateUserCanonical(
+      fhirPatient,
+      {
+        userInfo: {
+          name: 'Patient Jasir Hassan',
+          namePrefix: 'Mr',
+          contact: {
+            phone: 'pat.jasir.has@yopmail.com',
+            email: '+919995123094',
+          },
+        },
+      },
+      'Patient',
+      {},
+      {
+        resourceType: 'Bundle',
+        type: 'transaction',
+        entry: [{ resource: fhirPatient }],
+      },
+    );
+
+    expect(result.userInfo.contact).toEqual({
+      phone: '+919995123094',
+      email: 'pat.jasir.has@yopmail.com',
+      address: {
+        address: 'Kochi',
+        city: 'Cochin',
+        state: 'Kerala',
+        postalCode: '123456',
+        country: 'India',
+      },
+    });
+    expect(result.userRole).toEqual([]);
+    expect(result.userType).toBe('USER');
+    expect(result.userInfo.emergencyContact).toEqual({
+      relationship: 'father',
+      name: 'Father Jasir',
+      phone: '+919809123456',
+      email: 'father.jasir.fmq@yopmail.com',
+    });
+    expect(result.userInfo.gender).toBe('male');
+    expect(result.userInfo.dateOfBirth).toBe('1997-07-12');
+  });
 });

@@ -1,4 +1,5 @@
 import exampleClientPatient from '../mappings/clients/example/R4/Patient.mapping.json';
+import deviceMapping from '../mappings/R4/Device.mapping.json';
 import observationMapping from '../mappings/R4/Observation.mapping.json';
 import organizationMapping from '../mappings/R4/Organization.mapping.json';
 import patientMapping from '../mappings/R4/Patient.mapping.json';
@@ -26,6 +27,7 @@ const CURATED_MAPPINGS: CuratedMappingJson[] = [
   organizationMapping,
   relatedPersonMapping,
   observationMapping,
+  deviceMapping,
 ];
 
 function asProfileArray(profile: string | string[] | undefined): string[] {

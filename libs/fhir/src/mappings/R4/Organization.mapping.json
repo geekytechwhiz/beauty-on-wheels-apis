@@ -14,6 +14,26 @@
       "fieldType": "string"
     },
     {
+      "source": "accountAlias",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "newOrganizationID",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.organizationID",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.organizationId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
       "source": "organizationName",
       "target": "name",
       "fieldType": "string"
@@ -21,6 +41,73 @@
     {
       "source": "orgName",
       "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "name",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.organizationName",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.name",
+      "target": "name",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.emailAddress",
+      "target": "telecom.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "telecom.0.system",
+      "fieldType": "literal",
+      "defaultValue": "email"
+    },
+    {
+      "source": "organizationInfo.phoneNumber",
+      "target": "telecom.1.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "telecom.1.system",
+      "fieldType": "literal",
+      "defaultValue": "phone"
+    },
+    {
+      "source": "organizationInfo.address.address",
+      "target": "address.0.line.0",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.address.city",
+      "target": "address.0.city",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.address.state",
+      "target": "address.0.state",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.address.country",
+      "target": "address.0.country",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.address.postalCode",
+      "target": "address.0.postalCode",
+      "fieldType": "string"
+    },
+    {
+      "source": "organizationInfo.organizationType",
+      "target": "type.0.text",
       "fieldType": "string"
     }
   ],

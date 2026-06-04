@@ -6,6 +6,7 @@ import type { FhirHandlerOptions } from './transform-to-fhir-response';
 import { isFhirEnabled } from './transform-to-fhir-response';
 import { enrichActivateDeactivateFromFhir } from './activate-deactivate-fhir.transform';
 import { enrichAssignDoctorFromFhir } from './assign-doctor-fhir.transform';
+import { enrichCreateOrganizationCanonical } from './create-organization-fhir.transform';
 import { enrichCreateUserCanonical, resolveCreateUserInboundHints } from './create-user-fhir.transform';
 
 const fhirTransformation = new FhirTransformationService();
@@ -98,7 +99,57 @@ function resolveInboundResourceType(
   return undefined;
 }
 
-function unwrapBundleResource(
+const CREATE_USER_BUNDLE_RESOURCE_TYPES = ['Patient', 'Practitioner'] as const;
+
+/**
+ * Resolves the primary Patient/Practitioner from a Bundle (transaction/collection)
+ * for create-user inbound mapping.
+ */
+export function resolveCreateUserFhirResource(body: Record<string, unknown>): {
+  resource: Record<string, unknown>;
+  bundle?: Record<string, unknown>;
+} {
+  if (body.resourceType !== 'Bundle') {
+    return { resource: body };
+  }
+
+  const entries = body.entry;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    throw new BaseError(
+      'FHIR Bundle request must include at least one entry.resource',
+      400,
+      'FHIR_INVALID_BUNDLE',
+    );
+  }
+
+  for (const preferredType of CREATE_USER_BUNDLE_RESOURCE_TYPES) {
+    for (const entry of entries) {
+      const resource = (entry as { resource?: unknown }).resource;
+      if (
+        isFhirResourceBody(resource) &&
+        (resource as Record<string, unknown>).resourceType === preferredType
+      ) {
+        return { resource: resource as Record<string, unknown>, bundle: body };
+      }
+    }
+  }
+
+  const firstEntry = entries[0] as { resource?: unknown };
+  if (!isFhirResourceBody(firstEntry.resource)) {
+    throw new BaseError(
+      'FHIR Bundle entry is missing a resource',
+      400,
+      'FHIR_INVALID_BUNDLE',
+    );
+  }
+
+  return {
+    resource: firstEntry.resource as Record<string, unknown>,
+    bundle: body,
+  };
+}
+
+function unwrapBundleFirstResource(
   body: Record<string, unknown>,
 ): Record<string, unknown> {
   if (body.resourceType !== 'Bundle') {
@@ -123,7 +174,7 @@ function unwrapBundleResource(
     );
   }
 
-  return firstEntry.resource;
+  return firstEntry.resource as Record<string, unknown>;
 }
 
 /**
@@ -169,7 +220,15 @@ export async function transformFhirRequest(
       ? resolveCreateUserInboundHints(req, fhirBody)
       : undefined;
 
-  const fhirResource = unwrapBundleResource(fhirBody);
+  const createUserBundle =
+    options.inboundProfile === 'createUser' &&
+    fhirBody.resourceType === 'Bundle'
+      ? fhirBody
+      : undefined;
+  const fhirResource =
+    options.inboundProfile === 'createUser'
+      ? resolveCreateUserFhirResource(fhirBody).resource
+      : unwrapBundleFirstResource(fhirBody);
   const resourceType = resolveInboundResourceType(fhirResource, options);
 
   if (!resourceType) {
@@ -187,17 +246,25 @@ export async function transformFhirRequest(
     { version: options.version },
   );
 
-  req.body =
-    options.inboundProfile === 'createUser'
-      ? enrichCreateUserCanonical(
-          fhirResource,
-          canonical,
-          resourceType,
-          inboundHints,
-        )
-      : canonical;
+  if (options.inboundProfile === 'createUser') {
+    req.body = enrichCreateUserCanonical(
+      fhirResource,
+      canonical,
+      resourceType,
+      inboundHints,
+      createUserBundle,
+    );
+  } else if (
+    options.inboundProfile === 'createOrganization' ||
+    resourceType === 'Organization'
+  ) {
+    req.body = enrichCreateOrganizationCanonical(fhirResource, canonical);
+  } else {
+    req.body = canonical;
+  }
 
   const ctx = req.context as unknown as Record<string, unknown>;
   ctx.fhirResourceType = resourceType;
-  ctx.inboundFhirResource = fhirResource;
+  ctx.inboundFhirResource =
+    fhirBody.resourceType === 'Bundle' ? fhirBody : fhirResource;
 }

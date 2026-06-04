@@ -1,5 +1,6 @@
 import { BundleBuilder } from '../builders/BundleBuilder';
 import { transformOrganizationDetailToFhirBundle } from './organization-detail-fhir.transform';
+import { transformOrganizationMetadataToFhirBundle } from './organization-metadata-fhir.transform';
 import { FhirTransformationService } from '../services/fhir-transformation.service';
 import type { FhirCollectionBundle } from '../types/fhir-bundle';
 import type { LambdaRequest } from '@api-hub/utils';
@@ -34,7 +35,7 @@ export type FhirHandlerOptions = {
   /**
    * Composite outbound projections (e.g. getOrganization → multi-resource Bundle).
    */
-  outboundProfile?: 'organizationDetail';
+  outboundProfile?: 'organizationDetail' | 'organizationMetadata';
 };
 
 export type FhirResponsePayload = {
@@ -76,7 +77,8 @@ export function isFhirEnabled(options?: FhirHandlerOptions): boolean {
     options.inboundProfile === 'createOrganization' ||
     options.inboundProfile === 'assignDoctor' ||
     options.inboundProfile === 'activateDeactivate' ||
-    options.outboundProfile === 'organizationDetail'
+    options.outboundProfile === 'organizationDetail' ||
+    options.outboundProfile === 'organizationMetadata'
   );
 }
 
@@ -183,6 +185,10 @@ export async function transformToFhirResponse(
 ): Promise<FhirCollectionBundle | undefined> {
   if (options.outboundProfile === 'organizationDetail') {
     return transformOrganizationDetailToFhirBundle(result);
+  }
+
+  if (options.outboundProfile === 'organizationMetadata') {
+    return transformOrganizationMetadataToFhirBundle(result);
   }
 
   const clientId = resolveClientId(req);

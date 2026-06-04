@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
+import { fhirOrganizationHandlerOptions } from '../utils/fhir-handler-options';
 import { validateSetOrgStatus } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
@@ -27,4 +28,7 @@ const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
   );
 };
 
-export const main = withApiHandler({ operation: 'setOrgStatus', validator: validateSetOrgStatus }, handler);
+export const main = withApiHandler(
+  { operation: 'setOrgStatus', validator: validateSetOrgStatus, fhir: fhirOrganizationHandlerOptions },
+  handler,
+);

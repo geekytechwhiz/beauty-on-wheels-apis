@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
+import { fhirOrganizationListHandlerOptions } from '../utils/fhir-handler-options';
 import { validateOrganizationListPost } from '../validation/request.validators';
 import { mapOrganizationListItem } from '../utils/organizationList.mapper';
 
@@ -67,4 +68,7 @@ const handler = async (req: LambdaRequest<ListBody>) => {
   };
 };
 
-export const main = withApiHandler({ operation: 'organizationList', validator: validateOrganizationListPost }, handler);
+export const main = withApiHandler(
+  { operation: 'organizationList', validator: validateOrganizationListPost, fhir: fhirOrganizationListHandlerOptions },
+  handler,
+);

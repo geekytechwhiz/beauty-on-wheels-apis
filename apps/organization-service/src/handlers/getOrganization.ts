@@ -1,5 +1,6 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
+import { fhirOrganizationDetailHandlerOptions } from '../utils/fhir-handler-options';
 import { SecretManagerService } from '@api-hub/service-clients';
 import { OrganizationService } from '../services/organization.service';
 import { UserRepository } from '../repositories/user.repository';
@@ -327,4 +328,7 @@ const handler = async (req: LambdaRequest<Params>) => {
   return transformed;
 };
 
-export const main = withApiHandler({ operation: 'getOrganization', validator: validateOrganizationIdParam }, handler);
+export const main = withApiHandler(
+  { operation: 'getOrganization', validator: validateOrganizationIdParam, fhir: fhirOrganizationDetailHandlerOptions },
+  handler,
+);

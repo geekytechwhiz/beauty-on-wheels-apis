@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
+import { fhirOrganizationMetadataHandlerOptions } from '../utils/fhir-handler-options';
 import { validateMetadataTypeParam } from '../validation/request.validators';
 
 const ORG_SIZE_PREFIX = 'ORG_SIZE';
@@ -26,7 +27,7 @@ const handler = async (req: LambdaRequest<Params>) => {
   let defaultSetting: unknown;
 
   for (const rawItem of orgMetaItems) {
-    const item = rawItem as Record<string, any>;
+    const item = rawItem as Record<string, unknown>;
     const sk = typeof item?.sk === 'string' ? item.sk : '';
     if (!sk) continue;
 
@@ -47,8 +48,9 @@ const handler = async (req: LambdaRequest<Params>) => {
     }
 
     const orgTypeId = sk.split('#')[1];
-    if (orgTypeId && item.name) {
-      orgTypes.push({ orgTypeId, name: item.name });
+    const itemName = typeof item.name === 'string' ? item.name : undefined;
+    if (orgTypeId && itemName) {
+      orgTypes.push({ orgTypeId, name: itemName });
     }
   }
 
@@ -75,4 +77,11 @@ const handler = async (req: LambdaRequest<Params>) => {
   };
 };
 
-export const main = withApiHandler({ operation: 'getOrganizationMetadata', validator: validateMetadataTypeParam }, handler);
+export const main = withApiHandler(
+  {
+    operation: 'getOrganizationMetadata',
+    validator: validateMetadataTypeParam,
+    fhir: fhirOrganizationMetadataHandlerOptions,
+  },
+  handler,
+);

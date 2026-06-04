@@ -87,7 +87,7 @@ function joinAddressText(address?: AnyRecord): string | undefined {
   return parts.length > 0 ? parts.join(', ') : undefined;
 }
 
-function buildOrgSettingsExtension(
+export function buildOrgSettingsExtension(
   defaultSetting?: AnyRecord,
 ): Array<Record<string, unknown>> | undefined {
   if (!defaultSetting) {
@@ -258,7 +258,7 @@ function parseTimeToIsoDate(year: number, time: string, month = 1, day = 1): str
   return `${year}-${mo}-${dd}T${hh}:${mm}:00+05:30`;
 }
 
-function buildScheduleResource(
+export function buildScheduleResource(
   orgId: string,
   scheduleConf?: AnyRecord,
 ): Record<string, unknown> | undefined {

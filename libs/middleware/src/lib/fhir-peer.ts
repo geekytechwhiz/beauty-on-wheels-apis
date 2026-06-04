@@ -16,7 +16,7 @@ export type FhirHandlerOptions = {
     | 'createOrganization'
     | 'assignDoctor'
     | 'activateDeactivate';
-  outboundProfile?: 'organizationDetail';
+  outboundProfile?: 'organizationDetail' | 'organizationMetadata';
 };
 
 export interface FhirPeerModule {

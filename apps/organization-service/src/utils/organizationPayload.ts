@@ -88,6 +88,17 @@ const normalizeString = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const looksLikeEmail = (value: string): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+const normalizeEmail = (value: unknown): string | undefined => {
+  const normalized = normalizeString(value);
+  if (!normalized || !looksLikeEmail(normalized)) {
+    return undefined;
+  }
+  return normalized;
+};
+
 const buildPhone = (phoneCode?: unknown, phoneNumber?: unknown): string | undefined => {
   const code = normalizeString(phoneCode);
   const number = normalizeString(phoneNumber);
@@ -146,8 +157,8 @@ export const normalizeOrganizationPayload = (input: any): NormalizationResult =>
     normalizeString(organizationInfo?.name);
 
   const email =
-    normalizeString(input?.email) ||
-    normalizeString(organizationInfo?.emailAddress);
+    normalizeEmail(input?.email) ||
+    normalizeEmail(organizationInfo?.emailAddress);
 
   const phone =
     normalizeString(input?.phone) ||

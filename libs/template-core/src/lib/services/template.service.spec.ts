@@ -355,6 +355,26 @@ describe('TemplateService.listMasterTemplates', () => {
     expect(result.counts.draft).toBe(1);
   });
 
+  it('filters items by active=true or active=false', async () => {
+    const pubActive = masterRow({ code: 'PUB-ON', status: 'PUBLISHED' });
+    const pubInactive = masterRow({ code: 'PUB-OFF', status: 'PUBLISHED' });
+    pubInactive.meta.isActive = false;
+    const draft = masterRow({ code: 'DRF', status: 'DRAFT' });
+    mockRows([pubActive, pubInactive, draft]);
+
+    const activeOnly = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      active: true,
+    });
+    expect(activeOnly.items.map((i) => i.templateId)).toEqual(['PUB-ON']);
+
+    const inactiveOnly = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      active: false,
+    });
+    expect(inactiveOnly.items.map((i) => i.templateId).sort()).toEqual(['DRF', 'PUB-OFF']);
+  });
+
   it('paginates with a stable nextToken', async () => {
     mockRows([
       masterRow({ code: 'T1', status: 'PUBLISHED' }),

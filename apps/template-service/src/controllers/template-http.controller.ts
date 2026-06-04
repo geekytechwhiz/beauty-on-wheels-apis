@@ -96,6 +96,7 @@ export class TemplateHttpController {
         specialty: query.specialty,
         templateCode: query.templateCode,
         templateName: query.templateName,
+        active: query.active,
         nextToken: query.nextToken,
       });
 

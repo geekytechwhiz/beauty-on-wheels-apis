@@ -99,7 +99,7 @@ paths:
       summary: List templates (MASTER dashboard or ORG enable catalog)
       operationId: listTemplates
       description: |
-        - `templateLevel=MASTER` (default): dashboard list with status counts and filterOptions (status, scope, condition, templateName).
+        - `templateLevel=MASTER` (default): dashboard list with status counts and filterOptions (status, scope, condition, templateName, active).
         - `templateLevel=ORG`: published master catalog for **Enable New Org** UI; requires `organizationId`.
           Returns `templateEnabled` per item and org-specific `counts` / `filterOptions` (category, templateType, templateName, country).
           Filter dropdown values are built from **all** published masters (stable when `items` is empty).
@@ -108,6 +108,7 @@ paths:
         - $ref: '#/components/parameters/organizationId'
         - $ref: '#/components/parameters/templateType'
         - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/active'
         - $ref: '#/components/parameters/shareScope'
         - $ref: '#/components/parameters/conditionCode'
         - $ref: '#/components/parameters/categoryCode'
@@ -477,6 +478,12 @@ components:
       schema:
         $ref: '#/components/schemas/TemplateStatus'
       description: DRAFT or PUBLISHED for master/org catalog filters
+    active:
+      name: active
+      in: query
+      schema:
+        type: boolean
+      description: MASTER list only — filter by resolved isActive (true or false). Omit or null to ignore.
     shareScope:
       name: shareScope
       in: query

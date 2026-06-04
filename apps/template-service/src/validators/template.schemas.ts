@@ -29,6 +29,23 @@ const optionalListFilterZ = z.preprocess((value) => {
   return trimmed;
 }, z.string().min(1).optional());
 
+/** Query `active=true|false` (ignores null/empty). */
+export const optionalActiveQueryZ = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = String(value).trim().toLowerCase();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    return trimmed;
+  },
+  z
+    .enum(['true', 'false', '1', '0'])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      return v === 'true' || v === '1';
+    }),
+);
+
 export const organizationMetaSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1).optional(),
@@ -133,6 +150,8 @@ export const listMasterTemplatesQuerySchema = z.object({
   specialty: optionalListFilterZ,
   templateCode: optionalListFilterZ,
   templateName: optionalListFilterZ,
+  /** Filter by `isActive` (true = active templates, false = inactive including published with active false). */
+  active: optionalActiveQueryZ,
   /** Opaque cursor from a previous list response (`nextPaginationKey`). Page size is fixed at 20. */
   nextPaginationKey: z.string().trim().min(1).optional(),
   /** @deprecated Prefer nextPaginationKey */

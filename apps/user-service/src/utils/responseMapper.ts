@@ -1,7 +1,14 @@
 import { PatientUserItem, UserItem } from "../models/UserListResponse";
 
+function toOptionalAge(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem {
     const medicalHistory = (item.medicalHistory as Record<string, unknown>) ?? {};
+    const age = toOptionalAge(item.age);
     return {
         ...item,
       city: String(item.city ?? ''),
@@ -30,6 +37,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
         chronicDiseases: Array.isArray(medicalHistory.chronicDiseases) ? medicalHistory.chronicDiseases : [],
       },
       dateOfBirth: String(item.dateOfBirth ?? ''),
+      ...(age !== undefined ? { age } : {}),
       patientOrgId: String(item.patientOrgId ?? item.patientOrgID ?? item.organizationID ?? item.organizationId ?? ''),
     };
   }
@@ -108,6 +116,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
   }
 
   export function mapToUserItem(item: Record<string, unknown>): UserItem {
+    const age = toOptionalAge(item.age);
     return {
       ...item,
       accountType: String(item.accountType ?? ''),
@@ -126,6 +135,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       profilePic: String(item.profilePic ?? ''),
       mrn: String(item.mrn ?? ''),
       dateOfBirth: String(item.dateOfBirth ?? ''),
+      ...(age !== undefined ? { age } : {}),
       isActive: item.isActive !== undefined ? Boolean(item.isActive) : true,
       isRpmUser: Boolean(item.isRpmUser ?? false),
       userType: String(item.userType ?? ''),

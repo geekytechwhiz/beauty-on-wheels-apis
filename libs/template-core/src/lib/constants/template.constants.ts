@@ -20,6 +20,9 @@ export const GSI5_MASTER_STATUS = 'GSI5' as const;
 
 export const ENV_TEMPLATE_TABLE = 'TEMPLATE_TABLE';
 
+/** Default page size for template list APIs (not overridable via query). */
+export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
+
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
 
 /** Visibility for master templates (API accepts Private | Organization | Public). */

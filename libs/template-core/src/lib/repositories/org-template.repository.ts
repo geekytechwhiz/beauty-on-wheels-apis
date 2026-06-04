@@ -2,6 +2,7 @@ import { BaseRepository } from '@api-hub/utils';
 
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   GSI1_ORG_INDEX,
   GSI1_ORG_TMPL_SK_PREFIX,
   TEMPLATE_META_SK,
@@ -75,9 +76,9 @@ export class OrgTemplateRepository extends BaseRepository {
   }
 
   async listOrgVersions(
-    params: Pick<GetOrgVersionsParams, 'organizationId' | 'templateId' | 'status' | 'nextToken' | 'limit'>,
+    params: Pick<GetOrgVersionsParams, 'organizationId' | 'templateId' | 'status' | 'nextToken'>,
   ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     return this.queryOrgVersionsPage(params.organizationId, params.templateId, {
       limit,
@@ -195,7 +196,7 @@ export class OrgTemplateRepository extends BaseRepository {
   async listOrgTemplates(
     params: ListOrgTemplatesParams,
   ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     const page = await this.queryOrgTemplatesGsi1Page(params, { limit, exclusiveStartKey });
 

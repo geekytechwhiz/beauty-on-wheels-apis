@@ -7,6 +7,7 @@ import {
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { normalizeTemplateActor } from './template-actor.utils';
 
 export function assertTemplateTable(): string {
   const table = process.env[ENV_TEMPLATE_TABLE];
@@ -39,7 +40,7 @@ export function decodeListCursor(token: string | undefined): Record<string, unkn
 }
 
 function invalidListCursor(): never {
-  const e = new Error('Invalid nextToken') as Error & { statusCode: number; code: string };
+  const e = new Error('Invalid nextPaginationKey') as Error & { statusCode: number; code: string };
   e.statusCode = 400;
   e.code = 'VALIDATION_ERROR';
   throw e;
@@ -114,6 +115,13 @@ export function sanitizeMetaForApi(meta: TemplateMeta): TemplateMeta {
   delete copy.condition;
   delete copy.shareScope;
   delete copy.templateDescription;
+  const createdBy = normalizeTemplateActor(copy.createdBy);
+  if (createdBy) copy.createdBy = createdBy;
+  const lastModifiedBy = normalizeTemplateActor(copy.lastModifiedBy);
+  if (lastModifiedBy) copy.lastModifiedBy = lastModifiedBy;
+  const publishedBy = normalizeTemplateActor(copy.publishedBy);
+  if (publishedBy) copy.publishedBy = publishedBy;
+  else if (copy.publishedBy === null) copy.publishedBy = null;
   return copy;
 }
 

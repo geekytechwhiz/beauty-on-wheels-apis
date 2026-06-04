@@ -38,7 +38,7 @@ describe('TemplateMasterOpsService.transitionMasterTemplateStatus', () => {
       templateId: 'CP-HTN-STANDARD',
       versionId: 'V01',
       body: { action: 'SUBMIT_REVIEW', comment: 'Ready' },
-      actorUserId: 'admin-1',
+      actorUser: { userId: 'admin-1' },
     });
 
     expect(result.meta.status).toBe(TEMPLATE_STATUS.IN_REVIEW);
@@ -108,7 +108,7 @@ describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
           TASK_DESCRIPTION: 'Measure BP twice daily',
         },
       },
-      actorUserId: 'admin-1',
+      actorUser: { userId: 'admin-1' },
     });
 
     expect(result.meta.templateVersionId).toBe('TASK-CODE-V01');
@@ -150,7 +150,7 @@ describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
       templateId: 'TASK-CODE',
       versionId: 'TASK-CODE-V01',
       body: { active: false },
-      actorUserId: 'admin-1',
+      actorUser: { userId: 'admin-1' },
     });
 
     expect(saved?.meta.isActive).toBe(false);

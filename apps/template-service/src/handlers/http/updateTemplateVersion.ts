@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
@@ -6,7 +6,7 @@ import { validateUpdateOrgTemplateVersionRequest } from '../../validators/reques
 
 const orgCtrl = getOrgTemplateHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template.version.update',
     validator: validateUpdateOrgTemplateVersionRequest,

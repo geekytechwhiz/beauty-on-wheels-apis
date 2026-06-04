@@ -11,6 +11,7 @@ import type {
   ValidatedListOrg,
   ValidatedUpdateOrgVersion,
 } from '../validators/request.validators';
+import { withNextPaginationKey } from '../utils/list-response.mapper';
 
 let orgTemplateService: OrgTemplateService | undefined;
 
@@ -48,7 +49,7 @@ export class OrgTemplateHttpController {
         masterTemplateId: v.templateId,
         masterVersionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toDeriveEnableResponse(result, v.body?.templateName);
     } catch (e: unknown) {
@@ -80,14 +81,13 @@ export class OrgTemplateHttpController {
         resolve: v.query.resolve,
         status: v.query.status as TemplateStatus | undefined,
         nextToken: v.query.nextToken,
-        limit: v.query.limit ?? 25,
       });
 
       if (result.mode === 'list') {
-        return {
+        return withNextPaginationKey({
           items: result.items,
           ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-        };
+        });
       }
 
       return result.record;
@@ -118,7 +118,7 @@ export class OrgTemplateHttpController {
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toSummary(record);
     } catch (e: unknown) {
@@ -142,18 +142,19 @@ export class OrgTemplateHttpController {
     }
 
     try {
-      return await this.svc.listOrgEnableCatalog({
-        organizationId: v.organizationId,
-        categoryCode: v.query.categoryCode ?? v.query.category,
-        condition: v.query.condition,
-        conditionCode: v.query.conditionCode,
-        templateType: v.query.templateType,
-        templateName: v.query.templateName,
-        country: v.query.country,
-        status: v.query.status,
-        nextToken: v.query.nextToken,
-        limit: v.query.limit ?? 25,
-      });
+      return withNextPaginationKey(
+        await this.svc.listOrgEnableCatalog({
+          organizationId: v.organizationId,
+          categoryCode: v.query.categoryCode ?? v.query.category,
+          condition: v.query.condition,
+          conditionCode: v.query.conditionCode,
+          templateType: v.query.templateType,
+          templateName: v.query.templateName,
+          country: v.query.country,
+          status: v.query.status,
+          nextToken: v.query.nextToken,
+        }),
+      );
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_org_templates_error',

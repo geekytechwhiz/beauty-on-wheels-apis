@@ -23,7 +23,11 @@ import type {
 } from '../models/api/list-master.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
-import { SHARE_SCOPE, TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
+  SHARE_SCOPE,
+  TEMPLATE_STATUS,
+} from '../constants/template.constants';
 import {
   listMasterNextToken,
   TemplateRepository,
@@ -51,8 +55,7 @@ const SCOPE_LABELS: Record<string, string> = {
   PUBLIC: 'Public',
 };
 
-const DEFAULT_LIST_LIMIT = 25;
-const MAX_LIST_LIMIT = 100;
+const DEFAULT_LIST_LIMIT = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
 
 /** Reduce all VERSION rows to one representative row per template (its highest version). */
 function representativePerTemplate(rows: TemplateDdbRecord[]): TemplateDdbRecord[] {
@@ -208,7 +211,7 @@ export class TemplateService {
 
   async createMasterTemplate(
     input: CreateMasterTemplateInput,
-    actorUserId?: string,
+    actorUser?: import('../models/template-actor.model').TemplateActorUser,
   ): Promise<{ record: TemplateDdbRecord }> {
     try {
       const templateId = TemplateEntityBuilder.normalizeTemplateId(input.templateCode);
@@ -225,7 +228,7 @@ export class TemplateService {
 
       const record = await this.repo.createMasterTemplate({
         ...input,
-        createdBy: input.createdBy ?? actorUserId,
+        actor: input.actor ?? actorUser,
       });
       return { record };
     } catch (e: unknown) {
@@ -240,7 +243,7 @@ export class TemplateService {
    */
   async listMasterTemplates(params: ListMasterTemplatesParams): Promise<ListMasterTemplatesResult> {
     try {
-      const limit = Math.min(MAX_LIST_LIMIT, Math.max(1, params.limit ?? DEFAULT_LIST_LIMIT));
+      const limit = DEFAULT_LIST_LIMIT;
 
       // Base scope = templateType only, across all statuses, one representative row per template.
       const allRows = await this.repo.listAllMasterVersionsAcrossStatuses({
@@ -409,7 +412,7 @@ export class TemplateService {
         templateId: params.templateId,
         versionId,
         body: params.body,
-        actorUserId: params.actorUserId,
+        actorUser: params.actorUser,
       });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);

@@ -8,7 +8,6 @@ export type ListMasterVersionsParams = {
   templateId: string;
   status?: TemplateStatus;
   nextToken?: string;
-  limit?: number;
 };
 
 export type GetMasterVersionsParams = ListMasterVersionsParams & {

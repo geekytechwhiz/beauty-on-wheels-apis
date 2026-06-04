@@ -109,8 +109,10 @@ export const listMasterTemplatesQuerySchema = z.object({
   language: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   templateCode: z.string().trim().min(1).optional(),
+  /** Opaque cursor from a previous list response (`nextPaginationKey`). Page size is fixed at 20. */
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type ListMasterTemplatesQuery = z.infer<typeof listMasterTemplatesQuerySchema>;
@@ -121,8 +123,9 @@ export const getMasterVersionsQuerySchema = z.object({
   version: z.string().trim().min(1).optional(),
   resolve: z.enum(['ACTIVE', 'LATEST_PUBLISHED', 'LATEST_ANY']).optional(),
   status: z.string().trim().min(1).optional(),
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type GetMasterVersionsQuery = z.infer<typeof getMasterVersionsQuerySchema>;
@@ -204,7 +207,7 @@ export function parseGetMasterVersionsQuery(
       params[key] = Array.isArray(value) ? value[0] : value;
     }
   }
-  return getMasterVersionsQuerySchema.parse(params);
+  return withResolvedPaginationKey(getMasterVersionsQuerySchema.parse(params));
 }
 
 export const cloneTemplateBodySchema = z.object({
@@ -237,8 +240,9 @@ export const listOrgTemplatesQuerySchema = z.object({
   templateName: z.string().trim().min(1).optional(),
   country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
@@ -340,6 +344,30 @@ export function parseListCompatibleTemplatesQuery(
   return listCompatibleTemplatesQuerySchema.parse(params);
 }
 
+function isAbsentQueryValue(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  const v = value.trim().toLowerCase();
+  return v === '' || v === 'null' || v === 'undefined' || v === 'all';
+}
+
+/** Prefer `nextPaginationKey`; accept legacy `nextToken`. */
+export function resolveListPaginationKey(query: {
+  nextPaginationKey?: string;
+  nextToken?: string;
+}): string | undefined {
+  const key = query.nextPaginationKey?.trim();
+  if (key) return key;
+  const legacy = query.nextToken?.trim();
+  return legacy || undefined;
+}
+
+function withResolvedPaginationKey<T extends { nextPaginationKey?: string; nextToken?: string }>(
+  query: T,
+): T & { nextToken?: string } {
+  const cursor = resolveListPaginationKey(query);
+  return { ...query, ...(cursor ? { nextToken: cursor } : {}) };
+}
+
 export function parseListOrgTemplatesQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): ListOrgTemplatesQuery {
@@ -352,13 +380,7 @@ export function parseListOrgTemplatesQuery(
       params[key] = single;
     }
   }
-  return listOrgTemplatesQuerySchema.parse(params);
-}
-
-function isAbsentQueryValue(value: string | undefined): boolean {
-  if (value === undefined) return true;
-  const v = value.trim().toLowerCase();
-  return v === '' || v === 'null' || v === 'undefined' || v === 'all';
+  return withResolvedPaginationKey(listOrgTemplatesQuerySchema.parse(params));
 }
 
 export function parseListMasterTemplatesQuery(
@@ -373,5 +395,5 @@ export function parseListMasterTemplatesQuery(
       params[key] = single;
     }
   }
-  return listMasterTemplatesQuerySchema.parse(params);
+  return withResolvedPaginationKey(listMasterTemplatesQuerySchema.parse(params));
 }

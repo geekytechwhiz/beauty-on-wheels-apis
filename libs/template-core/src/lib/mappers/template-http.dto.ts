@@ -1,4 +1,6 @@
+import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { normalizeTemplateActor } from '../utils/template-actor.utils';
 import { firstString, sanitizeMetaForApi } from '../utils/template.utils';
 
 export interface TemplateSummaryData {
@@ -49,7 +51,7 @@ export interface MasterTemplateListItem {
   publishedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
-  updatedBy?: string | null;
+  updatedBy?: TemplateActorUser | null;
   /** Full field payload as sent on create/update (round-trips create -> read). */
   fieldValues?: Record<string, unknown>;
   /** Version timeline for this template (newest first). */
@@ -67,10 +69,10 @@ export interface TemplateHistoryEntry {
   isActive: boolean;
   isLatestVersion: boolean;
   updatedAt?: string | null;
-  updatedBy?: string | null;
+  updatedBy?: TemplateActorUser | null;
   createdAt?: string | null;
   publishedAt?: string | null;
-  publishedBy?: string | null;
+  publishedBy?: TemplateActorUser | null;
   /** Reviewer/lifecycle note when present (reviewComments). */
   notes?: string | null;
   /** Field-level diffs vs the previous history entry. */
@@ -201,7 +203,7 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
     publishedAt: meta.publishedAt ?? null,
     createdAt: meta.createdAt ?? null,
     updatedAt: meta.lastModifiedAt ?? null,
-    updatedBy: (firstString(meta.lastModifiedBy) as string | undefined) ?? null,
+    updatedBy: normalizeTemplateActor(meta.lastModifiedBy) ?? null,
     ...(fieldValues ? { fieldValues } : {}),
   };
 }
@@ -231,10 +233,10 @@ export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boole
     isActive: meta.isActive ?? true,
     isLatestVersion: meta.isLatestVersion ?? false,
     updatedAt: meta.lastModifiedAt ?? null,
-    updatedBy: (firstString(meta.lastModifiedBy) as string | undefined) ?? null,
+    updatedBy: normalizeTemplateActor(meta.lastModifiedBy) ?? null,
     createdAt: meta.createdAt ?? null,
     publishedAt: meta.publishedAt ?? null,
-    publishedBy: (firstString(meta.publishedBy) as string | undefined) ?? null,
+    publishedBy: normalizeTemplateActor(meta.publishedBy) ?? null,
     notes,
     changes: notes ? [notes] : [],
   };

@@ -1,4 +1,5 @@
 import type { TemplateStatus } from '../../constants/template.constants';
+import type { TemplateActorUser } from '../template-actor.model';
 
 export interface TemplateMeta {
   templateId: string;
@@ -20,8 +21,9 @@ export interface TemplateMeta {
   publishedAt?: string | null;
   createdAt?: string;
   lastModifiedAt?: string;
-  createdBy?: string;
-  lastModifiedBy?: string;
+  createdBy?: string | TemplateActorUser;
+  lastModifiedBy?: string | TemplateActorUser;
+  publishedBy?: string | TemplateActorUser | null;
   [key: string]: unknown;
 }
 

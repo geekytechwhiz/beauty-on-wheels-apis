@@ -205,7 +205,7 @@ export class TemplateMasterOpsService {
             status: (metaOverrides.status ?? currentStatus) as TemplateStatus,
           },
           inPlaceCtx,
-          params.actorUserId,
+          params.actorUser,
         );
         const updatedRow = TemplateEntityBuilder.buildVersionRowFromMeta(
           mergedMeta,
@@ -229,7 +229,7 @@ export class TemplateMasterOpsService {
           status: (metaOverrides.status ?? currentStatus) as TemplateStatus,
         },
         ctx,
-        params.actorUserId,
+        params.actorUser,
       );
 
       const newMetaRow = TemplateEntityBuilder.buildMetaRowFromMeta(mergedMeta, params.templateId);
@@ -284,7 +284,7 @@ export class TemplateMasterOpsService {
           versionRow,
           TEMPLATE_STATUS.IN_REVIEW,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -301,7 +301,7 @@ export class TemplateMasterOpsService {
           versionRow,
           TEMPLATE_STATUS.DRAFT,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.reason,
         );
       }
@@ -310,7 +310,7 @@ export class TemplateMasterOpsService {
         if (currentStatus !== TEMPLATE_STATUS.IN_REVIEW) {
           templateConflictError(`PUBLISH requires IN_REVIEW; current status is ${currentStatus}`);
         }
-        return await this.publishMasterTemplate(metaRow, versionRow, nowIso, params.actorUserId, params.body.comment);
+        return await this.publishMasterTemplate(metaRow, versionRow, nowIso, params.actorUser, params.body.comment);
       }
 
       if (action === STATUS_TRANSITION_ACTION.ARCHIVE) {
@@ -322,7 +322,7 @@ export class TemplateMasterOpsService {
           versionRow,
           TEMPLATE_STATUS.ARCHIVED,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -336,7 +336,7 @@ export class TemplateMasterOpsService {
           versionRow,
           TEMPLATE_STATUS.DEPRECATED,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -381,7 +381,7 @@ export class TemplateMasterOpsService {
     versionRow: TemplateDdbRecord,
     status: TemplateStatus,
     nowIso: string,
-    actorUserId?: string,
+    actor?: import('../models/template-actor.model').TemplateActorUser,
     note?: string | null,
   ): Promise<TemplateDdbRecord> {
     const writeCtx: MasterVersionWriteContext = {
@@ -397,10 +397,10 @@ export class TemplateMasterOpsService {
       {
         status,
         reviewComments: note ?? metaRow.meta.reviewComments,
-        publishedBy: status === TEMPLATE_STATUS.PUBLISHED ? actorUserId : metaRow.meta.publishedBy,
+        publishedBy: status === TEMPLATE_STATUS.PUBLISHED ? actor : metaRow.meta.publishedBy,
       },
       writeCtx,
-      actorUserId,
+      actor,
     );
 
     const updatedMetaRow = TemplateEntityBuilder.buildMetaRowFromMeta(mergedMeta, metaRow.meta.templateId);
@@ -423,7 +423,7 @@ export class TemplateMasterOpsService {
     metaRow: TemplateDdbRecord,
     sourceVersion: TemplateDdbRecord,
     nowIso: string,
-    actorUserId?: string,
+    actor?: import('../models/template-actor.model').TemplateActorUser,
     comment?: string | null,
   ): Promise<TemplateDdbRecord> {
     const nextVersionNum = bumpMinorVersion(metaRow.meta.version ?? 1);
@@ -433,11 +433,11 @@ export class TemplateMasterOpsService {
       {
         status: TEMPLATE_STATUS.PUBLISHED,
         publishedAt: nowIso,
-        publishedBy: actorUserId,
+        publishedBy: actor,
         reviewComments: comment ?? metaRow.meta.reviewComments,
       },
       ctx,
-      actorUserId,
+      actor,
     );
 
     const documentFields = extractDocumentFields(sourceVersion);

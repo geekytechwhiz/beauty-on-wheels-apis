@@ -39,7 +39,7 @@ function invalidListCursor(): never {
   throw e;
 }
 
-/** Map API version query (`V01`, `001`, `VERSION#001`) to DynamoDB sort key. */
+/** Map API version query (`V01`, `001`, `VERSION#001`, `TASK-CODE-V01`) to DynamoDB sort key. */
 export function normalizeVersionToSk(version: string): string {
   const trimmed = version.trim();
   if (trimmed.toUpperCase().startsWith(VERSION_SK_PREFIX)) {
@@ -51,6 +51,11 @@ export function normalizeVersionToSk(version: string): string {
   }
   if (/^\d+$/.test(trimmed)) {
     return `${VERSION_SK_PREFIX}${String(parseInt(trimmed, 10)).padStart(3, '0')}`;
+  }
+  // Full templateVersionId (e.g. `TASK-CODE-V01`) — resolve the trailing `-V<n>` segment.
+  const idSuffix = trimmed.match(/-V(\d+)$/i);
+  if (idSuffix) {
+    return `${VERSION_SK_PREFIX}${String(parseInt(idSuffix[1], 10)).padStart(3, '0')}`;
   }
   return TemplateKeyBuilder.toVersionSk(trimmed);
 }

@@ -5,16 +5,11 @@ import { fhirOrganizationHandlerOptions } from '../utils/fhir-handler-options';
 import { validateSetOrgStatus } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
-
-interface Body {
-  organizationId: string;
-  status: 'ACTIVE' | 'HOLD' | 'DISABLED';
-}
-
-const handler = async (req: LambdaRequest<Record<string, unknown>, Body>) => {
+ 
+const handler = async (req: LambdaRequest) => {
   const body = req.body ?? {};
   const { organizationId, status } = body;
-  const userId = req.context.user?.userId ?? (req.event?.requestContext?.authorizer?.userId ?? req.event?.requestContext?.authorizer?.userID);
+  const userId = req.context?.userContext?.userId ?? (req.event?.requestContext?.authorizer?.userId ?? req.event?.requestContext?.authorizer?.userID);
   const userType = req.event?.requestContext?.authorizer?.userType as string | undefined;
   const { correlationId, authHeader } = req.context;
 

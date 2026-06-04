@@ -5,6 +5,7 @@ import {
 import {
   MASTER_EDITABLE_STATUSES,
   STATUS_TRANSITION_ACTION,
+  TEMPLATE_META_SK,
   TEMPLATE_STATUS,
   type TemplateStatus,
 } from '../constants/template.constants';
@@ -19,7 +20,9 @@ import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TemplateRepository } from '../repositories/template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
+import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
+  firstString,
   normalizeVersionToSk,
   templateConflictError,
   templateNotFoundError,
@@ -44,6 +47,12 @@ const META_ROW_KEYS = new Set([
   'gsi5sk',
 ]);
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 function parseUpdateBody(body: MasterTemplateUpdateBody): {
   metaOverrides: Partial<TemplateMeta>;
   documentFields: Record<string, unknown>;
@@ -57,7 +66,45 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
       metaOverrides.templateDescription = desc;
     }
   }
+
+  if (typeof rest.shareScope === 'string' && rest.shareScope.trim()) {
+    metaOverrides.shareScope = normalizeShareScopeOrThrow(rest.shareScope);
+  }
+  if (typeof rest.templateName === 'string' && rest.templateName.trim()) {
+    metaOverrides.templateName = rest.templateName.trim();
+  }
+  const fieldValues = asRecord(rest.fieldValues);
+  const taskName = firstString(fieldValues.TASK_NAME) ?? firstString(fieldValues.TEMPLATE_NAME);
+  if (taskName) {
+    metaOverrides.templateName = taskName;
+  }
+  if (typeof rest.categoryCode === 'string' && rest.categoryCode.trim()) {
+    metaOverrides.category = rest.categoryCode.trim();
+  } else if (rest.category !== undefined) {
+    metaOverrides.category = rest.category as TemplateMeta['category'];
+  }
+  if (typeof rest.conditionCode === 'string' && rest.conditionCode.trim()) {
+    metaOverrides.condition = rest.conditionCode.trim();
+  } else if (rest.condition !== undefined) {
+    metaOverrides.condition = rest.condition as TemplateMeta['condition'];
+  }
+
   return { metaOverrides, documentFields: rest };
+}
+
+function mergeDocumentFields(
+  sourceVersion: TemplateDdbRecord,
+  documentFields: Record<string, unknown>,
+): Record<string, unknown> {
+  const base = extractDocumentFields(sourceVersion);
+  const merged: Record<string, unknown> = { ...base, ...documentFields };
+  if (documentFields.fieldValues && typeof documentFields.fieldValues === 'object') {
+    merged.fieldValues = {
+      ...asRecord(base.fieldValues),
+      ...asRecord(documentFields.fieldValues),
+    };
+  }
+  return merged;
 }
 
 function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknown> {
@@ -97,12 +144,42 @@ export class TemplateMasterOpsService {
       const currentStatus = sourceVersion.meta?.status ?? metaRow.meta.status;
       assertEditableStatus(currentStatus, 'update');
 
+      const { metaOverrides, documentFields } = parseUpdateBody(params.body);
+      const mergedDocument = mergeDocumentFields(sourceVersion, documentFields);
+      const separateMeta = this.usesSeparateMetaRow(metaRow);
+
+      if (!separateMeta) {
+        const nowIso = new Date().toISOString();
+        const inPlaceCtx: MasterVersionWriteContext = {
+          templateId: params.templateId,
+          templateVersionId: sourceVersion.meta.templateVersionId,
+          versionNum: sourceVersion.meta.version ?? 1,
+          versionSk: sourceVersion.sk,
+          nowIso,
+        };
+        const mergedMeta = TemplateEntityBuilder.buildMetaFromExisting(
+          sourceVersion.meta,
+          {
+            ...metaOverrides,
+            status: (metaOverrides.status ?? currentStatus) as TemplateStatus,
+          },
+          inPlaceCtx,
+          params.actorUserId,
+        );
+        const updatedRow = TemplateEntityBuilder.buildVersionRowFromMeta(
+          mergedMeta,
+          inPlaceCtx,
+          mergedDocument,
+        );
+        await this.repo.putMasterRecord(updatedRow);
+        return updatedRow;
+      }
+
       const nextVersionNum = (metaRow.meta.version ?? 1) + 1;
       const ctx = TemplateEntityBuilder.buildVersionWriteContext(
         params.templateId,
         nextVersionNum,
       );
-      const { metaOverrides, documentFields } = parseUpdateBody(params.body);
       const mergedMeta = TemplateEntityBuilder.buildMetaFromExisting(
         metaRow.meta,
         {
@@ -112,11 +189,6 @@ export class TemplateMasterOpsService {
         ctx,
         params.actorUserId,
       );
-
-      const mergedDocument = {
-        ...extractDocumentFields(sourceVersion),
-        ...documentFields,
-      };
 
       const newMetaRow = TemplateEntityBuilder.buildMetaRowFromMeta(mergedMeta, params.templateId);
       const newVersionRow = TemplateEntityBuilder.buildVersionRowFromMeta(
@@ -241,12 +313,24 @@ export class TemplateMasterOpsService {
     versionRow: TemplateDdbRecord,
     targetVersionSk: string,
   ): void {
+    if (metaRow.sk !== TEMPLATE_META_SK) {
+      if (metaRow.sk !== targetVersionSk) {
+        templateConflictError(
+          `Status transition must target the current version (${metaRow.sk}), not ${targetVersionSk}`,
+        );
+      }
+      return;
+    }
     const metaPointerSk = templateVersionIdToSk(metaRow.meta.templateVersionId ?? '');
     if (metaPointerSk && metaPointerSk !== targetVersionSk) {
       templateConflictError(
         `Status transition must target the current META version ${metaRow.meta.templateVersionId} (${metaPointerSk}), not ${versionRow.meta.templateVersionId}`,
       );
     }
+  }
+
+  private usesSeparateMetaRow(metaRow: TemplateDdbRecord): boolean {
+    return metaRow.sk === TEMPLATE_META_SK;
   }
 
   private async applyMetaAndVersionStatus(
@@ -283,7 +367,11 @@ export class TemplateMasterOpsService {
       extractDocumentFields(versionRow),
     );
 
-    await this.repo.saveMasterMetaAndVersion(updatedMetaRow, updatedVersionRow);
+    if (this.usesSeparateMetaRow(metaRow)) {
+      await this.repo.saveMasterMetaAndVersion(updatedMetaRow, updatedVersionRow);
+    } else {
+      await this.repo.putMasterRecord(updatedVersionRow);
+    }
     return updatedVersionRow;
   }
 
@@ -312,7 +400,11 @@ export class TemplateMasterOpsService {
     const newMetaRow = TemplateEntityBuilder.buildMetaRowFromMeta(mergedMeta, metaRow.meta.templateId);
     const newVersionRow = TemplateEntityBuilder.buildVersionRowFromMeta(mergedMeta, ctx, documentFields);
 
-    await this.repo.saveMasterMetaAndVersion(newMetaRow, newVersionRow, { requireNewVersionSk: true });
+    if (this.usesSeparateMetaRow(metaRow)) {
+      await this.repo.saveMasterMetaAndVersion(newMetaRow, newVersionRow, { requireNewVersionSk: true });
+    } else {
+      await this.repo.putMasterRecord(newVersionRow);
+    }
     return newVersionRow;
   }
 

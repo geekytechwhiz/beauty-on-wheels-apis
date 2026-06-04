@@ -14,6 +14,7 @@ import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { notifyAdminForOrganizationActivated } from './notification.service';
 import { extractSubdomainFromUrl } from '../utils/helpers';
+import { buildOrgListGsi1Sk } from '../utils/organizationList.sort';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
 
@@ -90,7 +91,7 @@ export class OrganizationService {
         pk: `ORG#${organizationId}`,
         sk: 'ORG_DETAILS',
         gsi1pk: 'ORG_LIST',
-        gsi1sk: `ORG#${organizationId}`,
+        gsi1sk: buildOrgListGsi1Sk(now, organizationId),
         gsi2pk: resolvedSubdomain ? `PROVIDER#${resolvedProvider}` : undefined,
         gsi2sk:
           resolvedSubdomain

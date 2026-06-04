@@ -4,13 +4,9 @@ import { OrganizationService } from '../services/organization.service';
 import { validateOrganizationIdAndUserIdParams } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
+ 
 
-interface Params {
-  organizationId: string;
-  userId: string;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+const handler = async (req: LambdaRequest) => {
   const { organizationId, userId } = req.params;
   const { correlationId } = req.context;
   await organizationService.removeUserFromOrganization(organizationId, userId, correlationId);

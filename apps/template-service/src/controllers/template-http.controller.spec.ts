@@ -14,6 +14,9 @@ const mockUpdateMasterTemplateVersion = jest.fn();
 const mockTransitionMasterTemplateStatus = jest.fn();
 const mockListCompatibleTemplates = jest.fn();
 const mockToSummary = jest.fn();
+const mockGetOrgMeta = jest.fn();
+const mockTransitionOrgTemplateStatus = jest.fn();
+const mockOrgToSummary = jest.fn();
 
 jest.mock('@api-hub/template-core', () => {
   const actual = jest.requireActual<typeof import('@api-hub/template-core')>('@api-hub/template-core');
@@ -27,6 +30,13 @@ jest.mock('@api-hub/template-core', () => {
       transitionMasterTemplateStatus: mockTransitionMasterTemplateStatus,
       listCompatibleTemplates: mockListCompatibleTemplates,
       toSummary: mockToSummary,
+    })),
+    OrgTemplateRepository: jest.fn().mockImplementation(() => ({
+      getOrgMeta: mockGetOrgMeta,
+    })),
+    OrgTemplateService: jest.fn().mockImplementation(() => ({
+      transitionOrgTemplateStatus: mockTransitionOrgTemplateStatus,
+      toSummary: mockOrgToSummary,
     })),
   };
 });
@@ -157,10 +167,13 @@ describe('TemplateHttpController', () => {
     expect(mockUpdateMasterTemplateVersion).toHaveBeenCalled();
   });
 
-  it('handleStatusTransition returns summary', async () => {
-    const record = minimalMasterTemplateRecord({ meta: { ...minimalMasterTemplateRecord().meta, status: 'IN_REVIEW' } });
-    mockTransitionMasterTemplateStatus.mockResolvedValue(record);
-    mockToSummary.mockReturnValue({
+  it('handleStatusTransition returns org summary', async () => {
+    const record = minimalMasterTemplateRecord({
+      meta: { ...minimalMasterTemplateRecord().meta, status: 'IN_REVIEW' },
+    });
+    mockGetOrgMeta.mockResolvedValue(record);
+    mockTransitionOrgTemplateStatus.mockResolvedValue(record);
+    mockOrgToSummary.mockReturnValue({
       templateId: record.meta.templateId,
       status: 'IN_REVIEW',
     });
@@ -169,6 +182,7 @@ describe('TemplateHttpController', () => {
     const out = await c.handleStatusTransition(
       baseReq({
         validatedStatusTransition: {
+          organizationId: 'org-1',
           templateId: 'CP-HTN-001',
           versionId: 'V01',
           body: { action: 'SUBMIT_REVIEW' },
@@ -178,6 +192,9 @@ describe('TemplateHttpController', () => {
     );
 
     expect(out.status).toBe('IN_REVIEW');
+    expect(mockTransitionOrgTemplateStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1' }),
+    );
   });
 
   it('handleListCompatible delegates to service', async () => {

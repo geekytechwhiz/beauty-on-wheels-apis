@@ -6,19 +6,7 @@
   "templateType": "ALERT",
   "subtitleKey": "alert.subtitle",
   "fields": {
-    "TEMPLATE_NAME": {
-      "id": "TEMPLATE_NAME",
-      "type": "text",
-      "labelKey": "planOverview.field.templateName.label",
-      "placeholderKey": "planOverview.field.templateName.placeholder",
-      "required": true,
-      "validation": {
-        "required": {
-          "value": true,
-          "messageKey": "planOverview.field.templateName.validation.required"
-        }
-      }
-    },
+    
     "CATEGORY": {
       "id": "CATEGORY",
       "type": "select",
@@ -35,6 +23,19 @@
           "value": "ACUTE_CARE"
         }
       ],
+      "TEMPLATE_NAME": {
+      "id": "TEMPLATE_NAME",
+      "type": "text",
+      "labelKey": "planOverview.field.templateName.label",
+      "placeholderKey": "planOverview.field.templateName.placeholder",
+      "required": true,
+      "validation": {
+        "required": {
+          "value": true,
+          "messageKey": "planOverview.field.templateName.validation.required"
+        }
+      }
+    },
       "validation": {
         "required": {
           "value": true,

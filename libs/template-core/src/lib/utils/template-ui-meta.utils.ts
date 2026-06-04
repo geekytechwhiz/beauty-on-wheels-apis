@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const LAMBDA_WRITABLE_SERVICES_JSON = path.posix.join(
@@ -33,6 +33,16 @@ export function templateUiMetaNotFoundError(message = 'UI meta not found'): neve
 export function isLambdaRuntime(): boolean {
   return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME ?? process.env.LAMBDA_TASK_ROOT);
 }
+
+/**
+ * Read-only packaged services-json directory bundled with Lambda code.
+ * Useful as fallback for GET/list when writable /tmp has no files yet.
+ */
+// export function resolveBundledServicesJsonDir(): string | undefined {
+//   const root = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
+//   const bundled = path.posix.join(root.replace(/\\/g, '/'), 'services-json');
+//   return existsSync(bundled) ? bundled : undefined;
+// }
 
 function resolveEnvServicesJsonDir(envDir: string): string {
   const normalizedEnvDir = envDir.replace(/\\/g, '/');
@@ -71,9 +81,6 @@ export function resolveServicesJsonDir(): string {
     return LAMBDA_WRITABLE_SERVICES_JSON;
   }
 
-  const cwd = process.cwd().replace(/\\/g, '/').toLowerCase();
-  const isTemplateServiceCwd = cwd.endsWith('/apps/template-service');
-
   const candidates = [
     path.resolve(process.cwd(), 'services-json'),
     path.resolve(process.cwd(), 'apps/template-service/services-json'),
@@ -86,6 +93,31 @@ export function resolveServicesJsonDir(): string {
   return candidates[0];
 }
 
+/** Bundled read-only `services-json` shipped in the Lambda deployment package. */
+export function resolveBundledServicesJsonDir(): string | undefined {
+  if (!isLambdaRuntime()) return undefined;
+  const taskRoot = process.env.LAMBDA_TASK_ROOT ?? '/var/task';
+  const bundledDir = path.join(taskRoot, 'services-json');
+  return existsSync(bundledDir) ? bundledDir : undefined;
+}
+
+/**
+ * Copies bundled `*.json` into the writable runtime dir on cold start.
+ * Skips files that already exist so warm-container updates are preserved.
+ */
+export async function seedServicesJsonFromBundle(targetDir: string): Promise<void> {
+  const bundledDir = resolveBundledServicesJsonDir();
+  if (!bundledDir) return;
+
+  const entries = await readdir(bundledDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const destPath = path.join(targetDir, entry.name);
+    if (existsSync(destPath)) continue;
+    await copyFile(path.join(bundledDir, entry.name), destPath);
+  }
+}
+
 /**
  * Ensures the writable services-json directory exists.
  * Flow contract: create/update writes here, and get/list reads only from here.
@@ -93,6 +125,9 @@ export function resolveServicesJsonDir(): string {
 export async function prepareServicesJsonDir(baseDir?: string): Promise<string> {
   const dir = baseDir ?? resolveServicesJsonDir();
   await mkdir(dir, { recursive: true });
+  if (isLambdaRuntime()) {
+    await seedServicesJsonFromBundle(dir);
+  }
   return dir;
 }
 

@@ -9,6 +9,7 @@ import {
   type TemplateStatus,
 } from '../constants/template.constants';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { normalizeShareScope } from '../utils/share-scope.utils';
 import { firstString } from '../utils/template.utils';
 import { TemplateKeyBuilder } from './template-key.builder';
 
@@ -82,9 +83,28 @@ export interface MasterVersionWriteContext {
 }
 
 export class TemplateEntityBuilder {
+  static normalizeTemplateType(templateType: string): string {
+    return templateType.trim().replace(/\s+/g, '_').toUpperCase();
+  }
+
   static normalizeTemplateId(templateCode: string): string {
     const base = templateCode.trim().replace(/_/g, '-').toUpperCase();
     return base || `TMPL-${randomUUID().slice(0, 8)}`;
+  }
+
+  /**
+   * URL path may be `templateId` (TASK-CODE) or `templateVersionId` (TASK-CODE-V01).
+   */
+  static resolveMasterPathParam(pathParam: string): {
+    templateId: string;
+    templateVersionId?: string;
+  } {
+    const normalized = TemplateEntityBuilder.normalizeTemplateId(pathParam);
+    const match = normalized.match(/^(.+)-V(\d{2})$/i);
+    if (match) {
+      return { templateId: match[1], templateVersionId: normalized };
+    }
+    return { templateId: normalized };
   }
 
   static buildVersionId(templateId: string, versionNum: number): string {
@@ -180,7 +200,9 @@ export class TemplateEntityBuilder {
       templateVersionId,
       templateCode: input.templateCode,
       templateName: input.templateName ?? firstString(templateMetadata.templateName) ?? '',
-      templateType: input.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
+      templateType: TemplateEntityBuilder.normalizeTemplateType(
+        input.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
+      ),
       templateDescription: input.templateDescription as string | undefined,
       category,
       condition,
@@ -193,7 +215,10 @@ export class TemplateEntityBuilder {
       isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
       isLatestVersion: true,
       isMaster: true,
-      shareScope: firstString(templateMetadata.shareScope),
+      shareScope:
+        normalizeShareScope(rawBody.shareScope) ??
+        normalizeShareScope(templateMetadata.shareScope) ??
+        firstString(templateMetadata.shareScope),
       ownerOrgId: firstString(templateMetadata.ownerOrgId) ?? null,
       masterTemplateVersionId:
         typeof templateMetadata.masterTemplateVersionId === 'string'

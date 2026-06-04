@@ -391,7 +391,7 @@ function readParticipant(value: unknown): AssignDoctorParticipant | undefined {
     return undefined;
   }
 
-  const participant = value as Record<string, unknown>;
+  const participant:any = value as Record<string, unknown>;
   if (isFhirResource(participant)) {
     const resourceType = participant.resourceType;
     if (resourceType === 'Practitioner') {

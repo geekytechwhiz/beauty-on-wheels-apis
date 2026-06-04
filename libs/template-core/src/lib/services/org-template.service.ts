@@ -40,16 +40,41 @@ export class OrgTemplateService {
     private readonly masterRepo = new TemplateRepository(),
   ) {}
 
+  private async resolvePublishedMasterVersion(
+    masterTemplateId: string,
+  ): Promise<TemplateDdbRecord> {
+    const metaRow = await this.masterRepo.getMasterMeta(masterTemplateId);
+    if (!metaRow) {
+      templateNotFoundError('Master template not found');
+    }
+
+    const { items } = await this.masterRepo.queryMasterVersionsPage(masterTemplateId, {
+      limit: 100,
+    });
+    const published = items.filter((r) => r.meta?.status === TEMPLATE_STATUS.PUBLISHED);
+    const row = pickHighestVersionRow(published);
+    if (!row) {
+      templateConflictError(
+        'Derive requires a PUBLISHED master version. Publish the master first, or pass sourceVersionId explicitly.',
+      );
+    }
+    return row;
+  }
+
   async cloneTemplateVersion(params: CloneOrgTemplateParams): Promise<TemplateDdbRecord> {
     try {
       const masterTemplateId = TemplateEntityBuilder.normalizeTemplateId(params.masterTemplateId);
-      const versionSk = normalizeVersionToSk(params.masterVersionId);
-      const masterVersion = await this.masterRepo.getMasterVersion(
-        masterTemplateId,
-        versionSk,
-      );
-      if (!masterVersion) {
-        templateNotFoundError('Master template version not found');
+      const masterVersionId = params.masterVersionId?.trim();
+
+      let masterVersion: TemplateDdbRecord | null = null;
+      if (masterVersionId) {
+        const versionSk = normalizeVersionToSk(masterVersionId);
+        masterVersion = await this.masterRepo.getMasterVersion(masterTemplateId, versionSk);
+        if (!masterVersion) {
+          templateNotFoundError('Master template version not found');
+        }
+      } else {
+        masterVersion = await this.resolvePublishedMasterVersion(masterTemplateId);
       }
 
       const status = masterVersion.meta?.status;

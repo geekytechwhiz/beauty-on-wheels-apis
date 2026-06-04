@@ -2,6 +2,27 @@ import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import { TemplateService } from './template.service';
 
 describe('TemplateEntityBuilder', () => {
+  it('create path uses VERSION row only (no META row)', () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'TASK_BP_MONITORING',
+      templateName: 'Record Blood Pressure',
+      templateType: 'TASK',
+      status: 'DRAFT',
+    });
+    const version = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'TASK_BP_MONITORING',
+      templateType: 'TASK',
+      fieldValues: { TASK_NAME: 'Record Blood Pressure' },
+    });
+
+    expect(version.sk).toBe('VERSION#001');
+    expect(version.pk).toBe('MASTER_TMPL#TASK-BP-MONITORING');
+    expect(version.meta.templateType).toBe('TASK');
+    expect(version.fieldValues).toEqual(
+      expect.objectContaining({ TASK_NAME: 'Record Blood Pressure' }),
+    );
+  });
+
   it('builds meta and version rows with gsi keys for draft', () => {
     const ctx = TemplateEntityBuilder.buildCreateContext({
       templateCode: 'CP_HTN_STANDARD',
@@ -21,6 +42,17 @@ describe('TemplateEntityBuilder', () => {
     expect(meta.gsi5pk).toBe('SCOPE#MASTER#STATUS#DRAFT');
     expect(meta.gsi2pk).toBeUndefined();
     expect(meta.gsi4pk).toBe('CODE#CP_HTN_STANDARD');
+  });
+
+  it('normalizes templateType to uppercase', () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'TASK_BP',
+      templateName: 'BP Task',
+      templateType: 'task',
+    });
+    expect(ctx.input.templateType).toBe('task');
+    const meta = TemplateEntityBuilder.buildMeta(ctx);
+    expect(meta.templateType).toBe('TASK');
   });
 
   it('maps OpenAPI specialties to meta.specialty', () => {
@@ -80,6 +112,21 @@ describe('TemplateEntityBuilder.normalizeTemplateId', () => {
   });
 });
 
+describe('TemplateEntityBuilder.resolveMasterPathParam', () => {
+  it('maps templateVersionId path to templateId', () => {
+    expect(TemplateEntityBuilder.resolveMasterPathParam('TASK-CODE-V01')).toEqual({
+      templateId: 'TASK-CODE',
+      templateVersionId: 'TASK-CODE-V01',
+    });
+  });
+
+  it('keeps templateId path unchanged', () => {
+    expect(TemplateEntityBuilder.resolveMasterPathParam('TASK-CODE')).toEqual({
+      templateId: 'TASK-CODE',
+    });
+  });
+});
+
 describe('version utils', () => {
   const { normalizeVersionToSk, templateVersionIdToSk } = jest.requireActual<
     typeof import('../utils/template.utils')
@@ -87,6 +134,11 @@ describe('version utils', () => {
 
   it('normalizes V01 to VERSION#001', () => {
     expect(normalizeVersionToSk('V01')).toBe('VERSION#001');
+  });
+
+  it('normalizes a full templateVersionId to VERSION#001', () => {
+    expect(normalizeVersionToSk('TASK-CODE-V01')).toBe('VERSION#001');
+    expect(normalizeVersionToSk('CP-HTN-STANDARD-V12')).toBe('VERSION#012');
   });
 
   it('maps templateVersionId to sort key', () => {

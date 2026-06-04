@@ -1,5 +1,17 @@
-import { TEMPLATE_STATUS } from '@api-hub/template-core';
+import { SHARE_SCOPE, TEMPLATE_STATUS } from '@api-hub/template-core';
 import { z } from 'zod';
+
+const shareScopeInputZ = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/\s+/g, '_').toUpperCase())
+  .refine(
+    (v) =>
+      v === SHARE_SCOPE.PRIVATE ||
+      v === SHARE_SCOPE.ORGANIZATION ||
+      v === SHARE_SCOPE.PUBLIC,
+    { message: 'shareScope must be Private, Organization, or Public' },
+  );
 
 const templateStatusZ = z.enum([
   TEMPLATE_STATUS.DRAFT,
@@ -10,9 +22,66 @@ const templateStatusZ = z.enum([
   TEMPLATE_STATUS.DEPRECATED,
 ]);
 
+export const templateLevelZ = z.enum(['MASTER', 'ORG']);
+
+export const fieldValuesSchema = z.record(z.string(), z.unknown());
+
+export const deriveTemplateBodySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  /** Omit to copy the latest PUBLISHED master version (backend resolves). */
+  sourceVersionId: z.string().trim().min(1).optional(),
+  derivationType: z.enum(['ENABLE', 'CLONE']).default('ENABLE'),
+  newTemplateName: z.string().trim().min(1).max(150).optional(),
+  inheritLinks: z.boolean().optional(),
+});
+
+export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
+
+export const lifecycleActionZ = z.enum([
+  'SUBMIT_REVIEW',
+  'PUBLISH',
+  'REJECT',
+  'ARCHIVE',
+  'DEPRECATE',
+]);
+
+export const saveMasterTemplateBodySchema = z
+  .object({
+    lifecycleAction: lifecycleActionZ.optional(),
+    action: lifecycleActionZ.optional(),
+    comment: z.string().nullable().optional(),
+    reason: z.string().nullable().optional(),
+    shareScope: shareScopeInputZ.optional(),
+    templateCode: z.string().trim().min(1).optional(),
+    templateName: z.string().trim().min(1).max(150).optional(),
+    templateType: z.string().trim().min(1).optional(),
+    categoryCode: z.string().trim().min(1).optional(),
+    conditionCode: z.string().trim().min(1).optional(),
+    countryCodes: z.array(z.string()).optional(),
+    languageCodes: z.array(z.string()).optional(),
+    fieldValues: fieldValuesSchema.optional(),
+    status: z.string().trim().min(1).optional(),
+    active: z.boolean().optional(),
+    measurementType: z.string().optional(),
+  })
+  .passthrough();
+
+export type SaveMasterTemplateBody = z.infer<typeof saveMasterTemplateBodySchema>;
+
 export const createMasterTemplateBodySchema = z
   .object({
     templateCode: z.string().trim().min(1),
+    templateLevel: templateLevelZ.optional(),
+    shareScope: shareScopeInputZ.optional(),
+    categoryCode: z.string().trim().min(1).optional(),
+    conditionCode: z.string().trim().min(1).optional(),
+    countryCodes: z.array(z.string()).optional(),
+    languageCodes: z.array(z.string()).optional(),
+    active: z.boolean().optional(),
+    measurementType: z.string().optional(),
+    fieldValues: fieldValuesSchema.optional(),
+    templateMetadata: z.record(z.string(), z.unknown()).optional(),
+    templateProfile: z.record(z.string(), z.unknown()).optional(),
     // Some request shapes provide this as templateMetadata.templateName.
     templateName: z.string().trim().min(1).max(150).optional(),
     templateType: z.string().trim().min(1).optional(),
@@ -33,8 +102,22 @@ export const createMasterTemplateBodySchema = z
 
 export type CreateMasterTemplateBody = z.infer<typeof createMasterTemplateBodySchema>;
 
-/** Query params for GET /templates/master (OpenAPI). `organizationId` validated only; GSI-1 filter in Sprint 2. */
+/** POST /templates (create) and POST /templates/{templateId} (update + lifecycle). */
+export const upsertMasterTemplateBodySchema = createMasterTemplateBodySchema
+  .extend({
+    templateCode: z.string().trim().min(1).optional(),
+    lifecycleAction: lifecycleActionZ.optional(),
+    action: lifecycleActionZ.optional(),
+    comment: z.string().nullable().optional(),
+    reason: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export type UpsertMasterTemplateBody = z.infer<typeof upsertMasterTemplateBodySchema>;
+
+/** Query params for GET /templates and GET /templates/master (OpenAPI). */
 export const listMasterTemplatesQuerySchema = z.object({
+  templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
@@ -50,6 +133,8 @@ export const listMasterTemplatesQuerySchema = z.object({
 export type ListMasterTemplatesQuery = z.infer<typeof listMasterTemplatesQuerySchema>;
 
 export const getMasterVersionsQuerySchema = z.object({
+  templateLevel: templateLevelZ.optional(),
+  organizationId: z.string().trim().min(1).optional(),
   version: z.string().trim().min(1).optional(),
   resolve: z.enum(['ACTIVE', 'LATEST_PUBLISHED', 'LATEST_ANY']).optional(),
   status: z.string().trim().min(1).optional(),
@@ -158,6 +243,7 @@ export const orgClonePathSchema = z.object({
 });
 
 export const listOrgTemplatesQuerySchema = z.object({
+  templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
   status: z.string().trim().min(1).optional(),

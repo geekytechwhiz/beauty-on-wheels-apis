@@ -1,124 +1,37 @@
 version: 0.2
 
 env:
+  shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-organization-service-bucket'
     STACK_NAME: 'dev-organization-service'
-    # Set SEED_META=true in pipeline/CodeBuild to run org vitals seed (default: skip)
-    SEED_META: ''
 
 phases:
   install:
     runtime-versions:
-      nodejs: 22
+      nodejs: 20
     commands:
-      - npm install -g serverless@3 --force
+      - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
+
+  pre_build:
+    commands:
+      - echo "Making scripts executable..."
+      - chmod +x apps/organization-service/ci/*.sh
 
   build:
     commands:
-      - cd apps/organization-service
-      - npx serverless package --stage "$STAGE" --package .serverless
-
-      # 2) select create vs update s3 keys
-      - |
-        if [ -f .serverless/cloudformation-template-update-stack.json ]; then
-          TEMPLATE=".serverless/cloudformation-template-update-stack.json"
-        elif [ -f .serverless/cloudformation-template-create-stack.json ]; then
-          TEMPLATE=".serverless/cloudformation-template-create-stack.json"
-        else
-          echo "ERROR: No CloudFormation template found in .serverless"
-          ls -la .serverless || true
-          exit 1
-        fi
-
-      # 3) push code & rewrite 
-      - |
-        aws cloudformation package \
-          --template-file "$TEMPLATE" \
-          --s3-bucket "$DEPLOYMENT_BUCKET" \
-          --output-template-file packaged.yaml \
-          --force-upload
-
-      # 4) debug: what keys did CF bake in?
-      - echo "🔍 S3Key entries in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}'
-
-      # 5) debug: do they exist?
-      - echo "🔑 Verifying each baked-in key exists:"
-      - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
-          | while read key; do
-              printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
-                echo "FOUND"
-              else
-                echo "MISSING!"
-              fi
-            done
-
-      # 6) debug: list entire directory
-      # - echo "📦 Full directory on S3:"
-      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/payments-service/$STAGE/" --recursive
-
-      - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
-      - |
-        grep 'S3Key:' packaged.yaml \
-          | awk '{print $2}' \
-          | while read key; do
-              name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
-            done
-
-      - echo "➤ Verifying upload…"
-      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
+      - echo "Starting build..."
+      - apps/organization-service/ci/build.sh
 
   post_build:
     commands:
-      # Seed SUPPORTED_VITALS only when SEED_META=true (table name from serverless; CodeBuild role needs dynamodb:PutItem)
-      - |
-        if [ "$SEED_META" = "true" ]; then
-          cd "$CODEBUILD_SRC_DIR/apps/organization-service"
-          export ORGANIZATION_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/ORGANIZATION_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
-          [ -z "$ORGANIZATION_TABLE" ] && export ORGANIZATION_TABLE="organization-table-$STAGE"
-          echo "🌱 Seeding org vitals metadata into $ORGANIZATION_TABLE (stage=$STAGE)"
-          DATA_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/data/organization/org-vitals.json"
-          if [ ! -f "$DATA_FILE" ]; then
-            echo "ERROR: Org vitals data not found: $DATA_FILE (ensure src/utils/mitadata/data/organization/org-vitals.json is committed)"
-            exit 1
-          fi
-          node "$CODEBUILD_SRC_DIR/apps/organization-service/src/utils/mitadata/insert-org-vitals.js" --env "$STAGE" || {
-            echo "⚠️ Org vitals seed failed (check CodeBuild role has dynamodb:PutItem on $ORGANIZATION_TABLE)"
-            exit 1
-          }
-        else
-          echo "⏭️ Org vitals seed skipped (SEED_META not true)."
-        fi
-      # Ensure artifact path exists for deploy (CodePipeline expects apps/organization-service/packaged.yaml)
-      # When primary source = repo root, we're already in apps/organization-service so packaged.yaml is in place; copy only if different path
-      - mkdir -p "$CODEBUILD_SRC_DIR/apps/organization-service"
-      - |
-        DEST="$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
-        if [ ! packaged.yaml -ef "$DEST" ]; then
-          cp packaged.yaml "$DEST"
-        fi
-      - |
-        ARTIFACT_FILE="$CODEBUILD_SRC_DIR/apps/organization-service/packaged.yaml"
-        if [ ! -f "$ARTIFACT_FILE" ]; then
-          echo "ERROR: Artifact file not found at $ARTIFACT_FILE (CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR)"
-          ls -la "$CODEBUILD_SRC_DIR" "$CODEBUILD_SRC_DIR/apps" 2>/dev/null || true
-          exit 1
-        fi
-        echo "✅ Artifact verified: $ARTIFACT_FILE"
-      - echo "✅ Build done, artifacts ready for CodePipeline (apps/organization-service/packaged.yaml)"
+      - echo "Running deployment verification..."
+      - apps/organization-service/ci/verify-artifacts.sh
 
 artifacts:
   files:
     - apps/organization-service/packaged.yaml
-  discard-paths: no
-
-cache:
-  paths:
-    - node_modules/**/*
+    - apps/organization-service/.serverless/**/*
+  discard-paths: no 

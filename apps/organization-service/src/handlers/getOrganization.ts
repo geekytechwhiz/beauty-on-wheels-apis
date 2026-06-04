@@ -34,12 +34,9 @@ const ensureHttps = (url?: string | null): string | undefined => {
   if (trimmed.startsWith('http://')) return trimmed.replace('http://', 'https://');
   return `https://${trimmed}`;
 };
+ 
 
-interface Params {
-  organizationId: string;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+const handler = async (req: LambdaRequest) => {
   if ((req.event as { source?: string })?.source === 'serverless-plugin-warmup') {
     return { message: 'WarmUp - Lambda is warm!' };
   }

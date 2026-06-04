@@ -39,6 +39,7 @@ const normalizeSupportedVitals = (
       return { [key]: filtered };
     });
 };
+ 
 
 interface Params {
   organizationId?: string;

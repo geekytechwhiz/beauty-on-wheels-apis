@@ -39,4 +39,9 @@ package:
     - 'services-json/**'
     - '!**/*.test.ts'
     - '!**/*.spec.ts'
- 
+
+resources:
+  - ${file(./infra/resources/gateway-responses.yml)}
+  - ${file(./infra/resources/events/event-bus.yml)}
+  - ${file(./infra/resources/events/dlq.yml)}
+  - ${file(./infra/resources/outputs.yml)}

@@ -16,6 +16,8 @@ export interface ListMasterTemplatesParams {
   templateCode?: string;
   /** Match master `templateId` (exact) or `templateName` (partial, case-insensitive). */
   templateName?: string;
+  /** Filter by resolved `isActive` (stored flag or status default). */
+  active?: boolean;
   nextToken?: string;
 }
 

@@ -148,6 +148,10 @@ function matchesActiveFilters(record: TemplateDdbRecord, params: ListMasterTempl
     if (!byId && !byName) return false;
   }
 
+  if (params.active !== undefined && resolveMasterTemplateIsActive(meta) !== params.active) {
+    return false;
+  }
+
   return true;
 }
 

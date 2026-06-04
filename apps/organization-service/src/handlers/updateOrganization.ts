@@ -38,12 +38,9 @@ const normalizeSupportedVitals = (
       return { [key]: filtered };
     });
 };
+ 
 
-interface Params {
-  organizationId: string;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+const handler = async (req: LambdaRequest) => {
   const { organizationId } = req.params;
   const body = req.body ?? {};
   const { correlationId } = req.context;

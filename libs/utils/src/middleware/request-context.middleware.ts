@@ -17,7 +17,11 @@ export const buildRequestContext = (event: any) => {
   let body: any = undefined;
   if (event.body != null) {
     try {
-      body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body;
+      let rawBody = event.body;
+      if (event.isBase64Encoded && typeof rawBody === 'string') {
+        rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
+      }
+      body = typeof rawBody === 'string' ? JSON.parse(rawBody || '{}') : rawBody;
     } catch {
       body = undefined;
     }

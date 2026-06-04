@@ -234,3 +234,21 @@ export const setOrgStatusSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
   status: z.enum(['ACTIVE', 'HOLD', 'DISABLED'], { message: 'status must be ACTIVE, HOLD, or DISABLED' }),
 });
+
+export const organizationListSchema = z.object({
+  organizationId: z.string().optional(),
+  organizationID: z.string().optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
+  organizationType: z.union([z.string(), z.array(z.string())]).optional(),
+  assignedPackagesName: z.union([z.string(), z.array(z.string())]).optional(),
+  adminName: z.string().optional(),
+  organizationName: z.string().optional(),
+  country: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  limit: z
+    .union([z.number().int().positive(), z.string().transform((value) => (value ? Number(value) : undefined))])
+    .optional(),
+  nextPaginationKey: z.string().optional(),
+  lastEvaluatedKey: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+});

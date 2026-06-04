@@ -4,12 +4,9 @@ import { OrganizationService } from '../services/organization.service';
 import { validateOrganizationIdParam } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
+ 
 
-interface Params {
-  organizationId: string;
-}
-
-const handler = async (req: LambdaRequest<Params>) => {
+const handler = async (req: LambdaRequest) => {
   const { organizationId } = req.params;
   return organizationService.listOrganizationFiles(organizationId);
 };

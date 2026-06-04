@@ -10,14 +10,14 @@ interface Body {
 
 const organizationService = new OrganizationService();
 
-const handler = async (req: LambdaRequest<Record<string, never>>) => {
+const handler = async (req: LambdaRequest) => {
   const body = (req.body ?? {}) as Body;
   const resolved = await organizationService.getExternalTenants({
     provider: body.provider,
     apiBaseUrl: body.apiBaseUrl,
   });
   if (resolved.items.length === 1) {
-    (req.context as Record<string, unknown>).tenantId = resolved.items[0].tenantId;
+    (req.context as unknown as Record<string, unknown>).tenantId = resolved.items[0].tenantId;
   }
   return resolved;
 };

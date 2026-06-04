@@ -29,7 +29,7 @@ export interface FhirPeerModule {
       skipLog?: boolean;
     },
   ) => APIGatewayProxyResult;
-  FhirValidationError: new (...args: unknown[]) => Error;
+  FhirValidationError: new (...args: any[]) => Error;
   isFhirValidationErrorLike: (error: unknown) => boolean;
   isFhirRequest?: (req: LambdaRequest) => boolean;
   shouldTransformFhirRequest?: (

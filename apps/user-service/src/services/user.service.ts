@@ -317,7 +317,9 @@ export class UserService {
         tokenUpdatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds (matching old implementation)
         userCat: userCat,
         ...(definedRoleCode !== undefined ? { definedRoleCode: String(definedRoleCode) } : {}),
-        
+        ...(this.safeNumber((data as { age?: unknown }).age) !== undefined
+          ? { age: this.safeNumber((data as { age?: unknown }).age) }
+          : {}),
       } as User;
       
       logger.info({ event: 'service_createUser_user_object', hasDefinedRoleCode: (user as any).definedRoleCode !== undefined, definedRoleCode: (user as any).definedRoleCode });

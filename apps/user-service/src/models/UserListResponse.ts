@@ -440,6 +440,7 @@ import { UserListContext, V2UserListFilters, V2UserListPagination, V2UserListSor
     gender: string;
     medicalHistory: { allergies: unknown[]; symptoms: unknown[]; chronicDiseases: unknown[] };
     dateOfBirth: string;
+    age?: number;
     patientOrgId: string;
     previouslyConsulted?: boolean;
     activeService?: unknown[];

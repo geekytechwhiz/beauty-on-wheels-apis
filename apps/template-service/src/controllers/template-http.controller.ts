@@ -19,6 +19,7 @@ import type {
   ValidatedUpdateMasterVersion,
   ValidatedSaveMaster,
 } from '../validators/request.validators';
+import { enrichRecordActorsForApi } from '../utils/enrich-record-actors';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
 
 let templateService: TemplateService | undefined;
@@ -59,7 +60,7 @@ export class TemplateHttpController {
 
     try {
       const { record } = await this.svc.createMasterTemplate(v.body, v.actorUser);
-      return this.svc.toCreateResponse(record);
+      return enrichRecordActorsForApi(this.svc.toCreateResponse(record));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'create_master_template_error',
@@ -94,10 +95,11 @@ export class TemplateHttpController {
         language: query.language,
         specialty: query.specialty,
         templateCode: query.templateCode,
+        templateName: query.templateName,
         nextToken: query.nextToken,
       });
 
-      return withNextPaginationKey(result);
+      return withNextPaginationKey(await enrichRecordActorsForApi(result));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_master_templates_error',
@@ -131,14 +133,16 @@ export class TemplateHttpController {
       });
 
       if (result.mode === 'list') {
-        return withNextPaginationKey({
-          items: result.items,
-          history: result.history,
-          ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-        });
+        return withNextPaginationKey(
+          await enrichRecordActorsForApi({
+            items: result.items,
+            history: result.history,
+            ...(result.nextToken ? { nextToken: result.nextToken } : {}),
+          }),
+        );
       }
 
-      return toMasterFullRecord(result.record);
+      return enrichRecordActorsForApi(toMasterFullRecord(result.record));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_master_template_versions_error',

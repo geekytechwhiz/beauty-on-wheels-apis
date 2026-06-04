@@ -1,8 +1,16 @@
 import type { MasterTemplateListItem, TemplateHistoryEntry } from '../../mappers/template-http.dto';
 import type { ListFilterOptions, ListPagination } from './list-master.types';
 
+export interface OrganizationMeta {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
 export interface ListOrgCatalogParams {
   organizationId: string;
+  organizationName?: string;
+  organizationDescription?: string;
   categoryCode?: string;
   condition?: string;
   conditionCode?: string;
@@ -38,6 +46,7 @@ export interface OrgCatalogFilterOptions extends ListFilterOptions {
 }
 
 export interface ListOrgCatalogResult {
+  organizationMeta: OrganizationMeta;
   items: OrgEnableCatalogItem[];
   pagination: ListPagination;
   counts: OrgCatalogCounts;

@@ -14,6 +14,8 @@ export interface ListMasterTemplatesParams {
   language?: string;
   specialty?: string;
   templateCode?: string;
+  /** Match master `templateId` (exact) or `templateName` (partial, case-insensitive). */
+  templateName?: string;
   nextToken?: string;
 }
 
@@ -27,16 +29,13 @@ export interface ListPagination {
   hasMore: boolean;
 }
 
+/** `active`/`inactive` from stored `isActive` (published may be inactive). `draft`/`published` by lifecycle status. */
 export interface ListStatusCounts {
   total: number;
   active: number;
+  inactive: number;
   draft: number;
-  saved: number;
-  inReview: number;
   published: number;
-  archived: number;
-  deprecated: number;
-  byStatus: Record<string, number>;
 }
 
 export interface FilterOption {

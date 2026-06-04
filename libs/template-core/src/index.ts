@@ -12,6 +12,7 @@ export * from './lib/repositories/template.repository';
 export * from './lib/repositories/org-template.repository';
 export * from './lib/services/template.service';
 export * from './lib/services/org-template.service';
+export * from './lib/services/org-template-sync.service';
 export * from './lib/services/enablement.service';
 export * from './lib/services/compatible-templates.service';
 export * from './lib/repositories/org-template.repository';

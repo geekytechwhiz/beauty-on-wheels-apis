@@ -67,4 +67,13 @@ export class TemplateKeyBuilder {
   static buildGsi5Sk(lastModifiedAt: string, templateId: string): string {
     return `TS#${lastModifiedAt}#${templateId}`;
   }
+
+  /** GSI5 access pattern: all org enablements for a master template id. */
+  static buildGsi5EnableMasterPk(masterTemplateId: string): string {
+    return `MSTR_TMPL#${masterTemplateId.trim()}`;
+  }
+
+  static buildGsi5EnableSk(organizationId: string, enablementId: string): string {
+    return `ENABLE#ORG#${organizationId.trim()}#${enablementId.trim()}`;
+  }
 }

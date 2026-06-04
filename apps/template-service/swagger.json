@@ -247,14 +247,11 @@
         "responses": { "200": { "description": "OK" } }
       }
     },
-    "/templates/{templateId}/derive": {
+    "/templates/derive": {
       "post": {
-        "summary": "Derive org template from master",
+        "summary": "Enable org template from published master",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "templateId", "in": "path", "required": true, "type": "string" },
-          { "in": "body", "name": "body", "schema": { "type": "object" } }
-        ],
+        "parameters": [{ "in": "body", "name": "body", "schema": { "type": "object" } }],
         "responses": { "201": { "description": "Created" } }
       }
     },

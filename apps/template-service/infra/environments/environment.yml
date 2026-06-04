@@ -7,6 +7,7 @@ NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}
 # Table must exist before deploy; name from custom.bundle.templateDynamoTableName.
 TEMPLATE_TABLE: ${self:custom.bundle.templateDynamoTableName}
+USER_TABLE: user-table-${self:provider.stage}
 LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
 AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net

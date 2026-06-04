@@ -28,6 +28,7 @@ export type CloneOrgTemplateContext = {
   versionNum: number;
   versionSk: string;
   nowIso: string;
+  sourceMasterTemplateId: string;
   sourceMasterVersionId: string;
   newTemplateName: string;
   inheritLinks: boolean;
@@ -94,6 +95,7 @@ export class OrgTemplateEntityBuilder {
       versionNum,
       versionSk,
       nowIso: new Date().toISOString(),
+      sourceMasterTemplateId: masterTemplateId,
       sourceMasterVersionId,
       newTemplateName,
       inheritLinks,
@@ -124,6 +126,7 @@ export class OrgTemplateEntityBuilder {
       isLatestVersion: true,
       isMaster: false,
       ownerOrgId: ctx.organizationId,
+      masterTemplateId: ctx.sourceMasterTemplateId,
       masterTemplateVersionId: ctx.sourceMasterVersionId,
       derivedFromTemplateVersionId: ctx.sourceMasterVersionId,
       shareScope: 'ORG',

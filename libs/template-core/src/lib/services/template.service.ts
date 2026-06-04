@@ -38,11 +38,14 @@ import {
   decodeListCursor,
   encodeListCursor,
   firstString,
+  resolveMasterTemplateIsActive,
   normalizeVersionToSk,
   pickHighestVersionRow,
+  templateConflictError,
   templateNotFoundError,
   templateVersionIdToSk,
 } from '../utils/template.utils';
+import type { MasterTemplateListItem } from '../mappers/template-http.dto';
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Draft',
@@ -136,34 +139,40 @@ function matchesActiveFilters(record: TemplateDdbRecord, params: ListMasterTempl
     const code = firstString(meta.templateCode);
     if (!code || !code.toUpperCase().startsWith(params.templateCode.trim().toUpperCase())) return false;
   }
+
+  const nameFilter = params.templateName?.trim();
+  if (nameFilter) {
+    const byId = eqCi(meta.templateId, nameFilter);
+    const displayName = meta.templateName?.trim() ?? '';
+    const byName = displayName.toLowerCase().includes(nameFilter.toLowerCase());
+    if (!byId && !byName) return false;
+  }
+
   return true;
 }
 
+/** Dashboard counts: `active`/`inactive` from `isActive` (published may be inactive); `draft`/`published` by status. */
 function computeCounts(reps: TemplateDdbRecord[]): ListStatusCounts {
-  const byStatus: Record<string, number> = {
-    DRAFT: 0,
-    SAVED: 0,
-    IN_REVIEW: 0,
-    PUBLISHED: 0,
-    ARCHIVED: 0,
-    DEPRECATED: 0,
-  };
   let active = 0;
+  let inactive = 0;
+  let draft = 0;
+  let published = 0;
   for (const r of reps) {
     const status = (r.meta.status ?? TEMPLATE_STATUS.DRAFT) as string;
-    byStatus[status] = (byStatus[status] ?? 0) + 1;
-    if (r.meta.isActive ?? true) active += 1;
+    if (resolveMasterTemplateIsActive(r.meta)) {
+      active += 1;
+    } else {
+      inactive += 1;
+    }
+    if (status === TEMPLATE_STATUS.DRAFT) draft += 1;
+    if (status === TEMPLATE_STATUS.PUBLISHED) published += 1;
   }
   return {
     total: reps.length,
     active,
-    draft: byStatus.DRAFT,
-    saved: byStatus.SAVED,
-    inReview: byStatus.IN_REVIEW,
-    published: byStatus.PUBLISHED,
-    archived: byStatus.ARCHIVED,
-    deprecated: byStatus.DEPRECATED,
-    byStatus,
+    inactive,
+    draft,
+    published,
   };
 }
 
@@ -315,6 +324,79 @@ export class TemplateService {
       return reps.map((row) => toMasterListItem(row));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
+    }
+  }
+
+  /**
+   * Resolves a published master from derive body `templateId` (catalog value or display name).
+   */
+  async resolvePublishedMasterForDerive(params: {
+    templateIdOrName: string;
+    templateType: string;
+    categoryCode: string;
+    conditionCode: string;
+  }): Promise<{ templateId: string; templateVersionId: string }> {
+    try {
+      const raw = params.templateIdOrName.trim();
+      const normalized = TemplateEntityBuilder.normalizeTemplateId(raw);
+      const catalog = await this.listPublishedMasterCatalogItems(params.templateType.trim());
+
+      const byId = (id: string) =>
+        catalog.find(
+          (item) =>
+            item.templateId === id ||
+            TemplateEntityBuilder.normalizeTemplateId(item.templateId) ===
+              TemplateEntityBuilder.normalizeTemplateId(id),
+        );
+
+      const byName = () =>
+        catalog.find(
+          (item) => (item.templateName?.trim().toLowerCase() ?? '') === raw.toLowerCase(),
+        );
+
+      const hit =
+        byId(raw) ??
+        byId(normalized) ??
+        byName() ??
+        catalog.find((item) => item.templateVersionId === raw);
+
+      if (!hit) {
+        templateNotFoundError(
+          'Published master template not found for templateId (check org catalog filterOptions)',
+        );
+      }
+
+      this.assertDeriveMasterMatchesBody(hit, params);
+      return {
+        templateId: hit.templateId,
+        templateVersionId: hit.templateVersionId,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  private assertDeriveMasterMatchesBody(
+    item: MasterTemplateListItem,
+    params: { templateType: string; categoryCode: string; conditionCode: string },
+  ): void {
+    const fv =
+      item.fieldValues && typeof item.fieldValues === 'object' && !Array.isArray(item.fieldValues)
+        ? (item.fieldValues as Record<string, unknown>)
+        : {};
+    const itemCategory = firstString(fv.categoryCode) ?? firstString(fv.category);
+    const itemCondition = firstString(fv.conditionCode) ?? firstString(fv.condition);
+    const eq = (a: string | undefined, b: string) =>
+      a?.trim().toUpperCase() === b.trim().toUpperCase();
+
+    if (!eq(item.templateType, params.templateType)) {
+      templateConflictError('templateType does not match the selected master template');
+    }
+    if (itemCategory && !eq(itemCategory, params.categoryCode)) {
+      templateConflictError('categoryCode does not match the selected master template');
+    }
+    if (itemCondition && !eq(itemCondition, params.conditionCode)) {
+      templateConflictError('conditionCode does not match the selected master template');
     }
   }
 

@@ -465,11 +465,12 @@ functions:
     handler: src/handlers/http/deriveTemplate.main
     events:
       - http:
-          path: templates/{templateId}/derive
+          path: templates/derive
           method: post
-          summary: Derive org template from master (canonical)
+          summary: Enable org template from published master (canonical)
           description: |
-            Copy a published master version into an org partition. Body organizationId, sourceVersionId.
+            Copy the latest PUBLISHED master (from JSON body) into the org partition and create enablement.
+            Requires organizationMeta, categoryCode, conditionCode, templateType, and templateId in the body.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -484,7 +485,7 @@ functions:
       - http:
           path: templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone
           method: post
-          summary: Clone published master template to org (legacy — prefer POST /templates/{templateId}/derive)
+          summary: Clone published master template to org (legacy — prefer POST /templates/derive)
           description: Creates ORG_TMPL partition with META + VERSION#001 in SAVED status.
           cors: *httpApiCors
           authorizer:

@@ -11,6 +11,7 @@ import type {
   ValidatedListOrg,
   ValidatedUpdateOrgVersion,
 } from '../validators/request.validators';
+import { enrichRecordActorsForApi } from '../utils/enrich-record-actors';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
 
 let orgTemplateService: OrgTemplateService | undefined;
@@ -51,7 +52,20 @@ export class OrgTemplateHttpController {
         body: v.body,
         actorUser: v.actorUser,
       });
-      return this.svc.toDeriveEnableResponse(result, v.body?.templateName);
+      const organizationMeta = v.body?.organizationMeta
+        ? {
+            id: v.body.organizationMeta.id,
+            name: v.body.organizationMeta.name.trim(),
+            description: v.body.organizationMeta.description ?? null,
+          }
+        : {
+            id: v.organizationId,
+            name: v.organizationId,
+            description: null,
+          };
+      return this.svc.toDeriveEnableResponse(result, {
+        organizationMeta,
+      });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'clone_org_template_error',
@@ -84,13 +98,15 @@ export class OrgTemplateHttpController {
       });
 
       if (result.mode === 'list') {
-        return withNextPaginationKey({
-          items: result.items,
-          ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-        });
+        return withNextPaginationKey(
+          await enrichRecordActorsForApi({
+            items: result.items,
+            ...(result.nextToken ? { nextToken: result.nextToken } : {}),
+          }),
+        );
       }
 
-      return result.record;
+      return enrichRecordActorsForApi(result.record);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_org_template_versions_error',
@@ -129,6 +145,41 @@ export class OrgTemplateHttpController {
     }
   }
 
+  async handleListOrgCopies(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return withNextPaginationKey(
+        await enrichRecordActorsForApi(
+          await this.svc.listOrgTemplates({
+            organizationId: v.organizationId,
+            organizationName: v.query.organizationName,
+            organizationDescription: v.query.organizationDescription,
+            condition: v.query.condition ?? v.query.conditionCode,
+            status: v.query.status,
+            templateType: v.query.templateType,
+            specialty: v.query.specialty,
+            nextToken: v.query.nextToken,
+          }),
+        ),
+      );
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'list_org_template_copies_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
   async handleListOrg(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg;
 
@@ -143,17 +194,21 @@ export class OrgTemplateHttpController {
 
     try {
       return withNextPaginationKey(
-        await this.svc.listOrgEnableCatalog({
-          organizationId: v.organizationId,
-          categoryCode: v.query.categoryCode ?? v.query.category,
-          condition: v.query.condition,
-          conditionCode: v.query.conditionCode,
-          templateType: v.query.templateType,
-          templateName: v.query.templateName,
-          country: v.query.country,
-          status: v.query.status,
-          nextToken: v.query.nextToken,
-        }),
+        await enrichRecordActorsForApi(
+          await this.svc.listOrgEnableCatalog({
+            organizationId: v.organizationId,
+            organizationName: v.query.organizationName,
+            organizationDescription: v.query.organizationDescription,
+            categoryCode: v.query.categoryCode ?? v.query.category,
+            condition: v.query.condition,
+            conditionCode: v.query.conditionCode,
+            templateType: v.query.templateType,
+            templateName: v.query.templateName,
+            country: v.query.country,
+            status: v.query.status,
+            nextToken: v.query.nextToken,
+          }),
+        ),
       );
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {

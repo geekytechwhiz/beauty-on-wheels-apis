@@ -4,12 +4,21 @@ import type { VersionResolveStrategy } from './get-master-versions.types';
 import type { TemplateDdbRecord } from '../persistence/template-ddb.model';
 import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/template-http.dto';
 
+export type OrganizationMetaInput = {
+  id: string;
+  name: string;
+  description: string;
+};
+
 export type CloneTemplateBody = {
+  organizationMeta?: OrganizationMetaInput;
+  /** Master template id from org catalog filter (templateName.value). */
+  templateId?: string;
+  /** Optional display name override (legacy org clone route only). */
   newTemplateName?: string;
-  /** Selected master display name from enable UI. */
-  templateName?: string;
-  inheritLinks?: boolean;
-  derivationType?: 'ENABLE' | 'CLONE';
+  categoryCode?: string;
+  conditionCode?: string;
+  templateType?: string;
 };
 
 export type CloneOrgTemplateParams = {
@@ -30,6 +39,8 @@ export type DeriveOrgTemplateResult = {
 
 export type ListOrgTemplatesParams = {
   organizationId: string;
+  organizationName?: string;
+  organizationDescription?: string;
   condition?: string;
   status?: TemplateStatus;
   templateType?: string;
@@ -38,6 +49,11 @@ export type ListOrgTemplatesParams = {
 };
 
 export type ListOrgTemplatesResult = {
+  organizationMeta: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
   items: OrgTemplateListItem[];
   nextToken?: string;
 };

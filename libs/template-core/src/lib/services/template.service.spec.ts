@@ -202,21 +202,25 @@ function masterRow(opts: {
   condition?: string;
   scope?: string;
   version?: number;
+  name?: string;
 }): TemplateDdbRecord {
+  const templateName = opts.name ?? opts.code;
   const ctx = TemplateEntityBuilder.buildCreateContext({
     templateCode: opts.code,
-    templateName: opts.code,
+    templateName,
     templateType: 'TASK',
     status: opts.status as never,
     condition: opts.condition,
     version: opts.version,
   });
-  return TemplateEntityBuilder.buildVersionRow(ctx, {
+  const row = TemplateEntityBuilder.buildVersionRow(ctx, {
     templateCode: opts.code,
-    templateName: opts.code,
+    templateName,
     templateType: 'TASK',
     shareScope: opts.scope,
   });
+  row.meta.isActive = opts.status === 'PUBLISHED';
+  return row;
 }
 
 describe('buildVersionHistory', () => {
@@ -268,8 +272,9 @@ describe('TemplateService.listMasterTemplates', () => {
     expect(result.counts.total).toBe(4);
     expect(result.counts.published).toBe(2);
     expect(result.counts.draft).toBe(1);
-    expect(result.counts.saved).toBe(1);
-    expect(result.counts.active).toBe(4);
+    expect(result.counts.active).toBe(2);
+    expect(result.counts.inactive).toBe(2);
+    expect(result.counts.draft).toBe(1);
     expect(result.filterOptions.status.map((o) => o.value)).toContain('PUBLISHED');
     expect(result.filterOptions.scope.map((o) => o.value)).toEqual(['PRIVATE', 'ORGANIZATION', 'PUBLIC']);
     expect(result.filterOptions.condition.map((o) => o.value)).toEqual(
@@ -305,6 +310,49 @@ describe('TemplateService.listMasterTemplates', () => {
       shareScope: 'PUBLIC' as never,
     });
     expect(byScope.items.map((i) => i.templateId)).toEqual(['T1']);
+  });
+
+  it('filters items by templateName (id or partial display name)', async () => {
+    mockRows([
+      masterRow({
+        code: 'TASK-MONITORING-MASTER',
+        status: 'PUBLISHED',
+        condition: 'Diabetes',
+        scope: 'Organization',
+        name: 'Record Blood Pressure (updated)',
+      }),
+      masterRow({ code: 'OTHER-TASK', status: 'DRAFT', condition: 'Asthma', scope: 'Private', name: 'Other Task' }),
+    ]);
+
+    const byName = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      templateName: 'Blood Pressure',
+    });
+    expect(byName.items).toHaveLength(1);
+    expect(byName.items[0].templateId).toBe('TASK-MONITORING-MASTER');
+
+    const byId = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      templateName: 'TASK-MONITORING-MASTER',
+    });
+    expect(byId.items).toHaveLength(1);
+  });
+
+  it('maps list item isActive from stored flag (published may be inactive)', async () => {
+    const pubActive = masterRow({ code: 'PUB-ON', status: 'PUBLISHED' });
+    const pubInactive = masterRow({ code: 'PUB-OFF', status: 'PUBLISHED' });
+    pubInactive.meta.isActive = false;
+    const draft = masterRow({ code: 'DRF', status: 'DRAFT' });
+    mockRows([pubActive, pubInactive, draft]);
+
+    const result = await new TemplateService().listMasterTemplates({ templateType: 'TASK' });
+    expect(result.items.find((i) => i.templateId === 'PUB-ON')?.isActive).toBe(true);
+    expect(result.items.find((i) => i.templateId === 'PUB-OFF')?.isActive).toBe(false);
+    expect(result.items.find((i) => i.templateId === 'DRF')?.isActive).toBe(false);
+    expect(result.counts.published).toBe(2);
+    expect(result.counts.active).toBe(1);
+    expect(result.counts.inactive).toBe(2);
+    expect(result.counts.draft).toBe(1);
   });
 
   it('paginates with a stable nextToken', async () => {

@@ -11,7 +11,7 @@ export const main = withTemplateApiHandler(
     operation: 'template.org.list',
     validator: validateListOrgTemplatesRequest,
   },
-  (req: LambdaRequest) => c.handleListOrg(req),
+  (req: LambdaRequest) => c.handleListOrgCopies(req),
 );
 
 export default main;

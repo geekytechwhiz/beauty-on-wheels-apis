@@ -1,8 +1,10 @@
 import { LambdaRequest } from '@api-hub/utils';
 import {
   normalizeShareScopeOrThrow,
+  normalizeTemplateServiceError,
   TEMPLATE_STATUS,
   TemplateEntityBuilder,
+  TemplateService,
   type TemplateActorUser,
 } from '@api-hub/template-core';
 
@@ -11,6 +13,7 @@ import {
   getActorUserIdForRequest,
   getOrganizationIdForRequest,
 } from '../utils/helpers';
+import { enrichTemplateActorUser } from '../services/user-lookup.service';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
@@ -56,6 +59,13 @@ function throwVal(
   throw err;
 }
 
+let templateService: TemplateService | undefined;
+
+function getTemplateService(): TemplateService {
+  if (!templateService) templateService = new TemplateService();
+  return templateService;
+}
+
 export type ValidatedCreateMaster = {
   actorUser: TemplateActorUser;
   body: CreateMasterTemplateBody & {
@@ -64,12 +74,18 @@ export type ValidatedCreateMaster = {
   };
 };
 
-function requireActorUser(req: LambdaRequest): TemplateActorUser {
+/** Auth only (list/read) — JWT actor, no USER_TABLE round-trip. */
+function requireAuthenticatedActor(req: LambdaRequest): TemplateActorUser {
   const actorUser = getActorUserForRequest(req.event, req.context.authHeader);
   if (!actorUser?.userId?.trim()) {
     throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
   }
   return actorUser;
+}
+
+/** Mutations — JWT actor enriched from USER_TABLE (fullName, email). */
+async function requireActorUser(req: LambdaRequest): Promise<TemplateActorUser> {
+  return enrichTemplateActorUser(requireAuthenticatedActor(req));
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -380,7 +396,7 @@ export type ValidatedStatusTransition = ValidatedTemplateVersionPath & {
 async function validateActorAndVersionPath(
   req: LambdaRequest,
 ): Promise<ValidatedTemplateVersionPath> {
-  const actorUser = requireActorUser(req);
+  const actorUser = await requireActorUser(req);
 
   const path = templateVersionPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
@@ -409,13 +425,13 @@ export async function validateUpsertMasterTemplateRequest(req: LambdaRequest): P
 
 export async function validateCreateMasterRequest(req: LambdaRequest): Promise<void> {
   (req as LambdaRequest & { validatedCreateMaster?: ValidatedCreateMaster }).validatedCreateMaster = {
-    actorUser: requireActorUser(req),
+    actorUser: await requireActorUser(req),
     body: normalizeCreateMasterBody(req.body),
   };
 }
 
 export async function validateListMasterRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = requireAuthenticatedActor(req);
 
   const rawQuery = parseListMasterTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,
@@ -433,7 +449,7 @@ export async function validateListMasterRequest(req: LambdaRequest): Promise<voi
 }
 
 export async function validateGetMasterVersionsRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = requireAuthenticatedActor(req);
 
   const path = templateIdPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
@@ -466,7 +482,7 @@ export async function validateUpdateMasterVersionRequest(req: LambdaRequest): Pr
 }
 
 export async function validateSaveMasterTemplateRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = await requireActorUser(req);
 
   const path = templateIdPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
@@ -560,7 +576,7 @@ export type ValidatedListOrg = {
 };
 
 export async function validateCloneOrgTemplateRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = await requireActorUser(req);
 
   const path = orgClonePathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
@@ -601,7 +617,7 @@ function resolveOrgTemplateIds(req: LambdaRequest): { organizationId: string; te
 }
 
 export async function validateGetOrgVersionsRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = requireAuthenticatedActor(req);
 
   const { organizationId, templateId } = resolveOrgTemplateIds(req);
   const rawQuery = parseGetMasterVersionsQuery(
@@ -622,34 +638,41 @@ export async function validateGetOrgVersionsRequest(req: LambdaRequest): Promise
 }
 
 export async function validateDeriveTemplateRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
-
-  const path = templateIdPathSchema.safeParse(req.pathParameters ?? {});
-  if (!path.success) {
-    throwVal('templateId is required', 400, 'VALIDATION_ERROR');
-  }
+  const actorUser = await requireActorUser(req);
 
   const body = deriveTemplateBodySchema.parse(req.body ?? {});
-  const organizationId = resolveOrganizationId(req, body.organizationId);
-  const resolved = TemplateEntityBuilder.resolveMasterPathParam(path.data.templateId);
+  const organizationId = resolveOrganizationId(req, body.organizationMeta.id);
+
+  let resolved: { templateId: string; templateVersionId: string };
+  try {
+    resolved = await getTemplateService().resolvePublishedMasterForDerive({
+      templateIdOrName: body.templateId,
+      templateType: body.templateType,
+      categoryCode: body.categoryCode,
+      conditionCode: body.conditionCode,
+    });
+  } catch (e: unknown) {
+    normalizeTemplateServiceError(e);
+  }
 
   (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate }).validatedCloneOrgTemplate =
     {
       organizationId,
       templateId: resolved.templateId,
-      versionId: body.sourceVersionId?.trim() ?? resolved.templateVersionId ?? '',
+      versionId: '',
       actorUser,
       body: {
-        newTemplateName: body.newTemplateName,
-        templateName: body.templateName,
-        inheritLinks: body.inheritLinks,
-        derivationType: body.derivationType,
+        organizationMeta: body.organizationMeta,
+        templateId: resolved.templateId,
+        categoryCode: body.categoryCode,
+        conditionCode: body.conditionCode,
+        templateType: body.templateType,
       },
     };
 }
 
 export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = requireAuthenticatedActor(req);
 
   const rawQuery = parseListOrgTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,
@@ -658,7 +681,10 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     ...rawQuery,
     status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
   };
-  const organizationId = resolveOrganizationId(req, query.organizationId);
+  const organizationId = resolveOrganizationId(
+    req,
+    query.organizationId ?? query.organizationMetaId,
+  );
 
   (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg = {
     organizationId,
@@ -683,11 +709,7 @@ export type ValidatedListCompatible = {
 };
 
 export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest): Promise<void> {
-  const authHeader = req.context.authHeader;
-  const actorUserId = getActorUserIdForRequest(req.event, authHeader);
-  if (!actorUserId) {
-    throwVal('User could not be resolved from the access token', 401, 'UNAUTHORIZED');
-  }
+  const actorUser = await requireActorUser(req);
 
   const path = templateVersionPathSchema.safeParse(req.pathParameters ?? {});
   if (!path.success) {
@@ -941,7 +963,7 @@ export async function validateUpdateTemplateConfigRequest(req: LambdaRequest): P
 }
 
 export async function validateListCompatibleTemplatesRequest(req: LambdaRequest): Promise<void> {
-  const actorUser = requireActorUser(req);
+  const actorUser = requireAuthenticatedActor(req);
 
   const query = parseListCompatibleTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,

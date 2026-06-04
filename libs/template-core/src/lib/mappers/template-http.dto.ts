@@ -1,7 +1,8 @@
 import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { normalizeTemplateActor } from '../utils/template-actor.utils';
-import { firstString, sanitizeMetaForApi } from '../utils/template.utils';
+import { firstString, resolveMasterTemplateIsActive, sanitizeMetaForApi } from '../utils/template.utils';
+import { TEMPLATE_STATUS } from '../constants/template.constants';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -31,6 +32,10 @@ export interface OrgTemplateListItem {
   templateVersionId: string;
   templateName?: string;
   organizationId: string;
+  masterTemplateId?: string | null;
+  masterTemplateVersionId?: string | null;
+  templateType?: string;
+  templateEnabled: boolean;
   condition?: string;
   version: number;
   status: string;
@@ -150,11 +155,22 @@ export function toOrgListItem(
   organizationId: string,
 ): OrgTemplateListItem {
   const meta = record.meta;
+  const masterTemplateId =
+    (meta.masterTemplateId as string | undefined) ??
+    (meta.derivedFromTemplateVersionId as string | undefined)?.replace(/-V\d+$/i, '') ??
+    null;
   return {
     templateId: meta.templateId,
     templateVersionId: meta.templateVersionId,
     templateName: meta.templateName,
     organizationId,
+    masterTemplateId,
+    masterTemplateVersionId:
+      (meta.masterTemplateVersionId as string | undefined) ??
+      (meta.derivedFromTemplateVersionId as string | undefined) ??
+      null,
+    templateType: meta.templateType,
+    templateEnabled: true,
     condition: firstString(meta.condition ?? meta.conditions),
     version: meta.version ?? 1,
     status: meta.status ?? 'DRAFT',
@@ -185,6 +201,7 @@ export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSumm
 
 export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListItem {
   const meta = record.meta;
+  const status = meta.status ?? TEMPLATE_STATUS.DRAFT;
   const fieldValues =
     record.fieldValues && typeof record.fieldValues === 'object' && !Array.isArray(record.fieldValues)
       ? (record.fieldValues as Record<string, unknown>)
@@ -198,8 +215,8 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
     countries: meta.countries,
     languages: meta.languages,
     version: meta.version ?? 1,
-    status: meta.status ?? 'DRAFT',
-    isActive: meta.isActive ?? true,
+    status,
+    isActive: resolveMasterTemplateIsActive(meta),
     publishedAt: meta.publishedAt ?? null,
     createdAt: meta.createdAt ?? null,
     updatedAt: meta.lastModifiedAt ?? null,

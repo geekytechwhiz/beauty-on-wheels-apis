@@ -18,6 +18,7 @@ import type {
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TemplateRepository } from '../repositories/template.repository';
+import { OrgTemplateSyncService } from './org-template-sync.service';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
@@ -166,7 +167,18 @@ function assertEditableStatus(status: TemplateStatus | undefined, action: string
 }
 
 export class TemplateMasterOpsService {
+  private readonly orgSync = new OrgTemplateSyncService();
+
   constructor(private readonly repo = new TemplateRepository()) {}
+
+  private async syncEnabledOrgsFromMasterIfPublished(
+    record: TemplateDdbRecord,
+    actor?: import('../models/template-actor.model').TemplateActorUser,
+  ): Promise<void> {
+    if (record.meta?.status === TEMPLATE_STATUS.PUBLISHED) {
+      await this.orgSync.syncAllEnabledOrgsFromMaster(record, actor);
+    }
+  }
 
   async updateMasterTemplateVersion(params: UpdateMasterVersionParams): Promise<TemplateDdbRecord> {
     try {
@@ -214,6 +226,7 @@ export class TemplateMasterOpsService {
         );
         appendVersionHistoryToRecord(updatedRow);
         await this.repo.putMasterRecord(updatedRow);
+        await this.syncEnabledOrgsFromMasterIfPublished(updatedRow, params.actorUser);
         return updatedRow;
       }
 
@@ -244,6 +257,7 @@ export class TemplateMasterOpsService {
         requireNewVersionSk: true,
       });
 
+      await this.syncEnabledOrgsFromMasterIfPublished(newVersionRow, params.actorUser);
       return newVersionRow;
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
@@ -416,6 +430,7 @@ export class TemplateMasterOpsService {
     } else {
       await this.repo.putMasterRecord(updatedVersionRow);
     }
+    await this.syncEnabledOrgsFromMasterIfPublished(updatedVersionRow, actor);
     return updatedVersionRow;
   }
 
@@ -450,6 +465,7 @@ export class TemplateMasterOpsService {
     } else {
       await this.repo.putMasterRecord(newVersionRow);
     }
+    await this.syncEnabledOrgsFromMasterIfPublished(newVersionRow, actor);
     return newVersionRow;
   }
 

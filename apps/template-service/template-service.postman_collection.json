@@ -295,7 +295,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"organizationId\": \"org-apollo-001\",\n    \"categoryCode\": \"CHRONIC_CARE\",\n    \"conditionCode\": \"DIABETES\",\n    \"templateType\": \"TASK\",\n    \"templateName\": \"Record Blood Pressure (updated)\",\n    \"sourceVersionId\": \"TASK-MONITORING-MASTER-V01\",\n    \"newTemplateName\": \"Apollo – Org copy\",\n    \"inheritLinks\": true,\n    \"derivationType\": \"ENABLE\"\n  }",
+              "raw": "{\n    \"organizationMeta\": {\n        \"id\": \"org-id\",\n        \"name\": \"org name\",\n        \"description\": \"org description\"\n    },\n    \"categoryCode\": \"CHRONIC_CARE\",\n    \"conditionCode\": \"DIABETES\",\n    \"templateType\": \"TASK\",\n    \"templateId\": \"Record Blood Pressure (updated)\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -303,13 +303,12 @@
               }
             },
             "url": {
-              "raw": "{{baseurl}}/templates/TASK-MONITORING-MASTER-V01/derive",
+              "raw": "{{baseurl}}/templates/derive",
               "host": [
                 "{{baseurl}}"
               ],
               "path": [
                 "templates",
-                "TASK-MONITORING-MASTER-V01",
                 "derive"
               ]
             }

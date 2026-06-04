@@ -1,4 +1,3 @@
-import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { OrgTemplateEntityBuilder } from '../builder/org-template-entity.builder';
 import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import type {
@@ -32,20 +31,25 @@ import { EnablementRepository } from '../repositories/enablement.repository';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
 import { TemplateService } from './template.service';
-import { firstString } from '../utils/template.utils';
 import { OrgTemplateOpsService } from './org-template-ops.service';
+import { OrgTemplateSyncService } from './org-template-sync.service';
+import { isActiveEnablement, resolveEnablementMasterTemplateId } from '../utils/enablement.utils';
 import type {
   TransitionOrgStatusParams,
   UpdateOrgTemplateVersionParams,
 } from '../models/api/org-update.types';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
+  decodeListCursor,
+  encodeListCursor,
+  firstString,
   normalizeVersionToSk,
   pickHighestVersionRow,
   templateConflictError,
   templateNotFoundError,
   templateVersionIdToSk,
 } from '../utils/template.utils';
+import type { OrganizationMeta } from '../models/api/list-org-catalog.types';
 
 function fieldValuesOf(record: { fieldValues?: unknown }): Record<string, unknown> {
   const fv = record.fieldValues;
@@ -54,18 +58,52 @@ function fieldValuesOf(record: { fieldValues?: unknown }): Record<string, unknow
 
 function mapOrgCatalogItem(
   row: MasterTemplateListItem,
-  enabledVersionIds: Set<string>,
+  enabledMasterTemplateIds: Set<string>,
 ): OrgEnableCatalogItem {
   const fv = fieldValuesOf(row);
   return {
     ...row,
     categoryCode: firstString(fv.categoryCode),
     conditionCode: firstString(fv.conditionCode),
-    templateEnabled: enabledVersionIds.has(row.templateVersionId),
+    templateEnabled: enabledMasterTemplateIds.has(row.templateId),
     countries: row.countries,
   };
 }
 
+function decodeOffsetToken(token: string | undefined): number {
+  const decoded = decodeListCursor(token);
+  const offset = decoded?.o;
+  return typeof offset === 'number' && Number.isInteger(offset) && offset >= 0 ? offset : 0;
+}
+
+function eqCi(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return a.trim().toUpperCase() === b.trim().toUpperCase();
+}
+
+function matchesOrgCatalogFilters(
+  item: OrgEnableCatalogItem,
+  params: ListOrgCatalogParams,
+): boolean {
+  if (params.categoryCode && !eqCi(item.categoryCode, params.categoryCode)) return false;
+  if (params.conditionCode && !eqCi(item.conditionCode, params.conditionCode)) return false;
+  if (params.condition && !eqCi(item.conditionCode, params.condition)) return false;
+  if (params.templateType && !eqCi(item.templateType, params.templateType)) return false;
+  if (params.country) {
+    const countries = item.countries ?? [];
+    const hit = countries.some((c) => eqCi(c, params.country));
+    if (!hit) return false;
+  }
+  const nameFilter = params.templateName?.trim();
+  if (nameFilter) {
+    const byId = eqCi(item.templateId, nameFilter);
+    const byName = item.templateName?.toLowerCase().includes(nameFilter.toLowerCase()) ?? false;
+    if (!byId && !byName) return false;
+  }
+  return true;
+}
+
+/** filterOptions from all published masters; templateName uses label=name, value=templateId. */
 function buildOrgCatalogFilterOptions(items: OrgEnableCatalogItem[]): OrgCatalogFilterOptions {
   const category = new Map<string, string>();
   const templateType = new Map<string, string>();
@@ -74,17 +112,28 @@ function buildOrgCatalogFilterOptions(items: OrgEnableCatalogItem[]): OrgCatalog
   const condition = new Map<string, string>();
 
   for (const item of items) {
-    if (item.categoryCode) category.set(item.categoryCode.toUpperCase(), item.categoryCode);
-    if (item.templateType) templateType.set(item.templateType.toUpperCase(), item.templateType);
-    if (item.templateName) templateName.set(item.templateName, item.templateName);
-    if (item.conditionCode) condition.set(item.conditionCode.toUpperCase(), item.conditionCode);
+    if (item.categoryCode) {
+      category.set(item.categoryCode.toUpperCase(), item.categoryCode);
+    }
+    if (item.templateType) {
+      templateType.set(item.templateType.toUpperCase(), item.templateType);
+    }
+    if (item.templateId) {
+      const label = item.templateName?.trim() || item.templateId;
+      templateName.set(item.templateId, label);
+    }
+    if (item.conditionCode) {
+      condition.set(item.conditionCode.toUpperCase(), item.conditionCode);
+    }
     for (const c of item.countries ?? []) {
       if (typeof c === 'string' && c.trim()) country.set(c.toUpperCase(), c);
     }
   }
 
   const toOpts = (m: Map<string, string>) =>
-    [...m.values()].map((value) => ({ label: value, value })).sort((a, b) => a.label.localeCompare(b.label));
+    [...m.entries()]
+      .map(([value, label]) => ({ label, value }))
+      .sort((a, b) => a.label.localeCompare(b.label));
 
   return {
     status: [
@@ -107,6 +156,7 @@ function buildOrgCatalogFilterOptions(items: OrgEnableCatalogItem[]): OrgCatalog
 export class OrgTemplateService {
   private readonly orgOps = new OrgTemplateOpsService();
   private readonly masterSvc = new TemplateService();
+  private readonly orgSync = new OrgTemplateSyncService();
 
   constructor(
     private readonly orgRepo = new OrgTemplateRepository(),
@@ -147,36 +197,43 @@ export class OrgTemplateService {
         if (!masterVersion) {
           templateNotFoundError('Master template version not found');
         }
+        if (masterVersion.meta?.status !== TEMPLATE_STATUS.PUBLISHED) {
+          templateConflictError(
+            'Org enable derive requires a PUBLISHED master template version. Publish the master first.',
+          );
+        }
       } else {
         masterVersion = await this.resolvePublishedMasterVersion(masterTemplateId);
       }
 
-      const status = masterVersion.meta?.status;
-      if (status !== TEMPLATE_STATUS.PUBLISHED) {
-        templateConflictError(
-          `Clone requires a PUBLISHED master version; current status is ${status ?? 'UNKNOWN'}`,
-        );
-      }
-
-      const inheritLinks = params.body?.inheritLinks !== false;
       const newTemplateName =
         params.body?.newTemplateName?.trim() ||
-        params.body?.templateName?.trim() ||
-        `${masterVersion.meta.templateName ?? params.masterTemplateId} (${params.organizationId})`;
+        masterVersion.meta.templateName?.trim() ||
+        masterTemplateId;
 
       const ctx = OrgTemplateEntityBuilder.buildCloneContext(
         params.organizationId,
         masterTemplateId,
         masterVersion.meta.templateVersionId,
         newTemplateName,
-        inheritLinks,
+        true,
       );
 
       const existing = await this.orgRepo.getOrgMeta(params.organizationId, ctx.newTemplateId);
       if (existing) {
-        templateConflictError(
-          `Org template ${ctx.newTemplateId} already exists for organization ${params.organizationId}`,
+        const versionRow = await this.orgSync.syncOrgTemplateContentFromMaster(
+          params.organizationId,
+          ctx.newTemplateId,
+          masterTemplateId,
+          masterVersion,
+          params.actorUser,
         );
+        await this.orgSync.upsertEnablementForOrg(
+          params.organizationId,
+          masterVersion,
+          ctx.newTemplateId,
+        );
+        return { record: versionRow, masterVersion, templateEnabled: true };
       }
 
       const meta = OrgTemplateEntityBuilder.buildOrgMetaFromMaster(
@@ -193,43 +250,16 @@ export class OrgTemplateService {
 
       await this.orgRepo.createOrgTemplate(metaRow, versionRow);
 
-      const derivationType = params.body?.derivationType ?? 'ENABLE';
-      const templateEnabled = derivationType === 'ENABLE';
-      if (templateEnabled) {
-        await this.createEnablementForOrg(params.organizationId, masterVersion);
-      }
+      await this.orgSync.upsertEnablementForOrg(
+        params.organizationId,
+        masterVersion,
+        ctx.newTemplateId,
+      );
 
-      return { record: versionRow, masterVersion, templateEnabled };
+      return { record: versionRow, masterVersion, templateEnabled: true };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }
-  }
-
-  private async createEnablementForOrg(
-    organizationId: string,
-    masterVersion: TemplateDdbRecord,
-  ): Promise<void> {
-    const masterTemplateVersionId = masterVersion.meta.templateVersionId;
-    const existing = await this.enablementRepo.findByOrgAndMasterVersion(
-      organizationId,
-      masterTemplateVersionId,
-    );
-    if (existing) return;
-
-    const nowIso = new Date().toISOString();
-    const enablementId = EnablementEntityBuilder.buildEnablementId(organizationId);
-    const meta = EnablementEntityBuilder.buildMeta(
-      {
-        organizationId,
-        masterTemplateVersionId,
-        effectiveFrom: nowIso,
-        effectiveTo: null,
-      },
-      masterVersion,
-      enablementId,
-      nowIso,
-    );
-    await this.enablementRepo.putEnablement(EnablementEntityBuilder.buildRow(meta));
   }
 
   /**
@@ -238,57 +268,55 @@ export class OrgTemplateService {
    */
   async listOrgEnableCatalog(params: ListOrgCatalogParams): Promise<ListOrgCatalogResult> {
     try {
-      const catalogBasis = await this.masterSvc.listPublishedMasterCatalogItems(params.templateType);
-
-      const masterResult = await this.masterSvc.listMasterTemplates({
-        templateType: params.templateType,
-        category: params.categoryCode,
-        conditionCode: params.conditionCode ?? params.condition,
-        country: params.country,
-        status:
-          params.status === TEMPLATE_STATUS.DRAFT || params.status === TEMPLATE_STATUS.PUBLISHED
-            ? (params.status as typeof TEMPLATE_STATUS.DRAFT)
-            : TEMPLATE_STATUS.PUBLISHED,
-        nextToken: params.nextToken,
-      });
+      const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
+      const publishedMasters = await this.masterSvc.listPublishedMasterCatalogItems();
 
       const enablements = await this.enablementRepo.queryEnablementsByOrgGsi1(
         params.organizationId,
         500,
       );
-      const enabledVersionIds = new Set(
+      const enabledMasterTemplateIds = new Set(
         enablements
-          .map((e) => e.meta.masterTemplateVersionId)
+          .filter(isActiveEnablement)
+          .map((e) => resolveEnablementMasterTemplateId(e.meta))
           .filter((v): v is string => typeof v === 'string' && v.length > 0),
       );
 
-      let items: OrgEnableCatalogItem[] = masterResult.items.map((row) =>
-        mapOrgCatalogItem(row, enabledVersionIds),
+      const allCatalogItems = publishedMasters.map((row) =>
+        mapOrgCatalogItem(row, enabledMasterTemplateIds),
       );
 
-      if (params.templateName?.trim()) {
-        const needle = params.templateName.trim().toLowerCase();
-        items = items.filter((i) => i.templateName?.toLowerCase().includes(needle));
-      }
+      const filtered = allCatalogItems.filter((item) => matchesOrgCatalogFilters(item, params));
+      const total = filtered.length;
+      const offset = decodeOffsetToken(params.nextToken);
+      const page = filtered.slice(offset, offset + limit);
+      const nextOffset = offset + page.length;
+      const hasMore = nextOffset < total;
 
       const counts = {
-        total: items.length,
-        active: items.filter((i) => i.isActive).length,
-        inactive: items.filter((i) => !i.isActive).length,
-        templateEnabled: items.filter((i) => i.templateEnabled).length,
+        total: filtered.length,
+        active: filtered.filter((i) => i.isActive).length,
+        inactive: filtered.filter((i) => !i.isActive).length,
+        templateEnabled: filtered.filter((i) => i.templateEnabled).length,
       };
 
-      const filterOptions = buildOrgCatalogFilterOptions(
-        catalogBasis.map((row) => mapOrgCatalogItem(row, enabledVersionIds)),
-      );
+      const filterOptions = buildOrgCatalogFilterOptions(allCatalogItems);
+
+      const organizationMeta: OrganizationMeta = {
+        id: params.organizationId,
+        name: params.organizationName?.trim() || params.organizationId,
+        description: params.organizationDescription?.trim() || null,
+      };
 
       return {
-        items,
+        organizationMeta,
+        items: page,
         pagination: {
-          ...masterResult.pagination,
-          count: items.length,
-          total: items.length,
-          hasMore: masterResult.pagination.hasMore && items.length > 0,
+          limit,
+          count: page.length,
+          total,
+          hasMore,
+          nextToken: hasMore ? encodeListCursor({ o: nextOffset }) : undefined,
         },
         counts,
         filterOptions,
@@ -302,6 +330,11 @@ export class OrgTemplateService {
     try {
       const { items, lastEvaluatedKey } = await this.orgRepo.listOrgTemplates(params);
       return {
+        organizationMeta: {
+          id: params.organizationId,
+          name: params.organizationName?.trim() || params.organizationId,
+          description: params.organizationDescription?.trim() || null,
+        },
         items: items.map((r) => toOrgListItem(r, params.organizationId)),
         nextToken: listOrgNextToken(lastEvaluatedKey),
       };
@@ -409,17 +442,26 @@ export class OrgTemplateService {
     return toTemplateSummary(record);
   }
 
-  toDeriveEnableResponse(result: DeriveOrgTemplateResult, selectedTemplateName?: string) {
+  toDeriveEnableResponse(
+    result: DeriveOrgTemplateResult,
+    opts?: { organizationMeta?: OrganizationMeta },
+  ) {
     const org = result.record.meta;
     const master = result.masterVersion.meta;
     const fv = fieldValuesOf({ fieldValues: result.masterVersion.fieldValues });
+    const organizationMeta: OrganizationMeta = opts?.organizationMeta ?? {
+      id: org.ownerOrgId ?? '',
+      name: org.ownerOrgId ?? '',
+      description: null,
+    };
     return {
+      organizationMeta,
       templateId: org.templateId,
       templateVersionId: org.templateVersionId,
       templateName: org.templateName,
       sourceVersionId: master.templateVersionId,
       masterTemplateId: master.templateId,
-      masterTemplateName: selectedTemplateName?.trim() || master.templateName,
+      masterTemplateName: master.templateName,
       templateType: master.templateType,
       version: org.version ?? 1,
       status: org.status ?? TEMPLATE_STATUS.DRAFT,

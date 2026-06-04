@@ -13,6 +13,7 @@ import type {
 import { EnablementRepository } from '../repositories/enablement.repository';
 import { TemplateRepository } from '../repositories/template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
+import { isActiveEnablement } from '../utils/enablement.utils';
 import {
   templateConflictError,
   templateNotFoundError,
@@ -60,24 +61,19 @@ export class EnablementService {
         );
       }
 
-      const existing = await this.enablementRepo.findByOrgAndMasterVersion(
+      const existing = await this.enablementRepo.findByOrgAndMasterTemplateId(
         body.organizationId,
-        body.masterTemplateVersionId,
+        templateId,
       );
       if (existing) {
         templateConflictError(
-          `Enablement already exists for organization ${body.organizationId} and version ${body.masterTemplateVersionId}`,
+          `Enablement already exists for organization ${body.organizationId} and master template ${templateId}`,
         );
       }
 
       const nowIso = new Date().toISOString();
       const enablementId = EnablementEntityBuilder.buildEnablementId(body.organizationId);
-      const meta = EnablementEntityBuilder.buildMeta(
-        body,
-        masterVersion,
-        enablementId,
-        nowIso,
-      );
+      const meta = EnablementEntityBuilder.buildMeta(body, masterVersion, enablementId, nowIso);
       const row = EnablementEntityBuilder.buildRow(meta);
 
       await this.enablementRepo.putEnablement(row);
@@ -112,7 +108,14 @@ export class EnablementService {
         records = [];
       }
 
-      return { items: records.map((r) => this.toDto(r)) };
+      return {
+        organizationMeta: {
+          id: orgId ?? '',
+          name: orgId ?? '',
+          description: null,
+        },
+        items: records.filter(isActiveEnablement).map((r) => this.toDto(r)),
+      };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }
@@ -122,12 +125,20 @@ export class EnablementService {
     params: ListOrgEnablementsByOrgParams,
   ): Promise<OrgEnablementListResult> {
     try {
-      const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+      const limit = Math.min(100, Math.max(1, params.limit ?? 100));
       const records = await this.enablementRepo.queryEnablementsByOrgGsi1(
         params.organizationId,
         limit,
       );
-      return { items: records.map((r) => this.toDto(r)) };
+      const organizationMeta = {
+        id: params.organizationId,
+        name: params.organizationName?.trim() || params.organizationId,
+        description: params.organizationDescription?.trim() || null,
+      };
+      return {
+        organizationMeta,
+        items: records.filter(isActiveEnablement).map((r) => this.toDto(r)),
+      };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }
@@ -181,15 +192,26 @@ export class EnablementService {
 
   toDto(record: EnablementDdbRecord): OrgEnablementDto {
     const meta = record.meta;
+    const masterTemplateId =
+      meta.masterTemplateId?.trim() ||
+      parseTemplateIdFromVersionId(meta.masterTemplateVersionId) ||
+      '';
     return {
       enablementId: meta.enablementId,
       organizationId: meta.organizationId,
+      masterTemplateId,
       masterTemplateVersionId: meta.masterTemplateVersionId,
+      orgTemplateId: meta.orgTemplateId ?? '',
       templateName: meta.templateName ?? null,
+      templateType: meta.templateType ?? null,
+      categoryCode: meta.categoryCode ?? null,
+      conditionCode: meta.conditionCode ?? meta.condition ?? null,
       condition: meta.condition ?? null,
+      templateEnabled: isActiveEnablement(record),
       effectiveFrom: meta.effectiveFrom,
       effectiveTo: meta.effectiveTo ?? null,
       createdAt: meta.createdAt,
+      updatedAt: meta.updatedAt ?? null,
     };
   }
 }

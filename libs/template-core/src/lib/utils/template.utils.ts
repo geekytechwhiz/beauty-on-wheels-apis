@@ -103,9 +103,20 @@ export function bumpMinorVersion(current: number | undefined): number {
   return Math.round((v + 0.1) * 10) / 10;
 }
 
-/** PUBLISHED → active; DRAFT and other non-published statuses → inactive unless `active` is sent. */
+/** Default when `meta.isActive` is unset: PUBLISHED → active; DRAFT and other statuses → inactive. */
 export function isActiveForStatus(status: TemplateStatus | string): boolean {
   return status === TEMPLATE_STATUS.PUBLISHED;
+}
+
+/** Master list/dashboard: honor stored `isActive`; published templates may be inactive when `active: false`. */
+export function resolveMasterTemplateIsActive(meta: {
+  status?: TemplateStatus | string;
+  isActive?: boolean;
+}): boolean {
+  if (typeof meta.isActive === 'boolean') {
+    return meta.isActive;
+  }
+  return isActiveForStatus(meta.status ?? TEMPLATE_STATUS.DRAFT);
 }
 
 /** API responses: profile fields are only in `fieldValues`, not duplicated on `meta`. */

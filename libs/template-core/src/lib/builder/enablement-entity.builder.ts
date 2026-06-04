@@ -7,6 +7,7 @@ import {
 import type { CreateOrgEnablementBody } from '../models/api/enablement.types';
 import type { EnablementDdbRecord, EnablementMeta } from '../models/api/enablement.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { OrgTemplateEntityBuilder } from './org-template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
 import { firstString } from '../utils/template.utils';
 
@@ -24,17 +25,35 @@ export class EnablementEntityBuilder {
     masterVersion: TemplateDdbRecord,
     enablementId: string,
     nowIso: string,
+    opts?: { orgTemplateId?: string },
   ): EnablementMeta {
     const masterMeta = masterVersion.meta;
+    const masterFv =
+      masterVersion.fieldValues &&
+      typeof masterVersion.fieldValues === 'object' &&
+      !Array.isArray(masterVersion.fieldValues)
+        ? (masterVersion.fieldValues as Record<string, unknown>)
+        : {};
+    const masterTemplateId = masterMeta.templateId;
+    const orgTemplateId =
+      opts?.orgTemplateId?.trim() ||
+      OrgTemplateEntityBuilder.buildOrgTemplateId(masterTemplateId, body.organizationId);
+
     return {
       enablementId,
       organizationId: body.organizationId,
+      masterTemplateId,
       masterTemplateVersionId: body.masterTemplateVersionId,
+      orgTemplateId,
       templateName: masterMeta.templateName,
+      templateType: masterMeta.templateType,
+      categoryCode: firstString(masterFv.categoryCode) ?? firstString(masterMeta.category),
+      conditionCode: firstString(masterFv.conditionCode) ?? firstString(masterMeta.condition),
       condition: firstString(masterMeta.condition ?? masterMeta.conditions),
       effectiveFrom: body.effectiveFrom?.trim() || nowIso,
       effectiveTo: body.effectiveTo ?? null,
       createdAt: nowIso,
+      updatedAt: nowIso,
     };
   }
 
@@ -48,6 +67,8 @@ export class EnablementEntityBuilder {
       gsi1sk: TemplateKeyBuilder.buildGsi1EnableSk(meta.effectiveFrom, meta.enablementId),
       gsi3pk: TemplateKeyBuilder.buildGsi3Pk(meta.masterTemplateVersionId),
       gsi3sk: TemplateKeyBuilder.buildGsi3Sk(meta.organizationId, meta.enablementId),
+      gsi5pk: TemplateKeyBuilder.buildGsi5EnableMasterPk(meta.masterTemplateId),
+      gsi5sk: TemplateKeyBuilder.buildGsi5EnableSk(meta.organizationId, meta.enablementId),
     };
     return record;
   }

@@ -67,7 +67,7 @@ describe('OrgTemplateHttpController', () => {
           organizationId: 'org-1',
           templateId: 'CP-HTN-001',
           versionId: 'V01',
-          body: { newTemplateName: 'Org Copy' },
+          body: { templateId: 'CP-HTN-001' },
           actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),

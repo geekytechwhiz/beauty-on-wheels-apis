@@ -20,7 +20,7 @@ describe('EnablementService.createOrgEnablement', () => {
       getMasterVersion: jest.fn().mockResolvedValue(masterVersion),
     };
     const enablementRepo = {
-      findByOrgAndMasterVersion: jest.fn().mockResolvedValue(null),
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(null),
       putEnablement: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -55,7 +55,7 @@ describe('EnablementService.createOrgEnablement', () => {
       getMasterVersion: jest.fn().mockResolvedValue(masterVersion),
     };
     const enablementRepo = {
-      findByOrgAndMasterVersion: jest.fn(),
+      findByOrgAndMasterTemplateId: jest.fn(),
       putEnablement: jest.fn(),
     };
 
@@ -81,7 +81,9 @@ describe('EnablementService.searchOrgEnablements', () => {
       meta: {
         enablementId: 'ENB-1',
         organizationId: 'org-1',
+        masterTemplateId: 'CP-HTN-001',
         masterTemplateVersionId: 'CP-HTN-001-V01',
+        orgTemplateId: 'CP-HTN-001-ORG-ORG1',
         effectiveFrom: '2024-04-01T00:00:00Z',
         createdAt: '2024-04-01T00:00:00Z',
       },

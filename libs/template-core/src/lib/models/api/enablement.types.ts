@@ -19,6 +19,8 @@ export type SearchOrgEnablementsParams = {
 
 export type ListOrgEnablementsByOrgParams = {
   organizationId: string;
+  organizationName?: string;
+  organizationDescription?: string;
   limit?: number;
 };
 
@@ -34,33 +36,51 @@ export type UpdateOrgEnablementParams = {
   actorUserId?: string;
 };
 
-export type OrgEnablementListResult = {
-  items: OrgEnablementDto[];
-  nextToken?: string;
-};
-
 export interface OrgEnablementDto {
   enablementId: string;
   organizationId: string;
+  masterTemplateId: string;
   masterTemplateVersionId: string;
+  orgTemplateId: string;
   templateName?: string | null;
+  templateType?: string | null;
+  categoryCode?: string | null;
+  conditionCode?: string | null;
   condition?: string | null;
+  templateEnabled: boolean;
   effectiveFrom: string;
   effectiveTo?: string | null;
   createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface EnablementMeta {
   enablementId: string;
   organizationId: string;
+  masterTemplateId: string;
   masterTemplateVersionId: string;
+  orgTemplateId: string;
   templateName?: string;
+  templateType?: string;
+  categoryCode?: string;
+  conditionCode?: string;
   condition?: string;
   effectiveFrom: string;
   effectiveTo?: string | null;
   createdAt: string;
+  updatedAt?: string | null;
   [key: string]: unknown;
 }
+
+export type OrgEnablementListResult = {
+  organizationMeta: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
+  items: OrgEnablementDto[];
+  nextToken?: string;
+};
 
 export interface EnablementDdbRecord {
   pk: string;
@@ -71,4 +91,6 @@ export interface EnablementDdbRecord {
   gsi1sk?: string;
   gsi3pk?: string;
   gsi3sk?: string;
+  gsi5pk?: string;
+  gsi5sk?: string;
 }

@@ -19,15 +19,38 @@ export const templateLevelZ = z.enum(['MASTER', 'ORG']);
 
 export const fieldValuesSchema = z.record(z.string(), z.unknown());
 
+/** Treat empty, `null`, and `undefined` query strings as no filter. */
+const optionalListFilterZ = z.preprocess((value) => {
+  if (value === undefined || value === null) return undefined;
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+    return undefined;
+  }
+  return trimmed;
+}, z.string().min(1).optional());
+
+export const organizationMetaSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  description: z.string().trim().optional().nullable(),
+});
+
+/** Required on POST /templates/derive. */
+export const deriveOrganizationMetaSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  description: z.string().trim(),
+});
+
 export const deriveTemplateBodySchema = z.object({
-  organizationId: z.string().trim().min(1).optional(),
-  /** Omit to copy the latest PUBLISHED master version (backend resolves). */
-  sourceVersionId: z.string().trim().min(1).optional(),
-  derivationType: z.enum(['ENABLE', 'CLONE']).default('ENABLE'),
-  newTemplateName: z.string().trim().min(1).max(150).optional(),
-  /** Selected master display name (validation / audit only; org copy name uses newTemplateName). */
-  templateName: z.string().trim().min(1).max(150).optional(),
-  inheritLinks: z.boolean().optional(),
+  organizationMeta: deriveOrganizationMetaSchema,
+  categoryCode: z.string().trim().min(1),
+  conditionCode: z.string().trim().min(1),
+  templateType: z.string().trim().min(1),
+  /**
+   * Master id (`filterOptions.templateName.value`) or display name (`label`) from the org catalog.
+   */
+  templateId: z.string().trim().min(1),
 });
 
 export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
@@ -99,16 +122,17 @@ export type UpsertMasterTemplateBody = z.infer<typeof upsertMasterTemplateBodySc
 export const listMasterTemplatesQuerySchema = z.object({
   templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
-  category: z.string().trim().min(1).optional(),
-  condition: z.string().trim().min(1).optional(),
-  conditionCode: z.string().trim().min(1).optional(),
-  country: z.string().trim().min(1).optional(),
-  status: z.string().trim().min(1).optional(),
+  category: optionalListFilterZ,
+  condition: optionalListFilterZ,
+  conditionCode: optionalListFilterZ,
+  country: optionalListFilterZ,
+  status: optionalListFilterZ,
   shareScope: shareScopeInputZ.optional(),
-  templateType: z.string().trim().min(1).optional(),
-  language: z.string().trim().min(1).optional(),
-  specialty: z.string().trim().min(1).optional(),
-  templateCode: z.string().trim().min(1).optional(),
+  templateType: optionalListFilterZ,
+  language: optionalListFilterZ,
+  specialty: optionalListFilterZ,
+  templateCode: optionalListFilterZ,
+  templateName: optionalListFilterZ,
   /** Opaque cursor from a previous list response (`nextPaginationKey`). Page size is fixed at 20. */
   nextPaginationKey: z.string().trim().min(1).optional(),
   /** @deprecated Prefer nextPaginationKey */
@@ -212,7 +236,6 @@ export function parseGetMasterVersionsQuery(
 
 export const cloneTemplateBodySchema = z.object({
   newTemplateName: z.string().trim().min(1).max(150).optional(),
-  inheritLinks: z.boolean().optional(),
 });
 
 export type CloneTemplateBody = z.infer<typeof cloneTemplateBodySchema>;
@@ -231,6 +254,10 @@ export const orgClonePathSchema = z.object({
 export const listOrgTemplatesQuerySchema = z.object({
   templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
+  /** Same as organizationId — id from organizationMeta returned by this endpoint. */
+  organizationMetaId: z.string().trim().min(1).optional(),
+  organizationName: z.string().trim().min(1).optional(),
+  organizationDescription: z.string().trim().optional(),
   categoryCode: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),

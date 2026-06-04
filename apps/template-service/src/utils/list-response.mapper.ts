@@ -13,7 +13,10 @@ type PaginationWithToken = {
  */
 export function withNextPaginationKey<T extends Record<string, unknown>>(
   result: T & { pagination?: PaginationWithToken; nextToken?: string },
-): Omit<T, 'nextToken'> & { pagination?: Omit<PaginationWithToken, 'nextToken'>; nextPaginationKey?: string } {
+): Omit<T, 'nextToken'> & {
+  pagination?: Omit<PaginationWithToken, 'nextToken'>;
+  nextPaginationKey: string | null;
+} {
   const cursor =
     result.pagination?.nextToken ?? (typeof result.nextToken === 'string' ? result.nextToken : undefined);
 
@@ -25,12 +28,10 @@ export function withNextPaginationKey<T extends Record<string, unknown>>(
     out.pagination = pageMeta;
   }
 
-  if (cursor) {
-    out.nextPaginationKey = cursor;
-  }
+  out.nextPaginationKey = cursor ?? null;
 
   return out as Omit<T, 'nextToken'> & {
     pagination?: Omit<PaginationWithToken, 'nextToken'>;
-    nextPaginationKey?: string;
+    nextPaginationKey: string | null;
   };
 }

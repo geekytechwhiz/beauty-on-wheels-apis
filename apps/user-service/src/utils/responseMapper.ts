@@ -103,6 +103,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       reporterProfilePic:
         item.reporterProfilePic != null ? String(item.reporterProfilePic) : undefined,
       doctorName: item.doctorName != null ? String(item.doctorName) : undefined,
+      dateOfBirth: String(item.dateOfBirth ?? ''),
     };
   }
 
@@ -124,6 +125,7 @@ export function mapToPatientUser(item: Record<string, unknown>): PatientUserItem
       organizationID: String(item.organizationID ?? item.organizationId ?? ''),
       profilePic: String(item.profilePic ?? ''),
       mrn: String(item.mrn ?? ''),
+      dateOfBirth: String(item.dateOfBirth ?? ''),
       isActive: item.isActive !== undefined ? Boolean(item.isActive) : true,
       isRpmUser: Boolean(item.isRpmUser ?? false),
       userType: String(item.userType ?? ''),

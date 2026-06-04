@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getTemplateHttpController } from '../../controllers/template-http.controller';
@@ -6,7 +6,7 @@ import { validateGetMasterVersionsRequest } from '../../validators/request.valid
 
 const c = getTemplateHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template.master.versions.get',
     validator: validateGetMasterVersionsRequest,

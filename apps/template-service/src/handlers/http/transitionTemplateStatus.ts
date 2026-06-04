@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getTemplateHttpController } from '../../controllers/template-http.controller';
@@ -7,7 +7,7 @@ import { statusTransitionBodySchema } from '../../validators/template.schemas';
 
 const c = getTemplateHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template.status.transition',
     bodySchema: statusTransitionBodySchema,

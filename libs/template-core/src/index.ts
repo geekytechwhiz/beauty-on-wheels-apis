@@ -3,6 +3,8 @@ export * from './lib/utils/share-scope.utils';
 export * from './lib/builder/template-key.builder';
 export * from './lib/builder/template-entity.builder';
 export * from './lib/models/persistence/template-ddb.model';
+export * from './lib/models/template-actor.model';
+export * from './lib/utils/template-actor.utils';
 export * from './lib/models/api/list-master.types';
 export * from './lib/models/api/get-master-versions.types';
 export * from './lib/models/api/master-version-ops.types';

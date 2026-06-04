@@ -224,6 +224,9 @@ functions:
             templateCode:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
@@ -269,6 +272,9 @@ functions:
               required: false
               type: string
             templateCode:
+              required: false
+              type: string
+            nextPaginationKey:
               required: false
               type: string
             nextToken:
@@ -376,12 +382,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string
@@ -408,12 +414,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string
@@ -511,12 +517,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string

@@ -24,7 +24,10 @@ import type {
 import type { VersionResolveStrategy } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
-import { TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
+  TEMPLATE_STATUS,
+} from '../constants/template.constants';
 import { EnablementRepository } from '../repositories/enablement.repository';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
@@ -179,7 +182,7 @@ export class OrgTemplateService {
       const meta = OrgTemplateEntityBuilder.buildOrgMetaFromMaster(
         masterVersion,
         ctx,
-        params.actorUserId,
+        params.actorUser,
       );
       const metaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(
         meta,
@@ -246,7 +249,6 @@ export class OrgTemplateService {
           params.status === TEMPLATE_STATUS.DRAFT || params.status === TEMPLATE_STATUS.PUBLISHED
             ? (params.status as typeof TEMPLATE_STATUS.DRAFT)
             : TEMPLATE_STATUS.PUBLISHED,
-        limit: params.limit,
         nextToken: params.nextToken,
       });
 
@@ -331,7 +333,7 @@ export class OrgTemplateService {
           templateId: params.templateId,
           status: params.status,
           nextToken: params.nextToken,
-          limit: params.limit ?? 25,
+          limit: DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
         });
         return {
           mode: 'list',

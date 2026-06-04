@@ -1,3 +1,5 @@
+import type { TemplateActorUser } from '../template-actor.model';
+
 export type MasterTemplateUpdateBody = {
   meta?: Record<string, unknown>;
   steps?: unknown[];
@@ -17,14 +19,14 @@ export type UpdateMasterVersionParams = {
   templateId: string;
   versionId: string;
   body: MasterTemplateUpdateBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };
 
 export type TransitionMasterStatusParams = {
   templateId: string;
   versionId: string;
   body: StatusTransitionBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };
 
 /** Unified master save — content update and/or lifecycle (POST /templates/{templateId}). */
@@ -33,6 +35,6 @@ export type SaveMasterTemplateParams = {
   /** When path uses templateVersionId (e.g. TASK-CODE-V01), targets that version. */
   templateVersionId?: string;
   body: Record<string, unknown>;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };
 

@@ -1,3 +1,4 @@
+import type { TemplateActorUser } from '../template-actor.model';
 import type { TemplateStatus } from '../../constants/template.constants';
 import type { VersionResolveStrategy } from './get-master-versions.types';
 import type { TemplateDdbRecord } from '../persistence/template-ddb.model';
@@ -18,7 +19,7 @@ export type CloneOrgTemplateParams = {
   /** Master templateVersionId or version id (V01). Omit to use latest PUBLISHED. */
   masterVersionId?: string;
   body?: CloneTemplateBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };
 
 export type DeriveOrgTemplateResult = {
@@ -34,7 +35,6 @@ export type ListOrgTemplatesParams = {
   templateType?: string;
   specialty?: string;
   nextToken?: string;
-  limit?: number;
 };
 
 export type ListOrgTemplatesResult = {
@@ -49,7 +49,6 @@ export type GetOrgVersionsParams = {
   resolve?: VersionResolveStrategy;
   status?: TemplateStatus;
   nextToken?: string;
-  limit?: number;
 };
 
 export type GetOrgVersionsResult =

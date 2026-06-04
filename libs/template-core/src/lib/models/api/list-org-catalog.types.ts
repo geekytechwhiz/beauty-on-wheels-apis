@@ -11,7 +11,6 @@ export interface ListOrgCatalogParams {
   templateName?: string;
   country?: string;
   status?: string;
-  limit?: number;
   nextToken?: string;
 }
 

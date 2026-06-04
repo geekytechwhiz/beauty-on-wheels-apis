@@ -19,6 +19,7 @@ import type {
   ValidatedUpdateMasterVersion,
   ValidatedSaveMaster,
 } from '../validators/request.validators';
+import { withNextPaginationKey } from '../utils/list-response.mapper';
 
 let templateService: TemplateService | undefined;
 let orgTemplateService: OrgTemplateService | undefined;
@@ -57,7 +58,7 @@ export class TemplateHttpController {
     }
 
     try {
-      const { record } = await this.svc.createMasterTemplate(v.body, v.actorUserId);
+      const { record } = await this.svc.createMasterTemplate(v.body, v.actorUser);
       return this.svc.toCreateResponse(record);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
@@ -94,10 +95,9 @@ export class TemplateHttpController {
         specialty: query.specialty,
         templateCode: query.templateCode,
         nextToken: query.nextToken,
-        limit: query.limit,
       });
 
-      return result;
+      return withNextPaginationKey(result);
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_master_templates_error',
@@ -128,15 +128,14 @@ export class TemplateHttpController {
         resolve: query.resolve,
         status: query.status as TemplateStatus | undefined,
         nextToken: query.nextToken,
-        limit: query.limit ?? 25,
       });
 
       if (result.mode === 'list') {
-        return {
+        return withNextPaginationKey({
           items: result.items,
           history: result.history,
           ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-        };
+        });
       }
 
       return toMasterFullRecord(result.record);
@@ -165,7 +164,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         templateVersionId: v.templateVersionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toSummary(record);
     } catch (e: unknown) {
@@ -194,7 +193,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toSummary(record);
     } catch (e: unknown) {
@@ -261,7 +260,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return orgSvc.toSummary(record);
     } catch (e: unknown) {

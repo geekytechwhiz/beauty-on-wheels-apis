@@ -3,20 +3,21 @@ info:
   title: Template Service API
   version: 1.0.0
   description: |
-    **Deployed Swagger UI** merges this file (via `swagger.json` Swagger 2) with routes from `serverless.yml`.
+    Aligned with `template-service.postman_collection.json` and deployed routes in `serverless.yml`.
 
-    **Canonical full spec:** `template-service-care-plan.openapi.yaml`  
-    **Postman collection:** `template-service.postman_collection.json`
-
-    ### Master template — one POST API
+    **Master template — one POST API**
     | Action | Method | Path |
     |--------|--------|------|
     | Create | `POST` | `/templates` |
-    | Update content / lifecycle / **active** | `POST` | `/templates/{templateId}` |
+    | Update / publish | `POST` | `/templates/{templateId}` |
 
-    ### Active / inactive (same update API)
-    Send `"active": true` or `"active": false` on **create** or **update** (no separate endpoint).
-    Maps to `meta.isActive` on the template version. Dashboard **Active Count** uses `isActive === true`.
+    **Org enable flow**
+    | Action | Method | Path |
+    |--------|--------|------|
+    | List enable catalog | `GET` | `/templates?templateLevel=ORG&organizationId=…` |
+    | Enable for org | `POST` | `/templates/{templateId}/derive` |
+
+    Set `Authorization: Bearer <token>`. `organizationId` may come from JWT when omitted.
 
 servers:
   - url: http://localhost:3000
@@ -24,7 +25,7 @@ servers:
   - url: https://{apiHost}/{stage}
     variables:
       apiHost:
-        default: api.dev.myvitalrx.com
+        default: bm677cg6y0.execute-api.us-east-1.amazonaws.com
       stage:
         default: dev
 
@@ -34,16 +35,20 @@ security:
 tags:
   - name: Health
   - name: MasterTemplates
-    description: Platform master templates (POST create/update, GET list)
+    description: POST create/update, GET list (templateLevel=MASTER)
   - name: OrgTemplates
+    description: GET enable catalog, POST derive, PUT version, POST status
   - name: Enablements
   - name: TemplateConfigs
+  - name: Legacy
+    description: Deprecated routes — prefer canonical paths
 
 paths:
   /health:
     get:
       tags: [Health]
-      summary: Health check
+      summary: GET Health
+      operationId: healthCheck
       security: []
       responses:
         '200':
@@ -52,7 +57,7 @@ paths:
   /templates:
     post:
       tags: [MasterTemplates]
-      summary: Create master template
+      summary: POST Create Master (no id)
       operationId: createMasterTemplate
       requestBody:
         required: true
@@ -63,61 +68,122 @@ paths:
             example:
               templateLevel: MASTER
               templateType: TASK
-              templateCode: task-code
-              templateName: Task Monitoring Master
-              categoryCode: CHRONIC_CARE
-              shareScope: private
-              active: true
-              conditionCode: DIABETES
-              countryCodes: [US]
-              languageCodes: [EN]
-              version: 1
+              TEMPLATE_NAME: Task Monitoring Master
               status: DRAFT
-              measurementType: NUMERIC
               fieldValues:
+                categoryCode: CHRONIC_CARE
+                conditionCode: DIABETES
+                shareScope: private
                 TASK_NAME: Record Blood Pressure
                 TASK_DESCRIPTION: Measure BP daily
+                ASSIGNED_TO_ROLE: PATIENT
+                TASK_CATEGORY: MONITORING
+                TASK_TYPE: MEASUREMENT
+                TASK_SUBTYPE: BLOOD_PRESSURE
+                ACTION_SUBMISSION_TYPE: DEVICE_SYNC
+                COMPARISON_METHOD: RANGE
+                SCHEDULE_TYPE: RECURRING
+                RECURRENCE_PATTERN: DAILY
+                REMINDERS_ENABLED: true
+                REMINDER_CHANNELS: [IN_APP, PUSH]
+                DISPLAY_TO_PATIENT: true
       responses:
         '201':
-          description: Created
+          description: Created — `data.templateId` e.g. TASK-MONITORING-MASTER
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccessTemplateSummary'
     get:
       tags: [MasterTemplates, OrgTemplates]
-      summary: List templates (dashboard)
+      summary: List templates (MASTER dashboard or ORG enable catalog)
       operationId: listTemplates
+      description: |
+        - `templateLevel=MASTER` (default): dashboard list with status counts and filterOptions (status, scope, condition).
+        - `templateLevel=ORG`: published master catalog for **Enable New Org** UI; requires `organizationId`.
+          Returns `templateEnabled` per item and org-specific `counts` / `filterOptions` (category, templateType, templateName, country).
+          Filter dropdown values are built from **all** published masters (stable when `items` is empty).
       parameters:
         - $ref: '#/components/parameters/templateLevel'
+        - $ref: '#/components/parameters/organizationId'
         - $ref: '#/components/parameters/templateType'
         - $ref: '#/components/parameters/status'
         - $ref: '#/components/parameters/shareScope'
         - $ref: '#/components/parameters/conditionCode'
-        - $ref: '#/components/parameters/organizationId'
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 25
-        - name: nextToken
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/categoryCode'
+        - $ref: '#/components/parameters/templateName'
+        - $ref: '#/components/parameters/country'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/nextToken'
       responses:
         '200':
-          description: List with pagination, counts, filterOptions, and per-item history
+          description: List response (shape depends on templateLevel)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiSuccessMasterListDashboard'
+                oneOf:
+                  - $ref: '#/components/schemas/ApiSuccessMasterListDashboard'
+                  - $ref: '#/components/schemas/ApiSuccessOrgEnableCatalog'
+              examples:
+                masterList:
+                  summary: MASTER list
+                  value:
+                    success: true
+                    statusCode: 200
+                    error: null
+                    data:
+                      items: []
+                      pagination:
+                        limit: 10
+                        count: 0
+                        total: 0
+                        hasMore: false
+                      counts:
+                        total: 0
+                        active: 0
+                        published: 0
+                      filterOptions:
+                        status: [{ label: Draft, value: DRAFT }, { label: Published, value: PUBLISHED }]
+                        scope: []
+                        condition: []
+                orgEnableCatalog:
+                  summary: ORG enable catalog
+                  value:
+                    success: true
+                    statusCode: 200
+                    error: null
+                    data:
+                      items:
+                        - templateId: TASK-MONITORING-MASTER
+                          templateVersionId: TASK-MONITORING-MASTER-V01
+                          templateName: Record Blood Pressure (updated)
+                          templateType: TASK
+                          categoryCode: CHRONIC_CARE
+                          conditionCode: DIABETES
+                          templateEnabled: false
+                          status: PUBLISHED
+                          isActive: true
+                      pagination:
+                        limit: 25
+                        count: 1
+                        total: 1
+                        hasMore: false
+                      counts:
+                        total: 1
+                        active: 1
+                        inactive: 0
+                        templateEnabled: 0
+                      filterOptions:
+                        category: [{ label: CHRONIC_CARE, value: CHRONIC_CARE }]
+                        condition: [{ label: DIABETES, value: DIABETES }]
+                        templateType: [{ label: TASK, value: TASK }]
+                        templateName: [{ label: Record Blood Pressure (updated), value: Record Blood Pressure (updated) }]
+                        country: []
 
   /templates/{templateId}:
     post:
       tags: [MasterTemplates]
-      summary: Update master (content, lifecycle, or active flag)
+      summary: POST Update Master — edit content or publish
       operationId: updateMasterTemplate
       parameters:
         - $ref: '#/components/parameters/templateId'
@@ -128,36 +194,23 @@ paths:
             schema:
               $ref: '#/components/schemas/MasterTemplateUpdateRequest'
             examples:
-              editContent:
-                summary: Edit fieldValues
+              editAndPublish:
+                summary: Update fieldValues and publish
                 value:
                   shareScope: Organization
                   fieldValues:
                     TASK_NAME: Record Blood Pressure (updated)
                     TASK_DESCRIPTION: Measure BP twice daily
+                  status: PUBLISHED
               setInactive:
-                summary: Deactivate template (dashboard toggle off)
+                summary: Deactivate (dashboard toggle)
                 value:
                   active: false
-              setActive:
-                summary: Reactivate template
-                value:
-                  active: true
-              submitReview:
-                summary: Submit for review
-                value:
-                  lifecycleAction: SUBMIT_REVIEW
-                  comment: Ready for review
-              publish:
-                summary: Publish
+              lifecyclePublish:
+                summary: Publish via lifecycleAction
                 value:
                   lifecycleAction: PUBLISH
                   comment: Approved
-              archive:
-                summary: Archive (also sets inactive via status)
-                value:
-                  lifecycleAction: ARCHIVE
-                  comment: Retired
       responses:
         '200':
           description: Updated
@@ -169,7 +222,8 @@ paths:
   /templates/{templateId}/versions:
     get:
       tags: [MasterTemplates, OrgTemplates]
-      summary: List versions and version history timeline
+      summary: GET template versions and history
+      operationId: getTemplateVersions
       parameters:
         - $ref: '#/components/parameters/templateId'
         - $ref: '#/components/parameters/templateLevel'
@@ -178,10 +232,10 @@ paths:
           in: query
           schema:
             type: string
-          description: Omit for list+history; use `latest` for active snapshot
+          description: Omit for list+history; `latest` for active snapshot
       responses:
         '200':
-          description: Version list with history array
+          description: Version list with history timeline
           content:
             application/json:
               schema:
@@ -190,7 +244,8 @@ paths:
   /templates/{templateId}/versions/{versionId}:
     put:
       tags: [OrgTemplates]
-      summary: Update org template version
+      summary: PUT Update Org Version
+      operationId: updateOrgTemplateVersion
       parameters:
         - $ref: '#/components/parameters/templateId'
         - $ref: '#/components/parameters/versionId'
@@ -205,30 +260,31 @@ paths:
                 fieldValues:
                   type: object
                   additionalProperties: true
+            example:
+              fieldValues:
+                TASK_NAME: Record Blood Pressure (Org)
       responses:
         '200':
-          description: Updated
+          description: Updated org version
 
   /templates/{templateId}/versions/{versionId}/status:
     post:
       tags: [OrgTemplates]
-      summary: Org template status transition
+      summary: POST Org Status — lifecycle
+      operationId: transitionOrgTemplateStatus
       parameters:
         - $ref: '#/components/parameters/templateId'
         - $ref: '#/components/parameters/versionId'
         - $ref: '#/components/parameters/organizationId'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [action]
-              properties:
-                action:
-                  type: string
-                  enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
-                comment:
-                  type: string
+              $ref: '#/components/schemas/OrgStatusTransitionRequest'
+            example:
+              action: PUBLISH
+              comment: Approved
       responses:
         '200':
           description: OK
@@ -236,44 +292,57 @@ paths:
   /templates/{templateId}/derive:
     post:
       tags: [OrgTemplates]
-      summary: Derive org template from published master
+      summary: POST Derive Org from Master (enable)
+      operationId: deriveOrgTemplate
+      description: |
+        Copies a **PUBLISHED** master version into the org partition and creates an enablement record
+        when `derivationType` is `ENABLE` (default). Path accepts master `templateId` or `templateVersionId`.
       parameters:
         - $ref: '#/components/parameters/templateId'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                organizationId:
-                  type: string
-                newTemplateName:
-                  type: string
-                inheritLinks:
-                  type: boolean
+              $ref: '#/components/schemas/DeriveOrgTemplateRequest'
+            example:
+              organizationId: org-apollo-001
+              templateName: Record Blood Pressure (updated)
+              sourceVersionId: TASK-MONITORING-MASTER-V01
+              newTemplateName: Apollo – Org copy
+              inheritLinks: true
+              derivationType: ENABLE
       responses:
         '201':
-          description: Created org copy
+          description: Org copy created; enablement sets templateEnabled true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessDeriveOrgTemplate'
 
   /templates/compatible:
     get:
       tags: [MasterTemplates]
-      summary: List compatible published templates
+      summary: GET Compatible Published Templates
+      operationId: listCompatibleTemplates
       parameters:
         - name: condition
           in: query
           required: true
           schema:
             type: string
+          example: HYPERTENSION
         - name: country
           in: query
           required: true
           schema:
             type: string
+          example: US
         - name: templateType
           in: query
           schema:
             type: string
+          example: CARE_PLAN
         - name: duration
           in: query
           schema:
@@ -285,32 +354,33 @@ paths:
   /org-enablements:
     post:
       tags: [Enablements]
-      summary: Create org enablement
+      summary: POST Create Enablement
+      operationId: createOrgEnablement
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [organizationId, masterTemplateVersionId]
-              properties:
-                organizationId:
-                  type: string
-                masterTemplateVersionId:
-                  type: string
-                effectiveFrom:
-                  type: string
-                  format: date-time
+              $ref: '#/components/schemas/CreateOrgEnablementRequest'
+            example:
+              organizationId: org-apollo-001
+              masterTemplateVersionId: TASK-MONITORING-MASTER-V01
+              effectiveFrom: '2026-01-01T00:00:00Z'
       responses:
         '201':
           description: Created
     get:
       tags: [Enablements]
-      summary: Search enablements
+      summary: GET Search Enablements
+      operationId: searchOrgEnablements
       parameters:
-        - name: organizationId
+        - $ref: '#/components/parameters/organizationId'
+        - name: masterTemplateVersionId
           in: query
           schema:
             type: string
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/nextToken'
       responses:
         '200':
           description: OK
@@ -318,17 +388,15 @@ paths:
   /template-configs:
     get:
       tags: [TemplateConfigs]
-      summary: List UI configs
+      summary: GET List Configs by templateType
+      operationId: listTemplateConfigs
       parameters:
         - name: configType
           in: query
           schema:
             type: string
             enum: [TEMPLATE, ORG]
-        - name: templateType
-          in: query
-          schema:
-            type: string
+        - $ref: '#/components/parameters/templateType'
       responses:
         '200':
           description: OK
@@ -336,16 +404,33 @@ paths:
   /template-configs/{configId}:
     get:
       tags: [TemplateConfigs]
-      summary: Get UI config by id
+      summary: GET Config by Id
+      operationId: getTemplateConfig
       parameters:
         - name: configId
           in: path
           required: true
           schema:
             type: string
+          example: TASK-MASTER-001
       responses:
         '200':
           description: OK
+
+  /templates/master:
+    post:
+      tags: [Legacy]
+      summary: POST /templates/master (legacy create path)
+      deprecated: true
+      operationId: createMasterTemplateLegacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterTemplateCreateRequest'
+      responses:
+        '201':
+          description: Created
 
 components:
   securitySchemes:
@@ -353,6 +438,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Cognito access token — collection variable authToken
 
   parameters:
     templateId:
@@ -361,13 +447,15 @@ components:
       required: true
       schema:
         type: string
-      description: Template id (TASK-CODE) or version id (TASK-CODE-V01) on update path only
+      description: Master template id (TASK-MONITORING-MASTER) or version id (…-V01) on derive/update paths
+      example: TASK-MONITORING-MASTER-V01
     versionId:
       name: versionId
       in: path
       required: true
       schema:
         type: string
+      example: TASK-MONITORING-MASTER-V01
     templateLevel:
       name: templateLevel
       in: query
@@ -380,25 +468,59 @@ components:
       in: query
       schema:
         type: string
-        example: TASK
+      example: TASK
     status:
       name: status
       in: query
       schema:
         $ref: '#/components/schemas/TemplateStatus'
+      description: DRAFT or PUBLISHED for master/org catalog filters
     shareScope:
       name: shareScope
       in: query
       schema:
         $ref: '#/components/schemas/ShareScope'
+      description: Use null or omit to ignore filter
     conditionCode:
       name: conditionCode
       in: query
       schema:
         type: string
-      description: Filter by condition (e.g. DIABETES, HYPERTENSION)
+      example: DIABETES
+    categoryCode:
+      name: categoryCode
+      in: query
+      schema:
+        type: string
+      example: CHRONIC_CARE
+    templateName:
+      name: templateName
+      in: query
+      schema:
+        type: string
+      description: Partial match on master template name (ORG catalog)
+    country:
+      name: country
+      in: query
+      schema:
+        type: string
+      example: US
     organizationId:
       name: organizationId
+      in: query
+      schema:
+        type: string
+      example: org-apollo-001
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    nextToken:
+      name: nextToken
       in: query
       schema:
         type: string
@@ -406,15 +528,19 @@ components:
   schemas:
     TemplateStatus:
       type: string
-      enum: [DRAFT, SAVED, IN_REVIEW, PUBLISHED, ARCHIVED, DEPRECATED]
+      enum: [DRAFT, PUBLISHED, SAVED, IN_REVIEW, ARCHIVED, DEPRECATED]
+      description: Master/org writes typically use DRAFT and PUBLISHED only
     ShareScope:
       type: string
       enum: [PRIVATE, ORGANIZATION, PUBLIC]
-      description: API accepts Private, Organization, Public (case-insensitive)
+      description: API accepts Private, Organization, Public (case-insensitive); also in fieldValues.shareScope
 
     MasterTemplateCreateRequest:
       type: object
-      required: [templateCode, templateType]
+      required: [templateType]
+      description: |
+        `templateCode` is optional — derived from `TEMPLATE_NAME` or `templateName` when omitted.
+        Profile fields (categoryCode, conditionCode, shareScope) belong in `fieldValues`.
       properties:
         templateLevel:
           type: string
@@ -425,25 +551,11 @@ components:
           type: string
         templateName:
           type: string
-        categoryCode:
+        TEMPLATE_NAME:
           type: string
-        conditionCode:
-          type: string
-        shareScope:
-          $ref: '#/components/schemas/ShareScope'
-        active:
-          type: boolean
-          description: Dashboard active flag; stored as meta.isActive
+          description: UI alias for templateName
         status:
           $ref: '#/components/schemas/TemplateStatus'
-        countryCodes:
-          type: array
-          items:
-            type: string
-        languageCodes:
-          type: array
-          items:
-            type: string
         fieldValues:
           type: object
           additionalProperties: true
@@ -451,28 +563,120 @@ components:
     MasterTemplateUpdateRequest:
       type: object
       description: |
-        **Content update** — send fieldValues, shareScope, categoryCode, etc.  
-        **Lifecycle** — send lifecycleAction (SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE).  
-        **Active toggle** — send `active: true` or `active: false` only.
+        Content — fieldValues, shareScope, status (DRAFT/PUBLISHED).  
+        Lifecycle — lifecycleAction + comment.  
+        Active toggle — `active` only.
       properties:
         lifecycleAction:
           type: string
           enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
         comment:
           type: string
-        reason:
-          type: string
         shareScope:
           $ref: '#/components/schemas/ShareScope'
+        status:
+          $ref: '#/components/schemas/TemplateStatus'
         active:
           type: boolean
         fieldValues:
           type: object
           additionalProperties: true
+
+    DeriveOrgTemplateRequest:
+      type: object
+      description: |
+        Enable UI payload. Category, condition, and template type are taken from the master record —
+        do not send them on derive.
+      properties:
+        organizationId:
+          type: string
+          description: Optional when present on JWT
+        sourceVersionId:
+          type: string
+          description: Master version id; omit when path is already a version id
+        templateName:
+          type: string
+          description: Selected master display name (audit)
+        newTemplateName:
+          type: string
+          description: Org copy display name
+        inheritLinks:
+          type: boolean
+          default: true
+        derivationType:
+          type: string
+          enum: [ENABLE, CLONE]
+          default: ENABLE
+
+    DeriveOrgTemplateResponse:
+      type: object
+      properties:
+        templateId:
+          type: string
+          description: New org template id
+        templateVersionId:
+          type: string
+        templateName:
+          type: string
+        sourceVersionId:
+          type: string
+        masterTemplateId:
+          type: string
+        masterTemplateName:
+          type: string
+        templateType:
+          type: string
+        version:
+          type: number
+        status:
+          type: string
+        isActive:
+          type: boolean
+        templateEnabled:
+          type: boolean
+          description: true after successful ENABLE derivation
         categoryCode:
           type: string
         conditionCode:
           type: string
+        countries:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrgStatusTransitionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [SUBMIT_REVIEW, PUBLISH, REJECT, ARCHIVE, DEPRECATE]
+        comment:
+          type: string
+
+    CreateOrgEnablementRequest:
+      type: object
+      required: [organizationId, masterTemplateVersionId]
+      properties:
+        organizationId:
+          type: string
+        masterTemplateVersionId:
+          type: string
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+          nullable: true
 
     MasterTemplateListItem:
       type: object
@@ -485,12 +689,8 @@ components:
           type: string
         templateType:
           type: string
-        condition:
-          type: string
-        shareScope:
-          type: string
         version:
-          type: integer
+          type: number
         status:
           $ref: '#/components/schemas/TemplateStatus'
         isActive:
@@ -499,37 +699,69 @@ components:
           type: string
           format: date-time
           nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
         updatedAt:
           type: string
           format: date-time
+          nullable: true
         updatedBy:
           type: string
           nullable: true
+        fieldValues:
+          type: object
+          additionalProperties: true
         history:
           type: array
           items:
             $ref: '#/components/schemas/TemplateHistoryEntry'
 
+    OrgEnableCatalogItem:
+      allOf:
+        - $ref: '#/components/schemas/MasterTemplateListItem'
+        - type: object
+          properties:
+            categoryCode:
+              type: string
+            conditionCode:
+              type: string
+            templateEnabled:
+              type: boolean
+            countries:
+              type: array
+              items:
+                type: string
+
     TemplateHistoryEntry:
       type: object
       properties:
         version:
-          type: integer
+          type: number
         templateVersionId:
           type: string
         status:
           type: string
         action:
           type: string
-          description: CREATED, UPDATED, PUBLISHED, SUBMITTED_FOR_REVIEW, etc.
+          description: CREATED, UPDATED, PUBLISHED, etc.
         title:
           type: string
-          example: Template Published
+        isActive:
+          type: boolean
+        isLatestVersion:
+          type: boolean
         updatedAt:
           type: string
           format: date-time
         updatedBy:
           type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
         notes:
           type: string
           nullable: true
@@ -537,6 +769,7 @@ components:
           type: array
           items:
             type: string
+          description: Field and status diffs vs previous history entry
 
     ListPagination:
       type: object
@@ -577,6 +810,18 @@ components:
           additionalProperties:
             type: integer
 
+    OrgCatalogCounts:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        inactive:
+          type: integer
+        templateEnabled:
+          type: integer
+
     FilterOption:
       type: object
       properties:
@@ -601,6 +846,28 @@ components:
           items:
             $ref: '#/components/schemas/FilterOption'
 
+    OrgCatalogFilterOptions:
+      allOf:
+        - $ref: '#/components/schemas/ListFilterOptions'
+        - type: object
+          properties:
+            category:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterOption'
+            templateType:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterOption'
+            templateName:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterOption'
+            country:
+              type: array
+              items:
+                $ref: '#/components/schemas/FilterOption'
+
     ApiSuccessEnvelope:
       type: object
       properties:
@@ -608,10 +875,22 @@ components:
           type: boolean
         statusCode:
           type: integer
+        message:
+          type: object
         data:
           type: object
+        error:
+          type: object
+          nullable: true
         meta:
           type: object
+          properties:
+            correlationId:
+              type: string
+            timestamp:
+              type: string
+            version:
+              type: string
 
     ApiSuccessMasterListDashboard:
       allOf:
@@ -631,6 +910,25 @@ components:
                   $ref: '#/components/schemas/ListStatusCounts'
                 filterOptions:
                   $ref: '#/components/schemas/ListFilterOptions'
+
+    ApiSuccessOrgEnableCatalog:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrgEnableCatalogItem'
+                pagination:
+                  $ref: '#/components/schemas/ListPagination'
+                counts:
+                  $ref: '#/components/schemas/OrgCatalogCounts'
+                filterOptions:
+                  $ref: '#/components/schemas/OrgCatalogFilterOptions'
 
     ApiSuccessVersionListWithHistory:
       allOf:
@@ -660,7 +958,7 @@ components:
         templateVersionId:
           type: string
         version:
-          type: integer
+          type: number
         status:
           type: string
 
@@ -671,3 +969,11 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/TemplateSummaryData'
+
+    ApiSuccessDeriveOrgTemplate:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DeriveOrgTemplateResponse'

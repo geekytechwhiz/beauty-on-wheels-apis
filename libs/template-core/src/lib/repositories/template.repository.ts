@@ -3,6 +3,7 @@ import { BaseRepository } from '@api-hub/utils';
 import { TemplateEntityBuilder, type CreateMasterTemplateInput } from '../builder/template-entity.builder';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   GSI2_TYPE_CATALOG,
   GSI5_MASTER_STATUS,
   TEMPLATE_META_SK,
@@ -211,7 +212,7 @@ export class TemplateRepository extends BaseRepository {
   async listMasterVersions(
     params: ListMasterVersionsParams,
   ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     return this.queryMasterVersionsPage(params.templateId, {
       limit,
@@ -344,7 +345,7 @@ export class TemplateRepository extends BaseRepository {
     items: TemplateDdbRecord[];
     lastEvaluatedKey?: Record<string, unknown>;
   }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     const templateType = params.templateType?.trim();
     const filters: MasterListFilters = {

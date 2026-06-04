@@ -14,7 +14,6 @@ export interface ListMasterTemplatesParams {
   language?: string;
   specialty?: string;
   templateCode?: string;
-  limit?: number;
   nextToken?: string;
 }
 

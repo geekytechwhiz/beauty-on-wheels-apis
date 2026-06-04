@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
@@ -6,7 +6,7 @@ import { validateListOrgTemplatesRequest } from '../../validators/request.valida
 
 const c = getOrgTemplateHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template.org.list',
     validator: validateListOrgTemplatesRequest,

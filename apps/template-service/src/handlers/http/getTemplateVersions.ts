@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
@@ -12,7 +12,7 @@ import { resolveTemplateLevelFromQuery } from '../../validators/template-level.u
 const masterCtrl = getTemplateHttpController();
 const orgCtrl = getOrgTemplateHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template.versions.get',
     validator: async (req: LambdaRequest) => {

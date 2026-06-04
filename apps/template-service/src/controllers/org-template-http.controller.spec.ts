@@ -68,7 +68,7 @@ describe('OrgTemplateHttpController', () => {
           templateId: 'CP-HTN-001',
           versionId: 'V01',
           body: { newTemplateName: 'Org Copy' },
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),
     );
@@ -82,7 +82,7 @@ describe('OrgTemplateHttpController', () => {
     mockListOrgEnableCatalog.mockResolvedValue({
       items: [{ templateId: 'CP-HTN-001', templateEnabled: false }],
       counts: { total: 1, active: 1, inactive: 0, templateEnabled: 0 },
-      pagination: { limit: 25, count: 1, total: 1, hasMore: false },
+      pagination: { limit: 20, count: 1, total: 1, hasMore: false },
       filterOptions: { status: [], scope: [], condition: [], category: [], templateType: [], templateName: [], country: [] },
     });
 
@@ -112,7 +112,7 @@ describe('OrgTemplateHttpController', () => {
           templateId: 'CP-ORG-001',
           versionId: 'V01',
           body: { meta: { templateName: 'Updated' } },
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),
     );

@@ -8,7 +8,9 @@ import {
   VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
+import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { resolveTemplateActor } from '../utils/template-actor.utils';
 import { firstString } from '../utils/template.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
@@ -101,7 +103,7 @@ export class OrgTemplateEntityBuilder {
   static buildOrgMetaFromMaster(
     masterVersion: TemplateDdbRecord,
     ctx: CloneOrgTemplateContext,
-    actorUserId?: string,
+    actor?: TemplateActorUser,
   ): TemplateMeta {
     const masterMeta = masterVersion.meta;
     const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
@@ -128,8 +130,8 @@ export class OrgTemplateEntityBuilder {
       publishedAt: null,
       createdAt: ctx.nowIso,
       lastModifiedAt: ctx.nowIso,
-      createdBy: actorUserId ?? masterMeta.createdBy,
-      lastModifiedBy: actorUserId ?? masterMeta.lastModifiedBy,
+      createdBy: resolveTemplateActor(actor),
+      lastModifiedBy: resolveTemplateActor(actor),
       templateType,
       ...(categoryCode ? { category: categoryCode } : {}),
       ...(conditionCode ? { condition: conditionCode } : {}),

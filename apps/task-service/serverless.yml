@@ -27,21 +27,94 @@ provider:
 
   logRetentionInDays: 14
 
+  environment: ${file(./infra/environments/environment.yml)}
 
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
 
+  iamRoleStatements:
+    - ${file(./infra/permissions/xray.yml)}
+
 package:
   individually: true
   patterns:
-    - 'services-json/**'
     - '!**/*.test.ts'
     - '!**/*.spec.ts'
 
+custom:
+  bundle: ${file(./infra/config/infra-custom.yml)}
+  cors: &httpApiCors
+    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Request-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
+
+  sourcemapsByStage:
+    dev: false
+    stg: false
+    prd: false
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    concurrency: 1
+    zipConcurrency: 1
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+
+  autoswagger:
+    title: Task Service API
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+      - dev
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+functions:
+  health:
+    handler: src/handlers/http/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
-  - ${file(./infra/resources/events/event-bus.yml)}
-  - ${file(./infra/resources/events/dlq.yml)}
-  - ${file(./infra/resources/outputs.yml)}

@@ -1,4 +1,6 @@
-AWS_REGION_TASK_SERVICE: ${self:provider.region} 
+REGION: ${self:provider.region}
 STAGE: ${self:provider.stage}
 NODE_ENV: ${self:provider.stage}
-SERVICE_NAME: ${self:service} 
+SERVICE_NAME: ${self:service}
+LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
+AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'

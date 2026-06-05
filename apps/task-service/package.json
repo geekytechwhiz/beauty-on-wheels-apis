@@ -2,6 +2,11 @@
   "name": "@api-hub/task-service",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "deploy": "npx --no-install serverless deploy",
+    "offline": "npx --no-install serverless offline --stage dev",
+    "package": "npx --no-install serverless package"
+  },
   "nx": {
     "targets": {
       "build": {
@@ -102,5 +107,12 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.19.2",
+    "serverless": "^3.40.0",
+    "serverless-auto-swagger": "^3.1.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "^13.9.0"
+  }
 }

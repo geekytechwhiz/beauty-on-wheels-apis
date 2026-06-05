@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals';
 import { buildApplSortKeys, extractValueCodeFromApplSk, typeEntitySk, valueSk } from './keys';
 
 describe('keys', () => {

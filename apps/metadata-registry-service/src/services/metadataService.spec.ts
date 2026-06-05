@@ -1,13 +1,14 @@
 import {
   STATUS,
-  resolveStatusMode,
+  ValidationError,
+  lifecycleStatusesFromQuery,
+  normalizeMetadataTypeInput,
+  parseLifecycleStatusQuery,
+  parsePatchStatusBody,
+  recordMatchesLifecycleStatus,
+  resolveLifecycleStatuses,
   validateMetadataTypeInput,
   type MetadataTypeInput,
-  normalizeMetadataTypeInput,
-  parseGetEntityStatusMode,
-  parseListEntityStatusMode,
-  parsePatchStatusBody,
-  parseQueryIncludeInactive,
 } from '@api-hub/metadata';
 
 describe('normalizeMetadataTypeInput', () => {
@@ -86,60 +87,45 @@ describe('parsePatchStatusBody', () => {
   });
 });
 
-describe('parseQueryIncludeInactive', () => {
-  it('recognizes include-inactive and includeInactive', () => {
-    expect(parseQueryIncludeInactive({ 'include-inactive': 'true' })).toBe(true);
-    expect(parseQueryIncludeInactive({ includeInactive: '1' })).toBe(true);
-    expect(parseQueryIncludeInactive({})).toBe(false);
+describe('lifecycleStatusesFromQuery (GET/LIST)', () => {
+  it('defaults to ACTIVE when status omitted', () => {
+    expect(lifecycleStatusesFromQuery(undefined)).toEqual([STATUS.ACTIVE]);
+  });
+
+  it('maps ACTIVE, INACTIVE, DELETED, and ALL', () => {
+    expect(lifecycleStatusesFromQuery('ACTIVE')).toEqual([STATUS.ACTIVE]);
+    expect(lifecycleStatusesFromQuery('INACTIVE')).toEqual([STATUS.INACTIVE]);
+    expect(lifecycleStatusesFromQuery('DELETED')).toEqual([STATUS.DELETED]);
+    expect(lifecycleStatusesFromQuery('ALL')).toEqual([STATUS.ACTIVE, STATUS.INACTIVE]);
+  });
+
+  it('ALL excludes DELETED', () => {
+    expect(lifecycleStatusesFromQuery('ALL')).not.toContain(STATUS.DELETED);
+  });
+
+  it('accepts lowercase status', () => {
+    expect(lifecycleStatusesFromQuery('inactive')).toEqual([STATUS.INACTIVE]);
+    expect(lifecycleStatusesFromQuery('all')).toEqual([STATUS.ACTIVE, STATUS.INACTIVE]);
+  });
+
+  it('rejects invalid status values with validation error', () => {
+    expect(() => lifecycleStatusesFromQuery('DRAFT')).toThrow(ValidationError);
+    expect(() => lifecycleStatusesFromQuery('UNKNOWN')).toThrow(ValidationError);
+    expect(() => lifecycleStatusesFromQuery('deletedd')).toThrow(ValidationError);
+  });
+
+  it('GET and LIST use the same resolver', () => {
+    const cases = [undefined, 'ACTIVE', 'INACTIVE', 'DELETED', 'ALL'] as const;
+    for (const raw of cases) {
+      expect(lifecycleStatusesFromQuery(raw)).toEqual(resolveLifecycleStatuses(parseLifecycleStatusQuery(raw)));
+    }
   });
 });
 
-describe('parseGetEntityStatusMode', () => {
-  it('defaults to active-only when no query', () => {
-    expect(parseGetEntityStatusMode({})).toBe('active');
-  });
-
-  it('treats ALL, both, and include-inactive as any-status', () => {
-    expect(parseGetEntityStatusMode({ status: 'ALL' })).toBe('all');
-    expect(parseGetEntityStatusMode({ status: 'both' })).toBe('all');
-    expect(parseGetEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
-    expect(parseGetEntityStatusMode({ includeInactive: '1' })).toBe('all');
-    expect(parseGetEntityStatusMode({ includeInactive: 'yes' })).toBe('all');
-  });
-
-  it('include-inactive takes precedence over status=ACTIVE', () => {
-    expect(parseGetEntityStatusMode({ status: 'ACTIVE', 'include-inactive': 'true' })).toBe('all');
-  });
-});
-
-describe('parseListEntityStatusMode', () => {
-  it('defaults to active; INACTIVE for inactive-only; all when include-inactive', () => {
-    expect(parseListEntityStatusMode({})).toBe('active');
-    expect(parseListEntityStatusMode({ status: 'INACTIVE' })).toBe('inactive');
-    expect(parseListEntityStatusMode({ 'include-inactive': 'true' })).toBe('all');
-  });
-
-  it('includeInactive overrides status=ACTIVE', () => {
-    expect(parseListEntityStatusMode({ status: 'ACTIVE', includeInactive: 'true' })).toBe('all');
-  });
-
-  it('accepts lowercase inactive', () => {
-    expect(parseListEntityStatusMode({ status: 'inactive' })).toBe('inactive');
-  });
-});
-
-describe('resolveStatusMode', () => {
-  const base = { entityType: 'type' as const, metadataTypeCode: 'X', includeInactive: false };
-
-  it('active when no status', () => {
-    expect(resolveStatusMode(base)).toBe('active');
-  });
-
-  it('inactive when status INACTIVE', () => {
-    expect(resolveStatusMode({ ...base, status: STATUS.INACTIVE })).toBe('inactive');
-  });
-
-  it('both when includeInactive regardless of status', () => {
-    expect(resolveStatusMode({ ...base, includeInactive: true, status: STATUS.ACTIVE })).toBe('all');
+describe('recordMatchesLifecycleStatus', () => {
+  it('matches only when status is in allowed set', () => {
+    expect(recordMatchesLifecycleStatus(STATUS.DELETED, [STATUS.DELETED])).toBe(true);
+    expect(recordMatchesLifecycleStatus(STATUS.DELETED, [STATUS.ACTIVE, STATUS.INACTIVE])).toBe(false);
+    expect(recordMatchesLifecycleStatus(STATUS.INACTIVE, lifecycleStatusesFromQuery('ALL'))).toBe(true);
   });
 });

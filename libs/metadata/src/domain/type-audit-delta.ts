@@ -41,6 +41,12 @@ export function metadataTypeToAuditSnapshot(r: MetadataTypeRecord): Record<strin
     valueDataType: r.valueDataType,
     multiSelectAllowed: r.multiSelectAllowed,
     applicableModules: sortedTokens(r.applicableModules),
+    supportsRelations: r.supportsRelations,
+    relationFieldLabel: r.relationFieldLabel,
+    targetMetadataTypeCode: r.targetMetadataTypeCode,
+    selectionMode: r.selectionMode,
+    relationRequired: r.relationRequired,
+    relationType: r.relationType,
     status: r.status,
   };
 }
@@ -54,6 +60,12 @@ export function typeCreateAuditNewValue(r: MetadataTypeRecord): Record<string, u
     valueDataType: r.valueDataType,
     multiSelectAllowed: r.multiSelectAllowed,
     applicableModules: [...(r.applicableModules ?? [])],
+    supportsRelations: r.supportsRelations,
+    relationFieldLabel: r.relationFieldLabel,
+    targetMetadataTypeCode: r.targetMetadataTypeCode,
+    selectionMode: r.selectionMode,
+    relationRequired: r.relationRequired,
+    relationType: r.relationType,
     status: r.status,
     schemaVersion: r.version,
   };
@@ -75,7 +87,19 @@ export function getMetadataTypeDelta(
   const oldValue: Record<string, unknown> = {};
   const newValue: Record<string, unknown> = {};
 
-  for (const key of ['displayName', 'description', 'valueDataType', 'multiSelectAllowed', 'status'] as const) {
+  for (const key of [
+    'displayName',
+    'description',
+    'valueDataType',
+    'multiSelectAllowed',
+    'supportsRelations',
+    'relationFieldLabel',
+    'targetMetadataTypeCode',
+    'selectionMode',
+    'relationRequired',
+    'relationType',
+    'status',
+  ] as const) {
     if (jsonStable(b[key]) === jsonStable(a[key])) {
       continue;
     }

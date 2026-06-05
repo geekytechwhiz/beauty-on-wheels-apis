@@ -1,5 +1,6 @@
 /**
- * Public API + persistence enum for metadata value links (Country → State, Device → Vital, etc.).
+ * Public API + persistence enum for metadata value links (Country → State, Category → Condition under
+ * `BELONGS_TO_CATEGORY`, Device → Vital, etc.).
  * Maps to `SK` prefix in {@link skPrefixForRelationType} in relation-keys.
  */
 export const RELATION_TYPES = [

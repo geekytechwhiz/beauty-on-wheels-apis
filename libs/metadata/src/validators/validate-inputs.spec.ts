@@ -2,7 +2,12 @@ import { describe, expect, it } from '@jest/globals';
 import { STATUS } from '../constants';
 import { ValidationError } from '../domain/errors';
 import type { MetadataTypeRecord } from '../models/types';
-import { validateMetadataTypeInput, validateMetadataValueConditionalApplicability, validateMetadataValueInput } from './validate-inputs';
+import {
+  validateMetadataTypeInput,
+  validateMetadataValueConditionalApplicability,
+  validateMetadataValueInput,
+  validateValueSearchFilter,
+} from './validate-inputs';
 import type { Applicability, MetadataValueInput } from '../models/types';
 
 describe('validateMetadataTypeInput', () => {
@@ -127,6 +132,12 @@ describe('validateMetadataValueInput (label)', () => {
     valueDataType: 'Enum',
     multiSelectAllowed: false,
     applicableModules: ['M'],
+    supportsRelations: false,
+    relationFieldLabel: null,
+    targetMetadataTypeCode: null,
+    selectionMode: null,
+    relationRequired: null,
+    relationType: null,
     status: STATUS.ACTIVE,
     createdAt: '',
     lastModifiedAt: '',
@@ -173,6 +184,12 @@ describe('validateMetadataValueConditionalApplicability', () => {
     valueDataType: 'Enum',
     multiSelectAllowed: false,
     applicableModules: ['M'],
+    supportsRelations: false,
+    relationFieldLabel: null,
+    targetMetadataTypeCode: null,
+    selectionMode: null,
+    relationRequired: null,
+    relationType: null,
     status: STATUS.ACTIVE,
     createdAt: '',
     lastModifiedAt: '',
@@ -193,5 +210,21 @@ describe('validateMetadataValueConditionalApplicability', () => {
         { module: ['M'], category: [], condition: [], country: [], language: ['EN'] },
       ),
     ).not.toThrow();
+  });
+});
+
+describe('validateValueSearchFilter', () => {
+  it('allows DELETED as explicit status filter', () => {
+    expect(() => validateValueSearchFilter({ status: STATUS.DELETED })).not.toThrow();
+  });
+
+  it('normalizes deleted casing', () => {
+    const f = { status: 'deleted' as string };
+    validateValueSearchFilter(f);
+    expect(f.status).toBe(STATUS.DELETED);
+  });
+
+  it('rejects invalid status token', () => {
+    expect(() => validateValueSearchFilter({ status: 'DRAFT' })).toThrow(ValidationError);
   });
 });

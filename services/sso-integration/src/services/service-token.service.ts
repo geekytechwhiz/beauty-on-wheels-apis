@@ -7,7 +7,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError
-} from "@api-hub/logger"
+} from "@api-hub/observability"
 
 const baseLogger = createLogger({
   service: "sso-integration",

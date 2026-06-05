@@ -1,4 +1,4 @@
-import { createChildLogger } from '@api-hub/logger';
+import { createChildLogger } from '@api-hub/observability';
 import { SSORequestContext } from '../../types/common/context.types';
 import {
   Appointment,

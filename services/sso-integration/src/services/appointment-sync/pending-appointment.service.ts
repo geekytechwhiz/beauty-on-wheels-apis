@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, serializeError } from '@api-hub/observability';
 import { SSORequestContext } from '../../types/common/context.types';
 import { PendingAppointment, User } from '../../types';
 import { CognitoUserContext } from '../../types/user/user.types';

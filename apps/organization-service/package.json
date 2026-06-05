@@ -105,10 +105,7 @@
   "dependencies": {
     "@api-hub/event-platform": "workspace:*",
     "@api-hub/middleware": "workspace:*",
-    "@aws-sdk/client-dynamodb": "^3.958.0",
-    "@aws-sdk/client-sns": "^3.958.0",
-    "@aws-sdk/client-eventbridge": "^3.958.0",
-    "@aws-sdk/lib-dynamodb": "^3.958.0"
+    
   },
   "devDependencies": {
     "@aws-sdk/client-secrets-manager": "^3.958.0",
@@ -120,5 +117,6 @@
     "serverless-offline": "^13.9.0",
     "tsx": "^4.21.0",
     "yaml": "^2.8.0"
+  
   }
 }

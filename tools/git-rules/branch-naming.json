@@ -1,0 +1,20 @@
+{
+    "name": "Branch Naming Policy",
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {
+      "ref_name": {
+        "include": ["~ALL"]
+      }
+    },
+    "rules": [
+      {
+        "type": "branch_name_pattern",
+        "parameters": {
+          "operator": "regex",
+          "pattern": "^(dev|qa|stg|feature\\/TLH-[0-9]+.*|hot-fix\\/TLH-[0-9]+.*|release\\/release-[0-9]+(\\.[0-9]+)*.*)$",
+          "negate": false
+        }
+      }
+    ]
+  }

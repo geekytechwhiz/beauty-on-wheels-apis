@@ -802,7 +802,12 @@ async function main() {
   // `tsx` (registered in the npm `dev` script via `--import tsx`) the first
   // time each route is hit. That kills the up-front bundling cost of all
   // 22 handlers and is the single biggest cold-start win.
-  offlineDoc.plugins = ['./plugins/serverless-offline-local-authorizers-node22.js', 'serverless-offline'];
+  // Load serverless-offline via its ESM entry; the package "require" export
+  // (index.cjs) breaks under Serverless 3 with ERR_REQUIRE_ESM.
+  offlineDoc.plugins = [
+    './plugins/serverless-offline-local-authorizers-node22.js',
+    './node_modules/serverless-offline/src/index.js',
+  ];
   offlineDoc.useDotenv = true;
   // Skip schema validation during offline — the warning about `nodejs22.x`
   // wastes ~1s and adds nothing in dev.

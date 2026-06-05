@@ -243,6 +243,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (before === STATUS.INACTIVE && after === STATUS.ACTIVE) {
       return { da: 1, di: -1 };
     }
+    if (before === STATUS.ACTIVE && after === STATUS.DELETED) {
+      return { da: -1, di: 0 };
+    }
+    if (before === STATUS.INACTIVE && after === STATUS.DELETED) {
+      return { da: 0, di: -1 };
+    }
     return { da: 0, di: 0 };
   }
 
@@ -256,7 +262,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   }
 
   private passesTypeListFilters(t: MetadataTypeRecord, filter: ListTypesFilter): boolean {
-    if (filter.status && t.status !== filter.status) {
+    if (filter.statuses?.length && !filter.statuses.includes(t.status)) {
       return false;
     }
     if (filter.module && !t.applicableModules?.includes(filter.module)) {
@@ -403,6 +409,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       input.metadataTypeCode,
       input.attributeSchema,
     );
+    const supportsRelations = Boolean(input.supportsRelations);
     const record: MetadataTypeRecord = {
       metadataTypeCode: input.metadataTypeCode,
       version,
@@ -411,6 +418,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
       multiSelectAllowed: input.multiSelectAllowed!,
       applicableModules: input.applicableModules ?? [],
+      supportsRelations,
+      relationFieldLabel: supportsRelations ? String(input.relationFieldLabel ?? '').trim() : null,
+      targetMetadataTypeCode: supportsRelations ? String(input.targetMetadataTypeCode ?? '').trim() : null,
+      selectionMode: supportsRelations ? input.selectionMode ?? null : null,
+      relationRequired: supportsRelations ? input.relationRequired ?? null : null,
+      relationType: supportsRelations ? input.relationType ?? null : null,
       valueApplicabilityConfig: input.valueApplicabilityConfig,
       attributeSchema,
       status,
@@ -470,6 +483,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     );
 
     /** `input` is the fully merged snapshot from the service layer (PATCH semantics already applied). */
+    const supportsRelations = Boolean(input.supportsRelations);
     const record: MetadataTypeRecord = {
       metadataTypeCode: input.metadataTypeCode,
       version: newVersion,
@@ -478,6 +492,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
       multiSelectAllowed: input.multiSelectAllowed!,
       applicableModules: input.applicableModules ?? [],
+      supportsRelations,
+      relationFieldLabel: supportsRelations ? String(input.relationFieldLabel ?? '').trim() : null,
+      targetMetadataTypeCode: supportsRelations ? String(input.targetMetadataTypeCode ?? '').trim() : null,
+      selectionMode: supportsRelations ? input.selectionMode ?? null : null,
+      relationRequired: supportsRelations ? input.relationRequired ?? null : null,
+      relationType: supportsRelations ? input.relationType ?? null : null,
       valueApplicabilityConfig: input.valueApplicabilityConfig,
       attributeSchema: resolvedAttributeSchema,
       status: input.status!,
@@ -718,6 +738,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     actor: string | undefined,
     existing: MetadataValueRecord,
   ): Promise<MetadataValueRecord> {
+    if (existing.status === STATUS.DELETED) {
+      throw new ConflictError(`Value ${input.valueCode} has been deleted`, 'VALUE_ALREADY_DELETED');
+    }
     const mergedIsGlobal = input.isGlobal ?? existing.isGlobal;
 
     const pk = typePartitionKey(metadataTypeCode);
@@ -780,6 +803,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     if (!existing) {
       throw new NotFoundError(`Value ${valueCode} not found`);
     }
+    if (existing.status === STATUS.DELETED) {
+      throw new ConflictError(`Value ${valueCode} has been deleted`, 'VALUE_ALREADY_DELETED');
+    }
     if (!(await this.getMetadataType(metadataTypeCode))) {
       throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
     }
@@ -825,6 +851,80 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return record;
   }
 
+  async softDeleteMetadataValue(
+    metadataTypeCode: string,
+    valueCode: string,
+    opts: { reason?: string; actor?: string },
+  ): Promise<MetadataValueRecord> {
+    const existing = await this.getMetadataValue(metadataTypeCode, valueCode);
+    if (!existing) {
+      throw new NotFoundError(`Value ${valueCode} not found`);
+    }
+    if (existing.status === STATUS.DELETED) {
+      throw new ConflictError(`Value ${valueCode} is already deleted`, 'VALUE_ALREADY_DELETED');
+    }
+    if (!(await this.getMetadataType(metadataTypeCode))) {
+      throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+    }
+
+    const pk = typePartitionKey(metadataTypeCode);
+    const newVersion = existing.version + 1;
+    const now = new Date().toISOString();
+    const previousStatus = existing.status;
+
+    const record: MetadataValueRecord = {
+      ...existing,
+      version: newVersion,
+      status: STATUS.DELETED,
+      previousStatus,
+      deletedAt: now,
+      deletedBy: opts.actor,
+      deleteReason: opts.reason !== undefined && String(opts.reason).trim() !== '' ? String(opts.reason).trim() : undefined,
+      lastModifiedAt: now,
+      lastModifiedBy: opts.actor,
+    };
+
+    const valueItem = this.marshalValue(record, pk, valueSk(valueCode, newVersion));
+    const latestPointer = {
+      ...this.key(pk, valueLatestSk(valueCode)),
+      entityType: 'VALUE_LATEST',
+      valueCode,
+      latestVersion: newVersion,
+      status: STATUS.DELETED,
+      updatedAt: now,
+    };
+
+    const auditPayload: Record<string, unknown> = {
+      changeType: 'SOFT_DELETED',
+      previousStatus,
+      newStatus: STATUS.DELETED,
+      changedBy: opts.actor,
+      changedAt: now,
+    };
+    if (record.deleteReason !== undefined) {
+      auditPayload.changeReason = record.deleteReason;
+    }
+
+    const auditItem = this.buildMetadataValueAuditItem(auditValuePartitionKey(valueCode), {
+      action: 'STATUS',
+      changedBy: opts.actor,
+      timestamp: now,
+      oldValue: { status: previousStatus },
+      newValue: auditPayload,
+    });
+
+    const { da, di } = this.valueCountDeltasOnStatusChange(existing.status, STATUS.DELETED);
+    const ctr = this.valueCounterDeltaTransact(metadataTypeCode, da, di);
+    await this.sendTx([
+      { Put: { TableName: this.tableName, Item: valueItem } },
+      { Put: { TableName: this.tableName, Item: latestPointer } },
+      { Put: { TableName: this.tableName, Item: auditItem } },
+      ...(ctr ? [ctr] : []),
+    ]);
+
+    return record;
+  }
+
   async getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null> {
     const pk = typePartitionKey(metadataTypeCode);
     const latest = await this.getItem(pk, valueLatestSk(valueCode));
@@ -839,7 +939,10 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return this.unmarshalValue(valueItem);
   }
 
-  async listMetadataValues(metadataTypeCode: string, statusFilter?: Status | null): Promise<MetadataValueRecord[]> {
+  async listMetadataValues(
+    metadataTypeCode: string,
+    statuses: Status[],
+  ): Promise<MetadataValueRecord[]> {
     const pk = typePartitionKey(metadataTypeCode);
     const rows = await this.queryAll(pk, MetadataKeyBuilder.valueLatestSortKeyPrefix());
     const codes = rows
@@ -848,17 +951,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       .filter(Boolean);
 
     const values = await this.batchLoadValues(pk, codes);
-    if (statusFilter === null) {
-      return values;
-    }
-    const defaultStatus = STATUS.ACTIVE;
-    const effective = statusFilter ?? defaultStatus;
-    return values.filter((v) => v.status === effective);
+    return values.filter((v) => this.valuePassesLifecycleStatus(v, statuses));
   }
 
   async listMetadataValuesPaginated(
     metadataTypeCode: string,
-    statusFilter: Status | null,
+    statuses: Status[],
     options: ListMetadataValuesPaginatedOptions,
   ): Promise<{ records: MetadataValueRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const pk = typePartitionKey(metadataTypeCode);
@@ -884,7 +982,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       const vals = await this.batchLoadValues(pk, codes);
       for (let i = 0; i < vals.length; i++) {
         const v = vals[i]!;
-        if (!this.valuePassesLatestStatus(v, statusFilter)) {
+        if (!this.valuePassesLifecycleStatus(v, statuses)) {
           continue;
         }
         out.push(v);
@@ -937,8 +1035,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     fromAppl.forEach((c) => allCodes.add(c));
 
     const values = await this.batchLoadValues(pk, [...allCodes]);
-    const defaultStatus = STATUS.ACTIVE;
-    const matched = values.filter((v) => matchesSearchFilter(v, filter, defaultStatus));
+    const matched = values.filter((v) => matchesSearchFilter(v, filter, [STATUS.ACTIVE]));
     return sortValuesForSearch(matched);
   }
 
@@ -1105,11 +1202,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return valueCodes.map((c) => byCode.get(c)).filter((v): v is MetadataValueRecord => v !== undefined);
   }
 
-  private valuePassesLatestStatus(v: MetadataValueRecord, statusFilter: Status | null): boolean {
-    if (statusFilter === null) {
-      return true;
-    }
-    return v.status === statusFilter;
+  private valuePassesLifecycleStatus(v: MetadataValueRecord, statuses: Status[]): boolean {
+    return statuses.includes(v.status);
   }
 
   private async queryValueLatestPage(
@@ -1197,6 +1291,12 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       applicableModules: r.applicableModules,
       valueDataType: r.valueDataType,
       multiSelectAllowed: r.multiSelectAllowed,
+      supportsRelations: r.supportsRelations,
+      ...(r.relationFieldLabel != null ? { relationFieldLabel: r.relationFieldLabel } : {}),
+      ...(r.targetMetadataTypeCode != null ? { targetMetadataTypeCode: r.targetMetadataTypeCode } : {}),
+      ...(r.selectionMode != null ? { selectionMode: r.selectionMode } : {}),
+      ...(r.relationRequired != null ? { relationRequired: r.relationRequired } : {}),
+      ...(r.relationType != null ? { relationType: r.relationType } : {}),
       status: r.status,
       createdAt: r.createdAt,
       lastModifiedAt: r.lastModifiedAt,
@@ -1219,6 +1319,9 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     const lastModifiedAt = (typeItem.lastModifiedAt ?? typeItem.updatedAt ?? typeItem.createdAt) as string;
     const lastModifiedBy = (typeItem.lastModifiedBy ?? typeItem.updatedBy) as string | undefined;
 
+    const supportsRelations =
+      typeItem.supportsRelations !== undefined ? Boolean(typeItem.supportsRelations) : false;
+
     return {
       metadataTypeCode: typeItem.metadataTypeCode as string,
       version: typeItem.version as number,
@@ -1227,6 +1330,15 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       valueDataType,
       multiSelectAllowed,
       applicableModules,
+      supportsRelations,
+      relationFieldLabel: (typeItem.relationFieldLabel ?? null) as string | null,
+      targetMetadataTypeCode: (typeItem.targetMetadataTypeCode ?? null) as string | null,
+      selectionMode: (typeItem.selectionMode ?? null) as MetadataTypeRecord['selectionMode'],
+      relationRequired:
+        typeItem.relationRequired !== undefined && typeItem.relationRequired !== null
+          ? Boolean(typeItem.relationRequired)
+          : null,
+      relationType: (typeItem.relationType ?? null) as MetadataTypeRecord['relationType'],
       valueApplicabilityConfig: typeItem.valueApplicabilityConfig as MetadataTypeRecord['valueApplicabilityConfig'],
       attributeSchema: schemaItem
         ? ((schemaItem.attributeSchema ?? schemaItem.schema) as Record<string, unknown>)
@@ -1258,6 +1370,10 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       lastModifiedAt: r.lastModifiedAt,
       createdBy: r.createdBy,
       lastModifiedBy: r.lastModifiedBy,
+      ...(r.deletedAt !== undefined ? { deletedAt: r.deletedAt } : {}),
+      ...(r.deletedBy !== undefined ? { deletedBy: r.deletedBy } : {}),
+      ...(r.deleteReason !== undefined ? { deleteReason: r.deleteReason } : {}),
+      ...(r.previousStatus !== undefined ? { previousStatus: r.previousStatus } : {}),
     };
   }
 
@@ -1282,6 +1398,10 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       lastModifiedAt,
       createdBy: item.createdBy as string | undefined,
       lastModifiedBy,
+      ...(item.deletedAt !== undefined ? { deletedAt: item.deletedAt as string } : {}),
+      ...(item.deletedBy !== undefined ? { deletedBy: item.deletedBy as string } : {}),
+      ...(item.deleteReason !== undefined ? { deleteReason: item.deleteReason as string } : {}),
+      ...(item.previousStatus !== undefined ? { previousStatus: item.previousStatus as Status } : {}),
     };
   }
 
@@ -1321,7 +1441,7 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
   private buildMetadataValueAuditItem(
     auditPk: string,
     params: {
-      action: 'CREATE' | 'UPDATE' | 'UPDATE_BREAKING' | 'UPDATE' | 'STATUS';
+      action: 'CREATE' | 'UPDATE' | 'UPDATE_BREAKING' | 'STATUS';
       changedBy?: string;
       timestamp: string;
       oldValue: Record<string, unknown>;

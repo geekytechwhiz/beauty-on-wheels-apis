@@ -14,6 +14,11 @@ export function isValidStatus(value: unknown): value is Status {
   return value === STATUS.ACTIVE || value === STATUS.INACTIVE;
 }
 
+/** Lifecycle status including terminal soft-delete (not valid on POST create/update body). */
+export function isLifecycleStatus(value: unknown): value is Status {
+  return value === STATUS.ACTIVE || value === STATUS.INACTIVE || value === STATUS.DELETED;
+}
+
 /**
  * Single source of truth for the `ACTIVE | INACTIVE` enum check.
  *
@@ -43,6 +48,18 @@ export function assertStatusEnum(
  * unknown values with the activate-route copy. Used by the registry PATCH schema so status enum
  * validation runs before orchestration, mirroring the POST validation lifecycle.
  */
+/**
+ * Validates optional search/list filter status when set (allows DELETED for explicit admin queries).
+ */
+export function assertStatusFilterEnum(value: unknown): asserts value is Status {
+  if (isLifecycleStatus(value)) {
+    return;
+  }
+  throw new ValidationError('Invalid status filter', [
+    { field: 'status', message: 'Must be ACTIVE, INACTIVE, or DELETED' },
+  ]);
+}
+
 export function parsePatchStatusBody(raw: unknown): Status {
   if (raw === undefined || raw === null) {
     throw new ValidationError(PATCH_STATUS_INVALID, [{ field: 'status', message: 'Invalid' }]);

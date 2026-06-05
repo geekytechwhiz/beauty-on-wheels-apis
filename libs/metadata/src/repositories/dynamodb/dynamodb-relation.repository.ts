@@ -5,6 +5,7 @@ import { MetadataKeyBuilder } from '../../builders/metadata-key.builder';
 import type {
   CreateMetadataRelationInput,
   MetadataRelationRecord,
+  RelationStatus,
 } from '../../models/relation-types';
 import { RELATION_ENTITY_TYPE, RELATION_STATUS } from '../../models/relation-types';
 import { ConflictError, NotFoundError } from '../../domain/errors';
@@ -176,6 +177,9 @@ export class DynamoDbRelationRepository implements IRelationRepository {
     const records = items
       .filter((i) => i.entityType === RELATION_ENTITY_TYPE)
       .map((i) => this.unmarshal(i as Record<string, unknown>));
+    if (options?.status === 'ALL') {
+      return records;
+    }
     return records.filter(
       (r) => (r.status ?? RELATION_STATUS.ACTIVE) === RELATION_STATUS.ACTIVE,
     );
@@ -262,6 +266,106 @@ export class DynamoDbRelationRepository implements IRelationRepository {
       updatedAt: now,
       updatedBy: actor,
     };
+  }
+
+  async reactivateRelation(pk: string, sk: string, actor?: string): Promise<MetadataRelationRecord> {
+    const existing = await this.getRelationByKey(pk, sk);
+    if (!existing) {
+      throw new NotFoundError('Relation not found');
+    }
+    if (existing.status === RELATION_STATUS.ACTIVE) {
+      return existing;
+    }
+    const now = new Date().toISOString();
+    const auditPk = auditRelationPartitionKey(existing.fromMetadataTypeCode, existing.fromMetadataValueCode);
+    const auditId = ulid();
+    const auditSk = MetadataKeyBuilder.auditTimestampSk(now, auditId);
+
+    const fromCode = existing.fromMetadataValueCode;
+    const toCode = existing.toMetadataValueCode;
+
+    const updateExpr = actor
+      ? 'SET #s = :active, #ua = :now, #ub = :a'
+      : 'SET #s = :active, #ua = :now';
+    const updateNames: Record<string, string> = { '#s': 'status', '#ua': 'updatedAt' };
+    if (actor) {
+      updateNames['#ub'] = 'updatedBy';
+    }
+    const updateVals: Record<string, unknown> = {
+      ':active': RELATION_STATUS.ACTIVE,
+      ':inactive': RELATION_STATUS.INACTIVE,
+      ':now': now,
+    };
+    if (actor) {
+      updateVals[':a'] = actor;
+    }
+
+    try {
+      await this.doc.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Update: {
+                TableName: this.tableName,
+                Key: this.key(pk, sk),
+                UpdateExpression: updateExpr,
+                ExpressionAttributeNames: updateNames,
+                ExpressionAttributeValues: updateVals,
+                ConditionExpression: '#s = :inactive',
+              },
+            },
+            {
+              Put: {
+                TableName: this.tableName,
+                Item: {
+                  ...this.key(auditPk, auditSk),
+                  entityType: 'AUDIT',
+                  entity: 'METADATA_RELATION',
+                  auditId,
+                  eventId: auditId,
+                  action: 'REACTIVATE',
+                  changedBy: actor,
+                  timestamp: now,
+                  relationPk: pk,
+                  relationSk: sk,
+                  oldValue: { status: RELATION_STATUS.INACTIVE, from: fromCode, to: toCode },
+                  newValue: { status: RELATION_STATUS.ACTIVE, from: fromCode, to: toCode },
+                },
+              },
+            },
+          ] as any,
+        }),
+      );
+    } catch (e: unknown) {
+      this.rethrowDynamo('TransactWriteItems', e);
+    }
+
+    return {
+      ...existing,
+      status: RELATION_STATUS.ACTIVE,
+      updatedAt: now,
+      updatedBy: actor,
+    };
+  }
+
+  async updateRelationStatus(
+    pk: string,
+    sk: string,
+    status: RelationStatus,
+    actor?: string,
+  ): Promise<MetadataRelationRecord> {
+    const existing = await this.getRelationByKey(pk, sk);
+    if (!existing) {
+      throw new NotFoundError('Relation not found');
+    }
+    const current = existing.status ?? RELATION_STATUS.ACTIVE;
+    if (current === status) {
+      return existing;
+    }
+    if (status === RELATION_STATUS.INACTIVE) {
+      return this.inactivateRelation(pk, sk, actor);
+    }
+    return this.reactivateRelation(pk, sk, actor);
   }
 
   private unmarshal(item: Record<string, unknown>): MetadataRelationRecord {

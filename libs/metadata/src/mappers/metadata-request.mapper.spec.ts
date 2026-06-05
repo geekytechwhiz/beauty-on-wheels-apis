@@ -1,5 +1,3 @@
-import { describe, expect, it } from '@jest/globals';
-
 import { STATUS } from '../constants';
 import type { MetadataTypeRecord, MetadataValueRecord } from '../models/types';
 import { mergeMetadataTypeForUpdate, normalizeMetadataTypeInput, normalizeMetadataValueInput } from './metadata-request.mapper';
@@ -23,6 +21,12 @@ describe('mergeMetadataTypeForUpdate', () => {
     valueDataType: 'Enum',
     multiSelectAllowed: true,
     applicableModules: ['PROVIDER'],
+    supportsRelations: false,
+    relationFieldLabel: null,
+    targetMetadataTypeCode: null,
+    selectionMode: null,
+    relationRequired: null,
+    relationType: null,
     attributeSchema: { attributes: [{ name: 'a' }] },
     status: STATUS.ACTIVE,
     createdAt: 'c',

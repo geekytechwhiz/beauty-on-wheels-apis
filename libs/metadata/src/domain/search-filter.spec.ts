@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals';
 import { STATUS } from '../constants';
 import { matchesSearchFilter, sortValuesForSearch } from './search-filter';
 import type { MetadataValueRecord } from '../models/types';
@@ -31,6 +30,12 @@ describe('matchesSearchFilter', () => {
     const inactive = v({ valueCode: 'B', status: STATUS.INACTIVE });
     expect(matchesSearchFilter(active, {})).toBe(true);
     expect(matchesSearchFilter(inactive, {})).toBe(false);
+  });
+
+  it('defaults to ACTIVE and excludes DELETED', () => {
+    const deleted = v({ valueCode: 'D', status: STATUS.DELETED });
+    expect(matchesSearchFilter(deleted, {})).toBe(false);
+    expect(matchesSearchFilter(deleted, { status: STATUS.DELETED })).toBe(true);
   });
 
   it('includes global values regardless of applicability', () => {
@@ -83,11 +88,14 @@ describe('matchesSearchFilter', () => {
     expect(matchesSearchFilter(inactive, { status: STATUS.INACTIVE })).toBe(true);
   });
 
-  it('with defaultStatus null, does not filter by status when filter omits status', () => {
+  it('with ALL lifecycle statuses, includes ACTIVE and INACTIVE but not DELETED', () => {
     const active = v({ valueCode: 'A', status: STATUS.ACTIVE });
     const inactive = v({ valueCode: 'B', status: STATUS.INACTIVE });
-    expect(matchesSearchFilter(active, {}, null)).toBe(true);
-    expect(matchesSearchFilter(inactive, {}, null)).toBe(true);
+    const deleted = v({ valueCode: 'D', status: STATUS.DELETED });
+    const all = [STATUS.ACTIVE, STATUS.INACTIVE];
+    expect(matchesSearchFilter(active, {}, all)).toBe(true);
+    expect(matchesSearchFilter(inactive, {}, all)).toBe(true);
+    expect(matchesSearchFilter(deleted, {}, all)).toBe(false);
   });
 });
 

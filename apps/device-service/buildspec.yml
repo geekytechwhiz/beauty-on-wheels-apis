@@ -14,6 +14,8 @@ phases:
       nodejs: 22
     commands:
       - npm install -g serverless@3 --force
+      - npm install -g pnpm@10
+      - pnpm --version
       - npm install --legacy-peer-deps
 
   build:

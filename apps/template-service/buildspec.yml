@@ -1,6 +1,6 @@
 version: 0.2
-# Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must use the artifact at apps/template-service/packaged.yaml (see artifacts.files).
+# DEV pipeline only — CodeBuild project must use THIS file for dev (STAGE=dev).
+# Staging: stg-buildspec.yml | Production: prd-buildspec.yml
 
 env:
   # NOTE: `compute-type` is NOT a valid field in a non-batch buildspec — AWS ignores it.
@@ -16,12 +16,12 @@ env:
     # Cap Node heap well below the ~3.6 GiB container so the esbuild subprocess has
     # headroom. A 6144 cap on a 3.6 GiB box prevents GC and OOM-kills esbuild
     # ("Error: The service was stopped").
-    NODE_OPTIONS: '--max-old-space-size=2048'
+    NODE_OPTIONS: '--max-old-space-size=1536'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 22
+      nodejs: 20
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps

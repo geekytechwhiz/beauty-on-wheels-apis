@@ -112,10 +112,12 @@ custom:
       - swagger.json
     useStage: true
     swaggerPath: swagger
-    # CI packages with STAGE=dev; skipping swagger here avoids extra work/memory during CodeBuild.
+    # CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
     excludeStages:
       - production
       - dev
+      - stg
+      - prd
 
   serverless-offline:
     httpPort: 3000

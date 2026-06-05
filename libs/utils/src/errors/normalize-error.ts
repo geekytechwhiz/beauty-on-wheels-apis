@@ -29,6 +29,50 @@ function detailMessage(error: Error): string {
   return error.message || 'Unexpected error';
 }
 
+type ErrorLike = {
+  name?: string;
+  message: string;
+  stack?: string;
+  statusCode?: number;
+  code?: string;
+  retryable?: boolean;
+  metadata?: Record<string, unknown>;
+  details?: BaseError['details'];
+};
+
+function isErrorLike(error: unknown): error is ErrorLike {
+  if (error instanceof Error) {
+    return true;
+  }
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const candidate = error as Record<string, unknown>;
+  return typeof candidate.message === 'string';
+}
+
+function baseErrorFromErrorLike(error: ErrorLike): BaseError {
+  const msg = error.message || 'Unexpected error';
+  const statusCode =
+    typeof error.statusCode === 'number' ? error.statusCode : 500;
+  const code =
+    typeof error.code === 'string' ? error.code : defaultCodeForStatus(statusCode);
+  return new BaseError(
+    msg,
+    statusCode,
+    code,
+    error.details ?? [{ message: msg }],
+    {
+      retryable:
+        error.retryable ?? [502, 503, 504].includes(statusCode),
+      metadata: {
+        ...(typeof error.name === 'string' ? { originalName: error.name } : {}),
+        ...error.metadata,
+      },
+    },
+  );
+}
+
 /**
  * Normalizes any thrown value to {@link BaseError} for middleware boundaries and logging.
  */
@@ -82,6 +126,10 @@ export function toBaseError(error: unknown): BaseError {
     return new BaseError(error, 500, 'INTERNAL_ERROR', [{ message: error }], {
       retryable: false,
     });
+  }
+
+  if (isErrorLike(error)) {
+    return baseErrorFromErrorLike(error);
   }
 
   return new BaseError(

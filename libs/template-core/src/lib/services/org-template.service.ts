@@ -266,7 +266,10 @@ export class OrgTemplateService {
       name: input.name.trim(),
       active: input.active,
       country: input.country?.trim(),
-      updated: input.updated?.trim() || new Date().toISOString(),
+      updated:
+        input.updated === undefined || input.updated === null
+          ? new Date().toISOString()
+          : String(input.updated).trim() || new Date().toISOString(),
       description: input.description ?? null,
     };
     await this.orgProfileRepo.putOrgProfile(meta);

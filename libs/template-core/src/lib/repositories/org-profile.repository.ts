@@ -26,7 +26,10 @@ export class OrgProfileRepository extends BaseRepository {
         id: organizationId,
         name: meta.name.trim(),
         country: meta.country?.trim() || undefined,
-        updated: meta.updated?.trim() || new Date().toISOString(),
+        updated:
+          meta.updated === undefined || meta.updated === null
+            ? new Date().toISOString()
+            : String(meta.updated).trim() || new Date().toISOString(),
       },
     };
     await this.put(table, record);

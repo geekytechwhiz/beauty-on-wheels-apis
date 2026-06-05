@@ -59,7 +59,7 @@ export function createPatientModel(input: CreatePatientModelInput): PatientCreat
       contact: {
         email: hasEmail ? String(email).trim() : undefined,
         phone: hasPhone ? String(phone).trim() : undefined,
-        phoneCode: input.contact?.phoneCode ?? PHONE_CODE.SOUTH_AFRICA,
+        phoneCode: input.contact?.phoneCode ?? '+260',
       },
       emergencyContact: {},
       friendNFamily: {},

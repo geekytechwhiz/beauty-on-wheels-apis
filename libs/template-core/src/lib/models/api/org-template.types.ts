@@ -1,6 +1,7 @@
 import type { TemplateActorUser } from '../template-actor.model';
 import type { TemplateStatus } from '../../constants/template.constants';
 import type { VersionResolveStrategy } from './get-master-versions.types';
+import type { EnablementDdbRecord } from './enablement.types';
 import type { TemplateDdbRecord } from '../persistence/template-ddb.model';
 import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/template-http.dto';
 
@@ -34,6 +35,7 @@ export type CloneOrgTemplateParams = {
 export type DeriveOrgTemplateResult = {
   record: TemplateDdbRecord;
   masterVersion: TemplateDdbRecord;
+  enablement: EnablementDdbRecord;
   templateEnabled: boolean;
 };
 

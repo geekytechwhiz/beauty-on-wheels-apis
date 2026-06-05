@@ -284,6 +284,7 @@ export const listOrgTemplatesQuerySchema = z.object({
   status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
   templateName: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1).optional(),
   country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   nextPaginationKey: z.string().trim().min(1).optional(),
@@ -292,6 +293,30 @@ export const listOrgTemplatesQuerySchema = z.object({
 });
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
+
+export const orgVersionStatusQuerySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1),
+  organizationName: z.string().trim().min(1).optional(),
+  organizationDescription: z.string().trim().optional(),
+});
+
+export type OrgVersionStatusQuery = z.infer<typeof orgVersionStatusQuerySchema>;
+
+export function parseOrgVersionStatusQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): OrgVersionStatusQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
+    }
+  }
+  return orgVersionStatusQuerySchema.parse(params);
+}
 
 export const updateOrgTemplateBodySchema = z
   .object({

@@ -7,6 +7,7 @@ import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
   ValidatedCloneOrgTemplate,
+  ValidatedGetOrgVersionStatus,
   ValidatedGetOrgVersions,
   ValidatedListOrg,
   ValidatedUpdateOrgVersion,
@@ -157,6 +158,15 @@ export class OrgTemplateHttpController {
       );
     }
 
+    if (!v.organizationId) {
+      throw new BaseError(
+        'organizationId is required to list org template copies',
+        400,
+        'VALIDATION_ERROR',
+        [{ message: 'organizationId is required to list org template copies' }],
+      );
+    }
+
     try {
       return withNextPaginationKey(
         await enrichRecordActorsForApi(
@@ -180,6 +190,34 @@ export class OrgTemplateHttpController {
     }
   }
 
+  async handleGetOrgVersionStatus(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus })
+      .validatedGetOrgVersionStatus;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getOrgVersionStatus({
+        organizationId: v.organizationId,
+        masterTemplateId: v.masterTemplateId,
+        organizationName: v.query.organizationName,
+        organizationDescription: v.query.organizationDescription,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'get_org_version_status_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
   async handleListOrg(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg;
 
@@ -194,21 +232,18 @@ export class OrgTemplateHttpController {
 
     try {
       return withNextPaginationKey(
-        await enrichRecordActorsForApi(
-          await this.svc.listOrgEnableCatalog({
-            organizationId: v.organizationId,
-            organizationName: v.query.organizationName,
-            organizationDescription: v.query.organizationDescription,
-            categoryCode: v.query.categoryCode ?? v.query.category,
-            condition: v.query.condition,
-            conditionCode: v.query.conditionCode,
-            templateType: v.query.templateType,
-            templateName: v.query.templateName,
-            country: v.query.country,
-            status: v.query.status,
-            nextToken: v.query.nextToken,
-          }),
-        ),
+        await this.svc.listOrgEnabled({
+          organizationId: v.organizationId,
+          organizationName: v.query.organizationName,
+          organizationDescription: v.query.organizationDescription,
+          categoryCode: v.query.categoryCode ?? v.query.category,
+          condition: v.query.condition,
+          conditionCode: v.query.conditionCode,
+          templateType: v.query.templateType,
+          templateName: v.query.templateName,
+          templateId: v.query.templateId,
+          nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
+        }),
       );
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {

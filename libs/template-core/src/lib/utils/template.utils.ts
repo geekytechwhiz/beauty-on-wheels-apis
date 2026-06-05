@@ -73,6 +73,44 @@ export function templateVersionIdToSk(templateVersionId: string): string | undef
   return `${VERSION_SK_PREFIX}${String(parseInt(match[1], 10)).padStart(3, '0')}`;
 }
 
+/**
+ * Display version for API (e.g. 1.2). Prefers stored `meta.version` (in-place master publishes)
+ * over the major segment in `templateVersionId` (`-V01` → 1).
+ */
+export function resolveTemplateDisplayVersion(meta: {
+  version?: number;
+  templateVersionId?: string;
+}): number {
+  if (typeof meta.version === 'number' && Number.isFinite(meta.version) && meta.version > 0) {
+    return meta.version;
+  }
+  const id = meta.templateVersionId?.trim();
+  if (id) {
+    const match = id.match(/-V(\d+)$/i);
+    if (match) return parseInt(match[1], 10);
+  }
+  return 1;
+}
+
+/** @deprecated Use {@link resolveTemplateDisplayVersion} */
+export function parseVersionNumberFromTemplateVersionId(
+  templateVersionId: string,
+  fallbackVersion?: number,
+): number {
+  return resolveTemplateDisplayVersion({
+    templateVersionId,
+    version: fallbackVersion,
+  });
+}
+
+export function formatTemplateVersionLabel(versionNum: number): string {
+  return `v${versionNum}`;
+}
+
+export function compareTemplateDisplayVersions(a: number, b: number): number {
+  return a - b;
+}
+
 export function templateConflictError(message: string): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };
   e.statusCode = 409;

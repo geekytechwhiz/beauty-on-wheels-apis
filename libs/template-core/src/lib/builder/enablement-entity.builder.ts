@@ -39,11 +39,17 @@ export class EnablementEntityBuilder {
       opts?.orgTemplateId?.trim() ||
       OrgTemplateEntityBuilder.buildOrgTemplateId(masterTemplateId, body.organizationId);
 
+    const masterTemplateVersion =
+      typeof masterMeta.version === 'number' && masterMeta.version > 0
+        ? masterMeta.version
+        : 1;
+
     return {
       enablementId,
       organizationId: body.organizationId,
       masterTemplateId,
       masterTemplateVersionId: body.masterTemplateVersionId,
+      masterTemplateVersion,
       orgTemplateId,
       templateName: masterMeta.templateName,
       templateType: masterMeta.templateType,

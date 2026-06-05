@@ -22,6 +22,7 @@ import {
   parseGetMasterVersionsQuery,
   parseListMasterTemplatesQuery,
   parseListOrgTemplatesQuery,
+  parseOrgVersionStatusQuery,
   templateIdPathSchema,
   templateVersionPathSchema,
   createOrgEnablementBodySchema,
@@ -41,6 +42,7 @@ import {
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
+  type OrgVersionStatusQuery,
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
   saveMasterTemplateBodySchema,
@@ -570,8 +572,16 @@ export type ValidatedGetOrgVersions = {
 };
 
 export type ValidatedListOrg = {
-  organizationId: string;
+  organizationId?: string;
+  listAllOrganizations: boolean;
   query: ListOrgTemplatesQuery;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedGetOrgVersionStatus = {
+  organizationId: string;
+  masterTemplateId: string;
+  query: OrgVersionStatusQuery;
   actorUser: TemplateActorUser;
 };
 
@@ -671,6 +681,42 @@ export async function validateDeriveTemplateRequest(req: LambdaRequest): Promise
     };
 }
 
+function resolveListOrgOrganizationScope(
+  req: LambdaRequest,
+  queryOrgId?: string,
+): { organizationId?: string; listAllOrganizations: boolean } {
+  const authHeader = req.context.authHeader;
+  const fromToken = getOrganizationIdForRequest(req.event, authHeader);
+  const isPlatformRoot = fromToken?.toUpperCase() === 'ROOT';
+  const explicitOrg = queryOrgId?.trim();
+
+  if (explicitOrg) {
+    return {
+      organizationId: resolveOrganizationId(req, explicitOrg),
+      listAllOrganizations: false,
+    };
+  }
+
+  if (isPlatformRoot) {
+    return { organizationId: undefined, listAllOrganizations: true };
+  }
+
+  const tokenOrg = fromToken?.trim();
+  if (!tokenOrg || tokenOrg.toUpperCase() === 'ROOT') {
+    throwVal(
+      'organizationId query parameter is required for platform users listing org templates',
+      400,
+      'VALIDATION_ERROR',
+    );
+  }
+
+  if (fromToken && tokenOrg !== fromToken) {
+    throwVal('organizationId does not match authenticated organization', 403, 'FORBIDDEN');
+  }
+
+  return { organizationId: tokenOrg, listAllOrganizations: false };
+}
+
 export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promise<void> {
   const actorUser = requireAuthenticatedActor(req);
 
@@ -681,16 +727,56 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     ...rawQuery,
     status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
   };
-  const organizationId = resolveOrganizationId(
+  const scope = resolveListOrgOrganizationScope(
     req,
     query.organizationId ?? query.organizationMetaId,
   );
 
   (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg = {
-    organizationId,
+    ...scope,
     query,
     actorUser,
   };
+}
+
+export async function validateOrgVersionStatusRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = requireAuthenticatedActor(req);
+
+  const rawQuery = parseOrgVersionStatusQuery(
+    req.params as Record<string, string | string[] | undefined>,
+  );
+
+  const authHeader = req.context.authHeader;
+  const fromToken = getOrganizationIdForRequest(req.event, authHeader);
+  const isPlatformRoot = fromToken?.toUpperCase() === 'ROOT';
+  const explicitOrg = rawQuery.organizationId?.trim();
+
+  let organizationId: string;
+  if (explicitOrg) {
+    organizationId = resolveOrganizationId(req, explicitOrg);
+  } else if (isPlatformRoot) {
+    throwVal(
+      'organizationId query parameter is required for platform users',
+      400,
+      'VALIDATION_ERROR',
+    );
+  } else {
+    const tokenOrg = fromToken?.trim();
+    if (!tokenOrg) {
+      throwVal('organizationId is required (query or auth token)', 400, 'VALIDATION_ERROR');
+    }
+    organizationId = tokenOrg;
+  }
+
+  const masterTemplateId = normalizePathTemplateId(rawQuery.templateId);
+
+  (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus }).validatedGetOrgVersionStatus =
+    {
+      organizationId,
+      masterTemplateId,
+      query: rawQuery,
+      actorUser,
+    };
 }
 
 export type ValidatedUpdateOrgVersion = ValidatedTemplateVersionPath & {

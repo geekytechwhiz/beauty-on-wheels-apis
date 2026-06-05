@@ -115,12 +115,18 @@ export class OrgTemplateEntityBuilder {
     const countries = masterMeta.countries;
     const templateType = masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN;
 
+    const masterDisplayVersion =
+      typeof masterMeta.version === 'number' && masterMeta.version > 0
+        ? masterMeta.version
+        : ctx.versionNum;
+
     return {
       ...masterMeta,
       templateId: ctx.newTemplateId,
       templateVersionId: ctx.templateVersionId,
       templateName: ctx.newTemplateName,
       version: ctx.versionNum,
+      derivedFromMasterVersion: masterDisplayVersion,
       status,
       isActive: false,
       isLatestVersion: true,

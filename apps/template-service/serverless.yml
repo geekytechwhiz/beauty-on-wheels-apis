@@ -461,6 +461,38 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  getOrgVersionStatus:
+    handler: src/handlers/http/getOrgVersionStatus.main
+    events:
+      - http:
+          path: templates/org-version-status
+          method: get
+          summary: Org template version status for one master (canonical)
+          description: |
+            Returns current org version, derived-from master version, latest published master,
+            upgrade availability, and local changes for the versioning table UI.
+            Requires organizationId (ROOT) and master templateId query params.
+          queryStringParameters:
+            organizationId:
+              required: false
+              type: string
+            templateId:
+              required: true
+              type: string
+            organizationName:
+              required: false
+              type: string
+            organizationDescription:
+              required: false
+              type: string
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   deriveTemplate:
     handler: src/handlers/http/deriveTemplate.main
     events:

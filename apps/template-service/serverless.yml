@@ -12,7 +12,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -77,7 +77,7 @@ custom:
     # single biggest peak-memory reduction for the 22 individually-packaged functions.
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json

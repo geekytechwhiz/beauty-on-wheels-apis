@@ -56,7 +56,10 @@ export const organizationMetaSchema = z.object({
 export const deriveOrganizationMetaSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  description: z.string().trim(),
+  active: z.boolean().optional(),
+  country: z.string().trim().min(1).optional(),
+  updated: z.string().trim().min(1).optional(),
+  description: z.string().trim().optional().nullable(),
 });
 
 export const deriveTemplateBodySchema = z.object({

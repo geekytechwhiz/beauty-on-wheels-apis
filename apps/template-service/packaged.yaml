@@ -292,7 +292,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/health.zip"
         },
         "Handler": "src/handlers/http/health.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-health",
         "MemorySize": 512,
         "Timeout": 30,
@@ -351,7 +351,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/upsertMasterTemplate.zip"
         },
         "Handler": "src/handlers/http/upsertMasterTemplate.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-upsertMasterTemplate",
         "MemorySize": 512,
         "Timeout": 30,
@@ -410,7 +410,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listTemplates.zip"
         },
         "Handler": "src/handlers/http/listTemplates.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listTemplates",
         "MemorySize": 512,
         "Timeout": 30,
@@ -469,7 +469,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listMasterTemplates.zip"
         },
         "Handler": "src/handlers/http/listMasterTemplates.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listMasterTemplates",
         "MemorySize": 512,
         "Timeout": 30,
@@ -528,7 +528,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listTemplateConfigs.zip"
         },
         "Handler": "src/handlers/http/listTemplateConfigs.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listTemplateConfigs",
         "MemorySize": 512,
         "Timeout": 30,
@@ -587,7 +587,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/createTemplateConfig.zip"
         },
         "Handler": "src/handlers/http/createTemplateConfig.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-createTemplateConfig",
         "MemorySize": 512,
         "Timeout": 30,
@@ -646,7 +646,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/getTemplateConfig.zip"
         },
         "Handler": "src/handlers/http/getTemplateConfig.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-getTemplateConfig",
         "MemorySize": 512,
         "Timeout": 30,
@@ -705,7 +705,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/updateTemplateConfig.zip"
         },
         "Handler": "src/handlers/http/updateTemplateConfig.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-updateTemplateConfig",
         "MemorySize": 512,
         "Timeout": 30,
@@ -764,7 +764,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/getTemplateVersions.zip"
         },
         "Handler": "src/handlers/http/getTemplateVersions.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-getTemplateVersions",
         "MemorySize": 512,
         "Timeout": 30,
@@ -823,7 +823,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/getMasterTemplateVersions.zip"
         },
         "Handler": "src/handlers/http/getMasterTemplateVersions.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-getMasterTemplateVersions",
         "MemorySize": 512,
         "Timeout": 30,
@@ -882,7 +882,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/updateTemplateVersion.zip"
         },
         "Handler": "src/handlers/http/updateTemplateVersion.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-updateTemplateVersion",
         "MemorySize": 512,
         "Timeout": 30,
@@ -941,7 +941,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/deriveTemplate.zip"
         },
         "Handler": "src/handlers/http/deriveTemplate.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-deriveTemplate",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1000,7 +1000,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/cloneOrgTemplate.zip"
         },
         "Handler": "src/handlers/http/cloneOrgTemplate.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-cloneOrgTemplate",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1059,7 +1059,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/getOrgTemplateVersions.zip"
         },
         "Handler": "src/handlers/http/getOrgTemplateVersions.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-getOrgTemplateVersions",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1118,7 +1118,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listOrgTemplates.zip"
         },
         "Handler": "src/handlers/http/listOrgTemplates.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listOrgTemplates",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1177,7 +1177,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/updateOrgTemplateVersion.zip"
         },
         "Handler": "src/handlers/http/updateOrgTemplateVersion.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-updateOrgTemplateVersion",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1236,7 +1236,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listCompatibleTemplates.zip"
         },
         "Handler": "src/handlers/http/listCompatibleTemplates.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listCompatibleTemplates",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1295,7 +1295,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/createOrgEnablement.zip"
         },
         "Handler": "src/handlers/http/createOrgEnablement.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-createOrgEnablement",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1354,7 +1354,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/searchOrgEnablements.zip"
         },
         "Handler": "src/handlers/http/searchOrgEnablements.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-searchOrgEnablements",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1413,7 +1413,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/listOrgEnablementsByOrg.zip"
         },
         "Handler": "src/handlers/http/listOrgEnablementsByOrg.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-listOrgEnablementsByOrg",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1472,7 +1472,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/getOrgEnablementById.zip"
         },
         "Handler": "src/handlers/http/getOrgEnablementById.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-getOrgEnablementById",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1531,7 +1531,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/updateOrgEnablement.zip"
         },
         "Handler": "src/handlers/http/updateOrgEnablement.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-updateOrgEnablement",
         "MemorySize": 512,
         "Timeout": 30,
@@ -1590,7 +1590,7 @@
           "S3Key": "serverless/template-service/dev/1780479652414-2026-06-03T09:40:52.414Z/transitionTemplateStatus.zip"
         },
         "Handler": "src/handlers/http/transitionTemplateStatus.main",
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "FunctionName": "template-service-dev-transitionTemplateStatus",
         "MemorySize": 512,
         "Timeout": 30,

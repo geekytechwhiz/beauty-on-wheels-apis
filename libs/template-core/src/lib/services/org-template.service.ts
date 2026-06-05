@@ -26,6 +26,7 @@ import type {
   GetOrgVersionsResult,
   ListOrgTemplatesParams,
   ListOrgTemplatesResult,
+  OrganizationMetaInput,
   SetOrgTemplateEnableParams,
   SetOrgTemplateEnableResult,
 } from '../models/api/org-template.types';
@@ -39,6 +40,7 @@ import {
 } from '../constants/template.constants';
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { EnablementRepository } from '../repositories/enablement.repository';
+import { OrgProfileRepository } from '../repositories/org-profile.repository';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
 import { TemplateService } from './template.service';
@@ -66,6 +68,9 @@ import {
 } from '../utils/template.utils';
 
 const VERSION_COMPARE_DOC_KEYS = ['fieldValues', 'links', 'steps', 'carePlanAttributes', 'overrides'] as const;
+
+/** Static country options for org-enabled list filter dropdowns. */
+export const ORG_ENABLED_COUNTRY_OPTIONS = ['US', 'UK', 'Australia'] as const;
 
 function extractComparableTemplatePayload(record: TemplateDdbRecord): Record<string, unknown> {
   const out: Record<string, unknown> = {
@@ -137,6 +142,10 @@ function eqCi(a: string | undefined, b: string | undefined): boolean {
   return a.trim().toUpperCase() === b.trim().toUpperCase();
 }
 
+function isAllCountryFilter(country: string | undefined): boolean {
+  return country?.trim().toLowerCase() === 'all';
+}
+
 function masterCodesFromItem(item: MasterTemplateListItem): {
   categoryCode?: string;
   conditionCode?: string;
@@ -175,7 +184,30 @@ function buildOrgEnabledFilterOptions(items: MasterTemplateListItem[]): OrgEnabl
     categoryCode: [...categoryCode].sort(sortStr),
     templateType: [...templateType].sort(sortStr),
     templateName: templateName.sort((a, b) => a.value.localeCompare(b.value)),
+    country: [...ORG_ENABLED_COUNTRY_OPTIONS],
   };
+}
+
+function matchesOrganizationMetaFilters(
+  orgMeta: OrganizationMeta,
+  params: ListOrgEnabledParams,
+): boolean {
+  const nameFilter = params.organizationName?.trim();
+  if (nameFilter) {
+    const name = orgMeta.name?.trim() ?? '';
+    const byId = eqCi(orgMeta.id, nameFilter);
+    const byName = name.toLowerCase().includes(nameFilter.toLowerCase());
+    if (!byId && !byName) return false;
+  }
+  if (params.country && !isAllCountryFilter(params.country) && !eqCi(orgMeta.country, params.country)) {
+    return false;
+  }
+  const descFilter = params.organizationDescription?.trim();
+  if (descFilter) {
+    const desc = orgMeta.description?.trim() ?? '';
+    if (!desc.toLowerCase().includes(descFilter.toLowerCase())) return false;
+  }
+  return true;
 }
 
 function matchesOrgEnabledFilters(
@@ -209,7 +241,44 @@ export class OrgTemplateService {
     private readonly orgRepo = new OrgTemplateRepository(),
     private readonly masterRepo = new TemplateRepository(),
     private readonly enablementRepo = new EnablementRepository(),
+    private readonly orgProfileRepo = new OrgProfileRepository(),
   ) {}
+
+  private async resolveStoredOrganizationMeta(
+    organizationId: string,
+    query?: Pick<ListOrgEnabledParams, 'organizationName' | 'organizationDescription'>,
+  ): Promise<OrganizationMeta> {
+    const profile = await this.orgProfileRepo.getOrgProfile(organizationId);
+    const stored = profile?.meta;
+    return {
+      id: organizationId,
+      name: stored?.name?.trim() || query?.organizationName?.trim() || organizationId,
+      active: stored?.active,
+      country: stored?.country,
+      updated: stored?.updated,
+      description: stored?.description ?? query?.organizationDescription?.trim() ?? null,
+    };
+  }
+
+  private async upsertOrganizationProfile(input: OrganizationMetaInput): Promise<OrganizationMeta> {
+    const meta: OrganizationMetaInput = {
+      id: input.id.trim(),
+      name: input.name.trim(),
+      active: input.active,
+      country: input.country?.trim(),
+      updated: input.updated?.trim() || new Date().toISOString(),
+      description: input.description ?? null,
+    };
+    await this.orgProfileRepo.putOrgProfile(meta);
+    return {
+      id: meta.id,
+      name: meta.name,
+      active: meta.active,
+      country: meta.country,
+      updated: meta.updated,
+      description: meta.description ?? null,
+    };
+  }
 
   private async resolvePublishedMasterVersion(
     masterTemplateId: string,
@@ -280,6 +349,9 @@ export class OrgTemplateService {
           masterVersion,
           ctx.newTemplateId,
         );
+        if (params.body?.organizationMeta) {
+          await this.upsertOrganizationProfile(params.body.organizationMeta);
+        }
         return { record: versionRow, masterVersion, enablement, templateEnabled: true };
       }
 
@@ -302,6 +374,10 @@ export class OrgTemplateService {
         masterVersion,
         ctx.newTemplateId,
       );
+
+      if (params.body?.organizationMeta) {
+        await this.upsertOrganizationProfile(params.body.organizationMeta);
+      }
 
       return { record: versionRow, masterVersion, enablement, templateEnabled: true };
     } catch (e: unknown) {
@@ -360,6 +436,23 @@ export class OrgTemplateService {
       if (row) items.push(row);
     }
 
+    const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId, params);
+    if (!matchesOrganizationMetaFilters(organizationMeta, params)) {
+      return {
+        mode: 'single',
+        organizationMeta,
+        items: [],
+        counts: { total: 0 },
+        filterOptions: ctx.filterOptions,
+        pagination: {
+          limit: ctx.limit,
+          count: 0,
+          total: 0,
+          hasMore: false,
+        },
+      };
+    }
+
     const filtered = items.filter((item) => matchesOrgEnabledFilters(item, params));
     const total = filtered.length;
     const offset = decodeOffsetToken(params.nextToken);
@@ -369,11 +462,7 @@ export class OrgTemplateService {
 
     return {
       mode: 'single',
-      organizationMeta: {
-        id: organizationId,
-        name: params.organizationName?.trim() || organizationId,
-        description: params.organizationDescription?.trim() || null,
-      },
+      organizationMeta,
       items: page,
       counts: { total },
       filterOptions: ctx.filterOptions,
@@ -409,6 +498,8 @@ export class OrgTemplateService {
 
     const groups: OrgEnabledOrganizationGroup[] = [];
     let totalEnabledTemplates = 0;
+    let totalActiveOrganizations = 0;
+    let totalInactiveOrganizations = 0;
 
     for (const [orgId, orgEnablements] of byOrg.entries()) {
       const items: OrgEnabledListItem[] = [];
@@ -416,18 +507,22 @@ export class OrgTemplateService {
         const row = await this.buildOrgEnabledListItem(en, ctx.masterById, orgId);
         if (row) items.push(row);
       }
+      const organizationMeta = await this.resolveStoredOrganizationMeta(orgId, params);
+      if (!matchesOrganizationMetaFilters(organizationMeta, params)) continue;
+
       const filtered = items.filter((item) => matchesOrgEnabledFilters(item, params));
       if (filtered.length === 0) continue;
 
       groups.push({
-        organizationMeta: {
-          id: orgId,
-          name: orgId,
-          description: null,
-        },
+        organizationMeta,
         items: filtered,
         counts: { total: filtered.length },
       });
+      if (organizationMeta.active === true) {
+        totalActiveOrganizations += 1;
+      } else {
+        totalInactiveOrganizations += 1;
+      }
       totalEnabledTemplates += filtered.filter((item) => item.templateEnabled).length;
     }
 
@@ -444,6 +539,8 @@ export class OrgTemplateService {
       organizations: page,
       counts: {
         totalOrganizations: total,
+        totalActiveOrganizations,
+        totalInactiveOrganizations,
         totalEnabledTemplates,
       },
       filterOptions: ctx.filterOptions,
@@ -556,13 +653,19 @@ export class OrgTemplateService {
       const nowIso = new Date().toISOString();
       const wantEnabled = params.templateEnabled;
 
+      if (params.organizationMeta) {
+        await this.upsertOrganizationProfile(params.organizationMeta);
+      }
+
+      const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId, {
+        organizationName: params.organizationMeta?.name ?? params.organizationName,
+        organizationDescription:
+          params.organizationMeta?.description ?? params.organizationDescription,
+      });
+
       if (wantEnabled && isActiveEnablement(enablement)) {
         return {
-          organizationMeta: {
-            id: organizationId,
-            name: params.organizationName?.trim() || organizationId,
-            description: params.organizationDescription?.trim() || null,
-          },
+          organizationMeta,
           templateId: masterTemplateId,
           orgTemplateId: enablement.meta.orgTemplateId,
           enablementId: enablement.meta.enablementId,
@@ -573,11 +676,7 @@ export class OrgTemplateService {
 
       if (!wantEnabled && !isActiveEnablement(enablement)) {
         return {
-          organizationMeta: {
-            id: organizationId,
-            name: params.organizationName?.trim() || organizationId,
-            description: params.organizationDescription?.trim() || null,
-          },
+          organizationMeta,
           templateId: masterTemplateId,
           orgTemplateId: enablement.meta.orgTemplateId,
           enablementId: enablement.meta.enablementId,
@@ -594,11 +693,7 @@ export class OrgTemplateService {
       await this.enablementRepo.putEnablementOverwrite(updated);
 
       return {
-        organizationMeta: {
-          id: organizationId,
-          name: params.organizationName?.trim() || organizationId,
-          description: params.organizationDescription?.trim() || null,
-        },
+        organizationMeta,
         templateId: masterTemplateId,
         orgTemplateId: updated.meta.orgTemplateId,
         enablementId: updated.meta.enablementId,
@@ -786,12 +881,10 @@ export class OrgTemplateService {
         enablement.meta.templateName?.trim() ||
         masterTemplateId;
 
+      const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId, params);
+
       return {
-        organizationMeta: {
-          id: organizationId,
-          name: params.organizationName?.trim() || organizationId,
-          description: params.organizationDescription?.trim() || null,
-        },
+        organizationMeta,
         templateId: masterTemplateId,
         templateName,
         orgTemplateId,

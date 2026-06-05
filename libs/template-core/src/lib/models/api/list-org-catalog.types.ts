@@ -17,6 +17,8 @@ export interface ListOrgEnabledParams {
   templateType?: string;
   templateName?: string;
   templateId?: string;
+  /** Filter by enablement flag (`true` / `false`). Omit to return both. */
+  templateEnabled?: boolean;
   country?: string;
   nextToken?: string;
 }
@@ -43,6 +45,9 @@ export interface OrgEnabledListItem {
   orgTemplate: OrgEnabledOrgSummary;
   enablementId: string;
   enabledAt: string;
+  /** Active enablement (false when disabled via `templateEnabled: false` update). */
+  templateEnabled: boolean;
+  disabledAt?: string | null;
 }
 
 export interface OrgEnabledOrganizationGroup {

@@ -72,6 +72,26 @@ export const deriveTemplateBodySchema = z.object({
 
 export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
 
+/** PUT /templates/derive — enable or disable existing org subscription. */
+export const updateOrgTemplateEnableBodySchema = z
+  .object({
+    organizationMeta: deriveOrganizationMetaSchema.optional(),
+    organizationId: z.string().trim().min(1).optional(),
+    templateId: z.string().trim().min(1),
+    templateEnabled: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.organizationMeta?.id && !data.organizationId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'organizationMeta.id or organizationId is required',
+        path: ['organizationId'],
+      });
+    }
+  });
+
+export type UpdateOrgTemplateEnableBody = z.infer<typeof updateOrgTemplateEnableBodySchema>;
+
 export const saveMasterTemplateBodySchema = z
   .object({
     shareScope: shareScopeInputZ.optional(),
@@ -285,6 +305,7 @@ export const listOrgTemplatesQuerySchema = z.object({
   templateType: z.string().trim().min(1).optional(),
   templateName: z.string().trim().min(1).optional(),
   templateId: z.string().trim().min(1).optional(),
+  templateEnabled: optionalActiveQueryZ,
   country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   nextPaginationKey: z.string().trim().min(1).optional(),

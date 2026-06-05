@@ -12,7 +12,7 @@
     "emitDeclarationOnly": false,
     "paths": {
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
+      "@api-hub/observability": ["libs/observability/src/index.ts"],
       "@api-hub/utils": ["libs/utils/src/index.ts"]
     }
   },
@@ -24,6 +24,9 @@
     },
     {
       "path": "../../libs/metadata/tsconfig.lib.json"
-    }
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
   ]
 }

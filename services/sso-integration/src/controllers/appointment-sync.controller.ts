@@ -4,7 +4,7 @@ import {
   createChildLogger,
   extractCorrelationId,
   serializeError,
-} from '@api-hub/logger'
+} from '@api-hub/observability'
 
 import { BaseController } from '../core/base.controller'
 import { getEnvConfig } from '../config/env'

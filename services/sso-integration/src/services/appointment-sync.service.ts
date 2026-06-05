@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { createChildLogger, LogEntry, serializeError } from '@api-hub/logger';
+import { createChildLogger, LogEntry, serializeError } from '@api-hub/observability';
 import { BaseService } from '../core/base.service';
 
 import { fromDateString, toDateString } from '@api-hub/utils';

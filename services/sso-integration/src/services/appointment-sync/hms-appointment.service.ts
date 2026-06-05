@@ -2,7 +2,7 @@ import {
   createChildLogger,
   createPerformanceTimer,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
 import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
 import { Appointment, PatientEMRSummary } from '../../types';

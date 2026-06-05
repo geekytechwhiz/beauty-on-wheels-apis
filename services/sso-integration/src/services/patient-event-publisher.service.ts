@@ -1,5 +1,5 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
-import { createLogger, createChildLogger, serializeError } from '@api-hub/logger';
+import { createLogger, createChildLogger, serializeError } from '@api-hub/observability';
 import { Patient, SSORequestContext } from '../types';
 import { PatientCreationEvent } from '../types/events';
 import { buildExternalIdentity } from '../utils/context-builder.util';

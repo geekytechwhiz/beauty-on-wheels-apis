@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/logger';
+import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'sso-integration', redactPII: false });
@@ -41,7 +41,7 @@ export async function handler(
     response,
     { title: 'OK', description: 'SSO integration service is healthy', severity: 'INFO' },
     {
-      requestId: correlationId,
+      correlationId: correlationId,
       headers: {
         'X-Correlation-Id': correlationId,
         'Cache-Control': 'no-cache',

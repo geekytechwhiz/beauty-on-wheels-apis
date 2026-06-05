@@ -1,4 +1,4 @@
-import { createChildLogger, type Logger } from '@api-hub/logger';
+import { createChildLogger, type Logger } from '@api-hub/observability';
 
 import { SSOUserServiceClient } from '../clients/user-service.client';
 import { CognitoService } from '../services/cognito.service';

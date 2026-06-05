@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 import {
   createChildLogger,
   serializeError,
-} from '@api-hub/logger';
+} from '@api-hub/observability';
 
 import { getEnvConfig } from '../config/env';
 import { getTenantHmsConfig, TenantHmsConfig } from '../config/tenant-hms-config';

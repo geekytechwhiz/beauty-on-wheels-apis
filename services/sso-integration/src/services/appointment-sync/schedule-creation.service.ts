@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/logger';
+import { createChildLogger, serializeError } from '@api-hub/observability';
 import {
   getScheduleServiceClient,
   ScheduleServiceClient,

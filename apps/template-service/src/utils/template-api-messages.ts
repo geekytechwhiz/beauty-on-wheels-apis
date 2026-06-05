@@ -26,6 +26,10 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'ORG_TEMPLATE_ENABLED',
     'Master template enabled for the organization successfully.',
   ),
+  'template.derive.update': msg(
+    'ORG_TEMPLATE_ENABLEMENT_UPDATED',
+    'Org template enablement updated successfully.',
+  ),
   'template.org.clone': msg(
     'ORG_TEMPLATE_CLONED',
     'Org template copied from master successfully.',

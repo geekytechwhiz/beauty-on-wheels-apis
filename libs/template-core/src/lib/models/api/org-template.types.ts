@@ -32,6 +32,27 @@ export type CloneOrgTemplateParams = {
   actorUser?: TemplateActorUser;
 };
 
+export type SetOrgTemplateEnableParams = {
+  organizationId: string;
+  masterTemplateId: string;
+  templateEnabled: boolean;
+  organizationName?: string;
+  organizationDescription?: string;
+};
+
+export type SetOrgTemplateEnableResult = {
+  organizationMeta: {
+    id: string;
+    name: string;
+    description?: string | null;
+  };
+  templateId: string;
+  orgTemplateId: string;
+  enablementId: string;
+  templateEnabled: boolean;
+  disabledAt?: string | null;
+};
+
 export type DeriveOrgTemplateResult = {
   record: TemplateDdbRecord;
   masterVersion: TemplateDdbRecord;

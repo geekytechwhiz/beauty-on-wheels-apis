@@ -17,6 +17,7 @@ import { enrichTemplateActorUser } from '../services/user-lookup.service';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
+  updateOrgTemplateEnableBodySchema,
   orgClonePathSchema,
   orgTemplatePathSchema,
   parseGetMasterVersionsQuery,
@@ -43,6 +44,7 @@ import {
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
   type OrgVersionStatusQuery,
+  type UpdateOrgTemplateEnableBody,
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
   saveMasterTemplateBodySchema,
@@ -575,6 +577,14 @@ export type ValidatedListOrg = {
   organizationId?: string;
   listAllOrganizations: boolean;
   query: ListOrgTemplatesQuery;
+  templateEnabledFilter?: boolean;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedSetOrgTemplateEnable = {
+  organizationId: string;
+  masterTemplateId: string;
+  body: UpdateOrgTemplateEnableBody;
   actorUser: TemplateActorUser;
 };
 
@@ -643,6 +653,33 @@ export async function validateGetOrgVersionsRequest(req: LambdaRequest): Promise
       organizationId,
       templateId,
       query,
+      actorUser,
+    };
+}
+
+function parseTemplateEnabledQuery(
+  value: string | undefined,
+): boolean | undefined {
+  if (!value) return undefined;
+  const v = value.trim().toLowerCase();
+  if (v === 'true' || v === '1') return true;
+  if (v === 'false' || v === '0') return false;
+  return undefined;
+}
+
+export async function validateSetOrgTemplateEnableRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const body = updateOrgTemplateEnableBodySchema.parse(req.body ?? {});
+  const orgIdFromBody = body.organizationMeta?.id?.trim() || body.organizationId?.trim();
+  const organizationId = resolveOrganizationId(req, orgIdFromBody);
+  const masterTemplateId = normalizePathTemplateId(body.templateId);
+
+  (req as LambdaRequest & { validatedSetOrgTemplateEnable?: ValidatedSetOrgTemplateEnable }).validatedSetOrgTemplateEnable =
+    {
+      organizationId,
+      masterTemplateId,
+      body,
       actorUser,
     };
 }
@@ -723,9 +760,11 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
   const rawQuery = parseListOrgTemplatesQuery(
     req.params as Record<string, string | string[] | undefined>,
   );
+  const templateEnabledFilter = parseTemplateEnabledQuery(rawQuery.templateEnabled);
   const query: ListOrgTemplatesQuery = {
     ...rawQuery,
     status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
+    templateEnabled: undefined,
   };
   const scope = resolveListOrgOrganizationScope(
     req,
@@ -736,6 +775,7 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     ...scope,
     query,
     actorUser,
+    templateEnabledFilter,
   };
 }
 

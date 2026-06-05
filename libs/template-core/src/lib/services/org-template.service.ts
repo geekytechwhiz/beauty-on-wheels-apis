@@ -26,6 +26,8 @@ import type {
   GetOrgVersionsResult,
   ListOrgTemplatesParams,
   ListOrgTemplatesResult,
+  SetOrgTemplateEnableParams,
+  SetOrgTemplateEnableResult,
 } from '../models/api/org-template.types';
 import type { VersionResolveStrategy } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
@@ -35,6 +37,7 @@ import {
   TEMPLATE_STATUS,
   VERSION_SK_PREFIX,
 } from '../constants/template.constants';
+import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { EnablementRepository } from '../repositories/enablement.repository';
 import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
@@ -192,6 +195,8 @@ function matchesOrgEnabledFilters(
     const byName = m.templateName?.toLowerCase().includes(nameFilter.toLowerCase()) ?? false;
     if (!byId && !byName) return false;
   }
+  if (params.templateEnabled === true && !item.templateEnabled) return false;
+  if (params.templateEnabled === false && item.templateEnabled) return false;
   return true;
 }
 
@@ -347,9 +352,7 @@ export class OrgTemplateService {
     },
   ): Promise<ListOrgEnabledResult> {
     const organizationId = params.organizationId;
-    const enablements = (
-      await this.enablementRepo.queryEnablementsByOrgGsi1(organizationId, 500)
-    ).filter(isActiveEnablement);
+    const enablements = await this.enablementRepo.queryEnablementsByOrgGsi1(organizationId, 500);
 
     const items: OrgEnabledListItem[] = [];
     for (const en of enablements) {
@@ -393,7 +396,7 @@ export class OrgTemplateService {
       filterOptions: OrgEnabledFilterOptions;
     },
   ): Promise<ListOrgEnabledResult> {
-    const enablements = await this.collectActiveEnablementsAcrossMasters(ctx.publishedMasters);
+    const enablements = await this.collectAllEnablementsAcrossMasters(ctx.publishedMasters);
     const byOrg = new Map<string, EnablementDdbRecord[]>();
 
     for (const en of enablements) {
@@ -425,7 +428,7 @@ export class OrgTemplateService {
         items: filtered,
         counts: { total: filtered.length },
       });
-      totalEnabledTemplates += filtered.length;
+      totalEnabledTemplates += filtered.filter((item) => item.templateEnabled).length;
     }
 
     groups.sort((a, b) => a.organizationMeta.id.localeCompare(b.organizationMeta.id));
@@ -454,7 +457,7 @@ export class OrgTemplateService {
     };
   }
 
-  private async collectActiveEnablementsAcrossMasters(
+  private async collectAllEnablementsAcrossMasters(
     publishedMasters: MasterTemplateListItem[],
   ): Promise<EnablementDdbRecord[]> {
     const seen = new Set<string>();
@@ -466,7 +469,6 @@ export class OrgTemplateService {
         200,
       );
       for (const row of rows) {
-        if (!isActiveEnablement(row)) continue;
         const id = row.meta.enablementId;
         if (seen.has(id)) continue;
         seen.add(id);
@@ -497,12 +499,18 @@ export class OrgTemplateService {
     if (!orgTemplateId) return null;
 
     const orgVersion = await this.resolveOrgActiveVersionRow(organizationId, orgTemplateId);
-    if (!orgVersion) return null;
+    const orgTemplateVersionId =
+      orgVersion?.meta.templateVersionId?.trim() ||
+      `${orgTemplateId}-V01`;
 
+    const templateEnabled = isActiveEnablement(enablement);
     const enabledAt =
       enablement.meta.effectiveFrom?.trim() ||
       enablement.meta.createdAt?.trim() ||
       new Date().toISOString();
+    const disabledAt = templateEnabled
+      ? null
+      : enablement.meta.effectiveTo?.trim() || enablement.meta.updatedAt?.trim() || null;
 
     return {
       masterTemplate: {
@@ -516,13 +524,90 @@ export class OrgTemplateService {
         isActive: masterMeta?.isActive ?? true,
       },
       orgTemplate: {
-        templateId: orgVersion.meta.templateId,
-        templateVersionId: orgVersion.meta.templateVersionId,
-        status: orgVersion.meta.status ?? TEMPLATE_STATUS.DRAFT,
+        templateId: orgTemplateId,
+        templateVersionId: orgTemplateVersionId,
+        status: orgVersion?.meta.status ?? TEMPLATE_STATUS.DRAFT,
       },
       enablementId: enablement.meta.enablementId,
       enabledAt,
+      templateEnabled,
+      disabledAt,
     };
+  }
+
+  /**
+   * Enable or disable org subscription to a master (PUT /templates/derive).
+   * Disable sets enablement `effectiveTo`; re-enable clears it. Org copy is retained.
+   */
+  async setOrgTemplateEnablement(
+    params: SetOrgTemplateEnableParams,
+  ): Promise<SetOrgTemplateEnableResult> {
+    try {
+      const masterTemplateId = TemplateEntityBuilder.normalizeTemplateId(params.masterTemplateId);
+      const organizationId = params.organizationId.trim();
+      const enablement = await this.enablementRepo.findByOrgAndMasterTemplateId(
+        organizationId,
+        masterTemplateId,
+      );
+      if (!enablement) {
+        templateNotFoundError('This master template is not enabled for the organization.');
+      }
+
+      const nowIso = new Date().toISOString();
+      const wantEnabled = params.templateEnabled;
+
+      if (wantEnabled && isActiveEnablement(enablement)) {
+        return {
+          organizationMeta: {
+            id: organizationId,
+            name: params.organizationName?.trim() || organizationId,
+            description: params.organizationDescription?.trim() || null,
+          },
+          templateId: masterTemplateId,
+          orgTemplateId: enablement.meta.orgTemplateId,
+          enablementId: enablement.meta.enablementId,
+          templateEnabled: true,
+          disabledAt: null,
+        };
+      }
+
+      if (!wantEnabled && !isActiveEnablement(enablement)) {
+        return {
+          organizationMeta: {
+            id: organizationId,
+            name: params.organizationName?.trim() || organizationId,
+            description: params.organizationDescription?.trim() || null,
+          },
+          templateId: masterTemplateId,
+          orgTemplateId: enablement.meta.orgTemplateId,
+          enablementId: enablement.meta.enablementId,
+          templateEnabled: false,
+          disabledAt: enablement.meta.effectiveTo?.trim() || nowIso,
+        };
+      }
+
+      const updated = EnablementEntityBuilder.applyDateUpdates(enablement, {
+        effectiveTo: wantEnabled ? null : nowIso,
+        ...(wantEnabled ? { effectiveFrom: nowIso } : {}),
+      });
+      updated.meta.updatedAt = nowIso;
+      await this.enablementRepo.putEnablementOverwrite(updated);
+
+      return {
+        organizationMeta: {
+          id: organizationId,
+          name: params.organizationName?.trim() || organizationId,
+          description: params.organizationDescription?.trim() || null,
+        },
+        templateId: masterTemplateId,
+        orgTemplateId: updated.meta.orgTemplateId,
+        enablementId: updated.meta.enablementId,
+        templateEnabled: wantEnabled,
+        disabledAt: wantEnabled ? null : nowIso,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
   }
 
   private async resolveOrgActiveVersionRow(
@@ -777,7 +862,7 @@ export class OrgTemplateService {
         status: org.status ?? TEMPLATE_STATUS.DRAFT,
         derivedFromMasterVersionId: master.templateVersionId,
       },
-      templateEnabled: result.templateEnabled,
+      templateEnabled: true,
       enablementId: result.enablement.meta.enablementId,
     };
   }

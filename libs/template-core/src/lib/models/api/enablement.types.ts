@@ -59,6 +59,8 @@ export interface EnablementMeta {
   organizationId: string;
   masterTemplateId: string;
   masterTemplateVersionId: string;
+  /** Master `meta.version` at last derive/sync (e.g. 1.2 on same V01 row). */
+  masterTemplateVersion?: number;
   orgTemplateId: string;
   templateName?: string;
   templateType?: string;

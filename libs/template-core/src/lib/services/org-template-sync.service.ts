@@ -36,10 +36,16 @@ export class OrgTemplateSyncService {
     );
 
     if (existing) {
+      const masterTemplateVersion =
+        typeof masterVersion.meta.version === 'number' && masterVersion.meta.version > 0
+          ? masterVersion.meta.version
+          : existing.meta.masterTemplateVersion;
+
       const meta = {
         ...existing.meta,
         masterTemplateId,
         masterTemplateVersionId,
+        masterTemplateVersion,
         orgTemplateId,
         templateName: masterVersion.meta.templateName,
         templateType: masterVersion.meta.templateType,
@@ -117,11 +123,19 @@ export class OrgTemplateSyncService {
       ctx,
       actor,
     );
+    const syncedMasterVersion =
+      typeof masterVersion.meta.version === 'number' && masterVersion.meta.version > 0
+        ? masterVersion.meta.version
+        : mergedMeta.derivedFromMasterVersion;
+
     const preserved: TemplateMeta = {
       ...mergedMeta,
       templateId: metaRow.meta.templateId,
       templateVersionId: metaRow.meta.templateVersionId,
       version: metaRow.meta.version,
+      derivedFromMasterVersion: syncedMasterVersion,
+      derivedFromTemplateVersionId: masterVersion.meta.templateVersionId,
+      masterTemplateVersionId: masterVersion.meta.templateVersionId,
       createdAt: metaRow.meta.createdAt,
       createdBy: metaRow.meta.createdBy,
       status: metaRow.meta.status ?? mergedMeta.status,

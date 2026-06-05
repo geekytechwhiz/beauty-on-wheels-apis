@@ -34,6 +34,10 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'ORG_TEMPLATE_CATALOG',
     'Org enable catalog retrieved successfully.',
   ),
+  'template.org.version-status': msg(
+    'ORG_TEMPLATE_VERSION_STATUS',
+    'Org template version status retrieved successfully.',
+  ),
   'template.org.version.update': msg(
     'ORG_TEMPLATE_UPDATED',
     'Org template updated successfully.',
@@ -107,8 +111,8 @@ export const MASTER_TEMPLATE_UPDATED = msg(
 );
 
 export const ORG_ENABLE_CATALOG = msg(
-  'ORG_TEMPLATE_CATALOG',
-  'Published master templates for org enable retrieved successfully.',
+  'ORG_ENABLED_TEMPLATES_LISTED',
+  'Enabled master templates for organizations retrieved successfully.',
 );
 
 export const MASTER_TEMPLATES_LISTED = msg(

@@ -104,7 +104,7 @@
   },
   "dependencies": {
     "@api-hub/event-platform": "workspace:*",
-    "@api-hub/middleware": "workspace:*",
+    "@api-hub/middleware": "workspace:*"
     
   },
   "devDependencies": {

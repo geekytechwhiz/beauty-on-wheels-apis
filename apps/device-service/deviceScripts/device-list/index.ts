@@ -33,12 +33,14 @@ function parseArgs() {
 	const args = process.argv.slice(2);
 	let env = process.env.STAGE || process.env.SERVERLESS_STAGE || null;
 	let tableName = process.env.DEVICE_TABLE || DEVICE_TABLE || null;
+	let devicesFile = process.env.DEVICES_FILE || null;
 	let uploadToS3 = process.env.UPLOAD_TO_S3 === 'true';
 	let dryRun = false;
 	
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === '--env' && args[i + 1]) env = args[++i];
 		else if (args[i] === '--table' && args[i + 1]) tableName = args[++i];
+		else if (args[i] === '--devices-file' && args[i + 1]) devicesFile = args[++i];
 		else if (args[i] === '--upload-s3') uploadToS3 = true;
 		else if (args[i] === '--dry-run') dryRun = true;
 	}
@@ -47,7 +49,14 @@ function parseArgs() {
 		tableName = `device-table-${env}`;
 	}
 	
-	return { env, tableName, uploadToS3, dryRun };
+	return { env, tableName, devicesFile, uploadToS3, dryRun };
+}
+
+function resolveDevicesJsonPath(devicesFile: string | null, deviceServiceRoot: string): string {
+	if (devicesFile) {
+		return path.resolve(devicesFile);
+	}
+	return path.resolve(deviceServiceRoot, 'src/utils/devices.json');
 }
 
 function transformDevicesToDynamoDBItems(devicesData: DevicesData): DeviceDynamoDBItem[] {
@@ -116,17 +125,15 @@ const start = async (): Promise<void> => {
 	// console.log('=====================================');
 	
 	try {
-		const { tableName, uploadToS3, dryRun } = parseArgs();
+		const { tableName, devicesFile, uploadToS3, dryRun } = parseArgs();
 		
 		if (!tableName) {
 			console.error('❌ Error: Set --env (dev|stg|prd), --table <tableName>, or DEVICE_TABLE environment variable');
 			process.exit(1);
 		}
 
-		// Read devices.json from utils directory
-		// Get device-service root directory and resolve to src/utils/devices.json
 		const deviceServiceRoot = getDeviceServiceRoot();
-		const devicesJsonPath = path.resolve(deviceServiceRoot, 'src/utils/devices.json');
+		const devicesJsonPath = resolveDevicesJsonPath(devicesFile, deviceServiceRoot);
 		
 		// console.log(`📂 Reading devices.json from: ${devicesJsonPath}`);
 		

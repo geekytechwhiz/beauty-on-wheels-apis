@@ -5,8 +5,8 @@ env:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-device-service-bucket'
     STACK_NAME: 'dev-device-service'
-    # Set SEED_META=true in pipeline/CodeBuild to run device list seed (default: skip)
-    SEED_META: ''
+    # Set SEED_META=true in pipeline/CodeBuild to run device list seed (dev default: skip)
+    SEED_META: 'false'
 
 phases:
   install:
@@ -14,11 +14,14 @@ phases:
       nodejs: 22
     commands:
       - npm install -g serverless@3 --force
+      - npm install -g pnpm@10
+      - pnpm --version
       - npm install --legacy-peer-deps
 
   build:
     commands:
       - cd apps/device-service
+      - test -f src/utils/devices.json || find "$CODEBUILD_SRC_DIR" -path '*/src/utils/devices.json' -type f | head -1 | grep -q .
       - npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys
@@ -78,35 +81,36 @@ phases:
   post_build:
     commands:
       - |
-        # Default SEED_META to true if not set
-        [ -z "$SEED_META" ] && export SEED_META="true"
         if [ "$SEED_META" = "true" ]; then
-          cd "$CODEBUILD_SRC_DIR/apps/device-service"
-          export DEVICE_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/DEVICE_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
-          [ -z "$DEVICE_TABLE" ] && export DEVICE_TABLE="device-table-$STAGE"
-          echo "🌱 Seeding device list metadata into $DEVICE_TABLE (stage=$STAGE)"
-          DEVICES_FILE="$CODEBUILD_SRC_DIR/apps/device-service/src/utils/devices.json"
-          if [ ! -f "$DEVICES_FILE" ]; then
-            echo "ERROR: Devices JSON not found: $DEVICES_FILE (ensure src/utils/devices.json is committed)"
+          DEVICES_FILE=$(find "$CODEBUILD_SRC_DIR" -path '*/src/utils/devices.json' -type f 2>/dev/null | head -1)
+          if [ -z "$DEVICES_FILE" ] || [ ! -f "$DEVICES_FILE" ]; then
+            echo "ERROR: devices.json not found under $CODEBUILD_SRC_DIR"
+            find "$CODEBUILD_SRC_DIR" -name devices.json 2>/dev/null | head -20
             exit 1
           fi
-          cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
-          # Compile TypeScript to JavaScript (using root-level TypeScript if available)
+          export DEVICES_FILE
+          export DEVICE_SERVICE_ROOT="$(cd "$(dirname "$DEVICES_FILE")/../.." && pwd)"
+          cd "$DEVICE_SERVICE_ROOT"
+          export DEVICE_TABLE=$(npx serverless print --stage "$STAGE" 2>/dev/null | awk '/DEVICE_TABLE:/{gsub(/[\047"]/,""); print $2; exit}')
+          [ -z "$DEVICE_TABLE" ] && export DEVICE_TABLE="device-table-$STAGE"
+          export REGION="${REGION:-us-east-1}"
+          echo "🌱 Seeding device list metadata into $DEVICE_TABLE (stage=$STAGE)"
+          echo "   DEVICES_FILE=$DEVICES_FILE"
+          echo "   DEVICE_SERVICE_ROOT=$DEVICE_SERVICE_ROOT"
           echo "🔨 Compiling TypeScript..."
-          cd "$CODEBUILD_SRC_DIR/apps/device-service" && npx tsc --project deviceScripts/device-list/tsconfig.json || {
+          npx tsc --project deviceScripts/device-list/tsconfig.json || {
             echo "⚠️ TypeScript compilation failed - trying local install..."
-            cd "$CODEBUILD_SRC_DIR/apps/device-service/deviceScripts/device-list"
-            npm install --no-save typescript @types/node --legacy-peer-deps
+            cd deviceScripts/device-list
+            npm install --legacy-peer-deps
             npx tsc --project tsconfig.json || {
               echo "⚠️ TypeScript compilation failed"
               exit 1
             }
+            cd "$DEVICE_SERVICE_ROOT"
           }
-          # Run the compiled JavaScript (from device-service root so paths resolve correctly)
           echo "🚀 Running device list seed script..."
-          cd "$CODEBUILD_SRC_DIR/apps/device-service"
           node deviceScripts/device-list/dist/index.js --env "$STAGE" || {
-            echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE)"
+            echo "⚠️ Device list seed failed (check CodeBuild role has dynamodb:PutItem/BatchWriteItem on $DEVICE_TABLE; see CODEBUILD-IAM.md)"
             exit 1
           }
         else

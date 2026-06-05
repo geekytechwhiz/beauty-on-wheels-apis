@@ -7,8 +7,7 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
-  - serverless-offline
+  - serverless-auto-swagger 
 
 provider:
   name: aws
@@ -115,6 +114,7 @@ custom:
     minify: false
     sourcemap: true
     target: node18
+    packager: pnpm
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json

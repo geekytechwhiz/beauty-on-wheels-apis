@@ -10,8 +10,7 @@ plugins:
   - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
-  # - serverless-auto-swagger
-  - serverless-offline
+  # serverless-offline is only loaded via serverless.offline.yml for local dev
 
 provider:
   name: aws
@@ -155,11 +154,14 @@ custom:
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
     target: node22
     platform: node
+    packager: pnpm
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
       - fhir-tool
+      - '@api-hub/event-platform'
+      - '@api-hub/middleware'
     keepNames: true
     # Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
     # service instances exhaust the CodeBuild container and crash with "The service was stopped".
@@ -228,8 +230,6 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
-  serverless-offline:
-    noTimeout: true
 
 functions:
   health:

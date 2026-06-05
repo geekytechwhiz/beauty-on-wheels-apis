@@ -7,14 +7,18 @@ export interface ProcessedPhoneNumber {
 
 export function processPhoneNumber(
   phone: string | undefined | null,
-  defaultPhoneCode = '+91'
+  phoneCode: string,
 ): ProcessedPhoneNumber {
-  // Return defaults if phone is empty
+
+  //Check Phone Code is Valid
+
+  if (!phoneCode || typeof phoneCode !== 'string' || phoneCode.trim().length === 0) {
+    throw new Error('Invalid phone code');
+  }
+
+  //Check Phone Number is Valid
   if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
-    return {
-      phoneCode: defaultPhoneCode,
-      phoneNumber: '',
-    };
+    throw new Error('Phone number is required');
   }
 
   const cleaned = phone.trim();
@@ -24,7 +28,7 @@ export function processPhoneNumber(
     const { phoneCode, phoneNumber } = splitPhoneNumber(cleaned, 'ZA');
 
     return {
-      phoneCode: phoneCode || defaultPhoneCode,
+      phoneCode: phoneCode ,
       phoneNumber,
     };
   } catch {
@@ -37,7 +41,7 @@ export function processPhoneNumber(
     }
 
     return {
-      phoneCode: defaultPhoneCode,
+      phoneCode: phoneCode,
       phoneNumber: cleaned,
     };
   }

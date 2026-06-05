@@ -19,6 +19,15 @@ export const createMetadataTypeSchema = z.object({
   applicableModules: z.array(z.string()).optional(),
   attributeSchema: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
+  supportsRelations: z.boolean().optional(),
+  relationFieldLabel: z.string().max(150).nullable().optional(),
+  targetMetadataTypeCode: z.string().regex(METADATA_TYPE_CODE_PATTERN).nullable().optional(),
+  selectionMode: z.enum(['SINGLE', 'MULTI']).nullable().optional(),
+  relationRequired: z.boolean().nullable().optional(),
+  relationType: z
+    .enum(['PARENT_CHILD', 'VALID_IN', 'SUPPORTED_BY', 'BELONGS_TO_CATEGORY'])
+    .nullable()
+    .optional(),
   createdBy: z.string().optional(),
   lastModifiedBy: z.string().optional(),
 });
@@ -54,6 +63,13 @@ export const createMetadataValueSchema = z
     applicableConditions: z.array(z.string()).optional(),
     applicableCountries: z.array(z.string()).optional(),
     applicableLanguages: z.array(z.string()).optional(),
+    relationships: z
+      .array(
+        z.object({
+          targetMetadataValueCode: z.string().regex(METADATA_VALUE_CODE_PATTERN, 'Invalid targetMetadataValueCode'),
+        }),
+      )
+      .optional(),
   })
   .refine((b) => !!(b.valueCode || b.metadataValueCode), { message: 'valueCode or metadataValueCode is required' });
 
@@ -66,7 +82,6 @@ export const validateMetadataValueBodySchema = z.object({
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   nextToken: z.string().optional(),
-  includeInactive: z.coerce.boolean().optional().default(false),
 });
 
 export const listMetadataTypesQuerySchema = paginationSchema;
@@ -84,7 +99,6 @@ export const applicabilityContextFilterBodySchema = z.object({
   dimension: z.enum(['module', 'category', 'condition', 'country', 'language'], {
     message: 'dimension must be module, category, condition, country, or language',
   }),
-  includeInactive: z.boolean().optional().default(false),
 });
 
 export const listMetadataAuditQuerySchema = z.object({

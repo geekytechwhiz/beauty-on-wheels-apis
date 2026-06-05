@@ -82,6 +82,34 @@ function readExtensionScalarValue(
     return entry.valueId.trim();
   }
 
+  const valueCoding = entry.valueCoding;
+  if (valueCoding && typeof valueCoding === 'object') {
+    const code = (valueCoding as Record<string, unknown>).code;
+    if (typeof code === 'string' && code.trim() !== '') {
+      return code.trim();
+    }
+  }
+
+  const valueCodeableConcept = entry.valueCodeableConcept;
+  if (valueCodeableConcept && typeof valueCodeableConcept === 'object') {
+    const coding = (valueCodeableConcept as Record<string, unknown>).coding;
+    if (Array.isArray(coding) && coding.length > 0) {
+      const first = coding[0] as Record<string, unknown>;
+      const code = first.code;
+      if (typeof code === 'string' && code.trim() !== '') {
+        return code.trim();
+      }
+    }
+  }
+
+  const valueIdentifier = entry.valueIdentifier;
+  if (valueIdentifier && typeof valueIdentifier === 'object') {
+    const value = (valueIdentifier as Record<string, unknown>).value;
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value.trim();
+    }
+  }
+
   const reference = entry.valueReference;
   if (reference && typeof reference === 'object') {
     const ref = reference as Record<string, unknown>;
@@ -250,6 +278,156 @@ function defaultUserType(resourceType: string): string {
   return resourceType === 'Practitioner' ? 'STAFF' : 'USER';
 }
 
+function asRecord(value: unknown): AnyObject | undefined {
+  return value && typeof value === 'object' ? (value as AnyObject) : undefined;
+}
+
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Prefer values that look like emails; ignores phone numbers mapped onto email fields. */
+function pickEmail(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim() !== '' && looksLikeEmail(value)) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+/** Prefer non-email contact values (phone numbers). */
+function pickPhone(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (trimmed === '' || looksLikeEmail(trimmed)) {
+      continue;
+    }
+    return trimmed;
+  }
+  return undefined;
+}
+
+function parseTelecom(resource: AnyObject): {
+  email?: string;
+  phone?: string;
+} {
+  const telecom = Array.isArray(resource.telecom) ? resource.telecom : [];
+  let email: string | undefined;
+  let phone: string | undefined;
+
+  for (const entry of telecom) {
+    const item = asRecord(entry);
+    if (!item) {
+      continue;
+    }
+    const system =
+      typeof item.system === 'string' ? item.system.trim().toLowerCase() : '';
+    const value =
+      typeof item.value === 'string' ? item.value.trim() : '';
+    if (!value) {
+      continue;
+    }
+    if (system === 'email' || (!system && looksLikeEmail(value))) {
+      email = value;
+    } else if (system === 'phone' || (!system && !looksLikeEmail(value))) {
+      phone = value;
+    }
+  }
+
+  return { email, phone };
+}
+
+function readManagingOrganizationId(resource: AnyObject): string | undefined {
+  const reference = asRecord(resource.managingOrganization)?.reference;
+  if (typeof reference !== 'string' || reference.trim() === '') {
+    return undefined;
+  }
+  const parts = reference.trim().split('/');
+  return parts[parts.length - 1] || reference.trim();
+}
+
+function collectExtensions(...sources: Array<AnyObject | undefined>): unknown[] {
+  const extensions: unknown[] = [];
+  for (const source of sources) {
+    if (!source) {
+      continue;
+    }
+    if (Array.isArray(source.extension)) {
+      extensions.push(...source.extension);
+    }
+    if (Array.isArray(source.modifierExtension)) {
+      extensions.push(...source.modifierExtension);
+    }
+  }
+  return extensions;
+}
+
+function extractEmergencyContact(
+  contacts: unknown,
+): Record<string, unknown> | undefined {
+  if (!Array.isArray(contacts) || contacts.length === 0) {
+    return undefined;
+  }
+
+  const entry = asRecord(contacts[0]);
+  if (!entry) {
+    return undefined;
+  }
+
+  const relationshipEntry = Array.isArray(entry.relationship)
+    ? asRecord(entry.relationship[0])
+    : undefined;
+  const relationship =
+    typeof relationshipEntry?.text === 'string'
+      ? relationshipEntry.text.trim()
+      : undefined;
+  const name =
+    typeof asRecord(entry.name)?.text === 'string'
+      ? String(asRecord(entry.name)?.text).trim()
+      : undefined;
+  const telecom = parseTelecom(entry);
+
+  return Object.fromEntries(
+    Object.entries({
+      relationship,
+      name,
+      phone: telecom.phone,
+      email: telecom.email,
+    }).filter(([, value]) => value !== undefined && value !== ''),
+  );
+}
+
+function mergePassthroughFromResource(
+  target: AnyObject,
+  resource: Record<string, unknown>,
+): void {
+  const nestedUserInfo =
+    resource.userInfo && typeof resource.userInfo === 'object'
+      ? (resource.userInfo as Record<string, unknown>)
+      : undefined;
+
+  if (target.userRole === undefined && resource.userRole !== undefined) {
+    target.userRole = resource.userRole ?? nestedUserInfo?.userRole;
+  }
+  if (target.userType === undefined && resource.userType !== undefined) {
+    target.userType = resource.userType ?? nestedUserInfo?.userType;
+  }
+  if (
+    target.organizationID === undefined &&
+    resource.organizationID !== undefined
+  ) {
+    target.organizationID =
+      resource.organizationID ?? nestedUserInfo?.organizationID;
+  }
+  if (target.profilePic === undefined && resource.profilePic !== undefined) {
+    target.profilePic = resource.profilePic ?? nestedUserInfo?.profilePic;
+  }
+}
+
 function pickFirstStringArray(...candidates: string[][]): string[] | undefined {
   for (const candidate of candidates) {
     if (candidate.length > 0) {
@@ -293,13 +471,27 @@ export function resolveCreateUserInboundHints(
       ? (rawBody.userInfo as Record<string, unknown>)
       : undefined;
 
+  const passthrough: AnyObject = {
+    userRole: rawBody.userRole ?? userInfo?.userRole,
+    userType: rawBody.userType ?? userInfo?.userType,
+    organizationID: rawBody.organizationID ?? userInfo?.organizationID,
+    profilePic: rawBody.profilePic ?? userInfo?.profilePic,
+  };
+
+  if (rawBody.resourceType === 'Bundle' && Array.isArray(rawBody.entry)) {
+    for (const entry of rawBody.entry) {
+      const resource = (entry as { resource?: unknown }).resource;
+      if (resource && typeof resource === 'object') {
+        mergePassthroughFromResource(
+          passthrough,
+          resource as Record<string, unknown>,
+        );
+      }
+    }
+  }
+
   return {
-    passthrough: {
-      userRole: rawBody.userRole ?? userInfo?.userRole,
-      userType: rawBody.userType ?? userInfo?.userType,
-      organizationID: rawBody.organizationID ?? userInfo?.organizationID,
-      profilePic: rawBody.profilePic ?? userInfo?.profilePic,
-    },
+    passthrough,
     headerUserRole: normalizeStringArray(
       getHeader(req, 'x-user-role') ?? getHeader(req, 'x-user-roles'),
     ),
@@ -319,8 +511,9 @@ export function enrichCreateUserCanonical(
   canonical: AnyObject,
   resourceType: string,
   hints: CreateUserInboundHints = {},
+  bundleRoot?: AnyObject,
 ): AnyObject {
-  const extensions = fhirResource.extension;
+  const extensions = collectExtensions(fhirResource, bundleRoot);
   const extensionUserType = readExtensionValues(
     extensions,
     CREATE_USER_EXTENSION_URLS.userType,
@@ -348,6 +541,33 @@ export function enrichCreateUserCanonical(
     contact.address = address;
   }
 
+  const telecom = parseTelecom(fhirResource);
+  const canonicalUserInfo = asRecord(canonical.userInfo);
+  const email = pickEmail(
+    telecom.email,
+    contact.email,
+    canonical.emailAddress,
+    canonicalUserInfo?.emailAddress,
+  );
+  const phone = pickPhone(
+    telecom.phone,
+    contact.phone,
+    canonical.phoneNumber,
+    canonicalUserInfo?.phoneNumber,
+  );
+  if (email) {
+    contact.email = email;
+  } else if (
+    typeof contact.email === 'string' &&
+    contact.email.trim() !== '' &&
+    !looksLikeEmail(contact.email)
+  ) {
+    delete contact.email;
+  }
+  if (phone) {
+    contact.phone = phone;
+  }
+
   const photoUrl = extractPhotoUrl(fhirResource.photo);
   if (photoUrl) {
     userInfo.profilePic = photoUrl;
@@ -357,6 +577,21 @@ export function enrichCreateUserCanonical(
   }
 
   userInfo.contact = contact;
+
+  const emergencyContact = extractEmergencyContact(fhirResource.contact);
+  if (emergencyContact && Object.keys(emergencyContact).length > 0) {
+    userInfo.emergencyContact = emergencyContact;
+  }
+
+  if (typeof fhirResource.gender === 'string' && fhirResource.gender.trim() !== '') {
+    userInfo.gender = fhirResource.gender.trim();
+  }
+  if (
+    typeof fhirResource.birthDate === 'string' &&
+    fhirResource.birthDate.trim() !== ''
+  ) {
+    userInfo.dateOfBirth = fhirResource.birthDate.trim();
+  }
 
   const nameText =
     typeof userInfo.name === 'string' && userInfo.name.trim() !== ''
@@ -409,9 +644,10 @@ export function enrichCreateUserCanonical(
         typeof canonical.userType === 'string' ? canonical.userType : undefined,
         defaultUserType(resourceType),
       ) ?? defaultUserType(resourceType),
-    userRole,
+    userRole: userRole ?? [],
     organizationID: pickFirstString(
       extensionOrganizationId,
+      readManagingOrganizationId(fhirResource),
       typeof fhirResource.organizationID === 'string'
         ? fhirResource.organizationID
         : undefined,

@@ -24,8 +24,8 @@ import { ExternalIdentity } from '../user-creation.type';
 
       // Contact
       email?: string | null;
-      phone?: string | null;
-      phoneCode?: string | null;
+      phone: string ;
+      phoneCode: string;
 
       // Optional enriched data
       emergencyContact?: Record<string, unknown> | null;

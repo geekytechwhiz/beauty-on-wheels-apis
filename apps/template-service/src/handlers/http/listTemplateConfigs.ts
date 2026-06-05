@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getTemplateConfigHttpController } from '../../controllers/template-config-http.controller';
@@ -6,7 +6,7 @@ import { validateListTemplateConfigsRequest } from '../../validators/request.val
 
 const c = getTemplateConfigHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template-config.list',
     validator: validateListTemplateConfigsRequest,

@@ -1,6 +1,13 @@
-import { ENV_TEMPLATE_TABLE, VERSION_SK_PREFIX } from '../constants/template.constants';
+import {
+  ENV_TEMPLATE_TABLE,
+  TEMPLATE_STATUS,
+  VERSION_SK_PREFIX,
+  type TemplateStatus,
+} from '../constants/template.constants';
+import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { normalizeTemplateActor } from './template-actor.utils';
 
 export function assertTemplateTable(): string {
   const table = process.env[ENV_TEMPLATE_TABLE];
@@ -33,7 +40,7 @@ export function decodeListCursor(token: string | undefined): Record<string, unkn
 }
 
 function invalidListCursor(): never {
-  const e = new Error('Invalid nextToken') as Error & { statusCode: number; code: string };
+  const e = new Error('Invalid nextPaginationKey') as Error & { statusCode: number; code: string };
   e.statusCode = 400;
   e.code = 'VALIDATION_ERROR';
   throw e;
@@ -66,6 +73,44 @@ export function templateVersionIdToSk(templateVersionId: string): string | undef
   return `${VERSION_SK_PREFIX}${String(parseInt(match[1], 10)).padStart(3, '0')}`;
 }
 
+/**
+ * Display version for API (e.g. 1.2). Prefers stored `meta.version` (in-place master publishes)
+ * over the major segment in `templateVersionId` (`-V01` → 1).
+ */
+export function resolveTemplateDisplayVersion(meta: {
+  version?: number;
+  templateVersionId?: string;
+}): number {
+  if (typeof meta.version === 'number' && Number.isFinite(meta.version) && meta.version > 0) {
+    return meta.version;
+  }
+  const id = meta.templateVersionId?.trim();
+  if (id) {
+    const match = id.match(/-V(\d+)$/i);
+    if (match) return parseInt(match[1], 10);
+  }
+  return 1;
+}
+
+/** @deprecated Use {@link resolveTemplateDisplayVersion} */
+export function parseVersionNumberFromTemplateVersionId(
+  templateVersionId: string,
+  fallbackVersion?: number,
+): number {
+  return resolveTemplateDisplayVersion({
+    templateVersionId,
+    version: fallbackVersion,
+  });
+}
+
+export function formatTemplateVersionLabel(versionNum: number): string {
+  return `v${versionNum}`;
+}
+
+export function compareTemplateDisplayVersions(a: number, b: number): number {
+  return a - b;
+}
+
 export function templateConflictError(message: string): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };
   e.statusCode = 409;
@@ -85,6 +130,48 @@ export function templateNotFoundError(message = 'Master template not found'): ne
   e.statusCode = 404;
   e.code = 'NOT_FOUND';
   throw e;
+}
+
+/** First version on create; each in-place save bumps minor (1 → 1.1 → 1.2). */
+export function bumpMinorVersion(current: number | undefined): number {
+  const v = current ?? 1;
+  if (Number.isInteger(v)) {
+    return Math.round((v + 0.1) * 10) / 10;
+  }
+  return Math.round((v + 0.1) * 10) / 10;
+}
+
+/** Default when `meta.isActive` is unset: PUBLISHED → active; DRAFT and other statuses → inactive. */
+export function isActiveForStatus(status: TemplateStatus | string): boolean {
+  return status === TEMPLATE_STATUS.PUBLISHED;
+}
+
+/** Master list/dashboard: honor stored `isActive`; published templates may be inactive when `active: false`. */
+export function resolveMasterTemplateIsActive(meta: {
+  status?: TemplateStatus | string;
+  isActive?: boolean;
+}): boolean {
+  if (typeof meta.isActive === 'boolean') {
+    return meta.isActive;
+  }
+  return isActiveForStatus(meta.status ?? TEMPLATE_STATUS.DRAFT);
+}
+
+/** API responses: profile fields are only in `fieldValues`, not duplicated on `meta`. */
+export function sanitizeMetaForApi(meta: TemplateMeta): TemplateMeta {
+  const copy = { ...meta };
+  delete copy.category;
+  delete copy.condition;
+  delete copy.shareScope;
+  delete copy.templateDescription;
+  const createdBy = normalizeTemplateActor(copy.createdBy);
+  if (createdBy) copy.createdBy = createdBy;
+  const lastModifiedBy = normalizeTemplateActor(copy.lastModifiedBy);
+  if (lastModifiedBy) copy.lastModifiedBy = lastModifiedBy;
+  const publishedBy = normalizeTemplateActor(copy.publishedBy);
+  if (publishedBy) copy.publishedBy = publishedBy;
+  else if (copy.publishedBy === null) copy.publishedBy = null;
+  return copy;
 }
 
 export function pickHighestVersionRow(items: TemplateDdbRecord[]): TemplateDdbRecord | null {

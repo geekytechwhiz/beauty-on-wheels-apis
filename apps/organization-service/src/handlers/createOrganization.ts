@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
+import { fhirCreateOrganizationHandlerOptions } from '../utils/fhir-handler-options';
 import { RoleRepository } from '../repositories/role.repository';
 import { generateOrganizationId } from '../utils/organizationPayload';
 import { validateCreateOrganization } from '../validation/request.validators';
@@ -39,4 +40,7 @@ const handler = async (req: LambdaRequest) => {
   };
 };
 
-export const main = withApiHandler({ operation: 'createOrganization', validator: validateCreateOrganization }, handler);
+export const main = withApiHandler(
+  { operation: 'createOrganization', validator: validateCreateOrganization, fhir: fhirCreateOrganizationHandlerOptions },
+  handler,
+);

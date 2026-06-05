@@ -77,7 +77,7 @@ describe('cloneOrgTemplate handler', () => {
           versionId: 'V01',
         },
         headers: authHeaders('org-1'),
-        body: JSON.stringify({ newTemplateName: 'Org Copy', inheritLinks: true }),
+        body: JSON.stringify({ newTemplateName: 'Org Copy' }),
       } as unknown as APIGatewayProxyEvent,
       testLambdaContext(),
     );

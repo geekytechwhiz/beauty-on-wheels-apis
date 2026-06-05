@@ -1,6 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
+import { fhirOrganizationMetadataHandlerOptions } from '../utils/fhir-handler-options';
 import { updateOrganizationMetadataSchema } from '../validation/organization.validation';
 import { validateOrganizationIdParam, validateUpdateOrganizationMetadata } from '../validation/request.validators';
 
@@ -21,8 +22,14 @@ const handler = async (req: LambdaRequest) => {
   return organizationService.updateOrganizationMetadata(organizationId, metadata, correlationId, updatedBy, version);
 };
 
-export const main = withApiHandler({ operation: 'updateOrganizationMetadata', validator: (req: any) => {
-    validateOrganizationIdParam(req);
-    validateUpdateOrganizationMetadata(req);
+export const main = withApiHandler(
+  {
+    operation: 'updateOrganizationMetadata',
+    validator: (req: any) => {
+      validateOrganizationIdParam(req);
+      validateUpdateOrganizationMetadata(req);
+    },
+    fhir: fhirOrganizationMetadataHandlerOptions,
   },
-}, handler);
+  handler,
+);

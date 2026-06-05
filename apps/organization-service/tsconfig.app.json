@@ -29,7 +29,8 @@
       "@api-hub/template": ["libs/template/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"]
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/fhir": ["libs/fhir/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

@@ -53,6 +53,41 @@ paths:
                     description: Updated metadata type record
                     additionalProperties: true
                   - $ref: '#/components/schemas/MetadataValueResponse'
+  /metadata-values/{metadataTypeCode}/{metadataValueCode}/delete:
+    patch:
+      summary: Soft-delete metadata value (new immutable version, status DELETED)
+      description: |
+        Does not physically delete DynamoDB items or prior versions. Optional JSON body `reason` (trimmed, max 2000 chars).
+      parameters:
+        - name: metadataTypeCode
+          in: path
+          required: true
+          schema: { type: string }
+        - name: metadataValueCode
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Flattened metadata value (`MetadataValueResponse`) at latest version (DELETED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataValueResponse'
+        '404':
+          description: Type or value not found
+        '409':
+          description: Already deleted or type inactive for mutation
   /metadata/{entityType}/audit:
     get:
       summary: Audit trail for a metadata type or value
@@ -90,7 +125,8 @@ paths:
       summary: Get a single metadata type or value
       description: |
         `entityType=type`: query `metadataTypeCode` (required). `entityType=value`: query `metadataTypeCode` and
-        `metadataValueCode` (or `valueCode`) required. Status mode matches legacy GET (include-inactive, status, etc.).
+        `metadataValueCode` (or `valueCode`) required. Optional `status` filters the latest record (default ACTIVE).
+        ALL returns ACTIVE and INACTIVE only; use status=DELETED for soft-deleted values.
       parameters:
         - name: entityType
           in: path
@@ -113,13 +149,12 @@ paths:
           schema: { type: string }
         - in: query
           name: status
-          schema: { type: string, enum: [ACTIVE, INACTIVE, ALL, BOTH] }
-        - in: query
-          name: include-inactive
-          schema: { type: string }
-        - in: query
-          name: includeInactive
-          schema: { type: string }
+          description: >-
+            Optional lifecycle filter. Default ACTIVE. ALL returns ACTIVE and INACTIVE only (excludes DELETED).
+            Deleted records require status=DELETED explicitly.
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, DELETED, ALL]
       responses:
         '200':
           description: Metadata type or flattened metadata value
@@ -152,9 +187,9 @@ paths:
     get:
       summary: List metadata types or values for a type
       description: |
-        `entityType=type`: `module`, `valueDataType` / `datatype`, and list status mode (`include-inactive` / `status`).
-        Each type includes `metadataValueCount` (latest-version values for that type, using the same active/inactive/all
-        rule as below). `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
+        `entityType=type`: `module`, `valueDataType` / `datatype`, and optional `status` lifecycle filter.
+        Each type includes `metadataValueCount` (latest-version values for that type, using the same status rule as below).
+        `entityType=value`: `metadataTypeCode` (required). Defaults to **ACTIVE** values only. Structured applicability
         filters: `applicableModules`, `applicableCategories`, `applicableConditions`, `applicableCountries`,
         `applicableLanguages` (comma-separated
         tokens, OR within a field, AND across fields; `isGlobal` values always included). The `search` query param is not supported.
@@ -173,20 +208,16 @@ paths:
         - in: query
           name: status
           description: >-
-            When entityType is value, optional; default ACTIVE. INACTIVE lists inactive values only.
+            Optional lifecycle filter; default ACTIVE. INACTIVE and DELETED list only that status.
+            ALL returns ACTIVE and INACTIVE only (excludes DELETED). Deleted records require status=DELETED explicitly.
+            When entityType=type, DELETED is not supported.
           schema:
             type: string
             enum:
               - ACTIVE
               - INACTIVE
-        - in: query
-          name: include-inactive
-          description: Used when `entityType=type` only.
-          schema: { type: string }
-        - in: query
-          name: includeInactive
-          description: Used when `entityType=type` only.
-          schema: { type: string }
+              - DELETED
+              - ALL
         - in: query
           name: module
           description: Used when `entityType=type` only.
@@ -221,17 +252,6 @@ paths:
         '200':
           description: Array of types or flattened values
   /metadata/relations:
-    post:
-      summary: Create a relation between two metadata values (forward direction only)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateMetadataRelationInput'
-      responses:
-        '201':
-          description: Relation created
     get:
       summary: List relations from a source value
       parameters:
@@ -281,7 +301,7 @@ paths:
 
   /metadata/relations/{id}:
     patch:
-      summary: Inactivate a relation (soft delete; audit row appended)
+      summary: Update relation lifecycle status (activate, inactivate, or no-op)
       parameters:
         - in: path
           name: id
@@ -289,9 +309,15 @@ paths:
           schema:
             type: string
             description: Opaque id returned by create / list (encodes PK/SK)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchRelationStatusRequest'
       responses:
         '200':
-          description: Inactivated relation record
+          description: Relation record after the requested status (unchanged on no-op)
 
 components:
   parameters:
@@ -330,6 +356,14 @@ components:
               type: string
               description: Identifies the metadata type to update; not mutable via this endpoint
         - $ref: '#/components/schemas/PatchStatusRequest'
+    PatchRelationStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: Target lifecycle status for the relation row (no-op when already at this status).
     PatchMetadataValueStatusRequest:
       oneOf:
         - allOf:
@@ -379,6 +413,7 @@ components:
         `valueDataType`, `multiSelectAllowed`, `status` (ACTIVE|INACTIVE). `applicableModules` is optional (empty or omitted
         means the type is not restricted to specific platform modules — stored as `[]`).
         `description` and `attributeSchema` are optional. **Updates** may send a partial body; see `MetadataTypeCreateInput`
+      properties:
         metadataTypeCode:
           type: string
           pattern: '^[A-Z][A-Za-z0-9]*$'
@@ -387,6 +422,8 @@ components:
           type: string
           maxLength: 100
         valueDataType:
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
         multiSelectAllowed: { type: boolean }
         applicableModules:
           type: array
@@ -398,6 +435,20 @@ components:
         status:
           type: string
           enum: [ACTIVE, INACTIVE]
+        supportsRelations: { type: boolean }
+        relationFieldLabel: { type: string, nullable: true, maxLength: 150 }
+        targetMetadataTypeCode:
+          type: string
+          nullable: true
+          pattern: '^[A-Z][A-Za-z0-9]*$'
+        selectionMode:
+          type: string
+          nullable: true
+          enum: [SINGLE, MULTI]
+        relationRequired: { type: boolean, nullable: true }
+        relationType:
+          $ref: '#/components/schemas/RelationType'
+          nullable: true
         createdBy: { type: string }
         lastModifiedBy: { type: string }
     MetadataTypeCreateInput:
@@ -432,8 +483,29 @@ components:
         status:
           type: string
           enum: [ACTIVE, INACTIVE]
+        supportsRelations: { type: boolean }
+        relationFieldLabel: { type: string, nullable: true }
+        targetMetadataTypeCode: { type: string, nullable: true }
+        selectionMode:
+          type: string
+          nullable: true
+          enum: [SINGLE, MULTI]
+        relationRequired: { type: boolean, nullable: true }
+        relationType:
+          $ref: '#/components/schemas/RelationType'
+          nullable: true
         createdBy: { type: string }
         lastModifiedBy: { type: string }
+    MetadataRelationshipInputItem:
+      type: object
+      required: [targetMetadataValueCode]
+      properties:
+        targetMetadataValueCode:
+          type: string
+          description: Code of the related metadata value on the configured target metadata type
+    RelationSelectionMode:
+      type: string
+      enum: [SINGLE, MULTI]
     MetadataValueInput:
       type: object
       description: |
@@ -491,9 +563,23 @@ components:
           description: Maps to applicability.language; token lists are normalized to uppercase
         applicability:
           $ref: '#/components/schemas/Applicability'
+        relationships:
+          type: array
+          description: |
+            UI-facing related values (codes only). Backend derives persisted relation direction from the parent metadata type.
+            Omit on PATCH to leave existing relations unchanged.
+          items:
+            $ref: '#/components/schemas/MetadataRelationshipInputItem'
         createdBy:
           type: string
           description: Optional override for audit actor when not using API user context
+    MetadataValueRelationshipResolved:
+      type: object
+      required: [metadataTypeCode, metadataValueCode, label]
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }
+        label: { type: string }
     MetadataValueResponse:
       type: object
       description: |
@@ -525,7 +611,7 @@ components:
         sortOrder: { type: integer }
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum: [ACTIVE, INACTIVE, DELETED]
         isGlobal: { type: boolean }
         valueAttributes:
           type: object
@@ -552,6 +638,26 @@ components:
         lastModifiedAt: { type: string, format: date-time }
         createdBy: { type: string }
         lastModifiedBy: { type: string }
+        relationships:
+          type: array
+          description: Resolved neighbors when the parent metadata type has supportsRelations
+          items:
+            $ref: '#/components/schemas/MetadataValueRelationshipResolved'
+        deletedAt:
+          type: string
+          format: date-time
+          description: Present on soft-deleted latest versions only
+        deletedBy:
+          type: string
+          description: Actor who performed soft delete
+        deleteReason:
+          type: string
+          maxLength: 2000
+          description: Optional reason from delete request body
+        previousStatus:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: Status immediately before transition to DELETED
     MetadataValueRecord:
       type: object
       description: |
@@ -579,7 +685,7 @@ components:
         sortOrder: { type: integer }
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum: [ACTIVE, INACTIVE, DELETED]
         isGlobal: { type: boolean }
         attributes:
           type: object
@@ -593,6 +699,12 @@ components:
         lastModifiedAt: { type: string, format: date-time }
         createdBy: { type: string }
         lastModifiedBy: { type: string }
+        deletedAt: { type: string, format: date-time }
+        deletedBy: { type: string }
+        deleteReason: { type: string, maxLength: 2000 }
+        previousStatus:
+          type: string
+          enum: [ACTIVE, INACTIVE]
     ValueSearchFilter:
       type: object
       properties:
@@ -613,27 +725,11 @@ components:
           items: { type: string }
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum: [ACTIVE, INACTIVE, DELETED]
 
     RelationType:
       type: string
       enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
-    CreateMetadataRelationInput:
-      type: object
-      required:
-        - relationType
-        - fromMetadataTypeCode
-        - fromMetadataValueCode
-        - toMetadataTypeCode
-        - toMetadataValueCode
-      properties:
-        relationType:
-          $ref: '#/components/schemas/RelationType'
-        fromMetadataTypeCode: { type: string }
-        fromMetadataValueCode: { type: string }
-        toMetadataTypeCode: { type: string }
-        toMetadataValueCode: { type: string }
-        createdBy: { type: string, description: Optional audit actor override }
     MetadataRelationRecord:
       type: object
       properties:

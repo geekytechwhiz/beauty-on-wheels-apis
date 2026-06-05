@@ -1,5 +1,6 @@
 import { createLogger } from '@api-hub/observability';
 
+import { ValidationError } from '../domain/errors';
 import { STATUS } from '../constants';
 import type {
   Applicability,
@@ -7,6 +8,8 @@ import type {
   MetadataTypeRecord,
   MetadataValueInput,
   MetadataValueRecord,
+  MetadataValueRelationshipInput,
+  MetadataValueRelationshipResolved,
   Status,
 } from '../models/types';
 import {
@@ -71,6 +74,41 @@ function hasOwnKey(o: object, k: string): boolean {
   return Object.prototype.hasOwnProperty.call(o, k);
 }
 
+/** Parsed `relationships` array for value upsert; duplicate codes rejected here for stable UX. */
+export function parseRelationshipsFromRequestBody(rawRelationships: unknown): MetadataValueRelationshipInput[] {
+  if (rawRelationships === undefined || rawRelationships === null) {
+    return [];
+  }
+  if (!Array.isArray(rawRelationships)) {
+    throw new ValidationError('relationships must be an array', [{ field: 'relationships', message: 'Invalid' }]);
+  }
+  const seen = new Set<string>();
+  const out: MetadataValueRelationshipInput[] = [];
+  for (let i = 0; i < rawRelationships.length; i++) {
+    const item = rawRelationships[i];
+    if (!item || typeof item !== 'object') {
+      throw new ValidationError('Each relationships entry must be an object', [
+        { field: `relationships[${i}]`, message: 'Invalid' },
+      ]);
+    }
+    const code = (item as { targetMetadataValueCode?: unknown }).targetMetadataValueCode;
+    if (code === undefined || code === null || String(code).trim() === '') {
+      throw new ValidationError('targetMetadataValueCode is required on each relationship', [
+        { field: `relationships[${i}].targetMetadataValueCode`, message: 'Required' },
+      ]);
+    }
+    const normalized = String(code).trim();
+    if (seen.has(normalized)) {
+      throw new ValidationError('Duplicate targetMetadataValueCode in relationships', [
+        { field: 'relationships', message: `Duplicate code: ${normalized}` },
+      ]);
+    }
+    seen.add(normalized);
+    out.push({ targetMetadataValueCode: normalized });
+  }
+  return out;
+}
+
 /**
  * Maps legacy / alternate request shapes to {@link MetadataTypeInput}
  * (`name` → `displayName`, `datatype` → `valueDataType`, `module` string → `applicableModules`).
@@ -131,6 +169,24 @@ export function normalizeMetadataTypeInput(
   if (hasOwnKey(body, 'lastModifiedBy') || hasOwnKey(body, 'updatedBy')) {
     out.lastModifiedBy = (body.lastModifiedBy ?? body.updatedBy) as string | undefined;
   }
+  if (hasOwnKey(body, 'supportsRelations')) {
+    out.supportsRelations = body.supportsRelations as boolean | undefined;
+  }
+  if (hasOwnKey(body, 'relationFieldLabel')) {
+    out.relationFieldLabel = body.relationFieldLabel as string | null | undefined;
+  }
+  if (hasOwnKey(body, 'targetMetadataTypeCode')) {
+    out.targetMetadataTypeCode = body.targetMetadataTypeCode as string | null | undefined;
+  }
+  if (hasOwnKey(body, 'selectionMode')) {
+    out.selectionMode = body.selectionMode as MetadataTypeInput['selectionMode'];
+  }
+  if (hasOwnKey(body, 'relationRequired')) {
+    out.relationRequired = body.relationRequired as boolean | null | undefined;
+  }
+  if (hasOwnKey(body, 'relationType')) {
+    out.relationType = body.relationType as MetadataTypeInput['relationType'];
+  }
 
   return out;
 }
@@ -146,7 +202,14 @@ export function mergeMetadataTypeForUpdate(
   const pick = <T, U extends T | undefined>(next: U, prev: T): T | U =>
     next !== undefined ? next : prev;
 
-  return {
+  /** Like `pick`, but allows explicit `null` from the patch and `null` on the stored record (relation config fields). */
+  const pickNullable = <T>(next: T | null | undefined, prev: T | null | undefined): T | null | undefined =>
+    next !== undefined ? next : prev;
+
+  const supportsRelations =
+    patch.supportsRelations !== undefined ? Boolean(patch.supportsRelations) : existing.supportsRelations;
+
+  const core: MetadataTypeInput = {
     metadataTypeCode: existing.metadataTypeCode,
     displayName: pick(patch.displayName, existing.displayName),
     description: pick(patch.description, existing.description),
@@ -158,6 +221,27 @@ export function mergeMetadataTypeForUpdate(
     status: pick(patch.status, existing.status),
     createdBy: pick(patch.createdBy, existing.createdBy),
     lastModifiedBy: pick(patch.lastModifiedBy, existing.lastModifiedBy),
+    supportsRelations,
+  };
+
+  if (!supportsRelations) {
+    return {
+      ...core,
+      relationFieldLabel: null,
+      targetMetadataTypeCode: null,
+      selectionMode: null,
+      relationRequired: null,
+      relationType: null,
+    };
+  }
+
+  return {
+    ...core,
+    relationFieldLabel: pickNullable(patch.relationFieldLabel, existing.relationFieldLabel),
+    targetMetadataTypeCode: pickNullable(patch.targetMetadataTypeCode, existing.targetMetadataTypeCode),
+    selectionMode: pickNullable(patch.selectionMode, existing.selectionMode),
+    relationRequired: pickNullable(patch.relationRequired, existing.relationRequired),
+    relationType: pickNullable(patch.relationType, existing.relationType),
   };
 }
 
@@ -233,6 +317,10 @@ export function normalizeMetadataValueInput(
     createdBy: body.createdBy,
   };
 
+  if (hasOwnKey(raw, 'relationships')) {
+    result.relationships = parseRelationshipsFromRequestBody(raw.relationships);
+  }
+
   log.debug({
     event: 'metadata_value.normalize',
     valueCode: result.valueCode,
@@ -248,18 +336,24 @@ export function normalizeMetadataValueInput(
  */
 export type MetadataValueApiModel = Omit<MetadataValueRecord, 'valueCode' | 'applicability' | 'attributes'> & {
   metadataValueCode: string;
+  /** Same as `status`; explicit name because `relationships[].relationStatus` is relation lifecycle, not value. */
+  metadataValueStatus: Status;
   valueAttributes: Record<string, unknown>;
   applicableModules: string[];
   applicableCategories: string[];
   applicableConditions: string[];
   applicableCountries: string[];
   applicableLanguages: string[];
+  /** Present when the parent metadata type has `supportsRelations` (may be empty). */
+  relationships?: MetadataValueRelationshipResolved[];
 };
 
 export function flattenMetadataValueForApi(record: MetadataValueRecord): MetadataValueApiModel {
-  const { valueCode, applicability, attributes, ...rest } = record;
+  const { valueCode, applicability, attributes, status, ...rest } = record;
   return {
     ...rest,
+    status,
+    metadataValueStatus: status,
     metadataValueCode: valueCode,
     valueAttributes: attributes,
     applicableModules: applicability.module,

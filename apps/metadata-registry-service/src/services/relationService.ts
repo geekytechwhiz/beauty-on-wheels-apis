@@ -1,23 +1,14 @@
 import {
-  type CreateMetadataRelationInput,
   type MetadataRelationRecord,
   type RelatedValueRef,
+  type RelationStatus,
+  NotFoundError,
+  RELATION_STATUS,
   skBeginsWithForListFilter,
   assertRelationEndpointsExist,
   getMetadataRepository,
   getRelationRepository,
 } from '@api-hub/metadata';
-
-export async function createMetadataRelation(
-  body: CreateMetadataRelationInput,
-  userId?: string,
-): Promise<MetadataRelationRecord> {
-  const meta = await getMetadataRepository();
-  await assertRelationEndpointsExist(meta, body);
-  const rel = await getRelationRepository();
-  const actor = body.createdBy ?? userId;
-  return rel.createRelation({ ...body, createdBy: actor }, actor);
-}
 
 export async function listRelationsForValue(
   fromType: string,
@@ -46,11 +37,26 @@ export async function listRelatedValues(
   }));
 }
 
-export async function inactivateRelationById(
+export async function updateRelationStatusById(
   pk: string,
   sk: string,
+  status: RelationStatus,
   userId?: string,
 ): Promise<MetadataRelationRecord> {
   const rel = await getRelationRepository();
-  return rel.inactivateRelation(pk, sk, userId);
+  if (status === RELATION_STATUS.ACTIVE) {
+    const existing = await rel.getRelationByKey(pk, sk);
+    if (!existing) {
+      throw new NotFoundError('Relation not found');
+    }
+    const meta = await getMetadataRepository();
+    await assertRelationEndpointsExist(meta, {
+      relationType: existing.relationType,
+      fromMetadataTypeCode: existing.fromMetadataTypeCode,
+      fromMetadataValueCode: existing.fromMetadataValueCode,
+      toMetadataTypeCode: existing.toMetadataTypeCode,
+      toMetadataValueCode: existing.toMetadataValueCode,
+    });
+  }
+  return rel.updateRelationStatus(pk, sk, status, userId);
 }

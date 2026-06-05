@@ -53,6 +53,7 @@ export function resolveAttributeSchemaForMetadataType(
 export const STATUS = {
   ACTIVE: 'ACTIVE',
   INACTIVE: 'INACTIVE',
+  DELETED: 'DELETED',
 } as const;
 
 /** Placeholder for optional applicability dimensions when building APPL SK rows. */

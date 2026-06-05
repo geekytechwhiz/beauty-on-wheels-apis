@@ -3,11 +3,11 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 import { Context, SQSEvent } from 'aws-lambda';
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 
-import { getScheduleServiceClient } from '../../clients/schedule-service.client';
+import { getSSOUserServiceClient } from '../../clients/user-service.client';
 import { PendingReprocessMessage } from '../../types/events/pending-reprocess-message.types';
 import { buildSSORequestContextFromAppointmentMessage } from '../../utils/context-builder.util';
 import { getEnvConfig } from '../../config/env';
@@ -23,7 +23,7 @@ const baseLogger = createLogger({
  * via Scheduler service API, then re-enqueues each to AppointmentSyncQueue for processing.
  */
 export async function handler(
-  event: SQSEvent,   
+  event: SQSEvent,
   context?: Context,
 ): Promise<{ batchItemFailures: Array<{ itemIdentifier: string }> }> {
   const awsRequestId = context ? extractAwsRequestId(context) : undefined;
@@ -58,7 +58,7 @@ export async function handler(
     return { batchItemFailures };
   }
 
-  const scheduleClient = getScheduleServiceClient();
+  const userServiceClient = getSSOUserServiceClient();
   const queueUrl = process.env.APPOINTMENT_SYNC_QUEUE_URL;
   if (!queueUrl) {
     logger.error({ event: 'pending_reprocess_missing_queue_url' });
@@ -86,7 +86,7 @@ export async function handler(
         tenantId,
         correlationId,
       );
-      const pendingList = await scheduleClient.getPendingAppointmentsByPatient(
+      const pendingList = await userServiceClient.getPendingAppointmentsByPatient(
         tenantId,
         patientExternalId,
         requestContext,

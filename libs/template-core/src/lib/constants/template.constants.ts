@@ -20,6 +20,9 @@ export const GSI5_MASTER_STATUS = 'GSI5' as const;
 
 export const ENV_TEMPLATE_TABLE = 'TEMPLATE_TABLE';
 
+/** Default page size for template list APIs (not overridable via query). */
+export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
+
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
 
 /** Visibility for master templates (API accepts Private | Organization | Public). */
@@ -42,12 +45,14 @@ export const TEMPLATE_STATUS = {
 
 export type TemplateStatus = (typeof TEMPLATE_STATUS)[keyof typeof TEMPLATE_STATUS];
 
-/** Master VERSION rows with these statuses may be edited (PUT update). */
-export const MASTER_EDITABLE_STATUSES: TemplateStatus[] = [
+/** Master templates: only DRAFT and PUBLISHED (API + edits). */
+export const MASTER_SIMPLE_STATUSES: TemplateStatus[] = [
   TEMPLATE_STATUS.DRAFT,
-  TEMPLATE_STATUS.SAVED,
-  TEMPLATE_STATUS.IN_REVIEW,
+  TEMPLATE_STATUS.PUBLISHED,
 ];
+
+/** Master VERSION rows with these statuses may be updated via POST /templates/{id}. */
+export const MASTER_EDITABLE_STATUSES: TemplateStatus[] = [...MASTER_SIMPLE_STATUSES];
 
 export const STATUS_TRANSITION_ACTION = {
   SUBMIT_REVIEW: 'SUBMIT_REVIEW',

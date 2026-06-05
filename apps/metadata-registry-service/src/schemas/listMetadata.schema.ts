@@ -1,8 +1,8 @@
 import {
+  LIFECYCLE_QUERY_STATUS,
   ValidationError,
   assertRegistryEntityKind,
-  assertStatusEnum,
-  parseQueryIncludeInactive,
+  lifecycleStatusesFromQuery,
   type Status,
 } from '@api-hub/metadata';
 import { z } from 'zod';
@@ -16,18 +16,6 @@ function parseCsvToArray(val: string | undefined): string[] | undefined {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-/**
- * Optional list `status` query param. Empty/undefined -> undefined (service defaults to
- * ACTIVE-only via `resolveStatusMode`). Any other value must be ACTIVE or INACTIVE,
- * otherwise we surface a 400 ValidationError consistent with the rest of the registry routes.
- */
-function normalizeListStatus(raw: string | undefined): Status | undefined {
-  if (raw === undefined || raw === '') return undefined;
-  const s = String(raw).trim().toUpperCase();
-  assertStatusEnum(s);
-  return s;
 }
 
 function parseOptionalLimit(raw: string | undefined): number | undefined {
@@ -69,7 +57,6 @@ export const listMetadataSchema = z
       module: q.module,
       valueDataType: q.valueDataType ?? q.datatype,
       rawStatus: q.status,
-      includeInactive: parseQueryIncludeInactive(q as Record<string, string | undefined>),
 
       applicableModules: q.applicableModules,
       applicableCategories: q.applicableCategories,
@@ -99,6 +86,15 @@ export const listMetadataSchema = z
         ]);
       }
     }
+
+    if (kind === 'type' && data.rawStatus !== undefined && String(data.rawStatus).trim() !== '') {
+      const s = String(data.rawStatus).trim().toUpperCase();
+      if (s === LIFECYCLE_QUERY_STATUS.DELETED) {
+        throw new ValidationError('status=DELETED is only supported when entityType=value', [
+          { field: 'status', message: 'DELETED is not valid for metadata type list' },
+        ]);
+      }
+    }
   })
   .transform((data) => ({
     entityType: (data.entityTypeRaw === 'value' ? 'value' : 'type') as 'type' | 'value',
@@ -107,8 +103,7 @@ export const listMetadataSchema = z
 
     module: data.module,
     valueDataType: data.valueDataType,
-    status: normalizeListStatus(data.rawStatus),
-    includeInactive: data.includeInactive,
+    lifecycleStatuses: lifecycleStatusesFromQuery(data.rawStatus) as Status[],
 
     applicableModules: parseCsvToArray(data.applicableModules),
     applicableCategories: parseCsvToArray(data.applicableCategories),

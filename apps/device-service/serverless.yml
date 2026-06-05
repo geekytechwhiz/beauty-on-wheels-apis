@@ -120,6 +120,7 @@ custom:
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
+      - fhir-tool
     keepNames: true
     plugins: esbuild-plugins.js
     resolveExtensions:

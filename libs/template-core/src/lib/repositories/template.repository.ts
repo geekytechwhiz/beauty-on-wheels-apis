@@ -3,6 +3,7 @@ import { BaseRepository } from '@api-hub/utils';
 import { TemplateEntityBuilder, type CreateMasterTemplateInput } from '../builder/template-entity.builder';
 import { TemplateKeyBuilder } from '../builder/template-key.builder';
 import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   GSI2_TYPE_CATALOG,
   GSI5_MASTER_STATUS,
   TEMPLATE_META_SK,
@@ -13,6 +14,7 @@ import {
 import type { ListMasterTemplatesParams } from '../models/api/list-master.types';
 import type { ListMasterVersionsParams } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { appendVersionHistoryToRecord } from '../mappers/template-http.dto';
 import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../utils/template.utils';
 
 export type MasterListFilters = Pick<
@@ -116,6 +118,35 @@ export class TemplateRepository extends BaseRepository {
     return { items: combined.slice(0, limit) };
   }
 
+  /**
+   * Fetch every master VERSION row matching the base filters across all lifecycle statuses.
+   * Used by the dashboard list endpoint to compute counts, filter options, and in-app pagination.
+   * Bounded by `scanLimitPerStatus` per status partition to stay within reasonable RCUs.
+   */
+  async listAllMasterVersionsAcrossStatuses(
+    filters: MasterListFilters = {},
+    scanLimitPerStatus = 200,
+  ): Promise<TemplateDdbRecord[]> {
+    const statuses = [TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED] as TemplateStatus[];
+
+    const pages = await Promise.all(
+      statuses.map((status) =>
+        this.queryMasterByStatusGsi5Page(status, { limit: scanLimitPerStatus, ...filters }),
+      ),
+    );
+
+    const seen = new Set<string>();
+    const rows: TemplateDdbRecord[] = [];
+    for (const row of pages.flatMap((p) => p.items)) {
+      if (!isMasterVersionSk(row.sk)) continue;
+      const key = `${row.pk}#${row.sk}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+    }
+    return rows;
+  }
+
   async getMasterMeta(templateId: string): Promise<TemplateDdbRecord | null> {
     const table = assertTemplateTable();
     const pk = TemplateKeyBuilder.toMasterPk(templateId);
@@ -181,7 +212,7 @@ export class TemplateRepository extends BaseRepository {
   async listMasterVersions(
     params: ListMasterVersionsParams,
   ): Promise<{ items: TemplateDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     return this.queryMasterVersionsPage(params.templateId, {
       limit,
@@ -194,6 +225,7 @@ export class TemplateRepository extends BaseRepository {
     const table = assertTemplateTable();
     const ctx = TemplateEntityBuilder.buildCreateContext(input);
     const versionRow = TemplateEntityBuilder.buildVersionRow(ctx, input);
+    appendVersionHistoryToRecord(versionRow, { isCreate: true });
 
     await this.transactWrite({
       TransactItems: [
@@ -313,7 +345,7 @@ export class TemplateRepository extends BaseRepository {
     items: TemplateDdbRecord[];
     lastEvaluatedKey?: Record<string, unknown>;
   }> {
-    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+    const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
     const exclusiveStartKey = decodeListCursor(params.nextToken);
     const templateType = params.templateType?.trim();
     const filters: MasterListFilters = {

@@ -119,7 +119,7 @@ export class OrgTemplateOpsService {
           isMaster: false,
         },
         ctx,
-        params.actorUserId,
+        params.actorUser,
       );
 
       const mergedDocument = {
@@ -187,7 +187,7 @@ export class OrgTemplateOpsService {
           params.organizationId,
           TEMPLATE_STATUS.IN_REVIEW,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -205,7 +205,7 @@ export class OrgTemplateOpsService {
           params.organizationId,
           TEMPLATE_STATUS.DRAFT,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.reason,
         );
       }
@@ -219,7 +219,7 @@ export class OrgTemplateOpsService {
           versionRow,
           params.organizationId,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -234,7 +234,7 @@ export class OrgTemplateOpsService {
           params.organizationId,
           TEMPLATE_STATUS.ARCHIVED,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -249,7 +249,7 @@ export class OrgTemplateOpsService {
           params.organizationId,
           TEMPLATE_STATUS.DEPRECATED,
           nowIso,
-          params.actorUserId,
+          params.actorUser,
           params.body.comment,
         );
       }
@@ -279,7 +279,7 @@ export class OrgTemplateOpsService {
     organizationId: string,
     status: TemplateStatus,
     nowIso: string,
-    actorUserId?: string,
+    actor?: import('../models/template-actor.model').TemplateActorUser,
     note?: string | null,
   ): Promise<TemplateDdbRecord> {
     const writeCtx: MasterVersionWriteContext = {
@@ -295,12 +295,12 @@ export class OrgTemplateOpsService {
       {
         status,
         reviewComments: note ?? metaRow.meta.reviewComments,
-        publishedBy: status === TEMPLATE_STATUS.PUBLISHED ? actorUserId : metaRow.meta.publishedBy,
+        publishedBy: status === TEMPLATE_STATUS.PUBLISHED ? actor : metaRow.meta.publishedBy,
         ownerOrgId: organizationId,
         isMaster: false,
       },
       writeCtx,
-      actorUserId,
+      actor,
     );
 
     const updatedMetaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(
@@ -325,7 +325,7 @@ export class OrgTemplateOpsService {
     sourceVersion: TemplateDdbRecord,
     organizationId: string,
     nowIso: string,
-    actorUserId?: string,
+    actor?: import('../models/template-actor.model').TemplateActorUser,
     comment?: string | null,
   ): Promise<TemplateDdbRecord> {
     const nextVersionNum = (metaRow.meta.version ?? 1) + 1;
@@ -339,13 +339,13 @@ export class OrgTemplateOpsService {
       {
         status: TEMPLATE_STATUS.PUBLISHED,
         publishedAt: nowIso,
-        publishedBy: actorUserId,
+        publishedBy: actor,
         reviewComments: comment ?? metaRow.meta.reviewComments,
         ownerOrgId: organizationId,
         isMaster: false,
       },
       ctx,
-      actorUserId,
+      actor,
     );
 
     const documentFields = extractDocumentFields(sourceVersion);

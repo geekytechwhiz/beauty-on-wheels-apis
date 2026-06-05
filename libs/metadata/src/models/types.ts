@@ -1,6 +1,10 @@
 import type { STATUS } from '../constants';
+import type { RelationStatus, RelationType } from './relation-types';
 
 export type Status = (typeof STATUS)[keyof typeof STATUS];
+
+/** How many related targets a metadata value may reference when `supportsRelations` is true. */
+export type RelationSelectionMode = 'SINGLE' | 'MULTI';
 
 /** Allowed values for metadata type value semantics (requirement). */
 export const VALUE_DATA_TYPES = ['Enum', 'Numeric', 'Boolean', 'Text'] as const;
@@ -44,6 +48,13 @@ export interface MetadataTypeInput {
   valueDataType?: ValueDataType | string;
   multiSelectAllowed?: boolean;
   applicableModules?: string[];
+  /** When true, relation configuration below is required; when false, relation fields must be omitted or null. */
+  supportsRelations?: boolean;
+  relationFieldLabel?: string | null;
+  targetMetadataTypeCode?: string | null;
+  selectionMode?: RelationSelectionMode | null;
+  relationRequired?: boolean | null;
+  relationType?: RelationType | null;
   /**
    * When true for a dimension, that applicability list is required on non-global metadata values.
    * Persisted on the type item as `valueApplicabilityConfig`.
@@ -69,6 +80,13 @@ export interface MetadataTypeRecord {
   valueDataType: ValueDataType | string;
   multiSelectAllowed: boolean;
   applicableModules: string[];
+  /** When false, relation config fields are unused (stored null/absent). Default false for legacy rows. */
+  supportsRelations: boolean;
+  relationFieldLabel: string | null;
+  targetMetadataTypeCode: string | null;
+  selectionMode: RelationSelectionMode | null;
+  relationRequired: boolean | null;
+  relationType: RelationType | null;
   valueApplicabilityConfig?: ValueApplicabilityConfig;
   attributeSchema?: Record<string, unknown>;
   status: Status;
@@ -86,6 +104,11 @@ export type MetadataTypeListItem = MetadataTypeRecord & {
   metadataValueCount: number;
 };
 
+/** Sent on metadata value upsert; backend derives persisted relation rows from the parent metadata type config. */
+export interface MetadataValueRelationshipInput {
+  targetMetadataValueCode: string;
+}
+
 export interface MetadataValueInput {
   /** Immutable after first write; API alias `metadataValueCode`. */
   valueCode: string;
@@ -100,8 +123,23 @@ export interface MetadataValueInput {
   /** Structured ValueAttributes; MetricCode / QuestionCode validated per type rules. */
   attributes?: Record<string, unknown>;
   applicability: Applicability;
+  /**
+   * Related metadata values (codes only). Interpreted only when the parent metadata type has `supportsRelations`.
+   * Omit on PATCH to leave existing relations unchanged.
+   */
+  relationships?: MetadataValueRelationshipInput[];
   /** Optional; overrides Lambda user id for audit fields when provided. */
   createdBy?: string;
+}
+
+/** Resolved neighbor for API responses (GET value / list / POST). */
+export interface MetadataValueRelationshipResolved {
+  /** Opaque id for `PATCH /metadata/relations/{id}` (same as persisted relation `id`). */
+  relationId: string;
+  relationStatus: RelationStatus;
+  metadataTypeCode: string;
+  metadataValueCode: string;
+  label: string;
 }
 
 export interface MetadataValueRecord {
@@ -121,6 +159,12 @@ export interface MetadataValueRecord {
   lastModifiedAt: string;
   createdBy?: string;
   lastModifiedBy?: string;
+  /** Present on soft-delete versions only. */
+  deletedAt?: string;
+  deletedBy?: string;
+  deleteReason?: string;
+  /** Latest status before transition to DELETED (same version row only). */
+  previousStatus?: Status;
 }
 
 export interface AuditRecord {

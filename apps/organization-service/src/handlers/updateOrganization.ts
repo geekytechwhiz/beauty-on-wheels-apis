@@ -1,5 +1,6 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
+import { fhirOrganizationHandlerOptions } from '../utils/fhir-handler-options';
 import { OrganizationService } from '../services/organization.service';
 import { RootOrgMetadataRepository } from '../repositories/rootOrgMetadata.repository';
 import { updateOrganizationSchema } from '../validation/organization.validation';
@@ -40,8 +41,13 @@ const normalizeSupportedVitals = (
 };
  
 
-const handler = async (req: LambdaRequest) => {
-  const { organizationId } = req.params;
+interface Params {
+  organizationId?: string;
+  [key: string]: unknown;
+}
+
+const handler = async (req: LambdaRequest<Params>) => {
+  const organizationId = req.params.organizationId as string;
   const body = req.body ?? {};
   const { correlationId } = req.context;
   const requestAuthorizer = req.event?.requestContext?.authorizer as Record<string, unknown> | undefined;
@@ -96,4 +102,7 @@ const handler = async (req: LambdaRequest) => {
   return organizationService.updateOrganization(organizationId, validationResult.data, correlationId, userType);
 };
 
-export const main = withApiHandler({ operation: 'updateOrganization', validator: validateOrganizationIdParam }, handler);
+export const main = withApiHandler(
+  { operation: 'updateOrganization', validator: validateOrganizationIdParam, fhir: fhirOrganizationHandlerOptions },
+  handler,
+);

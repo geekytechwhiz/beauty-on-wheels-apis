@@ -20,6 +20,9 @@ export const CURATED_DETECTION: Record<string, DetectionConfig> = {
       'organizationID',
       'organizationName',
       'orgName',
+      'accountAlias',
+      'organizationInfo.organizationID',
+      'organizationInfo.organizationName',
     ],
   },
   RelatedPerson: {
@@ -37,5 +40,10 @@ export const CURATED_DETECTION: Record<string, DetectionConfig> = {
     enabled: false,
     strategy: 'ANY',
     fields: [],
+  },
+  Device: {
+    enabled: true,
+    strategy: 'ANY',
+    fields: ['deviceId', 'configDeviceId', 'displayName', 'deviceCategory'],
   },
 };

@@ -1,5 +1,6 @@
 import {
   orchestrateRegistryList,
+  shapeRegistryListHttpResponse,
   type ListMetadataInput,
   type MetadataTypeListItem,
   type MetadataValueApiModel,
@@ -20,14 +21,5 @@ export const main = withLambdaHandler(async (req) => {
     enrichMetadataRecordActors(row, userMap),
   );
 
-  if (!result.pagination) {
-    return enriched;
-  }
-
-  return {
-    items: enriched,
-    ...(result.nextPaginationKey !== undefined
-      ? { nextPaginationKey: result.nextPaginationKey }
-      : {}),
-  };
+  return shapeRegistryListHttpResponse(result, enriched);
 });

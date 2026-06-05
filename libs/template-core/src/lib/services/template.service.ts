@@ -3,7 +3,10 @@ import {
   type CreateMasterTemplateInput,
 } from '../builder/template-entity.builder';
 import {
+  buildVersionHistory,
+  resolveTemplateHistory,
   toMasterFullRecord,
+  toMasterListItem,
   toTemplateSummary,
   toVersionSummary,
 } from '../mappers/template-http.dto';
@@ -12,21 +15,199 @@ import type {
   GetMasterVersionsResult,
   VersionResolveStrategy,
 } from '../models/api/get-master-versions.types';
-import type { ListMasterTemplatesParams, ListMasterTemplatesResult } from '../models/api/list-master.types';
+import type {
+  ListFilterOptions,
+  ListMasterTemplatesParams,
+  ListMasterTemplatesResult,
+  ListStatusCounts,
+} from '../models/api/list-master.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import type { TemplateMeta } from '../models/persistence/template-ddb.model';
-import { TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
+  SHARE_SCOPE,
+  TEMPLATE_STATUS,
+} from '../constants/template.constants';
 import {
   listMasterNextToken,
   TemplateRepository,
 } from '../repositories/template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
+import { normalizeShareScope } from '../utils/share-scope.utils';
 import {
+  decodeListCursor,
+  encodeListCursor,
+  firstString,
+  resolveMasterTemplateIsActive,
   normalizeVersionToSk,
   pickHighestVersionRow,
+  templateConflictError,
   templateNotFoundError,
   templateVersionIdToSk,
 } from '../utils/template.utils';
+import type { MasterTemplateListItem } from '../mappers/template-http.dto';
+
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  PUBLISHED: 'Published',
+};
+
+const SCOPE_LABELS: Record<string, string> = {
+  PRIVATE: 'Private',
+  ORGANIZATION: 'Organization',
+  PUBLIC: 'Public',
+};
+
+const DEFAULT_LIST_LIMIT = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
+
+/** Reduce all VERSION rows to one representative row per template (its highest version). */
+function representativePerTemplate(rows: TemplateDdbRecord[]): TemplateDdbRecord[] {
+  const byId = new Map<string, TemplateDdbRecord>();
+  for (const row of rows) {
+    const id = row.meta?.templateId;
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (!existing || (row.meta.version ?? 0) > (existing.meta.version ?? 0)) {
+      byId.set(id, row);
+    }
+  }
+  return [...byId.values()];
+}
+
+function conditionsOf(meta: TemplateMeta): string[] {
+  const out = new Set<string>();
+  const single = firstString(meta.condition);
+  if (single) out.add(single);
+  for (const value of [meta.condition, meta.conditions, meta.category]) {
+    if (Array.isArray(value)) {
+      for (const v of value) if (typeof v === 'string' && v.trim()) out.add(v.trim());
+    }
+  }
+  return [...out];
+}
+
+function eqCi(a: string | undefined, b: string): boolean {
+  return typeof a === 'string' && a.trim().toUpperCase() === b.trim().toUpperCase();
+}
+
+function arrayHasCi(values: unknown, needle: string): boolean {
+  if (!Array.isArray(values)) return false;
+  return values.some((v) => typeof v === 'string' && v.trim().toUpperCase() === needle.trim().toUpperCase());
+}
+
+function fieldValuesOf(record: TemplateDdbRecord): Record<string, unknown> {
+  const fv = record.fieldValues;
+  return fv && typeof fv === 'object' && !Array.isArray(fv) ? (fv as Record<string, unknown>) : {};
+}
+
+function matchesActiveFilters(record: TemplateDdbRecord, params: ListMasterTemplatesParams): boolean {
+  const meta = record.meta;
+  const fv = fieldValuesOf(record);
+
+  if (params.status && (meta.status ?? TEMPLATE_STATUS.DRAFT) !== params.status) return false;
+
+  if (params.shareScope) {
+    const scope =
+      normalizeShareScope(meta.shareScope) ?? normalizeShareScope(firstString(fv.shareScope));
+    if (scope !== params.shareScope) return false;
+  }
+
+  const condition = params.conditionCode ?? params.condition;
+  if (condition) {
+    const hit =
+      eqCi(firstString(fv.conditionCode), condition) ||
+      eqCi(firstString(meta.condition), condition) ||
+      arrayHasCi(meta.conditions, condition) ||
+      arrayHasCi(meta.condition as unknown, condition) ||
+      eqCi(firstString(fv.categoryCode), condition) ||
+      eqCi(firstString(meta.category), condition);
+    if (!hit) return false;
+  }
+
+  if (
+    params.category &&
+    !eqCi(firstString(fv.categoryCode), params.category) &&
+    !eqCi(firstString(meta.category), params.category) &&
+    !arrayHasCi(meta.category as unknown, params.category)
+  ) {
+    return false;
+  }
+  if (params.country && !arrayHasCi(meta.countries, params.country)) return false;
+  if (params.language && !arrayHasCi(meta.languages, params.language)) return false;
+  if (params.specialty && !arrayHasCi(meta.specialty, params.specialty)) return false;
+  if (params.templateCode) {
+    const code = firstString(meta.templateCode);
+    if (!code || !code.toUpperCase().startsWith(params.templateCode.trim().toUpperCase())) return false;
+  }
+
+  const nameFilter = params.templateName?.trim();
+  if (nameFilter) {
+    const byId = eqCi(meta.templateId, nameFilter);
+    const displayName = meta.templateName?.trim() ?? '';
+    const byName = displayName.toLowerCase().includes(nameFilter.toLowerCase());
+    if (!byId && !byName) return false;
+  }
+
+  if (params.active !== undefined && resolveMasterTemplateIsActive(meta) !== params.active) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Dashboard counts: `active`/`inactive` from `isActive` (published may be inactive); `draft`/`published` by status. */
+function computeCounts(reps: TemplateDdbRecord[]): ListStatusCounts {
+  let active = 0;
+  let inactive = 0;
+  let draft = 0;
+  let published = 0;
+  for (const r of reps) {
+    const status = (r.meta.status ?? TEMPLATE_STATUS.DRAFT) as string;
+    if (resolveMasterTemplateIsActive(r.meta)) {
+      active += 1;
+    } else {
+      inactive += 1;
+    }
+    if (status === TEMPLATE_STATUS.DRAFT) draft += 1;
+    if (status === TEMPLATE_STATUS.PUBLISHED) published += 1;
+  }
+  return {
+    total: reps.length,
+    active,
+    inactive,
+    draft,
+    published,
+  };
+}
+
+function buildFilterOptions(reps: TemplateDdbRecord[]): ListFilterOptions {
+  const status = [TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED].map((value) => ({
+    label: STATUS_LABELS[value] ?? value,
+    value,
+  }));
+  const scope = Object.values(SHARE_SCOPE).map((value) => ({
+    label: SCOPE_LABELS[value] ?? value,
+    value,
+  }));
+
+  const conditionMap = new Map<string, string>();
+  for (const r of reps) {
+    for (const c of conditionsOf(r.meta)) {
+      conditionMap.set(c.toUpperCase(), c);
+    }
+  }
+  const condition = [...conditionMap.entries()]
+    .map(([value, label]) => ({ label, value }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  return { status, scope, condition };
+}
+
+function decodeOffsetToken(token: string | undefined): number {
+  const decoded = decodeListCursor(token);
+  const offset = decoded?.o;
+  return typeof offset === 'number' && Number.isInteger(offset) && offset >= 0 ? offset : 0;
+}
 import { TemplateMasterOpsService } from './template-master-ops.service';
 import { CompatibleTemplatesService } from './compatible-templates.service';
 import type { ListCompatibleTemplatesParams } from '../models/api/compatible-templates.types';
@@ -43,7 +224,7 @@ export class TemplateService {
 
   async createMasterTemplate(
     input: CreateMasterTemplateInput,
-    actorUserId?: string,
+    actorUser?: import('../models/template-actor.model').TemplateActorUser,
   ): Promise<{ record: TemplateDdbRecord }> {
     try {
       const templateId = TemplateEntityBuilder.normalizeTemplateId(input.templateCode);
@@ -60,7 +241,7 @@ export class TemplateService {
 
       const record = await this.repo.createMasterTemplate({
         ...input,
-        createdBy: input.createdBy ?? actorUserId,
+        actor: input.actor ?? actorUser,
       });
       return { record };
     } catch (e: unknown) {
@@ -68,15 +249,158 @@ export class TemplateService {
     }
   }
 
+  /**
+   * Dashboard list endpoint. Returns paginated items plus status counts and filter dropdown
+   * options. Counts and dropdown options span the whole `templateType` scope (independent of the
+   * status/condition/scope filters) so badges stay stable while the table is filtered.
+   */
   async listMasterTemplates(params: ListMasterTemplatesParams): Promise<ListMasterTemplatesResult> {
     try {
-      const { items, lastEvaluatedKey } = await this.repo.listMasterTemplates(params);
+      const limit = DEFAULT_LIST_LIMIT;
+
+      // Base scope = templateType only, across all statuses, one representative row per template.
+      const allRows = await this.repo.listAllMasterVersionsAcrossStatuses({
+        templateType: params.templateType,
+      });
+      const reps = representativePerTemplate(allRows);
+      const versionsByTemplateId = new Map<string, TemplateDdbRecord[]>();
+      for (const row of allRows) {
+        const id = row.meta?.templateId;
+        if (!id) continue;
+        const list = versionsByTemplateId.get(id) ?? [];
+        list.push(row);
+        versionsByTemplateId.set(id, list);
+      }
+
+      const counts = computeCounts(reps);
+      const filterOptions = buildFilterOptions(reps);
+
+      const filtered = reps
+        .filter((row) => matchesActiveFilters(row, params))
+        .sort((a, b) => {
+          const aTs = Date.parse(a.meta.lastModifiedAt ?? '') || 0;
+          const bTs = Date.parse(b.meta.lastModifiedAt ?? '') || 0;
+          return bTs - aTs;
+        });
+
+      const total = filtered.length;
+      const offset = decodeOffsetToken(params.nextToken);
+      const page = filtered.slice(offset, offset + limit);
+      const nextOffset = offset + page.length;
+      const hasMore = nextOffset < total;
+
       return {
-        items: items.map(toMasterFullRecord),
-        nextToken: listMasterNextToken(lastEvaluatedKey),
+        items: page.map((row) => {
+          const item = toMasterListItem(row);
+          return {
+            ...item,
+            history: resolveTemplateHistory(
+              row,
+              versionsByTemplateId.get(row.meta.templateId) ?? [],
+            ),
+          };
+        }),
+        pagination: {
+          limit,
+          count: page.length,
+          total,
+          nextToken: hasMore ? encodeListCursor({ o: nextOffset }) : undefined,
+          hasMore,
+        },
+        counts,
+        filterOptions,
       };
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
+    }
+  }
+
+  /**
+   * All published master representatives (for org-enable dropdown options).
+   * Independent of list table filters so empty pages still expose full filterOptions.
+   */
+  async listPublishedMasterCatalogItems(templateType?: string) {
+    try {
+      const allRows = await this.repo.listAllMasterVersionsAcrossStatuses({ templateType });
+      const reps = representativePerTemplate(allRows).filter(
+        (row) => row.meta?.status === TEMPLATE_STATUS.PUBLISHED,
+      );
+      return reps.map((row) => toMasterListItem(row));
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  /**
+   * Resolves a published master from derive body `templateId` (catalog value or display name).
+   */
+  async resolvePublishedMasterForDerive(params: {
+    templateIdOrName: string;
+    templateType: string;
+    categoryCode: string;
+    conditionCode: string;
+  }): Promise<{ templateId: string; templateVersionId: string }> {
+    try {
+      const raw = params.templateIdOrName.trim();
+      const normalized = TemplateEntityBuilder.normalizeTemplateId(raw);
+      const catalog = await this.listPublishedMasterCatalogItems(params.templateType.trim());
+
+      const byId = (id: string) =>
+        catalog.find(
+          (item) =>
+            item.templateId === id ||
+            TemplateEntityBuilder.normalizeTemplateId(item.templateId) ===
+              TemplateEntityBuilder.normalizeTemplateId(id),
+        );
+
+      const byName = () =>
+        catalog.find(
+          (item) => (item.templateName?.trim().toLowerCase() ?? '') === raw.toLowerCase(),
+        );
+
+      const hit =
+        byId(raw) ??
+        byId(normalized) ??
+        byName() ??
+        catalog.find((item) => item.templateVersionId === raw);
+
+      if (!hit) {
+        templateNotFoundError(
+          'Published master template not found for templateId (check org catalog filterOptions)',
+        );
+      }
+
+      this.assertDeriveMasterMatchesBody(hit, params);
+      return {
+        templateId: hit.templateId,
+        templateVersionId: hit.templateVersionId,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  private assertDeriveMasterMatchesBody(
+    item: MasterTemplateListItem,
+    params: { templateType: string; categoryCode: string; conditionCode: string },
+  ): void {
+    const fv =
+      item.fieldValues && typeof item.fieldValues === 'object' && !Array.isArray(item.fieldValues)
+        ? (item.fieldValues as Record<string, unknown>)
+        : {};
+    const itemCategory = firstString(fv.categoryCode) ?? firstString(fv.category);
+    const itemCondition = firstString(fv.conditionCode) ?? firstString(fv.condition);
+    const eq = (a: string | undefined, b: string) =>
+      a?.trim().toUpperCase() === b.trim().toUpperCase();
+
+    if (!eq(item.templateType, params.templateType)) {
+      templateConflictError('templateType does not match the selected master template');
+    }
+    if (itemCategory && !eq(itemCategory, params.categoryCode)) {
+      templateConflictError('categoryCode does not match the selected master template');
+    }
+    if (itemCondition && !eq(itemCondition, params.conditionCode)) {
+      templateConflictError('conditionCode does not match the selected master template');
     }
   }
 
@@ -90,9 +414,11 @@ export class TemplateService {
       const versionQuery = params.version?.trim();
       if (!versionQuery) {
         const { items, lastEvaluatedKey } = await this.repo.listMasterVersions(params);
+        const allVersions = await this.repo.queryMasterVersionsPage(params.templateId, { limit: 100 });
         return {
           mode: 'list',
           items: items.map(toVersionSummary),
+          history: buildVersionHistory(allVersions.items),
           nextToken: listMasterNextToken(lastEvaluatedKey),
         };
       }
@@ -153,8 +479,7 @@ export class TemplateService {
   }
 
   /**
-   * Single master write API: optional `lifecycleAction` (PUBLISH, SUBMIT_REVIEW, …) or content update.
-   * Resolves the current head `templateVersionId` — clients do not pass version in the URL.
+   * Master update: send `status` DRAFT or PUBLISHED (or PUBLISH) plus `fieldValues` — no lifecycle actions.
    */
   async saveMasterTemplate(params: SaveMasterTemplateParams): Promise<TemplateDdbRecord> {
     try {
@@ -169,33 +494,11 @@ export class TemplateService {
         templateNotFoundError('Master template version not found');
       }
 
-      const lifecycleAction =
-        typeof params.body.lifecycleAction === 'string'
-          ? params.body.lifecycleAction.trim()
-          : typeof params.body.action === 'string'
-            ? params.body.action.trim()
-            : '';
-
-      if (lifecycleAction) {
-        return await this.transitionMasterTemplateStatus({
-          templateId: params.templateId,
-          versionId,
-          body: {
-            action: lifecycleAction,
-            comment:
-              typeof params.body.comment === 'string' ? params.body.comment : null,
-            reason:
-              typeof params.body.reason === 'string' ? params.body.reason : null,
-          },
-          actorUserId: params.actorUserId,
-        });
-      }
-
       return await this.updateMasterTemplateVersion({
         templateId: params.templateId,
         versionId,
         body: params.body,
-        actorUserId: params.actorUserId,
+        actorUser: params.actorUser,
       });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
@@ -206,8 +509,9 @@ export class TemplateService {
     return this.compatibleSvc.listCompatibleTemplates(params);
   }
 
+  /** Full VERSION document so create round-trips fieldValues and nested sections. */
   toCreateResponse(record: TemplateDdbRecord) {
-    return toTemplateSummary(record);
+    return toMasterFullRecord(record);
   }
 
   toSummary(record: TemplateDdbRecord) {

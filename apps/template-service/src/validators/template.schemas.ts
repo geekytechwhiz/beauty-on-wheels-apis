@@ -13,44 +13,87 @@ const shareScopeInputZ = z
     { message: 'shareScope must be Private, Organization, or Public' },
   );
 
-const templateStatusZ = z.enum([
-  TEMPLATE_STATUS.DRAFT,
-  TEMPLATE_STATUS.SAVED,
-  TEMPLATE_STATUS.IN_REVIEW,
-  TEMPLATE_STATUS.PUBLISHED,
-  TEMPLATE_STATUS.ARCHIVED,
-  TEMPLATE_STATUS.DEPRECATED,
-]);
+const templateStatusZ = z.enum([TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED]);
 
 export const templateLevelZ = z.enum(['MASTER', 'ORG']);
 
 export const fieldValuesSchema = z.record(z.string(), z.unknown());
 
+/** Treat empty, `null`, and `undefined` query strings as no filter. */
+const optionalListFilterZ = z.preprocess((value) => {
+  if (value === undefined || value === null) return undefined;
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+    return undefined;
+  }
+  return trimmed;
+}, z.string().min(1).optional());
+
+/** Query `active=true|false` (ignores null/empty). */
+export const optionalActiveQueryZ = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = String(value).trim().toLowerCase();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    return trimmed;
+  },
+  z
+    .enum(['true', 'false', '1', '0'])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      return v === 'true' || v === '1';
+    }),
+);
+
+export const organizationMetaSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  description: z.string().trim().optional().nullable(),
+});
+
+/** Required on POST /templates/derive. */
+export const deriveOrganizationMetaSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  description: z.string().trim(),
+});
+
 export const deriveTemplateBodySchema = z.object({
-  organizationId: z.string().trim().min(1).optional(),
-  /** Omit to copy the latest PUBLISHED master version (backend resolves). */
-  sourceVersionId: z.string().trim().min(1).optional(),
-  derivationType: z.enum(['ENABLE', 'CLONE']).default('ENABLE'),
-  newTemplateName: z.string().trim().min(1).max(150).optional(),
-  inheritLinks: z.boolean().optional(),
+  organizationMeta: deriveOrganizationMetaSchema,
+  categoryCode: z.string().trim().min(1),
+  conditionCode: z.string().trim().min(1),
+  templateType: z.string().trim().min(1),
+  /**
+   * Master id (`filterOptions.templateName.value`) or display name (`label`) from the org catalog.
+   */
+  templateId: z.string().trim().min(1),
 });
 
 export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
 
-export const lifecycleActionZ = z.enum([
-  'SUBMIT_REVIEW',
-  'PUBLISH',
-  'REJECT',
-  'ARCHIVE',
-  'DEPRECATE',
-]);
+/** PUT /templates/derive — enable or disable existing org subscription. */
+export const updateOrgTemplateEnableBodySchema = z
+  .object({
+    organizationMeta: deriveOrganizationMetaSchema.optional(),
+    organizationId: z.string().trim().min(1).optional(),
+    templateId: z.string().trim().min(1),
+    templateEnabled: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.organizationMeta?.id && !data.organizationId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'organizationMeta.id or organizationId is required',
+        path: ['organizationId'],
+      });
+    }
+  });
+
+export type UpdateOrgTemplateEnableBody = z.infer<typeof updateOrgTemplateEnableBodySchema>;
 
 export const saveMasterTemplateBodySchema = z
   .object({
-    lifecycleAction: lifecycleActionZ.optional(),
-    action: lifecycleActionZ.optional(),
-    comment: z.string().nullable().optional(),
-    reason: z.string().nullable().optional(),
     shareScope: shareScopeInputZ.optional(),
     templateCode: z.string().trim().min(1).optional(),
     templateName: z.string().trim().min(1).max(150).optional(),
@@ -70,7 +113,8 @@ export type SaveMasterTemplateBody = z.infer<typeof saveMasterTemplateBodySchema
 
 export const createMasterTemplateBodySchema = z
   .object({
-    templateCode: z.string().trim().min(1),
+    // Optional: when omitted, the validator derives templateCode from the template name.
+    templateCode: z.string().trim().min(1).optional(),
     templateLevel: templateLevelZ.optional(),
     shareScope: shareScopeInputZ.optional(),
     categoryCode: z.string().trim().min(1).optional(),
@@ -106,10 +150,6 @@ export type CreateMasterTemplateBody = z.infer<typeof createMasterTemplateBodySc
 export const upsertMasterTemplateBodySchema = createMasterTemplateBodySchema
   .extend({
     templateCode: z.string().trim().min(1).optional(),
-    lifecycleAction: lifecycleActionZ.optional(),
-    action: lifecycleActionZ.optional(),
-    comment: z.string().nullable().optional(),
-    reason: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -119,14 +159,22 @@ export type UpsertMasterTemplateBody = z.infer<typeof upsertMasterTemplateBodySc
 export const listMasterTemplatesQuerySchema = z.object({
   templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
-  category: z.string().trim().min(1).optional(),
-  condition: z.string().trim().min(1).optional(),
-  country: z.string().trim().min(1).optional(),
-  status: z.string().trim().min(1).optional(),
-  templateType: z.string().trim().min(1).optional(),
-  language: z.string().trim().min(1).optional(),
-  specialty: z.string().trim().min(1).optional(),
-  templateCode: z.string().trim().min(1).optional(),
+  category: optionalListFilterZ,
+  condition: optionalListFilterZ,
+  conditionCode: optionalListFilterZ,
+  country: optionalListFilterZ,
+  status: optionalListFilterZ,
+  shareScope: shareScopeInputZ.optional(),
+  templateType: optionalListFilterZ,
+  language: optionalListFilterZ,
+  specialty: optionalListFilterZ,
+  templateCode: optionalListFilterZ,
+  templateName: optionalListFilterZ,
+  /** Filter by `isActive` (true = active templates, false = inactive including published with active false). */
+  active: optionalActiveQueryZ,
+  /** Opaque cursor from a previous list response (`nextPaginationKey`). Page size is fixed at 20. */
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
 });
 
@@ -138,8 +186,9 @@ export const getMasterVersionsQuerySchema = z.object({
   version: z.string().trim().min(1).optional(),
   resolve: z.enum(['ACTIVE', 'LATEST_PUBLISHED', 'LATEST_ANY']).optional(),
   status: z.string().trim().min(1).optional(),
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type GetMasterVersionsQuery = z.infer<typeof getMasterVersionsQuerySchema>;
@@ -221,12 +270,11 @@ export function parseGetMasterVersionsQuery(
       params[key] = Array.isArray(value) ? value[0] : value;
     }
   }
-  return getMasterVersionsQuerySchema.parse(params);
+  return withResolvedPaginationKey(getMasterVersionsQuerySchema.parse(params));
 }
 
 export const cloneTemplateBodySchema = z.object({
   newTemplateName: z.string().trim().min(1).max(150).optional(),
-  inheritLinks: z.boolean().optional(),
 });
 
 export type CloneTemplateBody = z.infer<typeof cloneTemplateBodySchema>;
@@ -245,14 +293,51 @@ export const orgClonePathSchema = z.object({
 export const listOrgTemplatesQuerySchema = z.object({
   templateLevel: templateLevelZ.optional(),
   organizationId: z.string().trim().min(1).optional(),
+  /** Same as organizationId — id from organizationMeta returned by this endpoint. */
+  organizationMetaId: z.string().trim().min(1).optional(),
+  organizationName: z.string().trim().min(1).optional(),
+  organizationDescription: z.string().trim().optional(),
+  categoryCode: z.string().trim().min(1).optional(),
+  category: z.string().trim().min(1).optional(),
   condition: z.string().trim().min(1).optional(),
+  conditionCode: z.string().trim().min(1).optional(),
   status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
+  templateName: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1).optional(),
+  templateEnabled: optionalActiveQueryZ,
+  country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
+  nextPaginationKey: z.string().trim().min(1).optional(),
+  /** @deprecated Prefer nextPaginationKey */
   nextToken: z.string().trim().min(1).optional(),
 });
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
+
+export const orgVersionStatusQuerySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1),
+  organizationName: z.string().trim().min(1).optional(),
+  organizationDescription: z.string().trim().optional(),
+});
+
+export type OrgVersionStatusQuery = z.infer<typeof orgVersionStatusQuerySchema>;
+
+export function parseOrgVersionStatusQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): OrgVersionStatusQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
+    }
+  }
+  return orgVersionStatusQuerySchema.parse(params);
+}
 
 export const updateOrgTemplateBodySchema = z
   .object({
@@ -351,6 +436,30 @@ export function parseListCompatibleTemplatesQuery(
   return listCompatibleTemplatesQuerySchema.parse(params);
 }
 
+function isAbsentQueryValue(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  const v = value.trim().toLowerCase();
+  return v === '' || v === 'null' || v === 'undefined' || v === 'all';
+}
+
+/** Prefer `nextPaginationKey`; accept legacy `nextToken`. */
+export function resolveListPaginationKey(query: {
+  nextPaginationKey?: string;
+  nextToken?: string;
+}): string | undefined {
+  const key = query.nextPaginationKey?.trim();
+  if (key) return key;
+  const legacy = query.nextToken?.trim();
+  return legacy || undefined;
+}
+
+function withResolvedPaginationKey<T extends { nextPaginationKey?: string; nextToken?: string }>(
+  query: T,
+): T & { nextToken?: string } {
+  const cursor = resolveListPaginationKey(query);
+  return { ...query, ...(cursor ? { nextToken: cursor } : {}) };
+}
+
 export function parseListOrgTemplatesQuery(
   raw: Record<string, string | string[] | undefined> | null | undefined,
 ): ListOrgTemplatesQuery {
@@ -358,10 +467,12 @@ export function parseListOrgTemplatesQuery(
   if (raw) {
     for (const [key, value] of Object.entries(raw)) {
       if (value === undefined || value === null) continue;
-      params[key] = Array.isArray(value) ? value[0] : value;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
     }
   }
-  return listOrgTemplatesQuerySchema.parse(params);
+  return withResolvedPaginationKey(listOrgTemplatesQuerySchema.parse(params));
 }
 
 export function parseListMasterTemplatesQuery(
@@ -371,8 +482,10 @@ export function parseListMasterTemplatesQuery(
   if (raw) {
     for (const [key, value] of Object.entries(raw)) {
       if (value === undefined || value === null) continue;
-      params[key] = Array.isArray(value) ? value[0] : value;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
     }
   }
-  return listMasterTemplatesQuerySchema.parse(params);
+  return withResolvedPaginationKey(listMasterTemplatesQuerySchema.parse(params));
 }

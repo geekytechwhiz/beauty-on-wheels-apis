@@ -1,7 +1,8 @@
 import {
-  createChildLogger, 
+  createChildLogger,
+  createPerformanceTimer,
   serializeError,
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 import { TruTechAdapter } from '../../adapters/trutech.adapter.ts';
 import { getTruTechClientForTenant } from '../../clients/tru-tech.clients';
 import { Appointment, PatientEMRSummary } from '../../types';
@@ -53,7 +54,10 @@ export class HmsAppointmentService {
       tenantId,
     });
 
-    // const timer = createPerformanceTimer('hms_get_appointments_for_doctors_in_range', correlationId);
+    const timer = createPerformanceTimer(
+      logger,
+      'hms_get_appointments_for_doctors_in_range',
+    );
 
     if (!tenantId || tenantId.trim().length === 0) {
       throw new Error('tenantId is required for HMS appointments fetch');
@@ -82,7 +86,7 @@ export class HmsAppointmentService {
         hasMessage: !!response.message,
       });
 
-      // timer.end();
+      timer.end();
 
       if (!response.appointments?.length) {
         logger.info({
@@ -170,7 +174,7 @@ export class HmsAppointmentService {
 
       return mappedAppointments;
     } catch (error) {
-      // timer.end();
+      timer.end();
 
       if (error instanceof SSOError) {
         logger.warn({
@@ -223,7 +227,7 @@ export class HmsAppointmentService {
       patientId,
       doctorId,
     });
-    // const timer = createPerformanceTimer(logger, 'get_patient_emr');
+    const timer = createPerformanceTimer(logger, 'get_patient_emr');
 
     logger.info({
       event: 'get_emr_start',
@@ -239,7 +243,7 @@ export class HmsAppointmentService {
       const truTechPatientEMRResponse =
         await getTruTechClientForTenant(tenantId).getPatientEMRSummary(patientId, correlationId);
 
-      // timer.end();
+      timer.end();
 
       logger.info({
         event: 'get_emr_success',
@@ -252,7 +256,7 @@ export class HmsAppointmentService {
         patientId,
       );
     } catch (error) {
-      // timer.end();
+      timer.end();
 
       if (error instanceof SSOError) {
         logger.warn({

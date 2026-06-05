@@ -4,8 +4,10 @@ export * from './domain/errors';
 export * from './domain/keys';
 export * from './models/relation-types';
 export * from './domain/relation-keys';
+export { resolveRelationStorageEndpoints } from './domain/metadata-relation-orientation';
 export * from './domain/diff';
 export * from './domain/search-filter';
+export * from './domain/lifecycle-filter';
 
 export { encodePaginationKey, decodePaginationKey } from './lib/pagination-key';
 
@@ -58,28 +60,27 @@ export {
   upsertMetadataType,
   patchTypeStatus,
   upsertMetadataValue,
+  deleteMetadataValue,
   patchValueStatus,
   getValue,
   listTypeAudit,
   listValueAudit,
   searchMetadataValues,
-  parseQueryIncludeInactive,
-  parseGetEntityStatusMode,
-  parseListEntityStatusMode,
-  resolveStatusMode,
   resolveMetadataTypeGet,
   resolveMetadataValueGetForApi,
   orchestrateRegistryGet,
   orchestrateRegistryList,
+  shapeRegistryListHttpResponse,
+  type RegistryListHttpPayload,
   type RegistryListResult,
   orchestrateRegistryPost,
   orchestrateRegistryPatchStatus,
+  orchestrateRegistryDeleteMetadataValue,
   orchestrateRegistryListAudit,
-  type GetEntityByStatusMode,
-  type ListEntityStatusMode,
   type RegistryGetMetadataInput,
   type RegistryPostMetadataInput,
   type RegistryPatchMetadataStatusInput,
+  type RegistryDeleteMetadataValueInput,
   type RegistryListMetadataAuditInput,
 } from './services/metadata.service';
 

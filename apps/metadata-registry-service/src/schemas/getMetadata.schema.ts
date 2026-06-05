@@ -2,7 +2,8 @@ import {
   assertRegistryEntityKind,
   assertRegistryPathCodesForKind,
   extractRegistryEntityPath,
-  parseGetEntityStatusMode,
+  lifecycleStatusesFromQuery,
+  type Status,
 } from '@api-hub/metadata';
 import { z } from 'zod';
 
@@ -15,8 +16,8 @@ export const getMetadataSchema = z
     const q = req.params ?? {};
     const p = req.pathParameters ?? {};
     const extracted = extractRegistryEntityPath(q, p);
-    const mode = parseGetEntityStatusMode(q);
-    return { ...extracted, mode };
+    const lifecycleStatuses = lifecycleStatusesFromQuery(q.status) as Status[];
+    return { ...extracted, lifecycleStatuses };
   })
   .superRefine((data) => {
     const kind = assertRegistryEntityKind(data.entityTypeRaw);
@@ -28,14 +29,14 @@ export const getMetadataSchema = z
       return {
         entityType: 'type' as const,
         metadataTypeCode: data.metadataTypeCode,
-        mode: data.mode,
+        lifecycleStatuses: data.lifecycleStatuses,
       };
     }
     return {
       entityType: 'value' as const,
       metadataTypeCode: data.metadataTypeCode,
       valueCode: data.valueCode,
-      mode: data.mode,
+      lifecycleStatuses: data.lifecycleStatuses,
     };
   });
 

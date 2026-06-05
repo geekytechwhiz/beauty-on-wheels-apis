@@ -38,7 +38,7 @@ describe('TemplateMasterOpsService.transitionMasterTemplateStatus', () => {
       templateId: 'CP-HTN-STANDARD',
       versionId: 'V01',
       body: { action: 'SUBMIT_REVIEW', comment: 'Ready' },
-      actorUserId: 'admin-1',
+      actorUser: { userId: 'admin-1' },
     });
 
     expect(result.meta.status).toBe(TEMPLATE_STATUS.IN_REVIEW);
@@ -108,7 +108,7 @@ describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
           TASK_DESCRIPTION: 'Measure BP twice daily',
         },
       },
-      actorUserId: 'admin-1',
+      actorUser: { userId: 'admin-1' },
     });
 
     expect(result.meta.templateVersionId).toBe('TASK-CODE-V01');
@@ -120,5 +120,40 @@ describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
     );
     expect(result.meta.lastModifiedAt).not.toBe(version.meta.createdAt);
     expect(saved?.meta.shareScope).toBe('ORGANIZATION');
+  });
+
+  it('sets isActive false via active field on update', async () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'task-code',
+      templateName: 'Task Monitoring Master',
+      templateType: 'TASK',
+      status: 'PUBLISHED',
+    });
+    const version = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'task-code',
+      templateName: 'Task Monitoring Master',
+      active: true,
+    });
+
+    let saved: TemplateDdbRecord | undefined;
+    const repo = {
+      getMasterMeta: jest.fn().mockResolvedValue(version),
+      getMasterVersion: jest.fn().mockResolvedValue(version),
+      putMasterRecord: jest.fn().mockImplementation(async (row: TemplateDdbRecord) => {
+        saved = row;
+      }),
+      saveMasterMetaAndVersion: jest.fn(),
+    };
+
+    const svc = new TemplateMasterOpsService(repo as never);
+    await svc.updateMasterTemplateVersion({
+      templateId: 'TASK-CODE',
+      versionId: 'TASK-CODE-V01',
+      body: { active: false },
+      actorUser: { userId: 'admin-1' },
+    });
+
+    expect(saved?.meta.isActive).toBe(false);
+    expect(saved?.meta.status).toBe('PUBLISHED');
   });
 });

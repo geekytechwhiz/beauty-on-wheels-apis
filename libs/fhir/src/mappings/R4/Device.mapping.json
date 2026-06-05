@@ -1,0 +1,64 @@
+{
+  "resource": "Device",
+  "version": "R4",
+  "profile": "http://hl7.org/fhir/StructureDefinition/Device",
+  "fields": [
+    {
+      "source": "deviceId",
+      "target": "id",
+      "fieldType": "string"
+    },
+    {
+      "source": "configDeviceId",
+      "target": "identifier.0.value",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "identifier.0.system",
+      "fieldType": "literal",
+      "defaultValue": "urn:myvitalrx:device-id"
+    },
+    {
+      "source": "displayName",
+      "target": "deviceName.0.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "name",
+      "target": "deviceName.0.name",
+      "fieldType": "string"
+    },
+    {
+      "source": "modelName",
+      "target": "modelNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "companyName",
+      "target": "manufacturer",
+      "fieldType": "string"
+    },
+    {
+      "source": "deviceCategory",
+      "target": "type.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "category",
+      "target": "type.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "serialNumber",
+      "target": "serialNumber",
+      "fieldType": "string"
+    },
+    {
+      "source": "macAddress",
+      "target": "distinctIdentifier",
+      "fieldType": "string"
+    }
+  ],
+  "extensions": []
+}

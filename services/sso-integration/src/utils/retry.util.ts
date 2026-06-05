@@ -24,7 +24,7 @@ export async function retryWithBackoff<T>(
           maxDelayMs,
         );
 
-         
+        // eslint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

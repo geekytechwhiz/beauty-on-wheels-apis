@@ -50,7 +50,7 @@ describe('OrgTemplateOpsService.updateOrgTemplateVersion', () => {
       templateId: 'CP-ORG-001',
       versionId: 'V01',
       body: { meta: { templateName: 'Updated Org Plan' } },
-      actorUserId: 'user-1',
+      actorUser: { userId: 'user-1' },
     });
 
     expect(result.meta.version).toBe(2);

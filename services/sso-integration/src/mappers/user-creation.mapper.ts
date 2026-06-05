@@ -42,8 +42,8 @@ export function mapHmsPatientToCreatePatientModel(
     name: (patient.name ?? '').toString().trim(),
     contact: {
       email: patient.email ?? undefined,
-      phone: patient.phone ?? undefined,
-      phoneCode: patient.phoneCode ?? '+91',
+      phone: patient.phone,
+      phoneCode: patient.phoneCode,
     },
     gender: patient.gender ?? undefined,
     dateOfBirth: patient.dob ?? undefined,
@@ -83,7 +83,7 @@ export function mapHmsDoctorToCreateDoctorModel(
     throw new Error('mapHmsDoctorToCreateDoctorModel: doctor email is required for STAFF');
   }
 
-  const phoneProcessed = processPhoneNumber(doctor.phone, config.patient.phoneCode);
+  const phoneProcessed = processPhoneNumber(doctor.phone, doctor.phoneCode ?? config.patient.phoneCode);
   const defaultDay = {
     available: config.doctor.workingHours.available,
     availableHours: config.doctor.workingHours.availableHours,
@@ -150,7 +150,7 @@ export function mapHmsAppointmentPatientToCreatePatientModel(
     contact: {
       email: patient.email ?? undefined,
       phone: patient.phone ?? undefined,
-      phoneCode: config.patient.phoneCode,
+      phoneCode: patient.phoneCode ?? config.patient.phoneCode,
     },
     gender: patient.gender ?? undefined,
     dateOfBirth: undefined,

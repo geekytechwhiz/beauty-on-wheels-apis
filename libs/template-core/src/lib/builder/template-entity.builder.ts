@@ -8,9 +8,11 @@ import {
   VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
+import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { normalizeTemplateActor, resolveTemplateActor } from '../utils/template-actor.utils';
 import { normalizeShareScope } from '../utils/share-scope.utils';
-import { firstString } from '../utils/template.utils';
+import { firstString, isActiveForStatus } from '../utils/template.utils';
 import { TemplateKeyBuilder } from './template-key.builder';
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -30,7 +32,7 @@ function asStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
-/** Top-level create keys duplicated on `meta` — omit from VERSION document root spread. */
+/** Top-level keys stored on `meta` or only inside `fieldValues` — omit from VERSION document root. */
 const META_BODY_KEYS = [
   'templateCode',
   'templateName',
@@ -38,6 +40,26 @@ const META_BODY_KEYS = [
   'status',
   'version',
   'templateId',
+  'category',
+  'condition',
+  'shareScope',
+  'categoryCode',
+  'conditionCode',
+  'conditions',
+  'countries',
+  'countryCodes',
+  'languages',
+  'languageCodes',
+  'templateDescription',
+  'TEMPLATE_NAME',
+  'templateLevel',
+  'createdBy',
+  'active',
+  'measurementType',
+  'templateMetadata',
+  'templateProfile',
+  'specialty',
+  'specialties',
 ] as const;
 
 function stripMetaBodyFields(body: Record<string, unknown>): Record<string, unknown> {
@@ -62,7 +84,8 @@ export type CreateMasterTemplateInput = Record<string, unknown> & {
   specialty?: string[];
   specialties?: string[];
   templateDescription?: string;
-  createdBy?: string;
+  /** Set server-side from JWT; not from client body. */
+  actor?: TemplateActorUser;
 };
 
 export interface CreateMasterTemplateContext {
@@ -125,9 +148,18 @@ export class TemplateEntityBuilder {
     existing: TemplateMeta,
     overrides: Partial<TemplateMeta>,
     ctx: MasterVersionWriteContext,
-    actorUserId?: string,
+    actor?: TemplateActorUser,
   ): TemplateMeta {
     const status = (overrides.status ?? existing.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
+    const isActive =
+      overrides.isActive !== undefined ? overrides.isActive : isActiveForStatus(status);
+    const resolvedActor = resolveTemplateActor(actor);
+    const lastModifiedBy = resolvedActor ?? normalizeTemplateActor(existing.lastModifiedBy);
+    const publishedBy =
+      status === TEMPLATE_STATUS.PUBLISHED
+        ? resolvedActor ?? normalizeTemplateActor(existing.publishedBy)
+        : normalizeTemplateActor(existing.publishedBy) ?? null;
+
     return {
       ...existing,
       ...overrides,
@@ -135,10 +167,11 @@ export class TemplateEntityBuilder {
       templateVersionId: ctx.templateVersionId,
       version: ctx.versionNum,
       status,
-      isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+      isActive,
       isLatestVersion: true,
       lastModifiedAt: ctx.nowIso,
-      lastModifiedBy: overrides.lastModifiedBy ?? actorUserId ?? existing.lastModifiedBy,
+      lastModifiedBy,
+      publishedBy,
       publishedAt:
         status === TEMPLATE_STATUS.PUBLISHED
           ? overrides.publishedAt ?? ctx.nowIso
@@ -175,10 +208,17 @@ export class TemplateEntityBuilder {
     const templateMetadata = asRecord(rawBody.templateMetadata);
     const templateProfile = asRecord(rawBody.templateProfile);
 
+    const fieldValues = asRecord(rawBody.fieldValues);
     const status = (input.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
+    const activeExplicit =
+      typeof rawBody.active === 'boolean' ? rawBody.active : undefined;
     const category =
-      input.category ?? templateProfile.category ?? input.conditions?.[0];
+      firstString(fieldValues.categoryCode) ??
+      input.category ??
+      templateProfile.category ??
+      input.conditions?.[0];
     const condition =
+      firstString(fieldValues.conditionCode) ??
       input.condition ??
       templateProfile.condition ??
       (Array.isArray(input.conditions) ? input.conditions[0] : undefined);
@@ -186,14 +226,13 @@ export class TemplateEntityBuilder {
       input.specialty ?? input.specialties ?? asStringArray(templateProfile.specialty);
     const countries = input.countries ?? asStringArray(templateProfile.country);
     const languages = input.languages ?? asStringArray(templateProfile.language);
-    const createdBy =
-      input.createdBy ??
-      firstString(templateMetadata.createdBy) ??
-      firstString(templateMetadata.lastModifiedBy);
+    const actor = resolveTemplateActor(input.actor);
     const createdAt =
       firstString(templateMetadata.createdDate) ?? nowIso;
     const lastModifiedAt =
       firstString(templateMetadata.lastModifiedDate) ?? nowIso;
+    const publishedBy =
+      status === TEMPLATE_STATUS.PUBLISHED ? actor : undefined;
 
     return {
       templateId,
@@ -203,7 +242,10 @@ export class TemplateEntityBuilder {
       templateType: TemplateEntityBuilder.normalizeTemplateType(
         input.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
       ),
-      templateDescription: input.templateDescription as string | undefined,
+      templateDescription:
+        typeof input.templateDescription === 'string' && input.templateDescription.trim()
+          ? input.templateDescription.trim()
+          : undefined,
       category,
       condition,
       conditions: input.conditions,
@@ -212,10 +254,12 @@ export class TemplateEntityBuilder {
       specialty,
       version: versionNum,
       status,
-      isActive: status !== TEMPLATE_STATUS.ARCHIVED && status !== TEMPLATE_STATUS.DEPRECATED,
+      isActive:
+        activeExplicit !== undefined ? activeExplicit : isActiveForStatus(status),
       isLatestVersion: true,
       isMaster: true,
       shareScope:
+        normalizeShareScope(fieldValues.shareScope) ??
         normalizeShareScope(rawBody.shareScope) ??
         normalizeShareScope(templateMetadata.shareScope) ??
         firstString(templateMetadata.shareScope),
@@ -227,8 +271,8 @@ export class TemplateEntityBuilder {
       publishedAt: status === TEMPLATE_STATUS.PUBLISHED ? nowIso : null,
       createdAt,
       lastModifiedAt,
-      createdBy,
-      lastModifiedBy: createdBy,
+      ...(actor ? { createdBy: actor, lastModifiedBy: actor } : {}),
+      ...(publishedBy ? { publishedBy } : {}),
     };
   }
 

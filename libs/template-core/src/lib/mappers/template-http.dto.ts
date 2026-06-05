@@ -1,5 +1,8 @@
+import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
-import { firstString } from '../utils/template.utils';
+import { normalizeTemplateActor } from '../utils/template-actor.utils';
+import { firstString, resolveMasterTemplateIsActive, sanitizeMetaForApi } from '../utils/template.utils';
+import { TEMPLATE_STATUS } from '../constants/template.constants';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -29,6 +32,10 @@ export interface OrgTemplateListItem {
   templateVersionId: string;
   templateName?: string;
   organizationId: string;
+  masterTemplateId?: string | null;
+  masterTemplateVersionId?: string | null;
+  templateType?: string;
+  templateEnabled: boolean;
   condition?: string;
   version: number;
   status: string;
@@ -41,13 +48,74 @@ export interface MasterTemplateListItem {
   templateVersionId: string;
   templateName?: string;
   templateType?: string;
-  category?: string;
-  condition?: string;
   countries?: string[];
+  languages?: string[];
   version: number;
   status: string;
   isActive: boolean;
   publishedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: TemplateActorUser | null;
+  /** Full field payload as sent on create/update (round-trips create -> read). */
+  fieldValues?: Record<string, unknown>;
+  /** Version timeline for this template (newest first). */
+  history?: TemplateHistoryEntry[];
+}
+
+export interface TemplateHistoryEntry {
+  version: number;
+  templateVersionId: string;
+  status: string;
+  /** Machine-friendly action derived from status/version. */
+  action: string;
+  /** Human-friendly label for the timeline (e.g. "Template Published"). */
+  title: string;
+  isActive: boolean;
+  isLatestVersion: boolean;
+  updatedAt?: string | null;
+  updatedBy?: TemplateActorUser | null;
+  createdAt?: string | null;
+  publishedAt?: string | null;
+  publishedBy?: TemplateActorUser | null;
+  /** Reviewer/lifecycle note when present (reviewComments). */
+  notes?: string | null;
+  /** Field-level diffs vs the previous history entry. */
+  changes: string[];
+  /** Snapshot of fieldValues at this point in time (for diffing). */
+  fieldValues?: Record<string, unknown>;
+}
+
+function formatChangeValue(value: unknown): string {
+  if (value === undefined || value === null) return '—';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (Array.isArray(value)) return value.join(', ');
+  return JSON.stringify(value);
+}
+
+function diffFieldValues(
+  previous: Record<string, unknown> | undefined,
+  current: Record<string, unknown> | undefined,
+): string[] {
+  if (!current) return [];
+  const prev = previous ?? {};
+  const keys = new Set([...Object.keys(prev), ...Object.keys(current)]);
+  const changes: string[] = [];
+  for (const key of keys) {
+    const before = prev[key];
+    const after = current[key];
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      if (before === undefined) {
+        changes.push(`${key}: set to ${formatChangeValue(after)}`);
+      } else if (after === undefined) {
+        changes.push(`${key}: cleared (was ${formatChangeValue(before)})`);
+      } else {
+        changes.push(`${key}: ${formatChangeValue(before)} → ${formatChangeValue(after)}`);
+      }
+    }
+  }
+  return changes;
 }
 
 export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryData {
@@ -87,11 +155,22 @@ export function toOrgListItem(
   organizationId: string,
 ): OrgTemplateListItem {
   const meta = record.meta;
+  const masterTemplateId =
+    (meta.masterTemplateId as string | undefined) ??
+    (meta.derivedFromTemplateVersionId as string | undefined)?.replace(/-V\d+$/i, '') ??
+    null;
   return {
     templateId: meta.templateId,
     templateVersionId: meta.templateVersionId,
     templateName: meta.templateName,
     organizationId,
+    masterTemplateId,
+    masterTemplateVersionId:
+      (meta.masterTemplateVersionId as string | undefined) ??
+      (meta.derivedFromTemplateVersionId as string | undefined) ??
+      null,
+    templateType: meta.templateType,
+    templateEnabled: true,
     condition: firstString(meta.condition ?? meta.conditions),
     version: meta.version ?? 1,
     status: meta.status ?? 'DRAFT',
@@ -122,19 +201,166 @@ export function toVersionSummary(record: TemplateDdbRecord): TemplateVersionSumm
 
 export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListItem {
   const meta = record.meta;
+  const status = meta.status ?? TEMPLATE_STATUS.DRAFT;
+  const fieldValues =
+    record.fieldValues && typeof record.fieldValues === 'object' && !Array.isArray(record.fieldValues)
+      ? (record.fieldValues as Record<string, unknown>)
+      : undefined;
   return {
     templateId: meta.templateId,
     templateVersionId: meta.templateVersionId,
     templateName: meta.templateName,
     templateType: meta.templateType,
-    category: firstString(meta.category),
-    condition: firstString(meta.condition ?? meta.conditions),
+    templateDescription: meta.templateDescription,
     countries: meta.countries,
+    languages: meta.languages,
     version: meta.version ?? 1,
-    status: meta.status ?? 'DRAFT',
-    isActive: meta.isActive ?? true,
+    status,
+    isActive: resolveMasterTemplateIsActive(meta),
     publishedAt: meta.publishedAt ?? null,
+    createdAt: meta.createdAt ?? null,
+    updatedAt: meta.lastModifiedAt ?? null,
+    updatedBy: normalizeTemplateActor(meta.lastModifiedBy) ?? null,
+    ...(fieldValues ? { fieldValues } : {}),
   };
+}
+
+const HISTORY_STATUS_TITLE: Record<string, string> = {
+  DRAFT: 'Template Updated',
+  PUBLISHED: 'Template Published',
+};
+
+const HISTORY_STATUS_ACTION: Record<string, string> = {
+  DRAFT: 'UPDATED',
+  PUBLISHED: 'PUBLISHED',
+};
+
+/** Build a single version-history timeline entry from a stored VERSION row. */
+export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boolean): TemplateHistoryEntry {
+  const meta = record.meta;
+  const status = (meta.status ?? 'DRAFT') as string;
+  const notes = (firstString(meta.reviewComments) as string | undefined) ?? null;
+  const isCreate = isLowestVersion;
+  return {
+    version: meta.version ?? 1,
+    templateVersionId: meta.templateVersionId,
+    status,
+    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[status] ?? 'UPDATED',
+    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[status] ?? 'Template Updated',
+    isActive: meta.isActive ?? true,
+    isLatestVersion: meta.isLatestVersion ?? false,
+    updatedAt: meta.lastModifiedAt ?? null,
+    updatedBy: normalizeTemplateActor(meta.lastModifiedBy) ?? null,
+    createdAt: meta.createdAt ?? null,
+    publishedAt: meta.publishedAt ?? null,
+    publishedBy: normalizeTemplateActor(meta.publishedBy) ?? null,
+    notes,
+    changes: notes ? [notes] : [],
+  };
+}
+
+function diffHistoryMeta(
+  previous: TemplateHistoryEntry | undefined,
+  current: TemplateHistoryEntry,
+): string[] {
+  if (!previous) return [];
+  const changes: string[] = [];
+  if (previous.status !== current.status) {
+    changes.push(`status: ${previous.status ?? '—'} → ${current.status ?? '—'}`);
+  }
+  if (previous.version !== current.version) {
+    changes.push(`version: ${previous.version ?? '—'} → ${current.version ?? '—'}`);
+  }
+  if (previous.isActive !== current.isActive) {
+    changes.push(
+      `isActive: ${formatChangeValue(previous.isActive)} → ${formatChangeValue(current.isActive)}`,
+    );
+  }
+  if (previous.notes !== current.notes && current.notes) {
+    changes.push(`note: ${current.notes}`);
+  }
+  return changes;
+}
+
+/** API responses omit internal fieldValue snapshots used for diffs. */
+export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return entries.map(({ fieldValues: _fv, ...entry }) => ({
+    ...entry,
+    changes: entry.changes ?? [],
+  }));
+}
+
+/** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */
+export function appendVersionHistoryToRecord(
+  record: TemplateDdbRecord,
+  opts?: { isCreate?: boolean },
+): void {
+  const existing = Array.isArray(record.versionHistory)
+    ? (record.versionHistory as TemplateHistoryEntry[])
+    : [];
+  const fv =
+    record.fieldValues && typeof record.fieldValues === 'object' && !Array.isArray(record.fieldValues)
+      ? (record.fieldValues as Record<string, unknown>)
+      : undefined;
+  const previous = existing[0];
+  const isCreate = opts?.isCreate ?? existing.length === 0;
+  const entry = toHistoryEntry(record, isCreate);
+  entry.fieldValues = fv ? { ...fv } : undefined;
+  if (isCreate) {
+    entry.changes = [];
+  } else {
+    const fieldChanges = diffFieldValues(previous?.fieldValues, entry.fieldValues);
+    const metaChanges = diffHistoryMeta(previous, entry);
+    entry.changes = [...metaChanges, ...fieldChanges];
+    if (entry.notes && !entry.changes.includes(`note: ${entry.notes}`)) {
+      entry.changes.push(`note: ${entry.notes}`);
+    }
+  }
+  entry.isLatestVersion = true;
+  const prior = existing.map((h) => ({ ...h, isLatestVersion: false }));
+  record.versionHistory = [entry, ...prior].sort((a, b) => b.version - a.version);
+}
+
+/** Prefer stored `versionHistory`; fall back to VERSION rows when present. */
+export function resolveTemplateHistory(
+  rep: TemplateDdbRecord,
+  allVersionsForTemplate: TemplateDdbRecord[],
+): TemplateHistoryEntry[] {
+  if (Array.isArray(rep.versionHistory) && rep.versionHistory.length > 0) {
+    return sanitizeHistoryForApi(rep.versionHistory as TemplateHistoryEntry[]);
+  }
+  if (allVersionsForTemplate.length > 0) {
+    return sanitizeHistoryForApi(buildVersionHistory(allVersionsForTemplate));
+  }
+  return [];
+}
+
+/** Group all VERSION rows by templateId and build a history timeline per template. */
+export function buildHistoryByTemplateId(
+  records: TemplateDdbRecord[],
+): Map<string, TemplateHistoryEntry[]> {
+  const byTemplate = new Map<string, TemplateDdbRecord[]>();
+  for (const row of records) {
+    const id = row.meta?.templateId;
+    if (!id) continue;
+    const list = byTemplate.get(id) ?? [];
+    list.push(row);
+    byTemplate.set(id, list);
+  }
+  const out = new Map<string, TemplateHistoryEntry[]>();
+  for (const [templateId, versions] of byTemplate) {
+    out.set(templateId, buildVersionHistory(versions));
+  }
+  return out;
+}
+
+/** Build a version-history timeline (newest first) from VERSION rows of one template. */
+export function buildVersionHistory(records: TemplateDdbRecord[]): TemplateHistoryEntry[] {
+  const sortedAsc = [...records].sort((a, b) => (a.meta.version ?? 0) - (b.meta.version ?? 0));
+  const lowestVersion = sortedAsc[0]?.meta.version ?? 1;
+  return sortedAsc
+    .map((row) => toHistoryEntry(row, (row.meta.version ?? 1) === lowestVersion))
+    .sort((a, b) => b.version - a.version);
 }
 
 const MASTER_RECORD_SYSTEM_KEYS = new Set([
@@ -163,7 +389,7 @@ export function toMasterFullRecord(record: TemplateDdbRecord): Record<string, un
     pk: record.pk,
     sk: record.sk,
     entityType: record.entityType,
-    meta: record.meta,
+    meta: sanitizeMetaForApi(record.meta),
   };
 
   if (record.schemaRef !== undefined) out.schemaRef = record.schemaRef;

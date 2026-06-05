@@ -4,6 +4,7 @@ import {
   OrgTemplateService,
   TemplateService,
   toMasterFullRecord,
+  type ShareScope,
   type TemplateStatus,
 } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
@@ -18,6 +19,8 @@ import type {
   ValidatedUpdateMasterVersion,
   ValidatedSaveMaster,
 } from '../validators/request.validators';
+import { enrichRecordActorsForApi } from '../utils/enrich-record-actors';
+import { withNextPaginationKey } from '../utils/list-response.mapper';
 
 let templateService: TemplateService | undefined;
 let orgTemplateService: OrgTemplateService | undefined;
@@ -56,8 +59,8 @@ export class TemplateHttpController {
     }
 
     try {
-      const { record } = await this.svc.createMasterTemplate(v.body, v.actorUserId);
-      return this.svc.toCreateResponse(record);
+      const { record } = await this.svc.createMasterTemplate(v.body, v.actorUser);
+      return enrichRecordActorsForApi(this.svc.toCreateResponse(record));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'create_master_template_error',
@@ -84,20 +87,20 @@ export class TemplateHttpController {
       const result = await this.svc.listMasterTemplates({
         category: query.category,
         condition: query.condition,
+        conditionCode: query.conditionCode,
         country: query.country,
         status: query.status as TemplateStatus | undefined,
+        shareScope: query.shareScope as ShareScope | undefined,
         templateType: query.templateType,
         language: query.language,
         specialty: query.specialty,
         templateCode: query.templateCode,
+        templateName: query.templateName,
+        active: query.active,
         nextToken: query.nextToken,
-        limit: 25,
       });
 
-      return {
-        items: result.items,
-        ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-      };
+      return withNextPaginationKey(await enrichRecordActorsForApi(result));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_master_templates_error',
@@ -128,17 +131,19 @@ export class TemplateHttpController {
         resolve: query.resolve,
         status: query.status as TemplateStatus | undefined,
         nextToken: query.nextToken,
-        limit: query.limit ?? 25,
       });
 
       if (result.mode === 'list') {
-        return {
-          items: result.items,
-          ...(result.nextToken ? { nextToken: result.nextToken } : {}),
-        };
+        return withNextPaginationKey(
+          await enrichRecordActorsForApi({
+            items: result.items,
+            history: result.history,
+            ...(result.nextToken ? { nextToken: result.nextToken } : {}),
+          }),
+        );
       }
 
-      return toMasterFullRecord(result.record);
+      return enrichRecordActorsForApi(toMasterFullRecord(result.record));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_master_template_versions_error',
@@ -164,7 +169,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         templateVersionId: v.templateVersionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toSummary(record);
     } catch (e: unknown) {
@@ -193,7 +198,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return this.svc.toSummary(record);
     } catch (e: unknown) {
@@ -260,7 +265,7 @@ export class TemplateHttpController {
         templateId: v.templateId,
         versionId: v.versionId,
         body: v.body,
-        actorUserId: v.actorUserId,
+        actorUser: v.actorUser,
       });
       return orgSvc.toSummary(record);
     } catch (e: unknown) {

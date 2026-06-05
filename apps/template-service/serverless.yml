@@ -12,7 +12,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -68,6 +68,10 @@ custom:
     dev: false
     stg: false
     prd: false
+  keepNamesByStage:
+    dev: false
+    stg: false
+    prd: false
 
   esbuild:
     bundle: true
@@ -77,13 +81,14 @@ custom:
     # single biggest peak-memory reduction for the 22 individually-packaged functions.
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
-    keepNames: true
+    # keepNames off in CI stages — lowers esbuild peak memory on SMALL CodeBuild (~3.6 GiB).
+    keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
     # Serialize bundling/zipping. With package.individually + 22 functions, parallel esbuild
     # service instances exhaust the CodeBuild container and crash with "The service was stopped".
     concurrency: 1

@@ -1,6 +1,6 @@
 version: 0.2
-# Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must use the artifact at apps/template-service/packaged.yaml (see artifacts.files).
+# STAGING pipeline — CodeBuild project must use THIS file (not buildspec.yml).
+# Build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml for deploy.
 
 env:
   shell: bash
@@ -8,12 +8,12 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-template-service-bucket'
     STACK_NAME: 'stg-template-service'
-    NODE_OPTIONS: '--max-old-space-size=2048'
+    NODE_OPTIONS: '--max-old-space-size=1536'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 22
+      nodejs: 20
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps

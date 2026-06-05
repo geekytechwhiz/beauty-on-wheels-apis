@@ -5,6 +5,7 @@ import {
   GSI1_ENABLE_SK_PREFIX,
   GSI1_ORG_INDEX,
   GSI3_MASTER_VERSION,
+  GSI5_MASTER_STATUS,
   TEMPLATE_META_SK,
 } from '../constants/template.constants';
 import type { EnablementDdbRecord } from '../models/api/enablement.types';
@@ -31,6 +32,41 @@ export class EnablementRepository extends BaseRepository {
     const items = await this.queryEnablementsByMasterVersionGsi3(masterTemplateVersionId, 50);
     const prefix = `ORG#${organizationId.trim()}#`;
     return items.find((r) => r.gsi3sk?.startsWith(prefix)) ?? null;
+  }
+
+  async findByOrgAndMasterTemplateId(
+    organizationId: string,
+    masterTemplateId: string,
+  ): Promise<EnablementDdbRecord | null> {
+    const orgId = organizationId.trim();
+    const masterId = masterTemplateId.trim();
+    const records = await this.queryEnablementsByOrgGsi1(orgId, 200);
+    return (
+      records.find((r) => {
+        const mid =
+          r.meta.masterTemplateId?.trim() ||
+          r.meta.masterTemplateVersionId?.replace(/-V\d+$/i, '');
+        return mid === masterId;
+      }) ?? null
+    );
+  }
+
+  async queryEnablementsByMasterTemplateGsi5(
+    masterTemplateId: string,
+    limit: number,
+  ): Promise<EnablementDdbRecord[]> {
+    const table = assertTemplateTable();
+    return this.query<EnablementDdbRecord>({
+      TableName: table,
+      IndexName: GSI5_MASTER_STATUS,
+      KeyConditionExpression: 'gsi5pk = :pk AND begins_with(gsi5sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': TemplateKeyBuilder.buildGsi5EnableMasterPk(masterTemplateId),
+        ':prefix': 'ENABLE#ORG#',
+      },
+      ScanIndexForward: false,
+      Limit: limit,
+    });
   }
 
   async queryEnablementsByOrgGsi1(

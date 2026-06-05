@@ -1,4 +1,6 @@
 import { TemplateEntityBuilder } from '../builder/template-entity.builder';
+import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
+import { TemplateRepository } from '../repositories/template.repository';
 import { TemplateService } from './template.service';
 
 describe('TemplateEntityBuilder', () => {
@@ -187,8 +189,213 @@ describe('TemplateService', () => {
       templateName: 'Test',
     });
 
-    const summary = svc.toCreateResponse(record);
-    expect(summary.templateId).toBe('CP-HTN-STANDARD');
-    expect(summary.status).toBe('DRAFT');
+    const full = svc.toCreateResponse(record);
+    expect(full.meta).toEqual(
+      expect.objectContaining({ templateId: 'CP-HTN-STANDARD', status: 'DRAFT' }),
+    );
+  });
+});
+
+function masterRow(opts: {
+  code: string;
+  status: string;
+  condition?: string;
+  scope?: string;
+  version?: number;
+  name?: string;
+}): TemplateDdbRecord {
+  const templateName = opts.name ?? opts.code;
+  const ctx = TemplateEntityBuilder.buildCreateContext({
+    templateCode: opts.code,
+    templateName,
+    templateType: 'TASK',
+    status: opts.status as never,
+    condition: opts.condition,
+    version: opts.version,
+  });
+  const row = TemplateEntityBuilder.buildVersionRow(ctx, {
+    templateCode: opts.code,
+    templateName,
+    templateType: 'TASK',
+    shareScope: opts.scope,
+  });
+  row.meta.isActive = opts.status === 'PUBLISHED';
+  return row;
+}
+
+describe('buildVersionHistory', () => {
+  const { buildVersionHistory } = jest.requireActual<typeof import('../mappers/template-http.dto')>(
+    '../mappers/template-http.dto',
+  );
+
+  it('builds newest-first timeline with create on lowest version', () => {
+    const v1 = masterRow({ code: 'ALT-1', status: 'DRAFT', version: 1 });
+    const v2Ctx = TemplateEntityBuilder.buildVersionWriteContext('ALT-1', 2);
+    const v2Meta = TemplateEntityBuilder.buildMetaFromExisting(
+      v1.meta,
+      { status: 'PUBLISHED' as never, reviewComments: 'Approved' },
+      v2Ctx,
+      'admin-1',
+    );
+    const v2 = TemplateEntityBuilder.buildVersionRowFromMeta(v2Meta, v2Ctx, {});
+
+    const history = buildVersionHistory([v1, v2]);
+    expect(history).toHaveLength(2);
+    expect(history[0].version).toBe(2);
+    expect(history[0].title).toBe('Template Published');
+    expect(history[1].title).toBe('Template Created');
+    expect(history[0].changes).toEqual(['Approved']);
+  });
+});
+
+describe('TemplateService.listMasterTemplates', () => {
+  let spy: jest.SpyInstance;
+
+  afterEach(() => spy?.mockRestore());
+
+  function mockRows(rows: TemplateDdbRecord[]) {
+    spy = jest
+      .spyOn(TemplateRepository.prototype, 'listAllMasterVersionsAcrossStatuses')
+      .mockResolvedValue(rows);
+  }
+
+  it('returns counts and filter options across the whole type scope', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED', condition: 'Hypertension', scope: 'Public' }),
+      masterRow({ code: 'T2', status: 'DRAFT', condition: 'Diabetes', scope: 'Private' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED', condition: 'Diabetes', scope: 'Organization' }),
+      masterRow({ code: 'T4', status: 'SAVED', condition: 'Asthma', scope: 'Private' }),
+    ]);
+
+    const result = await new TemplateService().listMasterTemplates({ templateType: 'TASK' });
+
+    expect(result.counts.total).toBe(4);
+    expect(result.counts.published).toBe(2);
+    expect(result.counts.draft).toBe(1);
+    expect(result.counts.active).toBe(2);
+    expect(result.counts.inactive).toBe(2);
+    expect(result.counts.draft).toBe(1);
+    expect(result.filterOptions.status.map((o) => o.value)).toContain('PUBLISHED');
+    expect(result.filterOptions.scope.map((o) => o.value)).toEqual(['PRIVATE', 'ORGANIZATION', 'PUBLIC']);
+    expect(result.filterOptions.condition.map((o) => o.value)).toEqual(
+      expect.arrayContaining(['ASTHMA', 'DIABETES', 'HYPERTENSION']),
+    );
+    expect(result.items).toHaveLength(4);
+    expect(result.items[0].history).toBeDefined();
+    expect(Array.isArray(result.items[0].history)).toBe(true);
+  });
+
+  it('filters items by status, shareScope, and conditionCode without changing counts', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED', condition: 'Hypertension', scope: 'Public' }),
+      masterRow({ code: 'T2', status: 'DRAFT', condition: 'Diabetes', scope: 'Private' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED', condition: 'Diabetes', scope: 'Organization' }),
+    ]);
+
+    const byStatus = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      status: 'PUBLISHED' as never,
+    });
+    expect(byStatus.items).toHaveLength(2);
+    expect(byStatus.counts.total).toBe(3);
+
+    const byCondition = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      conditionCode: 'DIABETES',
+    });
+    expect(byCondition.items.map((i) => i.templateId).sort()).toEqual(['T2', 'T3']);
+
+    const byScope = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      shareScope: 'PUBLIC' as never,
+    });
+    expect(byScope.items.map((i) => i.templateId)).toEqual(['T1']);
+  });
+
+  it('filters items by templateName (id or partial display name)', async () => {
+    mockRows([
+      masterRow({
+        code: 'TASK-MONITORING-MASTER',
+        status: 'PUBLISHED',
+        condition: 'Diabetes',
+        scope: 'Organization',
+        name: 'Record Blood Pressure (updated)',
+      }),
+      masterRow({ code: 'OTHER-TASK', status: 'DRAFT', condition: 'Asthma', scope: 'Private', name: 'Other Task' }),
+    ]);
+
+    const byName = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      templateName: 'Blood Pressure',
+    });
+    expect(byName.items).toHaveLength(1);
+    expect(byName.items[0].templateId).toBe('TASK-MONITORING-MASTER');
+
+    const byId = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      templateName: 'TASK-MONITORING-MASTER',
+    });
+    expect(byId.items).toHaveLength(1);
+  });
+
+  it('maps list item isActive from stored flag (published may be inactive)', async () => {
+    const pubActive = masterRow({ code: 'PUB-ON', status: 'PUBLISHED' });
+    const pubInactive = masterRow({ code: 'PUB-OFF', status: 'PUBLISHED' });
+    pubInactive.meta.isActive = false;
+    const draft = masterRow({ code: 'DRF', status: 'DRAFT' });
+    mockRows([pubActive, pubInactive, draft]);
+
+    const result = await new TemplateService().listMasterTemplates({ templateType: 'TASK' });
+    expect(result.items.find((i) => i.templateId === 'PUB-ON')?.isActive).toBe(true);
+    expect(result.items.find((i) => i.templateId === 'PUB-OFF')?.isActive).toBe(false);
+    expect(result.items.find((i) => i.templateId === 'DRF')?.isActive).toBe(false);
+    expect(result.counts.published).toBe(2);
+    expect(result.counts.active).toBe(1);
+    expect(result.counts.inactive).toBe(2);
+    expect(result.counts.draft).toBe(1);
+  });
+
+  it('filters items by active=true or active=false', async () => {
+    const pubActive = masterRow({ code: 'PUB-ON', status: 'PUBLISHED' });
+    const pubInactive = masterRow({ code: 'PUB-OFF', status: 'PUBLISHED' });
+    pubInactive.meta.isActive = false;
+    const draft = masterRow({ code: 'DRF', status: 'DRAFT' });
+    mockRows([pubActive, pubInactive, draft]);
+
+    const activeOnly = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      active: true,
+    });
+    expect(activeOnly.items.map((i) => i.templateId)).toEqual(['PUB-ON']);
+
+    const inactiveOnly = await new TemplateService().listMasterTemplates({
+      templateType: 'TASK',
+      active: false,
+    });
+    expect(inactiveOnly.items.map((i) => i.templateId).sort()).toEqual(['DRF', 'PUB-OFF']);
+  });
+
+  it('paginates with a stable nextToken', async () => {
+    mockRows([
+      masterRow({ code: 'T1', status: 'PUBLISHED' }),
+      masterRow({ code: 'T2', status: 'PUBLISHED' }),
+      masterRow({ code: 'T3', status: 'PUBLISHED' }),
+    ]);
+
+    const svc = new TemplateService();
+    const page1 = await svc.listMasterTemplates({ templateType: 'TASK', limit: 2 });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.pagination.hasMore).toBe(true);
+    expect(page1.pagination.total).toBe(3);
+    expect(page1.pagination.nextToken).toBeDefined();
+
+    const page2 = await svc.listMasterTemplates({
+      templateType: 'TASK',
+      limit: 2,
+      nextToken: page1.pagination.nextToken,
+    });
+    expect(page2.items).toHaveLength(1);
+    expect(page2.pagination.hasMore).toBe(false);
+    expect(page2.pagination.nextToken).toBeUndefined();
   });
 });

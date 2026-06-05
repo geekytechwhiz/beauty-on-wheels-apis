@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getEnablementHttpController } from '../../controllers/enablement-http.controller';
@@ -7,9 +7,10 @@ import { createOrgEnablementBodySchema } from '../../validators/template.schemas
 
 const c = getEnablementHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'org-enablement.create',
+    useCreated: true,
     bodySchema: createOrgEnablementBodySchema,
     validator: validateCreateOrgEnablementRequest,
   },

@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getTemplateConfigHttpController } from '../../controllers/template-config-http.controller';
@@ -7,7 +7,7 @@ import { updateTemplateConfigBodySchema } from '../../validators/template.schema
 
 const c = getTemplateConfigHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'template-config.update',
     bodySchema: updateTemplateConfigBodySchema,

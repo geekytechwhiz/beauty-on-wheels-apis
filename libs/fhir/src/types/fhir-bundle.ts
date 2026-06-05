@@ -6,5 +6,6 @@ export interface FhirBundleEntry {
 export interface FhirCollectionBundle {
   resourceType: 'Bundle';
   type: 'collection';
+  id?: string;
   entry: FhirBundleEntry[];
 }

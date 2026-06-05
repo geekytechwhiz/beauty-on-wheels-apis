@@ -1,20 +1,31 @@
+# Metadata Registry — single-table DynamoDB, prefix queries only (no GSI).
+# TODO: Confirm with OpenAPI spec — base path / authorizer / deployment wiring.
 service: metadata-registry-service
+
 frameworkVersion: '3'
+
 plugins:
   - serverless-dotenv-plugin
   - serverless-esbuild
   - serverless-offline
+
 provider:
   name: aws
   runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:custom.deploymentBucket.${self:provider.stage}}
+    serverSideEncryption: AES256
   memorySize: 512
   timeout: 30
+
   tracing:
     lambda: true
     apiGateway: true
+
   logRetentionInDays: 14
+
   environment:
     REGION: ${self:provider.region}
     METADATA_REGISTRY_TABLE: MetadataRegistry-${self:provider.stage}
@@ -25,15 +36,18 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
     ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
+
   iamRoleStatements:
     - Effect: Allow
       Action:
         - dynamodb:GetItem
         - dynamodb:PutItem
+        - dynamodb:UpdateItem
         - dynamodb:Query
         - dynamodb:Scan
         - dynamodb:BatchGetItem
@@ -48,11 +62,13 @@ provider:
         - xray:PutTraceSegments
         - xray:PutTelemetryRecords
       Resource: '*'
+
 package:
   individually: true
   patterns:
     - '!**/*.test.ts'
     - '!**/*.spec.ts'
+
 custom:
   logLevel:
     dev: debug
@@ -75,11 +91,11 @@ custom:
     keepNames: true
     plugins: esbuild-plugins.js
     resolveExtensions:
-      - .ts
-      - .tsx
-      - .js
-      - .jsx
-      - .json
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.json'
     loader:
       '.json': json
   # Anchor so IDE schema sees a real object + array (not Serverless vars, which validate as strings).
@@ -91,12 +107,13 @@ custom:
       - Authorization
       - X-Api-Key
       - X-Correlation-Id
+
 functions:
-  healthV1:
-    handler: src/handlers/v1/health.main
+  health:
+    handler: src/handlers/health.main
     events:
       - http:
-          path: v1/health
+          path: health
           method: get
           cors: *defaultHttpCors
 
@@ -104,7 +121,7 @@ functions:
     handler: src/handlers/postMetadata.main
     events:
       - http:
-          path: v1/metadata/{entityType}
+          path: metadata/{entityType}
           method: post
           cors: *defaultHttpCors
 
@@ -112,56 +129,15 @@ functions:
     handler: src/handlers/patchMetadataStatus.main
     events:
       - http:
-          path: v1/metadata/{entityType}/status
+          path: metadata/{entityType}/status
           method: patch
-          cors: ${self:custom.cors}
-  getMetadataV1:
-    handler: src/handlers/v1/getMetadata.main
+          cors: *defaultHttpCors
+
+  patchMetadataValueDelete:
+    handler: src/handlers/patchMetadataValueDelete.main
     events:
       - http:
-          path: v1/metadata/{entityType}
-          method: get
-          cors: ${self:custom.cors}
-  listMetadataV1:
-    handler: src/handlers/v1/listMetadata.main
-    events:
-      - http:
-          path: v1/metadata/{entityType}/list
-          method: get
-          cors: ${self:custom.cors}
-  listMetadataAuditV1:
-    handler: src/handlers/v1/listMetadataAudit.main
-    events:
-      - http:
-          path: v1/metadata/{entityType}/audit
-          method: get
-          cors: ${self:custom.cors}
-  postMetadataRelationV1:
-    handler: src/handlers/v1/postRelation.main
-    events:
-      - http:
-          path: v1/metadata/relations
-          method: post
-          cors: ${self:custom.cors}
-  getMetadataRelationsV1:
-    handler: src/handlers/v1/getRelations.main
-    events:
-      - http:
-          path: v1/metadata/relations
-          method: get
-          cors: ${self:custom.cors}
-  getMetadataRelatedValuesV1:
-    handler: src/handlers/v1/getRelatedValues.main
-    events:
-      - http:
-          path: v1/metadata/values/related
-          method: get
-          cors: ${self:custom.cors}
-  patchMetadataRelationV1:
-    handler: src/handlers/v1/patchRelation.main
-    events:
-      - http:
-          path: v1/metadata/relations/{id}
+          path: metadata-values/{metadataTypeCode}/{metadataValueCode}/delete
           method: patch
           cors: *defaultHttpCors
 
@@ -187,14 +163,6 @@ functions:
       - http:
           path: metadata/{entityType}/audit
           method: get
-          cors: *defaultHttpCors
-
-  postMetadataRelation:
-    handler: src/handlers/postRelation.main
-    events:
-      - http:
-          path: metadata/relations
-          method: post
           cors: *defaultHttpCors
 
   getMetadataRelations:

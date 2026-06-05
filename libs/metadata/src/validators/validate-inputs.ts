@@ -4,9 +4,13 @@ import {
   type MetadataTypeInput,
   type MetadataTypeRecord,
   type MetadataValueInput,
+  type RelationSelectionMode,
+  type Status,
   type ValueDataType,
   type ValueSearchFilter,
 } from '../models/types';
+import type { RelationType } from '../models/relation-types';
+import { RELATION_TYPES } from '../models/relation-types';
 import { ValidationError } from '../domain/errors';
 import { assertEnumTokenArray, assertMetadataTypeCode, assertMetadataValueCode } from './code-patterns';
 import {
@@ -18,14 +22,113 @@ import { validateQuestionCodeAttributes } from './question-code.schema';
 import {
   validateMetadataValueApplicabilityRules,
 } from '../mappers/metadata-value-request';
-import { assertStatusEnum } from './status';
+import { assertStatusEnum, assertStatusFilterEnum } from './status';
 
 const DISPLAY_NAME_MAX = 100;
 const METADATA_VALUE_LABEL_MAX = 150;
 const METADATA_VALUE_DESCRIPTION_MAX = 2000;
 
+const RELATION_FIELD_LABEL_MAX = 150;
+
+const RELATION_TYPE_SET = new Set<string>(RELATION_TYPES);
+const SELECTION_MODES = new Set<string>(['SINGLE', 'MULTI']);
+
+function assertRelationTypeEnum(raw: unknown, field = 'relationType'): RelationType {
+  if (typeof raw !== 'string' || !RELATION_TYPE_SET.has(raw)) {
+    throw new ValidationError('relationType must be a supported relation type', [
+      { field, message: `Must be one of: ${RELATION_TYPES.join(', ')}` },
+    ]);
+  }
+  return raw as RelationType;
+}
+
+/**
+ * Validates relation configuration snapshot on metadata type create/update (sync rules).
+ * Call after merge for updates so the full snapshot is validated.
+ */
+export function validateMetadataTypeRelationConfig(input: MetadataTypeInput): void {
+  const supports =
+    input.supportsRelations === undefined ? false : Boolean(input.supportsRelations);
+
+  if (!supports) {
+    const bad: { field: string; message: string }[] = [];
+    if (input.relationFieldLabel != null && input.relationFieldLabel !== undefined) {
+      bad.push({ field: 'relationFieldLabel', message: 'Must be null or omitted when supportsRelations is false' });
+    }
+    if (input.targetMetadataTypeCode != null && input.targetMetadataTypeCode !== undefined) {
+      bad.push({
+        field: 'targetMetadataTypeCode',
+        message: 'Must be null or omitted when supportsRelations is false',
+      });
+    }
+    if (input.selectionMode != null && input.selectionMode !== undefined) {
+      bad.push({ field: 'selectionMode', message: 'Must be null or omitted when supportsRelations is false' });
+    }
+    if (input.relationRequired != null && input.relationRequired !== undefined) {
+      bad.push({ field: 'relationRequired', message: 'Must be null or omitted when supportsRelations is false' });
+    }
+    if (input.relationType != null && input.relationType !== undefined) {
+      bad.push({ field: 'relationType', message: 'Must be null or omitted when supportsRelations is false' });
+    }
+    if (bad.length) {
+      throw new ValidationError('Relation fields must be cleared when supportsRelations is false', bad);
+    }
+    return;
+  }
+
+  if (!input.relationFieldLabel || typeof input.relationFieldLabel !== 'string' || !input.relationFieldLabel.trim()) {
+    throw new ValidationError('relationFieldLabel is required when supportsRelations is true', [
+      { field: 'relationFieldLabel', message: 'Required' },
+    ]);
+  }
+  if (input.relationFieldLabel.length > RELATION_FIELD_LABEL_MAX) {
+    throw new ValidationError(`relationFieldLabel must be at most ${RELATION_FIELD_LABEL_MAX} characters`, [
+      { field: 'relationFieldLabel', message: `Max ${RELATION_FIELD_LABEL_MAX} characters` },
+    ]);
+  }
+  if (!input.targetMetadataTypeCode || typeof input.targetMetadataTypeCode !== 'string' || !input.targetMetadataTypeCode.trim()) {
+    throw new ValidationError('targetMetadataTypeCode is required when supportsRelations is true', [
+      { field: 'targetMetadataTypeCode', message: 'Required' },
+    ]);
+  }
+  assertMetadataTypeCode(input.targetMetadataTypeCode, 'targetMetadataTypeCode');
+  if (input.targetMetadataTypeCode === input.metadataTypeCode) {
+    throw new ValidationError('targetMetadataTypeCode must differ from metadataTypeCode', [
+      { field: 'targetMetadataTypeCode', message: 'Cannot reference the same type' },
+    ]);
+  }
+  if (input.selectionMode == null || input.selectionMode === undefined) {
+    throw new ValidationError('selectionMode is required when supportsRelations is true', [
+      { field: 'selectionMode', message: 'Required' },
+    ]);
+  }
+  if (!SELECTION_MODES.has(String(input.selectionMode))) {
+    throw new ValidationError('selectionMode must be SINGLE or MULTI', [
+      { field: 'selectionMode', message: 'Invalid' },
+    ]);
+  }
+  const _selCheck: RelationSelectionMode =
+    input.selectionMode === 'SINGLE' || input.selectionMode === 'MULTI' ? input.selectionMode : 'SINGLE';
+  void _selCheck;
+  if (input.relationRequired === undefined || input.relationRequired === null) {
+    throw new ValidationError('relationRequired is required when supportsRelations is true', [
+      { field: 'relationRequired', message: 'Required boolean' },
+    ]);
+  }
+  if (typeof input.relationRequired !== 'boolean') {
+    throw new ValidationError('relationRequired must be a boolean', [{ field: 'relationRequired', message: 'Invalid' }]);
+  }
+  if (input.relationType === undefined || input.relationType === null) {
+    throw new ValidationError('relationType is required when supportsRelations is true', [
+      { field: 'relationType', message: 'Required' },
+    ]);
+  }
+  assertRelationTypeEnum(input.relationType);
+}
+
 export function validateMetadataTypeInput(input: MetadataTypeInput, isUpdate = false): void {
   assertMetadataTypeCode(input.metadataTypeCode);
+  validateMetadataTypeRelationConfig(input);
   if (!isUpdate) {
     if (!input.displayName?.trim()) {
       throw new ValidationError('displayName is required on create', [{ field: 'displayName', message: 'Required' }]);
@@ -221,7 +324,10 @@ export function validateMetadataValueInput(
 /** Applicability-style search filter tokens and status; call before `searchMetadataValues` on the repository. */
 export function validateValueSearchFilter(filter: ValueSearchFilter): void {
   if (filter.status !== undefined && filter.status !== '') {
-    assertStatusEnum(filter.status, { message: 'Invalid status filter' });
+    const normalized =
+      typeof filter.status === 'string' ? filter.status.trim().toUpperCase() : filter.status;
+    assertStatusFilterEnum(normalized);
+    filter.status = normalized as Status;
   }
   assertEnumTokenArray(filter.module, 'module');
   assertEnumTokenArray(filter.category, 'category');

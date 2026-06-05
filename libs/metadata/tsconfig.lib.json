@@ -8,17 +8,14 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
-
-    "types": ["node"]
+    "rootDir": "src",
+    "types": ["node"],
+    "paths": {
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/logger": ["libs/logger/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
-  "references": [
-    {
-      "path": "../observability/tsconfig.lib.json"
-    },
-    {
-      "path": "../utils/tsconfig.lib.json"
-    }
-  ]
+  "references": [{ "path": "../utils/tsconfig.lib.json" }]
 }

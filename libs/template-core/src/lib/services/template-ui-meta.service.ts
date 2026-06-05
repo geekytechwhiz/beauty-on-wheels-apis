@@ -3,11 +3,11 @@ import { readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  normalizeTemplateUiMetaType,
   resolveTemplateTypeForMetaId,
   TEMPLATE_UI_META_TYPES,
   UI_META_LEGACY_FILES,
 } from '../constants/template-ui-meta.constants';
+import { collectOrgConfigFileNames } from '../utils/meta-registry.utils';
 import type { TemplateUiMetaGetResult, TemplateUiMetaListItem } from '../models/api/template-ui-meta.types';
 import {
   assertSafeJsonFileName,
@@ -288,7 +288,6 @@ export class TemplateUiMetaService {
   }
 
   private async loadOrgConfigFileNames(baseDir: string): Promise<Set<string>> {
-    const { collectOrgConfigFileNames } = await import('../utils/meta-registry.utils');
     return collectOrgConfigFileNames(baseDir);
   }
 

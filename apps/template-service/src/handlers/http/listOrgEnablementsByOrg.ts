@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getEnablementHttpController } from '../../controllers/enablement-http.controller';
@@ -6,7 +6,7 @@ import { validateListOrgEnablementsByOrgRequest } from '../../validators/request
 
 const c = getEnablementHttpController();
 
-export const main = withApiHandler(
+export const main = withTemplateApiHandler(
   {
     operation: 'org-enablement.list-by-org',
     validator: validateListOrgEnablementsByOrgRequest,

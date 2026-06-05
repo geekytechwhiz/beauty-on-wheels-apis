@@ -1,3 +1,4 @@
+import type { TemplateActorUser } from '../template-actor.model';
 import type { MasterTemplateUpdateBody, StatusTransitionBody } from './master-version-ops.types';
 
 /** OpenAPI OrgTemplateUpdateRequest — same shape as master update + overrides. */
@@ -10,7 +11,7 @@ export type UpdateOrgTemplateVersionParams = {
   templateId: string;
   versionId: string;
   body: OrgTemplateUpdateBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };
 
 export type TransitionOrgStatusParams = {
@@ -18,5 +19,5 @@ export type TransitionOrgStatusParams = {
   templateId: string;
   versionId: string;
   body: StatusTransitionBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
 };

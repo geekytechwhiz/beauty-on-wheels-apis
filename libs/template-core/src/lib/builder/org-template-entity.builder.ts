@@ -8,9 +8,18 @@ import {
   VERSION_SK_PREFIX,
   type TemplateStatus,
 } from '../constants/template.constants';
+import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import { resolveTemplateActor } from '../utils/template-actor.utils';
+import { firstString } from '../utils/template.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
 export type CloneOrgTemplateContext = {
   organizationId: string;
@@ -19,6 +28,7 @@ export type CloneOrgTemplateContext = {
   versionNum: number;
   versionSk: string;
   nowIso: string;
+  sourceMasterTemplateId: string;
   sourceMasterVersionId: string;
   newTemplateName: string;
   inheritLinks: boolean;
@@ -85,6 +95,7 @@ export class OrgTemplateEntityBuilder {
       versionNum,
       versionSk,
       nowIso: new Date().toISOString(),
+      sourceMasterTemplateId: masterTemplateId,
       sourceMasterVersionId,
       newTemplateName,
       inheritLinks,
@@ -94,10 +105,20 @@ export class OrgTemplateEntityBuilder {
   static buildOrgMetaFromMaster(
     masterVersion: TemplateDdbRecord,
     ctx: CloneOrgTemplateContext,
-    actorUserId?: string,
+    actor?: TemplateActorUser,
   ): TemplateMeta {
     const masterMeta = masterVersion.meta;
-    const status = TEMPLATE_STATUS.SAVED as TemplateStatus;
+    const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
+    const masterFv = asRecord(masterVersion.fieldValues);
+    const categoryCode = firstString(masterFv.categoryCode);
+    const conditionCode = firstString(masterFv.conditionCode);
+    const countries = masterMeta.countries;
+    const templateType = masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN;
+
+    const masterDisplayVersion =
+      typeof masterMeta.version === 'number' && masterMeta.version > 0
+        ? masterMeta.version
+        : ctx.versionNum;
 
     return {
       ...masterMeta,
@@ -105,20 +126,25 @@ export class OrgTemplateEntityBuilder {
       templateVersionId: ctx.templateVersionId,
       templateName: ctx.newTemplateName,
       version: ctx.versionNum,
+      derivedFromMasterVersion: masterDisplayVersion,
       status,
-      isActive: true,
+      isActive: false,
       isLatestVersion: true,
       isMaster: false,
       ownerOrgId: ctx.organizationId,
+      masterTemplateId: ctx.sourceMasterTemplateId,
       masterTemplateVersionId: ctx.sourceMasterVersionId,
       derivedFromTemplateVersionId: ctx.sourceMasterVersionId,
       shareScope: 'ORG',
       publishedAt: null,
       createdAt: ctx.nowIso,
       lastModifiedAt: ctx.nowIso,
-      createdBy: actorUserId ?? masterMeta.createdBy,
-      lastModifiedBy: actorUserId ?? masterMeta.lastModifiedBy,
-      templateType: masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN,
+      createdBy: resolveTemplateActor(actor),
+      lastModifiedBy: resolveTemplateActor(actor),
+      templateType,
+      ...(categoryCode ? { category: categoryCode } : {}),
+      ...(conditionCode ? { condition: conditionCode } : {}),
+      ...(countries ? { countries } : {}),
     };
   }
 

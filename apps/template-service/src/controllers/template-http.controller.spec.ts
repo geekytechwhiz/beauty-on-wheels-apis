@@ -99,7 +99,7 @@ describe('TemplateHttpController', () => {
     const out = await c.handleCreateMaster(
       baseReq({
         validatedCreateMaster: {
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
           body: minimalCreateMasterBody(),
         },
       } as unknown as LambdaRequest),
@@ -108,7 +108,7 @@ describe('TemplateHttpController', () => {
     expect(out.templateId).toBe('CP-HTN-001');
     expect(mockCreateMasterTemplate).toHaveBeenCalledWith(
       minimalCreateMasterBody(),
-      'user-1',
+      { userId: 'user-1' },
     );
   });
 
@@ -130,14 +130,14 @@ describe('TemplateHttpController', () => {
       baseReq({
         validatedListMaster: {
           query: { status: 'DRAFT' },
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),
     );
 
     expect(out.items).toHaveLength(1);
     expect(mockListMasterTemplates).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'DRAFT', limit: 25 }),
+      expect.objectContaining({ status: 'DRAFT' }),
     );
   });
 
@@ -158,7 +158,7 @@ describe('TemplateHttpController', () => {
           templateId: 'CP-HTN-001',
           versionId: 'V01',
           body: { meta: { templateName: 'Updated' } },
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),
     );
@@ -186,7 +186,7 @@ describe('TemplateHttpController', () => {
           templateId: 'CP-HTN-001',
           versionId: 'V01',
           body: { action: 'SUBMIT_REVIEW' },
-          actorUserId: 'user-1',
+          actorUser: { userId: 'user-1' },
         },
       } as unknown as LambdaRequest),
     );

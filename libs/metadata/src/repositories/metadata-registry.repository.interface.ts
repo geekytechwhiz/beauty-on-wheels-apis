@@ -9,7 +9,8 @@ import type {
 } from '../models/types';
 
 export interface ListTypesFilter {
-  status?: Status;
+  /** When set, type must have one of these statuses. */
+  statuses?: Status[];
   /** Match if this module token appears in the type's applicableModules. */
   module?: string;
   valueDataType?: string;
@@ -51,12 +52,17 @@ export interface IMetadataRegistryRepository {
     existing: MetadataValueRecord,
   ): Promise<MetadataValueRecord>;
   patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord>;
+  /** Immutable version with status DELETED; does not remove applicability rows or prior versions. */
+  softDeleteMetadataValue(
+    metadataTypeCode: string,
+    valueCode: string,
+    opts: { reason?: string; actor?: string },
+  ): Promise<MetadataValueRecord>;
   getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null>;
-  /** `null` = no status filter (all values). Omitted/undefined = ACTIVE only. */
-  listMetadataValues(metadataTypeCode: string, status?: Status | null): Promise<MetadataValueRecord[]>;
+  listMetadataValues(metadataTypeCode: string, statuses: Status[]): Promise<MetadataValueRecord[]>;
   listMetadataValuesPaginated(
     metadataTypeCode: string,
-    statusFilter: Status | null,
+    statuses: Status[],
     options: ListMetadataValuesPaginatedOptions,
   ): Promise<{ records: MetadataValueRecord[]; lastEvaluatedKey?: Record<string, unknown> }>;
   searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]>;

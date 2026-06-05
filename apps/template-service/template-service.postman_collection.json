@@ -1,25 +1,12 @@
 {
   "info": {
-    "_postman_id": "template-service-api-hub",
+    "_postman_id": "fdd8669e-4017-4f5f-b0a5-2bc23e215dea",
     "name": "Template Service API",
     "description": "Master template: **one POST API**\n- `POST /templates` → create (no id in path)\n- `POST /templates/{{templateId}}` → update or lifecycle\n\nSet `authToken`. After create, `templateId` is auto-set (e.g. TASK-CODE).\n\nshareScope: Private | Organization | Public",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54896139",
+    "_collection_link": "https://go.postman.co/collection/54896139-fdd8669e-4017-4f5f-b0a5-2bc23e215dea?source=collection_link"
   },
-  "auth": {
-    "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
-  },
-  "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "authToken", "value": "" },
-    { "key": "organizationId", "value": "org-apollo-001" },
-    { "key": "templateId", "value": "TASK-CODE" },
-    { "key": "masterTemplateId", "value": "TASK-CODE" },
-    { "key": "versionId", "value": "" },
-    { "key": "masterVersionId", "value": "" },
-    { "key": "enablementId", "value": "" },
-    { "key": "configId", "value": "TASK-MASTER-001" }
-  ],
   "item": [
     {
       "name": "Health",
@@ -27,17 +14,27 @@
         {
           "name": "GET Health",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/health"
-          }
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
     {
       "name": "Master — POST upsert (create & update)",
-      "description": "POST /templates = create. POST /templates/{templateId} = update or lifecycle.",
       "item": [
         {
           "name": "POST Create Master (no id)",
@@ -56,97 +53,92 @@
                   "  pm.collectionVariables.set('masterVersionId', j.data.templateVersionId);",
                   "}"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJraWQiOiJrb3JVYi95eWNSY21jTkRoRU0vTHRRT2RNTDhJTkpyQXVIejE1N01OSzJRPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiIyYzRlMTk1Yy02NjkzLTRkN2EtOTM2MC04MzdhNDNlODE4ZTAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC51cy1lYXN0LTEuYW1hem9uYXdzLmNvbS91cy1lYXN0LTFfQUsxSFR4ZGxYIiwiY29nbml0bzp1c2VybmFtZSI6IjJjNGUxOTVjLTY2OTMtNGQ3YS05MzYwLTgzN2E0M2U4MThlMCIsImN1c3RvbTpvcmdhbml6YXRpb25JRCI6IlJPT1QiLCJjdXN0b206dXNlcklEIjoiODhhOWE2ZTA1MjA5MjE4ODY2MGE0MDRhMzAzY2EzNGM5OTJjYWFiZmNjZmMxODRjYTIxMjFmY2FjMmQ4NGU3ZiIsImN1c3RvbTp1c2VyVHlwZSI6IlJPT1RfQURNSU4iLCJhdWQiOiI2djY4cjJzdHQ5YjRyZ3IzdTgzNDhic2xzaSIsImV2ZW50X2lkIjoiMzViNGU1NjEtODZhMy00MGY4LTgwMmEtMzFmOGNiZDczZmRiIiwidG9rZW5fdXNlIjoiaWQiLCJjdXN0b206c3JjIjoicm9vdGFkbWluQHlvcG1haWwuY29tIiwiYXV0aF90aW1lIjoxNzc5MDg4MzEzLCJleHAiOjE3ODA1MDIzODYsImN1c3RvbTpyb2xlIjoiW1wiUk9PVF9BRE1JTlwiXSIsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiaWF0IjoxNzgwNTAyMDg2LCJlbWFpbCI6InJvb3RhZG1pbkB5b3BtYWlsLmNvbSJ9.PLBQGUOPR25bGTO8ilwmQeTgzZ6mEIyO_rzcN_zlAirNP_I_TRPM5j1oyPMcFnz9VBN_qHQI9m1UJcAy7YxDHmmuyRZ3wqW9NHm8A9fPMg78W5IkmuAB6mATHnCuUTWVZMcnxwl4K4Fup8eEoKiMhwx_e-cSMfK7xZ5gu0Z7sM70d70CWygIMkZAyCuYu9REFYy7I8Ku70E-jcyrwXVXVYVzu_N4aVRFjceBaHl-KOAKt3Px789aM-jdQc09QIRu72dZY0utPL_UyDEaRpTjkdYFtke03zvKB4zWpRkpgLWUqEdlhD59OwtJua_NVJ8VbhIlwwh1C2VmTSLO3gcJfA",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJraWQiOiJrb3JVYi95eWNSY21jTkRoRU0vTHRRT2RNTDhJTkpyQXVIejE1N01OSzJRPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiIyYzRlMTk1Yy02NjkzLTRkN2EtOTM2MC04MzdhNDNlODE4ZTAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC51cy1lYXN0LTEuYW1hem9uYXdzLmNvbS91cy1lYXN0LTFfQUsxSFR4ZGxYIiwiY29nbml0bzp1c2VybmFtZSI6IjJjNGUxOTVjLTY2OTMtNGQ3YS05MzYwLTgzN2E0M2U4MThlMCIsImN1c3RvbTpvcmdhbml6YXRpb25JRCI6IlJPT1QiLCJjdXN0b206dXNlcklEIjoiODhhOWE2ZTA1MjA5MjE4ODY2MGE0MDRhMzAzY2EzNGM5OTJjYWFiZmNjZmMxODRjYTIxMjFmY2FjMmQ4NGU3ZiIsImN1c3RvbTp1c2VyVHlwZSI6IlJPT1RfQURNSU4iLCJhdWQiOiI2djY4cjJzdHQ5YjRyZ3IzdTgzNDhic2xzaSIsImV2ZW50X2lkIjoiMzViNGU1NjEtODZhMy00MGY4LTgwMmEtMzFmOGNiZDczZmRiIiwidG9rZW5fdXNlIjoiaWQiLCJjdXN0b206c3JjIjoicm9vdGFkbWluQHlvcG1haWwuY29tIiwiYXV0aF90aW1lIjoxNzc5MDg4MzEzLCJleHAiOjE3ODA0ODE0NTcsImN1c3RvbTpyb2xlIjoiW1wiUk9PVF9BRE1JTlwiXSIsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiaWF0IjoxNzgwNDgxMTU3LCJlbWFpbCI6InJvb3RhZG1pbkB5b3BtYWlsLmNvbSJ9.cASKtl7kulaJnf_evAbRbwQ7s-WPIcDWfwu4EyVwYEeqWWxmLgZQNk3gNtI5_D1Xe1SBPzK57HW-2Q-2sjzyIn0l9_6EaxhrcdKyuK64a8H87GPkzchDs0wnl6r1FabhvuLCsYj4ubKY0EQ7hIVG_038YE-EwXygStaga0S55Vt_uNcYWWpg0TB0K9-5NQebQy2g7YjEaMZzmzdzdcHUBjaGL6V3NX4L12uVnnls8LW5pDDeLY3wkWy1iAzNSmPltAvMY0hu6ScA1FmjguQBF16TRtD6ZiCW9lq5KqiOnQ9k3cGRKvopDR_ypbI6qorwSyg27pKLEOzI-wzqQNp7tQ",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"templateLevel\": \"MASTER\",\n  \"templateType\": \"TASK\",\n  \"templateCode\": \"task-code\",\n  \"templateName\": \"Task Monitoring Master\",\n  \"categoryCode\": \"CHRONIC_CARE\",\n  \"shareScope\": \"private\",\n  \"active\": true,\n  \"conditionCode\": \"DIABETES\",\n  \"countryCodes\": [\"US\"],\n  \"languageCodes\": [\"EN\"],\n  \"version\": 1,\n  \"status\": \"DRAFT\",\n  \"measurementType\": \"NUMERIC\",\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure\",\n    \"TASK_DESCRIPTION\": \"Measure BP daily\",\n    \"ASSIGNED_TO_ROLE\": \"PATIENT\",\n    \"TASK_CATEGORY\": \"MONITORING\",\n    \"TASK_TYPE\": \"MEASUREMENT\",\n    \"TASK_SUBTYPE\": \"BLOOD_PRESSURE\",\n    \"ACTION_SUBMISSION_TYPE\": \"DEVICE_SYNC\",\n    \"COMPARISON_METHOD\": \"RANGE\",\n    \"SCHEDULE_TYPE\": \"RECURRING\",\n    \"RECURRENCE_PATTERN\": \"DAILY\",\n    \"REMINDERS_ENABLED\": true,\n    \"REMINDER_CHANNELS\": [\"IN_APP\", \"PUSH\"],\n    \"DISPLAY_TO_PATIENT\": true\n  }\n}"
+              "raw": "{\n  \"templateLevel\": \"MASTER\",\n  \"templateType\": \"TASK\",\n  \"TEMPLATE_NAME\": \"Task Monitoring Master\",\n  \"status\": \"DRAFT\",\n  \"fieldValues\": {\n    \"categoryCode\": \"CHRONIC_CARE\",\n    \"conditionCode\": \"DIABETES\",\n    \"shareScope\": \"private\",\n    \"TASK_NAME\": \"Record Blood Pressure\",\n    \"TASK_DESCRIPTION\": \"Measure BP daily\",\n    \"ASSIGNED_TO_ROLE\": \"PATIENT\",\n    \"TASK_CATEGORY\": \"MONITORING\",\n    \"TASK_TYPE\": \"MEASUREMENT\",\n    \"TASK_SUBTYPE\": \"BLOOD_PRESSURE\",\n    \"ACTION_SUBMISSION_TYPE\": \"DEVICE_SYNC\",\n    \"COMPARISON_METHOD\": \"RANGE\",\n    \"SCHEDULE_TYPE\": \"RECURRING\",\n    \"RECURRENCE_PATTERN\": \"DAILY\",\n    \"REMINDERS_ENABLED\": true,\n    \"REMINDER_CHANNELS\": [\"IN_APP\", \"PUSH\"],\n    \"DISPLAY_TO_PATIENT\": true\n  }\n}"
             },
-            "url": "{{baseUrl}}/templates",
+            "url": {
+              "raw": "{{baseUrl}}/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates"
+              ]
+            },
             "description": "Create master template. No templateId in URL. Response templateId e.g. TASK-CODE."
-          }
+          },
+          "response": []
         },
         {
-          "name": "POST Update Master — edit content (by templateId)",
+          "name": "POST Update Master — edit content",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJraWQiOiJrb3JVYi95eWNSY21jTkRoRU0vTHRRT2RNTDhJTkpyQXVIejE1N01OSzJRPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiIyYzRlMTk1Yy02NjkzLTRkN2EtOTM2MC04MzdhNDNlODE4ZTAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC51cy1lYXN0LTEuYW1hem9uYXdzLmNvbS91cy1lYXN0LTFfQUsxSFR4ZGxYIiwiY29nbml0bzp1c2VybmFtZSI6IjJjNGUxOTVjLTY2OTMtNGQ3YS05MzYwLTgzN2E0M2U4MThlMCIsImN1c3RvbTpvcmdhbml6YXRpb25JRCI6IlJPT1QiLCJjdXN0b206dXNlcklEIjoiODhhOWE2ZTA1MjA5MjE4ODY2MGE0MDRhMzAzY2EzNGM5OTJjYWFiZmNjZmMxODRjYTIxMjFmY2FjMmQ4NGU3ZiIsImN1c3RvbTp1c2VyVHlwZSI6IlJPT1RfQURNSU4iLCJhdWQiOiI2djY4cjJzdHQ5YjRyZ3IzdTgzNDhic2xzaSIsImV2ZW50X2lkIjoiMzViNGU1NjEtODZhMy00MGY4LTgwMmEtMzFmOGNiZDczZmRiIiwidG9rZW5fdXNlIjoiaWQiLCJjdXN0b206c3JjIjoicm9vdGFkbWluQHlvcG1haWwuY29tIiwiYXV0aF90aW1lIjoxNzc5MDg4MzEzLCJleHAiOjE3ODA1MDIzODYsImN1c3RvbTpyb2xlIjoiW1wiUk9PVF9BRE1JTlwiXSIsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiaWF0IjoxNzgwNTAyMDg2LCJlbWFpbCI6InJvb3RhZG1pbkB5b3BtYWlsLmNvbSJ9.PLBQGUOPR25bGTO8ilwmQeTgzZ6mEIyO_rzcN_zlAirNP_I_TRPM5j1oyPMcFnz9VBN_qHQI9m1UJcAy7YxDHmmuyRZ3wqW9NHm8A9fPMg78W5IkmuAB6mATHnCuUTWVZMcnxwl4K4Fup8eEoKiMhwx_e-cSMfK7xZ5gu0Z7sM70d70CWygIMkZAyCuYu9REFYy7I8Ku70E-jcyrwXVXVYVzu_N4aVRFjceBaHl-KOAKt3Px789aM-jdQc09QIRu72dZY0utPL_UyDEaRpTjkdYFtke03zvKB4zWpRkpgLWUqEdlhD59OwtJua_NVJ8VbhIlwwh1C2VmTSLO3gcJfA",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shareScope\": \"Organization\",\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure (updated)\",\n    \"TASK_DESCRIPTION\": \"Measure BP twice daily\"\n  }\n}"
+              "raw": "{\n  \"shareScope\": \"Organization\",\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure (updated)\",\n    \"TASK_DESCRIPTION\": \"Measure BP twice daily\"\n  },\n  \"status\":\"PUBLISHED\"\n}"
             },
-            "url": "{{baseUrl}}/templates/{{templateId}}",
-            "description": "Use templateId (TASK-CODE), not templateVersionId. After create, collection variable templateId is set automatically."
-          }
-        },
-        {
-          "name": "POST Update Master — edit content (by versionId path)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shareScope\": \"Organization\",\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure (updated)\",\n    \"TASK_DESCRIPTION\": \"Measure BP twice daily\"\n  }\n}"
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "{{templateId}}"
+              ]
             },
-            "url": "{{baseUrl}}/templates/{{masterVersionId}}",
-            "description": "Also accepts templateVersionId in path (TASK-CODE-V01); server resolves to template TASK-CODE."
-          }
-        },
-        {
-          "name": "POST Update Master — SUBMIT_REVIEW",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lifecycleAction\": \"SUBMIT_REVIEW\",\n  \"comment\": \"Ready for review\"\n}"
-            },
-            "url": "{{baseUrl}}/templates/{{templateId}}"
-          }
-        },
-        {
-          "name": "POST Update Master — PUBLISH",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lifecycleAction\": \"PUBLISH\",\n  \"comment\": \"Approved\"\n}"
-            },
-            "url": "{{baseUrl}}/templates/{{templateId}}",
-            "description": "Run before POST /templates/{{masterTemplateId}}/derive."
-          }
-        },
-        {
-          "name": "POST Update Master — REJECT",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lifecycleAction\": \"REJECT\",\n  \"reason\": \"Needs clinical review\"\n}"
-            },
-            "url": "{{baseUrl}}/templates/{{templateId}}"
-          }
-        },
-        {
-          "name": "POST Update Master — ARCHIVE",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lifecycleAction\": \"ARCHIVE\",\n  \"comment\": \"Retired\"\n}"
-            },
-            "url": "{{baseUrl}}/templates/{{templateId}}"
-          }
+            "description": "Update master. templateId from create response (TASK-CODE)."
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "POST /templates = create. POST /templates/{templateId} = update or lifecycle."
     },
     {
       "name": "Templates — List & Read",
@@ -154,63 +146,118 @@
         {
           "name": "GET List Masters — TASK",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJraWQiOiJrb3JVYi95eWNSY21jTkRoRU0vTHRRT2RNTDhJTkpyQXVIejE1N01OSzJRPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiIyYzRlMTk1Yy02NjkzLTRkN2EtOTM2MC04MzdhNDNlODE4ZTAiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC51cy1lYXN0LTEuYW1hem9uYXdzLmNvbS91cy1lYXN0LTFfQUsxSFR4ZGxYIiwiY29nbml0bzp1c2VybmFtZSI6IjJjNGUxOTVjLTY2OTMtNGQ3YS05MzYwLTgzN2E0M2U4MThlMCIsImN1c3RvbTpvcmdhbml6YXRpb25JRCI6IlJPT1QiLCJjdXN0b206dXNlcklEIjoiODhhOWE2ZTA1MjA5MjE4ODY2MGE0MDRhMzAzY2EzNGM5OTJjYWFiZmNjZmMxODRjYTIxMjFmY2FjMmQ4NGU3ZiIsImN1c3RvbTp1c2VyVHlwZSI6IlJPT1RfQURNSU4iLCJhdWQiOiI2djY4cjJzdHQ5YjRyZ3IzdTgzNDhic2xzaSIsImV2ZW50X2lkIjoiMzViNGU1NjEtODZhMy00MGY4LTgwMmEtMzFmOGNiZDczZmRiIiwidG9rZW5fdXNlIjoiaWQiLCJjdXN0b206c3JjIjoicm9vdGFkbWluQHlvcG1haWwuY29tIiwiYXV0aF90aW1lIjoxNzc5MDg4MzEzLCJleHAiOjE3ODA1MDI4NjIsImN1c3RvbTpyb2xlIjoiW1wiUk9PVF9BRE1JTlwiXSIsImN1c3RvbTpwZXJtaXNzaW9ucyI6IltdIiwiaWF0IjoxNzgwNTAyNTYyLCJlbWFpbCI6InJvb3RhZG1pbkB5b3BtYWlsLmNvbSJ9.LY8vwD_whXWP9yw86m9fZuw_WT7QLgtDBoQmNQUl2LYU3SLUnxBOXsB0s2ihKjaPDbsWA9CMWcG5-_VzQh0vUo1CamHixa_a9APquuLuvzxZyXjsok4Duflrlfxi3KzA-TUVXkMxtik8stvNrPRe1UI0-E2dAP76-mdeEd3u11IuIpxhXj0czy4D14ap-9AYUK7_u7athTCfQ6vEPsHb1SmDd_5FzwhlIRi7HAY_jnnRq9umutRfHpu3GOltAFPZSNOpU9TO_zKS6rXSvFHwBVi_dpdsAAqKfGbxnWEcWy5mtVvzG310FsoXFlmq82JrtIrOnZt5uQ0YKKFQlflVCg",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates"],
+              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&status=PUBLISHED&limit=10&shareScope=ORGANIZATION&conditionCode&latest=version",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates"
+              ],
               "query": [
-                { "key": "templateLevel", "value": "MASTER" },
-                { "key": "templateType", "value": "TASK" }
+                {
+                  "key": "templateLevel",
+                  "value": "MASTER"
+                },
+                {
+                  "key": "templateType",
+                  "value": "TASK"
+                },
+                {
+                  "key": "status",
+                  "value": "PUBLISHED"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "shareScope",
+                  "value": "ORGANIZATION",
+                  "type": "text"
+                },
+                {
+                  "key": "conditionCode",
+                  "value": null,
+                  "type": "text"
+                },
+                {
+                  "key": "latest",
+                  "value": "version",
+                  "type": "text"
+                }
               ]
             }
-          }
-        },
-        {
-          "name": "GET List Masters — TASK DRAFT",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/templates?templateLevel=MASTER&templateType=TASK&status=DRAFT",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates"],
-              "query": [
-                { "key": "templateLevel", "value": "MASTER" },
-                { "key": "templateType", "value": "TASK" },
-                { "key": "status", "value": "DRAFT" }
-              ]
-            }
-          }
-        },
-        {
-          "name": "GET Versions — latest",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/templates/{{templateId}}/versions?templateLevel=MASTER&version=latest",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates", "{{templateId}}", "versions"],
-              "query": [
-                { "key": "templateLevel", "value": "MASTER" },
-                { "key": "version", "value": "latest" }
-              ]
-            }
-          }
+          },
+          "response": []
         },
         {
           "name": "GET List Org Templates",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ACCESS_TOKEN"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/templates?templateLevel=ORG&organizationId={{organizationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates"],
+              "raw": "{{baseurl}}/templates?templateLevel=ORG&organizationId=org-apollo-001&categoryCode=CHRONIC_CARE&conditionCode=DIABETES&templateType=ALERT&templateName=Record%20Blood%20Pressure&country=US&limit=25",
+              "host": [
+                "{{baseurl}}"
+              ],
+              "path": [
+                "templates"
+              ],
               "query": [
-                { "key": "templateLevel", "value": "ORG" },
-                { "key": "organizationId", "value": "{{organizationId}}" }
+                {
+                  "key": "templateLevel",
+                  "value": "ORG"
+                },
+                {
+                  "key": "organizationId",
+                  "value": "org-apollo-001"
+                },
+                {
+                  "key": "categoryCode",
+                  "value": "CHRONIC_CARE"
+                },
+                {
+                  "key": "conditionCode",
+                  "value": "DIABETES"
+                },
+                {
+                  "key": "templateType",
+                  "value": "ALERT"
+                },
+                {
+                  "key": "templateName",
+                  "value": "Record%20Blood%20Pressure"
+                },
+                {
+                  "key": "country",
+                  "value": "US"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -228,72 +275,152 @@
                   "if (j.data && j.data.templateId) pm.collectionVariables.set('templateId', j.data.templateId);",
                   "if (j.data && j.data.templateVersionId) pm.collectionVariables.set('versionId', j.data.templateVersionId);"
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer YOUR_ACCESS_TOKEN"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"newTemplateName\": \"Apollo – Org copy\",\n  \"inheritLinks\": true\n}"
+              "raw": "{\n    \"organizationMeta\": {\n        \"id\": \"org-id\",\n        \"name\": \"org name\",\n        \"description\": \"org description\"\n    },\n    \"categoryCode\": \"CHRONIC_CARE\",\n    \"conditionCode\": \"DIABETES\",\n    \"templateType\": \"TASK\",\n    \"templateId\": \"Record Blood Pressure (updated)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": "{{baseUrl}}/templates/{{masterTemplateId}}/derive"
-          }
+            "url": {
+              "raw": "{{baseurl}}/templates/derive",
+              "host": [
+                "{{baseurl}}"
+              ],
+              "path": [
+                "templates",
+                "derive"
+              ]
+            }
+          },
+          "response": []
         },
         {
           "name": "PUT Update Org Version",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fieldValues\": {\n    \"TASK_NAME\": \"Record Blood Pressure (Org)\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}?templateLevel=ORG&organizationId={{organizationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates", "{{templateId}}", "versions", "{{versionId}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "{{templateId}}",
+                "versions",
+                "{{versionId}}"
+              ],
               "query": [
-                { "key": "templateLevel", "value": "ORG" },
-                { "key": "organizationId", "value": "{{organizationId}}" }
+                {
+                  "key": "templateLevel",
+                  "value": "ORG"
+                },
+                {
+                  "key": "organizationId",
+                  "value": "{{organizationId}}"
+                }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "POST Org Status — PUBLISH",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"action\": \"PUBLISH\",\n  \"comment\": \"Approved\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/templates/{{templateId}}/versions/{{versionId}}/status?organizationId={{organizationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates", "{{templateId}}", "versions", "{{versionId}}", "status"],
-              "query": [{ "key": "organizationId", "value": "{{organizationId}}" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "{{templateId}}",
+                "versions",
+                "{{versionId}}",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "organizationId",
+                  "value": "{{organizationId}}"
+                }
+              ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "GET Compatible Published Templates",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/templates/compatible?condition=HYPERTENSION&country=US&templateType=CARE_PLAN",
-              "host": ["{{baseUrl}}"],
-              "path": ["templates", "compatible"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "compatible"
+              ],
               "query": [
-                { "key": "condition", "value": "HYPERTENSION" },
-                { "key": "country", "value": "US" },
-                { "key": "templateType", "value": "CARE_PLAN" }
+                {
+                  "key": "condition",
+                  "value": "HYPERTENSION"
+                },
+                {
+                  "key": "country",
+                  "value": "US"
+                },
+                {
+                  "key": "templateType",
+                  "value": "CARE_PLAN"
+                }
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -317,25 +444,50 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"masterTemplateVersionId\": \"{{masterVersionId}}\",\n  \"effectiveFrom\": \"2026-01-01T00:00:00Z\"\n}"
             },
-            "url": "{{baseUrl}}/org-enablements"
-          }
+            "url": {
+              "raw": "{{baseUrl}}/org-enablements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org-enablements"
+              ]
+            }
+          },
+          "response": []
         },
         {
           "name": "GET Search Enablements",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/org-enablements?organizationId={{organizationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["org-enablements"],
-              "query": [{ "key": "organizationId", "value": "{{organizationId}}" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "org-enablements"
+              ],
+              "query": [
+                {
+                  "key": "organizationId",
+                  "value": "{{organizationId}}"
+                }
+              ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -346,23 +498,46 @@
           "name": "GET List Configs by templateType",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/template-configs?configType=TEMPLATE&templateType=TASK",
-              "host": ["{{baseUrl}}"],
-              "path": ["template-configs"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "template-configs"
+              ],
               "query": [
-                { "key": "configType", "value": "TEMPLATE" },
-                { "key": "templateType", "value": "TASK" }
+                {
+                  "key": "configType",
+                  "value": "TEMPLATE"
+                },
+                {
+                  "key": "templateType",
+                  "value": "TASK"
+                }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "GET Config by Id",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/template-configs/{{configId}}"
-          }
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/template-configs/{{configId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "template-configs",
+                "{{configId}}"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -373,28 +548,106 @@
           "name": "POST /templates/master (legacy create path)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"templateCode\": \"TASK_LEGACY\",\n  \"templateType\": \"TASK\",\n  \"fieldValues\": { \"TASK_NAME\": \"Legacy path\" }\n}"
             },
-            "url": "{{baseUrl}}/templates/master"
-          }
+            "url": {
+              "raw": "{{baseUrl}}/templates/master",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "master"
+              ]
+            }
+          },
+          "response": []
         },
         {
           "name": "PUT /templates/{id} (removed — use POST)",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"lifecycleAction\": \"PUBLISH\"\n}"
             },
-            "url": "{{baseUrl}}/templates/{{templateId}}",
+            "url": {
+              "raw": "{{baseUrl}}/templates/{{templateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "templates",
+                "{{templateId}}"
+              ]
+            },
             "description": "Deprecated. Use POST /templates/{{templateId}} instead."
-          }
+          },
+          "response": []
         }
       ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "organizationId",
+      "value": "org-apollo-001"
+    },
+    {
+      "key": "templateId",
+      "value": "TASK-CODE"
+    },
+    {
+      "key": "masterTemplateId",
+      "value": "TASK-CODE"
+    },
+    {
+      "key": "versionId",
+      "value": ""
+    },
+    {
+      "key": "masterVersionId",
+      "value": ""
+    },
+    {
+      "key": "enablementId",
+      "value": ""
+    },
+    {
+      "key": "configId",
+      "value": "TASK-MASTER-001"
     }
   ]
 }

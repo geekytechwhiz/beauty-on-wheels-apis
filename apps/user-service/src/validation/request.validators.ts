@@ -445,11 +445,57 @@ export function validateAssignDoctor(req: any) {
   }
 }
 
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Fixes reverse-mapped phone numbers left on contact.email after FHIR inbound transform. */
+function normalizeFhirCreateUserPayload(body: Record<string, unknown>): Record<string, unknown> {
+  const userInfo =
+    body.userInfo && typeof body.userInfo === 'object'
+      ? ({ ...(body.userInfo as Record<string, unknown>) })
+      : undefined;
+  if (!userInfo) {
+    return {
+      ...body,
+      userRole: Array.isArray(body.userRole)
+        ? body.userRole
+        : body.userRole != null
+          ? [String(body.userRole)]
+          : [],
+    };
+  }
+
+  const contact =
+    userInfo.contact && typeof userInfo.contact === 'object'
+      ? ({ ...(userInfo.contact as Record<string, unknown>) })
+      : undefined;
+
+  if (contact && typeof contact.email === 'string' && contact.email.trim() !== '') {
+    if (!looksLikeEmail(contact.email)) {
+      delete contact.email;
+    }
+  }
+
+  return {
+    ...body,
+    userInfo: contact ? { ...userInfo, contact } : userInfo,
+    userRole: Array.isArray(body.userRole)
+      ? body.userRole
+      : body.userRole != null
+        ? [String(body.userRole)]
+        : [],
+  };
+}
+
 export function validateCreateUser(req: any) {
   const body = req?.body ?? {};
   const organizationID = body.organizationID ?? req?.context?.userContext?.organizationId;
   const userID = body.userID ?? req?.context?.userContext?.userId;
-  const payload = { ...body, organizationID, userID };
+  const normalizedBody = req?.context?.inboundFhirResource
+    ? normalizeFhirCreateUserPayload(body)
+    : body;
+  const payload = { ...normalizedBody, organizationID, userID };
   const result = createUserSchema.safeParse(payload);
   if (!result.success) {
     const issues = result.error.issues.map((e) => ({

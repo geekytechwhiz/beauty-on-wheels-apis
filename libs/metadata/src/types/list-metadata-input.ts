@@ -11,9 +11,8 @@ export interface ListMetadataInput {
   nextPaginationKey?: string;
   module?: string;
   valueDataType?: string;
-  /** Omitted → ACTIVE-only; `INACTIVE` → inactive-only; `includeInactive` wins when true. */
-  status?: Status;
-  includeInactive: boolean;
+  /** Resolved from optional `status` query (ACTIVE, INACTIVE, DELETED, ALL). Default ACTIVE only. */
+  lifecycleStatuses: Status[];
   applicableModules?: string[];
   applicableCategories?: string[];
   applicableConditions?: string[];

@@ -71,6 +71,10 @@ custom:
 
   esbuild:
     bundle: true
+    # Minify is esbuild's most memory-hungry pass and is unnecessary for Lambda. On the
+    # SMALL (~3.6 GiB) CodeBuild container it pushes the esbuild subprocess over the limit
+    # and the kernel kills it ("Error: The service was stopped"). Disabling it is the
+    # single biggest peak-memory reduction for the 22 individually-packaged functions.
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
     target: node20
@@ -108,8 +112,10 @@ custom:
       - swagger.json
     useStage: true
     swaggerPath: swagger
+    # CI packages with STAGE=dev; skipping swagger here avoids extra work/memory during CodeBuild.
     excludeStages:
       - production
+      - dev
 
   serverless-offline:
     httpPort: 3000
@@ -218,6 +224,9 @@ functions:
             templateCode:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
@@ -263,6 +272,9 @@ functions:
               required: false
               type: string
             templateCode:
+              required: false
+              type: string
+            nextPaginationKey:
               required: false
               type: string
             nextToken:
@@ -370,12 +382,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string
@@ -402,12 +414,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string
@@ -449,15 +461,48 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  getOrgVersionStatus:
+    handler: src/handlers/http/getOrgVersionStatus.main
+    events:
+      - http:
+          path: templates/org-version-status
+          method: get
+          summary: Org template version status for one master (canonical)
+          description: |
+            Returns current org version, derived-from master version, latest published master,
+            upgrade availability, and local changes for the versioning table UI.
+            Requires organizationId (ROOT) and master templateId query params.
+          queryStringParameters:
+            organizationId:
+              required: false
+              type: string
+            templateId:
+              required: true
+              type: string
+            organizationName:
+              required: false
+              type: string
+            organizationDescription:
+              required: false
+              type: string
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   deriveTemplate:
     handler: src/handlers/http/deriveTemplate.main
     events:
       - http:
-          path: templates/{templateId}/derive
+          path: templates/derive
           method: post
-          summary: Derive org template from master (canonical)
+          summary: Enable org template from published master (canonical)
           description: |
-            Copy a published master version into an org partition. Body organizationId, sourceVersionId.
+            Copy the latest PUBLISHED master (from JSON body) into the org partition and create enablement.
+            Requires organizationMeta, categoryCode, conditionCode, templateType, and templateId in the body.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -472,7 +517,7 @@ functions:
       - http:
           path: templates/organizations/{organizationId}/{templateId}/versions/{versionId}/clone
           method: post
-          summary: Clone published master template to org (legacy — prefer POST /templates/{templateId}/derive)
+          summary: Clone published master template to org (legacy — prefer POST /templates/derive)
           description: Creates ORG_TMPL partition with META + VERSION#001 in SAVED status.
           cors: *httpApiCors
           authorizer:
@@ -505,12 +550,12 @@ functions:
             resolve:
               required: false
               type: string
+            nextPaginationKey:
+              required: false
+              type: string
             nextToken:
               required: false
               type: string
-            limit:
-              required: false
-              type: integer
             status:
               required: false
               type: string

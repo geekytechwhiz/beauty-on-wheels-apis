@@ -1,11 +1,25 @@
+import type { TemplateActorUser } from '../template-actor.model';
 import type { TemplateStatus } from '../../constants/template.constants';
 import type { VersionResolveStrategy } from './get-master-versions.types';
+import type { EnablementDdbRecord } from './enablement.types';
 import type { TemplateDdbRecord } from '../persistence/template-ddb.model';
 import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/template-http.dto';
 
+export type OrganizationMetaInput = {
+  id: string;
+  name: string;
+  description: string;
+};
+
 export type CloneTemplateBody = {
+  organizationMeta?: OrganizationMetaInput;
+  /** Master template id from org catalog filter (templateName.value). */
+  templateId?: string;
+  /** Optional display name override (legacy org clone route only). */
   newTemplateName?: string;
-  inheritLinks?: boolean;
+  categoryCode?: string;
+  conditionCode?: string;
+  templateType?: string;
 };
 
 export type CloneOrgTemplateParams = {
@@ -15,20 +29,33 @@ export type CloneOrgTemplateParams = {
   /** Master templateVersionId or version id (V01). Omit to use latest PUBLISHED. */
   masterVersionId?: string;
   body?: CloneTemplateBody;
-  actorUserId?: string;
+  actorUser?: TemplateActorUser;
+};
+
+export type DeriveOrgTemplateResult = {
+  record: TemplateDdbRecord;
+  masterVersion: TemplateDdbRecord;
+  enablement: EnablementDdbRecord;
+  templateEnabled: boolean;
 };
 
 export type ListOrgTemplatesParams = {
   organizationId: string;
+  organizationName?: string;
+  organizationDescription?: string;
   condition?: string;
   status?: TemplateStatus;
   templateType?: string;
   specialty?: string;
   nextToken?: string;
-  limit?: number;
 };
 
 export type ListOrgTemplatesResult = {
+  organizationMeta: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
   items: OrgTemplateListItem[];
   nextToken?: string;
 };
@@ -40,7 +67,6 @@ export type GetOrgVersionsParams = {
   resolve?: VersionResolveStrategy;
   status?: TemplateStatus;
   nextToken?: string;
-  limit?: number;
 };
 
 export type GetOrgVersionsResult =

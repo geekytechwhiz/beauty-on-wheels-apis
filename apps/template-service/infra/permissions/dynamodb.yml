@@ -11,3 +11,4 @@ Action:
 Resource:
   - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.bundle.templateDynamoTableName}
   - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.bundle.templateDynamoTableName}/index/*
+  - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/user-table-${self:provider.stage}

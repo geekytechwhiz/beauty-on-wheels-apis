@@ -8,6 +8,7 @@ const mockGetOrgTemplateVersions = jest.fn();
 const mockUpdateOrgTemplateVersion = jest.fn();
 const mockListOrgEnabled = jest.fn();
 const mockGetOrgVersionStatus = jest.fn();
+const mockSetOrgTemplateEnablement = jest.fn();
 const mockToDeriveEnableResponse = jest.fn();
 const mockToSummary = jest.fn();
 
@@ -21,6 +22,7 @@ jest.mock('@api-hub/template-core', () => {
       updateOrgTemplateVersion: mockUpdateOrgTemplateVersion,
       listOrgEnabled: mockListOrgEnabled,
       getOrgVersionStatus: mockGetOrgVersionStatus,
+      setOrgTemplateEnablement: mockSetOrgTemplateEnablement,
       toDeriveEnableResponse: mockToDeriveEnableResponse,
       toSummary: mockToSummary,
     })),
@@ -90,6 +92,7 @@ describe('OrgTemplateHttpController', () => {
           orgTemplate: { templateId: 'CP-ORG-001', templateVersionId: 'CP-ORG-001-V01', status: 'DRAFT' },
           enablementId: 'ENB-1',
           enabledAt: '2026-01-01T00:00:00.000Z',
+          templateEnabled: true,
         },
       ],
       counts: { total: 1 },
@@ -115,6 +118,31 @@ describe('OrgTemplateHttpController', () => {
     );
 
     expect(out.items).toHaveLength(1);
+  });
+
+  it('handleSetOrgTemplateEnable disables subscription', async () => {
+    mockSetOrgTemplateEnablement.mockResolvedValue({
+      templateId: 'CP-HTN-MASTER',
+      orgTemplateId: 'CP-HTN-MASTER-ORG-ORG1',
+      enablementId: 'ENB-1',
+      templateEnabled: false,
+      disabledAt: '2026-06-04T00:00:00.000Z',
+    });
+
+    const c = new OrgTemplateHttpController();
+    const out = await c.handleSetOrgTemplateEnable(
+      baseReq({
+        validatedSetOrgTemplateEnable: {
+          organizationId: 'org-1',
+          masterTemplateId: 'CP-HTN-MASTER',
+          body: { templateId: 'CP-HTN-MASTER', organizationId: 'org-1', templateEnabled: false },
+          actorUser: { userId: 'user-1' },
+        },
+      } as unknown as LambdaRequest),
+    );
+
+    expect(out.templateEnabled).toBe(false);
+    expect(mockSetOrgTemplateEnablement).toHaveBeenCalled();
   });
 
   it('handleGetOrgVersionStatus returns version row', async () => {

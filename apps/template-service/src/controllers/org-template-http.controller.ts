@@ -10,6 +10,7 @@ import type {
   ValidatedGetOrgVersionStatus,
   ValidatedGetOrgVersions,
   ValidatedListOrg,
+  ValidatedSetOrgTemplateEnable,
   ValidatedUpdateOrgVersion,
 } from '../validators/request.validators';
 import { enrichRecordActorsForApi } from '../utils/enrich-record-actors';
@@ -190,6 +191,35 @@ export class OrgTemplateHttpController {
     }
   }
 
+  async handleSetOrgTemplateEnable(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedSetOrgTemplateEnable?: ValidatedSetOrgTemplateEnable })
+      .validatedSetOrgTemplateEnable;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.setOrgTemplateEnablement({
+        organizationId: v.organizationId,
+        masterTemplateId: v.masterTemplateId,
+        templateEnabled: v.body.templateEnabled,
+        organizationName: v.body.organizationMeta?.name,
+        organizationDescription: v.body.organizationMeta?.description,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'set_org_template_enable_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
   async handleGetOrgVersionStatus(req: LambdaRequest) {
     const v = (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus })
       .validatedGetOrgVersionStatus;
@@ -242,6 +272,7 @@ export class OrgTemplateHttpController {
           templateType: v.query.templateType,
           templateName: v.query.templateName,
           templateId: v.query.templateId,
+          templateEnabled: v.templateEnabledFilter,
           nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
         }),
       );

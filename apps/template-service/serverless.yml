@@ -511,6 +511,25 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  updateOrgTemplateEnable:
+    handler: src/handlers/http/updateOrgTemplateEnable.main
+    events:
+      - http:
+          path: templates/derive
+          method: put
+          summary: Enable or disable org template subscription
+          description: |
+            Updates enablement for an existing org + master templateId.
+            Set templateEnabled false to disable (sets effectiveTo); true to re-enable.
+            Requires organizationMeta.id or organizationId and master templateId.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   cloneOrgTemplate:
     handler: src/handlers/http/cloneOrgTemplate.main
     events:

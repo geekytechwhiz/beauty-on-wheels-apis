@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/observability';
+import { createChildLogger, serializeError } from '@api-hub/logger';
 import {
   getScheduleServiceClient,
   ScheduleServiceClient,
@@ -114,12 +114,21 @@ export class ScheduleCreationService {
         userAddonI: userAddonId ,
       });
 
+      //Log the createServiceScheduleRequest
+  logger.info({
+    event: 'create_service_schedule_event_payload',
+    payload: JSON.stringify(eventPayload, null, 2),
+  });
       const createServiceScheduleRequest =
         this.appointmentMapper.mapAppointmentToCreateServiceSchedule(
           eventPayload,
           userAddonId,
         );
-
+  //Log the createServiceScheduleRequest
+  logger.info({
+    event: 'create_service_schedule_request',
+    payload: JSON.stringify(createServiceScheduleRequest, null, 2),
+  });
       logger.info({
         event: 'create_service_schedule_start',
         correlationId: context.correlationId,
@@ -206,6 +215,18 @@ export class ScheduleCreationService {
         userId: eventPayload.patient.userId,
       });
 
+      //Add logs for Payload
+      logger.info({
+        event: 'update_service_status_payload',
+        payload: JSON.stringify({
+          addonId: userAddonId,
+          userId: eventPayload.patient.userId,
+          organizationId: eventPayload.patient.organizationId,
+        }),
+      });
+
+      //Add logs for Response
+
       await this.updateServiceStatusWithRetry(
         userAddonId,
         eventPayload.patient.userId,
@@ -236,15 +257,15 @@ export class ScheduleCreationService {
     organizationId: string,
     context: SSORequestContext,
   ): Promise<void> {
-    // console.log(
-      // 'updateServiceStatusWithRetry: start',
-      // JSON.stringify({
-        // addonId,
-        // userId,
-        // organizationId,
-        // correlationId: context.correlationId,
-      // }),
-    // );
+    console.log(
+      'updateServiceStatusWithRetry: start',
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
+    );
     await retryWithBackoff(async () => {
       const payload = {
         addonId,
@@ -254,19 +275,31 @@ export class ScheduleCreationService {
         scheduleStatus: 'confirmed' as const,
         paymentStatus: 'completed' as const,
       };
-      // console.log(
-        // 'updateServiceStatusWithRetry: calling updateServiceStatus',
-        // JSON.stringify({ payload, correlationId: context.correlationId }),
-      // );
+      console.log(
+        'updateServiceStatusWithRetry: calling updateServiceStatus',
+        JSON.stringify({ payload, correlationId: context.correlationId }),
+      );
       try {
-          await this.scheduleClient.updateServiceStatus(
+        const response = await this.scheduleClient.updateServiceStatus(
           payload,
           context,
         );
-        // console.log(
-          // 'updateServiceStatusWithRetry: updateServiceStatus response',
-          // JSON.stringify({ response, correlationId: context.correlationId }),
-        // );
+        console.log(
+          'updateServiceStatusWithRetry: updateServiceStatus response',
+          JSON.stringify({ response, correlationId: context.correlationId }),
+        );
+
+        const isFailureResponse =
+          (response as any)?.success === false ||
+          Number((response as any)?.statusCode ?? 200) >= 400;
+
+        if (isFailureResponse) {
+          throw new Error(
+            `Update service status returned failure response: ${
+              (response as any)?.errorCode ?? 'UNKNOWN_ERROR'
+            }`,
+          );
+        }
       } catch (err) {
         console.error(
           'updateServiceStatusWithRetry: updateServiceStatus error',
@@ -281,14 +314,14 @@ export class ScheduleCreationService {
         throw err;
       }
     }, this.retryOptions);
-    // console.log(
-      // 'updateServiceStatusWithRetry: complete',
-      // JSON.stringify({
-        // addonId,
-        // userId,
-        // organizationId,
-        // correlationId: context.correlationId,
-      // }),
-    // );
+    console.log(
+      'updateServiceStatusWithRetry: complete',
+      JSON.stringify({
+        addonId,
+        userId,
+        organizationId,
+        correlationId: context.correlationId,
+      }),
+    );
   }
 }

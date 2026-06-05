@@ -4,7 +4,7 @@ import {
   createLogger,
   createChildLogger,
   serializeError,
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 
 import { Appointment } from '../../types';
 import { AppointmentSyncService } from '../../services/appointment-sync.service';
@@ -25,7 +25,7 @@ const baseLogger = createLogger({
  * Triggered by EventBridge Scheduler. No HTTP exposure. Never processes appointments inline.
  */
 export async function handler(
-  event: ScheduledEvent,     
+  event: ScheduledEvent,
 ): Promise<void> {
   const correlationId =
     (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ??

@@ -4,8 +4,8 @@ import {
   extractCorrelationId,
   Logger,
   serializeError
-} from '@api-hub/observability'
-import { APIGatewayProxyResult, APIGatewayProxyEvent } from 'aws-lambda'
+} from '@api-hub/logger'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 
 import { ApiResponse } from '@api-hub/utils'
 
@@ -63,7 +63,7 @@ export abstract class BaseController {
           severity: 'INFO'
         },
         {
-          correlationId: correlationId
+          requestId: correlationId
         }
       )
 
@@ -113,7 +113,7 @@ export abstract class BaseController {
     }
 
     const options = {
-       correlationId: correlationId,
+      requestId: correlationId,
       headers: {
         'X-Correlation-Id': correlationId,
         'Cache-Control': 'no-store',

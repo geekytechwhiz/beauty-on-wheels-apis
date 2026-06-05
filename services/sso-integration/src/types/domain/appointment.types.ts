@@ -27,7 +27,8 @@ import {  VisitType } from "../enums"
     name: string;
     gender: string;
     age: string | null; 
-    phone?: string | null; 
+    phone?: string | null;
+    phoneCode?: string | null;
     email?: string | null; 
     dob: string | null;
   }
@@ -36,6 +37,7 @@ import {  VisitType } from "../enums"
     name: string;
     department: string;
     phone: string;
+    phoneCode?: string | null;
     email: string;
   } 
   

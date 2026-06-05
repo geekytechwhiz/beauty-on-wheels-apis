@@ -29,6 +29,14 @@ export function validateHmsAppointment(
     return { valid: false, reason: 'missing_endTime' };
   }
 
+  if (!appointment.patient?.phoneCode?.trim()) {
+    return { valid: false, reason: 'missing_patient_region_code' };
+  }
+
+  if (!appointment.doctor?.phoneCode?.trim()) {
+    return { valid: false, reason: 'missing_doctor_region_code' };
+  }
+
   return { valid: true };
 }
 

@@ -3,7 +3,7 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 
 import { Context, SQSEvent, SQSRecord } from 'aws-lambda';
 

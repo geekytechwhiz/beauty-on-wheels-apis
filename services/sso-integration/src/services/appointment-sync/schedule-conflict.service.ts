@@ -60,8 +60,8 @@ export class ScheduleConflictService {
     existingSchedules: Schedule[],
     appointment: Appointment,
   ): boolean {
-    const appointmentStart = new Date(appointment.startTime ?? '').getTime();
-    const appointmentEnd = new Date(appointment.endTime ?? '').getTime();
+    const appointmentStart = new Date(appointment.startTime).getTime();
+    const appointmentEnd = new Date(appointment.endTime).getTime();
     if (!Number.isFinite(appointmentStart) || !Number.isFinite(appointmentEnd)) {
       return false;
     }

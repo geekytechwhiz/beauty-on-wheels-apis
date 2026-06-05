@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { createLogger, createChildLogger } from '@api-hub/observability';
+import { createLogger, createChildLogger } from '@api-hub/logger';
 import { getEnvConfig } from '../config/env';
 import { RateLimitState } from '../types/domain/appointment.types';
 

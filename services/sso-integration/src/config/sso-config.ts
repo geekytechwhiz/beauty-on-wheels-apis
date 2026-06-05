@@ -26,7 +26,7 @@ const ssoConfigSchema = z.object({
   
   // Default patient values
   patient: z.object({
-    phoneCode: z.string().default('+91'), // South Africa default
+    phoneCode: z.string().default(''), // South Africa default
     emergencyContact: z.object({
       name: z.string().default(''),
       relation: z.string().default(''),
@@ -37,7 +37,7 @@ const ssoConfigSchema = z.object({
       name: '',
       relation: '',
       phone: '',
-      phoneCode: '+91',
+      phoneCode: '+260',
       email: '',
     }),
     friendNFamily: z.object({
@@ -100,12 +100,12 @@ export function loadSSOConfig(): SSOConfig {
       },
     },
     patient: {
-      phoneCode: '+91', // South Africa
+      phoneCode: '', // South Africa
       emergencyContact: {
         name: '',
         relation: '',
         phone: '',
-        phoneCode: '+91',
+        phoneCode: '',
         email: '',
       },
       friendNFamily: {

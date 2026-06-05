@@ -47,6 +47,7 @@ export interface TruTechAppointmentsResponse {
     age: string
     dob: string
     phone?: string
+    region_code?: string
     email?: string
     organizationId: string
   }
@@ -55,6 +56,7 @@ export interface TruTechAppointmentsResponse {
     name: string
     department?: string
     phone?: string
+    region_code?: string
     email?: string
   }
 
@@ -64,15 +66,6 @@ export interface TruTechAppointmentsResponse {
     created_at: string
     status: number
   }
-
-  export interface TruTechDoctor {
-    id: number
-    name: string
-    department?: string
-    phone?: string
-    email?: string
-  }
-
 
   export interface TruTechPatientEMRRequest {
     patient_id: number;

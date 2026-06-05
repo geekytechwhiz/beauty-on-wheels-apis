@@ -1,4 +1,4 @@
-import { createChildLogger, serializeError } from '@api-hub/observability';
+import { createChildLogger, serializeError } from '@api-hub/logger';
 import { SSORequestContext } from '../../types/common/context.types';
 import { PendingAppointment, User } from '../../types';
 import { CognitoUserContext } from '../../types/user/user.types';
@@ -60,11 +60,7 @@ export class PendingAppointmentService {
       doctorUserId: pending.doctorUserId ?? null,
       patientUserId: pending.patientUserId ?? null,
     });
-    await this.ssoUserServiceClient?.storePendingAppointment(
-      tenantId,
-      pending,
-      context,
-    );
+    await this.ssoUserServiceClient?.storePendingAppointment(tenantId, pending, context);
   }
 
   async getPendingAppointmentsByPatient(
@@ -75,15 +71,19 @@ export class PendingAppointmentService {
     if (isPendingAppointmentBypassEnabled()) {
       this.logger.info({
         event: 'pending_appointment_retrieve_bypassed',
-        message:
-          'BYPASS_PENDING_APPOINTMENT enabled — skipping pending retrieve',
+        message: 'BYPASS_PENDING_APPOINTMENT enabled — skipping pending retrieve',
         correlationId: context.correlationId,
         tenantId,
         patientExternalId,
       });
       return [];
     }
-    return this.scheduleClient.getPendingAppointmentsByPatient(
+    if (!this.ssoUserServiceClient) {
+      throw new Error(
+        'SSOUserServiceClient is required to get pending appointments',
+      );
+    }
+    return this.ssoUserServiceClient.getPendingAppointmentsByPatient(
       tenantId,
       patientExternalId,
       context,
@@ -155,9 +155,10 @@ export class PendingAppointmentService {
     }
 
     if (!patient) {
-      const cognitoPatient = await this.cognitoService.findCognitoUserByEmail(
-        pending[0].appointment.patient.email as string,
-      );
+      const cognitoPatient =
+        await this.cognitoService.findCognitoUserByEmail(
+          pending[0].appointment.patient.email as string,
+        );
 
       if (!cognitoPatient) {
         logger.warn({
@@ -180,9 +181,10 @@ export class PendingAppointmentService {
 
     for (const pendingAppt of pending) {
       try {
-        const doctorCognito = await this.cognitoService.findCognitoUserByEmail(
-          pendingAppt.appointment.doctor.email as string,
-        );
+        const doctorCognito =
+          await this.cognitoService.findCognitoUserByEmail(
+            pendingAppt.appointment.doctor.email as string,
+          );
         if (!doctorCognito) {
           logger.warn({
             event: 'doctor_not_found_on_reprocess',
@@ -197,13 +199,12 @@ export class PendingAppointmentService {
           continue;
         }
 
-        const isDuplicate =
-          await this.appointmentIdempotencyService.checkDuplicateSchedule(
-            pendingAppt.appointment,
-            doctorCognito as unknown as CognitoUserContext,
-            patient,
-            context,
-          );
+        const isDuplicate = await this.appointmentIdempotencyService.checkDuplicateSchedule(
+          pendingAppt.appointment,
+          doctorCognito as unknown as CognitoUserContext,
+          patient,
+          context,
+        );
 
         if (isDuplicate) {
           logger.info({
@@ -241,8 +242,8 @@ export class PendingAppointmentService {
           correlationId: context.correlationId,
           appointment: {
             externalId: pendingAppt.externalAppointmentId,
-            startTime: pendingAppt.appointment.startTime ?? '',
-            endTime: pendingAppt.appointment.endTime ?? '',
+            startTime: pendingAppt.appointment.startTime,
+            endTime: pendingAppt.appointment.endTime,
             status: String(pendingAppt.appointment.status),
           },
           doctor: {

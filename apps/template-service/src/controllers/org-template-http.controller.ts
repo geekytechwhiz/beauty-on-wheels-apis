@@ -58,6 +58,9 @@ export class OrgTemplateHttpController {
         ? {
             id: v.body.organizationMeta.id,
             name: v.body.organizationMeta.name.trim(),
+            active: v.body.organizationMeta.active,
+            country: v.body.organizationMeta.country,
+            updated: v.body.organizationMeta.updated,
             description: v.body.organizationMeta.description ?? null,
           }
         : {
@@ -209,8 +212,18 @@ export class OrgTemplateHttpController {
         organizationId: v.organizationId,
         masterTemplateId: v.masterTemplateId,
         templateEnabled: v.body.templateEnabled,
+        organizationMeta: v.body.organizationMeta
+          ? {
+              id: v.body.organizationMeta.id,
+              name: v.body.organizationMeta.name,
+              active: v.body.organizationMeta.active,
+              country: v.body.organizationMeta.country,
+              updated: v.body.organizationMeta.updated,
+              description: v.body.organizationMeta.description ?? null,
+            }
+          : undefined,
         organizationName: v.body.organizationMeta?.name,
-        organizationDescription: v.body.organizationMeta?.description,
+        organizationDescription: v.body.organizationMeta?.description ?? undefined,
       });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
@@ -266,6 +279,7 @@ export class OrgTemplateHttpController {
           organizationId: v.organizationId,
           organizationName: v.query.organizationName,
           organizationDescription: v.query.organizationDescription,
+          country: v.query.country,
           categoryCode: v.query.categoryCode ?? v.query.category,
           condition: v.query.condition,
           conditionCode: v.query.conditionCode,

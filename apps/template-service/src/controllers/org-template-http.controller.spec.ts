@@ -102,6 +102,7 @@ describe('OrgTemplateHttpController', () => {
         categoryCode: [],
         templateType: [],
         templateName: [],
+        country: ['US', 'UK', 'Australia'],
       },
     });
 

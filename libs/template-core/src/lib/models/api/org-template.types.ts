@@ -8,7 +8,10 @@ import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/
 export type OrganizationMetaInput = {
   id: string;
   name: string;
-  description: string;
+  active?: boolean;
+  country?: string;
+  updated?: string;
+  description?: string | null;
 };
 
 export type CloneTemplateBody = {
@@ -36,6 +39,7 @@ export type SetOrgTemplateEnableParams = {
   organizationId: string;
   masterTemplateId: string;
   templateEnabled: boolean;
+  organizationMeta?: OrganizationMetaInput;
   organizationName?: string;
   organizationDescription?: string;
 };
@@ -44,6 +48,9 @@ export type SetOrgTemplateEnableResult = {
   organizationMeta: {
     id: string;
     name: string;
+    active?: boolean;
+    country?: string;
+    updated?: string;
     description?: string | null;
   };
   templateId: string;

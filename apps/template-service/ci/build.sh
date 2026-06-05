@@ -16,6 +16,37 @@ if [ "$DEPLOYMENT_BUCKET" != "$EXPECTED_BUCKET" ]; then
   exit 1
 fi
 
+# Catch CodeBuild projects wired to the wrong buildspec (e.g. stg role uploading to dev bucket → AccessDenied).
+CODEBUILD_ROLE="${CODEBUILD_BUILD_ARN:-${AWS_ROLE_ARN:-}}"
+CODEBUILD_PROJECT="${CODEBUILD_PROJECT_NAME:-}"
+PIPELINE_HINT="${CODEBUILD_ROLE}${CODEBUILD_PROJECT}"
+case "$PIPELINE_HINT" in
+  *stg*|*STG*)
+    if [ "$STAGE" != "stg" ]; then
+      echo "ERROR: STAGING CodeBuild project detected but STAGE=$STAGE (bucket=$DEPLOYMENT_BUCKET)."
+      echo "Role/project: ${CODEBUILD_ROLE:-unknown} / ${CODEBUILD_PROJECT:-unknown}"
+      echo "Fix in AWS Console → CodeBuild → Edit → Buildspec:"
+      echo "  apps/template-service/stg-buildspec.yml"
+      echo "Expected: STAGE=stg DEPLOYMENT_BUCKET=stg-mvx-template-service-bucket"
+      exit 1
+    fi
+    ;;
+  *prd*|*PRD*|*prod*|*PROD*)
+    if [ "$STAGE" != "prd" ]; then
+      echo "ERROR: PRODUCTION CodeBuild project detected but STAGE=$STAGE (bucket=$DEPLOYMENT_BUCKET)."
+      echo "Fix buildspec path: apps/template-service/prd-buildspec.yml"
+      exit 1
+    fi
+    ;;
+  *dev*|*DEV*)
+    if [ "$STAGE" != "dev" ]; then
+      echo "ERROR: DEV CodeBuild project detected but STAGE=$STAGE (bucket=$DEPLOYMENT_BUCKET)."
+      echo "Fix buildspec path: apps/template-service/buildspec.yml"
+      exit 1
+    fi
+    ;;
+esac
+
 SERVICE_DIR="${CODEBUILD_SRC_DIR:-}/apps/template-service"
 if [ ! -d "$SERVICE_DIR" ]; then
   SERVICE_DIR="$(cd "$(dirname "$0")/.." && pwd)"

@@ -41,7 +41,7 @@ phases:
       - |
         if [ "${CODEBUILD_BUILD_SUCCEEDING:-1}" -ne 1 ]; then
           echo "Skipping artifact verification — build phase failed"
-          exit 1
+          exit 0
         fi
       - echo "Running deployment verification..."
       - apps/template-service/ci/verify-artifacts.sh

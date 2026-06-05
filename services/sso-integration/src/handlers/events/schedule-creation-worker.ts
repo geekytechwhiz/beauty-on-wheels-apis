@@ -3,7 +3,7 @@ import {
   createLogger,
   extractAwsRequestId,
   serializeError,
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 
 import { Context, SQSEvent } from 'aws-lambda';
 
@@ -45,6 +45,12 @@ export async function handler(
     recordCount: event.Records.length,
   });
 
+  //Log the event
+  logger.info({
+    event: 'schedule_creation_worker_event',
+    payload: JSON.stringify(event, null, 2),
+  });
+
   const scheduleClient = getScheduleServiceClient();
   const appointmentMapper = getAppointmentMapper();
   const env = getEnvConfig();
@@ -69,7 +75,11 @@ export async function handler(
     try {
       const rawBody = JSON.parse(record.body) as ScheduleCreationQueueMessage;
       body = normalizeScheduleEventPayload(rawBody);
-
+      //Log the body
+      logger.info({
+        event: 'schedule_creation_worker_body',
+        payload: JSON.stringify(body, null, 2),
+      });
       const {
         tenantId,
         correlationId,
@@ -106,6 +116,10 @@ export async function handler(
         body,
         requestContext,
       );
+      logger.info({
+        event: 'schedule_creation_worker_success_response',
+        response: JSON.stringify(schedule, null, 2),
+      });
 
       const appointmentExternalId = appointment.externalId;
       const patientExternalId = patient.externalUserId;

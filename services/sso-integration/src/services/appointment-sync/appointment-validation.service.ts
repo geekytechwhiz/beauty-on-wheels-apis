@@ -12,12 +12,17 @@ interface AppointmentValidationResult {
   invalidAppointments: InvalidAppointmentInfo[];
 }
 
+type ServiceLogger = {
+  warn: (_meta: unknown) => void;
+  error: (_meta: unknown) => void;
+};
+
 export class AppointmentValidationService {
-  constructor(
-    private readonly logger: {
-      warn: (meta: unknown) => void;
-    },
-  ) {}
+  private readonly logger: ServiceLogger;
+
+  constructor(logger: ServiceLogger) {
+    this.logger = logger;
+  }
 
   validateAppointments(
     appointments: Appointment[],
@@ -25,19 +30,42 @@ export class AppointmentValidationService {
   ): AppointmentValidationResult {
     const validAppointments: Appointment[] = [];
     const invalidAppointments: InvalidAppointmentInfo[] = [];
-    // console.log("appointments received in validateAppointments", JSON.stringify(appointments))
+    this.logger.warn({
+      event: 'appointment_validation_input_received',
+      totalAppointments: appointments.length,
+      correlationId: context.correlationId,
+      tenantId: context.tenantId,
+    });
     for (const appointment of appointments) {
-    // console.log("appointment received inside for", JSON.stringify(appointment))
-        
+      this.logger.warn({
+        event: 'appointment_validation_item_received',
+        appointmentData: JSON.stringify(appointment,null,2),
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+      });
+      this.logger.warn({
+        event: 'appointment_validation_item_received',
+        appointmentId: appointment.appointmentId,
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+      });
+
       const result = validateHmsAppointment(appointment);
-      // console.log("validateHmsAppointment", result)
+      this.logger.warn({
+        event: 'appointment_validation_result',
+        appointmentId: appointment.appointmentId,
+        valid: result.valid,
+        reason: result.reason,
+        correlationId: context.correlationId,
+        tenantId: context.tenantId,
+      });
       if (!result.valid) {
         invalidAppointments.push({
           appointmentId: appointment.appointmentId,
           reason: result.reason ?? 'invalid_appointment',
         });
 
-        this.logger.warn({
+        this.logger.error({
           event: 'appointment_validation_failed',
           appointmentId: appointment.appointmentId,
           reason: result.reason,
@@ -45,6 +73,8 @@ export class AppointmentValidationService {
           tenantId: context.tenantId,
           integrationProviderId: context.integration?.providerId,
           integrationSubdomain: context.integration?.subdomain,
+          patientPhoneCode: appointment.patient?.phoneCode,
+          doctorPhoneCode: appointment.doctor?.phoneCode,
         });
 
         continue;
@@ -55,7 +85,7 @@ export class AppointmentValidationService {
 
     return {
       validAppointments,
-      invalidAppointments:[],
+      invalidAppointments,
     };
   }
 }

@@ -1,7 +1,7 @@
 import {
   createChildLogger,
   serializeError
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { getEnvConfig } from '../config/env';
@@ -13,7 +13,6 @@ import {
   FetchSchedulesResponse,
   GetAvailableServicesRequest,
   GetAvailableServicesResponse,
-  PendingAppointment,
   RecommendServicesRequest,
   RecommendServicesResponse,
   Schedule,
@@ -364,7 +363,11 @@ export class ScheduleServiceClient {
     });
 
     try { 
-
+      //Log Payload 
+      logger.info({
+        event: 'create_service_schedule_payload',
+        payload: JSON.stringify(payload,null, 2),
+      });
       const response =
         await this.packageServiceClient.post<CreateServiceScheduleResponse>(
           '/services/create-schedule',
@@ -373,17 +376,102 @@ export class ScheduleServiceClient {
             headers: buildHeaders(context),
           },
         );
+        //Log Response
+        logger.info({
+          event: 'create_service_schedule_response',
+          response: JSON.stringify(response.data ,null, 2),
+        });
 
-      if (!response.data.data?.scheduleDetails) {
+      const responseData = response.data?.data as
+        | {
+            scheduleDetails?: ScheduleDetails;
+            service?: {
+              userAddonId?: string;
+              orgAddonId?: string;
+              scheduledStatus?: string;
+              status?: string;
+              organizationId?: string;
+              assignedStaffId?: string;
+              externalAppointment?: Record<string, unknown>;
+            scheduled?: Array<{
+              scheduleId: string;
+              startTime: string;
+              endTime: string;
+              scheduleDate: string;
+              scheduleTimeStamp?: string;
+              participantInfo?: Array<{
+                userId: string;
+                userType: string;
+                organizationID?: string;
+              }>;
+              owner?: {
+                userId: string;
+                userType: string;
+                [key: string]: unknown;
+              };
+              [key: string]: unknown;
+            }>;
+            };
+          }
+        | undefined;
+
+      const scheduleDetails = responseData?.scheduleDetails as
+        | ScheduleDetails
+        | undefined;
+      const serviceData = responseData?.service;
+      const scheduledItems = Array.isArray(serviceData?.scheduled)
+        ? serviceData.scheduled
+        : [];
+      const firstScheduledItem = scheduledItems[0];
+      const participantInfo = (scheduleDetails as any)?.participantInfo;
+      logger.info({
+        event: 'create_service_schedule_response_shape',
+        hasData: Boolean(response.data?.data),
+        hasScheduleDetails: Boolean(scheduleDetails),
+        scheduleDetailsKeys: scheduleDetails
+          ? Object.keys(scheduleDetails as Record<string, unknown>)
+          : [],
+        hasParticipantInfo: Boolean(participantInfo),
+        participantInfoType: Array.isArray(participantInfo)
+          ? 'array'
+          : typeof participantInfo,
+        participantInfoLength: Array.isArray(participantInfo)
+          ? participantInfo.length
+          : null,
+        hasOwner: Boolean((scheduleDetails as any)?.owner),
+        ownerKeys:
+          scheduleDetails && (scheduleDetails as any).owner
+            ? Object.keys(
+                (scheduleDetails as any).owner as Record<string, unknown>,
+              )
+            : [],
+        hasServiceData: Boolean(serviceData),
+        hasScheduledArray: Array.isArray(serviceData?.scheduled),
+        scheduledCount: scheduledItems.length,
+      });
+
+      const itemMeta = {
+        userAddonId: serviceData?.userAddonId,
+        orgAddonId: serviceData?.orgAddonId,
+        scheduledStatus: serviceData?.scheduledStatus,
+        serviceStatus: serviceData?.status,
+        organizationId: serviceData?.organizationId,
+        assignedStaffId: serviceData?.assignedStaffId,
+        externalAppointment: serviceData?.externalAppointment,
+      };
+
+      if (firstScheduledItem) {
+        return this.mapScheduledItemToSchedule(firstScheduledItem, itemMeta);
+      }
+
+      if (!scheduleDetails) {
         throw new Error(
-          'No schedule details returned from create service schedule',
+          'No schedule details or scheduled items returned from create service schedule',
         );
       }
 
       // Convert ScheduleDetails to Schedule format
-      return this.mapScheduleDetailsToSchedule(
-        response.data.data.scheduleDetails,
-      );
+      return this.mapScheduleDetailsToSchedule(scheduleDetails, itemMeta);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError;
@@ -473,45 +561,6 @@ export class ScheduleServiceClient {
   // ---------------------------------------------------------------------------
 
 
-  async getPendingAppointmentsByPatient(
-    tenantId: string,
-    patientExternalId: string,
-    context: SSORequestContext,
-  ): Promise<PendingAppointment[]> {
-    const logger = createChildLogger(this.logger, {
-      correlationId: context.correlationId,
-    });
-    try {
-      const response = await this.client.get<{ items: PendingAppointment[] }>(
-        '/internal/pending-appointments',
-        {
-          params: { tenantId, patientExternalId },
-          headers: buildHeaders(context),
-        },
-      );
-      return response.data?.items ?? [];
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 404) {
-          return [];
-        }
-        logger.error({
-          event: 'get_pending_appointments_error',
-          status: error.response?.status,
-          err: serializeError(error),
-        });
-        throw SSOError.downstreamError(
-          `Get pending appointments failed: ${error.message}`,
-          error,
-        );
-      }
-      throw SSOError.downstreamError(
-        'Get pending appointments failed',
-        error as Error,
-      );
-    }
-  }
-
   async removePendingAppointment(
     tenantId: string,
     patientExternalId: string,
@@ -522,6 +571,14 @@ export class ScheduleServiceClient {
       correlationId: context.correlationId,
     });
     try {
+      
+      logger.info({
+        event: 'remove_pending_appointment',
+        tenantId,
+        patientExternalId,
+        correlationId: context.correlationId,
+      });
+
       await this.client.delete('/internal/pending-appointments', {
         params: { tenantId, patientExternalId, externalAppointmentId },
         headers: buildHeaders(context),
@@ -556,6 +613,14 @@ export class ScheduleServiceClient {
       correlationId: context.correlationId,
     });
     try {
+      logger.info({
+        event: 'update_pending_appointment_retry_count',
+        tenantId,
+        patientExternalId,
+        externalAppointmentId,
+        retryCount,
+        correlationId: context.correlationId,
+      });
       await this.client.patch(
         '/internal/pending-appointments/retry-count',
         {
@@ -753,9 +818,34 @@ export class ScheduleServiceClient {
     externalAppointment?: Record<string, unknown>;
   },
   ): Schedule {
+    this.logger.info({
+      event: 'map_schedule_details_input_shape',
+      hasScheduleDetails: Boolean(scheduleDetails),
+      scheduleDetailsKeys: scheduleDetails
+        ? Object.keys(scheduleDetails as Record<string, unknown>)
+        : [],
+      hasParticipantInfo: Boolean((scheduleDetails as any)?.participantInfo),
+      participantInfoType: Array.isArray((scheduleDetails as any)?.participantInfo)
+        ? 'array'
+        : typeof (scheduleDetails as any)?.participantInfo,
+      participantInfoLength: Array.isArray((scheduleDetails as any)?.participantInfo)
+        ? (scheduleDetails as any).participantInfo.length
+        : null,
+      hasMeta: Boolean((scheduleDetails as any)?.meta),
+      metaKeys:
+        scheduleDetails && (scheduleDetails as any).meta
+          ? Object.keys((scheduleDetails as any).meta as Record<string, unknown>)
+          : [],
+      hasOwner: Boolean((scheduleDetails as any)?.owner),
+      ownerKeys:
+        scheduleDetails && (scheduleDetails as any).owner
+          ? Object.keys((scheduleDetails as any).owner as Record<string, unknown>)
+          : [],
+    });
+
     const patientUserId =
       (scheduleDetails.meta?.userId as string | undefined) ||
-      scheduleDetails.participantInfo.find((p) => p.userType === 'USER')?.userId;
+      scheduleDetails.participantInfo?.find((p) => p.userType === 'USER')?.userId;
 
     const ext = itemMeta?.externalAppointment;
     const hmsExternalId =

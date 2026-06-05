@@ -10,7 +10,7 @@ import {
   extractCorrelationId,
   extractAwsRequestId,
   serializeError
-} from '@api-hub/observability';
+} from '@api-hub/logger';
 
 import { ApiResponse } from '@api-hub/utils'; 
 import { SSOController } from '../../controllers/sso.controller'; 
@@ -63,7 +63,7 @@ export async function handler(
     return ApiResponse.internalServerError(
       { title: 'Error', description: 'An unexpected error occurred', severity: 'ERROR' },
       {
-         correlationId: correlationId,
+        requestId: correlationId,
         event
       },
       {

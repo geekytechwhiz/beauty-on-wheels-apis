@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { createChildLogger, LogEntry, serializeError } from '@api-hub/observability';
+import { createChildLogger, LogEntry, serializeError } from '@api-hub/logger';
 import { BaseService } from '../core/base.service';
 
 import { fromDateString, toDateString } from '@api-hub/utils';
@@ -74,6 +74,7 @@ export class AppointmentSyncService extends BaseService {
 
     this.appointmentValidationService = new AppointmentValidationService({
       warn: (meta: unknown) => this.logger.warn(meta as LogEntry),
+      error: (meta: unknown) => this.logger.error(meta as LogEntry),
     });
 
     this.userProvisioningService = new UserProvisioningService(
@@ -106,6 +107,7 @@ export class AppointmentSyncService extends BaseService {
       this.scheduleCreationService,
       this.logger,
       this.maxRetries,
+      (this as any).ssoUserServiceClient,
       (this as any).ssoUserServiceClient,
     );
   }
@@ -158,8 +160,8 @@ export class AppointmentSyncService extends BaseService {
       correlationId: context.correlationId,
       appointment: {
         externalId: String(appointment.appointmentId),
-        startTime: appointment.startTime ?? '',
-        endTime: appointment.endTime ?? '',
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
         status: String(appointment.status),
       },
       doctor: {
@@ -364,7 +366,7 @@ export class AppointmentSyncService extends BaseService {
     );
 
     await this.patientEventPublisher.publishPatientCreationEvent(
-        patientEvent,
+      patientEvent,
       context.correlationId,
     );
 
@@ -445,6 +447,12 @@ export class AppointmentSyncService extends BaseService {
       appointments = appointmentsInput;
     }
 
+    //Log the appointments
+    logger.info({
+      event: 'appointments 1',
+      payload: JSON.stringify(appointments, null, 2),
+    });
+
     if (isCancellationReconciliationEnabled()) {
       try {
         logger.info({
@@ -478,6 +486,12 @@ export class AppointmentSyncService extends BaseService {
       });
     }
 
+    //Log the appointments
+    logger.info({
+      event: 'appointments 2',
+      payload: JSON.stringify(appointments, null, 2),
+    });
+
     const results = await this.syncDoctorAppointments(appointments, context);
 
     logger.info({
@@ -506,8 +520,8 @@ export class AppointmentSyncService extends BaseService {
         externalAppointmentId: String(appointment.appointmentId),
         doctorExternalId: String(appointment.doctor.id),
         patientExternalId: String(appointment.patient.id),
-        startTime: appointment.startTime ?? '',
-        endTime: appointment.endTime ?? ''  ,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
       })),
     };
 
@@ -1048,6 +1062,12 @@ export class AppointmentSyncService extends BaseService {
     const patientExternalId = String(appointment.patient.id);
     const doctorExternalId = String(appointment.doctor.id);
 
+    //Log the appointment
+    this.logger.info({
+      event: 'appointment 4',
+      payload: JSON.stringify(appointment, null, 2),
+    });
+
     this.logger.info({
       event: 'user_resolution_start',
       ...this.buildLogContext({
@@ -1231,8 +1251,8 @@ export class AppointmentSyncService extends BaseService {
     const patientUserId = String(resolvedPatient.id);
 
     const scheduleFetchPayload: FetchSchedulesRequest = {
-      fromDate: new Date(appointment.startTime ?? '').getTime(),
-      toDate: new Date(appointment.endTime ?? '').getTime(),
+      fromDate: new Date(appointment.startTime).getTime(),
+      toDate: new Date(appointment.endTime).getTime(),
       organizationID: organizationId,
       doctorId: doctorUserId,
       userId: patientUserId,
@@ -1308,6 +1328,11 @@ export class AppointmentSyncService extends BaseService {
       organizationId,
     });
 
+    //Log the schedule creation payload
+    this.logger.info({
+      event: 'appointment 5',
+      payload: JSON.stringify(appointment, null, 2),
+    });
     const scheduleCreationPayload = this.buildScheduleCreationEventPayload({
       appointment,
       doctor: resolvedDoctor,
@@ -1346,6 +1371,12 @@ export class AppointmentSyncService extends BaseService {
         appointments,
         context,
       );
+
+    //Log the valid appointments
+    this.logger.info({
+      event: 'appointments 3',
+      payload: JSON.stringify(validAppointments, null, 2),
+    });
 
     if (!validAppointments.length) {
       return {

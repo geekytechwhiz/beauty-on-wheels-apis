@@ -1,8 +1,12 @@
-import { createChildLogger, serializeError } from '@api-hub/observability';
+import { createChildLogger, serializeError } from '@api-hub/logger';
 import { BaseClient } from '@api-hub/service-clients';
 import axios from 'axios';
 import { SSORequestContext } from '../types/common/context.types';
-import { PendingAppointment } from '../types/domain/appointment.types';
+import {
+  Appointment,
+  PendingAppointment,
+} from '../types/domain/appointment.types';
+import { AppointmentStatus, VisitType } from '../types/enums';
 import { SSOError } from '../types/errors/sso-error';
 import {
   AssignDoctorPayload,
@@ -29,8 +33,7 @@ export class SSOUserServiceClient extends BaseClient {
     const externalUserId = params.externalId;
     const subdomain = context.integration.subdomain;
 
-    this.logger.info({
-      event: 'findUserByExternalId_lookup',
+    console.info('findUserByExternalId_lookup', {
       externalUserId,
       subdomain,
       provider: context.integration.providerId,
@@ -54,20 +57,16 @@ export class SSOUserServiceClient extends BaseClient {
       // User-service model uses userID; SSO expects id
       const userId = (userPayload?.userID ?? userPayload?.id) as string | undefined;
       if (!userId) {
-        this.logger.info({
-          event: 'findUserByExternalId_service_not_found',
+        console.info('findUserByExternalId_service_not_found', {
           externalUserId,
-          subdomain,
-          provider: context.integration.providerId,
+          tenant: subdomain,
         });
         return null;
       }
 
-      this.logger.info({
-        event: 'findUserByExternalId_success',
+      console.info('findUserByExternalId_success', {
         externalUserId,
         userId,
-        provider: context.integration.providerId,
       });
 
       // Normalize to SSO User: user-service uses userID, emailAddress, organizationID, externalIdentity
@@ -125,12 +124,10 @@ export class SSOUserServiceClient extends BaseClient {
     const rawUserId = invitedUser;
 
     if (!rawUserId) {
-      this.logger.error({
-        event: 'createDoctor_user_id_missing',
+      console.error('createDoctor_user_id_missing', {
         subdomain: context.integration.subdomain,
         externalUserId: payload.externalIdentity?.externalUserId,
         responseBody: body,
-        provider: context.integration.providerId,
       });
 
       throw SSOError.userServiceError(
@@ -149,11 +146,9 @@ export class SSOUserServiceClient extends BaseClient {
       organizationId: payload.organizationID,  
     };
 
-    this.logger.info({
-      event: 'createDoctor_success',
+    console.info('createDoctor_success', {
       externalUserId: result.externalUserId,
       userId: result.userId,
-      provider: context.integration.providerId,
     });
 
     return result;
@@ -171,11 +166,9 @@ export class SSOUserServiceClient extends BaseClient {
       return await this.createDoctor(payload, context);
     } catch (err) {
       if ((err as any).code === 'ECONNABORTED') {
-        this.logger.warn({
-          event: 'createDoctor_timeout_retry',
+        console.warn('createDoctor_timeout_retry', {
           ...logBase,
           retryAttempt: 1,
-          provider: context.integration.providerId,
         });
         return this.createDoctor(payload, context);
       }
@@ -185,11 +178,9 @@ export class SSOUserServiceClient extends BaseClient {
         err.response?.status === 409 &&
         externalUserId
       ) {
-        this.logger.info({
-          event: 'createDoctor_conflict_fetching_existing',
+        console.info('createDoctor_conflict_fetching_existing', {
           ...logBase,
           retryAttempt: 0,
-          provider: context.integration.providerId,
         });
         const userExistenceValidator = new UserExistenceValidator(
           this,
@@ -202,11 +193,9 @@ export class SSOUserServiceClient extends BaseClient {
         );
 
         if (existenceResult.userServiceUser) {
-          this.logger.info({
-            event: 'createDoctor_conflict_resolved_existing',
+          console.info('createDoctor_conflict_resolved_existing', {
             ...logBase,
             doctorUserId: existenceResult.userServiceUser.id,
-            provider: context.integration.providerId,
           });
           const organizationId = getOrganizationId(subdomain);
           return {
@@ -245,19 +234,67 @@ export class SSOUserServiceClient extends BaseClient {
       subdomain: subdomain,
     };
     
-    const response = await this.client.post<{ data: User }>('/user', patientCreationPayload, {
-      headers: buildHeaders(context),
-    });
+    try {
+      const response = await this.client.post<{ data: User }>('/user', patientCreationPayload, {
+        headers: buildHeaders(context),
+      });
 
-    const user = response.data.data;
-    // console.log('createPatient user', user);
+      const user = response.data.data;
+      // console.log('createPatient user', user);
 
-    return {
-      userId: String(user?.invitedUser),
-      email: user.email,
-      externalUserId: externalUserId,
-      organizationId,
-    } as CreatedUserInfo;
+      return {
+        userId: String(user?.invitedUser),
+        email: user.email,
+        externalUserId: externalUserId,
+        organizationId,
+      } as CreatedUserInfo;
+    } catch (err) {
+      if (
+        axios.isAxiosError(err) &&
+        err.response?.status === 409 &&
+        externalUserId
+      ) {
+        console.info('createPatient_conflict_fetching_existing', {
+          externalUserId,
+          subdomain,
+        });
+
+        const userExistenceValidator = new UserExistenceValidator(
+          this,
+          new CognitoService(),
+          this.logger,
+        );
+        const existenceResult = await userExistenceValidator.checkUserExists(
+          {
+            externalId: externalUserId,
+            email:
+              payload.userInfo?.contact?.email ?? null,
+            phone:
+              payload.userInfo?.contact?.phone ??
+              null,
+          },
+          context,
+        );
+
+        if (existenceResult.userServiceUser) {
+          console.info('createPatient_conflict_resolved_existing', {
+            externalUserId,
+            patientUserId: existenceResult.userServiceUser.id,
+          });
+          return {
+            userId: String(existenceResult.userServiceUser.id),
+            email:
+              existenceResult.userServiceUser.email ??
+              payload.userInfo?.contact?.email ??
+              null,
+            externalUserId,
+            organizationId,
+          };
+        }
+      }
+
+      throw err;
+    }
   }
 
   /**
@@ -305,6 +342,7 @@ export class SSOUserServiceClient extends BaseClient {
       const organizationID =
         pending.organizationID ?? getOrganizationId(context.integration.subdomain);
 
+      const { appointment } = pending;
       const requestBody = {
         appointmentId:
           pending.appointmentId ?? `appt-${pending.externalAppointmentId}`,
@@ -315,11 +353,33 @@ export class SSOUserServiceClient extends BaseClient {
         doctorUserId: pending.doctorUserId ?? pending.doctorExternalId,
         patientExternalId: pending.patientExternalId,
         doctorExternalId: pending.doctorExternalId,
-        startTime: new Date(pending.appointment.startTime ?? '').getTime(),
-        endTime: new Date(pending.appointment.endTime ?? '').getTime(),
+        startTime: new Date(appointment.startTime).getTime(),
+        endTime: new Date(appointment.endTime).getTime(),
         status: 'PENDING',
         sourceSystem: context.sourceSystem,
+        patientName: appointment.patient?.name,
+        patientEmail: appointment.patient?.email ?? null,
+        patientMrn: appointment.patient?.mrn,
+        doctorName: appointment.doctor?.name,
+        doctorEmail: appointment.doctor?.email,
+        doctorDepartment: appointment.doctor?.department,
+        consultationTypeId: appointment.consultationType?.id ?? undefined,
+        consultationTypeName: appointment.consultationType?.name,
+        visitId: appointment.visit?.id ?? undefined,
       };
+
+      this.logger.info({
+        event: 'store_pending_appointment_request_shape',
+        correlationId: context.correlationId,
+        tenantId,
+        externalAppointmentId: pending.externalAppointmentId,
+        patientExternalId: pending.patientExternalId,
+        sourcePatientName: appointment.patient?.name ?? null,
+        sourceDoctorName: appointment.doctor?.name ?? null,
+        sourcePatientEmail: appointment.patient?.email ?? null,
+        sourceDoctorEmail: appointment.doctor?.email ?? null,
+        ...pendingDisplayFieldLogDetail(requestBody),
+      });
 
       await this.client.post(
         '/pending-appointments',
@@ -354,6 +414,208 @@ export class SSOUserServiceClient extends BaseClient {
     }
   }
 
+  async getPendingAppointmentsByPatient(
+    _tenantId: string,
+    patientExternalId: string,
+    context: SSORequestContext,
+  ): Promise<PendingAppointment[]> {
+    try {
+      const response = await this.client.get<{
+        data?: { items?: StoredPendingAppointmentItem[] };
+      }>(`/users/${patientExternalId}/pending-appointments`, {
+        headers: buildHeaders(context),
+      });
+
+      const items = response.data?.data?.items ?? [];
+      this.logger.info({
+        event: 'get_pending_appointments_response_shape',
+        correlationId: context.correlationId,
+        patientExternalId,
+        itemCount: items.length,
+        items: items.map((item) => ({
+          externalAppointmentId: item.externalAppointmentId,
+          appointmentId: item.appointmentId,
+          ...pendingDisplayFieldLogDetail(item),
+        })),
+      });
+      return items.map((item) =>
+        mapStoredPendingAppointmentToDomain(item, patientExternalId),
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          return [];
+        }
+        this.logger.error({
+          event: 'get_pending_appointments_error',
+          status: error.response?.status,
+          patientExternalId,
+          err: serializeError(error),
+        });
+        throw SSOError.downstreamError(
+          `Get pending appointments failed: ${error.message}`,
+          error,
+        );
+      }
+      throw SSOError.downstreamError(
+        'Get pending appointments failed',
+        error as Error,
+      );
+    }
+  }
+
+}
+
+function pendingDisplayFieldLogDetail(body: {
+  patientName?: string | null;
+  patientEmail?: string | null;
+  patientMrn?: string;
+  doctorName?: string;
+  doctorEmail?: string;
+  doctorDepartment?: string;
+  consultationTypeId?: number;
+  consultationTypeName?: string;
+  visitId?: number;
+}) {
+  const patientName = body.patientName?.trim() || null;
+  const patientEmail =
+    body.patientEmail != null ? String(body.patientEmail).trim() || null : null;
+  const patientMrn = body.patientMrn?.trim() || null;
+  const doctorName = body.doctorName?.trim() || null;
+  const doctorEmail = body.doctorEmail?.trim() || null;
+  const doctorDepartment = body.doctorDepartment?.trim() || null;
+  const consultationTypeName = body.consultationTypeName?.trim() || null;
+
+  return {
+    hasPatientName: Boolean(patientName),
+    hasPatientEmail: Boolean(patientEmail),
+    hasPatientMrn: Boolean(patientMrn),
+    hasDoctorName: Boolean(doctorName),
+    hasDoctorEmail: Boolean(doctorEmail),
+    hasDoctorDepartment: Boolean(doctorDepartment),
+    hasConsultationTypeId: body.consultationTypeId != null,
+    hasConsultationTypeName: Boolean(consultationTypeName),
+    hasVisitId: body.visitId != null,
+    patientName,
+    patientEmail,
+    patientMrn,
+    doctorName,
+    doctorEmail,
+    doctorDepartment,
+    consultationTypeId: body.consultationTypeId ?? null,
+    consultationTypeName,
+    visitId: body.visitId ?? null,
+  };
+}
+
+type StoredPendingAppointmentItem = {
+  appointmentId?: string;
+  externalAppointmentId: string;
+  tenantId?: string;
+  organizationID?: string;
+  patientUserId?: string;
+  doctorUserId?: string;
+  patientExternalId: string;
+  doctorExternalId: string;
+  startTime: number | string;
+  endTime: number | string;
+  status?: string;
+  sourceSystem?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  patientName?: string;
+  patientEmail?: string | null;
+  patientMrn?: string;
+  doctorName?: string;
+  doctorEmail?: string;
+  doctorDepartment?: string;
+  consultationTypeId?: number;
+  consultationTypeName?: string;
+  visitId?: number;
+};
+
+function toEpochMs(value: number | string): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+}
+
+function parseAppointmentNumericId(
+  externalAppointmentId: string,
+  appointmentId?: string,
+): number {
+  if (appointmentId?.startsWith('APT-')) {
+    const fromPrefix = Number(appointmentId.slice(4));
+    if (!Number.isNaN(fromPrefix)) {
+      return fromPrefix;
+    }
+  }
+  const parsed = Number(externalAppointmentId);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function mapStoredPendingAppointmentToDomain(
+  item: StoredPendingAppointmentItem,
+  patientExternalId: string,
+): PendingAppointment {
+  const startMs = toEpochMs(item.startTime);
+  const endMs = toEpochMs(item.endTime);
+  const appointmentId = parseAppointmentNumericId(
+    item.externalAppointmentId,
+    item.appointmentId,
+  );
+
+  const appointment: Appointment = {
+    appointmentId,
+    startTime: new Date(startMs).toISOString(),
+    endTime: new Date(endMs).toISOString(),
+    status: AppointmentStatus.SCHEDULED,
+    patient: {
+      id: Number(item.patientExternalId),
+      mrn: item.patientMrn ?? '',
+      name: item.patientName ?? '',
+      gender: '',
+      age: null,
+      dob: null,
+      email: item.patientEmail ?? null,
+    },
+    doctor: {
+      id: Number(item.doctorExternalId),
+      name: item.doctorName ?? '',
+      department: item.doctorDepartment ?? '',
+      phone: '',
+      email: item.doctorEmail ?? '',
+    },
+    consultationType: {
+      id: item.consultationTypeId ?? 0,
+      name: item.consultationTypeName ?? '',
+    },
+    visit: {
+      id: item.visitId ?? 0,
+      visitType: VisitType.OUTPATIENT,
+      createdAt: new Date(startMs).toISOString(),
+      status: 1,
+    },
+  };
+
+  return {
+    appointment,
+    reason: 'user_not_resolved',
+    timestamp: item.createdAt
+      ? new Date(item.createdAt).toISOString()
+      : new Date().toISOString(),
+    retryCount: 0,
+    appointmentId: item.appointmentId,
+    tenantId: item.tenantId,
+    organizationID: item.organizationID,
+    patientUserId: item.patientUserId,
+    doctorUserId: item.doctorUserId,
+    patientExternalId: item.patientExternalId ?? patientExternalId,
+    doctorExternalId: item.doctorExternalId,
+    externalAppointmentId: item.externalAppointmentId,
+  };
 }
 
 export function getSSOUserServiceClient(): SSOUserServiceClient {

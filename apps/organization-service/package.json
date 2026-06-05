@@ -102,10 +102,7 @@
       }
     }
   },
-  "dependencies": {
-    "@api-hub/event-platform": "workspace:*",
-    "@api-hub/middleware": "workspace:*"
-    
+  "dependencies": { 
   },
   "devDependencies": {
     "@aws-sdk/client-secrets-manager": "^3.958.0",

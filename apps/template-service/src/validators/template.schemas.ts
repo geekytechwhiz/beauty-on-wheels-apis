@@ -52,13 +52,18 @@ export const organizationMetaSchema = z.object({
   description: z.string().trim().optional().nullable(),
 });
 
+const organizationMetaUpdatedZ = z
+  .union([z.string().trim().min(1), z.number().finite()])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : String(val)));
+
 /** Required on POST /templates/derive. */
 export const deriveOrganizationMetaSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
   active: z.boolean().optional(),
   country: z.string().trim().min(1).optional(),
-  updated: z.string().trim().min(1).optional(),
+  updated: organizationMetaUpdatedZ,
   description: z.string().trim().optional().nullable(),
 });
 

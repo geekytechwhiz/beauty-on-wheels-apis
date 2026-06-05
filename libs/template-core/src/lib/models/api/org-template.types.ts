@@ -10,7 +10,7 @@ export type OrganizationMetaInput = {
   name: string;
   active?: boolean;
   country?: string;
-  updated?: string;
+  updated?: string | number;
   description?: string | null;
 };
 

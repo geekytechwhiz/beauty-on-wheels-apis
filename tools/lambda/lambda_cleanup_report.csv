@@ -1,0 +1,9 @@
+FunctionName,VersionCount,KeptVersions,DeletedVersions
+alert-service-dev-swagger-ui,4,"3,4","1,2"
+payments-dev-swagger-json,8,"7,8","1,2,3,4,5,6"
+order-service-dev-requestPayment,7,"6,7","1,2,3,4,5"
+my-ts-api-dev-createAppointment,4,"3,4","1,2"
+fairway-enrollment-dev-createEnrollment,13,"12,13","1,2,3,4,5,6,7,8,9,10,11"
+payments-service-dev-webhook,5,"4,5","1,2,3"
+payments-dev-webhook,8,"7,8","1,2,3,4,5,6"
+order-service-dev-swagger-ui,7,"6,7","1,2,3,4,5"

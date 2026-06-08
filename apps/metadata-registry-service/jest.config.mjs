@@ -7,7 +7,7 @@ export default {
   moduleFileExtensions: ['ts', 'js'],
   testMatch: ['**/*.spec.ts'],
   moduleNameMapper: {
-    '^@api-hub/metadata$': '<rootDir>/../../libs/metadata/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
     '^@api-hub/logger$': '<rootDir>/../../libs/logger/src/index.ts',
   },

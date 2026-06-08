@@ -70,3 +70,18 @@ export function buildApplSortKeys(valueCode: string, applicability: Applicabilit
 export function extractValueCodeFromApplSk(sk: string): string | null {
   return MetadataKeyBuilder.extractValueCodeFromApplSk(sk);
 }
+
+export function changeRequestPartitionKey(changeRequestId: string): string {
+  return MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId);
+}
+
+export function changeRequestMetaSortKey(): string {
+  return MetadataKeyBuilder.changeRequestMetaSortKey();
+}
+
+export function changeRequestDraftPointerSortKey(
+  entityType: 'type' | 'value',
+  metadataValueCode?: string,
+): string {
+  return MetadataKeyBuilder.changeRequestDraftPointerSortKey(entityType, metadataValueCode);
+}

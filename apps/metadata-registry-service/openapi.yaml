@@ -163,8 +163,17 @@ paths:
     post:
       summary: Create or update metadata type or value
       description: |
-        Path `entityType`: `type` — upsert metadata type (body `MetadataTypeCreateInput`).
-        `value` — upsert metadata value (body `MetadataValueInput`); `metadataTypeCode` must be in the body (not the query string).
+        Managed publish workflow for metadata types and values. The `action` query parameter is **required**;
+        immediate publish without a change request is not supported.
+
+        **`action=draft`:** step 1 — validates the request body, persists a change request in `DRAFT` status, and does
+        **not** modify published metadata. Use the returned `changeRequestId` for later impact preview and publish steps
+        (`action=impact-preview`, `action=publish` — not yet implemented).
+
+        Path `entityType`: `type` — body `MetadataTypeCreateInput` / `MetadataTypeInput`. `value` — body
+        `MetadataValueInput` (`metadataTypeCode` in body). For `action=draft`, `operation` is derived server-side:
+        `Add` when the type/value does not exist yet (`baseVersion` null), `Update` when it exists (`baseVersion` =
+        latest published version). Saving a new draft for the same entity replaces the prior active draft.
       parameters:
         - name: entityType
           in: path
@@ -172,6 +181,15 @@ paths:
           schema:
             type: string
             enum: [type, value]
+        - name: action
+          in: query
+          required: true
+          description: |
+            Publish workflow action. `draft` saves a change request without modifying published metadata.
+            `impact-preview` and `publish` are reserved for later steps (not yet implemented).
+          schema:
+            type: string
+            enum: [draft, impact-preview, publish]
       requestBody:
         required: true
         content:
@@ -182,7 +200,19 @@ paths:
                 - $ref: '#/components/schemas/MetadataValueInput'
       responses:
         '200':
-          description: Upsert result (metadata value responses use `MetadataValueResponse`)
+          description: |
+            When `action=draft`, returns `ChangeRequestDraftResponse`. Other actions will be supported in future releases.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ChangeRequestDraftResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: Parent metadata type or update target not found
+        '409':
+          description: Conflict (e.g. value deleted, type inactive for value mutation)
   /metadata/{entityType}/list:
     get:
       summary: List metadata types or values for a type
@@ -726,6 +756,56 @@ components:
         status:
           type: string
           enum: [ACTIVE, INACTIVE, DELETED]
+
+    ChangeRequestDraftResponse:
+      type: object
+      description: |
+        Response for `POST /metadata/{entityType}?action=draft`. Represents a saved change request; published metadata
+        is unchanged until a later publish step.
+      required:
+        - changeRequestId
+        - status
+        - entityType
+        - operation
+        - metadataTypeCode
+        - baseVersion
+        - createdAt
+        - lastModifiedAt
+      properties:
+        changeRequestId:
+          type: string
+          description: Opaque draft identifier (ULID); use for impact preview and publish
+        status:
+          type: string
+          enum: [DRAFT]
+          description: Always `DRAFT` for this endpoint
+        entityType:
+          type: string
+          enum: [type, value]
+        operation:
+          type: string
+          enum: [Add, Update]
+          description: |
+            `Add` when no published type/value exists yet (`baseVersion` null). `Update` when editing existing published
+            metadata (`baseVersion` is the latest published version at draft save time).
+        metadataTypeCode:
+          type: string
+        metadataValueCode:
+          type: string
+          nullable: true
+          description: Present when `entityType=value`; null when `entityType=type`
+        baseVersion:
+          type: integer
+          nullable: true
+          description: Latest published version at draft time; null for `operation=Add`
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        lastModifiedAt:
+          type: string
+          format: date-time
 
     RelationType:
       type: string

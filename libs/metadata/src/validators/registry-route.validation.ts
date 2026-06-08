@@ -68,6 +68,37 @@ export function assertRegistryPathCodesForKind(
   }
 }
 
+export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
+export type RegistryPostMetadataAction = (typeof REGISTRY_POST_METADATA_ACTIONS)[number];
+
+/** POST actions implemented in the current release (extend when preview/publish ship). */
+export const REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS = ['draft'] as const;
+export type RegistryPostMetadataImplementedAction = (typeof REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS)[number];
+
+/** Requires supported `action` query param on POST `/metadata/{entityType}` (managed publish workflow). */
+export function assertRegistryPostMetadataAction(actionRaw: string): RegistryPostMetadataImplementedAction {
+  const trimmed = actionRaw.trim().toLowerCase();
+  if (!trimmed) {
+    throw new ValidationError(
+      'Query parameter action is required. Use action=draft, action=impact-preview, or action=publish.',
+      [{ field: 'action', message: 'Required' }],
+    );
+  }
+  if (!REGISTRY_POST_METADATA_ACTIONS.includes(trimmed as RegistryPostMetadataAction)) {
+    throw new ValidationError(
+      `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish.`,
+      [{ field: 'action', message: 'Must be draft, impact-preview, or publish' }],
+    );
+  }
+  if (!REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS.includes(trimmed as RegistryPostMetadataImplementedAction)) {
+    throw new ValidationError(
+      `action=${trimmed} is not implemented yet. Only action=draft is available in this release.`,
+      [{ field: 'action', message: 'Only draft is implemented' }],
+    );
+  }
+  return trimmed as RegistryPostMetadataImplementedAction;
+}
+
 /** Non-empty `metadataTypeCode` on JSON body (POST/PATCH registry routes). */
 export function assertMetadataTypeCodePresentOnBody(body: Record<string, unknown> | undefined): string {
   const code = body?.metadataTypeCode;

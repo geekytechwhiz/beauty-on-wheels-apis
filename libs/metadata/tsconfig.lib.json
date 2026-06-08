@@ -9,16 +9,9 @@
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
     "rootDir": "src",
-    "types": ["node"],
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"],
-  "references": [
-    {
-      "path": "../observability/tsconfig.lib.json"
-    },
-    {
-      "path": "../utils/tsconfig.lib.json"
-    }
-  ]
+  "references": [{ "path": "../utils/tsconfig.lib.json" }]
 }

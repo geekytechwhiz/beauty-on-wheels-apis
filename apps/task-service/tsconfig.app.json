@@ -1,17 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "emitDeclarationOnly": false,
     "module": "nodenext",
+    "types": ["node"],
+    "rootDir": "src",
     "moduleResolution": "nodenext",
-    "types": ["node"]
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": [
+    "out-tsc",
+    "dist",
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",

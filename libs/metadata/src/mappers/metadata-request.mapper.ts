@@ -1,4 +1,4 @@
-import { createLogger } from '@api-hub/logger';
+import { createLogger } from '@api-hub/observability';
 
 import { ValidationError } from '../domain/errors';
 import { STATUS } from '../constants';

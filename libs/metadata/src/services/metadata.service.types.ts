@@ -25,3 +25,11 @@ export type RegistryPostMetadataPublishInput = {
   body: Record<string, unknown>;
   action: Extract<RegistryPostMetadataAction, 'publish'>;
 };
+
+/** Parsed `POST /metadata/:entityType?action=cancel` input. */
+export type RegistryPostMetadataCancelInput = {
+  entityType: 'type' | 'value';
+  userId?: string;
+  body: Record<string, unknown>;
+  action: Extract<RegistryPostMetadataAction, 'cancel'>;
+};

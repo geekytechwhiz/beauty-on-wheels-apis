@@ -15,6 +15,8 @@ import {
   type ChangeRequestDraftResponse,
   type ChangeRequestRecord,
   toChangeRequestDraftResponse,
+  toChangeRequestCancelledResponse,
+  type ChangeRequestCancelledResponse,
 } from '../models/change-request.types';
 import {
   mergeMetadataTypeForUpdate,
@@ -36,7 +38,8 @@ import {
   validateValueRelationshipsPayload,
 } from './metadata-value-relation.service';
 import { QUESTION_TYPE_METADATA_CODE } from '../constants';
-import type { RegistryPostMetadataInput } from './metadata.service.types';
+import type { RegistryPostMetadataInput, RegistryPostMetadataCancelInput } from './metadata.service.types';
+import { assertChangeRequestIdPresentOnBody } from '../validators/registry-route.validation';
 
 const ulid = monotonicFactory();
 
@@ -316,4 +319,38 @@ export async function orchestrateRegistryPostDraft(
   };
   const saved = await repo.saveChangeRequestDraft(record);
   return toChangeRequestDraftResponse(saved);
+}
+
+/**
+ * POST `/metadata/:entityType?action=cancel` — cancel a saved DRAFT change request.
+ */
+export async function orchestrateRegistryPostCancelDraft(
+  input: RegistryPostMetadataCancelInput,
+): Promise<ChangeRequestCancelledResponse> {
+  const changeRequestId = assertChangeRequestIdPresentOnBody(input.body);
+  const repo = await getMetadataRepository();
+  const draft = await repo.getChangeRequest(changeRequestId);
+  if (!draft) {
+    throw new ValidationError(`Change request not found: ${changeRequestId}`, [
+      { field: 'changeRequestId', message: 'Not found' },
+    ]);
+  }
+  if (draft.status !== CHANGE_REQUEST_STATUS.DRAFT) {
+    throw new ValidationError(`Change request ${changeRequestId} is not in DRAFT status`, [
+      { field: 'changeRequestId', message: 'Must be DRAFT' },
+    ]);
+  }
+  if (draft.entityType !== input.entityType) {
+    throw new ValidationError(
+      `Change request entityType ${draft.entityType} does not match path entityType ${input.entityType}`,
+      [{ field: 'entityType', message: 'Mismatch with change request' }],
+    );
+  }
+
+  const cancelledAt = new Date().toISOString();
+  const cancelled = await repo.cancelChangeRequest(changeRequestId, {
+    actor: actorFromContext(input.userId),
+    cancelledAt,
+  });
+  return toChangeRequestCancelledResponse(cancelled);
 }

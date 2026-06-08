@@ -84,6 +84,56 @@ describe('DynamoDbMetadataRegistryRepository.saveChangeRequestDraft', () => {
   });
 });
 
+describe('DynamoDbMetadataRegistryRepository.cancelChangeRequest', () => {
+  const now = '2026-06-02T12:00:00.000Z';
+
+  it('marks draft CANCELLED and deletes pointer when draft is active', async () => {
+    const doc = {
+      send: jest.fn(async (cmd: unknown) => {
+        if (cmd instanceof GetCommand) {
+          const key = (cmd as GetCommand).input?.Key as Record<string, string>;
+          if (key?.PK === 'CHANGE_REQUEST#cr_cancel') {
+            return {
+              Item: {
+                PK: 'CHANGE_REQUEST#cr_cancel',
+                SK: 'META',
+                changeRequestId: 'cr_cancel',
+                status: CHANGE_REQUEST_STATUS.DRAFT,
+                draftEntityType: 'value',
+                operation: CHANGE_REQUEST_OPERATION.UPDATE,
+                metadataTypeCode: 'MetricCode',
+                metadataValueCode: 'BP_SYSTOLIC',
+                baseVersion: 1,
+                proposedPayload: {},
+                createdAt: now,
+                lastModifiedAt: now,
+              },
+            };
+          }
+          if (key?.SK === 'CHANGE_REQUEST#DRAFT#VALUE#BP_SYSTOLIC') {
+            return { Item: { changeRequestId: 'cr_cancel' } };
+          }
+          return {};
+        }
+        if (cmd instanceof TransactWriteCommand) {
+          const items = cmd.input?.TransactItems ?? [];
+          expect(items).toHaveLength(2);
+          const put = items[0] as { Put?: { Item?: Record<string, unknown> } };
+          expect(put.Put?.Item?.status).toBe(CHANGE_REQUEST_STATUS.CANCELLED);
+          expect(put.Put?.Item?.cancelledAt).toBe(now);
+          expect(items[1]).toHaveProperty('Delete');
+          return {};
+        }
+        throw new Error('unexpected command');
+      }),
+    };
+    const repo = new DynamoDbMetadataRegistryRepository(doc, 'tbl');
+    const out = await repo.cancelChangeRequest('cr_cancel', { actor: 'admin', cancelledAt: now });
+    expect(out.status).toBe(CHANGE_REQUEST_STATUS.CANCELLED);
+    expect(out.cancelledBy).toBe('admin');
+  });
+});
+
 describe('change request key helpers', () => {
   it('builds expected PK/SK patterns', async () => {
     const { MetadataKeyBuilder } = await import('../../builders/metadata-key.builder.js');

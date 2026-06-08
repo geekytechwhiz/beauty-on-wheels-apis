@@ -23,6 +23,11 @@ describe('assertRegistryPostMetadataAction', () => {
     expect(assertRegistryPostMetadataAction('PUBLISH')).toBe('publish');
   });
 
+  it('returns cancel as implemented action', () => {
+    expect(assertRegistryPostMetadataAction('cancel')).toBe('cancel');
+    expect(assertRegistryPostMetadataAction('CANCEL')).toBe('cancel');
+  });
+
   it('throws for unknown action values', () => {
     expect(() => assertRegistryPostMetadataAction('upsert')).toThrow(ValidationError);
   });

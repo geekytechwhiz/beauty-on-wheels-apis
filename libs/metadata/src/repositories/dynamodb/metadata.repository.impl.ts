@@ -1772,6 +1772,65 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return record;
   }
 
+  async cancelChangeRequest(
+    changeRequestId: string,
+    params: { actor?: string; cancelledAt: string },
+  ): Promise<ChangeRequestRecord> {
+    const existing = await this.getChangeRequestRecord(changeRequestId);
+    if (!existing) {
+      throw new NotFoundError(`Change request ${changeRequestId} not found`);
+    }
+    if (existing.status !== CHANGE_REQUEST_STATUS.DRAFT) {
+      throw new ConflictError(
+        `Change request ${changeRequestId} is not in DRAFT status`,
+        'CHANGE_REQUEST_NOT_DRAFT',
+      );
+    }
+
+    const actor = params.actor;
+    const record: ChangeRequestRecord = {
+      ...existing,
+      status: CHANGE_REQUEST_STATUS.CANCELLED,
+      cancelledAt: params.cancelledAt,
+      cancelledBy: actor,
+      lastModifiedAt: params.cancelledAt,
+      lastModifiedBy: actor ?? existing.lastModifiedBy,
+    };
+
+    const draftPk = MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId);
+    const draftSk = MetadataKeyBuilder.changeRequestMetaSortKey();
+    const pointerPk = typePartitionKey(record.metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const activePointer = await this.getChangeRequestDraftPointer(
+      record.metadataTypeCode,
+      record.entityType,
+      record.metadataValueCode,
+    );
+
+    const transactItems: unknown[] = [
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: this.marshalChangeRequest(record, draftPk, draftSk),
+        },
+      },
+    ];
+
+    if (activePointer?.changeRequestId === changeRequestId) {
+      transactItems.push({
+        Delete: {
+          TableName: this.tableName,
+          Key: this.key(pointerPk, pointerSk),
+        },
+      });
+    }
+
+    await this.sendTx(transactItems);
+    return record;
+  }
   /** Atomically increments and returns the next global ChangeRevision counter. */
   private async reserveNextChangeRevision(): Promise<number> {
     const pk = MetadataKeyBuilder.changeRevisionCounterPartitionKey();
@@ -1836,6 +1895,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       createdBy: record.createdBy,
       lastModifiedAt: record.lastModifiedAt,
       lastModifiedBy: record.lastModifiedBy,
+      ...(record.cancelledAt ? { cancelledAt: record.cancelledAt } : {}),
+      ...(record.cancelledBy ? { cancelledBy: record.cancelledBy } : {}),
       ...(record.changeRevision !== undefined ? { changeRevision: record.changeRevision } : {}),
       ...(record.publishedAt ? { publishedAt: record.publishedAt } : {}),
     };
@@ -1860,6 +1921,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       createdBy: item.createdBy !== undefined ? String(item.createdBy) : undefined,
       lastModifiedAt: String(item.lastModifiedAt),
       lastModifiedBy: item.lastModifiedBy !== undefined ? String(item.lastModifiedBy) : undefined,
+      ...(item.cancelledAt !== undefined ? { cancelledAt: String(item.cancelledAt) } : {}),
+      ...(item.cancelledBy !== undefined ? { cancelledBy: String(item.cancelledBy) } : {}),
       changeRevision:
         item.changeRevision !== undefined && item.changeRevision !== null
           ? Number(item.changeRevision)

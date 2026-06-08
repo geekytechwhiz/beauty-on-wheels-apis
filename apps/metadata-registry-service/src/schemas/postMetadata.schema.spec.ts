@@ -95,6 +95,26 @@ describe('postMetadataSchema action query param', () => {
     ).toThrow(ValidationError);
   });
 
+  it('parses action=cancel with changeRequestId only', () => {
+    const input = postMetadataSchema.parse({
+      pathParameters: { entityType: 'value' },
+      params: { action: 'cancel' },
+      body: { changeRequestId: 'cr_abc123' },
+    });
+    expect(input.action).toBe('cancel');
+    expect(input.body).toEqual({ changeRequestId: 'cr_abc123' });
+  });
+
+  it('requires changeRequestId for cancel', () => {
+    expect(() =>
+      postMetadataSchema.parse({
+        pathParameters: { entityType: 'type' },
+        params: { action: 'cancel' },
+        body: {},
+      }),
+    ).toThrow(ValidationError);
+  });
+
   it('requires metadata body fields for stateless impact-preview', () => {
     expect(() =>
       postMetadataSchema.parse({

@@ -8,7 +8,7 @@ module.exports = [
       const projectRoot = __dirname;
       const workspaceRoot = resolve(projectRoot, '../..');
       const workspacePackages = {
-        '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
+        '@api-hub/logger': resolve(workspaceRoot, 'libs/logger/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/metadata': resolve(workspaceRoot, 'libs/metadata/src/index.ts'),
       };

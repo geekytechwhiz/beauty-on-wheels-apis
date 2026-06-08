@@ -248,6 +248,27 @@ async function validateValueDraft(body: Record<string, unknown>, userId?: string
   };
 }
 
+/** Shared validation + payload preparation for draft save and stateless impact preview. */
+export async function prepareTypeRegistryChange(body: Record<string, unknown>, userId?: string): Promise<{
+  operation: typeof CHANGE_REQUEST_OPERATION.ADD | typeof CHANGE_REQUEST_OPERATION.UPDATE;
+  baseVersion: number | null;
+  metadataTypeCode: string;
+  proposedPayload: Record<string, unknown>;
+}> {
+  return validateTypeDraft(body, userId);
+}
+
+/** Shared validation + payload preparation for draft save and stateless impact preview. */
+export async function prepareValueRegistryChange(body: Record<string, unknown>, userId?: string): Promise<{
+  operation: typeof CHANGE_REQUEST_OPERATION.ADD | typeof CHANGE_REQUEST_OPERATION.UPDATE;
+  baseVersion: number | null;
+  metadataTypeCode: string;
+  metadataValueCode: string;
+  proposedPayload: Record<string, unknown>;
+}> {
+  return validateValueDraft(body, userId);
+}
+
 /**
  * POST `/metadata/:entityType?action=draft` — validate and persist change request only.
  */

@@ -76,6 +76,7 @@ export {
   type RegistryListResult,
   orchestrateRegistryPost,
   orchestrateRegistryPostDraft,
+  orchestrateRegistryPostImpactPreview,
   orchestrateRegistryPatchStatus,
   orchestrateRegistryDeleteMetadataValue,
   orchestrateRegistryListAudit,
@@ -85,6 +86,7 @@ export {
   type RegistryDeleteMetadataValueInput,
   type RegistryListMetadataAuditInput,
   type ChangeRequestDraftResponse,
+  type ImpactPreviewResponse,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';

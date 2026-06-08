@@ -1583,6 +1583,10 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return record;
   }
 
+  async getChangeRequest(changeRequestId: string): Promise<ChangeRequestRecord | null> {
+    return this.getChangeRequestRecord(changeRequestId);
+  }
+
   private async getChangeRequestRecord(changeRequestId: string): Promise<ChangeRequestRecord | null> {
     const item = await this.getItem(
       MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId),

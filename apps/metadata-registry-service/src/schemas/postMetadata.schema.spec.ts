@@ -28,6 +28,25 @@ describe('postMetadataSchema action query param', () => {
     expect(input.userId).toBe('admin');
   });
 
+  it('parses action=impact-preview with metadata body', () => {
+    const input = postMetadataSchema.parse({
+      pathParameters: { entityType: 'value' },
+      params: { action: 'impact-preview' },
+      body: valueBody,
+    });
+    expect(input.action).toBe('impact-preview');
+  });
+
+  it('parses action=impact-preview with changeRequestId only', () => {
+    const input = postMetadataSchema.parse({
+      pathParameters: { entityType: 'value' },
+      params: { action: 'impact-preview' },
+      body: { changeRequestId: 'cr_abc123' },
+    });
+    expect(input.action).toBe('impact-preview');
+    expect(input.body).toEqual({ changeRequestId: 'cr_abc123' });
+  });
+
   it('rejects POST when action query param is absent', () => {
     expect(() =>
       postMetadataSchema.parse({
@@ -48,16 +67,24 @@ describe('postMetadataSchema action query param', () => {
     ).toThrow(ValidationError);
   });
 
-  it('rejects impact-preview and publish until implemented', () => {
-    for (const action of ['impact-preview', 'publish'] as const) {
-      expect(() =>
-        postMetadataSchema.parse({
-          pathParameters: { entityType: 'type' },
-          params: { action },
-          body: typeBody,
-        }),
-      ).toThrow(ValidationError);
-    }
+  it('rejects publish until implemented', () => {
+    expect(() =>
+      postMetadataSchema.parse({
+        pathParameters: { entityType: 'type' },
+        params: { action: 'publish' },
+        body: typeBody,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('requires metadata body fields for stateless impact-preview', () => {
+    expect(() =>
+      postMetadataSchema.parse({
+        pathParameters: { entityType: 'type' },
+        params: { action: 'impact-preview' },
+        body: {},
+      }),
+    ).toThrow(ValidationError);
   });
 });
 

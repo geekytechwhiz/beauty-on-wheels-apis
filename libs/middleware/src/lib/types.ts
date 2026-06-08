@@ -121,6 +121,8 @@ export interface MiddlewareResult<TResult> {
  * All fields are optional; consumers should guard when a field is required for their use case.
  */
 export interface ExecutionContext {
+  /** Whether to use the legacy response format. */
+  useLegacyResponseFormat?: boolean;
   /** Client or platform correlation (may mirror header / message attribute). */
   correlationId?: string;
   /** AWS Lambda `context.awsRequestId` or equivalent. */

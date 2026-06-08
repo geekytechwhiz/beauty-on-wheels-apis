@@ -45,4 +45,4 @@ const deviceOrgListImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.orgList' }, deviceOrgListImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.orgList' }, deviceOrgListImpl);

@@ -44,6 +44,6 @@
     },
     {
       "path": "../../libs/middleware/tsconfig.lib.json"
-    },
+    }
   ]
 }

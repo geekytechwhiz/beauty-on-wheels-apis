@@ -12,7 +12,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -68,6 +68,10 @@ custom:
     dev: false
     stg: false
     prd: false
+  keepNamesByStage:
+    dev: false
+    stg: false
+    prd: false
 
   esbuild:
     bundle: true
@@ -77,14 +81,18 @@ custom:
     # single biggest peak-memory reduction for the 22 individually-packaged functions.
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
-    keepNames: true
-    # Serialize bundling/zipping. With package.individually + 22 functions, parallel esbuild
+    # keepNames off in CI stages — lowers esbuild peak memory on SMALL CodeBuild (~3.6 GiB).
+    keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
+    # Avoid esbuild context reuse across ~24 functions — prevents memory growth/OOM on SMALL CodeBuild.
+    skipRebuild: true
+    disposeContext: true
+    # Serialize bundling/zipping. With package.individually + 24 functions, parallel esbuild
     # service instances exhaust the CodeBuild container and crash with "The service was stopped".
     concurrency: 1
     zipConcurrency: 1
@@ -112,10 +120,12 @@ custom:
       - swagger.json
     useStage: true
     swaggerPath: swagger
-    # CI packages with STAGE=dev; skipping swagger here avoids extra work/memory during CodeBuild.
+    # CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
     excludeStages:
       - production
       - dev
+      - stg
+      - prd
 
   serverless-offline:
     httpPort: 3000

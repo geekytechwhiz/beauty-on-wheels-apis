@@ -240,4 +240,4 @@ const deviceRegisterImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.register' }, deviceRegisterImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.register' }, deviceRegisterImpl);

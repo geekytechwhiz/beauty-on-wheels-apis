@@ -8,4 +8,4 @@ const healthImpl: any = async (event: APIGatewayProxyEvent, _context?: Context) 
   };
 };
 
-export const handler = withApiHandler({ operation: 'device.health' }, healthImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.health' }, healthImpl);

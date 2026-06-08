@@ -44,4 +44,4 @@ const deviceGetImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.get' }, deviceGetImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.get' }, deviceGetImpl);

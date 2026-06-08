@@ -1,254 +1,329 @@
 {
   "resource": "Observation",
-  "version": "4.0.1",
+  "version": "R4",
+  "profile": "http://hl7.org/fhir/StructureDefinition/observation-bp",
   "fields": [
     {
-      "source": "",
-      "target": "Observation"
+      "source": "attributes.id",
+      "target": "id",
+      "fieldType": "string"
     },
     {
-      "source": "",
-      "target": "Observation.id",
-      "fieldType": "http://hl7.org/fhirpath/System.String"
-    },
-    {
-      "source": "",
-      "target": "Observation.meta",
-      "fieldType": "Meta"
-    },
-    {
-      "source": "",
-      "target": "Observation.implicitRules",
-      "fieldType": "uri"
-    },
-    {
-      "source": "",
-      "target": "Observation.language",
-      "fieldType": "code"
-    },
-    {
-      "source": "",
-      "target": "Observation.text",
-      "fieldType": "Narrative"
-    },
-    {
-      "source": "",
-      "target": "Observation.contained",
-      "fieldType": "Resource"
-    },
-    {
-      "source": "",
-      "target": "Observation.extension",
-      "fieldType": "Extension"
-    },
-    {
-      "source": "",
-      "target": "Observation.modifierExtension",
-      "fieldType": "Extension"
-    },
-    {
-      "source": "",
-      "target": "Observation.identifier",
-      "fieldType": "Identifier"
-    },
-    {
-      "source": "",
-      "target": "Observation.basedOn",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.partOf",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.status",
-      "fieldType": "code"
-    },
-    {
-      "source": "",
-      "target": "Observation.category",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.code",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.subject",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.focus",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.encounter",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.effective[x]",
-      "fieldType": "dateTime"
-    },
-    {
-      "source": "",
-      "target": "Observation.issued",
-      "fieldType": "instant"
-    },
-    {
-      "source": "",
-      "target": "Observation.performer",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.value[x]",
-      "fieldType": "Quantity"
-    },
-    {
-      "source": "",
-      "target": "Observation.dataAbsentReason",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.interpretation",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.note",
-      "fieldType": "Annotation"
-    },
-    {
-      "source": "",
-      "target": "Observation.bodySite",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.method",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.specimen",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.device",
-      "fieldType": "Reference"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange",
-      "fieldType": "BackboneElement"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.id",
-      "fieldType": "http://hl7.org/fhirpath/System.String"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.extension",
-      "fieldType": "Extension"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.modifierExtension",
-      "fieldType": "Extension"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.low",
-      "fieldType": "Quantity"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.high",
-      "fieldType": "Quantity"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.type",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.appliesTo",
-      "fieldType": "CodeableConcept"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.age",
-      "fieldType": "Range"
-    },
-    {
-      "source": "",
-      "target": "Observation.referenceRange.text",
+      "source": "id",
+      "target": "id",
       "fieldType": "string"
     },
     {
       "source": "",
-      "target": "Observation.hasMember",
-      "fieldType": "Reference"
+      "target": "status",
+      "fieldType": "literal",
+      "defaultValue": "final"
     },
     {
       "source": "",
-      "target": "Observation.derivedFrom",
-      "fieldType": "Reference"
+      "target": "category.0.coding.0.system",
+      "fieldType": "literal",
+      "defaultValue": "http://terminology.hl7.org/CodeSystem/observation-category"
     },
     {
       "source": "",
-      "target": "Observation.component",
-      "fieldType": "BackboneElement"
+      "target": "category.0.coding.0.code",
+      "fieldType": "literal",
+      "defaultValue": "vital-signs"
     },
     {
       "source": "",
-      "target": "Observation.component.id",
-      "fieldType": "http://hl7.org/fhirpath/System.String"
+      "target": "category.0.coding.0.display",
+      "fieldType": "literal",
+      "defaultValue": "Vital Signs"
     },
     {
       "source": "",
-      "target": "Observation.component.extension",
-      "fieldType": "Extension"
+      "target": "code.coding.0.system",
+      "fieldType": "literal",
+      "defaultValue": "http://loinc.org"
     },
     {
       "source": "",
-      "target": "Observation.component.modifierExtension",
-      "fieldType": "Extension"
+      "target": "code.coding.0.code",
+      "fieldType": "literal",
+      "defaultValue": "85354-9"
+    },
+    {
+      "source": "vitalType",
+      "target": "code.coding.0.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "attributes.vitalType",
+      "target": "code.coding.0.display",
+      "fieldType": "string"
+    },
+    {
+      "source": "vitalType",
+      "target": "code.text",
+      "fieldType": "string"
+    },
+    {
+      "source": "userId",
+      "target": "subject.reference",
+      "fieldType": "reference",
+      "template": "Patient/{{value}}"
+    },
+    {
+      "source": "attributes.userID",
+      "target": "subject.reference",
+      "fieldType": "reference",
+      "template": "Patient/{{value}}"
+    },
+    {
+      "source": "userID",
+      "target": "subject.reference",
+      "fieldType": "reference",
+      "template": "Patient/{{value}}"
+    },
+    {
+      "source": "attributes.timeStamp",
+      "target": "effectiveDateTime",
+      "fieldType": "datetime",
+      "transform": {
+        "name": "epochMsToIso"
+      }
+    },
+    {
+      "source": "syncTimeStamp",
+      "target": "effectiveDateTime",
+      "fieldType": "datetime",
+      "transform": {
+        "name": "epochMsToIso"
+      }
+    },
+    {
+      "source": "attributes.utcTimeStamp",
+      "target": "issued",
+      "fieldType": "instant",
+      "transform": {
+        "name": "epochMsToIso"
+      }
+    },
+    {
+      "source": "deviceId",
+      "target": "device.reference",
+      "fieldType": "reference",
+      "template": "Device/{{value}}"
     },
     {
       "source": "",
-      "target": "Observation.component.code",
-      "fieldType": "CodeableConcept"
+      "target": "component.0.code.coding.0.system",
+      "fieldType": "literal",
+      "defaultValue": "http://loinc.org"
     },
     {
       "source": "",
-      "target": "Observation.component.value[x]",
-      "fieldType": "Quantity"
+      "target": "component.0.code.coding.0.code",
+      "fieldType": "literal",
+      "defaultValue": "8480-6"
     },
     {
       "source": "",
-      "target": "Observation.component.dataAbsentReason",
-      "fieldType": "CodeableConcept"
+      "target": "component.0.code.coding.0.display",
+      "fieldType": "literal",
+      "defaultValue": "Systolic blood pressure"
+    },
+    {
+      "source": "attributes.systolic",
+      "target": "component.0.valueQuantity.value",
+      "fieldType": "number",
+      "transform": {
+        "name": "toNumber"
+      }
+    },
+    {
+      "source": "attributes.bpUnit",
+      "target": "component.0.valueQuantity.unit",
+      "fieldType": "string"
     },
     {
       "source": "",
-      "target": "Observation.component.interpretation",
-      "fieldType": "CodeableConcept"
+      "target": "component.0.valueQuantity.system",
+      "fieldType": "literal",
+      "defaultValue": "http://unitsofmeasure.org"
     },
     {
       "source": "",
-      "target": "Observation.component.referenceRange"
+      "target": "component.1.code.coding.0.system",
+      "fieldType": "literal",
+      "defaultValue": "http://loinc.org"
+    },
+    {
+      "source": "",
+      "target": "component.1.code.coding.0.code",
+      "fieldType": "literal",
+      "defaultValue": "8462-4"
+    },
+    {
+      "source": "",
+      "target": "component.1.code.coding.0.display",
+      "fieldType": "literal",
+      "defaultValue": "Diastolic blood pressure"
+    },
+    {
+      "source": "attributes.diastolic",
+      "target": "component.1.valueQuantity.value",
+      "fieldType": "number",
+      "transform": {
+        "name": "toNumber"
+      }
+    },
+    {
+      "source": "attributes.bpUnit",
+      "target": "component.1.valueQuantity.unit",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "component.1.valueQuantity.system",
+      "fieldType": "literal",
+      "defaultValue": "http://unitsofmeasure.org"
+    },
+    {
+      "source": "",
+      "target": "component.2.code.coding.0.system",
+      "fieldType": "literal",
+      "defaultValue": "http://loinc.org"
+    },
+    {
+      "source": "",
+      "target": "component.2.code.coding.0.code",
+      "fieldType": "literal",
+      "defaultValue": "8867-4"
+    },
+    {
+      "source": "",
+      "target": "component.2.code.coding.0.display",
+      "fieldType": "literal",
+      "defaultValue": "Heart rate"
+    },
+    {
+      "source": "attributes.pulseRate",
+      "target": "component.2.valueQuantity.value",
+      "fieldType": "number",
+      "transform": {
+        "name": "toNumber"
+      }
+    },
+    {
+      "source": "attributes.pulseRateUnit",
+      "target": "component.2.valueQuantity.unit",
+      "fieldType": "string"
+    },
+    {
+      "source": "",
+      "target": "component.2.valueQuantity.system",
+      "fieldType": "literal",
+      "defaultValue": "http://unitsofmeasure.org"
+    },
+    {
+      "source": "attributes.notes",
+      "target": "note.0.text",
+      "fieldType": "string"
+    }
+  ],
+  "extensions": [
+    {
+      "source": "organizationId",
+      "url": "urn:myvitalrx:observation:organization-id",
+      "valueType": "string"
+    },
+    {
+      "source": "configDeviceId",
+      "url": "urn:myvitalrx:observation:config-device-id",
+      "valueType": "string"
+    },
+    {
+      "source": "source",
+      "url": "urn:myvitalrx:observation:source",
+      "valueType": "string"
+    },
+    {
+      "source": "attributes.source",
+      "url": "urn:myvitalrx:observation:source",
+      "valueType": "string"
+    },
+    {
+      "source": "isReadingInvalid",
+      "url": "urn:myvitalrx:observation:is-reading-invalid",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.isReadingInvalid",
+      "url": "urn:myvitalrx:observation:is-reading-invalid",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.localTimeZone",
+      "url": "urn:myvitalrx:observation:local-time-zone",
+      "valueType": "string"
+    },
+    {
+      "source": "attributes.bodyPosition",
+      "url": "urn:myvitalrx:observation:body-position",
+      "valueType": "string"
+    },
+    {
+      "source": "attributes.armLocation",
+      "url": "urn:myvitalrx:observation:arm-location",
+      "valueType": "string"
+    },
+    {
+      "source": "attributes.bodyMovementDetected",
+      "url": "urn:myvitalrx:observation:body-movement-detected",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.irregularPulseDetected",
+      "url": "urn:myvitalrx:observation:irregular-pulse-detected",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.improperMeasurementPosition",
+      "url": "urn:myvitalrx:observation:improper-measurement-position",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.cuffTooLoose",
+      "url": "urn:myvitalrx:observation:cuff-too-loose",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.pulseRateTooHigher",
+      "url": "urn:myvitalrx:observation:pulse-rate-too-higher",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.pulseRateTooLower",
+      "url": "urn:myvitalrx:observation:pulse-rate-too-lower",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.isSync",
+      "url": "urn:myvitalrx:observation:is-sync",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.isDeleted",
+      "url": "urn:myvitalrx:observation:is-deleted",
+      "valueType": "boolean"
+    },
+    {
+      "source": "attributes.isNewReading",
+      "url": "urn:myvitalrx:observation:is-new-reading",
+      "valueType": "boolean"
+    },
+    {
+      "source": "average",
+      "url": "urn:myvitalrx:observation:average-config",
+      "valueType": "json"
     }
   ]
 }

@@ -70,4 +70,4 @@ const deviceDeleteMultipleImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.deleteMultiple' }, deviceDeleteMultipleImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.deleteMultiple' }, deviceDeleteMultipleImpl);

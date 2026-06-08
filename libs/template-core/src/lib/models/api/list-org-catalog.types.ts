@@ -3,6 +3,9 @@ import type { ListPagination } from './list-master.types';
 export interface OrganizationMeta {
   id: string;
   name: string;
+  active?: boolean;
+  country?: string;
+  updated?: string;
   description?: string | null;
 }
 
@@ -61,6 +64,8 @@ export interface OrgEnabledFilterOptions {
   categoryCode: string[];
   templateType: string[];
   templateName: { key: string; value: string }[];
+  /** Static country list for UI dropdowns. */
+  country: string[];
 }
 
 export type ListOrgEnabledAllResult = {
@@ -68,6 +73,8 @@ export type ListOrgEnabledAllResult = {
   organizations: OrgEnabledOrganizationGroup[];
   counts: {
     totalOrganizations: number;
+    totalActiveOrganizations: number;
+    totalInactiveOrganizations: number;
     totalEnabledTemplates: number;
   };
   filterOptions: OrgEnabledFilterOptions;

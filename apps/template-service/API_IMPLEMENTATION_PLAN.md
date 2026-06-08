@@ -10,11 +10,16 @@ This document is the step-by-step plan to implement **all HTTP APIs** for `templ
 | `template_dynamodb_json.json` | Sample DynamoDB document shape (care-plan flat template) |
 | `alert-service` | Reference implementation pattern (handlers → controllers → `*-core` lib) |
 
-**Infrastructure (done):**
+**Infrastructure (per stage):**
 
-- DynamoDB: `template-service-dev` (GSI/LSI shell same as `alert-service-dev`)
-- S3 deploy bucket: `dev-mvx-template-service-bucket`
-- Env: `TEMPLATE_TABLE=template-service-dev`
+| Stage | DynamoDB table | S3 deployment bucket | CloudFormation / Lambda prefix |
+|-------|----------------|----------------------|--------------------------------|
+| `dev` | `template-service-dev` | `dev-mvx-template-service-bucket` | `template-service-dev` |
+| `stg` | `template-service-stg` | `stg-mvx-template-service-bucket` | `template-service-stg` |
+| `prd` | `template-service-prd` | `prd-mvx-template-service-bucket` | `template-service-prd` |
+
+- Env: `TEMPLATE_TABLE=template-service-{stage}` (from `infra/config/infra-custom.yml`)
+- CodeBuild: `buildspec.yml` (dev), `stg-buildspec.yml` (stg), `prd-buildspec.yml` (prd)
 
 ---
 

@@ -2,6 +2,9 @@
 # dynamodb:PutItem/BatchWriteItem on device-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: device-service
 
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
 frameworkVersion: '3.x'
 
 plugins:
@@ -114,7 +117,6 @@ custom:
     minify: false
     sourcemap: true
     target: node18
-    packager: pnpm
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json

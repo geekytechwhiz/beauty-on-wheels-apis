@@ -68,11 +68,16 @@ export function assertRegistryPathCodesForKind(
   }
 }
 
-export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
+export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish', 'cancel'] as const;
 export type RegistryPostMetadataAction = (typeof REGISTRY_POST_METADATA_ACTIONS)[number];
 
 /** POST actions implemented in the current release. */
-export const REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
+export const REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS = [
+  'draft',
+  'impact-preview',
+  'publish',
+  'cancel',
+] as const;
 export type RegistryPostMetadataImplementedAction = (typeof REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS)[number];
 
 /** Requires supported `action` query param on POST `/metadata/{entityType}` (managed publish workflow). */
@@ -80,14 +85,14 @@ export function assertRegistryPostMetadataAction(actionRaw: string): RegistryPos
   const trimmed = actionRaw.trim().toLowerCase();
   if (!trimmed) {
     throw new ValidationError(
-      'Query parameter action is required. Use action=draft, action=impact-preview, or action=publish.',
+      'Query parameter action is required. Use action=draft, action=impact-preview, action=publish, or action=cancel.',
       [{ field: 'action', message: 'Required' }],
     );
   }
   if (!REGISTRY_POST_METADATA_ACTIONS.includes(trimmed as RegistryPostMetadataAction)) {
     throw new ValidationError(
-      `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish.`,
-      [{ field: 'action', message: 'Must be draft, impact-preview, or publish' }],
+      `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish, cancel.`,
+      [{ field: 'action', message: 'Must be draft, impact-preview, publish, or cancel' }],
     );
   }
   return trimmed as RegistryPostMetadataImplementedAction;

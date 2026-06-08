@@ -29,6 +29,8 @@ export interface ChangeRequestRecord {
   createdBy?: string;
   lastModifiedAt: string;
   lastModifiedBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
   /** Monotonic registry-wide revision assigned at publish (addendum §6). */
   changeRevision?: number;
   publishedAt?: string;
@@ -60,5 +62,28 @@ export function toChangeRequestDraftResponse(record: ChangeRequestRecord): Chang
     createdAt: record.createdAt,
     createdBy: record.createdBy,
     lastModifiedAt: record.lastModifiedAt,
+  };
+}
+
+/** API response for POST `?action=cancel`. */
+export interface ChangeRequestCancelledResponse {
+  changeRequestId: string;
+  status: typeof CHANGE_REQUEST_STATUS.CANCELLED;
+  entityType: ChangeRequestEntityType;
+  metadataTypeCode: string;
+  metadataValueCode?: string | null;
+  cancelledAt: string;
+}
+
+export function toChangeRequestCancelledResponse(
+  record: ChangeRequestRecord,
+): ChangeRequestCancelledResponse {
+  return {
+    changeRequestId: record.changeRequestId,
+    status: CHANGE_REQUEST_STATUS.CANCELLED,
+    entityType: record.entityType,
+    metadataTypeCode: record.metadataTypeCode,
+    metadataValueCode: record.metadataValueCode ?? null,
+    cancelledAt: record.cancelledAt ?? record.lastModifiedAt,
   };
 }

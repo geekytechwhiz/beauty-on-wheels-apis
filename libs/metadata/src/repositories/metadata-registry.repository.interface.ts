@@ -92,6 +92,10 @@ export interface IMetadataRegistryRepository {
     changeRequestId: string,
     params: { actor?: string; publishedAt: string },
   ): Promise<ChangeRequestRecord>;
+  cancelChangeRequest(
+    changeRequestId: string,
+    params: { actor?: string; cancelledAt: string },
+  ): Promise<ChangeRequestRecord>;
   getChangeRequestDraftPointer(
     metadataTypeCode: string,
     entityType: 'type' | 'value',

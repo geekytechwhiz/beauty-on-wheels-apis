@@ -170,9 +170,12 @@ paths:
         modify published metadata or save a draft unless previewing an existing draft by `changeRequestId`.
 
         **`action=publish`:** publishes a saved DRAFT change request into published metadata. Re-evaluates change
-        impact at publish time (does not trust a prior preview). Body `{ "changeRequestId": "<id>" }` only.
+        impact at publish time (does not trust a prior preview).
 
-        **Mode A (draft):** body `{ "changeRequestId": "<id>" }` — loads the saved DRAFT and previews its proposed payload.
+        **`action=cancel`:** cancels a saved DRAFT change request. Body `{ "changeRequestId": "<id>" }` only. Removes
+        the active draft pointer when this draft is still the entity's active draft.
+
+        **Mode A (draft preview):** body `{ "changeRequestId": "<id>" }` — loads the saved DRAFT and previews its proposed payload.
 
         **Mode B (stateless):** body is the same metadata type/value payload as `action=draft` — validates input,
         compares against latest published metadata, returns impact summary without persisting.
@@ -194,9 +197,10 @@ paths:
           description: |
             Publish workflow action. `draft` saves a change request without modifying published metadata.
             `impact-preview` returns change impact without publishing. `publish` activates a saved draft.
+            `cancel` cancels a saved draft.
           schema:
             type: string
-            enum: [draft, impact-preview, publish]
+            enum: [draft, impact-preview, publish, cancel]
       requestBody:
         required: true
         content:
@@ -207,11 +211,13 @@ paths:
                 - $ref: '#/components/schemas/MetadataValueInput'
                 - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
                 - $ref: '#/components/schemas/MetadataPublishRequest'
+                - $ref: '#/components/schemas/ChangeRequestCancelRequest'
       responses:
         '200':
           description: |
             When `action=draft`, returns `ChangeRequestDraftResponse`. When `action=impact-preview`, returns
-            `ImpactPreviewResponse`. When `action=publish`, returns `MetadataPublishResponse`.
+            `ImpactPreviewResponse`. When `action=publish`, returns `MetadataPublishResponse`. When `action=cancel`,
+            returns `ChangeRequestCancelledResponse`.
           content:
             application/json:
               schema:
@@ -219,6 +225,7 @@ paths:
                   - $ref: '#/components/schemas/ChangeRequestDraftResponse'
                   - $ref: '#/components/schemas/ImpactPreviewResponse'
                   - $ref: '#/components/schemas/MetadataPublishResponse'
+                  - $ref: '#/components/schemas/ChangeRequestCancelledResponse'
         '400':
           description: Validation error
         '404':
@@ -816,6 +823,43 @@ components:
         createdBy:
           type: string
         lastModifiedAt:
+          type: string
+          format: date-time
+
+    ChangeRequestCancelRequest:
+      type: object
+      description: Body for `POST /metadata/{entityType}?action=cancel`.
+      required: [changeRequestId]
+      properties:
+        changeRequestId:
+          type: string
+          description: Draft id returned from `action=draft`
+
+    ChangeRequestCancelledResponse:
+      type: object
+      description: Response for `POST /metadata/{entityType}?action=cancel`.
+      required:
+        - changeRequestId
+        - status
+        - entityType
+        - metadataTypeCode
+        - cancelledAt
+      properties:
+        changeRequestId:
+          type: string
+        status:
+          type: string
+          enum: [CANCELLED]
+        entityType:
+          type: string
+          enum: [type, value]
+        metadataTypeCode:
+          type: string
+        metadataValueCode:
+          type: string
+          nullable: true
+          description: Present when `entityType=value`; null when `entityType=type`
+        cancelledAt:
           type: string
           format: date-time
 

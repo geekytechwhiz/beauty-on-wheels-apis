@@ -6,6 +6,8 @@ import {
 import type { MetadataTypeRecord, MetadataValueRecord } from '../models/types';
 
 const mockSaveChangeRequestDraft = jest.fn();
+const mockGetChangeRequest = jest.fn();
+const mockCancelChangeRequest = jest.fn();
 const mockGetMetadataType = jest.fn();
 const mockGetMetadataValue = jest.fn();
 const mockListMetadataValues = jest.fn();
@@ -17,7 +19,7 @@ jest.mock('../dynamodb/dynamodb.client', () => ({
   getMetadataRegistryDynamoContext: jest.fn(),
 }));
 
-import { orchestrateRegistryPostDraft } from './metadata-change-request.service';
+import { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft } from './metadata-change-request.service';
 
 function minimalType(code: string, overrides: Partial<MetadataTypeRecord> = {}): MetadataTypeRecord {
   return {
@@ -188,5 +190,112 @@ describe('orchestrateRegistryPostDraft', () => {
 
     expect(result.operation).toBe(CHANGE_REQUEST_OPERATION.ADD);
     expect(result.baseVersion).toBeNull();
+  });
+});
+
+describe('orchestrateRegistryPostCancelDraft', () => {
+  const cancelledAt = '2026-06-02T12:00:00.000Z';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetMetadataRepository.mockResolvedValue({
+      getChangeRequest: mockGetChangeRequest,
+      cancelChangeRequest: mockCancelChangeRequest,
+    });
+  });
+
+  it('cancels a DRAFT change request', async () => {
+    mockGetChangeRequest.mockResolvedValue({
+      changeRequestId: 'cr_cancel_001',
+      status: CHANGE_REQUEST_STATUS.DRAFT,
+      entityType: 'value',
+      operation: CHANGE_REQUEST_OPERATION.UPDATE,
+      metadataTypeCode: 'MetricCode',
+      metadataValueCode: 'BP_SYSTOLIC',
+      baseVersion: 3,
+      proposedPayload: {},
+      createdAt: '2020-01-01',
+      lastModifiedAt: '2020-01-01',
+    });
+    mockCancelChangeRequest.mockResolvedValue({
+      changeRequestId: 'cr_cancel_001',
+      status: CHANGE_REQUEST_STATUS.CANCELLED,
+      entityType: 'value',
+      operation: CHANGE_REQUEST_OPERATION.UPDATE,
+      metadataTypeCode: 'MetricCode',
+      metadataValueCode: 'BP_SYSTOLIC',
+      baseVersion: 3,
+      proposedPayload: {},
+      createdAt: '2020-01-01',
+      lastModifiedAt: cancelledAt,
+      cancelledAt,
+      cancelledBy: 'admin',
+    });
+
+    const result = await orchestrateRegistryPostCancelDraft({
+      entityType: 'value',
+      action: 'cancel',
+      userId: 'admin',
+      body: { changeRequestId: 'cr_cancel_001' },
+    });
+
+    expect(result.status).toBe(CHANGE_REQUEST_STATUS.CANCELLED);
+    expect(result.metadataTypeCode).toBe('MetricCode');
+    expect(result.metadataValueCode).toBe('BP_SYSTOLIC');
+    expect(result.cancelledAt).toBe(cancelledAt);
+    expect(mockCancelChangeRequest).toHaveBeenCalledWith(
+      'cr_cancel_001',
+      expect.objectContaining({ actor: 'admin' }),
+    );
+  });
+
+  it('rejects when change request is not DRAFT', async () => {
+    mockGetChangeRequest.mockResolvedValue({
+      changeRequestId: 'cr_cancel_001',
+      status: CHANGE_REQUEST_STATUS.PUBLISHED,
+      entityType: 'value',
+      operation: CHANGE_REQUEST_OPERATION.UPDATE,
+      metadataTypeCode: 'MetricCode',
+      metadataValueCode: 'BP_SYSTOLIC',
+      baseVersion: 3,
+      proposedPayload: {},
+      createdAt: '2020-01-01',
+      lastModifiedAt: '2020-01-01',
+    });
+
+    await expect(
+      orchestrateRegistryPostCancelDraft({
+        entityType: 'value',
+        action: 'cancel',
+        body: { changeRequestId: 'cr_cancel_001' },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockCancelChangeRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects when path entityType mismatches draft', async () => {
+    mockGetChangeRequest.mockResolvedValue({
+      changeRequestId: 'cr_cancel_001',
+      status: CHANGE_REQUEST_STATUS.DRAFT,
+      entityType: 'value',
+      operation: CHANGE_REQUEST_OPERATION.UPDATE,
+      metadataTypeCode: 'MetricCode',
+      metadataValueCode: 'BP_SYSTOLIC',
+      baseVersion: 3,
+      proposedPayload: {},
+      createdAt: '2020-01-01',
+      lastModifiedAt: '2020-01-01',
+    });
+
+    await expect(
+      orchestrateRegistryPostCancelDraft({
+        entityType: 'type',
+        action: 'cancel',
+        body: { changeRequestId: 'cr_cancel_001' },
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockCancelChangeRequest).not.toHaveBeenCalled();
   });
 });

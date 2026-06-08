@@ -60,7 +60,7 @@ import {
 } from './metadata-value-relation.service';
 import type { RegistryPostMetadataInput } from './metadata.service.types';
 
-export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput } from './metadata.service.types';
+export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput, RegistryPostMetadataCancelInput } from './metadata.service.types';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
@@ -718,9 +718,12 @@ export async function orchestrateRegistryDeleteMetadataValue(
   return enrichMetadataValueForApi(record);
 }
 
-export { orchestrateRegistryPostDraft } from './metadata-change-request.service';
+export { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft } from './metadata-change-request.service';
 export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
 export { orchestrateRegistryPostPublish, publishChangeRequest } from './metadata-publish.service';
-export type { ChangeRequestDraftResponse } from '../models/change-request.types';
+export type {
+  ChangeRequestDraftResponse,
+  ChangeRequestCancelledResponse,
+} from '../models/change-request.types';
 export type { ImpactPreviewResponse } from '../models/impact-preview.types';
 export type { MetadataPublishResult, MetadataPublishResponse } from '../models/publish.types';

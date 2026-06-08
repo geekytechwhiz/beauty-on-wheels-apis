@@ -5,6 +5,7 @@ import { TaskKeyBuilder } from '../builder/task-key.builder';
 import { TASK_LOOKUP_SK } from '../constants/task.constants';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
+import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type { TaskLookupDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import {
@@ -93,6 +94,50 @@ export class TaskRepository extends BaseRepository {
     } catch (err: unknown) {
       if (isMetaConditionalFailure(err)) {
         throw new DuplicateTaskError(runtimeTaskInstanceId);
+      }
+      throw err;
+    }
+  }
+
+  async createRuntimeTask(input: CreateRuntimeTaskRequest): Promise<TaskMetaDdbRecord> {
+    const table = assertTaskTable();
+    const ctx = TaskEntityBuilder.buildRuntimeTaskCreateContext({ input });
+
+    const metaPut = TaskEntityBuilder.buildRuntimeMetaRecord(ctx);
+    const lookupPut = TaskEntityBuilder.buildRuntimeLookupRecord(ctx);
+    const histPut = TaskEntityBuilder.buildRuntimeCreateHistRecord(ctx);
+
+    try {
+      await this.transactWrite({
+        TransactItems: [
+          {
+            Put: {
+              TableName: table,
+              Item: metaPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+          {
+            Put: {
+              TableName: table,
+              Item: lookupPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+          {
+            Put: {
+              TableName: table,
+              Item: histPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+        ],
+      });
+
+      return metaPut;
+    } catch (err: unknown) {
+      if (isMetaConditionalFailure(err)) {
+        throw new DuplicateTaskError(ctx.runtimeTaskInstanceId);
       }
       throw err;
     }

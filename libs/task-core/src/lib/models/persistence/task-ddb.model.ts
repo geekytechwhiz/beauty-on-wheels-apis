@@ -1,11 +1,13 @@
 import type {
   AssignedToType,
+  OwnerType,
   ReminderSettings,
   RuntimeTaskSource,
   TaskBehaviorCode,
   TaskDisplayGroup,
   TaskHistoryEventType,
   TransitionSource,
+  WorkflowStage,
 } from '../types/task-domain.types';
 import type { RuntimeTaskState } from '../types/runtime-task-state.type';
 
@@ -24,6 +26,18 @@ export interface TaskMetaDdbRecord {
   displayTitle: string;
   description?: string;
   assignedToType: AssignedToType;
+  assignedToStaffId?: string;
+  ownerType?: OwnerType;
+  ownerUserId?: string;
+  ownerRoleCode?: string;
+  ownerTeamId?: string;
+  ownerDisplayName?: string;
+  workflowStage?: WorkflowStage;
+  actionTargetId?: string;
+  completionSourceType?: string;
+  completionSourceReferenceId?: string;
+  requiredForStageCompletion?: boolean;
+  displayAsChecklistItem?: boolean;
   displayToPatient: boolean;
   currentState: RuntimeTaskState;
   dueWindowStart?: number;
@@ -53,6 +67,12 @@ export interface TaskLookupDdbRecord {
   dueWindowStart?: number;
   dueWindowEnd?: number;
   carePlanInstanceId?: string;
+  assignedToStaffId?: string;
+  ownerType?: OwnerType;
+  ownerUserId?: string;
+  ownerRoleCode?: string;
+  ownerTeamId?: string;
+  ownerDisplayName?: string;
   reminderHistory?: unknown[];
 }
 

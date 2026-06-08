@@ -1,7 +1,9 @@
 import type { LambdaRequest } from '@api-hub/utils';
 
-import { getOrganizationIdForRequest } from '../utils/helpers';
-import type { CreateMonitoringActionHttpBody } from './task.schemas';
+import { manualSystemActor, SERVICE_FLOW_SYSTEM_ACTOR } from '@api-hub/task-core';
+
+import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
+import type { CreateMonitoringActionHttpBody, CreateRuntimeTaskHttpBody } from './task.schemas';
 
 function throwVal(
   message: string,
@@ -31,6 +33,45 @@ export function validateCreateMonitoringActionRequest(req: LambdaRequest): void 
   (req as LambdaRequest & { validatedCreateMonitoringAction: ValidatedCreateMonitoringAction }).validatedCreateMonitoringAction =
     {
       orgId,
+      body,
+      authHeader: req.context.authHeader,
+    };
+}
+
+export type ValidatedCreateRuntimeTask = {
+  orgId: string;
+  createdBy: string;
+  authHeader: string | undefined;
+  body: CreateRuntimeTaskHttpBody;
+};
+
+export function validateCreateRuntimeTaskRequest(req: LambdaRequest): void {
+  const body = req.body as CreateRuntimeTaskHttpBody;
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  let createdBy: string;
+  if (body.runtimeTaskSource === 'manualSystem') {
+    const actorUserId = getActorUserIdForRequest(req.event, req.context.authHeader);
+    if (!actorUserId) {
+      throwVal(
+        'Authenticated user could not be resolved from the access token for manualSystem create',
+        422,
+        'VALIDATION_ERROR',
+      );
+    }
+    createdBy = manualSystemActor(actorUserId!);
+  } else {
+    createdBy = SERVICE_FLOW_SYSTEM_ACTOR;
+  }
+
+  (req as LambdaRequest & { validatedCreateRuntimeTask: ValidatedCreateRuntimeTask }).validatedCreateRuntimeTask =
+    {
+      orgId,
+      createdBy,
       body,
       authHeader: req.context.authHeader,
     };

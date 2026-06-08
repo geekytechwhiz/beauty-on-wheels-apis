@@ -3,11 +3,15 @@ import { BaseError } from '@api-hub/utils';
 import {
   TaskService,
   createMonitoringActionPayloadFromHttpBody,
+  createRuntimeTaskPayloadFromHttpBody,
   normalizeTaskServiceError,
   toRuntimeTaskCard,
 } from '@api-hub/task-core';
 
-import type { ValidatedCreateMonitoringAction } from '../validators/request.validators';
+import type {
+  ValidatedCreateMonitoringAction,
+  ValidatedCreateRuntimeTask,
+} from '../validators/request.validators';
 
 let taskService: TaskService | undefined;
 function getTaskService(): TaskService {
@@ -58,6 +62,51 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_monitoring_create_service_error',
+      });
+    }
+  }
+
+  async handleCreateRuntimeTask(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedCreateRuntimeTask?: ValidatedCreateRuntimeTask })
+      .validatedCreateRuntimeTask;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const payload = createRuntimeTaskPayloadFromHttpBody(
+        validated.orgId,
+        validated.body,
+        validated.createdBy,
+      );
+      const { record } = await this.svc.createRuntimeTask(payload);
+      const task = toRuntimeTaskCard(record);
+
+      return {
+        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+        task,
+      };
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_create_service_error',
       });
     }
   }

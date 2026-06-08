@@ -142,5 +142,32 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  createRuntimeTask:
+    handler: src/handlers/http/createRuntimeTask.main
+    events:
+      - http:
+          path: tasks
+          method: post
+          bodyType: CreateRuntimeTaskRequest
+          summary: Create an ad-hoc/service-flow/manual runtime task
+          description: >
+            Called by Service Flow Runtime or authorized staff/system (runtimeTaskSource =
+            serviceFlowRuntime or manualSystem). Organization scope from JWT only.
+            Prefer manualSystem when the origin is this API or the care UI.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — new runtime task created
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "422": Validation or business rule error
+            "500": Server error
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

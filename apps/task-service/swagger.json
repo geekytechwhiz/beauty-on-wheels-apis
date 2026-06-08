@@ -81,6 +81,91 @@
         "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
         "task": { "type": "object" }
       }
+    },
+    "RuntimeTaskSourceCreate": {
+      "type": "string",
+      "enum": ["serviceFlowRuntime", "manualSystem"]
+    },
+    "TaskDisplayGroup": {
+      "type": "string",
+      "enum": ["action", "learning", "checkIn", "staffTask"]
+    },
+    "AssignedToType": {
+      "type": "string",
+      "enum": ["patient", "careTeam", "provider", "system"]
+    },
+    "OwnerType": {
+      "type": "string",
+      "enum": ["user", "role", "team"]
+    },
+    "WorkflowStage": {
+      "type": "string",
+      "enum": ["onboarding", "ongoing", "review", "closure"]
+    },
+    "CreateRuntimeTaskRequest": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "runtimeTaskSource",
+        "taskBehaviorCode",
+        "taskDisplayGroup",
+        "displayTitle",
+        "assignedToType",
+        "displayToPatient"
+      ],
+      "properties": {
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
+        "runtimeTaskSource": { "$ref": "#/definitions/RuntimeTaskSourceCreate" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
+        "displayTitle": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "assignedToStaffId": { "type": "string" },
+        "ownerType": { "$ref": "#/definitions/OwnerType" },
+        "ownerUserId": { "type": "string" },
+        "ownerRoleCode": { "type": "string" },
+        "ownerTeamId": { "type": "string" },
+        "ownerDisplayName": { "type": "string" },
+        "displayToPatient": { "type": "boolean" },
+        "actionTargetId": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "reminderEnabled": { "type": "boolean" },
+        "requiredForStageCompletion": { "type": "boolean" },
+        "displayAsChecklistItem": { "type": "boolean" }
+      },
+      "additionalProperties": false,
+      "example": {
+        "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+        "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+        "workflowStage": "ongoing",
+        "runtimeTaskSource": "manualSystem",
+        "taskBehaviorCode": "CARE_TEAM_TASK",
+        "taskDisplayGroup": "staffTask",
+        "displayTitle": "Call patient about missed reading",
+        "description": "Follow up on missed BP reading from yesterday",
+        "assignedToType": "careTeam",
+        "ownerType": "user",
+        "ownerUserId": "staff-nurse-44721",
+        "ownerDisplayName": "Nurse Lee",
+        "displayToPatient": false,
+        "dueWindowStart": 1780581600000,
+        "dueWindowEnd": 1780668000000,
+        "reminderEnabled": false
+      }
+    },
+    "CreateRuntimeTaskResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "task"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "task": { "type": "object" }
+      }
     }
   },
   "paths": {
@@ -112,6 +197,31 @@
           },
           "401": { "description": "Unauthorized" },
           "409": { "description": "Conflict (cross-org idempotency)" },
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "summary": "Create an ad-hoc/service-flow/manual runtime task",
+        "description": "Called by Service Flow Runtime or authorized staff/system. Prefer manualSystem for care UI. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateRuntimeTaskRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — new runtime task created.",
+            "schema": { "$ref": "#/definitions/CreateRuntimeTaskResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
           "422": { "description": "Validation error" },
           "500": { "description": "Server error" }
         }

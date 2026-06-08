@@ -75,6 +75,23 @@ export const TRANSITION_SOURCE = {
 
 export type TransitionSource = (typeof TRANSITION_SOURCE)[keyof typeof TRANSITION_SOURCE];
 
+export const OWNER_TYPE = {
+  USER: 'user',
+  ROLE: 'role',
+  TEAM: 'team',
+} as const;
+
+export type OwnerType = (typeof OWNER_TYPE)[keyof typeof OWNER_TYPE];
+
+export const WORKFLOW_STAGE = {
+  ONBOARDING: 'onboarding',
+  ONGOING: 'ongoing',
+  REVIEW: 'review',
+  CLOSURE: 'closure',
+} as const;
+
+export type WorkflowStage = (typeof WORKFLOW_STAGE)[keyof typeof WORKFLOW_STAGE];
+
 export interface ReminderSettings {
   channels?: string[];
   quietHoursRespected?: boolean;

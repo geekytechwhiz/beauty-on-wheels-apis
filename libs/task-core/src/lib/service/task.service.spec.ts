@@ -1,5 +1,7 @@
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
+import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
+import { RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { TaskRepository } from '../repositories/task-repository';
 import { TaskService } from './task.service';
@@ -114,5 +116,50 @@ describe('TaskService.createMonitoringAction', () => {
     const result = await svc.createMonitoringAction(payload);
 
     expect(result).toEqual({ record, outcome: 'skippedDuplicate' });
+  });
+});
+
+function runtimePayload(): CreateRuntimeTaskPayload {
+  return {
+    organizationId: 'org-1',
+    createdBy: 'user:staff-1',
+    patientId: 'pat-1',
+    runtimeTaskSource: RUNTIME_TASK_SOURCE.MANUAL_SYSTEM,
+    taskBehaviorCode: 'CARE_TEAM_TASK',
+    taskDisplayGroup: 'staffTask',
+    displayTitle: 'Follow up call',
+    assignedToType: 'careTeam',
+    displayToPatient: false,
+    ownerType: 'user',
+    ownerUserId: 'staff-1',
+  };
+}
+
+describe('TaskService.createRuntimeTask', () => {
+  it('returns record on successful create', async () => {
+    const record = {
+      ...sampleRecord(),
+      runtimeTaskSource: 'manualSystem' as const,
+      taskDisplayGroup: 'staffTask' as const,
+    };
+    const repo = {
+      createRuntimeTask: jest.fn().mockResolvedValue(record),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.createRuntimeTask(runtimePayload());
+
+    expect(result).toEqual({ record });
+    expect(repo.createRuntimeTask).toHaveBeenCalledWith(runtimePayload());
+  });
+
+  it('propagates repository errors', async () => {
+    const repo = {
+      createRuntimeTask: jest.fn().mockRejectedValue(new Error('ddb failure')),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(svc.createRuntimeTask(runtimePayload())).rejects.toThrow('ddb failure');
   });
 });

@@ -8,14 +8,18 @@ import {
 
 // eslint-disable-next-line no-var
 var mockCreateMonitoringAction: jest.Mock;
+// eslint-disable-next-line no-var
+var mockCreateRuntimeTask: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
+  mockCreateRuntimeTask = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
     TaskService: jest.fn().mockImplementation(() => ({
       createMonitoringAction: mockCreateMonitoringAction,
+      createRuntimeTask: mockCreateRuntimeTask,
     })),
   };
 });
@@ -67,6 +71,7 @@ describe('TaskHttpController', () => {
 
   beforeEach(() => {
     mockCreateMonitoringAction.mockReset();
+    mockCreateRuntimeTask.mockReset();
   });
 
   it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
@@ -160,5 +165,63 @@ describe('TaskHttpController', () => {
       statusCode: 409,
       code: 'IDEMPOTENCY_KEY_IN_USE',
     });
+  });
+
+  it('handleCreateRuntimeTask returns create result on success', async () => {
+    const c = new TaskHttpController();
+    const record = minimalTaskMetaRecord({
+      runtimeTaskSource: 'manualSystem',
+      taskBehaviorCode: 'CARE_TEAM_TASK',
+      taskDisplayGroup: 'staffTask',
+      displayTitle: 'Call patient',
+      assignedToType: 'careTeam',
+      displayToPatient: false,
+      ownerType: 'user',
+      ownerUserId: 'staff-nurse-44721',
+      assignedToStaffId: 'staff-nurse-44721',
+    });
+    mockCreateRuntimeTask.mockResolvedValue({ record });
+
+    const req = baseReq({
+      validatedCreateRuntimeTask: {
+        orgId: 'org-1',
+        createdBy: 'user:user-1',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        body: {
+          patientId: 'pat-1',
+          runtimeTaskSource: 'manualSystem',
+          taskBehaviorCode: 'CARE_TEAM_TASK',
+          taskDisplayGroup: 'staffTask',
+          displayTitle: 'Call patient',
+          assignedToType: 'careTeam',
+          displayToPatient: false,
+          ownerType: 'user',
+          ownerUserId: 'staff-nurse-44721',
+        },
+      },
+    } as any);
+
+    const out = await c.handleCreateRuntimeTask(req);
+    expect(out).toMatchObject({
+      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+      task: expect.objectContaining({
+        runtimeTaskSource: 'manualSystem',
+        taskDisplayGroup: 'staffTask',
+        surfaceSection: expect.any(String),
+      }),
+    });
+    expect(out).not.toHaveProperty('outcome');
+    expect(mockCreateRuntimeTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleCreateRuntimeTask throws 500 when validatedCreateRuntimeTask missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleCreateRuntimeTask(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockCreateRuntimeTask).not.toHaveBeenCalled();
   });
 });

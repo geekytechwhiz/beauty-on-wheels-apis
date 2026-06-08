@@ -146,14 +146,19 @@ function isAllCountryFilter(country: string | undefined): boolean {
   return country?.trim().toLowerCase() === 'all';
 }
 
+function listItemFieldValues(item: MasterTemplateListItem): Record<string, unknown> {
+  const fv = item.fieldValues;
+  return fv && typeof fv === 'object' && !Array.isArray(fv) ? fv : {};
+}
+
 function masterCodesFromItem(item: MasterTemplateListItem): {
   categoryCode?: string;
   conditionCode?: string;
 } {
-  const fv = fieldValuesOf(item);
+  const fv = listItemFieldValues(item);
   return {
-    categoryCode: firstString(fv.categoryCode),
-    conditionCode: firstString(fv.conditionCode),
+    categoryCode: firstString(fv.categoryCode) ?? firstString(fv.category),
+    conditionCode: firstString(fv.conditionCode) ?? firstString(fv.condition),
   };
 }
 
@@ -165,6 +170,7 @@ function buildOrgEnabledFilterOptions(items: MasterTemplateListItem[]): OrgEnabl
   const templateName: { key: string; value: string }[] = [];
 
   for (const item of items) {
+    if (item.status !== TEMPLATE_STATUS.PUBLISHED) continue;
     const codes = masterCodesFromItem(item);
     if (codes.conditionCode) conditionCode.add(codes.conditionCode);
     if (codes.categoryCode) categoryCode.add(codes.categoryCode);

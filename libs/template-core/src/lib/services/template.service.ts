@@ -321,11 +321,12 @@ export class TemplateService {
    */
   async listPublishedMasterCatalogItems(templateType?: string) {
     try {
-      const allRows = await this.repo.listAllMasterVersionsAcrossStatuses({ templateType });
-      const reps = representativePerTemplate(allRows).filter(
-        (row) => row.meta?.status === TEMPLATE_STATUS.PUBLISHED,
+      const rows = await this.repo.listPublishedMasterCatalogRows(
+        templateType?.trim() ? { templateType: templateType.trim() } : {},
       );
-      return reps.map((row) => toMasterListItem(row));
+      return rows
+        .filter((row) => row.meta?.status === TEMPLATE_STATUS.PUBLISHED)
+        .map((row) => toMasterListItem(row));
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }

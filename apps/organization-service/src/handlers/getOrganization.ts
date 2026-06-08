@@ -255,7 +255,8 @@ const handler = async (req: LambdaRequest) => {
     mobileScreensPromise,
   ]);
   transformed.linkedOrganizations = linkedOrgs.items || [];
-  const deviceVitals = (deviceItems as Array<{ supportedVitals?: unknown[] }>)?.flatMap((device) => device.supportedVitals ?? []);
+  const deviceList = (Array.isArray(deviceItems) ? deviceItems : []) as Array<{ supportedVitals?: unknown[] }>;
+  const deviceVitals = deviceList.flatMap((device) => device.supportedVitals ?? []);
   const uniqueVitals = Array.from(new Set(deviceVitals.filter((vital): vital is string => typeof vital === 'string')));
   transformed.supportedVitals = buildSupportedVitalsArray(uniqueVitals);
 

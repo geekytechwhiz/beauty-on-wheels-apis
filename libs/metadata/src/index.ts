@@ -94,3 +94,22 @@ export {
   getMetadataRepository,
   getRelationRepository,
 } from './dynamodb/dynamodb.client';
+
+export {
+  evaluateChangeImpact,
+  loadChangePolicyCatalogFromFile,
+  getChangePolicyCatalog,
+  detectFieldChanges,
+  matchPolicyRules,
+  aggregateChangeImpact,
+  parseChangePolicyCatalog,
+  ChangePolicyCatalogError,
+  type AggregatedChangeImpact,
+  type ChangeImpactEvaluationInput,
+  type DetectedFieldChange,
+  type ChangePolicyCatalog,
+  POLICY_GROUP,
+  VERSION_IMPACT,
+  RUNTIME_IMPACT,
+  CHANGE_POLICY_OPERATION,
+} from './change-policy';

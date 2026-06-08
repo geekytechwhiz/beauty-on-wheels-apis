@@ -7,6 +7,14 @@ import * as crypto from 'crypto';
 
 const baseLogger = createLogger({ service: 'device-repository' });
 
+/** Keep a bounded audit trail so device items stay under DynamoDB's 400KB limit. */
+const MAX_DEVICE_UPDATES = 100;
+
+function isDynamoItemSizeExceeded(err: unknown): boolean {
+  const message = (err as { message?: string })?.message ?? '';
+  return message.includes('Item size') && message.includes('maximum allowed size');
+}
+
 export class DeviceRepository {
   private docClient: DynamoDBDocumentClient;
   private tableName: string;
@@ -372,6 +380,121 @@ export class DeviceRepository {
   /**
    * Update device entry with field merging logic (preserves existing values if new ones are missing/empty)
    */
+  private buildDeviceUpdateParams(
+    device: {
+      deviceId?: string;
+      configDeviceId: string;
+      macAddress?: string;
+      displayName?: string;
+      noOfUsers?: number;
+      databaseUpdateFlag?: boolean;
+      deviceCategory?: string;
+      lastSequenceNumber?: string;
+      localName?: string;
+      companyName?: string;
+      modelName?: string;
+      usesExtensionProtocol?: boolean;
+      supportsUserAuthentication?: boolean;
+      lastReadingTimeStamp?: number;
+      databaseChangeIncrement?: number;
+      isDeviceDeleted?: boolean;
+      platform?: string;
+      isAutoSyncEnabled?: boolean;
+      iOSIdentifier?: string;
+      isAutoSyncSupported?: boolean;
+      autoSyncDelay?: number;
+      userIndex?: number;
+      isEagleDevice?: boolean;
+      isSync?: boolean;
+      deviceCategoryNum?: string;
+    },
+    userId: string,
+    updatesExpression: string,
+    updatesValue: Array<{ updatedBy: string; updatedAt: number }>,
+    now: number,
+  ): Record<string, unknown> {
+    const params: Record<string, unknown> = {
+      TableName: this.tableName,
+      Key: {
+        pk: `DEVICE_LIST#${userId}`,
+        sk: `DETAILS#${device.configDeviceId}`,
+      },
+      UpdateExpression: `SET #modifiedDate = :modifiedDate, #sk2 = :sk2, ${updatesExpression}`,
+      ExpressionAttributeValues: {
+        ':modifiedDate': now,
+        ':sk2': 'STATUS#ACTIVE',
+        ':updates': updatesValue,
+        ':emptyList': [],
+      },
+      ExpressionAttributeNames: {
+        '#modifiedDate': 'modifiedDate',
+        '#sk2': 'sk2',
+        '#updates': 'updates',
+      },
+      ReturnValues: 'ALL_NEW',
+    };
+
+    const expressionAttributeValues = params.ExpressionAttributeValues as Record<string, unknown>;
+    const expressionAttributeNames = params.ExpressionAttributeNames as Record<string, string>;
+    let updateExpression = params.UpdateExpression as string;
+
+    const addAttribute = (attrName: string, attrValue: unknown) => {
+      updateExpression += `, #${attrName} = :${attrName}`;
+      expressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : '';
+      expressionAttributeNames[`#${attrName}`] = attrName;
+    };
+
+    const addBooleanAttribute = (attrName: string, attrValue: unknown) => {
+      updateExpression += `, #${attrName} = :${attrName}`;
+      expressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : false;
+      expressionAttributeNames[`#${attrName}`] = attrName;
+    };
+
+    const addNumberAttribute = (attrName: string, attrValue: unknown) => {
+      updateExpression += `, #${attrName} = :${attrName}`;
+      expressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : 0;
+      expressionAttributeNames[`#${attrName}`] = attrName;
+    };
+
+    if (device.deviceId !== undefined) {
+      addAttribute('deviceId', device.deviceId);
+    }
+    addAttribute('macAddress', device.macAddress);
+    addAttribute('displayName', device.displayName);
+    addNumberAttribute('noOfUsers', device.noOfUsers);
+    addBooleanAttribute('databaseUpdateFlag', device.databaseUpdateFlag);
+    addAttribute('deviceCategory', device.deviceCategory);
+    addAttribute('lastSequenceNumber', device.lastSequenceNumber);
+    addAttribute('localName', device.localName);
+    addAttribute('companyName', device.companyName);
+    addAttribute('modelName', device.modelName);
+    addBooleanAttribute('usesExtensionProtocol', device.usesExtensionProtocol);
+    addBooleanAttribute('supportsUserAuthentication', device.supportsUserAuthentication);
+    addNumberAttribute('userIndex', device.userIndex);
+    addAttribute('lastReadingTimeStamp', device.lastReadingTimeStamp);
+    addNumberAttribute('databaseChangeIncrement', device.databaseChangeIncrement);
+    addBooleanAttribute('isDeviceDeleted', device.isDeviceDeleted);
+    addAttribute('platform', device.platform);
+    addBooleanAttribute('isAutoSyncEnabled', device.isAutoSyncEnabled);
+    addBooleanAttribute('isAutoSyncSupported', device.isAutoSyncSupported);
+    addAttribute('iOSIdentifier', device.iOSIdentifier);
+    addNumberAttribute('autoSyncDelay', device.autoSyncDelay);
+    addBooleanAttribute('isEagleDevice', device.isEagleDevice);
+    addBooleanAttribute('isSync', device.isSync);
+    addAttribute('deviceCategoryNum', device.deviceCategoryNum);
+
+    params.UpdateExpression = updateExpression;
+    return params;
+  }
+
+  private trimUpdates(
+    existingUpdates: Array<{ updatedBy: string; updatedAt: number }> | undefined,
+    newUpdates: Array<{ updatedBy: string; updatedAt: number }>,
+  ): Array<{ updatedBy: string; updatedAt: number }> {
+    const merged = [...(existingUpdates ?? []), ...newUpdates];
+    return merged.slice(-MAX_DEVICE_UPDATES);
+  }
+
   async updateDeviceEntry(
     device: {
       deviceId?: string;
@@ -401,82 +524,39 @@ export class DeviceRepository {
       deviceCategoryNum?: string;
     },
     userId: string,
-    updates: Array<{ updatedBy: string; updatedAt: number }>,
+    newUpdates: Array<{ updatedBy: string; updatedAt: number }>,
+    existingUpdates?: Array<{ updatedBy: string; updatedAt: number }>,
   ): Promise<DeviceUserEntry> {
     const logger = createChildLogger(baseLogger, { userId, configDeviceId: device.configDeviceId });
     try {
       const now = Date.now();
-      const params: any = {
-        TableName: this.tableName,
-        Key: {
-          pk: `DEVICE_LIST#${userId}`,
-          sk: `DETAILS#${device.configDeviceId}`,
-        },
-        UpdateExpression: 'SET #modifiedDate = :modifiedDate, #sk2 = :sk2, #updates = list_append(if_not_exists(#updates, :emptyList), :updates)',
-        ExpressionAttributeValues: {
-          ':modifiedDate': now,
-          ':sk2': 'STATUS#ACTIVE',
-          ':updates': updates,
-          ':emptyList': [],
-        },
-        ExpressionAttributeNames: {
-          '#modifiedDate': 'modifiedDate',
-          '#sk2': 'sk2',
-          '#updates': 'updates',
-        },
-        ReturnValues: 'ALL_NEW',
-      };
+      const appendExpression = '#updates = list_append(if_not_exists(#updates, :emptyList), :updates)';
+      const params = this.buildDeviceUpdateParams(device, userId, appendExpression, newUpdates, now);
 
-      // Helper to add attribute to update expression
-      const addAttribute = (attrName: string, attrValue: any) => {
-        params.UpdateExpression += `, #${attrName} = :${attrName}`;
-        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : '';
-        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
-      };
+      try {
+        await this.docClient.send(new UpdateCommand(params as any) as any);
+      } catch (err) {
+        if (!isDynamoItemSizeExceeded(err)) {
+          throw err;
+        }
 
-      const addBooleanAttribute = (attrName: string, attrValue: any) => {
-        params.UpdateExpression += `, #${attrName} = :${attrName}`;
-        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : false;
-        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
-      };
+        logger.warn({
+          event: 'device_entry_update_item_size_exceeded_recovering',
+          configDeviceId: device.configDeviceId,
+          existingUpdateCount: existingUpdates?.length ?? 0,
+        });
 
-      const addNumberAttribute = (attrName: string, attrValue: any) => {
-        params.UpdateExpression += `, #${attrName} = :${attrName}`;
-        params.ExpressionAttributeValues[`:${attrName}`] = attrValue !== undefined ? attrValue : 0;
-        params.ExpressionAttributeNames[`#${attrName}`] = attrName;
-      };
-
-      // Add all device fields to update expression
-      if (device.deviceId !== undefined) {
-        addAttribute('deviceId', device.deviceId);
+        const trimmedUpdates = this.trimUpdates(existingUpdates, newUpdates);
+        const recoveryParams = this.buildDeviceUpdateParams(
+          device,
+          userId,
+          '#updates = :updates',
+          trimmedUpdates,
+          now,
+        );
+        await this.docClient.send(new UpdateCommand(recoveryParams as any) as any);
       }
-      addAttribute('macAddress', device.macAddress);
-      addAttribute('displayName', device.displayName);
-      addNumberAttribute('noOfUsers', device.noOfUsers);
-      addBooleanAttribute('databaseUpdateFlag', device.databaseUpdateFlag);
-      addAttribute('deviceCategory', device.deviceCategory);
-      addAttribute('lastSequenceNumber', device.lastSequenceNumber);
-      addAttribute('localName', device.localName);
-      addAttribute('companyName', device.companyName);
-      addAttribute('modelName', device.modelName);
-      addBooleanAttribute('usesExtensionProtocol', device.usesExtensionProtocol);
-      addBooleanAttribute('supportsUserAuthentication', device.supportsUserAuthentication);
-      addNumberAttribute('userIndex', device.userIndex);
-      addAttribute('lastReadingTimeStamp', device.lastReadingTimeStamp);
-      addNumberAttribute('databaseChangeIncrement', device.databaseChangeIncrement);
-      addBooleanAttribute('isDeviceDeleted', device.isDeviceDeleted);
-      addAttribute('platform', device.platform);
-      addBooleanAttribute('isAutoSyncEnabled', device.isAutoSyncEnabled);
-      addBooleanAttribute('isAutoSyncSupported', device.isAutoSyncSupported);
-      addAttribute('iOSIdentifier', device.iOSIdentifier);
-      addNumberAttribute('autoSyncDelay', device.autoSyncDelay);
-      addBooleanAttribute('isEagleDevice', device.isEagleDevice);
-      addBooleanAttribute('isSync', device.isSync);
-      addAttribute('deviceCategoryNum', device.deviceCategoryNum);
 
-      await this.docClient.send(new UpdateCommand(params) as any);
-
-      // Fetch the updated device entry
       const updatedDevice = await this.getDeviceByConfigId(userId, device.configDeviceId);
       if (!updatedDevice) {
         throw new DeviceNotFoundError(device.configDeviceId);

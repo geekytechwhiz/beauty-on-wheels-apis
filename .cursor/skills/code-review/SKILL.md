@@ -19,7 +19,7 @@ Apply rules from [.cursor/rules.md](../../rules.md) and the [PR checklist](../..
 2. **Architecture** — Verify layer boundaries: `Controller → Service → Domain → Repository → DB`.
 3. **Domain** — For patient/clinical/care-plan/vitals changes, check healthcare rules (audit, versioning, timestamps).
 4. **Security** — Secrets, validation, PII in logs, IAM (no static credentials).
-5. **API & events** — Standard response shape, HTTP codes, `/v1/` versioning, immutable versioned events.
+5. **API & events** — Standard response shape, HTTP codes, `/v1/` versioning, immutable versioned events; **camelCase enum values** on wire and in DynamoDB (`active`, not `Active`). See [.cursor/rules/api-wire-format.mdc](../../rules/api-wire-format.mdc).
 6. **Tests & ops** — Unit tests for services; structured logs with correlation IDs; no sensitive data logged.
 
 ## Must-block (request changes)
@@ -39,6 +39,7 @@ Apply rules from [.cursor/rules.md](../../rules.md) and the [PR checklist](../..
 
 - Logic that belongs in service vs repository
 - Non-standard API response format
+- PascalCase enum literals in API/DynamoDB payloads (use `*-core` const enums with camelCase values)
 - Missing pagination on list endpoints
 - N+1 queries or blocking calls in Lambda handlers
 - Weak naming or missing types in `types.ts`
@@ -81,7 +82,8 @@ Use severity labels in prose: **Critical**, **Suggestion**, **Optional**.
 
 | Area | Extra checks |
 |------|----------------|
-| `apps/*-service` | `handler` → `controller` → `service` → `repository`; `validator.ts` on inputs |
+| `apps/*-service` | `handler` → `controller` → `service` → `repository`; `validator.ts` on inputs; camelCase enum values per api-wire-format rule |
+| `libs/*-core` | Domain enums as `as const` objects; camelCase values; no PascalCase literals in persistence/mappers |
 | Event publishers | Immutable, versioned payloads; no breaking `eventType` changes without version bump |
 | FHIR / generated code | Human review required; verify mapping and no secrets in generated output |
 | Shared code | No service-specific business logic leaking into `/shared` |

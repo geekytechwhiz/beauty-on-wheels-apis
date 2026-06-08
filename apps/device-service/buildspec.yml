@@ -71,8 +71,15 @@ phases:
       - |
         grep 'S3Key:' packaged.yaml \
           | awk '{print $2}' \
+          | awk 'NF' \
           | while read key; do
-              name=$(basename "$key")
+              [ -z "$key" ] && continue
+              name=$(basename "${key%%@*}")
+              if [ ! -f ".serverless/$name" ]; then
+                echo "ERROR: Missing artifact .serverless/$name for S3Key $key"
+                ls -la .serverless/
+                exit 1
+              fi
               echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
               aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
             done

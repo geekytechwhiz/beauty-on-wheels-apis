@@ -213,4 +213,4 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.register' }, deviceRegisterImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.register' }, deviceRegisterImpl);

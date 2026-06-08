@@ -80,4 +80,4 @@ const deviceReadingTimestampUpdateImpl: any = async (event: any, context?: Conte
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.readingTimestampUpdate' }, deviceReadingTimestampUpdateImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.readingTimestampUpdate' }, deviceReadingTimestampUpdateImpl);

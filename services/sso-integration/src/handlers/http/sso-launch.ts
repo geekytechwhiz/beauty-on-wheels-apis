@@ -63,7 +63,7 @@ export async function handler(
     return ApiResponse.internalServerError(
       { title: 'Error', description: 'An unexpected error occurred', severity: 'ERROR' },
       {
-         correlationId: correlationId,
+        correlationId: correlationId,
         event
       },
       {

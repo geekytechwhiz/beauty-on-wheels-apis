@@ -1,4 +1,4 @@
-import { APIGatewayProxyResult, Context, APIGatewayProxyEvent } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import {
   createLogger,
   extractAwsRequestId,
@@ -57,7 +57,7 @@ export async function handler(
 
     return ApiResponse.internalServerError(
       { title: 'Error', description: 'An unexpected error occurred', severity: 'ERROR' },
-      {  correlationId: correlationId, },
+      { correlationId: correlationId, },
       { code: 'INTERNAL_ERROR' },
     );
   }

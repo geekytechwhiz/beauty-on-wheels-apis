@@ -148,7 +148,7 @@ export class AppointmentSyncController extends BaseController {
             severity: 'SUCCESS'
           },
           {
-             correlationId: correlationId,
+            requestId: correlationId,
             headers: {
               'X-Correlation-Id': correlationId,
               'Cache-Control': 'private, max-age=60',

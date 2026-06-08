@@ -7,9 +7,11 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../models/types';
+import type { ChangeRequestRecord } from '../models/change-request.types';
 
 export interface ListTypesFilter {
-  status?: Status;
+  /** When set, type must have one of these statuses. */
+  statuses?: Status[];
   /** Match if this module token appears in the type's applicableModules. */
   module?: string;
   valueDataType?: string;
@@ -35,6 +37,12 @@ export interface ListMetadataValuesPaginatedOptions {
 export interface IMetadataRegistryRepository {
   createMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord>;
   updateMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord>;
+  /** Overwrite the current published type version without incrementing version (display-only publish). */
+  updateMetadataTypeInPlace(
+    input: MetadataTypeInput,
+    actor: string | undefined,
+    existing: MetadataTypeRecord,
+  ): Promise<MetadataTypeRecord>;
   patchMetadataTypeStatus(metadataTypeCode: string, status: Status, actor?: string): Promise<MetadataTypeRecord>;
   getMetadataType(metadataTypeCode: string): Promise<MetadataTypeRecord | null>;
   listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeListEntry[]>;
@@ -50,17 +58,47 @@ export interface IMetadataRegistryRepository {
     actor: string | undefined,
     existing: MetadataValueRecord,
   ): Promise<MetadataValueRecord>;
+  /** Overwrite the current published value version without incrementing version (display-only publish). */
+  updateMetadataValueInPlace(
+    metadataTypeCode: string,
+    input: MetadataValueInput,
+    actor: string | undefined,
+    existing: MetadataValueRecord,
+    options: { syncApplicability: boolean },
+  ): Promise<MetadataValueRecord>;
   patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord>;
+  /** Immutable version with status DELETED; does not remove applicability rows or prior versions. */
+  softDeleteMetadataValue(
+    metadataTypeCode: string,
+    valueCode: string,
+    opts: { reason?: string; actor?: string },
+  ): Promise<MetadataValueRecord>;
   getMetadataValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null>;
-  /** `null` = no status filter (all values). Omitted/undefined = ACTIVE only. */
-  listMetadataValues(metadataTypeCode: string, status?: Status | null): Promise<MetadataValueRecord[]>;
+  listMetadataValues(metadataTypeCode: string, statuses: Status[]): Promise<MetadataValueRecord[]>;
   listMetadataValuesPaginated(
     metadataTypeCode: string,
-    statusFilter: Status | null,
+    statuses: Status[],
     options: ListMetadataValuesPaginatedOptions,
   ): Promise<{ records: MetadataValueRecord[]; lastEvaluatedKey?: Record<string, unknown> }>;
   searchMetadataValues(metadataTypeCode: string, filter: ValueSearchFilter): Promise<MetadataValueRecord[]>;
 
   listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]>;
   listValueAudit(metadataTypeCode: string, valueCode: string): Promise<AuditRecord[]>;
+
+  /** Persist a change-request draft; replaces any prior DRAFT for the same entity. */
+  saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord>;
+  getChangeRequest(changeRequestId: string): Promise<ChangeRequestRecord | null>;
+  markChangeRequestPublished(
+    changeRequestId: string,
+    params: { actor?: string; publishedAt: string },
+  ): Promise<ChangeRequestRecord>;
+  cancelChangeRequest(
+    changeRequestId: string,
+    params: { actor?: string; cancelledAt: string },
+  ): Promise<ChangeRequestRecord>;
+  getChangeRequestDraftPointer(
+    metadataTypeCode: string,
+    entityType: 'type' | 'value',
+    metadataValueCode?: string,
+  ): Promise<{ changeRequestId: string } | null>;
 }

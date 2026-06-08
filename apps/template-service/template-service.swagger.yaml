@@ -16,6 +16,7 @@ info:
     |--------|--------|------|
     | List enable catalog | `GET` | `/templates?templateLevel=ORG&organizationId=…` |
     | Enable for org | `POST` | `/templates/derive` |
+    | Org version row | `GET` | `/templates/org-version-status?organizationId=…&templateId=…` |
 
     Set `Authorization: Bearer <token>`. `organizationId` may come from JWT when omitted.
 
@@ -100,9 +101,7 @@ paths:
       operationId: listTemplates
       description: |
         - `templateLevel=MASTER` (default): dashboard list with status counts and filterOptions (status, scope, condition, templateName, active).
-        - `templateLevel=ORG`: published master catalog for **Enable New Org** UI; requires `organizationId`.
-          Returns `templateEnabled` per item and org-specific `counts` / `filterOptions` (category, templateType, templateName, country).
-          Filter dropdown values are built from **all** published masters (stable when `items` is empty).
+        - `templateLevel=ORG`: lists **enabled** org templates (cloned from masters). Without `organizationId` (ROOT): `organizations[]` (only orgs with ≥1 enablement). With `organizationId`: `organizationMeta` + `items[]`. Always returns `filterOptions` (`conditionCode`, `categoryCode`, `templateType`, `templateName` key/value) from all published masters.
       parameters:
         - $ref: '#/components/parameters/templateLevel'
         - $ref: '#/components/parameters/organizationId'
@@ -322,6 +321,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccessDeriveOrgTemplate'
+
+  /templates/org-version-status:
+    get:
+      tags: [OrgTemplates]
+      summary: GET Org template version status (one master)
+      operationId: getOrgVersionStatus
+      description: |
+        Versioning table row for one org and master templateId.
+        Returns current org version, derived-from master version, latest published master,
+        upgrade availability, and whether the org copy has local edits.
+      parameters:
+        - $ref: '#/components/parameters/organizationId'
+        - name: templateId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Master template id
+      responses:
+        '200':
+          description: Version status
+        '404':
+          description: Master not enabled for org
 
   /templates/compatible:
     get:

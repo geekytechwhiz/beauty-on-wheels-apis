@@ -93,7 +93,9 @@ export interface TransformConfig {
     | 'split'
     | 'firstName'
     | 'lastName'
-    | 'dateOfBirth';
+    | 'dateOfBirth'
+    | 'epochMsToIso'
+    | 'toNumber';
 
   params?: Record<string, unknown>;
 }

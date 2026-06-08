@@ -13,6 +13,7 @@ module.exports = {
   displayName: 'task-core',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
+  testMatch: ['**/*.spec.ts'],
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },

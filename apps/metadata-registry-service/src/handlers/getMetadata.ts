@@ -7,6 +7,10 @@ import {
   getUsersByIds,
 } from '../services/userLookup.service';
 
+/**
+ * GET metadata value: top-level `status` / `metadataValueStatus` are the **metadata value** lifecycle
+ * (ACTIVE | INACTIVE | DELETED). Each `relationships[]` entry carries `relationStatus` for the link row.
+ */
 export const main = withLambdaHandler(async (req) => {
   const input = getMetadataSchema.parse(req);
   const record = await orchestrateRegistryGet(input);

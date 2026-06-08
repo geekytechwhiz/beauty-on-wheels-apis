@@ -52,11 +52,19 @@ export const organizationMetaSchema = z.object({
   description: z.string().trim().optional().nullable(),
 });
 
+const organizationMetaUpdatedZ = z
+  .union([z.string().trim().min(1), z.number().finite()])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : String(val)));
+
 /** Required on POST /templates/derive. */
 export const deriveOrganizationMetaSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  description: z.string().trim(),
+  active: z.boolean().optional(),
+  country: z.string().trim().min(1).optional(),
+  updated: organizationMetaUpdatedZ,
+  description: z.string().trim().optional().nullable(),
 });
 
 export const deriveTemplateBodySchema = z.object({
@@ -71,6 +79,26 @@ export const deriveTemplateBodySchema = z.object({
 });
 
 export type DeriveTemplateBody = z.infer<typeof deriveTemplateBodySchema>;
+
+/** PUT /templates/derive — enable or disable existing org subscription. */
+export const updateOrgTemplateEnableBodySchema = z
+  .object({
+    organizationMeta: deriveOrganizationMetaSchema.optional(),
+    organizationId: z.string().trim().min(1).optional(),
+    templateId: z.string().trim().min(1),
+    templateEnabled: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.organizationMeta?.id && !data.organizationId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'organizationMeta.id or organizationId is required',
+        path: ['organizationId'],
+      });
+    }
+  });
+
+export type UpdateOrgTemplateEnableBody = z.infer<typeof updateOrgTemplateEnableBodySchema>;
 
 export const saveMasterTemplateBodySchema = z
   .object({
@@ -284,6 +312,8 @@ export const listOrgTemplatesQuerySchema = z.object({
   status: z.string().trim().min(1).optional(),
   templateType: z.string().trim().min(1).optional(),
   templateName: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1).optional(),
+  templateEnabled: optionalActiveQueryZ,
   country: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
   nextPaginationKey: z.string().trim().min(1).optional(),
@@ -292,6 +322,30 @@ export const listOrgTemplatesQuerySchema = z.object({
 });
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
+
+export const orgVersionStatusQuerySchema = z.object({
+  organizationId: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1),
+  organizationName: z.string().trim().min(1).optional(),
+  organizationDescription: z.string().trim().optional(),
+});
+
+export type OrgVersionStatusQuery = z.infer<typeof orgVersionStatusQuerySchema>;
+
+export function parseOrgVersionStatusQuery(
+  raw: Record<string, string | string[] | undefined> | null | undefined,
+): OrgVersionStatusQuery {
+  const params: Record<string, string | undefined> = {};
+  if (raw) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (value === undefined || value === null) continue;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (isAbsentQueryValue(single)) continue;
+      params[key] = single;
+    }
+  }
+  return orgVersionStatusQuerySchema.parse(params);
+}
 
 export const updateOrgTemplateBodySchema = z
   .object({

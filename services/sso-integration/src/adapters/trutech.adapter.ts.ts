@@ -138,6 +138,7 @@ export class TruTechAdapter {
         gender: appt.patient ? appt.patient.gender : '',
         dateOfBirth: formattedDob,
         phone: appt.patient ? appt.patient.phone : '',
+        phoneCode: appt.patient ? this.normalizeRegionCode(appt.patient.region_code) : undefined,
         email: appt.patient ? appt.patient.email : '',
         dob: formattedDob,
         organizationId: appt.patient ? appt.patient.organizationId : '',
@@ -148,6 +149,7 @@ export class TruTechAdapter {
         name: appt.doctor ? appt.doctor.name : null,
         department: appt.doctor ? appt.doctor.department : null,
         phone: appt.doctor ? appt.doctor.phone : null,
+        phoneCode: appt.doctor ? this.normalizeRegionCode(appt.doctor.region_code) : undefined,
         email: appt.doctor ? appt.doctor.email : null,
       } as Doctor,
 
@@ -250,6 +252,16 @@ export class TruTechAdapter {
     });
 
     return converted;
+  }
+
+  /**
+   * Normalizes a TruTech region_code value to a phone code string with a leading '+'.
+   * e.g. "91" → "+91", "+91" → "+91", undefined → undefined
+   */
+  private normalizeRegionCode(code?: string): string | undefined {
+    if (!code || !code.trim()) return '+260';
+    const trimmed = code.trim();
+    return trimmed.startsWith('+') ? trimmed : `+${trimmed}`;
   }
 
   /**

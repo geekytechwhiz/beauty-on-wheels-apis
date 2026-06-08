@@ -2,5 +2,7 @@ REGION: ${self:provider.region}
 STAGE: ${self:provider.stage}
 NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}
+TASK_TABLE: ${self:custom.bundle.taskDynamoTableName}
 LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
 AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net

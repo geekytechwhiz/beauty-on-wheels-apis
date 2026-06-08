@@ -1,13 +1,17 @@
 import type { TemplateActorUser } from '../template-actor.model';
 import type { TemplateStatus } from '../../constants/template.constants';
 import type { VersionResolveStrategy } from './get-master-versions.types';
+import type { EnablementDdbRecord } from './enablement.types';
 import type { TemplateDdbRecord } from '../persistence/template-ddb.model';
 import type { OrgTemplateListItem, TemplateVersionSummary } from '../../mappers/template-http.dto';
 
 export type OrganizationMetaInput = {
   id: string;
   name: string;
-  description: string;
+  active?: boolean;
+  country?: string;
+  updated?: string | number;
+  description?: string | null;
 };
 
 export type CloneTemplateBody = {
@@ -31,9 +35,35 @@ export type CloneOrgTemplateParams = {
   actorUser?: TemplateActorUser;
 };
 
+export type SetOrgTemplateEnableParams = {
+  organizationId: string;
+  masterTemplateId: string;
+  templateEnabled: boolean;
+  organizationMeta?: OrganizationMetaInput;
+  organizationName?: string;
+  organizationDescription?: string;
+};
+
+export type SetOrgTemplateEnableResult = {
+  organizationMeta: {
+    id: string;
+    name: string;
+    active?: boolean;
+    country?: string;
+    updated?: string;
+    description?: string | null;
+  };
+  templateId: string;
+  orgTemplateId: string;
+  enablementId: string;
+  templateEnabled: boolean;
+  disabledAt?: string | null;
+};
+
 export type DeriveOrgTemplateResult = {
   record: TemplateDdbRecord;
   masterVersion: TemplateDdbRecord;
+  enablement: EnablementDdbRecord;
   templateEnabled: boolean;
 };
 

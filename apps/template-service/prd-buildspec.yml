@@ -1,21 +1,19 @@
 version: 0.2
-# Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must (1) use the artifact template at apps/alert-service/packaged.yaml (see artifacts.files),
-# (2) use the same AWS account and region as this build so S3 keys in the template resolve.
-# Deploy CodeBuild: set ALERT_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
-# Optional: PACKAGED_TEMPLATE (default apps/alert-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
+# PRODUCTION pipeline — CodeBuild project must use THIS file (not buildspec.yml).
+# Build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml for deploy.
 
 env:
   shell: bash
   variables:
     STAGE: 'prd'
-    DEPLOYMENT_BUCKET: 'prd-mvx-alert-service-bucket'
-    STACK_NAME: 'prd-alert-service'
+    DEPLOYMENT_BUCKET: 'prd-mvx-template-service-bucket'
+    STACK_NAME: 'prd-template-service'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
@@ -23,20 +21,25 @@ phases:
   pre_build:
     commands:
       - echo "Making scripts executable..."
-      - chmod +x apps/alert-service/ci/*.sh
+      - chmod +x apps/template-service/ci/*.sh
 
   build:
     commands:
       - echo "Starting build..."
-      - apps/alert-service/ci/build.sh
+      - apps/template-service/ci/build.sh
 
   post_build:
     commands:
+      - |
+        if [ "${CODEBUILD_BUILD_SUCCEEDING:-1}" -ne 1 ]; then
+          echo "Skipping artifact verification — build phase failed"
+          exit 0
+        fi
       - echo "Running deployment verification..."
-      - apps/alert-service/ci/verify-artifacts.sh
+      - apps/template-service/ci/verify-artifacts.sh
 
 artifacts:
   files:
-    - apps/alert-service/packaged.yaml
-    - apps/alert-service/.serverless/**/*
-  discard-paths: no 
+    - apps/template-service/packaged.yaml
+    - apps/template-service/.serverless/**/*
+  discard-paths: no

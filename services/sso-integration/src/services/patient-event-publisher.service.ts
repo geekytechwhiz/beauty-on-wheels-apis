@@ -146,7 +146,7 @@ export class PatientEventPublisher {
 
     const publishPromises = batches.map(async (batch, batchIndex) => {
       try {
-        const entries = batch.map((event: any, index) => ({
+        const entries = batch.map((event, index) => ({
           Id: `${batchIndex}-${index}`,
           MessageBody: JSON.stringify(event),
           MessageGroupId: `tenant:${event.tenantId}|patient:${String(event.data.externalId)}`,
@@ -267,7 +267,7 @@ export class PatientEventPublisher {
           namePrefix: null,
           email: patient.email,
           phone: patient.phone || null,
-          phoneCode: null,
+          phoneCode: patient.phoneCode ?? null,
           gender: patient.gender,
           dob: patient.dob,
           mrn: patient.mrn,

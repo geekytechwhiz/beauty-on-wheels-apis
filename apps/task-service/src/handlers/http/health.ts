@@ -31,7 +31,7 @@ export async function main(
     service: 'task-service',
     timestamp: new Date().toISOString(),
     requestId: awsRequestId || correlationId,
-    region: process.env.REGION,
+    region: process.env.AWS_REGION,
     stage: process.env.NODE_ENV,
   };
 

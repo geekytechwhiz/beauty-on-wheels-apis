@@ -311,4 +311,4 @@ async function removeDevicesFromOrganization(
   );
 }
 
-export const handler = withApiHandler({ operation: 'device.orgRemove' }, deviceOrgRemoveImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.orgRemove' }, deviceOrgRemoveImpl);

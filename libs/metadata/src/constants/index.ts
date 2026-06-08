@@ -21,6 +21,9 @@ export const ENTITY_TYPE = {
   METADATA_TYPE: 'METADATA_TYPE',
   METADATA_VALUE: 'METADATA_VALUE',
   CATALOG_ENTRY: 'CATALOG_ENTRY',
+  CHANGE_REQUEST: 'CHANGE_REQUEST',
+  CHANGE_REQUEST_DRAFT_POINTER: 'CHANGE_REQUEST_DRAFT_POINTER',
+  CHANGE_REVISION_COUNTER: 'CHANGE_REVISION_COUNTER',
 } as const;
 
 /**
@@ -53,6 +56,7 @@ export function resolveAttributeSchemaForMetadataType(
 export const STATUS = {
   ACTIVE: 'ACTIVE',
   INACTIVE: 'INACTIVE',
+  DELETED: 'DELETED',
 } as const;
 
 /** Placeholder for optional applicability dimensions when building APPL SK rows. */

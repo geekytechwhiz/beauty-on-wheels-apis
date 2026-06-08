@@ -9,6 +9,7 @@ import type {
   ValueSearchFilter,
 } from '../models/types';
 import {
+  ConflictError,
   NotFoundError,
   ValidationError,
   assertMetadataTypeActiveForValueMutation,
@@ -29,6 +30,10 @@ import {
   assertMetadataValueCode,
 } from '../validators/code-patterns';
 import { matchesSearchFilter, sortValuesForSearch } from '../domain/search-filter';
+import { recordMatchesLifecycleStatus } from '../domain/lifecycle-filter';
+
+import type { RelationType } from '../models/relation-types';
+import { assertGovernedRelationTypeForTypes } from '../validators/relation';
 
 import type { ListMetadataInput } from '../types/list-metadata-input';
 import type { ListTypesFilter, MetadataTypeListEntry } from '../repositories/metadata-registry.repository.interface';
@@ -41,10 +46,77 @@ import {
   normalizeMetadataValueInput,
   type MetadataValueApiModel,
 } from '../mappers/metadata-request.mapper';
-import { getMetadataRepository, getMetadataRegistryDynamoContext } from '../dynamodb/dynamodb.client';
+import {
+  getMetadataRepository,
+  getMetadataRegistryDynamoContext,
+  getRelationRepository,
+} from '../dynamodb/dynamodb.client';
+import {
+  assertRelationshipTargetsReferenceValidValues,
+  inactivateAllRelationsInvolvingMetadataValue,
+  resolveRelationshipsForApi,
+  syncMetadataValueRelationships,
+  validateValueRelationshipsPayload,
+} from './metadata-value-relation.service';
+import type { RegistryPostMetadataInput } from './metadata.service.types';
+
+export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput, RegistryPostMetadataCancelInput } from './metadata.service.types';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
+}
+
+async function assertMetadataTypeRelationTargetExists(input: MetadataTypeInput): Promise<void> {
+  if (!input.supportsRelations || !input.targetMetadataTypeCode?.trim()) {
+    return;
+  }
+  const code = input.targetMetadataTypeCode.trim();
+  const repo = await getMetadataRepository();
+  const t = await repo.getMetadataType(code);
+  if (!t) {
+    throw new NotFoundError(`targetMetadataTypeCode not found: ${code}`);
+  }
+}
+
+async function enrichMetadataValueForApi(
+  record: MetadataValueRecord,
+  opts?: { includeInactiveRelations?: boolean },
+): Promise<MetadataValueApiModel> {
+  const meta = await getMetadataRepository();
+  const rel = await getRelationRepository();
+  const flat = flattenMetadataValueForApi(record);
+  const typeRecord = await meta.getMetadataType(record.metadataTypeCode);
+  if (!typeRecord?.supportsRelations) {
+    return flat;
+  }
+  const relationships = await resolveRelationshipsForApi(meta, rel, typeRecord, record, opts);
+  return { ...flat, relationships };
+}
+
+async function enrichMetadataValuesForApi(records: MetadataValueRecord[]): Promise<MetadataValueApiModel[]> {
+  const meta = await getMetadataRepository();
+  const rel = await getRelationRepository();
+  const typeCache = new Map<string, MetadataTypeRecord | null>();
+  async function cachedType(code: string): Promise<MetadataTypeRecord | null> {
+    const hit = typeCache.get(code);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const t = await meta.getMetadataType(code);
+    typeCache.set(code, t);
+    return t;
+  }
+  return Promise.all(
+    records.map(async (r) => {
+      const flat = flattenMetadataValueForApi(r);
+      const t = await cachedType(r.metadataTypeCode);
+      if (!t?.supportsRelations) {
+        return flat;
+      }
+      const relationships = await resolveRelationshipsForApi(meta, rel, t, r);
+      return { ...flat, relationships };
+    }),
+  );
 }
 
 /**
@@ -57,82 +129,13 @@ async function resolveActiveQuestionTypeValueCodes(): Promise<string[] | undefin
   if (!qtType || qtType.status !== STATUS.ACTIVE) {
     return undefined;
   }
-  const rows = await repo.listMetadataValues(QUESTION_TYPE_METADATA_CODE, STATUS.ACTIVE);
+  const rows = await repo.listMetadataValues(QUESTION_TYPE_METADATA_CODE, [STATUS.ACTIVE]);
   if (rows.length === 0) {
     throw new ValidationError('QuestionType metadata has no active values; cannot validate questionType', [
       { field: 'attributes.questionType', message: 'Catalog empty' },
     ]);
   }
   return rows.map((v) => v.valueCode);
-}
-
-/**
- * `include-inactive` or `includeInactive` (query) — when true, admin/history: no active-only filter on list/get.
- */
-export function parseQueryIncludeInactive(q: Record<string, string | undefined>): boolean {
-  const raw = q['include-inactive'] ?? q.includeInactive;
-  if (raw === undefined || raw === '') {
-    return false;
-  }
-  const s = String(raw).trim().toLowerCase();
-  return s === 'true' || s === '1' || s === 'yes';
-}
-
-/**
- * GET single type/value: how to apply `status` on the latest entity.
- * - `active` — default; 404 unless entity is ACTIVE
- * - `inactive` — 404 unless entity is INACTIVE (`status=INACTIVE` only)
- * - `all` — return if present (any status); `include-inactive=true` / `includeInactive=true`, or `status=ALL` / `BOTH`
- */
-export type GetEntityByStatusMode = 'active' | 'inactive' | 'all';
-
-export function parseGetEntityStatusMode(q: Record<string, string | undefined>): GetEntityByStatusMode {
-  if (parseQueryIncludeInactive(q)) {
-    return 'all';
-  }
-  const status = q.status;
-  if (status === undefined || String(status).trim() === '') {
-    return 'active';
-  }
-  const s = String(status).trim().toUpperCase();
-  if (s === 'ALL' || s === 'BOTH') {
-    return 'all';
-  }
-  if (s === STATUS.INACTIVE) {
-    return 'inactive';
-  }
-  if (s === STATUS.ACTIVE) {
-    return 'active';
-  }
-  return 'active';
-}
-
-/** GET list: default ACTIVE only; `status=INACTIVE` for inactive only; `include-inactive` for all (admin). */
-export type ListEntityStatusMode = 'active' | 'inactive' | 'all';
-
-export function parseListEntityStatusMode(q: Record<string, string | undefined>): ListEntityStatusMode {
-  if (parseQueryIncludeInactive(q)) {
-    return 'all';
-  }
-  const raw = q.status;
-  if (raw !== undefined && String(raw).trim() !== '') {
-    const s = String(raw).trim().toUpperCase();
-    if (s === STATUS.INACTIVE) {
-      return 'inactive';
-    }
-  }
-  return 'active';
-}
-
-/** List metadata (types/values): default ACTIVE; `status=INACTIVE` inactive only; `includeInactive` → both (wins over `status`). */
-export function resolveStatusMode(input: ListMetadataInput): ListEntityStatusMode {
-  if (input.includeInactive) {
-    return 'all';
-  }
-  if (input.status === STATUS.INACTIVE) {
-    return 'inactive';
-  }
-  return 'active';
 }
 
 function registryListPaginationRequested(input: ListMetadataInput): boolean {
@@ -153,14 +156,16 @@ function hasApplicabilityListFilters(input: ListMetadataInput): boolean {
 }
 
 function metadataTypeListItemValueCount(
-  mode: ListEntityStatusMode,
+  lifecycleStatuses: Status[],
   activeValueCount: number,
   inactiveValueCount: number,
 ): number {
-  if (mode === 'all') {
+  const hasActive = lifecycleStatuses.includes(STATUS.ACTIVE);
+  const hasInactive = lifecycleStatuses.includes(STATUS.INACTIVE);
+  if (hasActive && hasInactive) {
     return activeValueCount + inactiveValueCount;
   }
-  if (mode === 'inactive') {
+  if (hasInactive) {
     return inactiveValueCount;
   }
   return activeValueCount;
@@ -172,7 +177,7 @@ export async function getType(metadataTypeCode: string): Promise<MetadataTypeRec
 }
 
 export async function listTypes(filters: {
-  status?: Status;
+  statuses?: Status[];
   module?: string;
   valueDataType?: string;
 }): Promise<MetadataTypeRecord[]> {
@@ -185,22 +190,13 @@ export async function listTypes(filters: {
  */
 export async function resolveMetadataTypeGet(
   metadataTypeCode: string,
-  mode: GetEntityByStatusMode,
+  lifecycleStatuses: Status[],
 ): Promise<MetadataTypeRecord> {
   const t = await getType(metadataTypeCode);
   if (!t) {
     throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
   }
-  if (mode === 'all') {
-    return t;
-  }
-  if (mode === 'inactive') {
-    if (t.status !== STATUS.INACTIVE) {
-      throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
-    }
-    return t;
-  }
-  if (t.status !== STATUS.ACTIVE) {
+  if (!recordMatchesLifecycleStatus(t.status, lifecycleStatuses)) {
     throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
   }
   return t;
@@ -214,10 +210,26 @@ export async function upsertMetadataType(body: MetadataTypeInput, userId?: strin
   const existing = await repo.getMetadataType(body.metadataTypeCode);
   if (!existing) {
     validateMetadataTypeInput(body, false);
+    await assertMetadataTypeRelationTargetExists(body);
+    if (body.supportsRelations && body.relationType && body.targetMetadataTypeCode) {
+      assertGovernedRelationTypeForTypes({
+        relationType: body.relationType as RelationType,
+        metadataTypeCode: body.metadataTypeCode,
+        targetMetadataTypeCode: body.targetMetadataTypeCode,
+      });
+    }
     return repo.createMetadataType(body, actor);
   }
   const merged = mergeMetadataTypeForUpdate(existing, body);
   validateMetadataTypeInput(merged, true);
+  await assertMetadataTypeRelationTargetExists(merged);
+  if (merged.supportsRelations && merged.relationType && merged.targetMetadataTypeCode) {
+    assertGovernedRelationTypeForTypes({
+      relationType: merged.relationType as RelationType,
+      metadataTypeCode: merged.metadataTypeCode,
+      targetMetadataTypeCode: merged.targetMetadataTypeCode,
+    });
+  }
   assertPostUpsertAllowedForLatestStatus(existing.status, merged.status);
   const oldMap = attributeSchemaFieldMapForCompatibility(
     existing.attributeSchema as Record<string, unknown> | undefined,
@@ -269,6 +281,9 @@ export async function upsertMetadataValue(
   if (!type) {
     throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
   }
+  if (existing && existing.status === STATUS.DELETED) {
+    throw new ConflictError(`Value ${body.valueCode} has been deleted`, 'VALUE_ALREADY_DELETED');
+  }
   assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
   const allowedQuestionTypeCodes =
     metadataTypeCode === 'QuestionCode' ? await resolveActiveQuestionTypeValueCodes() : undefined;
@@ -305,6 +320,9 @@ export async function patchValueStatus(
   if (!existing) {
     throw new NotFoundError(`Value ${valueCode} not found`);
   }
+  if (existing.status === STATUS.DELETED) {
+    throw new ConflictError(`Value ${valueCode} has been deleted`, 'VALUE_ALREADY_DELETED');
+  }
   assertPatchStatusAllowedForInactiveRecord(existing.status, status);
   assertMetadataTypeCode(metadataTypeCode);
   const type = await repo.getMetadataType(metadataTypeCode);
@@ -312,7 +330,13 @@ export async function patchValueStatus(
     throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
   }
   assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
-  return repo.patchMetadataValueStatus(metadataTypeCode, valueCode, status, actorFromContext(userId));
+  const actor = actorFromContext(userId);
+  const record = await repo.patchMetadataValueStatus(metadataTypeCode, valueCode, status, actor);
+  if (status === STATUS.INACTIVE) {
+    const relRepo = await getRelationRepository();
+    await inactivateAllRelationsInvolvingMetadataValue(repo, relRepo, metadataTypeCode, valueCode, actor);
+  }
+  return record;
 }
 
 export async function getValue(metadataTypeCode: string, valueCode: string): Promise<MetadataValueRecord | null> {
@@ -326,36 +350,51 @@ export async function getValue(metadataTypeCode: string, valueCode: string): Pro
 export async function resolveMetadataValueGetForApi(
   metadataTypeCode: string,
   valueCode: string,
-  mode: GetEntityByStatusMode,
+  lifecycleStatuses: Status[],
 ): Promise<MetadataValueApiModel> {
   const v = await getValue(metadataTypeCode, valueCode);
   if (!v) {
     throw new NotFoundError(`Value ${valueCode} not found`);
   }
-  if (mode === 'all') {
-    return flattenMetadataValueForApi(v);
-  }
-  if (mode === 'inactive') {
-    if (v.status !== STATUS.INACTIVE) {
-      throw new NotFoundError(`Value ${valueCode} not found`);
-    }
-    return flattenMetadataValueForApi(v);
-  }
-  if (v.status !== STATUS.ACTIVE) {
+  if (!recordMatchesLifecycleStatus(v.status, lifecycleStatuses)) {
     throw new NotFoundError(`Value ${valueCode} not found`);
   }
-  return flattenMetadataValueForApi(v);
+  return enrichMetadataValueForApi(v);
+}
+
+
+export async function listValues(
+  metadataTypeCode: string,
+  lifecycleStatuses: Status[],
+): Promise<MetadataValueRecord[]> {
+  assertMetadataTypeCode(metadataTypeCode);
+  return (await getMetadataRepository()).listMetadataValues(metadataTypeCode, lifecycleStatuses);
 }
 
 /**
- * @param statusOrAll - `null` = list all statuses (use with `include-inactive`); omitted/ACTIVE = ACTIVE only; `INACTIVE` = inactive only
+ * Soft-delete latest metadata value (new immutable version, status DELETED). Types must be ACTIVE (same as other mutations).
  */
-export async function listValues(
+export async function deleteMetadataValue(
   metadataTypeCode: string,
-  statusOrAll?: Status | null,
-): Promise<MetadataValueRecord[]> {
+  valueCode: string,
+  opts: { reason?: string; userId?: string },
+): Promise<MetadataValueRecord> {
   assertMetadataTypeCode(metadataTypeCode);
-  return (await getMetadataRepository()).listMetadataValues(metadataTypeCode, statusOrAll);
+  assertMetadataValueCode(valueCode);
+  const repo = await getMetadataRepository();
+  const type = await repo.getMetadataType(metadataTypeCode);
+  if (!type) {
+    throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+  }
+  assertMetadataTypeActiveForValueMutation(type, metadataTypeCode);
+  const actor = actorFromContext(opts.userId);
+  const record = await repo.softDeleteMetadataValue(metadataTypeCode, valueCode, {
+    reason: opts.reason,
+    actor,
+  });
+  const relRepo = await getRelationRepository();
+  await inactivateAllRelationsInvolvingMetadataValue(repo, relRepo, metadataTypeCode, valueCode, actor);
+  return record;
 }
 
 export async function listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]> {
@@ -381,11 +420,15 @@ export async function searchMetadataValues(
 
 function mapTypeEntriesToListItems(
   entries: MetadataTypeListEntry[],
-  mode: ListEntityStatusMode,
+  lifecycleStatuses: Status[],
 ): MetadataTypeListItem[] {
   return entries.map((e) => ({
     ...e.type,
-    metadataValueCount: metadataTypeListItemValueCount(mode, e.activeValueCount, e.inactiveValueCount),
+    metadataValueCount: metadataTypeListItemValueCount(
+      lifecycleStatuses,
+      e.activeValueCount,
+      e.inactiveValueCount,
+    ),
   }));
 }
 
@@ -393,14 +436,12 @@ async function listMetadataTypesForRegistry(
   input: ListMetadataInput,
   paginated: boolean,
 ): Promise<{ items: MetadataTypeListItem[]; lastEvaluatedKey?: Record<string, unknown> }> {
-  const mode = resolveStatusMode(input);
+  const { lifecycleStatuses } = input;
 
   const filter: ListTypesFilter = {
     module: input.module,
     valueDataType: input.valueDataType,
-    ...(mode === 'all'
-      ? {}
-      : { status: mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE }),
+    statuses: lifecycleStatuses,
   };
   const repo = await getMetadataRepository();
 
@@ -414,25 +455,20 @@ async function listMetadataTypesForRegistry(
       limit,
       exclusiveStartKey: eks,
     });
-    return { items: mapTypeEntriesToListItems(entries, mode), lastEvaluatedKey };
+    return { items: mapTypeEntriesToListItems(entries, lifecycleStatuses), lastEvaluatedKey };
   }
 
   const entries = await repo.listMetadataTypes(filter);
-  return { items: mapTypeEntriesToListItems(entries, mode) };
+  return { items: mapTypeEntriesToListItems(entries, lifecycleStatuses) };
 }
 
 async function listMetadataValuesForRegistry(
   input: ListMetadataInput,
   paginated: boolean,
 ): Promise<{ items: MetadataValueApiModel[]; lastEvaluatedKey?: Record<string, unknown> }> {
-  const mode = resolveStatusMode(input);
+  const { lifecycleStatuses } = input;
 
   const filter: ValueSearchFilter = {};
-  if (mode === 'active') {
-    filter.status = STATUS.ACTIVE;
-  } else if (mode === 'inactive') {
-    filter.status = STATUS.INACTIVE;
-  }
 
   if (input.applicableModules?.length) {
     assertEnumTokenArray(input.applicableModules, 'applicableModules');
@@ -459,10 +495,6 @@ async function listMetadataValuesForRegistry(
     filter.language = input.applicableLanguages;
   }
 
-  const repoStatus = mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
-  const matchDefaultStatus: Status | null =
-    mode === 'all' ? null : mode === 'inactive' ? STATUS.INACTIVE : STATUS.ACTIVE;
-
   const allowPaginatedValues = paginated && !hasApplicabilityListFilters(input);
 
   if (allowPaginatedValues) {
@@ -472,17 +504,21 @@ async function listMetadataValuesForRegistry(
       : undefined;
     const limit = input.limit ?? 50;
     const repo = await getMetadataRepository();
-    const { records, lastEvaluatedKey } = await repo.listMetadataValuesPaginated(input.metadataTypeCode, repoStatus, {
-      limit,
-      exclusiveStartKey: eks,
-    });
+    const { records, lastEvaluatedKey } = await repo.listMetadataValuesPaginated(
+      input.metadataTypeCode,
+      lifecycleStatuses,
+      {
+        limit,
+        exclusiveStartKey: eks,
+      },
+    );
     return { items: records.map(flattenMetadataValueForApi), lastEvaluatedKey };
   }
 
-  const rows = await listValues(input.metadataTypeCode, repoStatus);
-  const matched = rows.filter((v) => matchesSearchFilter(v, filter, matchDefaultStatus));
+  const rows = await listValues(input.metadataTypeCode, lifecycleStatuses);
+  const matched = rows.filter((v) => matchesSearchFilter(v, filter, lifecycleStatuses));
 
-  return { items: sortValuesForSearch(matched).map(flattenMetadataValueForApi) };
+  return { items: await enrichMetadataValuesForApi(sortValuesForSearch(matched)) };
 }
 
 export const metadataService = {
@@ -492,13 +528,8 @@ export const metadataService = {
 
 /** Parsed `GET /metadata/:entityType` input (host validates via Zod). */
 export type RegistryGetMetadataInput =
-  | { entityType: 'type'; metadataTypeCode: string; mode: GetEntityByStatusMode }
-  | { entityType: 'value'; metadataTypeCode: string; valueCode: string; mode: GetEntityByStatusMode };
-
-/** Parsed `POST /metadata/:entityType` input (host validates via Zod). */
-export type RegistryPostMetadataInput =
-  | { entityType: 'type'; userId?: string; body: Record<string, unknown> }
-  | { entityType: 'value'; userId?: string; body: Record<string, unknown> };
+  | { entityType: 'type'; metadataTypeCode: string; lifecycleStatuses: Status[] }
+  | { entityType: 'value'; metadataTypeCode: string; valueCode: string; lifecycleStatuses: Status[] };
 
 /**
  * Parsed `PATCH .../status` input (host validates via Zod).
@@ -520,13 +551,25 @@ export type RegistryListMetadataAuditInput =
   | { entityType: 'type'; metadataTypeCode: string }
   | { entityType: 'value'; metadataTypeCode: string; valueCode: string };
 
+/** Parsed soft-delete request (host validates body via Zod). */
+export type RegistryDeleteMetadataValueInput = {
+  metadataTypeCode: string;
+  valueCode: string;
+  userId?: string;
+  reason?: string;
+};
+
 export async function orchestrateRegistryGet(
   input: RegistryGetMetadataInput,
 ): Promise<MetadataTypeRecord | MetadataValueApiModel> {
   if (input.entityType === 'type') {
-    return resolveMetadataTypeGet(input.metadataTypeCode, input.mode);
+    return resolveMetadataTypeGet(input.metadataTypeCode, input.lifecycleStatuses);
   }
-  return resolveMetadataValueGetForApi(input.metadataTypeCode, input.valueCode, input.mode);
+  return resolveMetadataValueGetForApi(
+    input.metadataTypeCode,
+    input.valueCode,
+    input.lifecycleStatuses,
+  );
 }
 
 export type RegistryListResult =
@@ -536,6 +579,25 @@ export type RegistryListResult =
       items: MetadataTypeListItem[] | MetadataValueApiModel[];
       nextPaginationKey?: string;
     };
+
+/**
+ * Registry list HTTP payload: non-paginated mode returns a bare array; paginated mode returns
+ * `{ items, nextPaginationKey? }` (cursor omitted when absent).
+ */
+export type RegistryListHttpPayload<T> = T[] | { items: T[]; nextPaginationKey?: string };
+
+export function shapeRegistryListHttpResponse<T>(
+  result: RegistryListResult,
+  items: T[],
+): RegistryListHttpPayload<T> {
+  if (!result.pagination) {
+    return items;
+  }
+  return {
+    items,
+    ...(result.nextPaginationKey !== undefined ? { nextPaginationKey: result.nextPaginationKey } : {}),
+  };
+}
 
 export async function orchestrateRegistryList(input: ListMetadataInput): Promise<RegistryListResult> {
   let paginated = registryListPaginationRequested(input);
@@ -579,12 +641,47 @@ export async function orchestrateRegistryPost(
   const metadataTypeCode = String(raw.metadataTypeCode).trim();
   const valueCode = (raw.valueCode ?? raw.metadataValueCode) as string;
   const existing = await getValue(metadataTypeCode, valueCode);
+  const relationshipsSent = Object.prototype.hasOwnProperty.call(raw, 'relationships');
   const normalized = normalizeMetadataValueInput(
     { ...raw, valueCode, metadataValueCode: valueCode } as MetadataValueInput & Record<string, unknown>,
     existing,
   );
-  const record = await upsertMetadataValue(metadataTypeCode, normalized, input.userId, existing);
-  return flattenMetadataValueForApi(record);
+  const meta = await getMetadataRepository();
+  const type = await meta.getMetadataType(metadataTypeCode);
+  if (!type) {
+    throw new NotFoundError(`Metadata type ${metadataTypeCode} not found`);
+  }
+
+  const relationshipTargetCodes = relationshipsSent
+    ? (normalized.relationships ?? []).map((x) => x.targetMetadataValueCode)
+    : undefined;
+
+  validateValueRelationshipsPayload(type, {
+    mode: existing ? 'update' : 'create',
+    relationshipsSent,
+    targetCodes: relationshipsSent ? relationshipTargetCodes ?? [] : undefined,
+  });
+
+  if (relationshipsSent && relationshipTargetCodes?.length) {
+    await assertRelationshipTargetsReferenceValidValues(meta, type, relationshipTargetCodes);
+  }
+
+  const { relationships: _relationships, ...valueBody } = normalized;
+  const record = await upsertMetadataValue(metadataTypeCode, valueBody, input.userId, existing);
+
+  const relRepo = await getRelationRepository();
+  const actor = valueBody.createdBy ?? actorFromContext(input.userId);
+  await syncMetadataValueRelationships(
+    meta,
+    relRepo,
+    type,
+    record.valueCode,
+    relationshipsSent,
+    relationshipsSent ? relationshipTargetCodes ?? [] : undefined,
+    actor,
+  );
+
+  return enrichMetadataValueForApi(record);
 }
 
 export async function orchestrateRegistryPatchStatus(
@@ -599,7 +696,7 @@ export async function orchestrateRegistryPatchStatus(
     input.status,
     input.userId,
   );
-  return flattenMetadataValueForApi(record);
+  return enrichMetadataValueForApi(record);
 }
 
 export async function orchestrateRegistryListAudit(
@@ -610,3 +707,23 @@ export async function orchestrateRegistryListAudit(
   }
   return listValueAudit(input.metadataTypeCode, input.valueCode);
 }
+
+export async function orchestrateRegistryDeleteMetadataValue(
+  input: RegistryDeleteMetadataValueInput,
+): Promise<MetadataValueApiModel> {
+  const record = await deleteMetadataValue(input.metadataTypeCode, input.valueCode, {
+    reason: input.reason,
+    userId: input.userId,
+  });
+  return enrichMetadataValueForApi(record);
+}
+
+export { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft } from './metadata-change-request.service';
+export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
+export { orchestrateRegistryPostPublish, publishChangeRequest } from './metadata-publish.service';
+export type {
+  ChangeRequestDraftResponse,
+  ChangeRequestCancelledResponse,
+} from '../models/change-request.types';
+export type { ImpactPreviewResponse } from '../models/impact-preview.types';
+export type { MetadataPublishResult, MetadataPublishResponse } from '../models/publish.types';

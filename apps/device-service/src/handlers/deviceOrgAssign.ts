@@ -312,4 +312,4 @@ async function assignDevicesToOrganization(
   );
 }
 
-export const handler = withApiHandler({ operation: 'device.orgAssign' }, deviceOrgAssignImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.orgAssign' }, deviceOrgAssignImpl);

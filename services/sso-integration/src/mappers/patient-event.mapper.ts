@@ -44,7 +44,7 @@ export function mapPatientEventToCreateUserPayload(
       contact: {
         email: email ?? "",
         phone: phone ?? "",
-        phoneCode:   PHONE_CODE.SOUTH_AFRICA,
+        phoneCode:   '+260',
       },
       emergencyContact,
       medicalHistory: {

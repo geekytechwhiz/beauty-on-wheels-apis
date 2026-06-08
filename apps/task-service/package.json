@@ -5,7 +5,8 @@
   "scripts": {
     "deploy": "npx --no-install serverless deploy",
     "offline": "npx --no-install serverless offline --stage dev",
-    "package": "npx --no-install serverless package"
+    "package": "npx --no-install serverless package",
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts"
   },
   "nx": {
     "targets": {

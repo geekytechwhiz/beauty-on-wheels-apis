@@ -72,4 +72,4 @@ const errorNotificationImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.errorNotification' }, errorNotificationImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.errorNotification' }, errorNotificationImpl);

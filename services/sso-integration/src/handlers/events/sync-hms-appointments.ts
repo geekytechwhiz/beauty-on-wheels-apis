@@ -25,7 +25,7 @@ const baseLogger = createLogger({
  * Triggered by EventBridge Scheduler. No HTTP exposure. Never processes appointments inline.
  */
 export async function handler(
-  event: ScheduledEvent,     
+  event: ScheduledEvent,
 ): Promise<void> {
   const correlationId =
     (event as unknown as { 'X-Correlation-Id'?: string })['X-Correlation-Id'] ??

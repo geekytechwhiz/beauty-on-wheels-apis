@@ -1,0 +1,121 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Task Service API",
+    "version": "1.0.0",
+    "description": "Task Service HTTP APIs. Deployed Swagger UI uses this file + serverless-auto-swagger."
+  },
+  "schemes": ["https", "http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer JWT from the identity provider."
+    }
+  },
+  "definitions": {
+    "EpochMillis": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Unix epoch milliseconds (UTC)."
+    },
+    "TaskBehaviorCode": {
+      "type": "string",
+      "enum": [
+        "INSTRUCTION",
+        "DOCUMENT_FORM",
+        "UPLOAD_DOCUMENT",
+        "DEVICE_SETUP",
+        "EDUCATION_VIDEO",
+        "EDUCATION_ARTICLE",
+        "CARE_TEAM_TASK",
+        "METRIC_CHECKIN",
+        "SYMPTOM_CHECKIN"
+      ]
+    },
+    "IdempotencyOutcome": {
+      "type": "string",
+      "enum": ["created", "skippedDuplicate"]
+    },
+    "CreateMonitoringActionRequest": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "carePlanInstanceId",
+        "monitoringInstanceId",
+        "taskBehaviorCode",
+        "dueWindowStart",
+        "dueWindowEnd"
+      ],
+      "properties": {
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "monitoringInstanceId": { "type": "string" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "reminderContext": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "patientId": "pat-101",
+        "carePlanInstanceId": "cp-2026-001",
+        "monitoringInstanceId": "mon-bp-daily-001",
+        "taskBehaviorCode": "METRIC_CHECKIN",
+        "dueWindowStart": 1780581600000,
+        "dueWindowEnd": 1780668000000,
+        "reminderContext": { "channels": ["Push", "InApp"] }
+      }
+    },
+    "CreateMonitoringActionResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "outcome"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
+        "task": { "type": "object" }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/tasks/monitoring-action": {
+      "post": {
+        "summary": "Create a monitoring-generated runtime task (idempotent)",
+        "description": "Called by Monitoring Runtime. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateMonitoringActionRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Create result (created or skipped duplicate).",
+            "schema": { "$ref": "#/definitions/CreateMonitoringActionResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Conflict (cross-org idempotency)" },
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    }
+  }
+}

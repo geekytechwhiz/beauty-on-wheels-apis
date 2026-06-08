@@ -71,6 +71,7 @@
       "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
+      "@api-hub/task-core": ["libs/task-core/src/index.ts"],
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
       
     }

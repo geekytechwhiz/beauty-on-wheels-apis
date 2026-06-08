@@ -218,6 +218,11 @@ export class TruTechClient {
         },
       );
 
+      //Log the response
+      logger.info({
+        event: 'trutech_get_appointments_for_doctors_raw_response',
+        payload: JSON.stringify(response.data, null, 2),
+      });
       logger.debug({
         event: 'trutech_get_appointments_for_doctors_raw_response',
         status: response.status,

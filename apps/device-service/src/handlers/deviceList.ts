@@ -278,7 +278,7 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
     
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 200, duration, correlationId);
-    return ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
+    return  ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceList_error', err: serializeError(err) });
@@ -287,4 +287,7 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.list' }, deviceListImpl);
+export const handler = withApiHandler(
+  { operation: 'device.list', useLegacyResponseFormat: true},
+  deviceListImpl,
+);

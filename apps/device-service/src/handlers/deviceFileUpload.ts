@@ -89,4 +89,4 @@ const deviceFileUploadImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.fileUpload' }, deviceFileUploadImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.fileUpload' }, deviceFileUploadImpl);

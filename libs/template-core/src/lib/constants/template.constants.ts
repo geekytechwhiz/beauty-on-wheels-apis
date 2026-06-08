@@ -10,6 +10,8 @@ export const GSI1_ORG_TMPL_SK_PREFIX = 'TMPL#' as const;
 export const GSI1_ENABLE_SK_PREFIX = 'ENABLE#' as const;
 
 export const ENTITY_TYPE_ORG_ENABLEMENT = 'ORG_ENABLEMENT' as const;
+export const ENTITY_TYPE_ORG_PROFILE = 'ORG_PROFILE' as const;
+export const ORG_PROFILE_SK = 'PROFILE' as const;
 export const ENABLE_PK_PREFIX = 'ENABLE#' as const;
 
 export const GSI1_ORG_INDEX = 'GSI1' as const;
@@ -24,6 +26,18 @@ export const ENV_TEMPLATE_TABLE = 'TEMPLATE_TABLE';
 export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
+
+/** Template types queried on GSI2 for published master catalog / org enablement filterOptions. */
+export const MASTER_CATALOG_TEMPLATE_TYPES = [
+  'ALERT',
+  'ALERT_POLICY',
+  'CARE_PLAN',
+  'GOAL',
+  'MONITORING',
+  'SYMPTOM',
+  'TASK',
+  'THRESHOLD',
+] as const;
 
 /** Visibility for master templates (API accepts Private | Organization | Public). */
 export const SHARE_SCOPE = {

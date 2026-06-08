@@ -29,6 +29,8 @@ export class BaseError extends Error implements AppError {
     options?: BaseErrorOptions,
   ) {
     super(message);
+    this.name = 'BaseError';
+    Object.setPrototypeOf(this, new.target.prototype);
 
     this.statusCode = statusCode;
     this.code = code;

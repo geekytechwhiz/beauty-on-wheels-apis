@@ -18,6 +18,14 @@
     "name": "task-core"
   },
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@api-hub/observability": "workspace:*",
+    "@api-hub/utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@api-hub/observability": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@api-hub/observability": { "optional": true }
   }
 }

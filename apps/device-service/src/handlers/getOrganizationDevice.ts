@@ -92,4 +92,4 @@ const getOrganizationDeviceImpl: any = async (
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.getOrganization' }, getOrganizationDeviceImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.getOrganization' }, getOrganizationDeviceImpl);

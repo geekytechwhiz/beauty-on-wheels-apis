@@ -78,4 +78,4 @@ const deviceMetadataUpdateImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.metadataUpdate' }, deviceMetadataUpdateImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.metadataUpdate' }, deviceMetadataUpdateImpl);

@@ -7,6 +7,8 @@ env:
     STACK_NAME: 'dev-device-service'
     # Set SEED_META=true in pipeline/CodeBuild to run device list seed (dev default: skip)
     SEED_META: 'false'
+    # Cap Node heap well below the ~3.6 GiB SMALL container so esbuild subprocess has headroom.
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:

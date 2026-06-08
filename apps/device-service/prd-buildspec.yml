@@ -6,6 +6,7 @@ env:
     DEPLOYMENT_BUCKET: 'prd-mvx-device-service-bucket'
     STACK_NAME: 'prd-device-service'
     SEED_META: 'true'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:

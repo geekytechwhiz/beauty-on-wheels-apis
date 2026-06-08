@@ -1,0 +1,54 @@
+---
+description: Platform API/DynamoDB wire format — camelCase fields and enum values
+globs: apps/**/*,libs/**/*,services/**/*,docs/services/**/*
+alwaysApply: true
+---
+
+# API & persistence wire format (platform-wide)
+
+## camelCase everywhere on the wire
+
+| Layer | Convention | Example |
+|-------|------------|---------|
+| **JSON field names** | camelCase | `currentState`, `organizationId`, `dueWindowStart` |
+| **Enum values** (API + DynamoDB attrs) | camelCase | `active`, `patient`, `monitoringRuntime`, `created` |
+| **DynamoDB item attributes** | camelCase (match API JSON) | `orgId`, `currentState`, `createdAt` |
+| **DynamoDB PK/SK prefixes** | UPPER segment prefixes | `ORG#`, `PAT#`, `ALERT#`, `DUE#` |
+
+## Do not use PascalCase for enum values
+
+```typescript
+// ❌ BAD — PascalCase enum literals in handlers, services, repositories, mappers
+currentState: 'Active'
+assignedToType: 'Patient'
+outcome: 'Created'
+
+// ✅ GOOD — const object in *-core; SCREAMING_SNAKE keys, camelCase values
+export const RUNTIME_TASK_STATE = {
+  ACTIVE: 'active',
+  SCHEDULED: 'scheduled',
+} as const;
+
+currentState: RUNTIME_TASK_STATE.ACTIVE  // persists and returns 'active'
+```
+
+- Define enums **once** in the service's `libs/*-core` (or domain module): `as const` objects + exported types.
+- Use those constants in builders, repositories, services, and HTTP DTO mappers — **never** raw PascalCase strings.
+
+## Exceptions (explicit only)
+
+| Kind | Convention | Example |
+|------|------------|---------|
+| **Product / catalog codes** | `SCREAMING_SNAKE` | `METRIC_CHECKIN`, `MISSED_READING` |
+| **Dynamo `entityType`** | PascalCase discriminator | `RuntimeTaskInstance`, `ALERT` |
+| **Partition key strings** | Prefix + id | `ORG#<orgId>#PAT#<patientId>` |
+| **External standards** | Follow the spec | FHIR, HL7 — not overridden by this rule |
+
+## OpenAPI, swagger, events
+
+- Enum lists in `open-api.yaml`, `swagger.json`, and event payloads must match **runtime JSON** (camelCase values).
+- Event `detail-type` / versioned names may keep their existing naming; **payload fields and enum values** follow camelCase.
+
+## Code review
+
+Flag new code that introduces PascalCase enum literals for API responses or DynamoDB attributes. Prefer extending existing `*-core` constant objects over inline strings.

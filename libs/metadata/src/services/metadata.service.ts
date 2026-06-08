@@ -723,4 +723,4 @@ export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.
 export { orchestrateRegistryPostPublish, publishChangeRequest } from './metadata-publish.service';
 export type { ChangeRequestDraftResponse } from '../models/change-request.types';
 export type { ImpactPreviewResponse } from '../models/impact-preview.types';
-export type { MetadataPublishResult } from '../models/publish.types';
+export type { MetadataPublishResult, MetadataPublishResponse } from '../models/publish.types';

@@ -67,12 +67,30 @@ describe('postMetadataSchema action query param', () => {
     ).toThrow(ValidationError);
   });
 
-  it('rejects publish until implemented', () => {
+  it('parses action=publish with full publish body', () => {
+    const input = postMetadataSchema.parse({
+      pathParameters: { entityType: 'value' },
+      params: { action: 'publish' },
+      body: {
+        changeRequestId: 'cr_abc123',
+        confirmationAcknowledged: true,
+        expectedBaseVersion: 3,
+      },
+    });
+    expect(input.action).toBe('publish');
+    expect(input.body).toEqual({
+      changeRequestId: 'cr_abc123',
+      confirmationAcknowledged: true,
+      expectedBaseVersion: 3,
+    });
+  });
+
+  it('requires full publish body fields', () => {
     expect(() =>
       postMetadataSchema.parse({
         pathParameters: { entityType: 'type' },
         params: { action: 'publish' },
-        body: typeBody,
+        body: { changeRequestId: 'cr_abc123' },
       }),
     ).toThrow(ValidationError);
   });

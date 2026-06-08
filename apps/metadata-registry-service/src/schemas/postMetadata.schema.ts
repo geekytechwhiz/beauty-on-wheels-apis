@@ -1,4 +1,5 @@
 import {
+  assertMetadataPublishRequestBody,
   assertMetadataTypeCodePresentOnBody,
   assertRegistryEntityKind,
   assertRegistryPostMetadataAction,
@@ -22,6 +23,7 @@ function isDraftImpactPreviewBody(body: Record<string, unknown>): boolean {
  *
  * `action=draft` and stateless `action=impact-preview` require metadata body fields.
  * `action=impact-preview` with `{ changeRequestId }` only requires the draft id.
+ * `action=publish` requires `{ changeRequestId, confirmationAcknowledged, expectedBaseVersion }`.
  */
 export const postMetadataSchema = z
   .object({
@@ -46,6 +48,11 @@ export const postMetadataSchema = z
   .superRefine((data) => {
     const kind = assertRegistryEntityKind(data.entityTypeRaw);
     const action = assertRegistryPostMetadataAction(data.actionRaw);
+
+    if (action === 'publish') {
+      assertMetadataPublishRequestBody(data.body);
+      return;
+    }
 
     if (action === 'impact-preview' && isDraftImpactPreviewBody(data.body)) {
       return;

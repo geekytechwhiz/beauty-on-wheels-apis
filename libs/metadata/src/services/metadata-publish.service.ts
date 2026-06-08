@@ -1,11 +1,12 @@
-import { ValidationError } from '../domain/errors';
+import { ValidationError, ConflictError } from '../domain/errors';
 import { getMetadataRepository, getRelationRepository } from '../dynamodb/dynamodb.client';
 import {
   CHANGE_REQUEST_OPERATION,
   CHANGE_REQUEST_STATUS,
 } from '../models/change-request.types';
-import type { MetadataPublishResult } from '../models/publish.types';
-import type { MetadataTypeInput, MetadataValueInput } from '../models/types';
+import type { MetadataPublishResult, MetadataPublishResponse } from '../models/publish.types';
+import type { MetadataTypeInput, MetadataValueInput, MetadataTypeRecord, MetadataValueRecord } from '../models/types';
+import { flattenMetadataValueForApi } from '../mappers/metadata-request.mapper';
 import {
   mergeMetadataTypeForUpdate,
   normalizeMetadataTypeInput,
@@ -18,6 +19,7 @@ import {
 } from '../publish/publish-version.strategy';
 import {
   assertRelationshipTargetsReferenceValidValues,
+  resolveRelationshipsForApi,
   syncMetadataValueRelationships,
   validateValueRelationshipsPayload,
 } from './metadata-value-relation.service';
@@ -26,17 +28,12 @@ import {
   evaluateRegistryChangeImpact,
   loadPublishedBasePayload,
   toImpactSummary,
+  isConfirmationRequired,
 } from './metadata-registry-change.shared';
-
-function assertChangeRequestId(body: Record<string, unknown>): string {
-  const id = body.changeRequestId;
-  if (typeof id !== 'string' || id.trim() === '') {
-    throw new ValidationError('changeRequestId is required for publish', [
-      { field: 'changeRequestId', message: 'Required' },
-    ]);
-  }
-  return id.trim();
-}
+import {
+  assertMetadataPublishRequestBody,
+  type MetadataPublishRequestBody,
+} from '../validators/registry-route.validation';
 
 function payloadToMetadataTypeInput(payload: Record<string, unknown>): MetadataTypeInput {
   return normalizeMetadataTypeInput(payload as MetadataTypeInput & Record<string, unknown>);
@@ -56,16 +53,94 @@ function actorFromContext(userId?: string): string | undefined {
   return userId;
 }
 
+function assertPublishConfirmation(
+  impactSummary: ReturnType<typeof toImpactSummary>,
+  confirmationAcknowledged: boolean,
+): void {
+  if (isConfirmationRequired(impactSummary) && !confirmationAcknowledged) {
+    throw new ValidationError(
+      'confirmationAcknowledged must be true for breaking or high-impact changes',
+      [{ field: 'confirmationAcknowledged', message: 'Required for this publish' }],
+    );
+  }
+}
+
+function assertExpectedBaseVersionForPublish(
+  operation: typeof CHANGE_REQUEST_OPERATION.ADD | typeof CHANGE_REQUEST_OPERATION.UPDATE,
+  expectedBaseVersion: number | null,
+  currentPublishedVersion: number | null,
+): void {
+  if (operation === CHANGE_REQUEST_OPERATION.ADD) {
+    if (expectedBaseVersion !== null) {
+      throw new ValidationError('expectedBaseVersion must be null for Add operation', [
+        { field: 'expectedBaseVersion', message: 'Must be null for Add' },
+      ]);
+    }
+    return;
+  }
+
+  if (expectedBaseVersion !== currentPublishedVersion) {
+    throw new ConflictError(
+      `Published version mismatch: expected ${expectedBaseVersion}, current is ${currentPublishedVersion ?? 'none'}`,
+      'EXPECTED_BASE_VERSION_MISMATCH',
+    );
+  }
+}
+
+async function shapeMetadataPublishResponse(result: MetadataPublishResult): Promise<MetadataPublishResponse> {
+  if (result.entityType === 'type') {
+    return {
+      changeRequestId: result.changeRequestId,
+      changeRevision: result.changeRevision,
+      entityType: result.entityType,
+      operation: result.operation,
+      metadataTypeCode: result.metadataTypeCode,
+      metadataValueCode: result.metadataValueCode,
+      publishStrategy: result.publishStrategy,
+      version: result.version,
+      impactSummary: result.impactSummary,
+      published: result.record as MetadataTypeRecord,
+    };
+  }
+
+  const record = result.record as MetadataValueRecord;
+  const meta = await getMetadataRepository();
+  const rel = await getRelationRepository();
+  const typeRecord = await meta.getMetadataType(record.metadataTypeCode);
+  const flat = flattenMetadataValueForApi(record);
+  const published =
+    typeRecord?.supportsRelations
+      ? {
+          ...flat,
+          relationships: await resolveRelationshipsForApi(meta, rel, typeRecord, record),
+        }
+      : flat;
+
+  return {
+    changeRequestId: result.changeRequestId,
+    changeRevision: result.changeRevision,
+    entityType: result.entityType,
+    operation: result.operation,
+    metadataTypeCode: result.metadataTypeCode,
+    metadataValueCode: result.metadataValueCode,
+    publishStrategy: result.publishStrategy,
+    version: result.version,
+    impactSummary: result.impactSummary,
+    published,
+  };
+}
+
 /**
  * Publish a DRAFT change request with selective metadata versioning.
  * Add → v1 + latest pointer. Update + requiresMetadataVersion=false → IN_PLACE. Otherwise NEW_VERSION.
  */
 export async function publishChangeRequest(
-  changeRequestId: string,
+  request: MetadataPublishRequestBody,
   userId?: string,
 ): Promise<MetadataPublishResult> {
   const repo = await getMetadataRepository();
   const actor = actorFromContext(userId);
+  const changeRequestId = request.changeRequestId;
   const draft = await repo.getChangeRequest(changeRequestId);
   if (!draft) {
     throw new ValidationError(`Change request not found: ${changeRequestId}`, [
@@ -79,6 +154,7 @@ export async function publishChangeRequest(
   }
 
   let basePayload: Record<string, unknown> | null = null;
+  let currentPublishedVersion: number | null = null;
   if (draft.operation === CHANGE_REQUEST_OPERATION.UPDATE) {
     const published = await loadPublishedBasePayload(
       draft.entityType,
@@ -86,6 +162,7 @@ export async function publishChangeRequest(
       draft.metadataValueCode,
     );
     basePayload = published.basePayload;
+    currentPublishedVersion = published.baseVersion;
     if (basePayload === null) {
       throw new ValidationError(
         `Published ${draft.entityType} not found for update publish: ${draft.metadataTypeCode}`,
@@ -102,6 +179,14 @@ export async function publishChangeRequest(
     basePayload,
     proposedPayload: draft.proposedPayload,
   });
+
+  const impactSummary = toImpactSummary(impact);
+  assertPublishConfirmation(impactSummary, request.confirmationAcknowledged);
+  assertExpectedBaseVersionForPublish(
+    draft.operation,
+    request.expectedBaseVersion,
+    currentPublishedVersion,
+  );
 
   const publishStrategy = resolvePublishVersionStrategy(draft.operation, impact.requiresMetadataVersion);
   const syncApplicability = shouldSyncApplicabilityOnPublish(impact.changes);
@@ -126,17 +211,18 @@ export async function publishChangeRequest(
           : await repo.updateMetadataType(merged, actor);
     }
 
-    await repo.markChangeRequestPublished(changeRequestId, { actor, publishedAt: now });
+    const publishedDraft = await repo.markChangeRequestPublished(changeRequestId, { actor, publishedAt: now });
 
     return {
       changeRequestId,
+      changeRevision: publishedDraft.changeRevision!,
       entityType: 'type',
       operation: draft.operation,
       metadataTypeCode: draft.metadataTypeCode,
       metadataValueCode: null,
       publishStrategy,
       version: record.version,
-      impactSummary: toImpactSummary(impact),
+      impactSummary,
       record,
     };
   }
@@ -197,26 +283,43 @@ export async function publishChangeRequest(
     );
   }
 
-  await repo.markChangeRequestPublished(changeRequestId, { actor, publishedAt: now });
+  const publishedDraft = await repo.markChangeRequestPublished(changeRequestId, { actor, publishedAt: now });
 
   return {
     changeRequestId,
+    changeRevision: publishedDraft.changeRevision!,
     entityType: 'value',
     operation: draft.operation,
     metadataTypeCode: draft.metadataTypeCode,
     metadataValueCode: valueCode,
     publishStrategy,
     version: record.version,
-    impactSummary: toImpactSummary(impact),
+    impactSummary,
     record,
   };
 }
 
 /**
- * POST `/metadata/:entityType?action=publish` — publish a saved draft (Ticket 5 internal orchestration).
+ * POST `/metadata/:entityType?action=publish` — publish a saved draft change request.
  */
 export async function orchestrateRegistryPostPublish(
   input: RegistryPostMetadataPublishInput,
-): Promise<MetadataPublishResult> {
-  return publishChangeRequest(assertChangeRequestId(input.body), input.userId);
+): Promise<MetadataPublishResponse> {
+  const publishRequest = assertMetadataPublishRequestBody(input.body);
+  const repo = await getMetadataRepository();
+  const draft = await repo.getChangeRequest(publishRequest.changeRequestId);
+  if (!draft) {
+    throw new ValidationError(`Change request not found: ${publishRequest.changeRequestId}`, [
+      { field: 'changeRequestId', message: 'Not found' },
+    ]);
+  }
+  if (draft.entityType !== input.entityType) {
+    throw new ValidationError(
+      `Change request entityType ${draft.entityType} does not match path entityType ${input.entityType}`,
+      [{ field: 'entityType', message: 'Mismatch with change request' }],
+    );
+  }
+
+  const result = await publishChangeRequest(publishRequest, input.userId);
+  return shapeMetadataPublishResponse(result);
 }

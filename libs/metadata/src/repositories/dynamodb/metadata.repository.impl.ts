@@ -4,6 +4,7 @@ import {
   GetCommand,
   QueryCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { monotonicFactory } from 'ulid';
 
@@ -1734,9 +1735,13 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       );
     }
 
+    const changeRevision = await this.reserveNextChangeRevision();
+
     const record: ChangeRequestRecord = {
       ...existing,
       status: CHANGE_REQUEST_STATUS.PUBLISHED,
+      changeRevision,
+      publishedAt: params.publishedAt,
       lastModifiedAt: params.publishedAt,
       lastModifiedBy: params.actor ?? existing.lastModifiedBy,
     };
@@ -1765,6 +1770,39 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     ]);
 
     return record;
+  }
+
+  /** Atomically increments and returns the next global ChangeRevision counter. */
+  private async reserveNextChangeRevision(): Promise<number> {
+    const pk = MetadataKeyBuilder.changeRevisionCounterPartitionKey();
+    const sk = MetadataKeyBuilder.changeRevisionCounterSortKey();
+    try {
+      const res = (await this.doc.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: this.key(pk, sk),
+          UpdateExpression:
+            'SET #entityType = if_not_exists(#entityType, :entityType), #rev = if_not_exists(#rev, :zero) + :inc',
+          ExpressionAttributeNames: {
+            '#entityType': 'entityType',
+            '#rev': 'changeRevision',
+          },
+          ExpressionAttributeValues: {
+            ':entityType': ENTITY_TYPE.CHANGE_REVISION_COUNTER,
+            ':zero': 0,
+            ':inc': 1,
+          },
+          ReturnValues: 'UPDATED_NEW',
+        }),
+      )) as { Attributes?: Record<string, unknown> };
+      const rev = res.Attributes?.changeRevision;
+      if (rev === undefined || rev === null) {
+        throw new Error('Failed to reserve ChangeRevision');
+      }
+      return Number(rev);
+    } catch (e: unknown) {
+      this.rethrowDynamo('UpdateItem (ChangeRevision)', e);
+    }
   }
 
   private async getChangeRequestRecord(changeRequestId: string): Promise<ChangeRequestRecord | null> {
@@ -1798,6 +1836,8 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       createdBy: record.createdBy,
       lastModifiedAt: record.lastModifiedAt,
       lastModifiedBy: record.lastModifiedBy,
+      ...(record.changeRevision !== undefined ? { changeRevision: record.changeRevision } : {}),
+      ...(record.publishedAt ? { publishedAt: record.publishedAt } : {}),
     };
   }
 
@@ -1820,6 +1860,11 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       createdBy: item.createdBy !== undefined ? String(item.createdBy) : undefined,
       lastModifiedAt: String(item.lastModifiedAt),
       lastModifiedBy: item.lastModifiedBy !== undefined ? String(item.lastModifiedBy) : undefined,
+      changeRevision:
+        item.changeRevision !== undefined && item.changeRevision !== null
+          ? Number(item.changeRevision)
+          : undefined,
+      publishedAt: item.publishedAt !== undefined ? String(item.publishedAt) : undefined,
     };
   }
 }

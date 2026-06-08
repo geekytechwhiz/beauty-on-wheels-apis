@@ -169,6 +169,9 @@ paths:
         **`action=impact-preview`:** evaluates change impact against the internal change-policy catalog. Does **not**
         modify published metadata or save a draft unless previewing an existing draft by `changeRequestId`.
 
+        **`action=publish`:** publishes a saved DRAFT change request into published metadata. Re-evaluates change
+        impact at publish time (does not trust a prior preview). Body `{ "changeRequestId": "<id>" }` only.
+
         **Mode A (draft):** body `{ "changeRequestId": "<id>" }` — loads the saved DRAFT and previews its proposed payload.
 
         **Mode B (stateless):** body is the same metadata type/value payload as `action=draft` — validates input,
@@ -190,7 +193,7 @@ paths:
           required: true
           description: |
             Publish workflow action. `draft` saves a change request without modifying published metadata.
-            `impact-preview` returns change impact without publishing. `publish` is not yet implemented.
+            `impact-preview` returns change impact without publishing. `publish` activates a saved draft.
           schema:
             type: string
             enum: [draft, impact-preview, publish]
@@ -203,17 +206,19 @@ paths:
                 - $ref: '#/components/schemas/MetadataTypeCreateInput'
                 - $ref: '#/components/schemas/MetadataValueInput'
                 - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
+                - $ref: '#/components/schemas/MetadataPublishRequest'
       responses:
         '200':
           description: |
             When `action=draft`, returns `ChangeRequestDraftResponse`. When `action=impact-preview`, returns
-            `ImpactPreviewResponse`.
+            `ImpactPreviewResponse`. When `action=publish`, returns `MetadataPublishResponse`.
           content:
             application/json:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/ChangeRequestDraftResponse'
                   - $ref: '#/components/schemas/ImpactPreviewResponse'
+                  - $ref: '#/components/schemas/MetadataPublishResponse'
         '400':
           description: Validation error
         '404':
@@ -910,6 +915,102 @@ components:
           type: array
           items: { type: string }
           description: Downstream areas that may need to react (Template, OrgCapability, Runtime, etc.)
+
+    MetadataPublishRequest:
+      type: object
+      description: Body for `POST /metadata/{entityType}?action=publish`.
+      required: [changeRequestId, confirmationAcknowledged, expectedBaseVersion]
+      properties:
+        changeRequestId:
+          type: string
+          description: Draft id returned from `action=draft`
+        confirmationAcknowledged:
+          type: boolean
+          description: |
+            Must be `true` when impact preview reported `confirmationRequired` (breaking/template/org/runtime impact).
+            May be `false` for display-only or low-impact changes.
+        expectedBaseVersion:
+          type: integer
+          nullable: true
+          description: |
+            Optimistic lock — latest published version the client expects. Must be `null` for `operation=Add`.
+            For `Update`, must match the current published version or publish returns 409.
+
+    MetadataPublishResponse:
+      type: object
+      description: |
+        Response for `POST /metadata/{entityType}?action=publish`. Published metadata is updated; change request
+        status becomes PUBLISHED. Impact is re-evaluated at publish time (no ruleId exposed).
+      required:
+        - changeRequestId
+        - changeRevision
+        - entityType
+        - operation
+        - metadataTypeCode
+        - publishStrategy
+        - version
+        - impactSummary
+        - published
+      properties:
+        changeRequestId:
+          type: string
+        changeRevision:
+          type: integer
+          minimum: 1
+          description: |
+            Monotonic registry-wide revision assigned at publish commit. Reused by downstream
+            `MetadataChangePublished` events (addendum §6).
+        entityType:
+          type: string
+          enum: [type, value]
+        operation:
+          type: string
+          enum: [Add, Update]
+        metadataTypeCode:
+          type: string
+        metadataValueCode:
+          type: string
+          nullable: true
+        publishStrategy:
+          type: string
+          enum: [IN_PLACE, NEW_VERSION]
+          description: IN_PLACE when display-only update; NEW_VERSION when policy requires a new metadata version
+        version:
+          type: integer
+          description: Published metadata version after this publish
+        impactSummary:
+          type: object
+          required:
+            - policyGroups
+            - versionImpact
+            - requiresMetadataVersion
+            - requiresTemplateAdoption
+            - requiresOrgCapabilityReevaluation
+            - runtimeImpact
+            - mergeBehavior
+            - uxDiffRequired
+          properties:
+            policyGroups:
+              type: array
+              items: { type: string }
+            versionImpact:
+              type: string
+              enum: [Descriptive, Additive, Breaking]
+            requiresMetadataVersion: { type: boolean }
+            requiresTemplateAdoption: { type: boolean }
+            requiresOrgCapabilityReevaluation: { type: boolean }
+            runtimeImpact:
+              type: string
+              enum: [None, DisplayOnly, ReviewRequired, MigrationRequired]
+            mergeBehavior:
+              type: string
+              enum: [SilentDisplayRefresh, AddOnly, PreserveOrgOverride, ManualReview, Block]
+            uxDiffRequired: { type: boolean }
+        published:
+          description: Published metadata entity (`MetadataTypeInput` for type; `MetadataValueResponse` for value)
+          oneOf:
+            - $ref: '#/components/schemas/MetadataTypeInput'
+            - $ref: '#/components/schemas/MetadataValueResponse'
 
     RelationType:
       type: string

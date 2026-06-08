@@ -99,15 +99,18 @@ export class DeviceService {
           deviceCategoryNum: data.deviceCategoryNum !== undefined ? data.deviceCategoryNum : existing.deviceCategoryNum,
         };
 
-        // Add update tracking
-        const updates = existing.updates || [];
-        updates.push({
+        // Append only the new update entry; repository uses list_append on existing updates.
+        const newUpdate = {
           updatedBy: data.userId,
           updatedAt: Date.now(),
-        });
+        };
 
-        // Update device entry
-        const updatedDevice = await this.deviceRepository.updateDeviceEntry(mergedDevice, data.userId, updates);
+        const updatedDevice = await this.deviceRepository.updateDeviceEntry(
+          mergedDevice,
+          data.userId,
+          [newUpdate],
+          existing.updates,
+        );
 
         // Check if device recommendation exists and update it
         const recommendation = await this.recommendationRepository.getRecommendation(data.userId, data.configDeviceId);

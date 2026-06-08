@@ -160,8 +160,7 @@ custom:
     external:
       - aws-sdk
       - fhir-tool
-      - '@api-hub/event-platform'
-      - '@api-hub/middleware'
+       
     keepNames: true
     # Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
     # service instances exhaust the CodeBuild container and crash with "The service was stopped".

@@ -71,6 +71,34 @@ describe('@api-hub/observability', () => {
     expect(String(serialized.stack)).toContain('boom');
   });
 
+  it('serializes error-like plain objects without SerializedUnknownRejection wrapper', () => {
+    const broken = Object.assign(Object.create(null), {
+      name: 'Error',
+      message: 'Invalid input: expected object, received undefined',
+      stack: 'Error: Invalid input\n    at validate',
+      code: 'VALIDATION_ERROR',
+      statusCode: 422,
+    });
+
+    const serialized = serializeError(broken);
+
+    expect(serialized.name).toBe('Error');
+    expect(serialized.message).toBe(
+      'Invalid input: expected object, received undefined',
+    );
+    expect(serialized.code).toBe('VALIDATION_ERROR');
+    expect(serialized.statusCode).toBe(422);
+    expect(serialized).not.toHaveProperty('value');
+  });
+
+  it('wraps truly unknown objects as SerializedUnknownRejection', () => {
+    const serialized = serializeError({ foo: 'bar' });
+
+    expect(serialized.name).toBe('SerializedUnknownRejection');
+    expect(serialized.message).toBe('Non-Error value logged');
+    expect(serialized.value).toEqual({ foo: 'bar' });
+  });
+
   it('creates structured child logger with merged keys', () => {
     const parent = createLogger();
     const child = createChildLogger(parent, { organizationId: 'org-1' });

@@ -23,6 +23,13 @@ import {
 import { listOrganizationUsersPostSchema } from './listOrganizationUsersPost.validation';
 import { fetchFriendFamilySchema, addMemberFriendFamilySchema, updateFriendFamilySchema, deleteFriendFamilySchema, friendFamilySearchSchema } from './friendFamily.validation';
 import { v2UserListSchema } from './v2-user-list.validation';
+import { logCreateUserValidationFailure } from './create-user-validation-log';
+import { createChildLogger, createLogger } from '@api-hub/observability';
+
+const createUserValidationLogger = createLogger({
+  service: 'user-service',
+  redactPII: true,
+});
 
 function throwVal(message: string, statusCode = 400, code = 'VALIDATION_ERROR', details?: Array<{ field?: string; message: string }>) {
   const err: any = new Error(message);
@@ -513,6 +520,24 @@ export function validateCreateUser(req: any) {
         }
       });
     }
+
+    const correlationId = req?.context?.correlationId ?? 'unknown';
+    const pipelineLogger = req?.context?.logger
+      ? createChildLogger(req.context.logger, {
+          correlationId,
+          operation: 'createUser',
+        })
+      : createChildLogger(createUserValidationLogger, {
+          correlationId,
+          operation: 'createUser',
+        });
+
+    logCreateUserValidationFailure(
+      req,
+      payload as Record<string, unknown>,
+      issues,
+      pipelineLogger,
+    );
 
     throwVal(
       issues[0]?.message ?? 'Validation failed',

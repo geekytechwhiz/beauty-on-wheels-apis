@@ -1,0 +1,119 @@
+{
+  "name": "@api-hub/task-service",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "npx --no-install serverless deploy",
+    "offline": "npx --no-install serverless offline --stage dev",
+    "package": "npx --no-install serverless package",
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "defaultConfiguration": "production",
+        "options": {
+          "platform": "node",
+          "outputPath": "apps/task-service/dist",
+          "format": [
+            "cjs"
+          ],
+          "bundle": false,
+          "main": "apps/task-service/src/main.ts",
+          "tsConfig": "apps/task-service/tsconfig.app.json",
+          "assets": [
+            "apps/task-service/src/assets"
+          ],
+          "esbuildOptions": {
+            "sourcemap": true,
+            "outExtension": {
+              ".js": ".js"
+            }
+          }
+        },
+        "configurations": {
+          "development": {},
+          "production": {
+            "esbuildOptions": {
+              "sourcemap": false,
+              "outExtension": {
+                ".js": ".js"
+              }
+            }
+          }
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/task-service/dist/package.json",
+          "{workspaceRoot}/apps/task-service/dist/pnpm-lock.yaml"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/task-service/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "@api-hub/task-service:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "@api-hub/task-service:build:development"
+          },
+          "production": {
+            "buildTarget": "@api-hub/task-service:build:production"
+          }
+        }
+      },
+      "test": {
+        "options": {
+          "passWithNoTests": true
+        }
+      }
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.19.2",
+    "serverless": "^3.40.0",
+    "serverless-auto-swagger": "^3.1.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "^13.9.0"
+  }
+}

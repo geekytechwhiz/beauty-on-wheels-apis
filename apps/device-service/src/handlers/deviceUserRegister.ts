@@ -38,6 +38,7 @@ const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
   const userContext = extractUserContext({
     authorizer: (evt.requestContext as { authorizer?: unknown })?.authorizer,
     body,
+    event: evt,
   });
 
   const validationPayload = {

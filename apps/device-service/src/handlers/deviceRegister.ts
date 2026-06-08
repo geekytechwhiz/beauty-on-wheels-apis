@@ -6,6 +6,7 @@ import { DeviceService } from '../services/deviceService';
 import { deviceRegistrationSchema } from '../validation/device.validation';
 import { DeviceNotInOrganizationError } from '../utils/errors';
 import { completeUserTask } from '../utils/task-completion';
+import { extractUserContext } from '../utils/authContext';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
@@ -31,32 +32,12 @@ const deviceRegisterImpl: any = async (event: any, context?: Context) => {
     return ApiResponse.badRequest({ title: 'COMMON.INVALID_JSON', description: 'Request body is not valid JSON', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'BAD_REQUEST' });
   }
 
-  // Extract user context from authorizer (Cognito)
-  const authorizer = (event.requestContext as any)?.authorizer;
-  // console.log('AUTHORIZER ', authorizer);
-
-  // For Cognito, claims are usually under authorizer.claims
-  const claims = (authorizer as any)?.claims || authorizer || {};
-
-  const userId =
-    (claims as any)['custom:userID'] ||
-    (claims as any)['custom:userId'] ||
-    (claims as any).userID ||
-    (claims as any).userId ||
-    (claims as any).sub ||
-    (body as any).userId ||
-    (body as any).userID;
-
-  const organizationId =
-    (claims as any)['custom:organizationID'] ||
-    (claims as any)['custom:organizationId'] ||
-    (claims as any).organizationID ||
-    (claims as any).organizationId ||
-    (body as any).organizationId ||
-    (body as any).organizationID;
-
-  // console.log('USER ID ', userId);
-  // console.log('ORGANIZATION ID ', organizationId);
+  const parsedBody = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const { userId, organizationId } = extractUserContext({
+    authorizer: (event.requestContext as { authorizer?: unknown })?.authorizer,
+    body: parsedBody,
+    event,
+  });
 
   // Basic validation - check required fields
   if (!userId || !organizationId) {
@@ -65,7 +46,7 @@ const deviceRegisterImpl: any = async (event: any, context?: Context) => {
     return ApiResponse.badRequest({ title: 'COMMON.VALIDATION_ERROR', description: 'userId and organizationId are required', severity: 'ERROR' }, { correlationId: correlationId }, { code: 'VALIDATION_ERROR', details: [{ field: 'userId/organizationId', message: 'userId and organizationId are required' }] });
   }
 
-  const devices = (body as any)?.devices;
+  const devices = parsedBody.devices;
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
     const duration = Date.now() - startTime;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', 400, duration, correlationId);
@@ -224,14 +205,40 @@ const deviceRegisterImpl: any = async (event: any, context?: Context) => {
 
     const duration = Date.now() - startTime;
     const hasErrors = messageArr.some((msg) => msg.statusCode >= 400);
-    const statusCode = hasErrors ? (messageArr.some((msg) => msg.statusCode >= 500) ? 500 : 400) : 201;
+    const allSucceeded = messageArr.length > 0 && messageArr.every((msg) => msg.statusCode < 400);
+    const statusCode = allSucceeded
+      ? 201
+      : hasErrors
+        ? messageArr.some((msg) => msg.statusCode >= 500)
+          ? 500
+          : 400
+        : 201;
     logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/register', statusCode, duration, correlationId);
-    
-    return ApiResponse.created(
-      { items: messageArr },
-      { title: 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', description: 'Device registration processed successfully', severity: 'SUCCESS' },
+
+    const responseMessage = allSucceeded
+      ? { title: 'DEVICE.DEVICE_USER_REGISTRATION_SUCCESS', description: 'Device registration processed successfully', severity: 'SUCCESS' as const }
+      : { title: 'DEVICE.DEVICE_USER_REGISTRATION_PARTIAL_FAILURE', description: 'One or more devices failed to register', severity: 'ERROR' as const };
+
+    if (allSucceeded) {
+      return ApiResponse.created(
+        { items: messageArr },
+        responseMessage,
+        { correlationId: correlationId },
+      );
+    }
+
+    const failedResponse = ApiResponse.error(
+      statusCode,
+      responseMessage,
       { correlationId: correlationId },
+      { code: statusCode >= 500 ? 'REGISTRATION_FAILED' : 'VALIDATION_ERROR' },
     );
+    const failedBody = JSON.parse(failedResponse.body);
+    failedBody.data = { items: messageArr };
+    return {
+      ...failedResponse,
+      body: JSON.stringify(failedBody),
+    };
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceRegister_error', err: serializeError(err) });

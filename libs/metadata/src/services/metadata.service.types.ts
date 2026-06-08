@@ -1,4 +1,7 @@
-import type { RegistryPostMetadataImplementedAction } from '../validators/registry-route.validation';
+import type {
+  RegistryPostMetadataAction,
+  RegistryPostMetadataImplementedAction,
+} from '../validators/registry-route.validation';
 
 /** Parsed `POST /metadata/:entityType` input (host validates via Zod). */
 export type RegistryPostMetadataInput =
@@ -14,3 +17,11 @@ export type RegistryPostMetadataInput =
       body: Record<string, unknown>;
       action: RegistryPostMetadataImplementedAction;
     };
+
+/** Parsed `POST /metadata/:entityType?action=publish` input. */
+export type RegistryPostMetadataPublishInput = {
+  entityType: 'type' | 'value';
+  userId?: string;
+  body: Record<string, unknown>;
+  action: Extract<RegistryPostMetadataAction, 'publish'>;
+};

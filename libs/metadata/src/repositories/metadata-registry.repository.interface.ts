@@ -37,6 +37,12 @@ export interface ListMetadataValuesPaginatedOptions {
 export interface IMetadataRegistryRepository {
   createMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord>;
   updateMetadataType(input: MetadataTypeInput, actor?: string): Promise<MetadataTypeRecord>;
+  /** Overwrite the current published type version without incrementing version (display-only publish). */
+  updateMetadataTypeInPlace(
+    input: MetadataTypeInput,
+    actor: string | undefined,
+    existing: MetadataTypeRecord,
+  ): Promise<MetadataTypeRecord>;
   patchMetadataTypeStatus(metadataTypeCode: string, status: Status, actor?: string): Promise<MetadataTypeRecord>;
   getMetadataType(metadataTypeCode: string): Promise<MetadataTypeRecord | null>;
   listMetadataTypes(filter: ListTypesFilter): Promise<MetadataTypeListEntry[]>;
@@ -51,6 +57,14 @@ export interface IMetadataRegistryRepository {
     input: MetadataValueInput,
     actor: string | undefined,
     existing: MetadataValueRecord,
+  ): Promise<MetadataValueRecord>;
+  /** Overwrite the current published value version without incrementing version (display-only publish). */
+  updateMetadataValueInPlace(
+    metadataTypeCode: string,
+    input: MetadataValueInput,
+    actor: string | undefined,
+    existing: MetadataValueRecord,
+    options: { syncApplicability: boolean },
   ): Promise<MetadataValueRecord>;
   patchMetadataValueStatus(metadataTypeCode: string, valueCode: string, status: Status, actor?: string): Promise<MetadataValueRecord>;
   /** Immutable version with status DELETED; does not remove applicability rows or prior versions. */
@@ -74,6 +88,10 @@ export interface IMetadataRegistryRepository {
   /** Persist a change-request draft; replaces any prior DRAFT for the same entity. */
   saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord>;
   getChangeRequest(changeRequestId: string): Promise<ChangeRequestRecord | null>;
+  markChangeRequestPublished(
+    changeRequestId: string,
+    params: { actor?: string; publishedAt: string },
+  ): Promise<ChangeRequestRecord>;
   getChangeRequestDraftPointer(
     metadataTypeCode: string,
     entityType: 'type' | 'value',

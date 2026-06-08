@@ -77,16 +77,20 @@ export {
   orchestrateRegistryPost,
   orchestrateRegistryPostDraft,
   orchestrateRegistryPostImpactPreview,
+  orchestrateRegistryPostPublish,
+  publishChangeRequest,
   orchestrateRegistryPatchStatus,
   orchestrateRegistryDeleteMetadataValue,
   orchestrateRegistryListAudit,
   type RegistryGetMetadataInput,
   type RegistryPostMetadataInput,
+  type RegistryPostMetadataPublishInput,
   type RegistryPatchMetadataStatusInput,
   type RegistryDeleteMetadataValueInput,
   type RegistryListMetadataAuditInput,
   type ChangeRequestDraftResponse,
   type ImpactPreviewResponse,
+  type MetadataPublishResult,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';
@@ -115,3 +119,10 @@ export {
   RUNTIME_IMPACT,
   CHANGE_POLICY_OPERATION,
 } from './change-policy';
+
+export {
+  PUBLISH_VERSION_STRATEGY,
+  resolvePublishVersionStrategy,
+  shouldSyncApplicabilityOnPublish,
+  type PublishVersionStrategy,
+} from './publish/publish-version.strategy';

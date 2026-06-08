@@ -9,7 +9,7 @@ export default {
   moduleNameMapper: {
     '^@api-hub/metadata$': '<rootDir>/../../libs/metadata/src/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
-    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts'
   },
   coverageDirectory: '../../test-output/jest/coverage/apps/metadata-registry-service',
 };

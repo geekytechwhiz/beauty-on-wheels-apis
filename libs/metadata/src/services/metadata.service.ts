@@ -60,7 +60,7 @@ import {
 } from './metadata-value-relation.service';
 import type { RegistryPostMetadataInput } from './metadata.service.types';
 
-export type { RegistryPostMetadataInput } from './metadata.service.types';
+export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput } from './metadata.service.types';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
@@ -720,5 +720,7 @@ export async function orchestrateRegistryDeleteMetadataValue(
 
 export { orchestrateRegistryPostDraft } from './metadata-change-request.service';
 export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
+export { orchestrateRegistryPostPublish, publishChangeRequest } from './metadata-publish.service';
 export type { ChangeRequestDraftResponse } from '../models/change-request.types';
 export type { ImpactPreviewResponse } from '../models/impact-preview.types';
+export type { MetadataPublishResult } from '../models/publish.types';

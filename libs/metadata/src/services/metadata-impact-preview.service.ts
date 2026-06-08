@@ -1,14 +1,9 @@
 import { ValidationError } from '../domain/errors';
-import { metadataTypeToAuditSnapshot } from '../domain/type-audit-delta';
-import { metadataValueToAuditSnapshot } from '../domain/value-audit-delta';
 import {
-  evaluateChangeImpact,
   getChangePolicyCatalog,
   matchPolicyRules,
   RUNTIME_IMPACT,
   VERSION_IMPACT,
-  CHANGE_POLICY_OPERATION,
-  type ChangePolicyOperation,
 } from '../change-policy';
 import { getMetadataRepository } from '../dynamodb/dynamodb.client';
 import {
@@ -17,9 +12,12 @@ import {
   type ChangeRequestOperation,
 } from '../models/change-request.types';
 import type { ImpactPreviewResponse } from '../models/impact-preview.types';
-import type { MetadataTypeRecord, MetadataValueRecord } from '../models/types';
 import type { RegistryPostMetadataInput } from './metadata.service.types';
 import { prepareTypeRegistryChange, prepareValueRegistryChange } from './metadata-change-request.service';
+import {
+  evaluateRegistryChangeImpact,
+  loadPublishedBasePayload,
+} from './metadata-registry-change.shared';
 
 function isDraftPreviewBody(body: Record<string, unknown>): boolean {
   const id = body.changeRequestId;
@@ -34,57 +32,6 @@ function assertChangeRequestId(body: Record<string, unknown>): string {
     ]);
   }
   return id.trim();
-}
-
-function toPolicyWorkflowOperation(operation: ChangeRequestOperation): ChangePolicyOperation {
-  return operation === CHANGE_REQUEST_OPERATION.ADD
-    ? CHANGE_POLICY_OPERATION.ADD
-    : CHANGE_POLICY_OPERATION.UPDATE;
-}
-
-function publishedTypeToBasePayload(record: MetadataTypeRecord): Record<string, unknown> {
-  return {
-    metadataTypeCode: record.metadataTypeCode,
-    ...metadataTypeToAuditSnapshot(record),
-    applicableModules: [...(record.applicableModules ?? [])],
-    ...(record.attributeSchema !== undefined ? { attributeSchema: record.attributeSchema } : {}),
-    ...(record.valueApplicabilityConfig !== undefined
-      ? { valueApplicabilityConfig: record.valueApplicabilityConfig }
-      : {}),
-  };
-}
-
-function publishedValueToBasePayload(record: MetadataValueRecord): Record<string, unknown> {
-  return {
-    metadataTypeCode: record.metadataTypeCode,
-    ...metadataValueToAuditSnapshot(record),
-  };
-}
-
-async function loadPublishedBasePayload(
-  entityType: 'type' | 'value',
-  metadataTypeCode: string,
-  metadataValueCode?: string,
-): Promise<{ basePayload: Record<string, unknown> | null; baseVersion: number | null }> {
-  const repo = await getMetadataRepository();
-  if (entityType === 'type') {
-    const existing = await repo.getMetadataType(metadataTypeCode);
-    if (!existing) {
-      return { basePayload: null, baseVersion: null };
-    }
-    return { basePayload: publishedTypeToBasePayload(existing), baseVersion: existing.version };
-  }
-  const code = metadataValueCode?.trim();
-  if (!code) {
-    throw new ValidationError('metadataValueCode is required for value impact preview', [
-      { field: 'metadataValueCode', message: 'Required' },
-    ]);
-  }
-  const existing = await repo.getMetadataValue(metadataTypeCode, code);
-  if (!existing) {
-    return { basePayload: null, baseVersion: null };
-  }
-  return { basePayload: publishedValueToBasePayload(existing), baseVersion: existing.version };
 }
 
 function resolveNextVersion(
@@ -142,13 +89,12 @@ function buildImpactPreviewResponse(params: {
   proposedPayload: Record<string, unknown>;
 }): ImpactPreviewResponse {
   const catalog = getChangePolicyCatalog();
-  const workflowOperation = toPolicyWorkflowOperation(params.operation);
-  const impact = evaluateChangeImpact({
+  const impact = evaluateRegistryChangeImpact({
     entityType: params.entityType,
+    operation: params.operation,
     metadataTypeCode: params.metadataTypeCode,
     metadataValueCode: params.metadataValueCode,
-    workflowOperation,
-    basePayload: params.operation === CHANGE_REQUEST_OPERATION.ADD ? null : params.basePayload,
+    basePayload: params.basePayload,
     proposedPayload: params.proposedPayload,
   });
 

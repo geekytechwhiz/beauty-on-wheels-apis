@@ -3,6 +3,8 @@ import { metadataValueToAuditSnapshot } from '../domain/value-audit-delta';
 import {
   evaluateChangeImpact,
   CHANGE_POLICY_OPERATION,
+  RUNTIME_IMPACT,
+  VERSION_IMPACT,
   type ChangePolicyOperation,
   type AggregatedChangeImpact,
 } from '../change-policy';
@@ -95,4 +97,15 @@ export function toImpactSummary(impact: AggregatedChangeImpact): ImpactPreviewRe
     mergeBehavior: impact.mergeBehavior,
     uxDiffRequired: impact.uxDiffRequired,
   };
+}
+
+/** True when publish must receive `confirmationAcknowledged: true`. */
+export function isConfirmationRequired(summary: ImpactPreviewResponse['impactSummary']): boolean {
+  return (
+    summary.versionImpact === VERSION_IMPACT.BREAKING ||
+    summary.requiresTemplateAdoption ||
+    summary.requiresOrgCapabilityReevaluation ||
+    summary.runtimeImpact === RUNTIME_IMPACT.REVIEW_REQUIRED ||
+    summary.runtimeImpact === RUNTIME_IMPACT.MIGRATION_REQUIRED
+  );
 }

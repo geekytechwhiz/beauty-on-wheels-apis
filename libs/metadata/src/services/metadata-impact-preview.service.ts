@@ -3,7 +3,6 @@ import {
   getChangePolicyCatalog,
   matchPolicyRules,
   RUNTIME_IMPACT,
-  VERSION_IMPACT,
 } from '../change-policy';
 import { getMetadataRepository } from '../dynamodb/dynamodb.client';
 import {
@@ -17,6 +16,7 @@ import { prepareTypeRegistryChange, prepareValueRegistryChange } from './metadat
 import {
   evaluateRegistryChangeImpact,
   loadPublishedBasePayload,
+  isConfirmationRequired,
 } from './metadata-registry-change.shared';
 
 function isDraftPreviewBody(body: Record<string, unknown>): boolean {
@@ -46,16 +46,6 @@ function resolveNextVersion(
     return null;
   }
   return requiresMetadataVersion ? baseVersion + 1 : baseVersion;
-}
-
-function isConfirmationRequired(summary: ImpactPreviewResponse['impactSummary']): boolean {
-  return (
-    summary.versionImpact === VERSION_IMPACT.BREAKING ||
-    summary.requiresTemplateAdoption ||
-    summary.requiresOrgCapabilityReevaluation ||
-    summary.runtimeImpact === RUNTIME_IMPACT.REVIEW_REQUIRED ||
-    summary.runtimeImpact === RUNTIME_IMPACT.MIGRATION_REQUIRED
-  );
 }
 
 function deriveAffectedConsumers(summary: ImpactPreviewResponse['impactSummary']): string[] {

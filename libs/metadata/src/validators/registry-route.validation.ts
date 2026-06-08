@@ -71,8 +71,8 @@ export function assertRegistryPathCodesForKind(
 export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
 export type RegistryPostMetadataAction = (typeof REGISTRY_POST_METADATA_ACTIONS)[number];
 
-/** POST actions implemented in the current release (extend when publish ships). */
-export const REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS = ['draft', 'impact-preview'] as const;
+/** POST actions implemented in the current release. */
+export const REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
 export type RegistryPostMetadataImplementedAction = (typeof REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS)[number];
 
 /** Requires supported `action` query param on POST `/metadata/{entityType}` (managed publish workflow). */
@@ -88,12 +88,6 @@ export function assertRegistryPostMetadataAction(actionRaw: string): RegistryPos
     throw new ValidationError(
       `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish.`,
       [{ field: 'action', message: 'Must be draft, impact-preview, or publish' }],
-    );
-  }
-  if (!REGISTRY_POST_METADATA_IMPLEMENTED_ACTIONS.includes(trimmed as RegistryPostMetadataImplementedAction)) {
-    throw new ValidationError(
-      `action=${trimmed} is not implemented yet. Only action=draft and action=impact-preview are available in this release.`,
-      [{ field: 'action', message: 'Only draft and impact-preview are implemented' }],
     );
   }
   return trimmed as RegistryPostMetadataImplementedAction;
@@ -112,6 +106,66 @@ export function assertMetadataTypeCodePresentOnBody(body: Record<string, unknown
     ]);
   }
   return code.trim();
+}
+
+/** Non-empty change-request id on JSON body (`action=publish`, draft impact preview). */
+export function assertChangeRequestIdPresentOnBody(body: Record<string, unknown>): string {
+  const id = body.changeRequestId;
+  if (typeof id !== 'string' || id.trim() === '') {
+    throw new ValidationError('changeRequestId is required', [
+      { field: 'changeRequestId', message: 'Required' },
+    ]);
+  }
+  return id.trim();
+}
+
+export interface MetadataPublishRequestBody {
+  changeRequestId: string;
+  confirmationAcknowledged: boolean;
+  expectedBaseVersion: number | null;
+}
+
+function parseExpectedBaseVersion(raw: unknown): number | null {
+  if (raw === null) {
+    return null;
+  }
+  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1) {
+    return raw;
+  }
+  if (typeof raw === 'string' && /^\d+$/.test(raw.trim())) {
+    return parseInt(raw.trim(), 10);
+  }
+  throw new ValidationError('expectedBaseVersion must be null or a positive integer', [
+    { field: 'expectedBaseVersion', message: 'Invalid' },
+  ]);
+}
+
+/** POST `?action=publish` body — all three fields required. */
+export function assertMetadataPublishRequestBody(body: Record<string, unknown>): MetadataPublishRequestBody {
+  const changeRequestId = assertChangeRequestIdPresentOnBody(body);
+
+  if (!Object.prototype.hasOwnProperty.call(body, 'confirmationAcknowledged')) {
+    throw new ValidationError('confirmationAcknowledged is required for publish', [
+      { field: 'confirmationAcknowledged', message: 'Required' },
+    ]);
+  }
+  if (typeof body.confirmationAcknowledged !== 'boolean') {
+    throw new ValidationError('confirmationAcknowledged must be a boolean', [
+      { field: 'confirmationAcknowledged', message: 'Must be boolean' },
+    ]);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(body, 'expectedBaseVersion')) {
+    throw new ValidationError('expectedBaseVersion is required for publish', [
+      { field: 'expectedBaseVersion', message: 'Required' },
+    ]);
+  }
+
+  return {
+    changeRequestId,
+    confirmationAcknowledged: body.confirmationAcknowledged,
+    expectedBaseVersion: parseExpectedBaseVersion(body.expectedBaseVersion),
+  };
 }
 
 /** Non-empty value identity on JSON body (`valueCode` or `metadataValueCode`), PATCH status route. */

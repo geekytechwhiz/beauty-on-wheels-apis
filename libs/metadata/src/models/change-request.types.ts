@@ -29,6 +29,9 @@ export interface ChangeRequestRecord {
   createdBy?: string;
   lastModifiedAt: string;
   lastModifiedBy?: string;
+  /** Monotonic registry-wide revision assigned at publish (addendum §6). */
+  changeRevision?: number;
+  publishedAt?: string;
 }
 
 /** API response for POST ?action=draft. */

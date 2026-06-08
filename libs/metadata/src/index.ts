@@ -91,6 +91,7 @@ export {
   type ChangeRequestDraftResponse,
   type ImpactPreviewResponse,
   type MetadataPublishResult,
+  type MetadataPublishResponse,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';

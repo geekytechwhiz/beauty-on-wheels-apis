@@ -1,5 +1,5 @@
 import { ValidationError } from '../domain/errors';
-import { assertRegistryPostMetadataAction } from './registry-route.validation';
+import { assertRegistryPostMetadataAction, assertMetadataPublishRequestBody } from './registry-route.validation';
 
 describe('assertRegistryPostMetadataAction', () => {
   it('returns draft for valid implemented action', () => {
@@ -18,20 +18,47 @@ describe('assertRegistryPostMetadataAction', () => {
     expect(() => assertRegistryPostMetadataAction('   ')).toThrow(ValidationError);
   });
 
+  it('returns publish as implemented action', () => {
+    expect(assertRegistryPostMetadataAction('publish')).toBe('publish');
+    expect(assertRegistryPostMetadataAction('PUBLISH')).toBe('publish');
+  });
+
   it('throws for unknown action values', () => {
     expect(() => assertRegistryPostMetadataAction('upsert')).toThrow(ValidationError);
   });
+});
 
-  it('throws for publish until implemented', () => {
-    try {
-      assertRegistryPostMetadataAction('publish');
-      fail('expected throw for publish');
-    } catch (e) {
-      expect(e).toMatchObject({
-        statusCode: 400,
-        code: 'VALIDATION_ERROR',
-        details: [{ field: 'action', message: 'Only draft and impact-preview are implemented' }],
-      });
-    }
+describe('assertMetadataPublishRequestBody', () => {
+  it('parses valid publish body', () => {
+    expect(
+      assertMetadataPublishRequestBody({
+        changeRequestId: 'cr_1',
+        confirmationAcknowledged: true,
+        expectedBaseVersion: 2,
+      }),
+    ).toEqual({
+      changeRequestId: 'cr_1',
+      confirmationAcknowledged: true,
+      expectedBaseVersion: 2,
+    });
+  });
+
+  it('accepts null expectedBaseVersion for Add', () => {
+    expect(
+      assertMetadataPublishRequestBody({
+        changeRequestId: 'cr_1',
+        confirmationAcknowledged: false,
+        expectedBaseVersion: null,
+      }).expectedBaseVersion,
+    ).toBeNull();
+  });
+
+  it('throws when confirmationAcknowledged is missing', () => {
+    expect(() =>
+      assertMetadataPublishRequestBody({
+        changeRequestId: 'cr_1',
+        expectedBaseVersion: 1,
+      }),
+    ).toThrow(ValidationError);
   });
 });

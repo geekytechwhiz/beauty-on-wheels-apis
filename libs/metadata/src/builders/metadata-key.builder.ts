@@ -157,4 +157,13 @@ export class MetadataKeyBuilder {
     const code = String(metadataValueCode ?? '').trim();
     return `CHANGE_REQUEST#DRAFT#VALUE#${code}`;
   }
+
+  /** Global monotonic counter for publish-time ChangeRevision (addendum §6). */
+  static changeRevisionCounterPartitionKey(): string {
+    return 'CHANGE_REVISION';
+  }
+
+  static changeRevisionCounterSortKey(): string {
+    return 'GLOBAL';
+  }
 }

@@ -1,5 +1,6 @@
 export * from './constants';
 export * from './models/types';
+export * from './models/change-request.types';
 export * from './domain/errors';
 export * from './domain/keys';
 export * from './models/relation-types';
@@ -74,6 +75,7 @@ export {
   type RegistryListHttpPayload,
   type RegistryListResult,
   orchestrateRegistryPost,
+  orchestrateRegistryPostDraft,
   orchestrateRegistryPatchStatus,
   orchestrateRegistryDeleteMetadataValue,
   orchestrateRegistryListAudit,
@@ -82,6 +84,7 @@ export {
   type RegistryPatchMetadataStatusInput,
   type RegistryDeleteMetadataValueInput,
   type RegistryListMetadataAuditInput,
+  type ChangeRequestDraftResponse,
 } from './services/metadata.service';
 
 export { MetadataRegistryService } from './services/metadata-registry.service';

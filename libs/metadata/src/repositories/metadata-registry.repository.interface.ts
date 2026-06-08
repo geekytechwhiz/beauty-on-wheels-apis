@@ -7,6 +7,7 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../models/types';
+import type { ChangeRequestRecord } from '../models/change-request.types';
 
 export interface ListTypesFilter {
   /** When set, type must have one of these statuses. */
@@ -69,4 +70,12 @@ export interface IMetadataRegistryRepository {
 
   listTypeAudit(metadataTypeCode: string): Promise<AuditRecord[]>;
   listValueAudit(metadataTypeCode: string, valueCode: string): Promise<AuditRecord[]>;
+
+  /** Persist a change-request draft; replaces any prior DRAFT for the same entity. */
+  saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord>;
+  getChangeRequestDraftPointer(
+    metadataTypeCode: string,
+    entityType: 'type' | 'value',
+    metadataValueCode?: string,
+  ): Promise<{ changeRequestId: string } | null>;
 }

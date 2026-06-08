@@ -58,6 +58,9 @@ import {
   syncMetadataValueRelationships,
   validateValueRelationshipsPayload,
 } from './metadata-value-relation.service';
+import type { RegistryPostMetadataInput } from './metadata.service.types';
+
+export type { RegistryPostMetadataInput } from './metadata.service.types';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
@@ -528,11 +531,6 @@ export type RegistryGetMetadataInput =
   | { entityType: 'type'; metadataTypeCode: string; lifecycleStatuses: Status[] }
   | { entityType: 'value'; metadataTypeCode: string; valueCode: string; lifecycleStatuses: Status[] };
 
-/** Parsed `POST /metadata/:entityType` input (host validates via Zod). */
-export type RegistryPostMetadataInput =
-  | { entityType: 'type'; userId?: string; body: Record<string, unknown> }
-  | { entityType: 'value'; userId?: string; body: Record<string, unknown> };
-
 /**
  * Parsed `PATCH .../status` input (host validates via Zod).
  * Status enum validation runs in the schema layer (`parsePatchStatusBody`) before orchestration,
@@ -719,3 +717,6 @@ export async function orchestrateRegistryDeleteMetadataValue(
   });
   return enrichMetadataValueForApi(record);
 }
+
+export { orchestrateRegistryPostDraft } from './metadata-change-request.service';
+export type { ChangeRequestDraftResponse } from '../models/change-request.types';

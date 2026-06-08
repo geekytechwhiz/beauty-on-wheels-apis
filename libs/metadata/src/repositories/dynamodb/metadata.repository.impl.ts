@@ -24,6 +24,8 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../../models/types';
+import type { ChangeRequestRecord } from '../../models/change-request.types';
+import { CHANGE_REQUEST_STATUS } from '../../models/change-request.types';
 import { ConflictError, NotFoundError } from '../../domain/errors';
 import {
   auditTypePartitionKey,
@@ -1498,6 +1500,142 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       timestamp,
       before: item.before,
       after: item.after,
+    };
+  }
+
+  async getChangeRequestDraftPointer(
+    metadataTypeCode: string,
+    entityType: 'type' | 'value',
+    metadataValueCode?: string,
+  ): Promise<{ changeRequestId: string } | null> {
+    const pointerPk = typePartitionKey(metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(entityType, metadataValueCode);
+    const item = await this.getItem(pointerPk, pointerSk);
+    if (!item) {
+      return null;
+    }
+    const id = item.changeRequestId;
+    if (typeof id !== 'string' || id.trim() === '') {
+      return null;
+    }
+    return { changeRequestId: id.trim() };
+  }
+
+  async saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord> {
+    const pointerPk = typePartitionKey(record.metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const existingPointer = await this.getChangeRequestDraftPointer(
+      record.metadataTypeCode,
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const previousDraftId = existingPointer?.changeRequestId ?? null;
+
+    const draftPk = MetadataKeyBuilder.changeRequestPartitionKey(record.changeRequestId);
+    const draftSk = MetadataKeyBuilder.changeRequestMetaSortKey();
+    const draftItem = this.marshalChangeRequest(record, draftPk, draftSk);
+
+    const pointerItem: Record<string, unknown> = {
+      ...this.key(pointerPk, pointerSk),
+      entityType: ENTITY_TYPE.CHANGE_REQUEST_DRAFT_POINTER,
+      changeRequestId: record.changeRequestId,
+      draftEntityType: record.entityType,
+      metadataTypeCode: record.metadataTypeCode,
+    };
+    if (record.metadataValueCode) {
+      pointerItem.metadataValueCode = record.metadataValueCode;
+    }
+
+    const transactItems: unknown[] = [];
+
+    if (previousDraftId && previousDraftId !== record.changeRequestId) {
+      const oldDraft = await this.getChangeRequestRecord(previousDraftId);
+      if (oldDraft?.status === CHANGE_REQUEST_STATUS.DRAFT) {
+        transactItems.push({
+          Update: {
+            TableName: this.tableName,
+            Key: this.key(
+              MetadataKeyBuilder.changeRequestPartitionKey(previousDraftId),
+              MetadataKeyBuilder.changeRequestMetaSortKey(),
+            ),
+            UpdateExpression: 'SET #status = :cancelled, #modified = :now',
+            ConditionExpression: '#status = :draft',
+            ExpressionAttributeNames: {
+              '#status': 'status',
+              '#modified': 'lastModifiedAt',
+            },
+            ExpressionAttributeValues: {
+              ':cancelled': CHANGE_REQUEST_STATUS.CANCELLED,
+              ':draft': CHANGE_REQUEST_STATUS.DRAFT,
+              ':now': record.lastModifiedAt,
+            },
+          },
+        });
+      }
+    }
+
+    transactItems.push({ Put: { TableName: this.tableName, Item: draftItem } });
+    transactItems.push({ Put: { TableName: this.tableName, Item: pointerItem } });
+    await this.sendTx(transactItems);
+    return record;
+  }
+
+  private async getChangeRequestRecord(changeRequestId: string): Promise<ChangeRequestRecord | null> {
+    const item = await this.getItem(
+      MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId),
+      MetadataKeyBuilder.changeRequestMetaSortKey(),
+    );
+    if (!item) {
+      return null;
+    }
+    return this.unmarshalChangeRequest(item);
+  }
+
+  private marshalChangeRequest(
+    record: ChangeRequestRecord,
+    pk: string,
+    sk: string,
+  ): Record<string, unknown> {
+    return {
+      ...this.key(pk, sk),
+      entityType: ENTITY_TYPE.CHANGE_REQUEST,
+      changeRequestId: record.changeRequestId,
+      status: record.status,
+      draftEntityType: record.entityType,
+      operation: record.operation,
+      metadataTypeCode: record.metadataTypeCode,
+      ...(record.metadataValueCode ? { metadataValueCode: record.metadataValueCode } : {}),
+      baseVersion: record.baseVersion,
+      proposedPayload: record.proposedPayload,
+      createdAt: record.createdAt,
+      createdBy: record.createdBy,
+      lastModifiedAt: record.lastModifiedAt,
+      lastModifiedBy: record.lastModifiedBy,
+    };
+  }
+
+  private unmarshalChangeRequest(item: Record<string, unknown>): ChangeRequestRecord {
+    const entityType = item.draftEntityType === 'value' ? 'value' : 'type';
+    const baseVersion = item.baseVersion;
+    return {
+      changeRequestId: String(item.changeRequestId),
+      status: item.status as ChangeRequestRecord['status'],
+      entityType,
+      operation: item.operation as ChangeRequestRecord['operation'],
+      metadataTypeCode: String(item.metadataTypeCode),
+      metadataValueCode:
+        item.metadataValueCode !== undefined && item.metadataValueCode !== null
+          ? String(item.metadataValueCode)
+          : undefined,
+      baseVersion: baseVersion === null || baseVersion === undefined ? null : Number(baseVersion),
+      proposedPayload: (item.proposedPayload as Record<string, unknown>) ?? {},
+      createdAt: String(item.createdAt),
+      createdBy: item.createdBy !== undefined ? String(item.createdBy) : undefined,
+      lastModifiedAt: String(item.lastModifiedAt),
+      lastModifiedBy: item.lastModifiedBy !== undefined ? String(item.lastModifiedBy) : undefined,
     };
   }
 }

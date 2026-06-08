@@ -1,6 +1,7 @@
 import {
   assertMetadataTypeCodePresentOnBody,
   assertRegistryEntityKind,
+  assertRegistryPostMetadataAction,
   assertValueCodePresentOnPatchBody,
   extractRegistryEntityPath,
 } from '@api-hub/metadata';
@@ -37,20 +38,33 @@ export const postMetadataSchema = z
     const { entityTypeRaw, kind } = extractRegistryEntityPath(q, p);
     const userId = req.context?.userContext?.userId;
     const body = (req.body ?? {}) as Record<string, unknown>;
-    return { entityTypeRaw, kind, userId, body };
+    const actionRaw = String(q.action ?? '');
+    return { entityTypeRaw, kind, userId, body, actionRaw };
   })
   .superRefine((data) => {
     const kind = assertRegistryEntityKind(data.entityTypeRaw);
+    assertRegistryPostMetadataAction(data.actionRaw);
     assertMetadataTypeCodePresentOnBody(data.body);
     if (kind === 'value') {
       assertValueCodePresentOnPatchBody(data.body);
     }
   })
   .transform((data) => {
+    const action = assertRegistryPostMetadataAction(data.actionRaw);
     if (data.kind === 'type') {
-      return { entityType: 'type' as const, userId: data.userId, body: data.body };
+      return {
+        entityType: 'type' as const,
+        userId: data.userId,
+        body: data.body,
+        action,
+      };
     }
-    return { entityType: 'value' as const, userId: data.userId, body: data.body };
+    return {
+      entityType: 'value' as const,
+      userId: data.userId,
+      body: data.body,
+      action,
+    };
   });
 
 export type PostMetadataInput = z.infer<typeof postMetadataSchema>;

@@ -140,4 +140,21 @@ export class MetadataKeyBuilder {
   static auditTimestampSk(timestampIso: string, ulidSuffix: string): string {
     return `TIMESTAMP#${timestampIso}#${ulidSuffix}`;
   }
+
+  static changeRequestPartitionKey(changeRequestId: string): string {
+    return `CHANGE_REQUEST#${changeRequestId}`;
+  }
+
+  static changeRequestMetaSortKey(): string {
+    return 'META';
+  }
+
+  /** One active draft pointer per type or value under the metadata type partition. */
+  static changeRequestDraftPointerSortKey(entityType: 'type' | 'value', metadataValueCode?: string): string {
+    if (entityType === 'type') {
+      return 'CHANGE_REQUEST#DRAFT#TYPE';
+    }
+    const code = String(metadataValueCode ?? '').trim();
+    return `CHANGE_REQUEST#DRAFT#VALUE#${code}`;
+  }
 }

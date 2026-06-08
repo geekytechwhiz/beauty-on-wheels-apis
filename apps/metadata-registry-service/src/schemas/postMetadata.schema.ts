@@ -7,6 +7,11 @@ import {
 } from '@api-hub/metadata';
 import { z } from 'zod';
 
+function isDraftImpactPreviewBody(body: Record<string, unknown>): boolean {
+  const id = body.changeRequestId;
+  return typeof id === 'string' && id.trim() !== '';
+}
+
 /**
  * POST `/metadata/:entityType` schema.
  *
@@ -14,12 +19,9 @@ import { z } from 'zod';
  *   1. parse request envelope (params / pathParameters / body / context)
  *   2. validate `entityType` routing invariant (`type` | `value`)
  *   3. assert minimal field presence required for orchestration safety
- *      (the orchestrator reads `metadataTypeCode` and the value identity directly off the body)
  *
- * Business validation — label, status enum, isGlobal, applicability shape, valueCode pattern,
- * type-specific attribute rules, etc. — lives in `validateMetadataValueInput` /
- * `validateMetadataTypeInput` in the metadata library so the rules have a single source of
- * truth and ValidationError shapes stay consistent across POST/PATCH/list/get flows.
+ * `action=draft` and stateless `action=impact-preview` require metadata body fields.
+ * `action=impact-preview` with `{ changeRequestId }` only requires the draft id.
  */
 export const postMetadataSchema = z
   .object({
@@ -43,7 +45,12 @@ export const postMetadataSchema = z
   })
   .superRefine((data) => {
     const kind = assertRegistryEntityKind(data.entityTypeRaw);
-    assertRegistryPostMetadataAction(data.actionRaw);
+    const action = assertRegistryPostMetadataAction(data.actionRaw);
+
+    if (action === 'impact-preview' && isDraftImpactPreviewBody(data.body)) {
+      return;
+    }
+
     assertMetadataTypeCodePresentOnBody(data.body);
     if (kind === 'value') {
       assertValueCodePresentOnPatchBody(data.body);

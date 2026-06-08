@@ -166,9 +166,13 @@ paths:
         Managed publish workflow for metadata types and values. The `action` query parameter is **required**;
         immediate publish without a change request is not supported.
 
-        **`action=draft`:** step 1 — validates the request body, persists a change request in `DRAFT` status, and does
-        **not** modify published metadata. Use the returned `changeRequestId` for later impact preview and publish steps
-        (`action=impact-preview`, `action=publish` — not yet implemented).
+        **`action=impact-preview`:** evaluates change impact against the internal change-policy catalog. Does **not**
+        modify published metadata or save a draft unless previewing an existing draft by `changeRequestId`.
+
+        **Mode A (draft):** body `{ "changeRequestId": "<id>" }` — loads the saved DRAFT and previews its proposed payload.
+
+        **Mode B (stateless):** body is the same metadata type/value payload as `action=draft` — validates input,
+        compares against latest published metadata, returns impact summary without persisting.
 
         Path `entityType`: `type` — body `MetadataTypeCreateInput` / `MetadataTypeInput`. `value` — body
         `MetadataValueInput` (`metadataTypeCode` in body). For `action=draft`, `operation` is derived server-side:
@@ -186,7 +190,7 @@ paths:
           required: true
           description: |
             Publish workflow action. `draft` saves a change request without modifying published metadata.
-            `impact-preview` and `publish` are reserved for later steps (not yet implemented).
+            `impact-preview` returns change impact without publishing. `publish` is not yet implemented.
           schema:
             type: string
             enum: [draft, impact-preview, publish]
@@ -198,15 +202,18 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/MetadataTypeCreateInput'
                 - $ref: '#/components/schemas/MetadataValueInput'
+                - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
       responses:
         '200':
           description: |
-            When `action=draft`, returns `ChangeRequestDraftResponse`. Other actions will be supported in future releases.
+            When `action=draft`, returns `ChangeRequestDraftResponse`. When `action=impact-preview`, returns
+            `ImpactPreviewResponse`.
           content:
             application/json:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/ChangeRequestDraftResponse'
+                  - $ref: '#/components/schemas/ImpactPreviewResponse'
         '400':
           description: Validation error
         '404':
@@ -806,6 +813,103 @@ components:
         lastModifiedAt:
           type: string
           format: date-time
+
+    ImpactPreviewDraftRequest:
+      type: object
+      description: Body for `POST /metadata/{entityType}?action=impact-preview` when previewing a saved draft.
+      required: [changeRequestId]
+      properties:
+        changeRequestId:
+          type: string
+          description: Draft id returned from `action=draft`
+
+    ImpactPreviewResponse:
+      type: object
+      description: |
+        Response for `POST /metadata/{entityType}?action=impact-preview`. Published metadata is not modified.
+      required:
+        - entityType
+        - operation
+        - metadataTypeCode
+        - baseVersion
+        - nextVersion
+        - changedFields
+        - impactSummary
+        - confirmationRequired
+        - affectedConsumers
+      properties:
+        entityType:
+          type: string
+          enum: [type, value]
+        operation:
+          type: string
+          enum: [Add, Update]
+        metadataTypeCode:
+          type: string
+        metadataValueCode:
+          type: string
+          nullable: true
+        changeRequestId:
+          type: string
+          nullable: true
+          description: Present when preview is from a saved draft
+        baseVersion:
+          type: integer
+          nullable: true
+        nextVersion:
+          type: integer
+          nullable: true
+          description: Version after publish — 1 for Add; baseVersion+1 when a new version is required; unchanged otherwise
+        changedFields:
+          type: array
+          items:
+            type: object
+            required: [objectPath, operation, policyGroup]
+            properties:
+              objectPath: { type: string }
+              operation:
+                type: string
+                enum: [Add, Update, Inactivate, Retire, Publish]
+              oldValue: {}
+              newValue: {}
+              policyGroup:
+                type: string
+                description: Governed policy group (no ruleId exposed)
+        impactSummary:
+          type: object
+          required:
+            - policyGroups
+            - versionImpact
+            - requiresMetadataVersion
+            - requiresTemplateAdoption
+            - requiresOrgCapabilityReevaluation
+            - runtimeImpact
+            - mergeBehavior
+            - uxDiffRequired
+          properties:
+            policyGroups:
+              type: array
+              items: { type: string }
+            versionImpact:
+              type: string
+              enum: [Descriptive, Additive, Breaking]
+            requiresMetadataVersion: { type: boolean }
+            requiresTemplateAdoption: { type: boolean }
+            requiresOrgCapabilityReevaluation: { type: boolean }
+            runtimeImpact:
+              type: string
+              enum: [None, DisplayOnly, ReviewRequired, MigrationRequired]
+            mergeBehavior:
+              type: string
+              enum: [SilentDisplayRefresh, AddOnly, PreserveOrgOverride, ManualReview, Block]
+            uxDiffRequired: { type: boolean }
+        confirmationRequired:
+          type: boolean
+          description: True when publish confirmation is recommended (breaking/template/org/runtime impact)
+        affectedConsumers:
+          type: array
+          items: { type: string }
+          description: Downstream areas that may need to react (Template, OrgCapability, Runtime, etc.)
 
     RelationType:
       type: string

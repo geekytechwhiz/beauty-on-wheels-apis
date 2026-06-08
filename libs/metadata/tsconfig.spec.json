@@ -6,6 +6,6 @@
     "module": "nodenext",
     "moduleResolution": "nodenext"
   },
-  "include": ["jest.config.mjs", "src/**/*.spec.ts", "src/**/*.d.ts"],
+  "include": ["jest.config.mjs", "src/**/*.spec.ts", "src/**/*.d.ts", "src/**/*.json"],
   "references": [{ "path": "./tsconfig.lib.json" }]
 }

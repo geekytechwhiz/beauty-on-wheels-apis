@@ -719,4 +719,6 @@ export async function orchestrateRegistryDeleteMetadataValue(
 }
 
 export { orchestrateRegistryPostDraft } from './metadata-change-request.service';
+export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
 export type { ChangeRequestDraftResponse } from '../models/change-request.types';
+export type { ImpactPreviewResponse } from '../models/impact-preview.types';

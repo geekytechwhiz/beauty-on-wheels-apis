@@ -8,6 +8,11 @@ describe('assertRegistryPostMetadataAction', () => {
     expect(assertRegistryPostMetadataAction(' draft ')).toBe('draft');
   });
 
+  it('returns impact-preview as implemented action', () => {
+    expect(assertRegistryPostMetadataAction('impact-preview')).toBe('impact-preview');
+    expect(assertRegistryPostMetadataAction('IMPACT-PREVIEW')).toBe('impact-preview');
+  });
+
   it('throws when action is missing', () => {
     expect(() => assertRegistryPostMetadataAction('')).toThrow(ValidationError);
     expect(() => assertRegistryPostMetadataAction('   ')).toThrow(ValidationError);
@@ -17,18 +22,16 @@ describe('assertRegistryPostMetadataAction', () => {
     expect(() => assertRegistryPostMetadataAction('upsert')).toThrow(ValidationError);
   });
 
-  it('throws for reserved but not yet implemented actions', () => {
-    for (const action of ['impact-preview', 'publish'] as const) {
-      try {
-        assertRegistryPostMetadataAction(action);
-        fail(`expected throw for ${action}`);
-      } catch (e) {
-        expect(e).toMatchObject({
-          statusCode: 400,
-          code: 'VALIDATION_ERROR',
-          details: [{ field: 'action', message: 'Only draft is implemented' }],
-        });
-      }
+  it('throws for publish until implemented', () => {
+    try {
+      assertRegistryPostMetadataAction('publish');
+      fail('expected throw for publish');
+    } catch (e) {
+      expect(e).toMatchObject({
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        details: [{ field: 'action', message: 'Only draft and impact-preview are implemented' }],
+      });
     }
   });
 });

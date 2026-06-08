@@ -73,6 +73,7 @@ export interface IMetadataRegistryRepository {
 
   /** Persist a change-request draft; replaces any prior DRAFT for the same entity. */
   saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord>;
+  getChangeRequest(changeRequestId: string): Promise<ChangeRequestRecord | null>;
   getChangeRequestDraftPointer(
     metadataTypeCode: string,
     entityType: 'type' | 'value',

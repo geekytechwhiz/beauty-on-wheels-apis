@@ -1,33 +1,22 @@
 import fs from 'fs';
-import { createRequire } from 'module';
-import path from 'path';
 
+import seedCatalogJson from '../change-policy-rules.seed.json';
 import type { ChangePolicyCatalog } from '../types/change-policy.types';
 import { ChangePolicyCatalogError, parseChangePolicyCatalog } from './change-policy-catalog.schema';
 
-const requireJson = createRequire(__filename);
-const SEED_FILE = 'change-policy-rules.seed.json';
-
-function loadSeedJson(seedPath?: string): unknown {
-  if (seedPath) {
-    try {
-      return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new ChangePolicyCatalogError(`Unable to read change policy seed at ${seedPath}: ${message}`);
-    }
-  }
+function loadSeedJsonFromPath(seedPath: string): unknown {
   try {
-    return requireJson(path.join(__dirname, '..', SEED_FILE));
+    return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new ChangePolicyCatalogError(`Unable to load bundled change policy seed: ${message}`);
+    throw new ChangePolicyCatalogError(`Unable to read change policy seed at ${seedPath}: ${message}`);
   }
 }
 
 /** Loads and validates the platform seed catalog. */
 export function loadChangePolicyCatalogFromFile(seedPath?: string): ChangePolicyCatalog {
-  return parseChangePolicyCatalog(loadSeedJson(seedPath));
+  const raw = seedPath ? loadSeedJsonFromPath(seedPath) : seedCatalogJson;
+  return parseChangePolicyCatalog(raw);
 }
 
 let cachedCatalog: ChangePolicyCatalog | null = null;

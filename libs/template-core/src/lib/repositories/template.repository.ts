@@ -6,6 +6,7 @@ import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   GSI2_TYPE_CATALOG,
   GSI5_MASTER_STATUS,
+  MASTER_CATALOG_TEMPLATE_TYPES,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
   VERSION_SK_PREFIX,
@@ -145,6 +146,30 @@ export class TemplateRepository extends BaseRepository {
       rows.push(row);
     }
     return rows;
+  }
+
+  /**
+   * Published master catalog only (GSI2). One representative VERSION row per templateId.
+   * Used for org-enablement filterOptions and derive master picker.
+   */
+  async listPublishedMasterCatalogRows(
+    opts: { templateType?: string; scanLimitPerType?: number } = {},
+  ): Promise<TemplateDdbRecord[]> {
+    const scanLimit = opts.scanLimitPerType ?? 200;
+    const types = opts.templateType?.trim()
+      ? [TemplateEntityBuilder.normalizeTemplateType(opts.templateType)]
+      : [...MASTER_CATALOG_TEMPLATE_TYPES];
+
+    const pages = await Promise.all(
+      types.map((templateType) =>
+        this.queryMasterCatalogGsi2Page(templateType, { limit: scanLimit }),
+      ),
+    );
+
+    const rows = pages
+      .flatMap((p) => p.items)
+      .filter((row) => isMasterVersionSk(row.sk));
+    return keepOneListItemPerMasterTemplate(rows);
   }
 
   async getMasterMeta(templateId: string): Promise<TemplateDdbRecord | null> {

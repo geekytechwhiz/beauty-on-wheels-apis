@@ -1,6 +1,6 @@
 version: 0.2
-# Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must use the artifact at apps/template-service/packaged.yaml (see artifacts.files).
+# PRODUCTION pipeline — CodeBuild project must use THIS file (not buildspec.yml).
+# Build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml for deploy.
 
 env:
   shell: bash
@@ -30,6 +30,11 @@ phases:
 
   post_build:
     commands:
+      - |
+        if [ "${CODEBUILD_BUILD_SUCCEEDING:-1}" -ne 1 ]; then
+          echo "Skipping artifact verification — build phase failed"
+          exit 0
+        fi
       - echo "Running deployment verification..."
       - apps/template-service/ci/verify-artifacts.sh
 

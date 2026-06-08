@@ -2,6 +2,9 @@
 # dynamodb:PutItem/BatchWriteItem on device-table-<stage>. See CODEBUILD-IAM.md for the CodeBuild role policy.
 service: device-service
 
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
 frameworkVersion: '3.x'
 
 plugins:
@@ -109,19 +112,33 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  # Disable sourcemaps everywhere in CI to reduce memory (avoids esbuild "The service was stopped").
+  # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
+  sourcemapsByStage:
+    dev: false
+    stg: false
+    prd: false
+  keepNamesByStage:
+    dev: false
+    stg: false
+    prd: false
+
   esbuild:
     bundle: true
     minify: false
-    sourcemap: true
-    target: node18
-    packager: pnpm
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
       - fhir-tool
-    keepNames: true
+    keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
+    skipRebuild: true
+    disposeContext: true
+    concurrency: 1
+    zipConcurrency: 1
     plugins: esbuild-plugins.js
     resolveExtensions:
       - '.ts'

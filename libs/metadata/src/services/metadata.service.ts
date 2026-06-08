@@ -6,6 +6,7 @@ import type {
   MetadataValueInput,
   MetadataValueRecord,
   Status,
+  ValueDataType,
   ValueSearchFilter,
 } from '../models/types';
 import {
@@ -416,6 +417,85 @@ export async function searchMetadataValues(
   assertMetadataTypeCode(metadataTypeCode);
   validateValueSearchFilter(filter);
   return (await getMetadataRepository()).searchMetadataValues(metadataTypeCode, filter);
+}
+
+/** Minimal value shape returned by the multi-type batch read (consumer-facing, not the full value record). */
+export interface MetadataValuesByTypeValue {
+  valueCode: string;
+  label: string;
+  status: Status;
+  isGlobal: boolean;
+  sortOrder: number;
+  attributes: Record<string, unknown>;
+}
+
+/** One requested metadata type plus its (active by default) values for the batch read. */
+export interface MetadataValuesByTypeItem {
+  metadataType: string;
+  displayName: string;
+  multiSelectAllowed: boolean;
+  valueDataType: ValueDataType | string;
+  values: MetadataValuesByTypeValue[];
+}
+
+export interface MetadataValuesByTypesResult {
+  items: MetadataValuesByTypeItem[];
+}
+
+function mapMetadataValuesByTypeItem(
+  type: MetadataTypeRecord,
+  values: MetadataValueRecord[],
+): MetadataValuesByTypeItem {
+  return {
+    metadataType: type.metadataTypeCode,
+    displayName: type.displayName,
+    multiSelectAllowed: type.multiSelectAllowed,
+    valueDataType: type.valueDataType,
+    values: sortValuesForSearch(values).map((v) => ({
+      valueCode: v.valueCode,
+      label: v.label,
+      status: v.status,
+      isGlobal: v.isGlobal,
+      sortOrder: v.sortOrder,
+      attributes: v.attributes ?? {},
+    })),
+  };
+}
+
+/**
+ * Batch read: for each requested metadata type code, return the type summary plus its values.
+ * Returns ACTIVE values only by default. Reuses existing repository reads (`getMetadataType`,
+ * `listMetadataValues`) — no new tables or key structures. Consistent with the single-type GET
+ * (`resolveMetadataTypeGet`), unknown codes are not silently ignored: a 404 is raised listing the
+ * missing codes. Codes are expected pre-validated/trimmed/deduped by the host schema; the type-code
+ * pattern is re-asserted defensively.
+ */
+export async function getMetadataValuesByTypes(
+  metadataTypeCodes: string[],
+): Promise<MetadataValuesByTypesResult> {
+  const repo = await getMetadataRepository();
+
+  const resolved = await Promise.all(
+    metadataTypeCodes.map(async (code) => {
+      assertMetadataTypeCode(code);
+      const type = await repo.getMetadataType(code);
+      if (!type) {
+        return { code, item: null as MetadataValuesByTypeItem | null };
+      }
+      const values = await repo.listMetadataValues(code, [STATUS.ACTIVE]);
+      return { code, item: mapMetadataValuesByTypeItem(type, values) };
+    }),
+  );
+
+  const missing = resolved.filter((r) => r.item === null).map((r) => r.code);
+  if (missing.length > 0) {
+    throw new NotFoundError(
+      `Metadata type(s) not found: ${missing.join(', ')}`,
+      'METADATA_TYPE_NOT_FOUND',
+    );
+  }
+
+  return { items: resolved.map((r) => r.item as MetadataValuesByTypeItem) };
 }
 
 function mapTypeEntriesToListItems(

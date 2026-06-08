@@ -1,85 +1,38 @@
 version: 0.2
 
 env:
+  shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-device-service-bucket'
     STACK_NAME: 'dev-device-service'
     # Set SEED_META=true in pipeline/CodeBuild to run device list seed (dev default: skip)
     SEED_META: 'false'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
       nodejs: 22
     commands:
+      - echo "Installing dependencies..."
       - npm install -g serverless@3 --force
-      - npm install -g pnpm@10
-      - pnpm --version
       - npm install --legacy-peer-deps
+
+  pre_build:
+    commands:
+      - echo "Making scripts executable..."
+      - chmod +x apps/device-service/ci/*.sh
 
   build:
     commands:
-      - cd apps/device-service
-      - test -f src/utils/devices.json || find "$CODEBUILD_SRC_DIR" -path '*/src/utils/devices.json' -type f | head -1 | grep -q .
-      - npx serverless package --stage "$STAGE" --package .serverless
-
-      # 2) select create vs update s3 keys
-      - |
-        if [ -f .serverless/cloudformation-template-update-stack.json ]; then
-          TEMPLATE=".serverless/cloudformation-template-update-stack.json"
-        elif [ -f .serverless/cloudformation-template-create-stack.json ]; then
-          TEMPLATE=".serverless/cloudformation-template-create-stack.json"
-        else
-          echo "ERROR: No CloudFormation template found in .serverless"
-          ls -la .serverless || true
-          exit 1
-        fi
-
-      # 3) push code & rewrite 
-      - |
-        aws cloudformation package \
-          --template-file "$TEMPLATE" \
-          --s3-bucket "$DEPLOYMENT_BUCKET" \
-          --output-template-file packaged.yaml \
-          --force-upload
-
-      # 4) debug: what keys did CF bake in?
-      - echo "🔍 S3Key entries in packaged.yaml:"
-      - grep 'S3Key:' packaged.yaml | awk '{print $2}'
-
-      # 5) debug: do they exist?
-      - echo "🔑 Verifying each baked-in key exists:"
-      - |
-        grep 'S3Key:' packaged.yaml | awk '{print $2}' \
-          | while read key; do
-              printf " → %-80s " "$key"
-              if aws s3api head-object --bucket "$DEPLOYMENT_BUCKET" --key "$key" >/dev/null 2>&1; then
-                echo "FOUND"
-              else
-                echo "MISSING!"
-              fi
-            done
-
-      # 6) debug: list entire directory
-      # - echo "📦 Full directory on S3:"
-      # - aws s3 ls "s3://$DEPLOYMENT_BUCKET/serverless/payments-service/$STAGE/" --recursive
-
-      - echo "➤ Pushing any missing function ZIPs into their exact S3Key paths…"
-      - |
-        grep 'S3Key:' packaged.yaml \
-          | awk '{print $2}' \
-          | while read key; do
-              name=$(basename "$key")
-              echo "Uploading .serverless/$name → s3://$DEPLOYMENT_BUCKET/$key"
-              aws s3 cp ".serverless/$name" "s3://$DEPLOYMENT_BUCKET/$key"
-            done
-
-      - echo "➤ Verifying upload…"
-      - aws s3 ls "s3://$DEPLOYMENT_BUCKET/$(dirname $(grep 'S3Key:' packaged.yaml | head -1 | awk '{print $2}'))/" --recursive
+      - echo "Starting build..."
+      - apps/device-service/ci/build.sh
 
   post_build:
     commands:
+      - echo "Running deployment verification..."
+      - apps/device-service/ci/verify-artifacts.sh
       - |
         if [ "$SEED_META" = "true" ]; then
           DEVICES_FILE=$(find "$CODEBUILD_SRC_DIR" -path '*/src/utils/devices.json' -type f 2>/dev/null | head -1)
@@ -121,6 +74,7 @@ phases:
 artifacts:
   files:
     - apps/device-service/packaged.yaml
+    - apps/device-service/.serverless/**/*
   discard-paths: no
 
 cache:

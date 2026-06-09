@@ -93,6 +93,7 @@ describe('OrgTemplateHttpController', () => {
           enablementId: 'ENB-1',
           enabledAt: '2026-01-01T00:00:00.000Z',
           templateEnabled: true,
+          upgrade: false,
         },
       ],
       counts: { total: 1 },

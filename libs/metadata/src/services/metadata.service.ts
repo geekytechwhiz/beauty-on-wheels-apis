@@ -419,6 +419,15 @@ export async function searchMetadataValues(
   return (await getMetadataRepository()).searchMetadataValues(metadataTypeCode, filter);
 }
 
+/** Applicability returned by the batch read; all dimensions are always present (default `[]`). */
+export interface MetadataValuesByTypeApplicability {
+  module: string[];
+  category: string[];
+  condition: string[];
+  country: string[];
+  language: string[];
+}
+
 /** Minimal value shape returned by the multi-type batch read (consumer-facing, not the full value record). */
 export interface MetadataValuesByTypeValue {
   valueCode: string;
@@ -427,6 +436,7 @@ export interface MetadataValuesByTypeValue {
   isGlobal: boolean;
   sortOrder: number;
   attributes: Record<string, unknown>;
+  applicability: MetadataValuesByTypeApplicability;
 }
 
 /** One requested metadata type plus its (active by default) values for the batch read. */
@@ -460,6 +470,13 @@ function mapMetadataValuesByTypeItem(
       isGlobal: v.isGlobal,
       sortOrder: v.sortOrder,
       attributes: v.attributes ?? {},
+      applicability: {
+        module: v.applicability?.module ?? [],
+        category: v.applicability?.category ?? [],
+        condition: v.applicability?.condition ?? [],
+        country: v.applicability?.country ?? [],
+        language: v.applicability?.language ?? [],
+      },
     })),
   };
 }

@@ -858,7 +858,7 @@ components:
 
     MetadataValuesByTypeValue:
       type: object
-      required: [valueCode, label, status, isGlobal, sortOrder, attributes]
+      required: [valueCode, label, status, isGlobal, sortOrder, attributes, applicability]
       properties:
         valueCode:
           type: string
@@ -875,6 +875,29 @@ components:
           type: object
           additionalProperties: true
           description: ValueAttributes; `{}` when none are stored.
+        applicability:
+          $ref: '#/components/schemas/MetadataValuesByTypeApplicability'
+
+    MetadataValuesByTypeApplicability:
+      type: object
+      description: Applicability dimensions for the value; every dimension is always present (`[]` when empty).
+      required: [module, category, condition, country, language]
+      properties:
+        module:
+          type: array
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
 
     ChangeRequestDraftResponse:
       type: object

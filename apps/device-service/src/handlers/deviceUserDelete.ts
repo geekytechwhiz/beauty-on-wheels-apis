@@ -1,45 +1,31 @@
 import { withApiHandler } from '@api-hub/middleware';
-import { Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
-import { ApiResponse } from '@api-hub/utils';
+import { createLogger, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
+import { ApiResponse, type LambdaRequest } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { DeviceNotFoundError } from '../utils/errors';
+import { extractUserContext } from '../utils/authContext';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
 
-const deviceUserDeleteImpl: any = async (event: any, context?: Context) => {
+const deviceUserDeleteImpl = async (req: LambdaRequest) => {
+  const apiEvent = req.event;
+  const correlationId = req.context.correlationId;
+  const logger = req.context.logger ?? createChildLogger(baseLogger, { correlationId });
   const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
-  const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'deviceUserDelete_received' });
 
-  let body: unknown;
-  try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-  } catch (err) {
-    logger.error({ event: 'deviceUserDelete_parse_error', err: serializeError(err) });
-    const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.INVALID_JSON', {  correlationId: correlationId, event }, { code: 'BAD_REQUEST' });
-  }
+  const bodyObj =
+    req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>)
+      : {};
 
-  const bodyObj = body as Record<string, unknown>;
-
-  // Extract userId from authorizer (Bearer token) - supports Cognito claims and custom authorizer context
-  const authorizer = (event.requestContext as unknown as Record<string, unknown>)?.authorizer as Record<string, unknown> | undefined;
-  const claims = (authorizer?.claims as Record<string, unknown>) || authorizer || {};
-  const userId =
-    (claims['custom:userID'] as string) ||
-    (claims['custom:userId'] as string) ||
-    (claims.userID as string) ||
-    (claims.userId as string) ||
-    (claims.sub as string) ||
-    (authorizer?.userID as string) ||
-    (authorizer?.userId as string) ||
-    (bodyObj?.userID as string) ||
-    (bodyObj?.userId as string);
+  const fromAuthorizer = extractUserContext({
+    authorizer: apiEvent.requestContext?.authorizer,
+    body: bodyObj,
+    event: apiEvent,
+  });
+  const userId = fromAuthorizer.userId ?? req.context.userContext?.userId;
 
   // Support both { deviceId: "..." } and { devices: ["..."] }
   const deviceIdSingle = typeof bodyObj?.deviceId === 'string' ? bodyObj.deviceId : undefined;
@@ -57,8 +43,8 @@ const deviceUserDeleteImpl: any = async (event: any, context?: Context) => {
 
   if (!userId || configDeviceIds.length === 0) {
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 400, duration, correlationId);
-    return ApiResponse.badRequest('COMMON.BAD_REQUEST', {  correlationId: correlationId, event }, {
+    logHttpRequest(logger, apiEvent.httpMethod || 'POST', apiEvent.path || '/devices/user/delete', 400, duration, correlationId);
+    return ApiResponse.badRequest('COMMON.BAD_REQUEST', { correlationId, event: apiEvent }, {
       code: 'BAD_REQUEST',
       details: [{
         message: !userId
@@ -76,21 +62,21 @@ const deviceUserDeleteImpl: any = async (event: any, context?: Context) => {
           ])
         : await deviceService.deleteMultipleDevices(userId, configDeviceIds, correlationId);
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 200, duration, correlationId);
+    logHttpRequest(logger, apiEvent.httpMethod || 'POST', apiEvent.path || '/devices/user/delete', 200, duration, correlationId);
     return ApiResponse.ok(
       configDeviceIds.length === 1 ? { message: 'Device deleted successfully' } : { results },
       'DEVICE.DEVICE_DELETED_SUCCESS',
-      {  correlationId: correlationId, event },
+      { correlationId, event: apiEvent },
     );
   } catch (err) {
     const duration = Date.now() - startTime;
     if (err instanceof DeviceNotFoundError) {
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 404, duration, correlationId);
-      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', {  correlationId: correlationId, event }, { code: 'DEVICE_NOT_FOUND' });
+      logHttpRequest(logger, apiEvent.httpMethod || 'POST', apiEvent.path || '/devices/user/delete', 404, duration, correlationId);
+      return ApiResponse.notFound('DEVICE.DEVICE_NOT_FOUND', { correlationId, event: apiEvent }, { code: 'DEVICE_NOT_FOUND' });
     }
     logger.error({ event: 'deviceUserDelete_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/user/delete', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.DELETE_FAILED', {  correlationId: correlationId, event }, { code: 'DELETE_FAILED' });
+    logHttpRequest(logger, apiEvent.httpMethod || 'POST', apiEvent.path || '/devices/user/delete', 500, duration, correlationId);
+    return ApiResponse.internalServerError('DEVICE.DELETE_FAILED', { correlationId, event: apiEvent }, { code: 'DELETE_FAILED' });
   }
 };
 

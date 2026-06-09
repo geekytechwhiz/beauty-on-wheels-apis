@@ -38,7 +38,7 @@ provider:
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     DEFAULT_REGION: ${self:provider.region}
-    COMPLETE_TASK_LAMBDA: ${self:provider.stage}_complete_user_task
+    COMPLETE_TASK_LAMBDA: ${self:provider.stage}_global_complete_user_task
 
   tags:
     Service: ${self:service}
@@ -75,12 +75,12 @@ provider:
       Resource:
         - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
 
-    # Lambda (for backward compatibility with complete_user_task)
+    # Lambda (for backward compatibility with global_complete_user_task)
     - Effect: Allow
       Action:
         - lambda:InvokeFunction
       Resource:
-        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_complete_user_task
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_complete_user_task
 
     # SQS (Vital Reading DLQ)
     - Effect: Allow

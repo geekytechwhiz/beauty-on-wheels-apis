@@ -154,6 +154,7 @@ export interface GlobalDevice {
   name: string;
   deviceId: string;
   countriesSupported?: string[];
+  syncCategory?: number;
   [key: string]: unknown;
 }
 
@@ -175,4 +176,5 @@ export type OrganizationDevice = {
   organizationID: string; 
   supportedVitals: string[];
   template: number;
+  syncCategory?: number;
 };

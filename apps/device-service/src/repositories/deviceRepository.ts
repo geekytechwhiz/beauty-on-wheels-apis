@@ -571,7 +571,11 @@ export class DeviceRepository {
         throw new DeviceNotFoundError(device.configDeviceId);
       }
 
-      logger.info({ event: 'device_entry_updated', configDeviceId: device.configDeviceId });
+      logger.info({
+        event: 'device_entry_updated',
+        configDeviceId: device.configDeviceId,
+        syncCategory: updatedDevice.syncCategory,
+      });
       return updatedDevice;
     } catch (err) {
       const code = (err as { name?: string })?.name;

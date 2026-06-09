@@ -10,6 +10,20 @@ import { isThirdPartyApp } from '../validation/device.validation';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 
+function resolveSyncCategory(
+  userValue: number | undefined | null,
+  catalogValue: unknown,
+): number | undefined {
+  if (userValue !== undefined && userValue !== null) {
+    return Number(userValue);
+  }
+  if (catalogValue !== undefined && catalogValue !== null && catalogValue !== '') {
+    const n = Number(catalogValue);
+    return Number.isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}
+
 export class DeviceService {
   private deviceRepository: DeviceRepository;
   private orgDeviceRepository: OrgDeviceRepository;
@@ -21,6 +35,25 @@ export class DeviceService {
     this.orgDeviceRepository = new OrgDeviceRepository();
     this.globalDeviceRepository = new GlobalDeviceRepository();
     this.recommendationRepository = new RecommendationRepository();
+  }
+
+  /** Persist syncCategory on global catalog (pk DEVICE_LIST) used by list/catalog APIs. */
+  private async persistSyncCategoryOnGlobalCatalog(
+    configDeviceId: string,
+    syncCategory: number | undefined,
+    correlationId?: string,
+  ): Promise<void> {
+    if (syncCategory === undefined) {
+      return;
+    }
+
+    const logger = createChildLogger(baseLogger, { correlationId, configDeviceId, syncCategory });
+    try {
+      await this.globalDeviceRepository.updateGlobalDevice(configDeviceId, { syncCategory });
+      logger.info({ event: 'syncCategory_persisted_global_catalog' });
+    } catch (err) {
+      logger.warn({ event: 'syncCategory_global_catalog_skipped', err: serializeError(err) });
+    }
   }
 
   /**
@@ -121,7 +154,13 @@ export class DeviceService {
           await this.recommendationRepository.updateRecommendationStatus(data.userId, data.configDeviceId, 'PAIRED');
         }
 
-        logger.info({ event: 'device_updated', deviceId: updatedDevice.deviceId });
+        await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
+
+        logger.info({
+          event: 'device_updated',
+          deviceId: updatedDevice.deviceId,
+          syncCategory: updatedDevice.syncCategory,
+        });
         return { deviceId: updatedDevice.deviceId, configDeviceId: data.configDeviceId, isUpdate: true };
       } else {
         // Device doesn't exist - create new entry
@@ -188,6 +227,8 @@ export class DeviceService {
                 correlationId,
               );
 
+              await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
+
               return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
             }
           }
@@ -242,6 +283,8 @@ export class DeviceService {
           },
           correlationId,
         );
+
+        await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
 
         return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
       }
@@ -458,10 +501,7 @@ export class DeviceService {
             deviceCategoryNum: entry.deviceCategoryNum ? parseInt(entry.deviceCategoryNum, 10) : undefined,
             localName: entry.localName,
             lastSequenceNumber: entry.lastSequenceNumber,
-            syncCategory:
-              entry.syncCategory !== undefined && entry.syncCategory !== null
-                ? Number(entry.syncCategory)
-                : undefined,
+            syncCategory: resolveSyncCategory(entry.syncCategory, globalDevice?.syncCategory),
           } as Device;
         }),
       );

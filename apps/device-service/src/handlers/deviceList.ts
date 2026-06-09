@@ -43,6 +43,29 @@ const applyListFilters = (devices: any[], category?: string, searchValue?: strin
   return filteredDevices;
 };
 
+const toSyncCategory = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+const mapCatalogDevice = (device: Record<string, unknown>) => ({
+  category: device.category,
+  deviceId: device.deviceId,
+  deviceImage: device.deviceImage || '',
+  displayName: device.displayName || device.name,
+  countriesSupported: device.countriesSupported || [],
+  manufacturerImage: device.manufacturerImage || '',
+  manufacturerName: device.manufacturerName || '',
+  name: device.name,
+  template: device.template || 1,
+  deviceDetails: device.deviceDetails || '',
+  supportedVitals: device.supportedVitals || [],
+  syncCategory: toSyncCategory(device.syncCategory),
+});
+
 const deviceListImpl: any = async (event: any, context?: Context) => {
   const startTime = Date.now();
   const correlationId = extractCorrelationId(event);
@@ -140,20 +163,8 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       allDevices = applyListFilters(allDevices, category, searchValue);
       
       // Map devices to the requested response format
-      const deviceList = allDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
-      
+      const deviceList = allDevices.map((device: any) => mapCatalogDevice(device));
+
       const duration = Date.now() - startTime;
       logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
       return ApiResponse.ok(
@@ -178,19 +189,7 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       logger.info({ event: 'deviceList_patient_enabled_count', count: enabledDevices.length });
       
       // Map devices to the requested response format
-      const deviceList = enabledDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
+      const deviceList = enabledDevices.map((device: any) => mapCatalogDevice(device));
       
       logger.info({ event: 'deviceList_patient_final_count', count: deviceList.length });
       const duration = Date.now() - startTime;
@@ -232,6 +231,7 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
           template: recommendation.template || globalDevice?.template || 1,
           deviceDetails: recommendation.deviceDetails || globalDevice?.deviceDetails || '',
           supportedVitals: recommendation.supportedVitals || globalDevice?.supportedVitals || [],
+          syncCategory: toSyncCategory(recommendation.syncCategory ?? globalDevice?.syncCategory),
           status: recommendation.status, // Include recommendation status (UNPAIRED/PAIRED)
           doctorData: recommendation.doctorData, // Include doctor information
           referredBy: referredBy,

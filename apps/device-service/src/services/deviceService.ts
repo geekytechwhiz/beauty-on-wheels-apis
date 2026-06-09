@@ -134,7 +134,6 @@ export class DeviceService {
             // Try to get device from global device list
             const globalDevice = await this.globalDeviceRepository.getDeviceById(data.configDeviceId);
             if (!globalDevice || !globalDevice.enabled) {
-              // throw new DeviceNotInOrganizationError(data.configDeviceId, data.organizationId);
               const deviceEntry = await this.deviceRepository.createDeviceUserEntry({
                 userId: data.userId,
                 configDeviceId: data.configDeviceId,
@@ -164,6 +163,32 @@ export class DeviceService {
                 syncCategory: data.syncCategory,
               });
               logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
+
+              const recommendation = await this.recommendationRepository.getRecommendation(
+                data.userId,
+                data.configDeviceId,
+              );
+              if (recommendation) {
+                await this.recommendationRepository.updateRecommendationStatus(
+                  data.userId,
+                  data.configDeviceId,
+                  'PAIRED',
+                );
+              }
+
+              await publishEvent(
+                {
+                  eventType: 'Device.Paired',
+                  userId: data.userId,
+                  organizationId: data.organizationId,
+                  deviceId: deviceEntry.deviceId,
+                  configDeviceId: data.configDeviceId,
+                  timestamp: Date.now(),
+                },
+                correlationId,
+              );
+
+              return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
             }
           }
         }

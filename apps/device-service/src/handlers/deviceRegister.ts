@@ -6,6 +6,7 @@ import { deviceRegistrationSchema } from '../validation/device.validation';
 import { DeviceNotInOrganizationError } from '../utils/errors';
 import { completeUserTask } from '../utils/task-completion';
 import { extractUserContext } from '../utils/authContext';
+import { coerceOptionalNumber, resolveRegisterUserId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
@@ -23,17 +24,10 @@ function resolveRegisterContext(req: LambdaRequest) {
 
   const devices = Array.isArray(parsedBody.devices) ? parsedBody.devices : [];
   const firstDevice = devices[0] as Record<string, unknown> | undefined;
-  const userIdFromDevice =
-    typeof firstDevice?.userId === 'string'
-      ? firstDevice.userId
-      : typeof firstDevice?.userID === 'string'
-        ? firstDevice.userID
-        : undefined;
+  const authorizerUserId =
+    fromAuthorizer.userId ?? req.context.userContext?.userId;
 
-  const userId =
-    fromAuthorizer.userId ??
-    req.context.userContext?.userId ??
-    userIdFromDevice;
+  const userId = resolveRegisterUserId(firstDevice, parsedBody, authorizerUserId);
   const organizationId =
     fromAuthorizer.organizationId ??
     req.context.userContext?.organizationId;
@@ -48,7 +42,7 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
   const startTime = Date.now();
   logger.info({ event: 'deviceRegister_received' });
 
-  const { devices, userId, organizationId } = resolveRegisterContext(req);
+  const { parsedBody, devices, userId, organizationId } = resolveRegisterContext(req);
 
   if (!userId || !organizationId) {
     const duration = Date.now() - startTime;
@@ -101,9 +95,15 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
         }
 
         const validatedDevice = deviceValidation.data;
+        const deviceRecord = device as Record<string, unknown>;
+        const deviceUserId =
+          resolveRegisterUserId(deviceRecord, parsedBody, userId) ?? userId;
+        const syncCategory =
+          validatedDevice.syncCategory ?? coerceOptionalNumber(deviceRecord.syncCategory);
+
         const isThirdParty = device.companyName && ALLOWED_THIRD_PARTY_APPS.includes(device.companyName.toUpperCase());
         const registerPayload = {
-          userId,
+          userId: deviceUserId,
           organizationId,
           configDeviceId: device.configDeviceId,
           displayName: device.displayName,
@@ -129,8 +129,15 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
           isDeviceDeleted: device.isDeviceDeleted,
           iOSIdentifier: device.iOSIdentifier,
           isEagleDevice: device.isEagleDevice,
-          syncCategory: validatedDevice.syncCategory,
+          syncCategory,
         };
+
+        logger.info({
+          event: 'device_register_payload',
+          configDeviceId: device.configDeviceId,
+          deviceUserId,
+          syncCategory,
+        });
 
         const result = await deviceService.registerDevice(registerPayload, correlationId);
 

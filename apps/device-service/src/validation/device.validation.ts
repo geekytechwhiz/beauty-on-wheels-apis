@@ -18,6 +18,8 @@ export const deviceRegistrationSchema = z.object({
         deviceCategory: z.string().min(1),
         companyName: z.string().min(1),
         modelName: z.string().min(1),
+        userId: z.string().optional(),
+        userID: z.string().optional(),
         deviceCategoryNum: z.number().optional(),
         syncCategory: z.coerce.number().optional(),
       }),

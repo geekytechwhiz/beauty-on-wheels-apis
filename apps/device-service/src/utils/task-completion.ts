@@ -5,7 +5,7 @@ const baseLogger = createLogger({ service: 'task-completion' });
 const lambdaClient = new LambdaClient({ region: process.env.REGION || 'us-east-1' });
 
 /**
- * Invoke complete_user_task Lambda for backward compatibility
+ * Invoke {stage}_global_complete_user_task Lambda for backward compatibility
  * Only for non-third-party devices
  */
 export async function completeUserTask(userId: string, organizationId: string, correlationId?: string): Promise<void> {

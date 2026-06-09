@@ -55,6 +55,7 @@ export class DeviceService {
       iOSIdentifier?: string;
       isEagleDevice?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: string;
       deviceId?: string;
     },
     correlationId?: string,
@@ -97,6 +98,10 @@ export class DeviceService {
           isEagleDevice: data.isEagleDevice !== undefined ? data.isEagleDevice : existing.isEagleDevice,
           isSync: data.isSync !== undefined ? data.isSync : existing.isSync,
           deviceCategoryNum: data.deviceCategoryNum !== undefined ? data.deviceCategoryNum : existing.deviceCategoryNum,
+          syncCategory:
+            data.syncCategory !== undefined && data.syncCategory !== ''
+              ? data.syncCategory
+              : existing.syncCategory,
         };
 
         // Append only the new update entry; repository uses list_append on existing updates.
@@ -158,6 +163,7 @@ export class DeviceService {
                 iOSIdentifier: data.iOSIdentifier,
                 isEagleDevice: data.isEagleDevice,
                 deviceCategoryNum: data.deviceCategoryNum,
+                syncCategory: data.syncCategory,
               });
               logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
             }
@@ -191,6 +197,7 @@ export class DeviceService {
           iOSIdentifier: data.iOSIdentifier,
           isEagleDevice: data.isEagleDevice,
           deviceCategoryNum: data.deviceCategoryNum,
+          syncCategory: data.syncCategory,
         });
         logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
 
@@ -253,6 +260,7 @@ export class DeviceService {
         userIndex?: number;
         isEagleDevice?: boolean;
         deviceCategoryNum?: string | number;
+        syncCategory?: string;
       }>;
     },
     correlationId?: string,
@@ -295,6 +303,7 @@ export class DeviceService {
             isEagleDevice: device.isEagleDevice,
             deviceCategoryNum:
               device.deviceCategoryNum !== undefined ? String(device.deviceCategoryNum) : undefined,
+            syncCategory: device.syncCategory,
           },
           correlationId,
         );
@@ -426,6 +435,7 @@ export class DeviceService {
             deviceCategoryNum: entry.deviceCategoryNum ? parseInt(entry.deviceCategoryNum, 10) : undefined,
             localName: entry.localName,
             lastSequenceNumber: entry.lastSequenceNumber,
+            syncCategory: entry.syncCategory,
           } as Device;
         }),
       );

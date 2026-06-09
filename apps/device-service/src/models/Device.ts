@@ -24,6 +24,7 @@ export interface Device {
   iOSIdentifier?: string;
   isEagleDevice?: boolean;
   deviceCategoryNum?: string;
+  syncCategory?: string;
   deviceImage?: string;
 }
 
@@ -58,6 +59,7 @@ export interface DeviceUserEntry {
   autoSyncDelay: number;
   isEagleDevice?: boolean;
   deviceCategoryNum?: string;
+  syncCategory?: string;
   updates?: Array<{
     updatedBy: string;
     updatedAt: number;

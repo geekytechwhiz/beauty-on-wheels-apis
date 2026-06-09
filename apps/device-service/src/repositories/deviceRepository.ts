@@ -67,6 +67,7 @@ export class DeviceRepository {
     iOSIdentifier?: string;
     isEagleDevice?: boolean;
     deviceCategoryNum?: string;
+    syncCategory?: string;
   }): Promise<DeviceUserEntry> {
     const logger = createChildLogger(baseLogger, { userId: data.userId, configDeviceId: data.configDeviceId });
     const deviceId = this.generateDeviceId(data.userId, data.configDeviceId);
@@ -103,6 +104,7 @@ export class DeviceRepository {
       autoSyncDelay: data.autoSyncDelay,
       isEagleDevice: data.isEagleDevice,
       deviceCategoryNum: data.deviceCategoryNum,
+      syncCategory: data.syncCategory,
       createdDate: now,
       modifiedDate: now,
     };
@@ -152,6 +154,7 @@ export class DeviceRepository {
       userIndex?: number;
       isEagleDevice?: boolean;
       deviceCategoryNum?: string | number;
+      syncCategory?: string;
     },
     correlationId?: string,
   ): Promise<DeviceUserEntry> {
@@ -198,6 +201,7 @@ export class DeviceRepository {
       autoSyncDelay: data.autoSyncDelay,
       isEagleDevice: data.isEagleDevice,
       deviceCategoryNum,
+      syncCategory: data.syncCategory,
       updates,
       createdDate: now,
       modifiedDate: now,
@@ -407,6 +411,7 @@ export class DeviceRepository {
       isEagleDevice?: boolean;
       isSync?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: string;
     },
     userId: string,
     updatesExpression: string,
@@ -482,6 +487,7 @@ export class DeviceRepository {
     addBooleanAttribute('isEagleDevice', device.isEagleDevice);
     addBooleanAttribute('isSync', device.isSync);
     addAttribute('deviceCategoryNum', device.deviceCategoryNum);
+    addAttribute('syncCategory', device.syncCategory);
 
     params.UpdateExpression = updateExpression;
     return params;
@@ -522,6 +528,7 @@ export class DeviceRepository {
       isEagleDevice?: boolean;
       isSync?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: string;
     },
     userId: string,
     newUpdates: Array<{ updatedBy: string; updatedAt: number }>,

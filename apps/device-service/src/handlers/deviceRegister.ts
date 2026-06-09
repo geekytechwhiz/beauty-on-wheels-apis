@@ -128,6 +128,7 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
           isDeviceDeleted: device.isDeviceDeleted,
           iOSIdentifier: device.iOSIdentifier,
           isEagleDevice: device.isEagleDevice,
+          syncCategory: device.syncCategory,
         };
 
         const result = await deviceService.registerDevice(registerPayload, correlationId);

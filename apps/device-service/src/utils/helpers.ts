@@ -55,6 +55,23 @@ export function getAuthorizerUserId(event: APIGatewayProxyEvent): string | undef
 }
 
 /**
+ * Resolve target user for POST /devices/list user-device queries (DEVICE_LIST#userId).
+ * Legacy retrieve-device-list used body `userID` only; explicit body user wins over JWT
+ * so staff can load a patient's paired devices.
+ */
+export function resolveDeviceListUserId(
+  event: APIGatewayProxyEvent,
+  requestData: Record<string, unknown>,
+): string | undefined {
+  const userIdFromBody =
+    (typeof requestData.userId === 'string' && requestData.userId) ||
+    (typeof requestData.userID === 'string' && requestData.userID) ||
+    undefined;
+
+  return userIdFromBody || getAuthorizerUserId(event);
+}
+
+/**
  * Extract organization ID from API Gateway authorizer context.
  * Supports authorizer.organizationID, authorizer.organizationId, and authorizer.claims['custom:organizationID'].
  * Also falls back to decoding JWT token from Authorization header if authorizer context is not available.

@@ -86,6 +86,7 @@ export const deviceListSchema = z.object({
   deviceId: z.string().optional(),
   deviceType: z.string().optional(),
   userId: z.string().min(1).optional(),
+  userID: z.string().min(1).optional(),
   countryCode: z.string().optional(),
 });
 

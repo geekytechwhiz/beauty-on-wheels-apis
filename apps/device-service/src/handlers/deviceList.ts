@@ -7,7 +7,7 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { deviceListSchema } from '../validation/device.validation';
-import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../utils/helpers';
+import { getAuthorizerOrganizationId, resolveDeviceListUserId } from '../utils/helpers';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
@@ -74,7 +74,8 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       requestData.organizationID ||
       requestData.organizationId ||
       getAuthorizerOrganizationId(event);
-    const { action, category, searchValue, deviceId, deviceType, userId, countryCode, patientUserId } = requestData;
+    const { action, category, searchValue, deviceId, deviceType, countryCode, patientUserId } = requestData;
+    const userIdForDeviceList = resolveDeviceListUserId(event, requestData);
     
     logger.info({ 
       event: 'deviceList_parsed_params', 
@@ -82,8 +83,10 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       category,
       searchValue,
       organizationID,
+      userIdForDeviceList,
       hasOrganizationId: !!requestData.organizationId,
-      hasOrganizationID: !!requestData.organizationID
+      hasOrganizationID: !!requestData.organizationID,
+      hasBodyUserId: !!(requestData.userId || requestData.userID),
     });
 
     // Scenario 1: Return only device category names
@@ -246,13 +249,11 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       );
     }
 
-    // Scenario 5: Return user-specific devices (backward compatibility)
-    // Try to get userId from authorizer context or JWT token, fallback to request body/query params
-    const userIdFromAuth = getAuthorizerUserId(event) || userId;
-    
-    if (userIdFromAuth) {
-      logger.info({ event: 'deviceList_user_devices', userId: userIdFromAuth });
-      const devices = await deviceService.getUserDevices(userIdFromAuth, {
+    // Scenario 5: User paired devices (DEVICE_LIST#userId) — legacy retrieve-device-list path.
+    // syncCategory and other pairing fields live only on these rows, not the global catalog.
+    if (userIdForDeviceList) {
+      logger.info({ event: 'deviceList_user_devices', userId: userIdForDeviceList });
+      const devices = await deviceService.getUserDevices(userIdForDeviceList, {
         deviceId,
         deviceType,
       });

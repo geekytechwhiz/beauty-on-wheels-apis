@@ -324,6 +324,36 @@ paths:
         '200':
           description: Wrapper object with `relations` array (see standard ApiResponse `data`)
 
+  /metadata/values/by-types:
+    post:
+      summary: Batch read metadata types with their active values
+      description: |
+        Consumer read API. Accepts an array of `metadataTypeCodes` and returns, for each existing type,
+        the metadata type summary plus its **ACTIVE** values (default). Codes are trimmed and de-duplicated
+        server-side. Does not modify any data and does not change the single-type GET/list contracts.
+
+        **Partial success:** requested codes with valid format but no published metadata type are not an
+        error — existing types are returned in `items` (request order preserved) and missing codes are
+        returned in `missingMetadataTypeCodes`. The request still succeeds with `200` even when every
+        requested code is missing (`items: []`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetadataValuesByTypesRequest'
+      responses:
+        '200':
+          description: |
+            Metadata type details with active values for each existing code, plus any missing codes.
+            Returned even when some (or all) requested codes do not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataValuesByTypesResponse'
+        '400':
+          description: Missing body, empty array, invalid payload shape, or invalid metadataTypeCode format
+
   /metadata/values/related:
     get:
       summary: List related target values (minimal shape) for a source value
@@ -775,6 +805,99 @@ components:
         status:
           type: string
           enum: [ACTIVE, INACTIVE, DELETED]
+
+    MetadataValuesByTypesRequest:
+      type: object
+      required: [metadataTypeCodes]
+      properties:
+        metadataTypeCodes:
+          type: array
+          description: Non-empty list of metadata type codes to fetch. Trimmed and de-duplicated server-side.
+          minItems: 1
+          items:
+            type: string
+            pattern: '^[A-Z][A-Za-z0-9]*$'
+            description: MetadataTypeCode (same shape as elsewhere in the registry).
+
+    MetadataValuesByTypesResponse:
+      type: object
+      description: |
+        Partial-success batch result. `items` holds every requested type that exists (request order
+        preserved, de-duplicated). `missingMetadataTypeCodes` lists requested codes with valid format
+        that have no published metadata type (`[]` when all exist). Always returned with `200`.
+      required: [items, missingMetadataTypeCodes]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataValuesByTypeItem'
+        missingMetadataTypeCodes:
+          type: array
+          description: Requested codes (valid format) that do not exist. Empty when all requested codes exist.
+          items:
+            type: string
+
+    MetadataValuesByTypeItem:
+      type: object
+      required: [metadataType, displayName, multiSelectAllowed, valueDataType, values]
+      properties:
+        metadataType:
+          type: string
+          description: The requested metadataTypeCode.
+        displayName:
+          type: string
+        multiSelectAllowed:
+          type: boolean
+        valueDataType:
+          type: string
+          enum: [Enum, Numeric, Boolean, Text]
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataValuesByTypeValue'
+
+    MetadataValuesByTypeValue:
+      type: object
+      required: [valueCode, label, status, isGlobal, sortOrder, attributes, applicability]
+      properties:
+        valueCode:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, DELETED]
+        isGlobal:
+          type: boolean
+        sortOrder:
+          type: integer
+        attributes:
+          type: object
+          additionalProperties: true
+          description: ValueAttributes; `{}` when none are stored.
+        applicability:
+          $ref: '#/components/schemas/MetadataValuesByTypeApplicability'
+
+    MetadataValuesByTypeApplicability:
+      type: object
+      description: Applicability dimensions for the value; every dimension is always present (`[]` when empty).
+      required: [module, category, condition, country, language]
+      properties:
+        module:
+          type: array
+          items: { type: string }
+        category:
+          type: array
+          items: { type: string }
+        condition:
+          type: array
+          items: { type: string }
+        country:
+          type: array
+          items: { type: string }
+        language:
+          type: array
+          items: { type: string }
 
     ChangeRequestDraftResponse:
       type: object

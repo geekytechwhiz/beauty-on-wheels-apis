@@ -1,6 +1,6 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { createLogger, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
-import { BaseError, type LambdaRequest } from '@api-hub/utils';
+import { ApiResponse, BaseError, type LambdaRequest } from '@api-hub/utils';
 import { DeviceService } from '../services/deviceService';
 import { deviceRegistrationSchema } from '../validation/device.validation';
 import { DeviceNotInOrganizationError } from '../utils/errors';
@@ -195,7 +195,11 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
       );
     }
 
-    return { items: messageArr };
+    return ApiResponse.created(
+      { items: messageArr },
+      'DEVICE.DEVICE_REGISTRATION_SUCCESS',
+      { correlationId, event: apiEvent },
+    );
   } catch (err) {
     if (err instanceof BaseError) {
       throw err;

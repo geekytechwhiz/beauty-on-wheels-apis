@@ -167,6 +167,14 @@ export class GenericMapper {
       case 'dateOfBirth':
         return normalizeDateOfBirth(String(value));
 
+      case 'epochMsToIso':
+        return normalizeEpochMsToIso(value);
+
+      case 'toNumber': {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : value;
+      }
+
       default:
         return value;
     }
@@ -177,6 +185,20 @@ export class GenericMapper {
  * Normalizes common date formats to ISO YYYY-MM-DD.
  * Handles DD-MM-YYYY (e.g. "12-07-1997") and passes through ISO dates.
  */
+export function normalizeEpochMsToIso(value: unknown): string {
+  const raw = String(value).trim();
+
+  if (raw === '') {
+    return raw;
+  }
+
+  if (/^\d+$/.test(raw)) {
+    return new Date(Number(raw)).toISOString();
+  }
+
+  return raw;
+}
+
 export function normalizeDateOfBirth(value: string): string {
   const ddMmYyyy = /^(\d{2})-(\d{2})-(\d{4})$/;
   const match = value.match(ddMmYyyy);

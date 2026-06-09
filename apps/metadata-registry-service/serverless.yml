@@ -165,6 +165,14 @@ functions:
           method: get
           cors: *defaultHttpCors
 
+  getMetadataValuesByTypes:
+    handler: src/handlers/getMetadataValuesByTypes.main
+    events:
+      - http:
+          path: metadata/values/by-types
+          method: post
+          cors: *defaultHttpCors
+
   getMetadataRelations:
     handler: src/handlers/getRelations.main
     events:

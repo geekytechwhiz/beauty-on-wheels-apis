@@ -24,4 +24,6 @@ export * from './mapper/fhir-error-response';
 export * from './mapper/is-fhir-validation-error-like';
 export * from './mapper/is-fhir-request';
 export * from './mapper/fhir-success-response';
+export * from './mapper/appointment-fhir.transform';
+export * from './mapper/observation-fhir.transform';
 

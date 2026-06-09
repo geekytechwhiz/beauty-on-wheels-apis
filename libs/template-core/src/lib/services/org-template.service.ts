@@ -162,7 +162,10 @@ function masterCodesFromItem(item: MasterTemplateListItem): {
   };
 }
 
-function buildOrgEnabledFilterOptions(items: MasterTemplateListItem[]): OrgEnabledFilterOptions {
+function buildOrgEnabledFilterOptions(
+  items: MasterTemplateListItem[],
+  templateTypeFilter?: string,
+): OrgEnabledFilterOptions {
   const conditionCode = new Set<string>();
   const categoryCode = new Set<string>();
   const templateType = new Set<string>();
@@ -175,7 +178,11 @@ function buildOrgEnabledFilterOptions(items: MasterTemplateListItem[]): OrgEnabl
     if (codes.conditionCode) conditionCode.add(codes.conditionCode);
     if (codes.categoryCode) categoryCode.add(codes.categoryCode);
     if (item.templateType) templateType.add(item.templateType);
-    if (item.templateId && !templateNameKeys.has(item.templateId)) {
+    if (
+      item.templateId &&
+      !templateNameKeys.has(item.templateId) &&
+      (!templateTypeFilter || eqCi(item.templateType, templateTypeFilter))
+    ) {
       templateNameKeys.add(item.templateId);
       templateName.push({
         key: item.templateId,
@@ -233,8 +240,9 @@ function matchesOrgEnabledFilters(
     const byName = m.templateName?.toLowerCase().includes(nameFilter.toLowerCase()) ?? false;
     if (!byId && !byName) return false;
   }
-  if (params.templateEnabled === true && !item.templateEnabled) return false;
-  if (params.templateEnabled === false && item.templateEnabled) return false;
+  const enabledFilter = params.templateEnabled ?? true;
+  if (enabledFilter && !item.templateEnabled) return false;
+  if (!enabledFilter && item.templateEnabled) return false;
   return true;
 }
 
@@ -404,7 +412,10 @@ export class OrgTemplateService {
       const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
       const publishedMasters = await this.masterSvc.listPublishedMasterCatalogItems();
       const masterById = new Map(publishedMasters.map((m) => [m.templateId, m]));
-      const filterOptions = buildOrgEnabledFilterOptions(publishedMasters);
+      const filterOptions = buildOrgEnabledFilterOptions(
+        publishedMasters,
+        params.templateType,
+      );
 
       if (params.organizationId) {
         return this.listOrgEnabledForSingleOrg(
@@ -585,6 +596,54 @@ export class OrgTemplateService {
     return out;
   }
 
+  /**
+   * Compare latest published master display version vs org-derived master version.
+   * Same rules as GET /templates/org-version-status (`upgradeAvailable`).
+   */
+  private async resolveUpgradeAvailable(params: {
+    masterTemplateId: string;
+    enablement: EnablementDdbRecord;
+    orgVersion: TemplateDdbRecord | null;
+    catalogMaster?: MasterTemplateListItem;
+  }): Promise<boolean> {
+    const { masterTemplateId, enablement, orgVersion, catalogMaster } = params;
+    if (!orgVersion) return false;
+
+    let latestMasterVersion: number;
+    if (catalogMaster) {
+      latestMasterVersion = resolveTemplateDisplayVersion({
+        version: catalogMaster.version,
+        templateVersionId: catalogMaster.templateVersionId,
+      });
+    } else {
+      try {
+        const latestRow = await this.resolvePublishedMasterVersion(masterTemplateId);
+        latestMasterVersion = resolveTemplateDisplayVersion(latestRow.meta);
+      } catch {
+        return false;
+      }
+    }
+
+    const derivedFromMasterVersionId =
+      orgVersion.meta.derivedFromTemplateVersionId?.trim() ||
+      enablement.meta.masterTemplateVersionId?.trim();
+
+    let derivedMasterMeta: TemplateMeta = orgVersion.meta;
+    if (derivedFromMasterVersionId) {
+      const derivedSk = normalizeVersionToSk(derivedFromMasterVersionId);
+      const derivedRow = await this.masterRepo.getMasterVersion(masterTemplateId, derivedSk);
+      if (derivedRow?.meta) derivedMasterMeta = derivedRow.meta;
+    }
+
+    const derivedFromMasterVersion = resolveDerivedFromMasterVersion(
+      orgVersion.meta,
+      enablement.meta,
+      derivedMasterMeta,
+    );
+
+    return compareTemplateDisplayVersions(latestMasterVersion, derivedFromMasterVersion) > 0;
+  }
+
   private async buildOrgEnabledListItem(
     enablement: EnablementDdbRecord,
     masterById: Map<string, MasterTemplateListItem>,
@@ -618,6 +677,13 @@ export class OrgTemplateService {
       ? null
       : enablement.meta.effectiveTo?.trim() || enablement.meta.updatedAt?.trim() || null;
 
+    const upgrade = await this.resolveUpgradeAvailable({
+      masterTemplateId,
+      enablement,
+      orgVersion,
+      catalogMaster: masterMeta,
+    });
+
     return {
       masterTemplate: {
         templateId: masterTemplateId,
@@ -638,6 +704,7 @@ export class OrgTemplateService {
       enabledAt,
       templateEnabled,
       disabledAt,
+      upgrade,
     };
   }
 
@@ -881,8 +948,18 @@ export class OrgTemplateService {
       );
       const latestMasterVersion = resolveTemplateDisplayVersion(latestMasterVersionRow.meta);
 
-      const upgradeAvailable =
-        compareTemplateDisplayVersions(latestMasterVersion, derivedFromMasterVersion) > 0;
+      const upgradeAvailable = await this.resolveUpgradeAvailable({
+        masterTemplateId,
+        enablement,
+        orgVersion,
+        catalogMaster: {
+          templateId: masterTemplateId,
+          templateVersionId: latestMasterVersionRow.meta.templateVersionId,
+          version: latestMasterVersion,
+          status: TEMPLATE_STATUS.PUBLISHED,
+          isActive: resolveMasterTemplateIsActive(latestMasterVersionRow.meta),
+        },
+      });
       const localChangesPresent = detectLocalChanges(orgVersion, derivedMasterVersion);
 
       const templateName =

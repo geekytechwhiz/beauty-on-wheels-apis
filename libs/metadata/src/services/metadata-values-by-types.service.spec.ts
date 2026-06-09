@@ -120,6 +120,17 @@ describe('getMetadataValuesByTypes', () => {
     expect(result.items[0].values).toEqual([]);
   });
 
+  it('returns missingMetadataTypeCodes: [] when all requested codes exist', async () => {
+    mockGetMetadataType.mockImplementation((code: string) => Promise.resolve(minimalType(code)));
+    mockListMetadataValues.mockResolvedValue([]);
+
+    const { getMetadataValuesByTypes } = await import('./metadata.service.js');
+    const result = await getMetadataValuesByTypes(['Country', 'Language']);
+
+    expect(result.items.map((i) => i.metadataType)).toEqual(['Country', 'Language']);
+    expect(result.missingMetadataTypeCodes).toEqual([]);
+  });
+
   it('defaults missing attributes to {}', async () => {
     mockGetMetadataType.mockResolvedValue(minimalType('Country'));
     mockListMetadataValues.mockResolvedValue([
@@ -132,17 +143,29 @@ describe('getMetadataValuesByTypes', () => {
     expect(result.items[0].values[0].attributes).toEqual({});
   });
 
-  it('throws 404 listing missing codes when a requested type does not exist', async () => {
+  it('returns 200-style partial success: existing types in items, missing codes collected', async () => {
     mockGetMetadataType.mockImplementation((code: string) =>
-      Promise.resolve(code === 'Country' ? minimalType('Country') : null),
+      Promise.resolve(code === 'InvalidType' ? null : minimalType(code)),
     );
     mockListMetadataValues.mockResolvedValue([]);
 
     const { getMetadataValuesByTypes } = await import('./metadata.service.js');
+    const result = await getMetadataValuesByTypes(['Country', 'Language', 'InvalidType']);
 
-    await expect(getMetadataValuesByTypes(['Country', 'Nope'])).rejects.toMatchObject({
-      statusCode: 404,
-      message: expect.stringContaining('Nope'),
-    });
+    // request order preserved for valid items
+    expect(result.items.map((i) => i.metadataType)).toEqual(['Country', 'Language']);
+    expect(result.items.every((i) => Array.isArray(i.values) && i.values.length === 0)).toBe(true);
+    expect(result.missingMetadataTypeCodes).toEqual(['InvalidType']);
+  });
+
+  it('returns items: [] and all codes in missingMetadataTypeCodes when none exist', async () => {
+    mockGetMetadataType.mockResolvedValue(null);
+
+    const { getMetadataValuesByTypes } = await import('./metadata.service.js');
+    const result = await getMetadataValuesByTypes(['Nope', 'AlsoNope']);
+
+    expect(result.items).toEqual([]);
+    expect(result.missingMetadataTypeCodes).toEqual(['Nope', 'AlsoNope']);
+    expect(mockListMetadataValues).not.toHaveBeenCalled();
   });
 });

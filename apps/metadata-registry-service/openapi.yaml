@@ -328,11 +328,14 @@ paths:
     post:
       summary: Batch read metadata types with their active values
       description: |
-        Consumer read API. Accepts an array of `metadataTypeCodes` and returns, for each, the metadata
-        type summary plus its **ACTIVE** values (default). Codes are trimmed and de-duplicated server-side.
-        Does not modify any data and does not change the single-type GET/list contracts. When any requested
-        code does not exist, responds `404` (consistent with `GET /metadata/{entityType}`); missing codes
-        are listed in the error message.
+        Consumer read API. Accepts an array of `metadataTypeCodes` and returns, for each existing type,
+        the metadata type summary plus its **ACTIVE** values (default). Codes are trimmed and de-duplicated
+        server-side. Does not modify any data and does not change the single-type GET/list contracts.
+
+        **Partial success:** requested codes with valid format but no published metadata type are not an
+        error — existing types are returned in `items` (request order preserved) and missing codes are
+        returned in `missingMetadataTypeCodes`. The request still succeeds with `200` even when every
+        requested code is missing (`items: []`).
       requestBody:
         required: true
         content:
@@ -341,15 +344,15 @@ paths:
               $ref: '#/components/schemas/MetadataValuesByTypesRequest'
       responses:
         '200':
-          description: Metadata type details with active values for each requested code
+          description: |
+            Metadata type details with active values for each existing code, plus any missing codes.
+            Returned even when some (or all) requested codes do not exist.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetadataValuesByTypesResponse'
         '400':
-          description: Missing body, empty array, invalid payload shape, or invalid metadataTypeCode
-        '404':
-          description: One or more requested metadataTypeCodes do not exist
+          description: Missing body, empty array, invalid payload shape, or invalid metadataTypeCode format
 
   /metadata/values/related:
     get:
@@ -818,12 +821,21 @@ components:
 
     MetadataValuesByTypesResponse:
       type: object
-      required: [items]
+      description: |
+        Partial-success batch result. `items` holds every requested type that exists (request order
+        preserved, de-duplicated). `missingMetadataTypeCodes` lists requested codes with valid format
+        that have no published metadata type (`[]` when all exist). Always returned with `200`.
+      required: [items, missingMetadataTypeCodes]
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/MetadataValuesByTypeItem'
+        missingMetadataTypeCodes:
+          type: array
+          description: Requested codes (valid format) that do not exist. Empty when all requested codes exist.
+          items:
+            type: string
 
     MetadataValuesByTypeItem:
       type: object

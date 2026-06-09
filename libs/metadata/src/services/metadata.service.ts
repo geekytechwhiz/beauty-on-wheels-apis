@@ -440,6 +440,8 @@ export interface MetadataValuesByTypeItem {
 
 export interface MetadataValuesByTypesResult {
   items: MetadataValuesByTypeItem[];
+  /** Requested codes (valid format) that have no published metadata type. `[]` when all exist. */
+  missingMetadataTypeCodes: string[];
 }
 
 function mapMetadataValuesByTypeItem(
@@ -465,10 +467,12 @@ function mapMetadataValuesByTypeItem(
 /**
  * Batch read: for each requested metadata type code, return the type summary plus its values.
  * Returns ACTIVE values only by default. Reuses existing repository reads (`getMetadataType`,
- * `listMetadataValues`) — no new tables or key structures. Consistent with the single-type GET
- * (`resolveMetadataTypeGet`), unknown codes are not silently ignored: a 404 is raised listing the
- * missing codes. Codes are expected pre-validated/trimmed/deduped by the host schema; the type-code
- * pattern is re-asserted defensively.
+ * `listMetadataValues`) — no new tables or key structures.
+ *
+ * Partial success (Option B): a requested code with valid format but no published metadata type is
+ * **not** an error. Existing types are returned in `items` (request order preserved), and missing
+ * codes are collected in `missingMetadataTypeCodes` (`[]` when all exist). Codes are expected
+ * pre-validated/trimmed/deduped by the host schema; the type-code pattern is re-asserted defensively.
  */
 export async function getMetadataValuesByTypes(
   metadataTypeCodes: string[],
@@ -487,15 +491,12 @@ export async function getMetadataValuesByTypes(
     }),
   );
 
-  const missing = resolved.filter((r) => r.item === null).map((r) => r.code);
-  if (missing.length > 0) {
-    throw new NotFoundError(
-      `Metadata type(s) not found: ${missing.join(', ')}`,
-      'METADATA_TYPE_NOT_FOUND',
-    );
-  }
-
-  return { items: resolved.map((r) => r.item as MetadataValuesByTypeItem) };
+  return {
+    items: resolved
+      .filter((r) => r.item !== null)
+      .map((r) => r.item as MetadataValuesByTypeItem),
+    missingMetadataTypeCodes: resolved.filter((r) => r.item === null).map((r) => r.code),
+  };
 }
 
 function mapTypeEntriesToListItems(

@@ -19,7 +19,7 @@ export const deviceRegistrationSchema = z.object({
         companyName: z.string().min(1),
         modelName: z.string().min(1),
         deviceCategoryNum: z.number().optional(),
-        syncCategory: z.string().optional(),
+        syncCategory: z.coerce.number().optional(),
       }),
     )
     .min(1),
@@ -57,7 +57,7 @@ export const deviceUserRegistrationSchema = z.object({
         userIndex: z.number().optional(),
         isEagleDevice: z.boolean().optional(),
         deviceCategoryNum: z.union([z.string(), z.number()]).optional(),
-        syncCategory: z.string().optional(),
+        syncCategory: z.coerce.number().optional(),
       }),
     )
     .min(1),

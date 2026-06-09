@@ -55,7 +55,7 @@ export class DeviceService {
       iOSIdentifier?: string;
       isEagleDevice?: boolean;
       deviceCategoryNum?: string;
-      syncCategory?: string;
+      syncCategory?: number;
       deviceId?: string;
     },
     correlationId?: string,
@@ -99,9 +99,7 @@ export class DeviceService {
           isSync: data.isSync !== undefined ? data.isSync : existing.isSync,
           deviceCategoryNum: data.deviceCategoryNum !== undefined ? data.deviceCategoryNum : existing.deviceCategoryNum,
           syncCategory:
-            data.syncCategory !== undefined && data.syncCategory !== ''
-              ? data.syncCategory
-              : existing.syncCategory,
+            data.syncCategory !== undefined ? data.syncCategory : existing.syncCategory,
         };
 
         // Append only the new update entry; repository uses list_append on existing updates.
@@ -260,7 +258,7 @@ export class DeviceService {
         userIndex?: number;
         isEagleDevice?: boolean;
         deviceCategoryNum?: string | number;
-        syncCategory?: string;
+        syncCategory?: number;
       }>;
     },
     correlationId?: string,
@@ -435,7 +433,10 @@ export class DeviceService {
             deviceCategoryNum: entry.deviceCategoryNum ? parseInt(entry.deviceCategoryNum, 10) : undefined,
             localName: entry.localName,
             lastSequenceNumber: entry.lastSequenceNumber,
-            syncCategory: entry.syncCategory,
+            syncCategory:
+              entry.syncCategory !== undefined && entry.syncCategory !== null
+                ? Number(entry.syncCategory)
+                : undefined,
           } as Device;
         }),
       );

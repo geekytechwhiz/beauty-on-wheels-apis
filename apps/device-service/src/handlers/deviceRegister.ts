@@ -100,6 +100,7 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
           continue;
         }
 
+        const validatedDevice = deviceValidation.data;
         const isThirdParty = device.companyName && ALLOWED_THIRD_PARTY_APPS.includes(device.companyName.toUpperCase());
         const registerPayload = {
           userId,
@@ -128,7 +129,7 @@ const deviceRegisterImpl = async (req: LambdaRequest) => {
           isDeviceDeleted: device.isDeviceDeleted,
           iOSIdentifier: device.iOSIdentifier,
           isEagleDevice: device.isEagleDevice,
-          syncCategory: device.syncCategory,
+          syncCategory: validatedDevice.syncCategory,
         };
 
         const result = await deviceService.registerDevice(registerPayload, correlationId);

@@ -68,6 +68,7 @@ export {
   listValueAudit,
   searchMetadataValues,
   getMetadataValuesByTypes,
+  type MetadataValuesByTypeApplicability,
   type MetadataValuesByTypeValue,
   type MetadataValuesByTypeItem,
   type MetadataValuesByTypesResult,

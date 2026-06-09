@@ -107,6 +107,27 @@ describe('getMetadataValuesByTypes', () => {
       isGlobal: true,
       sortOrder: 3,
       attributes: { region: 'APAC' },
+      applicability: { module: [], category: [], condition: [], country: [], language: [] },
+    });
+  });
+
+  it('maps applicability dimensions (defaulting language to [])', async () => {
+    mockGetMetadataType.mockResolvedValue(minimalType('Country'));
+    mockListMetadataValues.mockResolvedValue([
+      minimalValue('Country', 'IN', {
+        applicability: { module: ['RPM'], category: ['CAT_A'], condition: ['HTN'], country: ['IN'] },
+      }),
+    ]);
+
+    const { getMetadataValuesByTypes } = await import('./metadata.service.js');
+    const result = await getMetadataValuesByTypes(['Country']);
+
+    expect(result.items[0].values[0].applicability).toEqual({
+      module: ['RPM'],
+      category: ['CAT_A'],
+      condition: ['HTN'],
+      country: ['IN'],
+      language: [],
     });
   });
 

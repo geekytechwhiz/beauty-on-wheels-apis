@@ -166,6 +166,127 @@
         "runtimeTaskInstanceId": { "type": "string" },
         "task": { "type": "object" }
       }
+    },
+    "CarePlanLinkageMaterialization": {
+      "type": "object",
+      "required": [
+        "carePlanTaskLinkageId",
+        "taskBehaviorCode",
+        "taskDisplayGroup",
+        "displayTitle",
+        "assignedToType",
+        "displayToPatient",
+        "dueWindowStart",
+        "dueWindowEnd"
+      ],
+      "properties": {
+        "carePlanTaskLinkageId": { "type": "string" },
+        "sourceTaskTemplateVersionId": { "type": "string" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
+        "displayTitle": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "assignedToStaffId": { "type": "string" },
+        "ownerType": { "$ref": "#/definitions/OwnerType" },
+        "ownerUserId": { "type": "string" },
+        "ownerRoleCode": { "type": "string" },
+        "ownerTeamId": { "type": "string" },
+        "ownerDisplayName": { "type": "string" },
+        "displayToPatient": { "type": "boolean" },
+        "actionTargetId": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "reminderEnabled": { "type": "boolean" },
+        "reminderSettings": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "requiredForStageCompletion": { "type": "boolean" },
+        "displayAsChecklistItem": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "GenerateCarePlanTasksRequest": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "carePlanInstanceId",
+        "taskGenerationTrigger",
+        "sourceLinkageContext"
+      ],
+      "properties": {
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "taskGenerationTrigger": { "type": "string" },
+        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
+        "dryRun": { "type": "boolean" },
+        "actorType": { "type": "string" },
+        "actorId": { "type": "string" },
+        "sourceLinkageContext": {
+          "type": "object",
+          "required": ["linkages"],
+          "properties": {
+            "linkages": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/CarePlanLinkageMaterialization" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "patientId": "pat-maria",
+        "carePlanInstanceId": "cp-maria-001",
+        "taskGenerationTrigger": "carePlanStageEntered",
+        "workflowStage": "onboarding",
+        "dryRun": false,
+        "actorType": "system",
+        "actorId": "care-plan-runtime",
+        "sourceLinkageContext": {
+          "linkages": [
+            {
+              "carePlanTaskLinkageId": "link-watch-bp-video",
+              "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
+              "taskBehaviorCode": "EDUCATION_VIDEO",
+              "taskDisplayGroup": "learning",
+              "displayTitle": "Watch: How to measure BP",
+              "assignedToType": "patient",
+              "displayToPatient": true,
+              "actionTargetId": "video-how-to-measure-bp",
+              "dueWindowStart": 1780567200000,
+              "dueWindowEnd": 1780610400000,
+              "requiredForStageCompletion": true,
+              "displayAsChecklistItem": true,
+              "reminderEnabled": true,
+              "reminderSettings": { "channels": ["push"], "quietHoursRespected": true }
+            }
+          ]
+        }
+      }
+    },
+    "GeneratedCarePlanTaskResultItem": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "outcome", "task"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
+        "task": { "type": "object" }
+      }
+    },
+    "GenerateCarePlanTasksResult": {
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/GeneratedCarePlanTaskResultItem" }
+        }
+      }
     }
   },
   "paths": {
@@ -194,6 +315,31 @@
           "200": {
             "description": "Create result (created or skipped duplicate).",
             "schema": { "$ref": "#/definitions/CreateMonitoringActionResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Conflict (cross-org idempotency)" },
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/generate-care-plan": {
+      "post": {
+        "summary": "Generate care-plan linkage runtime tasks (idempotent batch)",
+        "description": "Called by Care Plan Runtime. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch generate results (created or skipped duplicate per linkage).",
+            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksResult" }
           },
           "401": { "description": "Unauthorized" },
           "409": { "description": "Conflict (cross-org idempotency)" },

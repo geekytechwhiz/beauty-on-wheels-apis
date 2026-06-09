@@ -118,4 +118,46 @@ describe('TaskEntityBuilder', () => {
     expect(hist.transitionSource).toBe('system');
     expect(hist.transitionReason).toBe('serviceFlowRuntime create');
   });
+
+  it('builds care plan META aligned with metaCarePlanTask example', () => {
+    const input = {
+      organizationId: 'org-acme-health-001',
+      createdBy: 'system:care-plan-runtime',
+      patientId: 'pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201',
+      carePlanInstanceId: 'cp-inst-onboard-2026-04-001',
+      taskGenerationTrigger: 'carePlanStageEntered',
+      workflowStage: 'onboarding' as const,
+      carePlanTaskLinkageId: 'link-bp-form',
+      sourceTaskTemplateVersionId: 'task-tpl-document-form-v2',
+      taskBehaviorCode: 'DOCUMENT_FORM' as const,
+      taskDisplayGroup: 'action' as const,
+      displayTitle: 'Complete blood pressure form',
+      assignedToType: 'patient' as const,
+      displayToPatient: true,
+      completionSourceType: 'document',
+      completionSourceReferenceId: 'doc-req-88210',
+      dueWindowStart: 1780567200000,
+      dueWindowEnd: 1780610400000,
+      reminderEnabled: true,
+      reminderSettings: { channels: ['push'], quietHoursRespected: true },
+      requiredForStageCompletion: true,
+    };
+
+    const ctx = TaskEntityBuilder.buildCarePlanTaskCreateContext({
+      runtimeTaskInstanceId: 'rtask-7k9m2p4q8x1n6w3e',
+      idempotencyKey: 'key',
+      generationHash: 'hash',
+      input,
+      nowMs: 1780554600000,
+    });
+
+    const meta = TaskEntityBuilder.buildCarePlanMetaRecord(ctx);
+    expect(meta.runtimeTaskSource).toBe('carePlanTaskLinkage');
+    expect(meta.carePlanTaskLinkageId).toBe('link-bp-form');
+    expect(meta.sourceTaskTemplateVersionId).toBe('task-tpl-document-form-v2');
+    expect(meta.lsi1Sk).toBe('CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e');
+    expect(meta.reminderEnabled).toBe(true);
+    expect(meta.currentState).toBe('scheduled');
+    expect(meta.createdBy).toBe('system:care-plan-runtime');
+  });
 });

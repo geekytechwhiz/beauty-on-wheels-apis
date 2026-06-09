@@ -1,9 +1,17 @@
 import type { LambdaRequest } from '@api-hub/utils';
 
-import { manualSystemActor, SERVICE_FLOW_SYSTEM_ACTOR } from '@api-hub/task-core';
+import {
+  CARE_PLAN_SYSTEM_ACTOR,
+  manualSystemActor,
+  SERVICE_FLOW_SYSTEM_ACTOR,
+} from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
-import type { CreateMonitoringActionHttpBody, CreateRuntimeTaskHttpBody } from './task.schemas';
+import type {
+  CreateMonitoringActionHttpBody,
+  CreateRuntimeTaskHttpBody,
+  GenerateCarePlanTasksHttpBody,
+} from './task.schemas';
 
 function throwVal(
   message: string,
@@ -69,6 +77,34 @@ export function validateCreateRuntimeTaskRequest(req: LambdaRequest): void {
   }
 
   (req as LambdaRequest & { validatedCreateRuntimeTask: ValidatedCreateRuntimeTask }).validatedCreateRuntimeTask =
+    {
+      orgId,
+      createdBy,
+      body,
+      authHeader: req.context.authHeader,
+    };
+}
+
+export type ValidatedGenerateCarePlanTasks = {
+  orgId: string;
+  createdBy: string;
+  authHeader: string | undefined;
+  body: GenerateCarePlanTasksHttpBody;
+};
+
+export function validateGenerateCarePlanTasksRequest(req: LambdaRequest): void {
+  const body = req.body as GenerateCarePlanTasksHttpBody;
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const createdBy = body.actorId
+    ? `${CARE_PLAN_SYSTEM_ACTOR}:${body.actorId}`
+    : CARE_PLAN_SYSTEM_ACTOR;
+
+  (req as LambdaRequest & { validatedGenerateCarePlanTasks: ValidatedGenerateCarePlanTasks }).validatedGenerateCarePlanTasks =
     {
       orgId,
       createdBy,

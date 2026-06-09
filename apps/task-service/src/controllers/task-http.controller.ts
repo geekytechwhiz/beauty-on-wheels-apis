@@ -4,6 +4,7 @@ import {
   TaskService,
   createMonitoringActionPayloadFromHttpBody,
   createRuntimeTaskPayloadFromHttpBody,
+  generateCarePlanTasksPayloadFromHttpBody,
   normalizeTaskServiceError,
   toRuntimeTaskCard,
 } from '@api-hub/task-core';
@@ -11,6 +12,7 @@ import {
 import type {
   ValidatedCreateMonitoringAction,
   ValidatedCreateRuntimeTask,
+  ValidatedGenerateCarePlanTasks,
 } from '../validators/request.validators';
 
 let taskService: TaskService | undefined;
@@ -107,6 +109,45 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_runtime_create_service_error',
+      });
+    }
+  }
+
+  async handleGenerateCarePlanTasks(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedGenerateCarePlanTasks?: ValidatedGenerateCarePlanTasks })
+      .validatedGenerateCarePlanTasks;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const payload = generateCarePlanTasksPayloadFromHttpBody(
+        validated.orgId,
+        validated.body,
+        validated.createdBy,
+      );
+      return await this.svc.generateCarePlanTasks(payload);
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_care_plan_generate_service_error',
       });
     }
   }

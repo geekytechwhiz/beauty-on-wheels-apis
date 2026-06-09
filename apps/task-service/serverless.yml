@@ -142,6 +142,31 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  generateCarePlanTasks:
+    handler: src/handlers/http/generateCarePlanTasks.main
+    events:
+      - http:
+          path: tasks/generate-care-plan
+          method: post
+          bodyType: GenerateCarePlanTasksRequest
+          summary: Generate care-plan linkage runtime tasks (idempotent batch)
+          description: Called by Care Plan Runtime. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — batch results (created or skippedDuplicate per linkage)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "409": Conflict (cross-org idempotency)
+            "422": Validation or business rule error
+            "500": Server error
+
   createRuntimeTask:
     handler: src/handlers/http/createRuntimeTask.main
     events:

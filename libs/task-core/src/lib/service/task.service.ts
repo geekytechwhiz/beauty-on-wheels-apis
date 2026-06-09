@@ -1,10 +1,17 @@
 import type { Logger } from '@api-hub/observability';
 
+import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
 import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
+import type {
+  CreateCarePlanTaskRequest,
+  GenerateCarePlanTasksRequest,
+  GenerateCarePlanTasksResult,
+} from '../models/api/generate-care-plan.request';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { IDEMPOTENCY_OUTCOME, type IdempotencyOutcome } from '../models/types/task-domain.types';
+import { toRuntimeTaskCard } from '../mappers/task-http.dto';
 import { TaskRepository } from '../repositories/task-repository';
 
 import { BaseTaskService } from './base-task.service';
@@ -83,5 +90,103 @@ export class TaskService extends BaseTaskService {
   async createRuntimeTask(payload: CreateRuntimeTaskPayload): Promise<CreateRuntimeTaskResult> {
     const record = await this.repo.createRuntimeTask(payload);
     return { record };
+  }
+
+  async generateCarePlanTasks(payload: GenerateCarePlanTasksRequest): Promise<GenerateCarePlanTasksResult> {
+    const results: GenerateCarePlanTasksResult['results'] = [];
+
+    for (const linkage of payload.linkages) {
+      const taskInput: CreateCarePlanTaskRequest = {
+        organizationId: payload.organizationId,
+        createdBy: payload.createdBy,
+        patientId: payload.patientId,
+        carePlanInstanceId: payload.carePlanInstanceId,
+        taskGenerationTrigger: payload.taskGenerationTrigger,
+        workflowStage: payload.workflowStage,
+        ...linkage,
+      };
+
+      if (payload.dryRun) {
+        const { idempotencyKey, runtimeTaskInstanceId, generationHash } =
+          this.repo.buildCarePlanTaskKeys(taskInput);
+        const ctx = TaskEntityBuilder.buildCarePlanTaskCreateContext({
+          runtimeTaskInstanceId,
+          idempotencyKey,
+          generationHash,
+          input: taskInput,
+        });
+        const record = TaskEntityBuilder.buildCarePlanMetaRecord(ctx);
+        results.push({
+          runtimeTaskInstanceId,
+          outcome: IDEMPOTENCY_OUTCOME.CREATED,
+          task: toRuntimeTaskCard(record, ctx.nowMs),
+        });
+        continue;
+      }
+
+      const { record, outcome } = await this.createCarePlanTaskWithIdempotency(taskInput);
+      results.push({
+        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+        outcome,
+        task: toRuntimeTaskCard(record),
+      });
+    }
+
+    return { results };
+  }
+
+  private async createCarePlanTaskWithIdempotency(
+    input: CreateCarePlanTaskRequest,
+  ): Promise<CreateMonitoringActionResult> {
+    const { runtimeTaskInstanceId } = this.repo.buildCarePlanTaskKeys(input);
+
+    const resolution = await this.repo.resolveCarePlanNaturalKey(
+      runtimeTaskInstanceId,
+      input.organizationId,
+    );
+
+    if (resolution === 'foreign_org') {
+      const e = new Error('This idempotency key is already in use') as Error & {
+        statusCode: number;
+        code: string;
+      };
+      e.statusCode = 409;
+      e.code = 'IDEMPOTENCY_KEY_IN_USE';
+      throw e;
+    }
+
+    if (resolution !== 'missing') {
+      this.log.info({
+        event: 'task_care_plan_idempotent_replay',
+        message: 'Idempotent replay for care plan natural key',
+        runtimeTaskInstanceId,
+        organizationId: input.organizationId,
+        carePlanTaskLinkageId: input.carePlanTaskLinkageId,
+      });
+      return { record: resolution, outcome: IDEMPOTENCY_OUTCOME.SKIPPED_DUPLICATE };
+    }
+
+    try {
+      const record = await this.repo.createCarePlanTask(input);
+      return { record, outcome: IDEMPOTENCY_OUTCOME.CREATED };
+    } catch (e: unknown) {
+      const name = e && typeof e === 'object' && 'name' in e ? String((e as { name: string }).name) : '';
+      if (name === 'TransactionCanceledException' || e instanceof DuplicateTaskError) {
+        const again = await this.repo.resolveCarePlanNaturalKey(
+          runtimeTaskInstanceId,
+          input.organizationId,
+        );
+        if (again !== 'missing' && again !== 'foreign_org') {
+          this.log.warn({
+            event: 'task_care_plan_idempotent_after_transaction_race',
+            message: 'Resolved duplicate after TransactionCanceledException',
+            runtimeTaskInstanceId,
+            organizationId: input.organizationId,
+          });
+          return { record: again, outcome: IDEMPOTENCY_OUTCOME.SKIPPED_DUPLICATE };
+        }
+      }
+      throw e;
+    }
   }
 }

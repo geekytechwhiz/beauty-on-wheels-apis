@@ -10,16 +10,20 @@ import {
 var mockCreateMonitoringAction: jest.Mock;
 // eslint-disable-next-line no-var
 var mockCreateRuntimeTask: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGenerateCarePlanTasks: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
   mockCreateRuntimeTask = jest.fn();
+  mockGenerateCarePlanTasks = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
     TaskService: jest.fn().mockImplementation(() => ({
       createMonitoringAction: mockCreateMonitoringAction,
       createRuntimeTask: mockCreateRuntimeTask,
+      generateCarePlanTasks: mockGenerateCarePlanTasks,
     })),
   };
 });
@@ -72,6 +76,7 @@ describe('TaskHttpController', () => {
   beforeEach(() => {
     mockCreateMonitoringAction.mockReset();
     mockCreateRuntimeTask.mockReset();
+    mockGenerateCarePlanTasks.mockReset();
   });
 
   it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
@@ -223,5 +228,67 @@ describe('TaskHttpController', () => {
       code: 'INTERNAL_ERROR',
     });
     expect(mockCreateRuntimeTask).not.toHaveBeenCalled();
+  });
+
+  it('handleGenerateCarePlanTasks returns batch results on success', async () => {
+    const c = new TaskHttpController();
+    const record = minimalTaskMetaRecord({
+      runtimeTaskSource: 'carePlanTaskLinkage',
+      carePlanTaskLinkageId: 'link-1',
+    });
+    const serviceResult = {
+      results: [
+        {
+          runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+          outcome: 'created' as const,
+          task: { runtimeTaskInstanceId: record.runtimeTaskInstanceId },
+        },
+      ],
+    };
+    mockGenerateCarePlanTasks.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGenerateCarePlanTasks: {
+        orgId: 'org-1',
+        createdBy: 'system:care-plan-runtime:care-plan-runtime',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
+        body: {
+          patientId: 'pat-1',
+          carePlanInstanceId: 'cp-1',
+          taskGenerationTrigger: 'carePlanStageEntered',
+          actorType: 'system',
+          actorId: 'care-plan-runtime',
+          sourceLinkageContext: {
+            linkages: [
+              {
+                carePlanTaskLinkageId: 'link-1',
+                taskBehaviorCode: 'EDUCATION_VIDEO',
+                taskDisplayGroup: 'learning',
+                displayTitle: 'Watch video',
+                assignedToType: 'patient',
+                displayToPatient: true,
+                dueWindowStart: Date.parse('2026-06-04T10:00:00.000Z'),
+                dueWindowEnd: Date.parse('2026-06-04T22:00:00.000Z'),
+              },
+            ],
+          },
+        },
+      },
+    } as any);
+
+    const out = await c.handleGenerateCarePlanTasks(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockGenerateCarePlanTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleGenerateCarePlanTasks throws 500 when validatedGenerateCarePlanTasks missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleGenerateCarePlanTasks(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockGenerateCarePlanTasks).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,9 @@ export interface TaskMetaDdbRecord {
   runtimeTaskInstanceId: string;
   runtimeTaskSource: RuntimeTaskSource;
   carePlanInstanceId?: string;
+  carePlanTaskLinkageId?: string;
+  sourceTaskTemplateVersionId?: string;
+  taskGenerationTrigger?: string;
   monitoringInstanceId?: string;
   taskBehaviorCode: TaskBehaviorCode;
   taskDisplayGroup: TaskDisplayGroup;

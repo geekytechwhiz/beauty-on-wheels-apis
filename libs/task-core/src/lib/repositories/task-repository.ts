@@ -4,10 +4,12 @@ import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import { TASK_LOOKUP_SK } from '../constants/task.constants';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
+import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type { TaskLookupDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
+import { buildCarePlanTaskKeys } from '../utils/monitoring-idempotency';
 import {
   buildDeterministicRuntimeTaskInstanceId,
   buildMonitoringIdempotencyKey,
@@ -62,6 +64,72 @@ export class TaskRepository extends BaseRepository {
     const metaPut = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
     const lookupPut = TaskEntityBuilder.buildMonitoringLookupRecord(ctx);
     const histPut = TaskEntityBuilder.buildMonitoringCreateHistRecord(ctx);
+
+    try {
+      await this.transactWrite({
+        TransactItems: [
+          {
+            Put: {
+              TableName: table,
+              Item: metaPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+          {
+            Put: {
+              TableName: table,
+              Item: lookupPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+          {
+            Put: {
+              TableName: table,
+              Item: histPut as unknown as Record<string, unknown>,
+              ConditionExpression: 'attribute_not_exists(sk)',
+            },
+          },
+        ],
+      });
+
+      return metaPut;
+    } catch (err: unknown) {
+      if (isMetaConditionalFailure(err)) {
+        throw new DuplicateTaskError(runtimeTaskInstanceId);
+      }
+      throw err;
+    }
+  }
+
+  buildCarePlanTaskKeys(input: CreateCarePlanTaskRequest): {
+    idempotencyKey: string;
+    runtimeTaskInstanceId: string;
+    generationHash: string;
+  } {
+    return buildCarePlanTaskKeys(input);
+  }
+
+  async resolveCarePlanNaturalKey(
+    runtimeTaskInstanceId: string,
+    organizationId: string,
+  ): Promise<TaskMetaDdbRecord | 'missing' | 'foreign_org'> {
+    return this.resolveMonitoringNaturalKey(runtimeTaskInstanceId, organizationId);
+  }
+
+  async createCarePlanTask(input: CreateCarePlanTaskRequest): Promise<TaskMetaDdbRecord> {
+    const table = assertTaskTable();
+    const { idempotencyKey, runtimeTaskInstanceId, generationHash } = this.buildCarePlanTaskKeys(input);
+
+    const ctx = TaskEntityBuilder.buildCarePlanTaskCreateContext({
+      runtimeTaskInstanceId,
+      idempotencyKey,
+      generationHash,
+      input,
+    });
+
+    const metaPut = TaskEntityBuilder.buildCarePlanMetaRecord(ctx);
+    const lookupPut = TaskEntityBuilder.buildCarePlanLookupRecord(ctx);
+    const histPut = TaskEntityBuilder.buildCarePlanCreateHistRecord(ctx);
 
     try {
       await this.transactWrite({

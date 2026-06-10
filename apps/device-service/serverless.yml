@@ -10,7 +10,9 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger 
+  - serverless-auto-swagger
+  # ESM entry — package name resolves to index.cjs which breaks on Node 22 (ERR_REQUIRE_ESM).
+  - ./node_modules/serverless-offline/src/index.js
 
 provider:
   name: aws
@@ -179,6 +181,13 @@ custom:
     dev: debug
     stg: info
     prd: warn
+
+  dotenv:
+    logging: false
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
 
 functions:
   health:

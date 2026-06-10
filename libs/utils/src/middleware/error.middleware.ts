@@ -18,6 +18,7 @@ const ERROR_TITLES: Record<string, string> = {
   FORBIDDEN:                          'Access denied',
   RESOURCE_NOT_FOUND:                 'Resource not found',
   NOT_FOUND:                          'Not found',
+  DEVICE_NOT_FOUND:                   'Device not found',
   CONFLICT:                           'Conflict',
   VALIDATION_ERROR:                   'Validation error',
   INTERNAL_SERVER_ERROR:              'Internal server error',

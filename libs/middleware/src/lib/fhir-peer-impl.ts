@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import type { APIGatewayProxyResult } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
 
@@ -11,7 +12,7 @@ import {
   transformFhirRequest,
   transformToFhirResponse,
   type FhirHandlerOptions,
-} from '@api-hub/fhir/middleware';
+} from '@api-hub/fhir';
 
 import type { FhirPeerModule } from './fhir-peer'; 
 

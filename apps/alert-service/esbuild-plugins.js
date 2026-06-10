@@ -13,6 +13,7 @@ module.exports = [
         '@api-hub/alert-core': resolve(workspaceRoot, 'libs/alert-core/src/index.ts'),
         '@api-hub/event-platform': resolve(workspaceRoot, 'libs/event-platform/src/index.ts'),
         '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
+        '@api-hub/fhir-validator': resolve(workspaceRoot, 'libs/fhir-validator/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
         '@api-hub/terminology': resolve(workspaceRoot, 'libs/terminology/src/index.ts'),
       };

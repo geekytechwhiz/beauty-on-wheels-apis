@@ -19,6 +19,8 @@ import type {
 import { loadFhirPeer, type FhirHandlerOptions } from './fhir-peer';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
+import { getFhirValidator } from '@api-hub/fhir-validator';
+import { FhirValidationError } from '@api-hub/fhir-validator';
 
 const baseLogger = createLogger({
   service: 'api-service',
@@ -163,6 +165,18 @@ export function withApiHandler<
         options.fhir,
         req,
       );
+      console.debug('fhirBundle', fhirBundle);
+      console.debug('options.fhir?.validation?.enabled', options.fhir?.validation?.enabled);
+     if (options.fhir?.validation?.enabled && fhirBundle) {
+       const validator = getFhirValidator();
+
+       const validationResult = validator.validate(fhirBundle);
+
+       if (!validationResult.valid) {
+         throw new FhirValidationError(validationResult.issues);
+       }
+       console.debug('validationResult', validationResult);
+     }
 
       if (fhirBundle) {
         return successResponse(result, undefined, {

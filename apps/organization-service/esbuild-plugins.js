@@ -17,6 +17,7 @@ module.exports = [
         '@api-hub/observability': resolve(workspaceRoot, 'libs/observability/src/index.ts'),
         '@api-hub/utils': resolve(workspaceRoot, 'libs/utils/src/index.ts'),
         '@api-hub/middleware': resolve(workspaceRoot, 'libs/middleware/src/index.ts'),
+        '@api-hub/fhir-validator': resolve(workspaceRoot, 'libs/fhir-validator/src/index.ts'),
         '@api-hub/fhir': resolve(workspaceRoot, 'libs/fhir/src/index.ts'),
         '@api-hub/fhir/middleware': resolve(workspaceRoot, 'libs/fhir/src/middleware/index.ts'),
         '@api-hub/service-clients': resolve(workspaceRoot, 'libs/service-clients/src/index.ts'),

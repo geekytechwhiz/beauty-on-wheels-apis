@@ -7,22 +7,22 @@ export type ResourceConfig = {
   
     validation: any;
   
-    detection: any;
+    detection?: any;
   
-    mapping: any;
+    mapping?: any;
   
-    aliases: any;
+    aliases?: any;
   
-    references: any[];
+    references?: any[];
   
-    extensions: any[];
+    extensions?: any[];
   
-    transformers: any[];
+    transformers?: any[];
   
-    clientOverrides: boolean;
+    clientOverrides?: boolean;
   
-    metadata: any;
-    fields: MappingField[];
+    metadata?: any;
+    fields?: MappingField[];
   }
  
   export interface ValidationConfig{
@@ -80,7 +80,12 @@ export interface FhirTransformationConfig {
   | 'reference'
   | 'identifier'
   | 'coding'
-  | 'extension';
+  | 'extension'
+  | 'code'
+  | 'literal'
+  | 'uri'
+  | 'url'
+  | 'xhtml';
 
 export interface TransformConfig {
   name:

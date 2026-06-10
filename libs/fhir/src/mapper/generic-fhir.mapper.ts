@@ -38,7 +38,7 @@ export class GenericMapper {
       resourceType: mapping.resource,
     };
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       this.applyFieldMapping(resource, canonical, field);
     }
 
@@ -62,7 +62,7 @@ export class GenericMapper {
   mapHybrid(canonical: AnyObject, mapping: ResourceMappingConfig): AnyObject {
     const hybrid = structuredClone(canonical) as AnyObject;
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       this.applyFieldMapping(hybrid, canonical, field);
     }
 
@@ -91,7 +91,7 @@ export class GenericMapper {
   reverseMap(resource: AnyObject, mapping: ResourceMappingConfig): AnyObject {
     const canonical: AnyObject = {};
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       let value = objectPath.get(resource, field.target);
 
       if (value === undefined) {

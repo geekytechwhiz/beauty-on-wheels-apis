@@ -18,12 +18,12 @@ export function mergeMappings(
   const mergedFields: MappingField[] = [];
   const seenTargets = new Set<string>();
 
-  for (const field of base.fields) {
+  for (const field of base.fields ?? []) {
     mergedFields.push(overridesByTarget.get(field.target) ?? field);
     seenTargets.add(field.target);
   }
 
-  for (const field of clientOverride.fields) {
+  for (const field of clientOverride.fields ?? []) {
     if (!seenTargets.has(field.target)) {
       mergedFields.push(field);
       seenTargets.add(field.target);

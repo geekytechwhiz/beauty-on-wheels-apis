@@ -399,3 +399,31 @@ describe('TemplateService.listMasterTemplates', () => {
     expect(page2.pagination.nextToken).toBeUndefined();
   });
 });
+
+describe('TemplateService.listPublishedMasterCatalogItems', () => {
+  let spy: jest.SpyInstance;
+
+  afterEach(() => spy?.mockRestore());
+
+  it('loads filter catalog from GSI2 published rows only', async () => {
+    spy = jest
+      .spyOn(TemplateRepository.prototype, 'listPublishedMasterCatalogRows')
+      .mockResolvedValue([
+        masterRow({
+          code: 'TASK-MONITORING-MASTER',
+          status: 'PUBLISHED',
+          condition: 'Diabetes',
+          scope: 'Organization',
+          name: 'Record Blood Pressure (updated)',
+        }),
+        masterRow({ code: 'DRAFT-ONLY', status: 'DRAFT', condition: 'Asthma', scope: 'Private' }),
+      ]);
+
+    const items = await new TemplateService().listPublishedMasterCatalogItems();
+
+    expect(spy).toHaveBeenCalledWith({});
+    expect(items).toHaveLength(1);
+    expect(items[0].templateId).toBe('TASK-MONITORING-MASTER');
+    expect(items[0].status).toBe('PUBLISHED');
+  });
+});

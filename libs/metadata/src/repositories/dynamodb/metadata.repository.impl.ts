@@ -4,6 +4,7 @@ import {
   GetCommand,
   QueryCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { monotonicFactory } from 'ulid';
 
@@ -24,6 +25,8 @@ import type {
   Status,
   ValueSearchFilter,
 } from '../../models/types';
+import type { ChangeRequestRecord } from '../../models/change-request.types';
+import { CHANGE_REQUEST_STATUS } from '../../models/change-request.types';
 import { ConflictError, NotFoundError } from '../../domain/errors';
 import {
   auditTypePartitionKey,
@@ -535,6 +538,71 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     return record;
   }
 
+  async updateMetadataTypeInPlace(
+    input: MetadataTypeInput,
+    actor: string | undefined,
+    existing: MetadataTypeRecord,
+  ): Promise<MetadataTypeRecord> {
+    const pk = typePartitionKey(input.metadataTypeCode);
+    const version = existing.version;
+    const now = new Date().toISOString();
+
+    const resolvedAttributeSchema = resolveAttributeSchemaForMetadataType(
+      input.metadataTypeCode,
+      input.attributeSchema,
+    );
+
+    const supportsRelations = Boolean(input.supportsRelations);
+    const record: MetadataTypeRecord = {
+      metadataTypeCode: input.metadataTypeCode,
+      version,
+      displayName: input.displayName!,
+      description: input.description,
+      valueDataType: input.valueDataType as MetadataTypeRecord['valueDataType'],
+      multiSelectAllowed: input.multiSelectAllowed!,
+      applicableModules: input.applicableModules ?? [],
+      supportsRelations,
+      relationFieldLabel: supportsRelations ? String(input.relationFieldLabel ?? '').trim() : null,
+      targetMetadataTypeCode: supportsRelations ? String(input.targetMetadataTypeCode ?? '').trim() : null,
+      selectionMode: supportsRelations ? input.selectionMode ?? null : null,
+      relationRequired: supportsRelations ? input.relationRequired ?? null : null,
+      relationType: supportsRelations ? input.relationType ?? null : null,
+      valueApplicabilityConfig: input.valueApplicabilityConfig,
+      attributeSchema: resolvedAttributeSchema,
+      status: input.status!,
+      createdAt: existing.createdAt,
+      createdBy: existing.createdBy ?? input.createdBy,
+      lastModifiedAt: now,
+      lastModifiedBy: input.lastModifiedBy ?? actor ?? existing.lastModifiedBy,
+    };
+
+    const typeItem = this.marshalType(record, pk, typeEntitySk(version));
+    const schemaUnchanged =
+      JSON.stringify(existing.attributeSchema ?? null) === JSON.stringify(resolvedAttributeSchema ?? null);
+    const schemaItem =
+      !schemaUnchanged && resolvedAttributeSchema !== undefined
+        ? this.metadataSchemaPutItem(input.metadataTypeCode, pk, version, resolvedAttributeSchema)
+        : null;
+
+    await this.sendTx([
+      { Put: { TableName: this.tableName, Item: typeItem } },
+      ...(schemaItem ? [{ Put: { TableName: this.tableName, Item: schemaItem } }] : []),
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: this.buildMetadataTypeAuditItem(auditTypePartitionKey(input.metadataTypeCode), {
+            action: 'UPDATE',
+            changedBy: actor,
+            timestamp: now,
+            ...getMetadataTypeDelta(existing, record),
+          }),
+        },
+      },
+    ]);
+
+    return record;
+  }
+
   async patchMetadataTypeStatus(metadataTypeCode: string, status: Status, actor?: string): Promise<MetadataTypeRecord> {
     const existing = await this.getMetadataType(metadataTypeCode);
     if (!existing) {
@@ -795,6 +863,73 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
     ]);
 
     await this.syncApplRows(pk, existing.applSkKeys, record.applSkKeys, metadataTypeCode, input.valueCode);
+    return record;
+  }
+
+  async updateMetadataValueInPlace(
+    metadataTypeCode: string,
+    input: MetadataValueInput,
+    actor: string | undefined,
+    existing: MetadataValueRecord,
+    options: { syncApplicability: boolean },
+  ): Promise<MetadataValueRecord> {
+    if (existing.status === STATUS.DELETED) {
+      throw new ConflictError(`Value ${input.valueCode} has been deleted`, 'VALUE_ALREADY_DELETED');
+    }
+    const mergedIsGlobal = input.isGlobal ?? existing.isGlobal;
+    const pk = typePartitionKey(metadataTypeCode);
+    const version = existing.version;
+    const now = new Date().toISOString();
+    const status = input.status as Status;
+    const isGlobal = mergedIsGlobal;
+    const attributes = input.attributes !== undefined ? input.attributes : existing.attributes;
+    const description = input.description !== undefined ? input.description : existing.description;
+    const sortOrder = input.sortOrder !== undefined ? input.sortOrder : existing.sortOrder;
+    const applicability = options.syncApplicability ? input.applicability : existing.applicability;
+    const applSkKeys = options.syncApplicability
+      ? isGlobal
+        ? []
+        : buildApplSortKeys(input.valueCode, input.applicability)
+      : existing.applSkKeys;
+
+    const record: MetadataValueRecord = {
+      ...existing,
+      version,
+      label: input.label,
+      description,
+      sortOrder: sortOrder ?? 0,
+      status,
+      isGlobal,
+      attributes: attributes ?? {},
+      applicability,
+      applSkKeys,
+      lastModifiedAt: now,
+      lastModifiedBy: actor,
+    };
+
+    const valueItem = this.marshalValue(record, pk, valueSk(input.valueCode, version));
+    const { da, di } = this.valueCountDeltasOnStatusChange(existing.status, record.status);
+    const ctr = this.valueCounterDeltaTransact(metadataTypeCode, da, di);
+    await this.sendTx([
+      { Put: { TableName: this.tableName, Item: valueItem } },
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: this.buildMetadataValueAuditItem(auditValuePartitionKey(input.valueCode), {
+            action: resolveValueUpdateAction(metadataTypeCode, existing, record),
+            changedBy: actor,
+            timestamp: now,
+            ...getMetadataValueDelta(existing, record),
+          }),
+        },
+      },
+      ...(ctr ? [ctr] : []),
+    ]);
+
+    if (options.syncApplicability) {
+      await this.syncApplRows(pk, existing.applSkKeys, record.applSkKeys, metadataTypeCode, input.valueCode);
+    }
+
     return record;
   }
 
@@ -1498,6 +1633,301 @@ export class DynamoDbMetadataRegistryRepository implements IMetadataRegistryRepo
       timestamp,
       before: item.before,
       after: item.after,
+    };
+  }
+
+  async getChangeRequestDraftPointer(
+    metadataTypeCode: string,
+    entityType: 'type' | 'value',
+    metadataValueCode?: string,
+  ): Promise<{ changeRequestId: string } | null> {
+    const pointerPk = typePartitionKey(metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(entityType, metadataValueCode);
+    const item = await this.getItem(pointerPk, pointerSk);
+    if (!item) {
+      return null;
+    }
+    const id = item.changeRequestId;
+    if (typeof id !== 'string' || id.trim() === '') {
+      return null;
+    }
+    return { changeRequestId: id.trim() };
+  }
+
+  async saveChangeRequestDraft(record: ChangeRequestRecord): Promise<ChangeRequestRecord> {
+    const pointerPk = typePartitionKey(record.metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const existingPointer = await this.getChangeRequestDraftPointer(
+      record.metadataTypeCode,
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const previousDraftId = existingPointer?.changeRequestId ?? null;
+
+    const draftPk = MetadataKeyBuilder.changeRequestPartitionKey(record.changeRequestId);
+    const draftSk = MetadataKeyBuilder.changeRequestMetaSortKey();
+    const draftItem = this.marshalChangeRequest(record, draftPk, draftSk);
+
+    const pointerItem: Record<string, unknown> = {
+      ...this.key(pointerPk, pointerSk),
+      entityType: ENTITY_TYPE.CHANGE_REQUEST_DRAFT_POINTER,
+      changeRequestId: record.changeRequestId,
+      draftEntityType: record.entityType,
+      metadataTypeCode: record.metadataTypeCode,
+    };
+    if (record.metadataValueCode) {
+      pointerItem.metadataValueCode = record.metadataValueCode;
+    }
+
+    const transactItems: unknown[] = [];
+
+    if (previousDraftId && previousDraftId !== record.changeRequestId) {
+      const oldDraft = await this.getChangeRequestRecord(previousDraftId);
+      if (oldDraft?.status === CHANGE_REQUEST_STATUS.DRAFT) {
+        transactItems.push({
+          Update: {
+            TableName: this.tableName,
+            Key: this.key(
+              MetadataKeyBuilder.changeRequestPartitionKey(previousDraftId),
+              MetadataKeyBuilder.changeRequestMetaSortKey(),
+            ),
+            UpdateExpression: 'SET #status = :cancelled, #modified = :now',
+            ConditionExpression: '#status = :draft',
+            ExpressionAttributeNames: {
+              '#status': 'status',
+              '#modified': 'lastModifiedAt',
+            },
+            ExpressionAttributeValues: {
+              ':cancelled': CHANGE_REQUEST_STATUS.CANCELLED,
+              ':draft': CHANGE_REQUEST_STATUS.DRAFT,
+              ':now': record.lastModifiedAt,
+            },
+          },
+        });
+      }
+    }
+
+    transactItems.push({ Put: { TableName: this.tableName, Item: draftItem } });
+    transactItems.push({ Put: { TableName: this.tableName, Item: pointerItem } });
+    await this.sendTx(transactItems);
+    return record;
+  }
+
+  async getChangeRequest(changeRequestId: string): Promise<ChangeRequestRecord | null> {
+    return this.getChangeRequestRecord(changeRequestId);
+  }
+
+  async markChangeRequestPublished(
+    changeRequestId: string,
+    params: { actor?: string; publishedAt: string },
+  ): Promise<ChangeRequestRecord> {
+    const existing = await this.getChangeRequestRecord(changeRequestId);
+    if (!existing) {
+      throw new NotFoundError(`Change request ${changeRequestId} not found`);
+    }
+    if (existing.status !== CHANGE_REQUEST_STATUS.DRAFT) {
+      throw new ConflictError(
+        `Change request ${changeRequestId} is not in DRAFT status`,
+        'CHANGE_REQUEST_NOT_DRAFT',
+      );
+    }
+
+    const changeRevision = await this.reserveNextChangeRevision();
+
+    const record: ChangeRequestRecord = {
+      ...existing,
+      status: CHANGE_REQUEST_STATUS.PUBLISHED,
+      changeRevision,
+      publishedAt: params.publishedAt,
+      lastModifiedAt: params.publishedAt,
+      lastModifiedBy: params.actor ?? existing.lastModifiedBy,
+    };
+
+    const draftPk = MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId);
+    const draftSk = MetadataKeyBuilder.changeRequestMetaSortKey();
+    const pointerPk = typePartitionKey(record.metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(
+      record.entityType,
+      record.metadataValueCode,
+    );
+
+    await this.sendTx([
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: this.marshalChangeRequest(record, draftPk, draftSk),
+        },
+      },
+      {
+        Delete: {
+          TableName: this.tableName,
+          Key: this.key(pointerPk, pointerSk),
+        },
+      },
+    ]);
+
+    return record;
+  }
+
+  async cancelChangeRequest(
+    changeRequestId: string,
+    params: { actor?: string; cancelledAt: string },
+  ): Promise<ChangeRequestRecord> {
+    const existing = await this.getChangeRequestRecord(changeRequestId);
+    if (!existing) {
+      throw new NotFoundError(`Change request ${changeRequestId} not found`);
+    }
+    if (existing.status !== CHANGE_REQUEST_STATUS.DRAFT) {
+      throw new ConflictError(
+        `Change request ${changeRequestId} is not in DRAFT status`,
+        'CHANGE_REQUEST_NOT_DRAFT',
+      );
+    }
+
+    const actor = params.actor;
+    const record: ChangeRequestRecord = {
+      ...existing,
+      status: CHANGE_REQUEST_STATUS.CANCELLED,
+      cancelledAt: params.cancelledAt,
+      cancelledBy: actor,
+      lastModifiedAt: params.cancelledAt,
+      lastModifiedBy: actor ?? existing.lastModifiedBy,
+    };
+
+    const draftPk = MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId);
+    const draftSk = MetadataKeyBuilder.changeRequestMetaSortKey();
+    const pointerPk = typePartitionKey(record.metadataTypeCode);
+    const pointerSk = MetadataKeyBuilder.changeRequestDraftPointerSortKey(
+      record.entityType,
+      record.metadataValueCode,
+    );
+    const activePointer = await this.getChangeRequestDraftPointer(
+      record.metadataTypeCode,
+      record.entityType,
+      record.metadataValueCode,
+    );
+
+    const transactItems: unknown[] = [
+      {
+        Put: {
+          TableName: this.tableName,
+          Item: this.marshalChangeRequest(record, draftPk, draftSk),
+        },
+      },
+    ];
+
+    if (activePointer?.changeRequestId === changeRequestId) {
+      transactItems.push({
+        Delete: {
+          TableName: this.tableName,
+          Key: this.key(pointerPk, pointerSk),
+        },
+      });
+    }
+
+    await this.sendTx(transactItems);
+    return record;
+  }
+  /** Atomically increments and returns the next global ChangeRevision counter. */
+  private async reserveNextChangeRevision(): Promise<number> {
+    const pk = MetadataKeyBuilder.changeRevisionCounterPartitionKey();
+    const sk = MetadataKeyBuilder.changeRevisionCounterSortKey();
+    try {
+      const res = (await this.doc.send(
+        new UpdateCommand({
+          TableName: this.tableName,
+          Key: this.key(pk, sk),
+          UpdateExpression:
+            'SET #entityType = if_not_exists(#entityType, :entityType), #rev = if_not_exists(#rev, :zero) + :inc',
+          ExpressionAttributeNames: {
+            '#entityType': 'entityType',
+            '#rev': 'changeRevision',
+          },
+          ExpressionAttributeValues: {
+            ':entityType': ENTITY_TYPE.CHANGE_REVISION_COUNTER,
+            ':zero': 0,
+            ':inc': 1,
+          },
+          ReturnValues: 'UPDATED_NEW',
+        }),
+      )) as { Attributes?: Record<string, unknown> };
+      const rev = res.Attributes?.changeRevision;
+      if (rev === undefined || rev === null) {
+        throw new Error('Failed to reserve ChangeRevision');
+      }
+      return Number(rev);
+    } catch (e: unknown) {
+      this.rethrowDynamo('UpdateItem (ChangeRevision)', e);
+    }
+  }
+
+  private async getChangeRequestRecord(changeRequestId: string): Promise<ChangeRequestRecord | null> {
+    const item = await this.getItem(
+      MetadataKeyBuilder.changeRequestPartitionKey(changeRequestId),
+      MetadataKeyBuilder.changeRequestMetaSortKey(),
+    );
+    if (!item) {
+      return null;
+    }
+    return this.unmarshalChangeRequest(item);
+  }
+
+  private marshalChangeRequest(
+    record: ChangeRequestRecord,
+    pk: string,
+    sk: string,
+  ): Record<string, unknown> {
+    return {
+      ...this.key(pk, sk),
+      entityType: ENTITY_TYPE.CHANGE_REQUEST,
+      changeRequestId: record.changeRequestId,
+      status: record.status,
+      draftEntityType: record.entityType,
+      operation: record.operation,
+      metadataTypeCode: record.metadataTypeCode,
+      ...(record.metadataValueCode ? { metadataValueCode: record.metadataValueCode } : {}),
+      baseVersion: record.baseVersion,
+      proposedPayload: record.proposedPayload,
+      createdAt: record.createdAt,
+      createdBy: record.createdBy,
+      lastModifiedAt: record.lastModifiedAt,
+      lastModifiedBy: record.lastModifiedBy,
+      ...(record.cancelledAt ? { cancelledAt: record.cancelledAt } : {}),
+      ...(record.cancelledBy ? { cancelledBy: record.cancelledBy } : {}),
+      ...(record.changeRevision !== undefined ? { changeRevision: record.changeRevision } : {}),
+      ...(record.publishedAt ? { publishedAt: record.publishedAt } : {}),
+    };
+  }
+
+  private unmarshalChangeRequest(item: Record<string, unknown>): ChangeRequestRecord {
+    const entityType = item.draftEntityType === 'value' ? 'value' : 'type';
+    const baseVersion = item.baseVersion;
+    return {
+      changeRequestId: String(item.changeRequestId),
+      status: item.status as ChangeRequestRecord['status'],
+      entityType,
+      operation: item.operation as ChangeRequestRecord['operation'],
+      metadataTypeCode: String(item.metadataTypeCode),
+      metadataValueCode:
+        item.metadataValueCode !== undefined && item.metadataValueCode !== null
+          ? String(item.metadataValueCode)
+          : undefined,
+      baseVersion: baseVersion === null || baseVersion === undefined ? null : Number(baseVersion),
+      proposedPayload: (item.proposedPayload as Record<string, unknown>) ?? {},
+      createdAt: String(item.createdAt),
+      createdBy: item.createdBy !== undefined ? String(item.createdBy) : undefined,
+      lastModifiedAt: String(item.lastModifiedAt),
+      lastModifiedBy: item.lastModifiedBy !== undefined ? String(item.lastModifiedBy) : undefined,
+      ...(item.cancelledAt !== undefined ? { cancelledAt: String(item.cancelledAt) } : {}),
+      ...(item.cancelledBy !== undefined ? { cancelledBy: String(item.cancelledBy) } : {}),
+      changeRevision:
+        item.changeRevision !== undefined && item.changeRevision !== null
+          ? Number(item.changeRevision)
+          : undefined,
+      publishedAt: item.publishedAt !== undefined ? String(item.publishedAt) : undefined,
     };
   }
 }

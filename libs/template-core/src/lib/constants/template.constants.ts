@@ -27,6 +27,18 @@ export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
 
+/** Template types queried on GSI2 for published master catalog / org enablement filterOptions. */
+export const MASTER_CATALOG_TEMPLATE_TYPES = [
+  'ALERT',
+  'ALERT_POLICY',
+  'CARE_PLAN',
+  'GOAL',
+  'MONITORING',
+  'SYMPTOM',
+  'TASK',
+  'THRESHOLD',
+] as const;
+
 /** Visibility for master templates (API accepts Private | Organization | Public). */
 export const SHARE_SCOPE = {
   PRIVATE: 'PRIVATE',

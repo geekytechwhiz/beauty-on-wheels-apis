@@ -104,5 +104,14 @@ apps/metadata-registry-service/*.zip
 apps/metadata-registry-service/.esbuild/
 apps/alert-service/.esbuild/
 apps/alert-service/swagger/
+apps/task-service/.esbuild/
+apps/task-service/swagger/
+apps/task-service.zip
+apps/task-service/*.zip
+apps/task-service/.env
 apps/template-service/.esbuild/
 apps/template-service/swagger/
+
+.nx/polygraph
+.claude/worktrees
+.claude/settings.local.json

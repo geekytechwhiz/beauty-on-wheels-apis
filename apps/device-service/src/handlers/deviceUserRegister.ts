@@ -38,6 +38,7 @@ const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
   const userContext = extractUserContext({
     authorizer: (evt.requestContext as { authorizer?: unknown })?.authorizer,
     body,
+    event: evt,
   });
 
   const validationPayload = {
@@ -78,4 +79,4 @@ const deviceUserRegisterImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.userRegister' }, deviceUserRegisterImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.userRegister' }, deviceUserRegisterImpl);

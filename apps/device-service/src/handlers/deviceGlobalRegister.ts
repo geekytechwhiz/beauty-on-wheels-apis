@@ -129,4 +129,4 @@ const deviceGlobalRegisterImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.globalRegister' }, deviceGlobalRegisterImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.globalRegister' }, deviceGlobalRegisterImpl);

@@ -2,6 +2,20 @@
 name: dynamodb-query
 description: Generates DynamoDB repository queries and commands for api-hub using BaseRepository, @aws-sdk/lib-dynamodb, key builders, and GSI patterns. Use when implementing get/query/batch, pagination, filters, repository methods, or translating access patterns to KeyConditionExpression.
 ---
+## Access Pattern First
+
+Repositories must be designed from access patterns,
+not from entity models.
+
+Before generating a query:
+
+1. Identify the access pattern.
+2. Identify the matching PK/SK or GSI.
+3. Build keys using KeyBuilder.
+4. Use Query/Get/BatchGet.
+5. Only use FilterExpression for non-key attributes when unavoidable.
+
+Do not emulate SQL WHERE clauses using DynamoDB filters.
 
 # DynamoDB Query — api-hub
 

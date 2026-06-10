@@ -1,6 +1,6 @@
 {
   "name": "@myvitalrx/fhir-wrapper",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "description": "MyVitalRx FHIR R4 transformation, mapping, validation, and withApiHandler middleware",
   "license": "UNLICENSED",
   "type": "module",
@@ -33,7 +33,7 @@
     "build": "tsup && sh scripts/copy-lib-dts.sh",
     "build:bundle": "tsup",
     "prepublishOnly": "pnpm run build",
-    "publish": "pnpm run build && npm publish --access public --userconfig=../../.npmrc"
+    "publish": "pnpm run build && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "dependencies": {
     "@ahryman40k/ts-fhir-types": "^4.0.39",

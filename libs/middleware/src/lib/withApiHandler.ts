@@ -33,6 +33,7 @@ type RequestValidator = (
 ) => void | Promise<void>;
 export type withApiHandlerOptions = {
   operation: string;
+
   /** Validates the full Lambda/API Gateway `event` (runs in HTTP schema middleware). */
   schema?: z.ZodType<unknown>;
   /**
@@ -49,6 +50,8 @@ export type withApiHandlerOptions = {
    * while preserving the canonical handler payload in `data`.
    */
   fhir?: FhirHandlerOptions;
+  
+  useLegacyResponseFormat?: boolean;
 };
 
 function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
@@ -169,9 +172,13 @@ export function withApiHandler<
       }
     }
 
-    return successResponse(result, undefined, {
-      correlationId: correlationIdFromContext,
-    }) as TResult;
+    if (options.useLegacyResponseFormat) {
+      return result;
+    } else {
+      return successResponse(result, undefined, {
+        correlationId: correlationIdFromContext,
+      }) as TResult;
+    }
   };
 
   return runMiddlewares(stack, adaptedHandler);

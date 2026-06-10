@@ -23,6 +23,13 @@ import {
 import { listOrganizationUsersPostSchema } from './listOrganizationUsersPost.validation';
 import { fetchFriendFamilySchema, addMemberFriendFamilySchema, updateFriendFamilySchema, deleteFriendFamilySchema, friendFamilySearchSchema } from './friendFamily.validation';
 import { v2UserListSchema } from './v2-user-list.validation';
+import { logCreateUserValidationFailure } from './create-user-validation-log';
+import { createChildLogger, createLogger } from '@api-hub/observability';
+
+const createUserValidationLogger = createLogger({
+  service: 'user-service',
+  redactPII: true,
+});
 
 function throwVal(message: string, statusCode = 400, code = 'VALIDATION_ERROR', details?: Array<{ field?: string; message: string }>) {
   const err: any = new Error(message);
@@ -416,9 +423,52 @@ export function validateUpdateUser(req: any) {
 
 export function validateAssignDoctor(req: any) {
   const body = req?.body ?? {};
+  const headers = req?.event?.headers ?? {};
+  const headerOrg =
+    headers['x-organization-id'] ?? headers['X-Organization-Id'] ?? headers['x-organizationid'] ?? headers['X-OrganizationId'];
   const organizationId =
-    body.organizationId ?? req?.context?.userContext?.organizationId;
-  const payload = { ...body, organizationId };
+    body.organizationId ?? req?.context?.userContext?.organizationId ?? headerOrg;
+  const payload: any = { ...body, organizationId };
+  function extractRefId(obj: any): string | undefined {
+    if (!obj) return undefined;
+    if (typeof obj === 'string' && obj.trim() !== '') return obj.trim().split('/').pop();
+    if (obj.reference && typeof obj.reference === 'string') return obj.reference.trim().split('/').pop();
+    if (obj.id && typeof obj.id === 'string') return obj.id.trim();
+    return undefined;
+  }
+
+  // Normalize FHIR-style sender/recipient/subject references into expected payload
+  if ((!payload.sender || !payload.sender.userId) && body.sender) {
+    const sid = extractRefId(body.sender);
+    if (sid) {
+      payload.sender = {
+        userId: sid,
+        name: body.sender.display ?? (body.sender.name || undefined),
+        email: body.sender.email ?? undefined,
+      };
+    }
+  }
+
+  if ((!payload.receiver || !payload.receiver.userId) && Array.isArray(body.recipient) && body.recipient.length > 0) {
+    const rec = body.recipient[0];
+    const rid = extractRefId(rec);
+    if (rid) {
+      payload.receiver = {
+        userId: rid,
+        name: rec.display ?? undefined,
+      };
+    }
+  }
+
+  if ((!payload.receiver || !payload.receiver.userId) && body.subject) {
+    const sid = extractRefId(body.subject);
+    if (sid) {
+      payload.receiver = {
+        userId: sid,
+        name: body.subject.display ?? undefined,
+      };
+    }
+  }
   const result = assignDoctorSchema.safeParse(payload);
   if (!result.success) {
     const issues = result.error.issues.map((e) => ({
@@ -513,6 +563,24 @@ export function validateCreateUser(req: any) {
         }
       });
     }
+
+    const correlationId = req?.context?.correlationId ?? 'unknown';
+    const pipelineLogger = req?.context?.logger
+      ? createChildLogger(req.context.logger, {
+          correlationId,
+          operation: 'createUser',
+        })
+      : createChildLogger(createUserValidationLogger, {
+          correlationId,
+          operation: 'createUser',
+        });
+
+    logCreateUserValidationFailure(
+      req,
+      payload as Record<string, unknown>,
+      issues,
+      pipelineLogger,
+    );
 
     throwVal(
       issues[0]?.message ?? 'Validation failed',

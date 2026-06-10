@@ -1,6 +1,5 @@
 import { withApiHandler } from '@api-hub/middleware';
-import { Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
+import { createLogger, extractCorrelationId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { z } from 'zod';
@@ -32,18 +31,19 @@ const deviceRemoveSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-const deviceOrgRemoveImpl: any = async (event: any, context?: Context) => {
+const deviceOrgRemoveImpl: any = async (req: any) => {
+  const event = req.event ?? req;
   const startTime = Date.now();
-  const awsRequestId = context ? extractAwsRequestId(context) : 'local';
-  const correlationId = extractCorrelationId(event.headers);
+  const awsRequestId = req.context?.awsRequestId ?? 'local';
+  const correlationId = req.context?.correlationId ?? extractCorrelationId(event);
 
   const logger = createChildLogger(baseLogger, { awsRequestId, correlationId });
   logger.info({ event: 'deviceOrgRemove_received' });
 
-  // Parse body
+  // Parse body (withApiHandler pre-parses JSON on req.body)
   let body: unknown;
   try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body || {};
+    body = req.body ?? (typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body || {});
   } catch (err) {
     logger.error({ event: 'deviceOrgRemove_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;
@@ -144,8 +144,14 @@ async function removeDevicesFromOrganization(
     keepDeviceIds: Array.from(devicesToKeep)
   });
 
-  // Step 3: Identify devices to remove (current devices NOT in the payload)
-  const devicesToRemove = currentDevices.filter(device => !devicesToKeep.has(device.deviceId));
+  // Step 3: Identify devices to remove (current devices NOT in the payload).
+  // Skip NON-DEVICES (vitals-only placeholder) — same as deviceOrgAssign.
+  const devicesToRemove = currentDevices.filter(
+    (device) =>
+      device.sk !== 'NON-DEVICES' &&
+      Boolean(device.deviceId) &&
+      !devicesToKeep.has(device.deviceId),
+  );
   
   // console.log('=== DEVICES TO REMOVE ===');
   // console.log('Remove device count:', devicesToRemove.length);
@@ -188,6 +194,9 @@ async function removeDevicesFromOrganization(
   // Step 4: Remove devices that are not in the payload
   for (const device of devicesToRemove) {
     const deviceId = device.deviceId;
+    if (!deviceId) {
+      continue;
+    }
 
     try {
       logger.info({ event: 'device_removing_from_org', deviceId, orgId });
@@ -311,4 +320,4 @@ async function removeDevicesFromOrganization(
   );
 }
 
-export const handler = withApiHandler({ operation: 'device.orgRemove' }, deviceOrgRemoveImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.orgRemove' }, deviceOrgRemoveImpl);

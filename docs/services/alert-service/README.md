@@ -6,6 +6,7 @@ Deployable app under `apps/alert-service`: HTTP APIs for alert lifecycle (Server
 
 | Topic | Location |
 |--------|----------|
+| OpenAPI contract (source of truth) | [api/open-api.yaml](./api/open-api.yaml) |
 | DynamoDB access patterns & business views | [ALERT_SERVICE_DATABASE.md](./requirements/ALERT_SERVICE_DATABASE.md) |
 | API summary | This README |
 

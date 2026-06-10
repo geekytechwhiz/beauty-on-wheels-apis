@@ -1,0 +1,146 @@
+service: task-service
+
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-task-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  logRetentionInDays: 14
+
+  environment: ${file(./infra/environments/environment.yml)}
+
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    - ${file(./infra/permissions/dynamodb.yml)}
+    - ${file(./infra/permissions/xray.yml)}
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.test.ts'
+    - '!**/*.spec.ts'
+
+custom:
+  bundle: ${file(./infra/config/infra-custom.yml)}
+  cors: &httpApiCors
+    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Request-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
+
+  sourcemapsByStage:
+    dev: false
+    stg: false
+    prd: false
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node20
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    concurrency: 1
+    zipConcurrency: 1
+    plugins: esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+
+  autoswagger:
+    title: Task Service API
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+      - dev
+
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+functions:
+  health:
+    handler: src/handlers/http/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  createMonitoringAction:
+    handler: src/handlers/http/createMonitoringAction.main
+    events:
+      - http:
+          path: tasks/monitoring-action
+          method: post
+          bodyType: CreateMonitoringActionRequest
+          summary: Create a monitoring-generated runtime task (idempotent)
+          description: Called by Monitoring Runtime. Organization scope from JWT only.
+          cors: *httpApiCors
+          # authorizer:
+          #   name: common_authorizer
+          #   type: token
+          #   identitySource: method.request.header.Authorization
+          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+          #   resultTtlInSeconds: 0
+          responses:
+            "200": OK — created or SkippedDuplicate
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "409": Conflict (cross-org idempotency)
+            "422": Validation or business rule error
+            "500": Server error
+
+resources:
+  - ${file(./infra/resources/gateway-responses.yml)}

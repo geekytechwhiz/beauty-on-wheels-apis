@@ -116,4 +116,4 @@ const deviceSearchImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.search' }, deviceSearchImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.search' }, deviceSearchImpl);

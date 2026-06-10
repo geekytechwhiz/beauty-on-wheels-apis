@@ -1,6 +1,6 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
+import { createLogger, extractCorrelationId, serializeError, logHttpRequest, createChildLogger } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
@@ -34,10 +34,11 @@ const deviceAssignSchema = z.object({
   supportedVitals: z.array(z.string()).optional(),
 });
 
-const deviceOrgAssignImpl: any = async (event: any, context?: Context) => {
+const deviceOrgAssignImpl: any = async (req: any, context?: Context) => {
+  const event = req.event ?? req;
   const startTime = Date.now();
-  const awsRequestId = context ? extractAwsRequestId(context) : 'local';
-  const correlationId = extractCorrelationId(event.headers);
+  const awsRequestId = req.context?.awsRequestId ?? 'local';
+  const correlationId = req.context?.correlationId ?? extractCorrelationId(req.event);
 
   const logger = createChildLogger(baseLogger, { awsRequestId, correlationId });
   logger.info({ event: 'deviceOrgAssign_received' });
@@ -45,7 +46,7 @@ const deviceOrgAssignImpl: any = async (event: any, context?: Context) => {
   // Parse body
   let body: unknown;
   try {
-    body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : event.body || {};
+    body = req.body ?? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {});
   } catch (err) {
     logger.error({ event: 'deviceOrgAssign_parse_error', err: serializeError(err) });
     const duration = Date.now() - startTime;

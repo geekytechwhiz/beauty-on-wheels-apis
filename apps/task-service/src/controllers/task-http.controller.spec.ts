@@ -16,6 +16,8 @@ var mockGenerateCarePlanTasks: jest.Mock;
 var mockGetRuntimeTaskDetail: jest.Mock;
 // eslint-disable-next-line no-var
 var mockGetRuntimeTaskHistory: jest.Mock;
+// eslint-disable-next-line no-var
+var mockReassignAssignedStaff: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
@@ -23,6 +25,7 @@ jest.mock('@api-hub/task-core', () => {
   mockGenerateCarePlanTasks = jest.fn();
   mockGetRuntimeTaskDetail = jest.fn();
   mockGetRuntimeTaskHistory = jest.fn();
+  mockReassignAssignedStaff = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
@@ -32,6 +35,7 @@ jest.mock('@api-hub/task-core', () => {
       generateCarePlanTasks: mockGenerateCarePlanTasks,
       getRuntimeTaskDetail: mockGetRuntimeTaskDetail,
       getRuntimeTaskHistory: mockGetRuntimeTaskHistory,
+      reassignAssignedStaff: mockReassignAssignedStaff,
     })),
   };
 });
@@ -129,6 +133,7 @@ describe('TaskHttpController', () => {
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
         body: {
           patientId: 'pat-1',
+          patientDisplayName: 'Test Patient',
           carePlanInstanceId: 'cp-1',
           monitoringInstanceId: 'mon-1',
           taskBehaviorCode: 'METRIC_CHECKIN',
@@ -145,6 +150,7 @@ describe('TaskHttpController', () => {
       task: expect.objectContaining({
         orgId: 'org-1',
         patientId: 'pat-1',
+        patientDisplayName: 'Test Patient',
         surfaceSection: expect.any(String),
       }),
     });
@@ -167,6 +173,7 @@ describe('TaskHttpController', () => {
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
         body: {
           patientId: 'pat-1',
+          patientDisplayName: 'Test Patient',
           carePlanInstanceId: 'cp-1',
           monitoringInstanceId: 'mon-1',
           taskBehaviorCode: 'METRIC_CHECKIN',
@@ -191,8 +198,6 @@ describe('TaskHttpController', () => {
       displayTitle: 'Call patient',
       assignedToType: 'careTeam',
       displayToPatient: false,
-      ownerType: 'user',
-      ownerUserId: 'staff-nurse-44721',
       assignedToStaffId: 'staff-nurse-44721',
     });
     mockCreateRuntimeTask.mockResolvedValue({ record });
@@ -204,14 +209,15 @@ describe('TaskHttpController', () => {
         authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
         body: {
           patientId: 'pat-1',
+          patientDisplayName: 'Test Patient',
           runtimeTaskSource: 'manualSystem',
           taskBehaviorCode: 'CARE_TEAM_TASK',
           taskDisplayGroup: 'staffTask',
           displayTitle: 'Call patient',
           assignedToType: 'careTeam',
           displayToPatient: false,
-          ownerType: 'user',
-          ownerUserId: 'staff-nurse-44721',
+          assignedToStaffId: 'staff-nurse-44721',
+          assignedToStaffDisplayName: 'Nurse Lee',
         },
       },
     } as any);
@@ -248,6 +254,7 @@ describe('TaskHttpController', () => {
         runtimeTaskInstanceId: record.runtimeTaskInstanceId,
         orgId: 'org-1',
         patientId: 'pat-1',
+        patientDisplayName: 'Test Patient',
       },
       reminders: [],
       completionEvidence: [],
@@ -353,6 +360,7 @@ describe('TaskHttpController', () => {
         authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'user-1' }),
         body: {
           patientId: 'pat-1',
+          patientDisplayName: 'Test Patient',
           carePlanInstanceId: 'cp-1',
           taskGenerationTrigger: 'carePlanStageEntered',
           actorType: 'system',
@@ -389,5 +397,40 @@ describe('TaskHttpController', () => {
       code: 'INTERNAL_ERROR',
     });
     expect(mockGenerateCarePlanTasks).not.toHaveBeenCalled();
+  });
+
+  it('handleUpdateAssignedStaff returns reassignment result on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      runtimeTaskInstanceId: 'rtask-staff-1',
+      task: { runtimeTaskInstanceId: 'rtask-staff-1', assignedToStaffId: 'staff-2' },
+      historyEntry: { historyEventType: 'assignedToStaffChange', newAssignedToStaffId: 'staff-2' },
+    };
+    mockReassignAssignedStaff.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedUpdateAssignedStaff: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-staff-1',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        body: {
+          actorId: 'staff-manager-1',
+          assignedToStaffId: 'staff-2',
+          assignedToStaffDisplayName: 'Nurse Two',
+          reason: 'Shift handoff',
+        },
+      },
+    } as any);
+
+    const out = await c.handleUpdateAssignedStaff(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockReassignAssignedStaff).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-staff-1',
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+      reason: 'Shift handoff',
+    });
   });
 });

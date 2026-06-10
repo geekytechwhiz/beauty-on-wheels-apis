@@ -101,11 +101,10 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 
 ### GSI1 — `StaffPatientTasksIndex` (META only, sparse)
 
-- `gsi1Pk` = `ORG#<orgId>#STAFF#<ownerUserId>` when `ownerType = User` (staff inbox by user)
+- `gsi1Pk` = `ORG#<orgId>#STAFF#<assignedToStaffId>` when `assignedToStaffId` is set (staff inbox for care-team/provider tasks)
 - `gsi1Sk` = `DUE#<dueWindowStartOrMaxMs>#PAT#<patientId>#TASK#<runtimeTaskInstanceId>` (same **dueWindowStart** ms token as META SK)
-- **Immutable** `gsi1Sk` if due fixed; update **`gsi1Pk`** (and `ownerUserId` / `assignedToStaffId`) on user reassignment
-- `ownerType = Role` or `Team`: no GSI1 row unless product maps a queue user; list via patient PK + `FilterExpression` on `ownerRoleCode` / `ownerTeamId`
-- **`assignedToStaffId`:** keep when `ownerType = User`; should match `ownerUserId` for GSI1 and API compatibility
+- **Immutable** `gsi1Sk` if due fixed; update **`gsi1Pk`** when `assignedToStaffId` changes (staff reassignment)
+- Tasks without `assignedToStaffId` have no GSI1 row (patient-assigned tasks use patient PK / LSI1 lists)
 
 ### Summaries (requirements §11)
 
@@ -125,7 +124,7 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 
 **META** keeps `reminderEnabled` (eligibility) and optional **`reminderSettings`** (latest config — Requirements v2 REM-007).
 
-**Do not conflate:** `reminderHistory` on LOOKUP is for scheduler/send outcomes; **reminder setting changes** and compliance audit belong on **`HIST#`** (same partition as state/owner history), per Requirements v2.
+**Do not conflate:** `reminderHistory` on LOOKUP is for scheduler/send outcomes; **reminder setting changes** and compliance audit belong on **`HIST#`** (same partition as state history), per Requirements v2.
 
 ---
 
@@ -138,17 +137,12 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | Attribute | Req | Type | Notes |
 |-----------|-----|------|-------|
 | `entityType` | R | S | `RuntimeTaskInstance` |
-| `orgId`, `patientId`, `runtimeTaskInstanceId` | R | S | |
+| `orgId`, `patientId`, `patientDisplayName`, `runtimeTaskInstanceId` | R | S | `patientDisplayName` denormalized at create |
 | `runtimeTaskSource` | R | S | `CarePlanTaskLinkage` \| `MonitoringRuntime` \| `ServiceFlowRuntime` \| `ManualSystem` |
 | `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle` | R | S | |
 | `assignedToType`, `displayToPatient`, `currentState` | R | S / BOOL | |
 | `createdAt`, `createdBy`, `lastUpdatedAt`, `lastUpdatedBy` | R | **N** / S | instants = **N** (ms) |
-| `assignedToStaffId` | C | S | When `ownerType = User`; mirror of `ownerUserId` for GSI1 / legacy API |
-| `ownerType` | C | S | `User` \| `Role` \| `Team` — care-manager/staff tasks (Requirements v2) |
-| `ownerUserId` | C | S | When `ownerType = User`; drives `gsi1Pk` |
-| `ownerRoleCode` | C | S | When `ownerType = Role` |
-| `ownerTeamId` | C | S | When `ownerType = Team` |
-| `ownerDisplayName` | O | S | Display label for portal staff queue |
+| `assignedToStaffId`, `assignedToStaffDisplayName` | C | S | Staff inbox id + denormalized display name when `assignedToType` is `careTeam` or `provider` |
 | `dueWindowStart`, `dueWindowEnd` | C/O | **N** | Schedule window start/end (ms); **SK token = `dueWindowStart`**; missed/due rules use `dueWindowEnd` |
 | `reminderEnabled` | O | Eligibility flag on task card |
 | `reminderSettings` | O | Map — **latest** reminder config (channels, schedule rules); updated when portal changes settings (v2 REM-007) |
@@ -165,9 +159,9 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | Attribute | Req | Notes |
 |-----------|-----|-------|
 | `orgId`, `patientId`, `taskSk` | R | `taskSk` = full META SK at create; **never updated** |
+| `patientDisplayName` | O | Denormalized copy at create |
 | `dueWindowStart`, `dueWindowEnd` | C/O | **N** (ms) — **write-once** schedule snapshot (same as META at create) |
-| `carePlanInstanceId`, `assignedToStaffId` | O | Convenience copy for reads |
-| `ownerType`, `ownerUserId`, `ownerRoleCode`, `ownerTeamId`, `ownerDisplayName` | O | Mirror of META ownership (optional on LOOKUP) |
+| `carePlanInstanceId`, `assignedToStaffId`, `assignedToStaffDisplayName` | O | Convenience copy for reads; staff fields updated on assign/reassign |
 | `reminderHistory` | O | List of maps — **canonical** per-task reminder audit; append on register/send/cancel; cap length |
 | `evidenceSummary` | O | Map (§11.4 fields); set on complete/miss rollup |
 
@@ -186,7 +180,7 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | `completionSourceType`, `completionSourceReferenceId`, `completionEventId` | C | Linked completion |
 | `evidencePayload`, `evidenceType`, `evidenceVersion` | O | |
 
-### 2.4 HIST — task history / audit (state, ownership, reminders)
+### 2.4 HIST — task history / audit (state, reminders)
 
 **Keys:** `PK = TASK#<id>`, `SK = HIST#<transitionAtMs13>#<taskStateHistoryId>` · **Condition:** `attribute_not_exists(SK)`
 
@@ -194,20 +188,20 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 histSK = "HIST#" + String(transitionAt).padStart(13, "0") + "#" + taskStateHistoryId
 ```
 
-One append-only stream per task. Requirements v2: include **state transitions**, **ownership changes**, **reminder setting changes**, and **reminder register/cancel requests** — not only `currentState` changes.
+One append-only stream per task. Requirements v2: include **state transitions**, **reminder setting changes**, and **reminder register/cancel requests** — not only `currentState` changes.
 
 | Attribute | Req | Notes |
 |-----------|-----|-------|
 | `taskStateHistoryId`, `runtimeTaskInstanceId`, `transitionAt`, `transitionBy`, `transitionSource` | R | `transitionAt` = **N** (ms) |
-| `historyEventType` | R | `stateChange` \| `ownerChange` \| `reminderSettingsChange` \| `reminderRegisterRequest` \| `reminderCancelRequest` |
+| `historyEventType` | R | `stateChange` \| `assignedToStaffChange` \| `reminderSettingsChange` \| `reminderRegisterRequest` \| `reminderCancelRequest` |
 | `toState`, `fromState` | C | Required when `historyEventType = stateChange` |
 | `transitionReason`, `sourceEventId` | O | |
-| `previousOwnerType`, `previousOwnerUserId`, `previousOwnerRoleCode`, `previousOwnerTeamId` | C | When `historyEventType = ownerChange` |
-| `newOwnerType`, `newOwnerUserId`, `newOwnerRoleCode`, `newOwnerTeamId` | C | |
 | `previousReminderEnabled`, `newReminderEnabled` | C | When `historyEventType = reminderSettingsChange` |
 | `previousReminderSettings`, `newReminderSettings` | C | Map — v2 REM-008 audit |
 | `reminderRecordId`, `reminderChannel`, `schedulerJobId` | C | When register/cancel request events |
 | `previousReminderStatus`, `newReminderStatus` | O | Optional on HIST if product wants status-change audit in timeline (else use LOOKUP `reminderHistory` only) |
+| `previousAssignedToStaffId`, `newAssignedToStaffId` | C | When `historyEventType = assignedToStaffChange` |
+| `previousAssignedToStaffDisplayName`, `newAssignedToStaffDisplayName` | C | When `historyEventType = assignedToStaffChange` |
 
 **Reminder setting change (portal, FR-TASK-REM-006–008):**
 
@@ -218,15 +212,15 @@ One append-only stream per task. Requirements v2: include **state transitions**,
 
 Patient mobile / standard portal task UI: show **current** `reminderEnabled` / settings only — not full HIST reminder audit (v2 REM-009).
 
-### Staff task ownership (Requirements v2)
+### Staff task assignment
 
 | Rule | Detail |
 |------|--------|
-| Initial owner | From create request or source service — set `Owner*` on META at `PutItem` |
-| Reassign | Portal only for care-manager/staff tasks (`CARE_TEAM_TASK`, `taskDisplayGroup = StaffTask`, `displayToPatient = false` unless product allows) |
-| Writes | `UpdateItem` META (`Owner*`, `assignedToStaffId` when `User`); update `gsi1Pk` if `ownerUserId` changes; `PutItem` HIST with previous/new owner fields |
-| Out of scope | Does not update Task Template, Care Plan Linkage, Monitoring Instance, or source-domain objects |
-| Patient tasks | Forms, education, check-ins, device setup — no owner-change UI by default |
+| Assignment | `assignedToType` (`patient`, `careTeam`, `provider`, `system`) — who completes the task |
+| Staff inbox | `assignedToStaffId` + `assignedToStaffDisplayName` when `assignedToType` is `careTeam` or `provider`; drives sparse GSI1 |
+| Assign / reassign | `PUT /tasks/{id}/assigned-staff` — set or update META/LOOKUP staff id + display name + GSI1; HIST `assignedToStaffChange` |
+| Patient tasks | `assignedToType = patient` — no staff id/name, no GSI1 |
+| API validation | `patientDisplayName` required with every `patientId`; staff id + display name required for careTeam/provider creates and assign/reassign |
 
 ---
 
@@ -238,21 +232,27 @@ No DynamoDB.
 ### POST /tasks/generate-care-plan
 **TransactWrite per task:** conditional `PutItem` META (`attribute_not_exists(SK)`), `PutItem` HIST on `TASK#<id>`, `PutItem` LOOKUP. Set `lsi1Sk` at create; GSI1 if staff-assigned.
 
-**Required request fields:** `patientId`, `carePlanInstanceId`, `taskGenerationTrigger`, `sourceLinkageContext.linkages` (min 1).
+**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `taskGenerationTrigger`, `sourceLinkageContext.linkages` (min 1).
 
-**Required per linkage:** `carePlanTaskLinkageId`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`, `dueWindowStart`, `dueWindowEnd`.
+**Required per linkage:** `carePlanTaskLinkageId`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`, `dueWindowStart`, `dueWindowEnd`; when `assignedToType` is `careTeam` or `provider`, also `assignedToStaffId` + `assignedToStaffDisplayName`.
 
 ### POST /tasks/monitoring-action
 Same pattern; idempotency hash: `patientId|monitoringInstanceId|taskBehaviorCode|dueWindowStart|dueWindowEnd`.
 
+**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `monitoringInstanceId`, `taskBehaviorCode`, `dueWindowStart`, `dueWindowEnd`.
+
 ### POST /tasks
-META + HIST + LOOKUP; set `Owner*` from body; GSI1 when `ownerType = User` (`ownerUserId`, `assignedToStaffId`).
+META + HIST + LOOKUP; persists `patientDisplayName`; GSI1 when staff-assigned (`assignedToStaffId` + `assignedToStaffDisplayName` required for `careTeam`/`provider`).
+
+**Required request fields:** `patientId`, `patientDisplayName`, `runtimeTaskSource`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`.
+
+### PUT /tasks/{runtimeTaskInstanceId}/assigned-staff
+**Required body:** `actorId`, `assignedToStaffId`, `assignedToStaffDisplayName`.
+
+**TransactWrite:** `UpdateItem` META (`assignedToStaffId`, `assignedToStaffDisplayName`, `gsi1Pk`, `lastUpdatedAt`, `lastUpdatedBy`; plus `gsi1Sk` on first assignment when not yet set); `UpdateItem` LOOKUP (`assignedToStaffId`, `assignedToStaffDisplayName`); `PutItem` HIST (`historyEventType=assignedToStaffChange`, previous/new staff id + display name, actor, reason). Allowed only when `assignedToType` is `careTeam` or `provider`. META SK and `lsi1Sk` unchanged.
 
 ### PUT /tasks/{runtimeTaskInstanceId}/reminder-settings
 **TransactWrite:** `UpdateItem` META (`reminderEnabled`, `reminderSettings`); `PutItem` HIST (`historyEventType=reminderSettingsChange`, previous/new settings, actor, reason). Outbound reminder jobs per REM-010.
-
-### PUT /tasks/{runtimeTaskInstanceId}/owner
-**TransactWrite:** `UpdateItem` META (`Owner*`, `assignedToStaffId`, `gsi1Pk` if `ownerUserId` changes); `PutItem` HIST (`historyEventType=OwnerChange`, previous/new owner fields). **No** META SK / `lsi1Sk` change.
 
 ### GET /tasks
 **LSI1** `Query` patient PK, `begins_with(lsi1Sk, "CP#<carePlan>#")`; `FilterExpression` on `workflowStage`, `currentState` as needed; derive `surfaceSection` in service when API filter present.
@@ -295,7 +295,7 @@ One **`TransactWriteItems`** per request (multiple items). **Always:**
 **LSI1** `begins_with(lsi1Sk, "CP#<carePlan>#")` on patient PK → filter `workflowStage` in service → aggregate `requiredForStageCompletion`, counts, `ReadinessStatus`. Not persisted.
 
 ### GET /staff/tasks
-**GSI1** `Query` `gsi1Pk=ORG#<org>#STAFF#<staffUserId>` (matches `ownerUserId` when `ownerType = User`); optional `FilterExpression` on `patientId`, `ownerRoleCode`, `ownerTeamId`; derive `surfaceSection` in service when API filter present.
+**GSI1** `Query` `gsi1Pk=ORG#<org>#STAFF#<staffUserId>` (matches `assignedToStaffId`); optional `FilterExpression` on `patientId`, `carePlanInstanceId`, `currentState`; derive `surfaceSection` in service when API filter present.
 
 ---
 
@@ -373,7 +373,7 @@ Cap LOOKUP list length (e.g. 50). Dedupe by `reminderRecordId`.
 | Index | Keys |
 |-------|------|
 | LSI1 `CarePlanIndex` | `lsi1Sk = CP#<carePlan\|NONE>#TASK#<id>` |
-| GSI1 `StaffPatientTasksIndex` | `gsi1Pk = ORG#<org>#STAFF#<ownerUserId>`, `gsi1Sk = DUE#<dueMs13>#PAT#<patient>#TASK#<id>` (when `ownerType=User`) |
+| GSI1 `StaffPatientTasksIndex` | `gsi1Pk = ORG#<org>#STAFF#<assignedToStaffId>`, `gsi1Sk = DUE#<dueMs13>#PAT#<patient>#TASK#<id>` (when `assignedToStaffId` set) |
 
 **SK helpers:** `metaSK = DUE#<dueWindowStartOrMaxMs13>#TASK#<id>` (token = **dueWindowStart**) · `histSK = HIST#<transitionAtMs13>#<taskStateHistoryId>`
 
@@ -392,7 +392,7 @@ Use this list to validate mappings against Requirements v2.
 **Patient partition**
 - **PK:** `ORG#<orgId>#PAT#<patientId>`
 - **SK:** `DUE#<dueWindowStartOrMaxMs13>#TASK#<runtimeTaskInstanceId>` — **immutable**; ms token = **dueWindowStart**
-- **Core META:** `dueWindowStart`, `dueWindowEnd`, `currentState`, `carePlanInstanceId`, `workflowStage`, `reminderEnabled`, `reminderSettings`, `lsi1Sk`, sparse `gsi1Pk`/`gsi1Sk`, `Owner*` / `assignedToStaffId`, timestamps (ms) — **`surfaceSection` not stored**
+- **Core META:** `dueWindowStart`, `dueWindowEnd`, `currentState`, `carePlanInstanceId`, `workflowStage`, `reminderEnabled`, `reminderSettings`, `lsi1Sk`, sparse `gsi1Pk`/`gsi1Sk`, `assignedToType` / `assignedToStaffId`, timestamps (ms) — **`surfaceSection` not stored**
 - **Create:** `attribute_not_exists(SK)` — not `PK`
 - **Not on patient PK:** `HIST#`, `EVID#`, `LOOKUP`, `REM#`, `SUMMARY#LATEST`
 
@@ -408,12 +408,12 @@ Use this list to validate mappings against Requirements v2.
 - **Latest state:** META · **Timeline:** `HIST#` only
 
 **LSI1:** `CP#<carePlanInstanceId|NONE>#TASK#<id>` — immutable; filter stage/state on META; derive surface in service  
-**GSI1:** `ORG#<org>#STAFF#<ownerUserId>` + `DUE#<due>#PAT#<patient>#TASK#<id>` when `ownerType=User`
+**GSI1:** `ORG#<org>#STAFF#<assignedToStaffId>` + `DUE#<due>#PAT#<patient>#TASK#<id>` when `assignedToStaffId` set
 
 ### B) State / reminder / evidence
 
 - **State transitions:** always `HIST#` `StateChange` on `POST .../state`
-- **Ownership:** META + `HIST#` `OwnerChange`
+- **Staff reassignment:** `PUT /tasks/{id}/assigned-staff` — META `assignedToStaffId` + `gsi1Pk` + HIST
 - **Reminder settings (latest):** META; **settings audit:** `HIST#`; **scheduled/sent/cancelled:** LOOKUP `reminderHistory`
 - **`POST .../state`:** always META + HIST; **Completed** + LOOKUP + optional EVID; **Dismissed/Cancelled** + LOOKUP cancel only; **Missed** optional LOOKUP
 
@@ -429,8 +429,8 @@ Use this list to validate mappings against Requirements v2.
 | `GET /tasks/{id}/history` | Query `TASK#` `begins_with(HIST#)`, `ScanIndexForward=false` |
 | `GET /care-plans/{id}/task-status-summary` | LSI1 + in-app aggregate |
 | `GET /staff/tasks` | GSI1 |
+| `PUT /tasks/{id}/assigned-staff` | META + LOOKUP + HIST `assignedToStaffChange` |
 | `PUT /tasks/{id}/reminder-settings` | META + HIST `reminderSettingsChange` |
-| `PUT /tasks/{id}/owner` | META + HIST `OwnerChange`; gsi1Pk if user changes |
 
 ### D) Inbound events
 

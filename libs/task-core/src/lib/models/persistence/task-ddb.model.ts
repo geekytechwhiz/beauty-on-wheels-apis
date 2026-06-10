@@ -1,6 +1,5 @@
 import type {
   AssignedToType,
-  OwnerType,
   ReminderSettings,
   RuntimeTaskSource,
   TaskBehaviorCode,
@@ -17,6 +16,7 @@ export interface TaskMetaDdbRecord {
   entityType: 'RuntimeTaskInstance';
   orgId: string;
   patientId: string;
+  patientDisplayName?: string;
   runtimeTaskInstanceId: string;
   runtimeTaskSource: RuntimeTaskSource;
   carePlanInstanceId?: string;
@@ -30,11 +30,7 @@ export interface TaskMetaDdbRecord {
   description?: string;
   assignedToType: AssignedToType;
   assignedToStaffId?: string;
-  ownerType?: OwnerType;
-  ownerUserId?: string;
-  ownerRoleCode?: string;
-  ownerTeamId?: string;
-  ownerDisplayName?: string;
+  assignedToStaffDisplayName?: string;
   workflowStage?: WorkflowStage;
   actionTargetId?: string;
   completionSourceType?: string;
@@ -66,16 +62,13 @@ export interface TaskLookupDdbRecord {
   runtimeTaskInstanceId: string;
   orgId: string;
   patientId: string;
+  patientDisplayName?: string;
   taskSk: string;
   dueWindowStart?: number;
   dueWindowEnd?: number;
   carePlanInstanceId?: string;
   assignedToStaffId?: string;
-  ownerType?: OwnerType;
-  ownerUserId?: string;
-  ownerRoleCode?: string;
-  ownerTeamId?: string;
-  ownerDisplayName?: string;
+  assignedToStaffDisplayName?: string;
   reminderHistory?: unknown[];
   evidenceSummary?: TaskEvidenceSummaryDdbRecord;
 }
@@ -124,6 +117,10 @@ export interface TaskHistDdbRecord {
   transitionBy: string;
   transitionSource: TransitionSource;
   transitionReason?: string;
+  previousAssignedToStaffId?: string;
+  newAssignedToStaffId?: string;
+  previousAssignedToStaffDisplayName?: string;
+  newAssignedToStaffDisplayName?: string;
 }
 
 export type TaskDdbRecord =

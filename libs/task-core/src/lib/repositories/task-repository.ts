@@ -8,6 +8,10 @@ import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type {
+  ReassignStaffTaskRepoInput,
+  ReassignStaffTaskRepoResult,
+} from '../models/api/update-assigned-staff.request';
+import type {
   CompletionEvidenceDdbRecord,
   TaskHistDdbRecord,
   TaskLookupDdbRecord,
@@ -267,5 +271,91 @@ export class TaskRepository extends BaseRepository {
       }
       throw err;
     }
+  }
+
+  async reassignStaffTask(input: ReassignStaffTaskRepoInput): Promise<ReassignStaffTaskRepoResult> {
+    const table = assertTaskTable();
+    const { meta, lookup, actorId, assignedToStaffId, assignedToStaffDisplayName, reason } = input;
+    const nowMs = Date.now();
+    const gsi1Pk = TaskKeyBuilder.buildGsi1Pk(meta.orgId, assignedToStaffId);
+    const isFirstAssignment = !meta.assignedToStaffId;
+    const gsi1Sk =
+      meta.gsi1Sk ??
+      TaskKeyBuilder.buildGsi1Sk(
+        meta.dueWindowStart ?? lookup.dueWindowStart,
+        meta.dueWindowEnd ?? lookup.dueWindowEnd,
+        meta.patientId,
+        meta.runtimeTaskInstanceId,
+      );
+    const metaUpdateExpression = isFirstAssignment
+      ? 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1Pk = :gsi1Pk, gsi1Sk = :gsi1Sk, lastUpdatedAt = :now, lastUpdatedBy = :by'
+      : 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1Pk = :gsi1Pk, lastUpdatedAt = :now, lastUpdatedBy = :by';
+    const metaExpressionValues: Record<string, unknown> = {
+      ':staffId': assignedToStaffId,
+      ':staffDisplayName': assignedToStaffDisplayName,
+      ':gsi1Pk': gsi1Pk,
+      ':now': nowMs,
+      ':by': actorId,
+    };
+    if (isFirstAssignment) {
+      metaExpressionValues[':gsi1Sk'] = gsi1Sk;
+    }
+    const histPut = TaskEntityBuilder.buildStaffReassignmentHistRecord({
+      meta,
+      previousAssignedToStaffId: meta.assignedToStaffId,
+      previousAssignedToStaffDisplayName: meta.assignedToStaffDisplayName,
+      newAssignedToStaffId: assignedToStaffId,
+      newAssignedToStaffDisplayName: assignedToStaffDisplayName,
+      actorId,
+      reason,
+      nowMs,
+    });
+
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Update: {
+            TableName: table,
+            Key: { pk: meta.pk, sk: meta.sk },
+            UpdateExpression: metaUpdateExpression,
+            ExpressionAttributeValues: metaExpressionValues,
+            ConditionExpression: 'attribute_exists(sk)',
+          },
+        },
+        {
+          Update: {
+            TableName: table,
+            Key: { pk: lookup.pk, sk: lookup.sk },
+            UpdateExpression:
+              'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName',
+            ExpressionAttributeValues: {
+              ':staffId': assignedToStaffId,
+              ':staffDisplayName': assignedToStaffDisplayName,
+            },
+            ConditionExpression: 'attribute_exists(sk)',
+          },
+        },
+        {
+          Put: {
+            TableName: table,
+            Item: histPut as unknown as Record<string, unknown>,
+            ConditionExpression: 'attribute_not_exists(sk)',
+          },
+        },
+      ],
+    });
+
+    return {
+      record: {
+        ...meta,
+        assignedToStaffId,
+        assignedToStaffDisplayName,
+        gsi1Pk,
+        gsi1Sk: meta.gsi1Sk ?? gsi1Sk,
+        lastUpdatedAt: nowMs,
+        lastUpdatedBy: actorId,
+      },
+      historyEntry: histPut,
+    };
   }
 }

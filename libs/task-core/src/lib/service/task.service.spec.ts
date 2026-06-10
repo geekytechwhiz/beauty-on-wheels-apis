@@ -18,6 +18,7 @@ function basePayload(): CreateMonitoringActionPayload {
   return {
     organizationId: 'org-1',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     carePlanInstanceId: 'cp-1',
     monitoringInstanceId: 'mon-1',
     taskBehaviorCode: 'METRIC_CHECKIN',
@@ -132,14 +133,15 @@ function runtimePayload(): CreateRuntimeTaskPayload {
     organizationId: 'org-1',
     createdBy: 'user:staff-1',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     runtimeTaskSource: RUNTIME_TASK_SOURCE.MANUAL_SYSTEM,
     taskBehaviorCode: 'CARE_TEAM_TASK',
     taskDisplayGroup: 'staffTask',
     displayTitle: 'Follow up call',
     assignedToType: 'careTeam',
+    assignedToStaffId: 'staff-1',
+    assignedToStaffDisplayName: 'Nurse One',
     displayToPatient: false,
-    ownerType: 'user',
-    ownerUserId: 'staff-1',
   };
 }
 
@@ -282,6 +284,7 @@ function carePlanBatchPayload(): GenerateCarePlanTasksRequest {
     organizationId: 'org-1',
     createdBy: 'system:care-plan-runtime',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     carePlanInstanceId: 'cp-1',
     taskGenerationTrigger: 'carePlanStageEntered',
     linkages: [
@@ -488,6 +491,7 @@ function carePlanIdempotencyInput(
     organizationId: 'org-acme-001',
     createdBy: 'system:care-plan-runtime',
     patientId: 'pat-maria',
+    patientDisplayName: 'Maria Lopez',
     carePlanInstanceId: 'cp-maria-001',
     taskGenerationTrigger: 'carePlanStageEntered',
     carePlanTaskLinkageId: 'link-watch-bp-video',
@@ -501,6 +505,165 @@ function carePlanIdempotencyInput(
     ...overrides,
   };
 }
+
+function staffTaskRecord(overrides: Partial<TaskMetaDdbRecord> = {}): TaskMetaDdbRecord {
+  return {
+    ...sampleRecord(),
+    taskBehaviorCode: 'CARE_TEAM_TASK',
+    taskDisplayGroup: 'staffTask',
+    assignedToType: 'careTeam',
+    assignedToStaffId: 'staff-1',
+    displayToPatient: false,
+    gsi1Pk: 'ORG#org-1#STAFF#staff-1',
+    ...overrides,
+  };
+}
+
+describe('TaskService.reassignAssignedStaff', () => {
+  it('reassigns staff and returns task with history entry', async () => {
+    const meta = staffTaskRecord();
+    const lookup = sampleLookup({ assignedToStaffId: 'staff-1' });
+    const updatedMeta = staffTaskRecord({
+      assignedToStaffId: 'staff-2',
+      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
+      lastUpdatedBy: 'staff-manager-1',
+    });
+    const historyEntry = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780581700000#hist-reassign',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-reassign',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'assignedToStaffChange' as const,
+      transitionAt: 1780581700000,
+      transitionBy: 'staff-manager-1',
+      transitionSource: 'manual' as const,
+      transitionReason: 'Shift handoff',
+      previousAssignedToStaffId: 'staff-1',
+      newAssignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      reassignStaffTask: jest.fn().mockResolvedValue({ record: updatedMeta, historyEntry }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.reassignAssignedStaff({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+      reason: 'Shift handoff',
+    });
+
+    expect(result.runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.task.assignedToStaffId).toBe('staff-2');
+    expect(result.historyEntry).toMatchObject({
+      historyEventType: 'assignedToStaffChange',
+      previousAssignedToStaffId: 'staff-1',
+      newAssignedToStaffId: 'staff-2',
+      transitionReason: 'Shift handoff',
+    });
+    expect(repo.reassignStaffTask).toHaveBeenCalledWith({
+      meta,
+      lookup,
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+      reason: 'Shift handoff',
+    });
+  });
+
+  it('throws 422 when task is not a staff task', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      getMetaByLookup: jest.fn().mockResolvedValue(sampleRecord({ assignedToType: 'patient' })),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.reassignAssignedStaff({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        assignedToStaffId: 'staff-2',
+        assignedToStaffDisplayName: 'Nurse Two',
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'NOT_STAFF_TASK' });
+  });
+
+  it('assigns staff when task has no prior assignedToStaffId', async () => {
+    const meta = staffTaskRecord({ assignedToStaffId: undefined, gsi1Pk: undefined, gsi1Sk: undefined });
+    const lookup = sampleLookup();
+    const updatedMeta = staffTaskRecord({
+      assignedToStaffId: 'staff-2',
+      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
+      gsi1Sk: 'DUE#1780581600000#PAT#pat-1#TASK#rtask-abc',
+    });
+    const historyEntry = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780581700000#hist-assign',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-assign',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'assignedToStaffChange' as const,
+      transitionAt: 1780581700000,
+      transitionBy: 'staff-manager-1',
+      transitionSource: 'manual' as const,
+      newAssignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      reassignStaffTask: jest.fn().mockResolvedValue({ record: updatedMeta, historyEntry }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.reassignAssignedStaff({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+    });
+
+    expect(result.task.assignedToStaffId).toBe('staff-2');
+    expect(result.historyEntry).toMatchObject({
+      historyEventType: 'assignedToStaffChange',
+      newAssignedToStaffId: 'staff-2',
+    });
+    expect(result.historyEntry).not.toHaveProperty('previousAssignedToStaffId');
+    expect(repo.reassignStaffTask).toHaveBeenCalled();
+  });
+
+  it('throws 422 when staff is already assigned', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup({ assignedToStaffId: 'staff-1' })),
+      getMetaByLookup: jest.fn().mockResolvedValue(staffTaskRecord()),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.reassignAssignedStaff({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        assignedToStaffId: 'staff-1',
+        assignedToStaffDisplayName: 'Nurse One',
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'STAFF_ALREADY_ASSIGNED' });
+  });
+});
 
 describe('buildCarePlanTaskIdempotencyKey', () => {
   it('builds stable idempotency key and deterministic runtime task id', () => {

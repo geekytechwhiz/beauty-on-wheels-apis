@@ -10,6 +10,11 @@ import type {
   GenerateCarePlanTasksResult,
 } from '../models/api/generate-care-plan.request';
 import type {
+  UpdateAssignedStaffRequest,
+  UpdateAssignedStaffResult,
+} from '../models/api/update-assigned-staff.request';
+import { ASSIGNED_TO_TYPE } from '../models/types/task-domain.types';
+import type {
   CompletionEvidenceDdbRecord,
   TaskEvidenceSummaryDdbRecord,
   TaskMetaDdbRecord,
@@ -153,6 +158,56 @@ export class TaskService extends BaseTaskService {
     return detail;
   }
 
+  async reassignAssignedStaff(input: UpdateAssignedStaffRequest): Promise<UpdateAssignedStaffResult> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (!organizationIdsMatch(lookup.orgId, input.organizationId)) {
+      throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
+    }
+
+    const meta = await this.repo.getMetaByLookup(lookup);
+    if (!meta) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (
+      meta.assignedToType !== ASSIGNED_TO_TYPE.CARE_TEAM &&
+      meta.assignedToType !== ASSIGNED_TO_TYPE.PROVIDER
+    ) {
+      throw taskHttpError(
+        'Staff assignment is only allowed for careTeam or provider tasks',
+        422,
+        'NOT_STAFF_TASK',
+      );
+    }
+
+    if (meta.assignedToStaffId && meta.assignedToStaffId === input.assignedToStaffId) {
+      throw taskHttpError(
+        'Task is already assigned to this staff member',
+        422,
+        'STAFF_ALREADY_ASSIGNED',
+      );
+    }
+
+    const { record, historyEntry } = await this.repo.reassignStaffTask({
+      meta,
+      lookup,
+      actorId: input.actorId,
+      assignedToStaffId: input.assignedToStaffId,
+      assignedToStaffDisplayName: input.assignedToStaffDisplayName,
+      reason: input.reason,
+    });
+
+    return {
+      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+      task: toRuntimeTaskCard(record),
+      historyEntry: toTaskHistoryEntry(historyEntry),
+    };
+  }
+
   async getRuntimeTaskHistory(input: GetRuntimeTaskHistoryInput): Promise<PaginatedTaskHistory> {
     const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
     if (!lookup) {
@@ -187,6 +242,7 @@ export class TaskService extends BaseTaskService {
         organizationId: payload.organizationId,
         createdBy: payload.createdBy,
         patientId: payload.patientId,
+        patientDisplayName: payload.patientDisplayName,
         carePlanInstanceId: payload.carePlanInstanceId,
         taskGenerationTrigger: payload.taskGenerationTrigger,
         workflowStage: payload.workflowStage,

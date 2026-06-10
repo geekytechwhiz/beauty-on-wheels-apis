@@ -15,6 +15,7 @@ import type {
   ValidatedGenerateCarePlanTasks,
   ValidatedGetRuntimeTask,
   ValidatedGetRuntimeTaskHistory,
+  ValidatedUpdateAssignedStaff,
 } from '../validators/request.validators';
 
 let taskService: TaskService | undefined;
@@ -149,6 +150,48 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_runtime_get_service_error',
+      });
+    }
+  }
+
+  async handleUpdateAssignedStaff(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & {
+      validatedUpdateAssignedStaff?: ValidatedUpdateAssignedStaff;
+    }).validatedUpdateAssignedStaff;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.reassignAssignedStaff({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        actorId: validated.body.actorId,
+        assignedToStaffId: validated.body.assignedToStaffId,
+        assignedToStaffDisplayName: validated.body.assignedToStaffDisplayName,
+        reason: validated.body.reason,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_reassign_staff_service_error',
       });
     }
   }

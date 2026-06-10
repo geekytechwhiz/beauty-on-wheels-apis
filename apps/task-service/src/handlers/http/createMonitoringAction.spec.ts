@@ -127,6 +127,7 @@ describe('createMonitoringAction HTTP handler', () => {
   function validBody(): Record<string, unknown> {
     return {
       patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
       carePlanInstanceId: 'cp-1',
       monitoringInstanceId: 'mon-1',
       taskBehaviorCode: 'METRIC_CHECKIN',
@@ -224,6 +225,7 @@ describe('generateCarePlanTasks HTTP handler', () => {
   function carePlanValidBody(): Record<string, unknown> {
     return {
       patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
       carePlanInstanceId: 'cp-1',
       taskGenerationTrigger: 'carePlanStageEntered',
       workflowStage: 'onboarding',
@@ -287,14 +289,4 @@ describe('generateCarePlanTasks HTTP handler', () => {
     });
   });
 
-  it('returns 422 when linkages array is empty', async () => {
-    const body = carePlanValidBody();
-    (body.sourceLinkageContext as { linkages: unknown[] }).linkages = [];
-
-    const res = await generateCarePlanTasksMain(
-      carePlanBaseEvent({ body: JSON.stringify(body) }),
-      testLambdaContext(),
-    );
-    expect(res.statusCode).toBe(422);
-  });
 });

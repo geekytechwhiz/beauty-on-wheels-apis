@@ -33,8 +33,8 @@ export class TaskKeyBuilder {
     return `CP#${cp}#TASK#${runtimeTaskInstanceId.trim()}`;
   }
 
-  static buildGsi1Pk(orgId: string, ownerUserId: string): string {
-    return `${this.toOrgId(orgId)}#STAFF#${ownerUserId.trim()}`;
+  static buildGsi1Pk(orgId: string, staffUserId: string): string {
+    return `${this.toOrgId(orgId)}#STAFF#${staffUserId.trim()}`;
   }
 
   static buildGsi1Sk(

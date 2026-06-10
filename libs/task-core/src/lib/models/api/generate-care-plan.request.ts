@@ -2,7 +2,6 @@ import { CARE_PLAN_SYSTEM_ACTOR } from '../../constants/task.constants';
 import type { IdempotencyOutcome } from '../types/task-domain.types';
 import type {
   AssignedToType,
-  OwnerType,
   ReminderSettings,
   TaskBehaviorCode,
   TaskDisplayGroup,
@@ -20,11 +19,7 @@ export interface CarePlanLinkageMaterialization {
   displayToPatient: boolean;
   description?: string;
   assignedToStaffId?: string;
-  ownerType?: OwnerType;
-  ownerUserId?: string;
-  ownerRoleCode?: string;
-  ownerTeamId?: string;
-  ownerDisplayName?: string;
+  assignedToStaffDisplayName?: string;
   actionTargetId?: string;
   completionSourceType?: string;
   completionSourceReferenceId?: string;
@@ -40,6 +35,7 @@ export interface GenerateCarePlanTasksRequest {
   organizationId: string;
   createdBy: string;
   patientId: string;
+  patientDisplayName: string;
   carePlanInstanceId: string;
   taskGenerationTrigger: string;
   workflowStage?: WorkflowStage;
@@ -51,6 +47,7 @@ export type CreateCarePlanTaskRequest = CarePlanLinkageMaterialization & {
   organizationId: string;
   createdBy: string;
   patientId: string;
+  patientDisplayName: string;
   carePlanInstanceId: string;
   taskGenerationTrigger: string;
   workflowStage?: WorkflowStage;
@@ -60,6 +57,7 @@ export type GenerateCarePlanTasksPayload = GenerateCarePlanTasksRequest;
 
 export type GenerateCarePlanTasksHttpBody = {
   patientId: string;
+  patientDisplayName: string;
   carePlanInstanceId: string;
   taskGenerationTrigger: string;
   workflowStage?: GenerateCarePlanTasksRequest['workflowStage'];
@@ -90,6 +88,7 @@ export function generateCarePlanTasksPayloadFromHttpBody(
     organizationId,
     createdBy,
     patientId: body.patientId,
+    patientDisplayName: body.patientDisplayName,
     carePlanInstanceId: body.carePlanInstanceId,
     taskGenerationTrigger: body.taskGenerationTrigger,
     workflowStage: body.workflowStage,

@@ -17,7 +17,6 @@ import type {
 } from '../models/persistence/task-ddb.model';
 import {
   ASSIGNED_TO_TYPE,
-  OWNER_TYPE,
   RUNTIME_TASK_SOURCE,
   TASK_HISTORY_EVENT_TYPE,
   TRANSITION_SOURCE,
@@ -106,6 +105,7 @@ export class TaskEntityBuilder {
       entityType: ENTITY_TYPE_RUNTIME_TASK,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       runtimeTaskInstanceId,
       runtimeTaskSource: RUNTIME_TASK_SOURCE.MONITORING_RUNTIME,
       carePlanInstanceId: input.carePlanInstanceId,
@@ -143,6 +143,7 @@ export class TaskEntityBuilder {
       runtimeTaskInstanceId,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       taskSk: metaSk,
       dueWindowStart: input.dueWindowStart,
       dueWindowEnd: input.dueWindowEnd,
@@ -189,11 +190,6 @@ export class TaskEntityBuilder {
       params.input.dueWindowEnd,
       runtimeTaskInstanceId,
     );
-    const assignedToStaffId =
-      params.input.ownerType === OWNER_TYPE.USER
-        ? (params.input.assignedToStaffId ?? params.input.ownerUserId)
-        : params.input.assignedToStaffId;
-
     return {
       runtimeTaskInstanceId,
       nowMs,
@@ -201,7 +197,7 @@ export class TaskEntityBuilder {
       currentState,
       metaSk,
       resolvedDueWindowStart,
-      assignedToStaffId,
+      assignedToStaffId: params.input.assignedToStaffId,
     };
   }
 
@@ -223,6 +219,7 @@ export class TaskEntityBuilder {
       entityType: ENTITY_TYPE_RUNTIME_TASK,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       runtimeTaskInstanceId,
       runtimeTaskSource: input.runtimeTaskSource,
       taskBehaviorCode: input.taskBehaviorCode,
@@ -243,11 +240,9 @@ export class TaskEntityBuilder {
     if (input.workflowStage) record.workflowStage = input.workflowStage;
     if (input.description) record.description = input.description;
     if (assignedToStaffId) record.assignedToStaffId = assignedToStaffId;
-    if (input.ownerType) record.ownerType = input.ownerType;
-    if (input.ownerUserId) record.ownerUserId = input.ownerUserId;
-    if (input.ownerRoleCode) record.ownerRoleCode = input.ownerRoleCode;
-    if (input.ownerTeamId) record.ownerTeamId = input.ownerTeamId;
-    if (input.ownerDisplayName) record.ownerDisplayName = input.ownerDisplayName;
+    if (input.assignedToStaffDisplayName) {
+      record.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
     if (input.actionTargetId) record.actionTargetId = input.actionTargetId;
     if (input.completionSourceType) record.completionSourceType = input.completionSourceType;
     if (input.completionSourceReferenceId) {
@@ -263,8 +258,8 @@ export class TaskEntityBuilder {
       record.displayAsChecklistItem = input.displayAsChecklistItem;
     }
 
-    if (input.ownerType === OWNER_TYPE.USER && input.ownerUserId) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, input.ownerUserId);
+    if (assignedToStaffId) {
+      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, assignedToStaffId);
       record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
@@ -286,6 +281,7 @@ export class TaskEntityBuilder {
       runtimeTaskInstanceId,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       taskSk: metaSk,
       reminderHistory: [],
     };
@@ -294,11 +290,9 @@ export class TaskEntityBuilder {
     if (input.dueWindowEnd != null) lookup.dueWindowEnd = input.dueWindowEnd;
     if (input.carePlanInstanceId) lookup.carePlanInstanceId = input.carePlanInstanceId;
     if (assignedToStaffId) lookup.assignedToStaffId = assignedToStaffId;
-    if (input.ownerType) lookup.ownerType = input.ownerType;
-    if (input.ownerUserId) lookup.ownerUserId = input.ownerUserId;
-    if (input.ownerRoleCode) lookup.ownerRoleCode = input.ownerRoleCode;
-    if (input.ownerTeamId) lookup.ownerTeamId = input.ownerTeamId;
-    if (input.ownerDisplayName) lookup.ownerDisplayName = input.ownerDisplayName;
+    if (input.assignedToStaffDisplayName) {
+      lookup.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
 
     return lookup;
   }
@@ -321,11 +315,6 @@ export class TaskEntityBuilder {
       params.input.dueWindowEnd,
       params.runtimeTaskInstanceId,
     );
-    const assignedToStaffId =
-      params.input.ownerType === OWNER_TYPE.USER
-        ? (params.input.assignedToStaffId ?? params.input.ownerUserId)
-        : params.input.assignedToStaffId;
-
     return {
       runtimeTaskInstanceId: params.runtimeTaskInstanceId,
       idempotencyKey: params.idempotencyKey,
@@ -335,7 +324,7 @@ export class TaskEntityBuilder {
       currentState,
       metaSk,
       resolvedDueWindowStart,
-      assignedToStaffId,
+      assignedToStaffId: params.input.assignedToStaffId,
     };
   }
 
@@ -359,6 +348,7 @@ export class TaskEntityBuilder {
       entityType: ENTITY_TYPE_RUNTIME_TASK,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       runtimeTaskInstanceId,
       runtimeTaskSource: RUNTIME_TASK_SOURCE.CARE_PLAN_TASK_LINKAGE,
       carePlanInstanceId: input.carePlanInstanceId,
@@ -386,11 +376,9 @@ export class TaskEntityBuilder {
     }
     if (input.description) record.description = input.description;
     if (assignedToStaffId) record.assignedToStaffId = assignedToStaffId;
-    if (input.ownerType) record.ownerType = input.ownerType;
-    if (input.ownerUserId) record.ownerUserId = input.ownerUserId;
-    if (input.ownerRoleCode) record.ownerRoleCode = input.ownerRoleCode;
-    if (input.ownerTeamId) record.ownerTeamId = input.ownerTeamId;
-    if (input.ownerDisplayName) record.ownerDisplayName = input.ownerDisplayName;
+    if (input.assignedToStaffDisplayName) {
+      record.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
     if (input.actionTargetId) record.actionTargetId = input.actionTargetId;
     if (input.completionSourceType) record.completionSourceType = input.completionSourceType;
     if (input.completionSourceReferenceId) {
@@ -407,8 +395,8 @@ export class TaskEntityBuilder {
       record.displayAsChecklistItem = input.displayAsChecklistItem;
     }
 
-    if (input.ownerType === OWNER_TYPE.USER && input.ownerUserId) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, input.ownerUserId);
+    if (assignedToStaffId) {
+      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, assignedToStaffId);
       record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
@@ -430,6 +418,7 @@ export class TaskEntityBuilder {
       runtimeTaskInstanceId,
       orgId: input.organizationId,
       patientId: input.patientId,
+      patientDisplayName: input.patientDisplayName,
       taskSk: metaSk,
       carePlanInstanceId: input.carePlanInstanceId,
       reminderHistory: [],
@@ -438,11 +427,9 @@ export class TaskEntityBuilder {
     if (resolvedDueWindowStart != null) lookup.dueWindowStart = resolvedDueWindowStart;
     if (input.dueWindowEnd != null) lookup.dueWindowEnd = input.dueWindowEnd;
     if (assignedToStaffId) lookup.assignedToStaffId = assignedToStaffId;
-    if (input.ownerType) lookup.ownerType = input.ownerType;
-    if (input.ownerUserId) lookup.ownerUserId = input.ownerUserId;
-    if (input.ownerRoleCode) lookup.ownerRoleCode = input.ownerRoleCode;
-    if (input.ownerTeamId) lookup.ownerTeamId = input.ownerTeamId;
-    if (input.ownerDisplayName) lookup.ownerDisplayName = input.ownerDisplayName;
+    if (input.assignedToStaffDisplayName) {
+      lookup.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
 
     return lookup;
   }
@@ -494,6 +481,40 @@ export class TaskEntityBuilder {
       transitionBy: input.createdBy,
       transitionSource,
       transitionReason,
+    };
+  }
+
+  static buildStaffReassignmentHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    previousAssignedToStaffId?: string;
+    previousAssignedToStaffDisplayName?: string;
+    newAssignedToStaffId: string;
+    newAssignedToStaffDisplayName: string;
+    actorId: string;
+    reason?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.ASSIGNED_TO_STAFF_CHANGE,
+      transitionAt: nowMs,
+      transitionBy: params.actorId,
+      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionReason: params.reason,
+      previousAssignedToStaffId: params.previousAssignedToStaffId,
+      newAssignedToStaffId: params.newAssignedToStaffId,
+      previousAssignedToStaffDisplayName: params.previousAssignedToStaffDisplayName,
+      newAssignedToStaffDisplayName: params.newAssignedToStaffDisplayName,
     };
   }
 }

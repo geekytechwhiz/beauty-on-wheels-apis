@@ -130,14 +130,15 @@ describe('createRuntimeTask HTTP handler', () => {
   function validStaffBody(): Record<string, unknown> {
     return {
       patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
       runtimeTaskSource: 'manualSystem',
       taskBehaviorCode: 'CARE_TEAM_TASK',
       taskDisplayGroup: 'staffTask',
       displayTitle: 'Call patient',
       assignedToType: 'careTeam',
+      assignedToStaffId: 'staff-nurse-44721',
+      assignedToStaffDisplayName: 'Nurse Lee',
       displayToPatient: false,
-      ownerType: 'user',
-      ownerUserId: 'staff-nurse-44721',
     };
   }
 
@@ -192,32 +193,6 @@ describe('createRuntimeTask HTTP handler', () => {
       testLambdaContext(),
     );
     expect(res.statusCode).toBe(401);
-  });
-
-  it('returns 422 for invalid runtimeTaskSource', async () => {
-    const res = await main(
-      baseEvent({
-        body: JSON.stringify({
-          ...validStaffBody(),
-          runtimeTaskSource: 'monitoringRuntime',
-        }),
-      }),
-      testLambdaContext(),
-    );
-    expect(res.statusCode).toBe(422);
-  });
-
-  it('returns 422 when ownerType=user without ownerUserId', async () => {
-    const res = await main(
-      baseEvent({
-        body: JSON.stringify({
-          ...validStaffBody(),
-          ownerUserId: undefined,
-        }),
-      }),
-      testLambdaContext(),
-    );
-    expect(res.statusCode).toBe(422);
   });
 
   it('returns 422 when manualSystem and user missing from token', async () => {

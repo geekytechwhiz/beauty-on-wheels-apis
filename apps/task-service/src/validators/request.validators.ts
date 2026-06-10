@@ -13,6 +13,7 @@ import type {
   CreateMonitoringActionHttpBody,
   CreateRuntimeTaskHttpBody,
   GenerateCarePlanTasksHttpBody,
+  UpdateAssignedStaffHttpBody,
 } from './task.schemas';
 
 function throwVal(
@@ -184,6 +185,35 @@ export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
     runtimeTaskInstanceId,
     pageSize,
     nextToken,
+    authHeader: req.context.authHeader,
+  };
+}
+
+export type ValidatedUpdateAssignedStaff = {
+  orgId: string;
+  runtimeTaskInstanceId: string;
+  body: UpdateAssignedStaffHttpBody;
+  authHeader: string | undefined;
+};
+
+export function validateUpdateAssignedStaffRequest(req: LambdaRequest): void {
+  const body = req.body as UpdateAssignedStaffHttpBody;
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const runtimeTaskInstanceId = req.pathParameters?.runtimeTaskInstanceId;
+  if (!runtimeTaskInstanceId) {
+    throwVal('runtimeTaskInstanceId path parameter is required', 400, 'VALIDATION_ERROR');
+  }
+
+  (req as LambdaRequest & { validatedUpdateAssignedStaff: ValidatedUpdateAssignedStaff })
+    .validatedUpdateAssignedStaff = {
+    orgId,
+    runtimeTaskInstanceId,
+    body,
     authHeader: req.context.authHeader,
   };
 }

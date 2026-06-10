@@ -8,20 +8,22 @@
     "scheduleFields": "dueWindowStart + dueWindowEnd only (v2 StartDate → dueWindowStart)",
     "histSK": "HIST#<transitionAtMs13>#<taskStateHistoryId>",
     "lsi1SK": "CP#<carePlanInstanceId|NONE>#TASK#<runtimeTaskInstanceId>",
-    "gsi1PK": "ORG#<orgId>#STAFF#<ownerUserId> when ownerType=User",
+    "gsi1PK": "ORG#<orgId>#STAFF#<assignedToStaffId> when assignedToStaffId set (careTeam/provider staff tasks)",
     "noDueSentinelMs": 9999999999999,
     "reminders": {
       "reminderSettings": "META — latest config (v2 REM-007)",
       "reminderHistory": "LOOKUP — operational Scheduled/Sent/Cancelled per reminderRecordId",
-      "histAudit": "HIST# — reminderSettingsChange, ReminderRegisterRequest, ReminderCancelRequest, StateChange, OwnerChange"
+      "histAudit": "HIST# — reminderSettingsChange, ReminderRegisterRequest, ReminderCancelRequest, StateChange"
     },
     "surfaceSection": "Not stored — derived at read time from currentState + dueWindowStart/End + displayToPatient + context"
   },
   "sampleContext": {
     "orgId": "org-acme-health-001",
     "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+    "patientDisplayName": "Maria Lopez",
     "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
     "staffUserId": "staff-nurse-44721",
+    "staffDisplayName": "Nurse Lee",
     "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e",
     "staffTaskId": "rtask-staff-call-001",
     "dueWindowStartMs": 1780567200000,
@@ -37,6 +39,7 @@
       "entityType": "RuntimeTaskInstance",
       "orgId": "org-acme-health-001",
       "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+      "patientDisplayName": "Maria Lopez",
       "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e",
       "runtimeTaskSource": "CarePlanTaskLinkage",
       "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
@@ -70,17 +73,16 @@
       "entityType": "RuntimeTaskInstance",
       "orgId": "org-acme-health-001",
       "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+      "patientDisplayName": "Maria Lopez",
       "runtimeTaskInstanceId": "rtask-staff-call-001",
       "runtimeTaskSource": "ManualSystem",
       "taskBehaviorCode": "CARE_TEAM_TASK",
       "taskDisplayGroup": "StaffTask",
       "displayTitle": "Call patient to confirm medication",
       "assignedToType": "CareTeam",
-      "displayToPatient": false,
-      "ownerType": "User",
-      "ownerUserId": "staff-nurse-44721",
-      "ownerDisplayName": "Nurse Smith",
       "assignedToStaffId": "staff-nurse-44721",
+      "assignedToStaffDisplayName": "Nurse Lee",
+      "displayToPatient": false,
       "reminderEnabled": false,
       "currentState": "Active",
       "dueWindowStart": 1780650000000,
@@ -93,16 +95,14 @@
       "lastUpdatedAt": 1780567200000,
       "version": 1
     },
-    "metaStaffTaskAfterOwnerReassign": {
+    "metaStaffTaskAfterStaffReassign": {
       "PK": "ORG#org-acme-health-001#PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
       "SK": "DUE#1780650000000#TASK#rtask-staff-call-001",
-      "ownerType": "User",
-      "ownerUserId": "staff-nurse-55200",
-      "ownerDisplayName": "Nurse Jones",
       "assignedToStaffId": "staff-nurse-55200",
+      "assignedToStaffDisplayName": "Nurse Patel",
       "gsi1Pk": "ORG#org-acme-health-001#STAFF#staff-nurse-55200",
       "lastUpdatedAt": 1780568000000,
-      "note": "gsi1Pk updated on ownerUserId change; SK and lsi1Sk unchanged"
+      "note": "gsi1Pk updated when assignedToStaffId changes; SK and lsi1Sk unchanged"
     },
     "lookupAtCreate": {
       "PK": "TASK#rtask-7k9m2p4q8x1n6w3e",
@@ -111,6 +111,7 @@
       "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e",
       "orgId": "org-acme-health-001",
       "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+      "patientDisplayName": "Maria Lopez",
       "taskSk": "DUE#1780567200000#TASK#rtask-7k9m2p4q8x1n6w3e",
       "dueWindowStart": 1780567200000,
       "dueWindowEnd": 1780610400000,
@@ -176,11 +177,26 @@
       "taskSk": "DUE#1780650000000#TASK#rtask-staff-call-001",
       "orgId": "org-acme-health-001",
       "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
-      "ownerType": "User",
-      "ownerUserId": "staff-nurse-44721",
-      "ownerDisplayName": "Nurse Smith",
+      "patientDisplayName": "Maria Lopez",
       "assignedToStaffId": "staff-nurse-44721",
+      "assignedToStaffDisplayName": "Nurse Lee",
       "reminderHistory": []
+    },
+    "histAssignedToStaffChange": {
+      "PK": "TASK#rtask-staff-call-001",
+      "SK": "HIST#1780568000000#hist-staff-reassign-001",
+      "entityType": "TaskStateHistory",
+      "taskStateHistoryId": "hist-staff-reassign-001",
+      "runtimeTaskInstanceId": "rtask-staff-call-001",
+      "historyEventType": "assignedToStaffChange",
+      "transitionAt": 1780568000000,
+      "transitionBy": "staff-nurse-44721",
+      "transitionSource": "manual",
+      "transitionReason": "Shift handoff",
+      "previousAssignedToStaffId": "staff-nurse-44721",
+      "previousAssignedToStaffDisplayName": "Nurse Lee",
+      "newAssignedToStaffId": "staff-nurse-55200",
+      "newAssignedToStaffDisplayName": "Nurse Patel"
     },
     "histStateChangeCreate": {
       "PK": "TASK#rtask-7k9m2p4q8x1n6w3e",
@@ -293,24 +309,6 @@
       ],
       "note": "No evidenceSummary on Dismissed/Cancelled unless product requires it"
     },
-    "histOwnerChange": {
-      "PK": "TASK#rtask-staff-call-001",
-      "SK": "HIST#1780568000000#hist-owner-002",
-      "entityType": "TaskStateHistory",
-      "taskStateHistoryId": "hist-owner-002",
-      "runtimeTaskInstanceId": "rtask-staff-call-001",
-      "historyEventType": "ownerChange",
-      "transitionAt": 1780568000000,
-      "transitionBy": "staff-supervisor-001",
-      "transitionSource": "Manual",
-      "transitionReason": "Owner reassigned",
-      "previousownerType": "User",
-      "previousOwnerUserId": "staff-nurse-44721",
-      "previousownerDisplayName": "Nurse Smith",
-      "newownerType": "User",
-      "newOwnerUserId": "staff-nurse-55200",
-      "newownerDisplayName": "Nurse Jones"
-    },
     "evidenceLinked": {
       "PK": "TASK#rtask-7k9m2p4q8x1n6w3e",
       "SK": "EVID#evt-doc-complete-9a2f44c1",
@@ -334,6 +332,7 @@
     "POST /tasks/generate-care-plan": {
       "requiredRequestFields": [
         "patientId",
+        "patientDisplayName",
         "carePlanInstanceId",
         "taskGenerationTrigger",
         "sourceLinkageContext.linkages"
@@ -348,6 +347,10 @@
         "dueWindowStart",
         "dueWindowEnd"
       ],
+      "requiredLinkageFieldsWhenStaffAssigned": [
+        "assignedToStaffId",
+        "assignedToStaffDisplayName"
+      ],
       "conditionExpression": "attribute_not_exists(SK)",
       "transactItems": [
         "PutItem META (reminderEnabled, reminderSettings optional)",
@@ -356,13 +359,38 @@
       ],
       "outboundOptional": ["RegisterReminderJobs → HIST#<ms13>#<histId> ReminderRegisterRequest + LOOKUP reminderHistory append"]
     },
+    "POST /tasks/monitoring-action": {
+      "requiredRequestFields": [
+        "patientId",
+        "patientDisplayName",
+        "carePlanInstanceId",
+        "monitoringInstanceId",
+        "taskBehaviorCode",
+        "dueWindowStart",
+        "dueWindowEnd"
+      ]
+    },
     "POST /tasks": {
+      "requiredRequestFields": [
+        "patientId",
+        "patientDisplayName",
+        "runtimeTaskSource",
+        "taskBehaviorCode",
+        "taskDisplayGroup",
+        "displayTitle",
+        "assignedToType",
+        "displayToPatient"
+      ],
+      "requiredRequestFieldsWhenStaffAssigned": [
+        "assignedToStaffId",
+        "assignedToStaffDisplayName"
+      ],
       "conditionExpression": "attribute_not_exists(SK)",
       "transactItems": [
-        "PutItem META with Owner* when staff task",
+        "PutItem META with patientDisplayName; assignedToStaffId + assignedToStaffDisplayName when careTeam/provider",
         "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> StateChange",
         "PutItem LOOKUP",
-        "GSI1 when ownerType=User"
+        "GSI1 when assignedToStaffId set"
       ],
       "itemRefs": ["metaStaffTask", "lookupStaffTask", "histStateChangeCreate"]
     },
@@ -420,6 +448,25 @@
         "typicalCancelOrDismiss": "3 (META + HIST StateChange + LOOKUP reminderHistory cancel)"
       }
     },
+    "PUT /tasks/{id}/assigned-staff": {
+      "requiredRequestFields": [
+        "actorId",
+        "assignedToStaffId",
+        "assignedToStaffDisplayName"
+      ],
+      "transactItems": [
+        "UpdateItem META assignedToStaffId, assignedToStaffDisplayName, gsi1Pk, lastUpdatedAt, lastUpdatedBy",
+        "UpdateItem LOOKUP assignedToStaffId, assignedToStaffDisplayName",
+        "PutItem HIST# historyEventType=assignedToStaffChange with previous/new staff id + display name"
+      ],
+      "itemRefs": ["metaStaffTaskAfterStaffReassign", "histAssignedToStaffChange"],
+      "rules": [
+        "assignedToType must be careTeam or provider",
+        "first assignment also sets gsi1Sk when missing",
+        "reassignment updates gsi1Pk only; gsi1Sk unchanged",
+        "META SK and lsi1Sk unchanged"
+      ]
+    },
     "PUT /tasks/{id}/reminder-settings": {
       "note": "Portal path TBD in OpenAPI",
       "transactItems": [
@@ -428,14 +475,6 @@
       ],
       "itemRefs": ["metaCarePlanTask after update", "histReminderSettingsChange"],
       "outbound": ["RegisterReminderJobs / CancelReminderJobs per REM-010"]
-    },
-    "PUT /tasks/{id}/owner": {
-      "note": "Portal path TBD in OpenAPI",
-      "transactItems": [
-        "UpdateItem META Owner*, assignedToStaffId, gsi1Pk if User",
-        "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> historyEventType=OwnerChange"
-      ],
-      "itemRefs": ["metaStaffTaskAfterOwnerReassign", "histOwnerChange"]
     },
     "GET /tasks/{id}": {
       "reads": [
@@ -447,7 +486,7 @@
     },
     "GET /tasks/{id}/history": {
       "reads": ["Query PK=TASK#<id> begins_with HIST#", "ScanIndexForward=false (SK time-desc)"],
-      "includesEventTypes": ["StateChange", "OwnerChange", "reminderSettingsChange", "ReminderRegisterRequest", "ReminderCancelRequest"]
+      "includesEventTypes": ["stateChange", "assignedToStaffChange", "reminderSettingsChange", "reminderRegisterRequest", "reminderCancelRequest"]
     },
     "GET /care-plans/{carePlanInstanceId}/task-status-summary": {
       "query": { "index": "CarePlanIndex", "lsi1Prefix": "CP#<carePlan>#", "filterWorkflowStage": true }
@@ -455,8 +494,8 @@
     "GET /staff/tasks": {
       "query": {
         "index": "StaffPatientTasksIndex",
-        "gsi1Pk": "ORG#<org>#STAFF#<OwnerUserId>",
-        "filterOptional": ["patientId", "ownerRoleCode", "ownerTeamId"],
+        "gsi1Pk": "ORG#<org>#STAFF#<assignedToStaffId>",
+        "filterOptional": ["patientId", "carePlanInstanceId", "currentState"],
         "surfaceSectionFilter": "derived in service after GSI1 query — not stored on META"
       }
     }
@@ -500,8 +539,8 @@
     "runtimeTaskSource": ["CarePlanTaskLinkage", "MonitoringRuntime", "ServiceFlowRuntime", "ManualSystem"],
     "currentState": ["Scheduled", "Active", "Completed", "Missed", "Dismissed", "Cancelled"],
     "surfaceSectionApiDerived": ["Today", "Upcoming", "NeedsAttention", "History", "CarePlanChecklist"],
-    "ownerType": ["User", "Role", "Team"],
-    "historyEventType": ["StateChange", "OwnerChange", "reminderSettingsChange", "ReminderRegisterRequest", "ReminderCancelRequest"],
+    "assignedToType": ["Patient", "CareTeam", "Provider", "System"],
+    "historyEventType": ["StateChange", "reminderSettingsChange", "ReminderRegisterRequest", "ReminderCancelRequest"],
     "ReminderChannel": ["Push", "SMS", "Email", "InApp"],
     "ReminderStatus": ["Scheduled", "Sent", "Cancelled", "Failed", "Suppressed"],
     "transitionSource": ["Manual", "Scheduler", "SourceEvent", "System"],

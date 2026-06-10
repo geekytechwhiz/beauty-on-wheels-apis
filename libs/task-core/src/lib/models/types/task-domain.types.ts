@@ -50,7 +50,7 @@ export type SurfaceSection = (typeof SURFACE_SECTION)[keyof typeof SURFACE_SECTI
 
 export const TASK_HISTORY_EVENT_TYPE = {
   STATE_CHANGE: 'stateChange',
-  OWNER_CHANGE: 'ownerChange',
+  ASSIGNED_TO_STAFF_CHANGE: 'assignedToStaffChange',
   REMINDER_SETTINGS_CHANGE: 'reminderSettingsChange',
   REMINDER_REGISTER_REQUEST: 'reminderRegisterRequest',
   REMINDER_CANCEL_REQUEST: 'reminderCancelRequest',
@@ -74,14 +74,6 @@ export const TRANSITION_SOURCE = {
 } as const;
 
 export type TransitionSource = (typeof TRANSITION_SOURCE)[keyof typeof TRANSITION_SOURCE];
-
-export const OWNER_TYPE = {
-  USER: 'user',
-  ROLE: 'role',
-  TEAM: 'team',
-} as const;
-
-export type OwnerType = (typeof OWNER_TYPE)[keyof typeof OWNER_TYPE];
 
 export const WORKFLOW_STAGE = {
   ONBOARDING: 'onboarding',

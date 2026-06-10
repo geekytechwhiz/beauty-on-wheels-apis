@@ -3,7 +3,7 @@
  *
  * Source: `Runtime_Task_Management_Service_Requirements_v2.docx`
  * Extracted text: `Runtime_Task_Management_Service_Requirements_v2.extracted.txt`
- * Aligned with: `open-api.yaml`, `option-b-db-mapping.md`, `requirements-v2-changes.md`
+ * Aligned with: `open-api.yaml`, `option-b-db-mapping.md`, `libs/task-core` wire format
  *
  * Scope:
  * - Domain + persistence-facing shapes (no implementations)
@@ -11,99 +11,108 @@
  * - Option B storage vs API read models (surfaceSection derived, not stored)
  *
  * Naming:
- * - PascalCase field names match requirements §12 / logical model.
- * - API JSON uses camelCase at the wire layer (map in handlers).
+ * - Interface property names use camelCase (match API JSON and DynamoDB attributes).
+ * - Enum string literals use camelCase except product codes (e.g. taskBehaviorCode values).
+ * - TypeScript type names remain PascalCase.
  */
 
 /** API + DynamoDB instants (Option B). */
 export type EpochMillis = number;
 
 /** Legacy / envelope-only; task payloads use EpochMillis. */
-export type ISODateString = string;
-export type ID = string;
+export type IsoDateString = string;
+export type Id = string;
 
-export type OrgID = ID;
-export type PatientID = ID;
-export type CarePlanInstanceID = ID;
-export type RuntimeTaskInstanceID = ID;
+export type OrgId = Id;
+export type PatientId = Id;
+export type CarePlanInstanceId = Id;
+export type RuntimeTaskInstanceId = Id;
+
+/** @deprecated Use OrgId */
+export type OrgID = OrgId;
+/** @deprecated Use PatientId */
+export type PatientID = PatientId;
+/** @deprecated Use CarePlanInstanceId */
+export type CarePlanInstanceID = CarePlanInstanceId;
+/** @deprecated Use RuntimeTaskInstanceId */
+export type RuntimeTaskInstanceID = RuntimeTaskInstanceId;
+/** @deprecated Use Id */
+export type ID = Id;
 
 // =============================================================================
-// Enums
+// Enums (wire / persistence values — camelCase except catalog codes)
 // =============================================================================
 
 export type RuntimeTaskSource =
-  | "CarePlanTaskLinkage"
-  | "MonitoringRuntime"
-  | "ServiceFlowRuntime"
-  | "ManualSystem";
+  | 'carePlanTaskLinkage'
+  | 'monitoringRuntime'
+  | 'serviceFlowRuntime'
+  | 'manualSystem';
 
+/** Product / catalog code — SCREAMING_SNAKE per platform convention. */
 export type TaskBehaviorCode =
-  | "INSTRUCTION"
-  | "DOCUMENT_FORM"
-  | "UPLOAD_DOCUMENT"
-  | "DEVICE_SETUP"
-  | "EDUCATION_VIDEO"
-  | "EDUCATION_ARTICLE"
-  | "CARE_TEAM_TASK"
-  | "METRIC_CHECKIN"
-  | "SYMPTOM_CHECKIN";
+  | 'INSTRUCTION'
+  | 'DOCUMENT_FORM'
+  | 'UPLOAD_DOCUMENT'
+  | 'DEVICE_SETUP'
+  | 'EDUCATION_VIDEO'
+  | 'EDUCATION_ARTICLE'
+  | 'CARE_TEAM_TASK'
+  | 'METRIC_CHECKIN'
+  | 'SYMPTOM_CHECKIN';
 
-export type TaskDisplayGroup = "Action" | "Learning" | "CheckIn" | "StaffTask";
+export type TaskDisplayGroup = 'action' | 'learning' | 'checkIn' | 'staffTask';
 
-/** Who the task is assigned to (OpenAPI uses ActorType incl. System). */
-export type AssignedToType = "Patient" | "CareTeam" | "Provider" | "System";
+export type AssignedToType = 'patient' | 'careTeam' | 'provider' | 'system';
 
-export type WorkflowStage = "Onboarding" | "Ongoing" | "Review" | "Closure";
+export type WorkflowStage = 'onboarding' | 'ongoing' | 'review' | 'closure';
 
 export type RuntimeTaskState =
-  | "Scheduled"
-  | "Active"
-  | "Completed"
-  | "Missed"
-  | "Dismissed"
-  | "Cancelled";
+  | 'scheduled'
+  | 'active'
+  | 'completed'
+  | 'missed'
+  | 'dismissed'
+  | 'cancelled';
 
-/** Where the task appears in mobile/portal — derived at read time (not stored on META). */
+/** Derived at read time — not stored on META. */
 export type SurfaceSection =
-  | "Today"
-  | "Upcoming"
-  | "NeedsAttention"
-  | "History"
-  | "CarePlanChecklist";
+  | 'today'
+  | 'upcoming'
+  | 'needsAttention'
+  | 'history'
+  | 'carePlanChecklist';
 
-/** Action Center query filter — includes All for grouped response. */
-export type SurfaceSectionActionCenter = SurfaceSection | "All";
+export type SurfaceSectionActionCenter = SurfaceSection | 'all';
 
-export type TransitionSource = "Manual" | "Scheduler" | "SourceEvent" | "System";
+export type TransitionSource = 'manual' | 'scheduler' | 'sourceEvent' | 'system';
 
-/** Append-only HIST# event kind (OpenAPI / Requirements v2). */
 export type TaskHistoryEventType =
-  | "StateChange"
-  | "OwnerChange"
-  | "ReminderSettingsChange"
-  | "ReminderRegisterRequest"
-  | "ReminderCancelRequest";
+  | 'stateChange'
+  | 'assignedToStaffChange'
+  | 'reminderSettingsChange'
+  | 'reminderRegisterRequest'
+  | 'reminderCancelRequest';
 
-export type ReminderChannel = "Push" | "SMS" | "Email" | "InApp";
-export type ReminderStatus = "Scheduled" | "Sent" | "Cancelled" | "Failed" | "Suppressed";
+export type ReminderChannel = 'push' | 'sms' | 'email' | 'inApp';
+export type ReminderStatus = 'scheduled' | 'sent' | 'cancelled' | 'failed' | 'suppressed';
 
-export type CompletionSource = "Manual" | "LinkedObject" | "System";
+export type CompletionSource = 'manual' | 'linkedObject' | 'system';
 
 export type CompletionSourceType =
-  | "Manual"
-  | "Document"
-  | "Education"
-  | "DeviceSetup"
-  | "Monitoring"
-  | "Symptom"
+  | 'manual'
+  | 'document'
+  | 'education'
+  | 'deviceSetup'
+  | 'monitoring'
+  | 'symptom'
   | (string & {});
 
-export type ActorType = "Patient" | "CareTeam" | "Provider" | "System";
+export type ActorType = 'patient' | 'careTeam' | 'provider' | 'system';
 
-/** Requirements v2 — staff / care-manager task ownership. */
-export type OwnerType = "User" | "Role" | "Team";
+export type IdempotencyOutcome = 'created' | 'skippedDuplicate';
 
-export type IdempotencyOutcome = "Created" | "SkippedDuplicate";
+export type ReadinessStatus = 'ready' | 'notReady' | 'notApplicable';
 
 // =============================================================================
 // Reminder settings (META latest config — v2 REM-007)
@@ -121,204 +130,185 @@ export interface ReminderSettings {
 
 /**
  * META runtime task record — patient partition.
- * Does NOT store SurfaceSection (derived in service from state + due window + context).
- * v2 StartDate → DueWindowStart; v2 DueDate → DueWindowEnd (SK ms token = DueWindowStart).
+ * Does NOT store surfaceSection (derived in service from state + due window + context).
  */
 export interface RuntimeTaskInstanceRecord {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  OrgID: OrgID;
-  PatientID: PatientID;
-  CarePlanInstanceID?: CarePlanInstanceID;
-  RuntimeTaskSource: RuntimeTaskSource;
-  SourceTaskTemplateVersionID?: ID;
-  CarePlanTaskLinkageID?: ID;
-  MonitoringInstanceID?: ID;
-  TaskBehaviorCode: TaskBehaviorCode;
-  TaskDisplayGroup: TaskDisplayGroup;
-  ActionTargetID?: ID;
-  CompletionSourceType?: CompletionSourceType;
-  CompletionSourceReferenceID?: ID;
-  DisplayTitle: string;
-  Description?: string;
-  AssignedToType: AssignedToType;
-  /** When OwnerType = User; mirrors OwnerUserID for GSI1 / API. */
-  AssignedToStaffID?: ID;
-  OwnerType?: OwnerType;
-  OwnerUserID?: ID;
-  OwnerRoleCode?: string;
-  OwnerTeamID?: ID;
-  OwnerDisplayName?: string;
-  DisplayToPatient: boolean;
-  WorkflowStage?: WorkflowStage;
-  TaskGenerationTrigger?: string;
-  RequiredForStageCompletion?: boolean;
-  DisplayAsChecklistItem?: boolean;
-  /** v2 StartDate — when task becomes visible; drives META/GSI1 DUE# sort token. */
-  DueWindowStart?: EpochMillis;
-  /** v2 DueDate — expected completion bound. */
-  DueWindowEnd?: EpochMillis;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  orgId: OrgId;
+  patientId: PatientId;
+  /** Denormalized at create; required on APIs that accept patientId. */
+  patientDisplayName: string;
+  carePlanInstanceId?: CarePlanInstanceId;
+  runtimeTaskSource: RuntimeTaskSource;
+  sourceTaskTemplateVersionId?: Id;
+  carePlanTaskLinkageId?: Id;
+  monitoringInstanceId?: Id;
+  taskBehaviorCode: TaskBehaviorCode;
+  taskDisplayGroup: TaskDisplayGroup;
+  actionTargetId?: Id;
+  completionSourceType?: CompletionSourceType;
+  completionSourceReferenceId?: Id;
+  displayTitle: string;
+  description?: string;
+  assignedToType: AssignedToType;
+  /** When assignedToType is careTeam or provider; drives GSI1 staff inbox. */
+  assignedToStaffId?: Id;
+  /** Required with assignedToStaffId for careTeam/provider tasks and assign/reassign API. */
+  assignedToStaffDisplayName?: string;
+  displayToPatient: boolean;
+  workflowStage?: WorkflowStage;
+  taskGenerationTrigger?: string;
+  requiredForStageCompletion?: boolean;
+  displayAsChecklistItem?: boolean;
+  dueWindowStart?: EpochMillis;
+  dueWindowEnd?: EpochMillis;
   /**
-   * @deprecated v2 — use DueWindowEnd. Not stored in Option B.
+   * @deprecated v2 — use dueWindowEnd. Not stored in Option B.
    */
-  DueAt?: EpochMillis;
-  CurrentState: RuntimeTaskState;
-  PrimaryActionLabel?: string;
-  DeepLinkTarget?: string;
-  ReminderEnabled?: boolean;
-  ReminderSettings?: ReminderSettings;
-  CreatedAt: EpochMillis;
-  CreatedBy: string;
-  LastUpdatedAt: EpochMillis;
-  LastUpdatedBy: string;
+  dueAt?: EpochMillis;
+  currentState: RuntimeTaskState;
+  primaryActionLabel?: string;
+  deepLinkTarget?: string;
+  reminderEnabled?: boolean;
+  reminderSettings?: ReminderSettings;
+  createdAt: EpochMillis;
+  createdBy: string;
+  lastUpdatedAt: EpochMillis;
+  lastUpdatedBy: string;
 }
 
 /** LOOKUP row on TASK# partition. */
 export interface TaskLookupRecord {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  OrgID: OrgID;
-  PatientID: PatientID;
-  TaskSK: string;
-  DueWindowStart?: EpochMillis;
-  DueWindowEnd?: EpochMillis;
-  CarePlanInstanceID?: CarePlanInstanceID;
-  AssignedToStaffID?: ID;
-  OwnerType?: OwnerType;
-  OwnerUserID?: ID;
-  OwnerRoleCode?: string;
-  OwnerTeamID?: ID;
-  OwnerDisplayName?: string;
-  ReminderHistory?: ReminderRecord[];
-  EvidenceSummary?: TaskEvidenceSummary;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  orgId: OrgId;
+  patientId: PatientId;
+  patientDisplayName?: string;
+  taskSk: string;
+  dueWindowStart?: EpochMillis;
+  dueWindowEnd?: EpochMillis;
+  carePlanInstanceId?: CarePlanInstanceId;
+  assignedToStaffId?: Id;
+  assignedToStaffDisplayName?: string;
+  reminderHistory?: ReminderRecord[];
+  evidenceSummary?: TaskEvidenceSummary;
 }
 
-/** @deprecated Use RuntimeTaskInstanceRecord — persisted shape has no SurfaceSection. */
+/** @deprecated Use RuntimeTaskInstanceRecord — persisted shape has no surfaceSection. */
 export type RuntimeTaskInstance = RuntimeTaskInstanceRecord;
 
 export interface TaskStateHistory {
-  TaskStateHistoryID: ID;
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  HistoryEventType: TaskHistoryEventType;
-  FromState?: RuntimeTaskState;
-  ToState?: RuntimeTaskState;
-  TransitionAt: EpochMillis;
-  TransitionBy: string;
-  TransitionSource: TransitionSource;
-  TransitionReason?: string;
-  SourceEventID?: ID;
-  /** Ownership reassignment audit (Requirements v2). */
-  PreviousOwnerType?: OwnerType;
-  PreviousOwnerUserID?: ID;
-  PreviousOwnerRoleCode?: string;
-  PreviousOwnerTeamID?: ID;
-  PreviousOwnerDisplayName?: string;
-  NewOwnerType?: OwnerType;
-  NewOwnerUserID?: ID;
-  NewOwnerRoleCode?: string;
-  NewOwnerTeamID?: ID;
-  NewOwnerDisplayName?: string;
-  /** Reminder settings change audit (Requirements v2 REM-008). */
-  PreviousReminderEnabled?: boolean;
-  NewReminderEnabled?: boolean;
-  PreviousReminderSettings?: ReminderSettings;
-  NewReminderSettings?: ReminderSettings;
-  ReminderRecordID?: ID;
-  ReminderChannel?: ReminderChannel;
-  SchedulerJobID?: ID;
-  PreviousReminderStatus?: ReminderStatus;
-  NewReminderStatus?: ReminderStatus;
+  taskStateHistoryId: Id;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  historyEventType: TaskHistoryEventType;
+  fromState?: RuntimeTaskState;
+  toState?: RuntimeTaskState;
+  transitionAt: EpochMillis;
+  transitionBy: string;
+  transitionSource: TransitionSource;
+  transitionReason?: string;
+  sourceEventId?: Id;
+  previousReminderEnabled?: boolean;
+  newReminderEnabled?: boolean;
+  previousReminderSettings?: ReminderSettings;
+  newReminderSettings?: ReminderSettings;
+  reminderRecordId?: Id;
+  reminderChannel?: ReminderChannel;
+  schedulerJobId?: Id;
+  previousReminderStatus?: ReminderStatus;
+  newReminderStatus?: ReminderStatus;
+  previousAssignedToStaffId?: Id;
+  newAssignedToStaffId?: Id;
+  previousAssignedToStaffDisplayName?: string;
+  newAssignedToStaffDisplayName?: string;
 }
 
 /** Operational reminder trail on LOOKUP (not HIST#). */
 export interface ReminderRecord {
-  ReminderRecordID: ID;
-  RuntimeTaskInstanceID?: RuntimeTaskInstanceID;
-  ScheduledReminderAt: EpochMillis;
-  ReminderChannel: ReminderChannel;
-  ReminderStatus: ReminderStatus;
-  SentAt?: EpochMillis;
-  UpdatedAt?: EpochMillis;
-  FailureReason?: string;
-  SuppressedReason?: string;
-  SchedulerJobID?: ID;
+  reminderRecordId: Id;
+  runtimeTaskInstanceId?: RuntimeTaskInstanceId;
+  scheduledReminderAt: EpochMillis;
+  reminderChannel: ReminderChannel;
+  reminderStatus: ReminderStatus;
+  sentAt?: EpochMillis;
+  updatedAt?: EpochMillis;
+  failureReason?: string;
+  suppressedReason?: string;
+  schedulerJobId?: Id;
 }
 
 export interface CompletionEvidence {
-  CompletionEvidenceID: ID;
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  OrgID?: OrgID;
-  PatientID?: PatientID;
-  CompletionSource: CompletionSource;
-  CompletionSourceType?: CompletionSourceType;
-  CompletionSourceReferenceID?: ID;
-  CompletionEventID?: ID;
-  CompletedAt: EpochMillis;
-  CompletedBy?: string;
-  EvidencePayload?: Record<string, unknown>;
+  completionEvidenceId: Id;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  orgId?: OrgId;
+  patientId?: PatientId;
+  completionSource: CompletionSource;
+  completionSourceType?: CompletionSourceType;
+  completionSourceReferenceId?: Id;
+  completionEventId?: Id;
+  completedAt: EpochMillis;
+  completedBy?: string;
+  evidencePayload?: Record<string, unknown>;
 }
 
-/** LOOKUP evidenceSummary rollup — SurfaceSection not stored. */
+/** LOOKUP evidenceSummary rollup — surfaceSection not stored. */
 export interface TaskEvidenceSummary {
-  TaskEvidenceSummaryID: ID;
-  GeneratedAt: EpochMillis;
-  RuntimeTaskSource?: RuntimeTaskSource;
-  TaskBehaviorCode?: TaskBehaviorCode;
-  TaskDisplayGroup?: TaskDisplayGroup;
-  CurrentState?: RuntimeTaskState;
-  PatientID?: PatientID;
-  CarePlanInstanceID?: CarePlanInstanceID;
-  RequiredForStageCompletion?: boolean;
-  WorkflowStage?: WorkflowStage;
-  CompletedAt?: EpochMillis;
-  MissedAt?: EpochMillis;
-  CompletionSourceType?: CompletionSourceType;
-  CompletionSourceReferenceID?: ID;
-  LatestCompletionSummary?: string;
+  taskEvidenceSummaryId: Id;
+  generatedAt: EpochMillis;
+  runtimeTaskSource?: RuntimeTaskSource;
+  taskBehaviorCode?: TaskBehaviorCode;
+  taskDisplayGroup?: TaskDisplayGroup;
+  currentState?: RuntimeTaskState;
+  patientId?: PatientId;
+  carePlanInstanceId?: CarePlanInstanceId;
+  requiredForStageCompletion?: boolean;
+  workflowStage?: WorkflowStage;
+  completedAt?: EpochMillis;
+  missedAt?: EpochMillis;
+  completionSourceType?: CompletionSourceType;
+  completionSourceReferenceId?: Id;
+  latestCompletionSummary?: string;
 }
 
 // =============================================================================
 // API read models (derived + projected fields)
 // =============================================================================
 
-/**
- * Task card for lists, Action Center, and detail.task.
- * Includes derived SurfaceSection and optional display fields (may be computed).
- */
 export interface RuntimeTaskCard extends RuntimeTaskInstanceRecord {
-  SurfaceSection: SurfaceSection;
-  SurfaceRank?: number;
-  DueDisplayText?: string;
-  ContextDisplayText?: string;
-  IsSurfaceVisible?: boolean;
+  surfaceSection: SurfaceSection;
+  surfaceRank?: number;
+  dueDisplayText?: string;
+  contextDisplayText?: string;
+  isSurfaceVisible?: boolean;
 }
 
 export interface RuntimeTaskDetail {
-  Task: RuntimeTaskCard;
-  Reminders?: ReminderRecord[];
-  CompletionEvidence?: CompletionEvidence[];
-  EvidenceSummary?: TaskEvidenceSummary;
+  task: RuntimeTaskCard;
+  reminders?: ReminderRecord[];
+  completionEvidence?: CompletionEvidence[];
+  evidenceSummary?: TaskEvidenceSummary;
 }
 
 export interface PaginatedRuntimeTaskCards {
-  Items?: RuntimeTaskCard[];
-  NextToken?: string;
+  items?: RuntimeTaskCard[];
+  nextToken?: string;
 }
 
 export interface ActionCenterSingleSection {
-  SurfaceSection: SurfaceSection;
-  Items: RuntimeTaskCard[];
-  NextToken?: string;
+  surfaceSection: SurfaceSection;
+  items: RuntimeTaskCard[];
+  nextToken?: string;
 }
 
 export interface ActionCenterGroupedSections {
-  Sections: Partial<Record<SurfaceSection, RuntimeTaskCard[]>>;
-  NextToken?: string;
+  sections: Partial<Record<SurfaceSection, RuntimeTaskCard[]>>;
+  nextToken?: string;
 }
 
 export type ActionCenterItems = ActionCenterSingleSection | ActionCenterGroupedSections;
 
 export interface PaginatedTaskHistory {
-  Items?: TaskStateHistory[];
-  NextToken?: string;
+  items?: TaskStateHistory[];
+  nextToken?: string;
 }
 
 // =============================================================================
@@ -326,168 +316,156 @@ export interface PaginatedTaskHistory {
 // =============================================================================
 
 export interface GenerateCarePlanTasksRequest {
-  PatientID: PatientID;
-  CarePlanInstanceID: CarePlanInstanceID;
-  TaskGenerationTrigger: string;
-  SourceLinkageContext: {
-    Linkages: GenerateCarePlanTaskLinkage[];
+  patientId: PatientId;
+  patientDisplayName: string;
+  carePlanInstanceId: CarePlanInstanceId;
+  taskGenerationTrigger: string;
+  sourceLinkageContext: {
+    linkages: GenerateCarePlanTaskLinkage[];
   };
-  WorkflowStage?: WorkflowStage;
-  DryRun?: boolean;
+  workflowStage?: WorkflowStage;
+  dryRun?: boolean;
 }
 
 export interface GenerateCarePlanTaskLinkage {
-  CarePlanTaskLinkageID: ID;
-  TaskBehaviorCode: TaskBehaviorCode;
-  TaskDisplayGroup: TaskDisplayGroup;
-  DisplayTitle: string;
-  AssignedToType: AssignedToType;
-  DisplayToPatient: boolean;
-  DueWindowStart: EpochMillis;
-  DueWindowEnd: EpochMillis;
+  carePlanTaskLinkageId: Id;
+  taskBehaviorCode: TaskBehaviorCode;
+  taskDisplayGroup: TaskDisplayGroup;
+  displayTitle: string;
+  assignedToType: AssignedToType;
+  displayToPatient: boolean;
+  assignedToStaffId?: Id;
+  assignedToStaffDisplayName?: string;
+  dueWindowStart: EpochMillis;
+  dueWindowEnd: EpochMillis;
 }
 
 export interface GeneratedTaskResult {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  Outcome: IdempotencyOutcome;
-  Task?: RuntimeTaskCard;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  outcome: IdempotencyOutcome;
+  task?: RuntimeTaskCard;
 }
 
-/** Per-task results (OpenAPI / api-mappings). v2 also allows counts-only aggregate. */
 export interface GenerateCarePlanTasksResponse {
-  Results: GeneratedTaskResult[];
-  CreatedCount?: number;
-  SkippedDuplicateCount?: number;
-  FailureDetails?: Array<{ message: string; code?: string; context?: Record<string, unknown> }>;
+  results: GeneratedTaskResult[];
+  createdCount?: number;
+  skippedDuplicateCount?: number;
+  failureDetails?: Array<{ message: string; code?: string; context?: Record<string, unknown> }>;
 }
 
 export interface CreateMonitoringActionRequest {
-  PatientID: PatientID;
-  CarePlanInstanceID: CarePlanInstanceID;
-  MonitoringInstanceID: ID;
-  TaskBehaviorCode: TaskBehaviorCode;
-  DueWindowStart: EpochMillis;
-  DueWindowEnd: EpochMillis;
-  ReminderContext?: Record<string, unknown>;
+  patientId: PatientId;
+  patientDisplayName: string;
+  carePlanInstanceId: CarePlanInstanceId;
+  monitoringInstanceId: Id;
+  taskBehaviorCode: TaskBehaviorCode;
+  dueWindowStart: EpochMillis;
+  dueWindowEnd: EpochMillis;
+  reminderContext?: Record<string, unknown>;
 }
 
 export interface CreateMonitoringActionResponse {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  Outcome?: IdempotencyOutcome;
-  Task?: RuntimeTaskCard;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  outcome?: IdempotencyOutcome;
+  task?: RuntimeTaskCard;
 }
 
 export interface CreateRuntimeTaskRequest {
-  PatientID: PatientID;
-  CarePlanInstanceID?: CarePlanInstanceID;
-  WorkflowStage?: WorkflowStage;
-  RuntimeTaskSource: RuntimeTaskSource;
-  TaskBehaviorCode: TaskBehaviorCode;
-  TaskDisplayGroup: TaskDisplayGroup;
-  DisplayTitle: string;
-  Description?: string;
-  AssignedToType: AssignedToType;
-  DisplayToPatient: boolean;
-  /** Initial staff ownership at create (Requirements v2). */
-  AssignedToStaffID?: ID;
-  OwnerType?: OwnerType;
-  OwnerUserID?: ID;
-  OwnerRoleCode?: string;
-  OwnerTeamID?: ID;
-  OwnerDisplayName?: string;
-  ActionTargetID?: ID;
-  CompletionSourceType?: CompletionSourceType;
-  CompletionSourceReferenceID?: ID;
-  DueWindowStart?: EpochMillis;
-  DueWindowEnd?: EpochMillis;
-  ReminderEnabled?: boolean;
-  RequiredForStageCompletion?: boolean;
-  DisplayAsChecklistItem?: boolean;
-  Actor?: { ActorID: ID; ActorType: ActorType };
-  Reason?: string;
+  patientId: PatientId;
+  patientDisplayName: string;
+  carePlanInstanceId?: CarePlanInstanceId;
+  workflowStage?: WorkflowStage;
+  runtimeTaskSource: RuntimeTaskSource;
+  taskBehaviorCode: TaskBehaviorCode;
+  taskDisplayGroup: TaskDisplayGroup;
+  displayTitle: string;
+  description?: string;
+  assignedToType: AssignedToType;
+  displayToPatient: boolean;
+  assignedToStaffId?: Id;
+  assignedToStaffDisplayName?: string;
+  actionTargetId?: Id;
+  completionSourceType?: CompletionSourceType;
+  completionSourceReferenceId?: Id;
+  dueWindowStart?: EpochMillis;
+  dueWindowEnd?: EpochMillis;
+  reminderEnabled?: boolean;
+  requiredForStageCompletion?: boolean;
+  displayAsChecklistItem?: boolean;
+  actor?: { actorId: Id; actorType: ActorType };
+  reason?: string;
 }
 
 export interface CreateRuntimeTaskResponse {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  Task: RuntimeTaskCard;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  task: RuntimeTaskCard;
 }
 
 export type TaskRuntimeAction = string;
 
 export interface UpdateTaskStateRequest {
-  Action: TaskRuntimeAction;
-  ActorID: ID;
-  ActorType: ActorType;
-  ExpectedCurrentState: RuntimeTaskState;
-  Reason?: string;
+  action: TaskRuntimeAction;
+  actorId: Id;
+  actorType: ActorType;
+  expectedCurrentState: RuntimeTaskState;
+  reason?: string;
 }
 
 export interface UpdateTaskStateResponse {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  CurrentState: RuntimeTaskState;
-  /** Derived after state change. */
-  SurfaceSection: SurfaceSection;
-  HistoryEntry: TaskStateHistory;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  currentState: RuntimeTaskState;
+  surfaceSection: SurfaceSection;
+  historyEntry: TaskStateHistory;
 }
 
-/** PUT /tasks/{id}/reminder-settings (Requirements v2 REM-006–008). */
+export interface UpdateAssignedStaffRequest {
+  actorId: Id;
+  assignedToStaffId: Id;
+  assignedToStaffDisplayName: string;
+  reason?: string;
+}
+
+export interface UpdateAssignedStaffResponse {
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  task: RuntimeTaskCard;
+  historyEntry: TaskStateHistory;
+}
+
 export interface UpdateReminderSettingsRequest {
-  ActorID: ID;
-  ReminderEnabled: boolean;
-  ReminderSettings?: ReminderSettings;
-  Reason?: string;
+  actorId: Id;
+  reminderEnabled: boolean;
+  reminderSettings?: ReminderSettings;
+  reason?: string;
 }
 
 export interface UpdateReminderSettingsResponse {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  ReminderEnabled: boolean;
-  ReminderSettings?: ReminderSettings;
-  HistoryEntry: TaskStateHistory;
-}
-
-/**
- * PUT /tasks/{id}/owner — reassign care-manager/staff task ownership.
- * Initial assign at create uses CreateRuntimeTaskRequest Owner* fields.
- */
-export interface UpdateTaskOwnerRequest {
-  ActorID: ID;
-  OwnerType: OwnerType;
-  OwnerUserID?: ID;
-  OwnerRoleCode?: string;
-  OwnerTeamID?: ID;
-  OwnerDisplayName?: string;
-  Reason?: string;
-}
-
-export interface UpdateTaskOwnerResponse {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  Task: RuntimeTaskCard;
-  HistoryEntry: TaskStateHistory;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  reminderEnabled: boolean;
+  reminderSettings?: ReminderSettings;
+  historyEntry: TaskStateHistory;
 }
 
 export interface TaskStatusSummaryCounts {
-  Total: number;
-  RequiredTotal: number;
-  Completed: number;
-  Missed: number;
-  Active: number;
-  Scheduled: number;
+  total: number;
+  requiredTotal: number;
+  completed: number;
+  missed: number;
+  active: number;
+  scheduled: number;
 }
 
-export type ReadinessStatus = "Ready" | "NotReady" | "NotApplicable";
-
 export interface TaskStatusSummaryResponse {
-  OrgID: OrgID;
-  PatientID: PatientID;
-  CarePlanInstanceID: CarePlanInstanceID;
-  WorkflowStage?: WorkflowStage;
-  ReadinessStatus: ReadinessStatus;
-  Counts: TaskStatusSummaryCounts;
-  IncompleteRequiredTasks?: Array<{
-    RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-    DisplayTitle: string;
-    RequiredForStageCompletion?: boolean;
-    CurrentState: RuntimeTaskState;
+  orgId: OrgId;
+  patientId: PatientId;
+  carePlanInstanceId: CarePlanInstanceId;
+  workflowStage?: WorkflowStage;
+  readinessStatus: ReadinessStatus;
+  counts: TaskStatusSummaryCounts;
+  incompleteRequiredTasks?: Array<{
+    runtimeTaskInstanceId: RuntimeTaskInstanceId;
+    displayTitle: string;
+    requiredForStageCompletion?: boolean;
+    currentState: RuntimeTaskState;
   }>;
 }
 
@@ -496,45 +474,42 @@ export interface TaskStatusSummaryResponse {
 // =============================================================================
 
 export interface CarePlanTaskGenerationTriggeredEvent {
-  PatientID: PatientID;
-  CarePlanInstanceID: CarePlanInstanceID;
-  TaskGenerationTrigger: string;
-  TriggerTimestamp: EpochMillis;
+  patientId: PatientId;
+  carePlanInstanceId: CarePlanInstanceId;
+  taskGenerationTrigger: string;
+  triggerTimestamp: EpochMillis;
 }
 
 export interface MonitoringActionRequestedEvent {
-  PatientID: PatientID;
-  CarePlanInstanceID: CarePlanInstanceID;
-  MonitoringInstanceID: ID;
-  TaskBehaviorCode: TaskBehaviorCode;
-  DueWindowStart: EpochMillis;
-  DueWindowEnd: EpochMillis;
-  ReminderContext?: Record<string, unknown>;
+  patientId: PatientId;
+  carePlanInstanceId: CarePlanInstanceId;
+  monitoringInstanceId: Id;
+  taskBehaviorCode: TaskBehaviorCode;
+  dueWindowStart: EpochMillis;
+  dueWindowEnd: EpochMillis;
+  reminderContext?: Record<string, unknown>;
 }
 
-/**
- * Option B requires PatientID for patient-partition query (no completion GSI).
- */
+/** Option B requires patientId for patient-partition query (no completion GSI). */
 export interface LinkedSourceObjectCompletedEvent {
-  PatientID: PatientID;
-  CompletionSourceType: CompletionSourceType;
-  CompletionSourceReferenceID: ID;
-  CompletedAt: EpochMillis;
-  CompletionEventID: ID;
+  patientId: PatientId;
+  completionSourceType: CompletionSourceType;
+  completionSourceReferenceId: Id;
+  completedAt: EpochMillis;
+  completionEventId: Id;
 }
 
 export interface SchedulerWindowExecutionEvent {
-  RunWindowStart: EpochMillis;
-  RunWindowEnd: EpochMillis;
-  BatchID: ID;
+  runWindowStart: EpochMillis;
+  runWindowEnd: EpochMillis;
+  batchId: Id;
 }
 
-/** Maps to CreateRuntimeTaskRequest body. */
 export interface ServiceFlowActivatedEvent {
-  PatientID: PatientID;
-  OrgID?: OrgID;
-  TriggerTimestamp: EpochMillis;
-  TaskPayload?: Omit<CreateRuntimeTaskRequest, "PatientID">;
+  patientId: PatientId;
+  orgId?: OrgId;
+  triggerTimestamp: EpochMillis;
+  taskPayload?: Omit<CreateRuntimeTaskRequest, 'patientId'>;
 }
 
 // =============================================================================
@@ -542,24 +517,24 @@ export interface ServiceFlowActivatedEvent {
 // =============================================================================
 
 export interface RegisterReminderJobsCommand {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  PatientID: PatientID;
-  ReminderRecordID?: ID;
-  ScheduledReminderAt?: EpochMillis;
-  ReminderChannel?: ReminderChannel;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  patientId: PatientId;
+  reminderRecordId?: Id;
+  scheduledReminderAt?: EpochMillis;
+  reminderChannel?: ReminderChannel;
 }
 
 export interface CancelReminderJobsCommand {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  PatientID?: PatientID;
-  ReminderRecordID?: ID;
-  Reason?: string;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  patientId?: PatientId;
+  reminderRecordId?: Id;
+  reason?: string;
 }
 
 export interface SendReminderRequestCommand {
-  RuntimeTaskInstanceID: RuntimeTaskInstanceID;
-  PatientID: PatientID;
-  ReminderRecordID: ID;
-  ReminderChannel: ReminderChannel;
-  ScheduledReminderAt: EpochMillis;
+  runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  patientId: PatientId;
+  reminderRecordId: Id;
+  reminderChannel: ReminderChannel;
+  scheduledReminderAt: EpochMillis;
 }

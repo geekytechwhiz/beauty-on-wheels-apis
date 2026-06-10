@@ -1,7 +1,6 @@
 import {
   RUNTIME_TASK_SOURCE,
   type AssignedToType,
-  type OwnerType,
   type TaskBehaviorCode,
   type TaskDisplayGroup,
   type WorkflowStage,
@@ -15,6 +14,7 @@ export interface CreateRuntimeTaskRequest {
   organizationId: string;
   createdBy: string;
   patientId: string;
+  patientDisplayName: string;
   runtimeTaskSource: CreateRuntimeTaskSource;
   taskBehaviorCode: TaskBehaviorCode;
   taskDisplayGroup: TaskDisplayGroup;
@@ -25,11 +25,7 @@ export interface CreateRuntimeTaskRequest {
   workflowStage?: WorkflowStage;
   description?: string;
   assignedToStaffId?: string;
-  ownerType?: OwnerType;
-  ownerUserId?: string;
-  ownerRoleCode?: string;
-  ownerTeamId?: string;
-  ownerDisplayName?: string;
+  assignedToStaffDisplayName?: string;
   actionTargetId?: string;
   completionSourceType?: string;
   completionSourceReferenceId?: string;

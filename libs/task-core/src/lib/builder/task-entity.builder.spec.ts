@@ -7,6 +7,7 @@ describe('TaskEntityBuilder', () => {
   const input: CreateMonitoringActionRequest = {
     organizationId: 'org-1',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     carePlanInstanceId: 'cp-1',
     monitoringInstanceId: 'mon-1',
     taskBehaviorCode: 'METRIC_CHECKIN',
@@ -49,6 +50,7 @@ describe('TaskEntityBuilder', () => {
     organizationId: 'org-acme-health-001',
     createdBy: 'user:staff-lead-001',
     patientId: 'pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201',
+    patientDisplayName: 'Maria Lopez',
     carePlanInstanceId: 'cp-inst-onboard-2026-04-001',
     workflowStage: 'ongoing',
     runtimeTaskSource: RUNTIME_TASK_SOURCE.MANUAL_SYSTEM,
@@ -56,9 +58,8 @@ describe('TaskEntityBuilder', () => {
     taskDisplayGroup: 'staffTask',
     displayTitle: 'Call patient about missed reading',
     assignedToType: 'careTeam',
-    ownerType: 'user',
-    ownerUserId: 'staff-nurse-44721',
-    ownerDisplayName: 'Nurse Lee',
+    assignedToStaffId: 'staff-nurse-44721',
+    assignedToStaffDisplayName: 'Nurse Lee',
     displayToPatient: false,
     dueWindowStart: 1780567200000,
     dueWindowEnd: 1780650000000,
@@ -76,7 +77,8 @@ describe('TaskEntityBuilder', () => {
     expect(meta.runtimeTaskSource).toBe('manualSystem');
     expect(meta.taskDisplayGroup).toBe('staffTask');
     expect(meta.assignedToStaffId).toBe('staff-nurse-44721');
-    expect(meta.ownerType).toBe('user');
+    expect(meta.assignedToStaffDisplayName).toBe('Nurse Lee');
+    expect(meta.patientDisplayName).toBe('Maria Lopez');
     expect(meta.gsi1Pk).toBe('ORG#org-acme-health-001#STAFF#staff-nurse-44721');
     expect(meta.gsi1Sk).toContain('PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201');
     expect(meta.currentState).toBe('active');
@@ -88,6 +90,7 @@ describe('TaskEntityBuilder', () => {
       organizationId: 'org-1',
       createdBy: 'system:service-flow-runtime',
       patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
       runtimeTaskSource: RUNTIME_TASK_SOURCE.SERVICE_FLOW_RUNTIME,
       taskBehaviorCode: 'INSTRUCTION',
       taskDisplayGroup: 'action',
@@ -124,6 +127,7 @@ describe('TaskEntityBuilder', () => {
       organizationId: 'org-acme-health-001',
       createdBy: 'system:care-plan-runtime',
       patientId: 'pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201',
+      patientDisplayName: 'Maria Lopez',
       carePlanInstanceId: 'cp-inst-onboard-2026-04-001',
       taskGenerationTrigger: 'carePlanStageEntered',
       workflowStage: 'onboarding' as const,

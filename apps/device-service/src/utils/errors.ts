@@ -1,4 +1,6 @@
 export class DeviceNotFoundError extends Error {
+  statusCode = 404;
+  code = 'DEVICE_NOT_FOUND';
   constructor(deviceId: string) {
     super(`Device not found: ${deviceId}`);
     this.name = 'DeviceNotFoundError';

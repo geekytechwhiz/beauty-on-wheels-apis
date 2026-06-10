@@ -84,6 +84,42 @@ export interface OrganizationConfigPatch {
   supportedConditions?: string[];
 }
 
+/**
+ * Org config payload accepted by the dedicated config API
+ * (`PUT /organization/{organizationId}/config`). Holds metadata-driven codes only;
+ * labels are not stored here (resolved from the Metadata Registry on read).
+ */
+export interface OrganizationConfigData {
+  countryCode?: string;
+  timezone?: string;
+  defaultLanguageCode?: string;
+  supportedLanguageCodes?: string[];
+  enabledModuleCodes?: string[];
+  enabledFeatureCodes?: string[];
+  enabledCategoryCodes?: string[];
+  enabledConditionCodes?: string[];
+  enabledMetricCodes?: string[];
+  enabledDeviceCodes?: string[];
+  linkedOrgReferences?: string[];
+  requiredAgreementIds?: string[];
+}
+
+/** Config fields persisted on `CONFIG#v{n}` items (ordered for stable comparison). */
+export const ORGANIZATION_CONFIG_DATA_KEYS: readonly (keyof OrganizationConfigData)[] = [
+  'countryCode',
+  'timezone',
+  'defaultLanguageCode',
+  'supportedLanguageCodes',
+  'enabledModuleCodes',
+  'enabledFeatureCodes',
+  'enabledCategoryCodes',
+  'enabledConditionCodes',
+  'enabledMetricCodes',
+  'enabledDeviceCodes',
+  'linkedOrgReferences',
+  'requiredAgreementIds',
+];
+
 export enum OrgConfigEntityType {
   ORG_CONFIG = 'ORG_CONFIG',
 }
@@ -91,20 +127,24 @@ export enum OrgConfigEntityType {
 export enum OrgConfigStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
+  DRAFT = 'draft',
 }
 
-export interface OrgConfigEntity {
+export interface OrgConfigEntity extends OrganizationConfigData {
   pk: string;
   sk: string;
   entityType: OrgConfigEntityType;
   orgId: string;
   version: number;
-  supportedCountries: string[];
-  supportedLanguages: string[];
-  supportedStates: string[];
-  supportedCategories: string[];
-  supportedConditions: string[];
+  /** Legacy config arrays (kept for backward compatibility with existing versions). */
+  supportedCountries?: string[];
+  supportedLanguages?: string[];
+  supportedStates?: string[];
+  supportedCategories?: string[];
+  supportedConditions?: string[];
   status: OrgConfigStatus;
+  changeReason?: string;
+  createdBy?: string;
   createdAt: number;
   updatedAt: number;
 }

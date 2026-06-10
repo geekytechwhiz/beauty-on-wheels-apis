@@ -7,7 +7,10 @@ import {
   OrganizationMetadata,
   OrganizationFile,
   OrganizationConfigPatch,
+  OrganizationConfigData,
   OrgConfigEntity,
+  OrgConfigStatus,
+  ORGANIZATION_CONFIG_DATA_KEYS,
 } from '../models';
 import { OrganizationNotFoundError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
@@ -30,6 +33,34 @@ const LATEST_ORG_CONFIG_PROJECTION_GET: readonly (keyof OrgConfigEntity)[] = ['v
 
 const areStringArraysEqual = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index]);
+
+const toComparableStringArray = (value: string | string[] | undefined): string[] => {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+/**
+ * Compares two org config snapshots field-by-field (replace semantics): a field missing
+ * on `incoming` but present on `latest` counts as a change. Returns true when identical.
+ */
+const isSameOrganizationConfig = (
+  incoming: OrganizationConfigData,
+  latest: OrganizationConfigData | null,
+): boolean => {
+  if (latest === null) return false;
+  for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+    const incomingValue = incoming[key];
+    const latestValue = latest[key];
+    if (Array.isArray(incomingValue) || Array.isArray(latestValue)) {
+      if (!areStringArraysEqual(toComparableStringArray(incomingValue), toComparableStringArray(latestValue))) {
+        return false;
+      }
+    } else if ((incomingValue ?? undefined) !== (latestValue ?? undefined)) {
+      return false;
+    }
+  }
+  return true;
+};
 
 export class OrganizationService {
   private repository: OrganizationRepository;
@@ -289,7 +320,7 @@ export class OrganizationService {
     organizationId: string,
     updates: Partial<Organization> & { organizationConfig?: OrganizationConfigPatch },
     correlationId?: string,
-    userType?: string,
+    _userType?: string,
   ): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'updateOrganization', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
@@ -301,7 +332,16 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
+      // Org config is intentionally NOT handled here. Config versioning lives in the
+      // dedicated config API (`PUT /organization/{organizationId}/config`). Any
+      // `organizationConfig` sent to this profile endpoint is ignored.
       const { organizationConfig, ...organizationUpdates } = updates;
+      if (organizationConfig !== undefined) {
+        logger.warn({
+          event: 'service_updateOrganization_config_ignored',
+          reason: 'organizationConfig is not handled by the profile update API; use PUT /organization/{organizationId}/config',
+        });
+      }
       const resolvedSubdomain =
         organizationUpdates.subdomain ?? extractSubdomainFromUrl(organizationUpdates.integration?.apiBaseUrl) ?? existing.subdomain;
       if (resolvedSubdomain && !organizationUpdates.subdomain) {
@@ -327,40 +367,6 @@ export class OrganizationService {
       if (hasOrganizationFieldUpdates) {
         await this.repository.updateOrganization(organizationId, organizationUpdates);
       }
-      
-      const normalizedUserType = String(userType ?? '').trim().toUpperCase();
-      const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
-      let configVersion: number | undefined;
-      if (organizationConfig && canUpdateOrganizationConfig) {
-        const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
-          project: LATEST_ORG_CONFIG_PATCH_KEYS,
-        });
-        const mergedConfig: Required<OrganizationConfigPatch> = {
-          supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
-          supportedLanguages: organizationConfig.supportedLanguages ?? latestConfig?.supportedLanguages ?? [],
-          supportedStates: organizationConfig.supportedStates ?? latestConfig?.supportedStates ?? [],
-          supportedCategories: organizationConfig.supportedCategories ?? latestConfig?.supportedCategories ?? [],
-          supportedConditions: organizationConfig.supportedConditions ?? latestConfig?.supportedConditions ?? [],
-        };
-        const isSameAsLatest =
-          latestConfig !== null &&
-          areStringArraysEqual(mergedConfig.supportedCountries, latestConfig.supportedCountries) &&
-          areStringArraysEqual(mergedConfig.supportedLanguages, latestConfig.supportedLanguages) &&
-          areStringArraysEqual(mergedConfig.supportedStates, latestConfig.supportedStates) &&
-          areStringArraysEqual(mergedConfig.supportedCategories, latestConfig.supportedCategories) &&
-          areStringArraysEqual(mergedConfig.supportedConditions, latestConfig.supportedConditions);
-
-        if (!isSameAsLatest) {
-          const configRecord = await this.repository.createOrganizationConfigVersion(organizationId, mergedConfig);
-          configVersion = configRecord.version;
-        }
-      } else if (organizationConfig && !canUpdateOrganizationConfig) {
-        logger.warn({
-          event: 'service_updateOrganization_config_update_skipped',
-          reason: 'organizationConfig update requires ROOT_ADMIN',
-          userType: normalizedUserType || 'UNKNOWN',
-        });
-      }
 
       const updated = await this.repository.getOrganization(organizationId);
       if (!updated) {
@@ -384,10 +390,6 @@ export class OrganizationService {
       if (organizationUpdates.industry !== undefined) updatedFields.industry = organizationUpdates.industry;
       if (organizationUpdates.size !== undefined) updatedFields.size = organizationUpdates.size;
       if (organizationUpdates.adminDetails !== undefined) updatedFields.adminDetails = organizationUpdates.adminDetails;
-      if (organizationConfig !== undefined && canUpdateOrganizationConfig) {
-        updatedFields.organizationConfig = organizationConfig;
-      }
-      if (configVersion !== undefined) updatedFields.organizationConfigVersion = configVersion;
 
       await publishEvent(
         {
@@ -416,6 +418,72 @@ export class OrganizationService {
       return updated;
     } catch (err) {
       logger.error({ event: 'service_updateOrganization_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  /**
+   * Saves organization config as a new draft version (`CONFIG#v{n}`, `status = draft`).
+   * Does NOT validate against the Metadata Registry, publish, emit events, or deactivate
+   * any current version (that is the publish flow, out of scope here). If the incoming
+   * config matches the latest version, no new version is created.
+   */
+  async saveOrganizationConfig(
+    organizationId: string,
+    input: OrganizationConfigData & { changeReason?: string },
+    correlationId?: string,
+    createdBy?: string,
+  ): Promise<{ organizationId: string; version: number; status: OrgConfigStatus; created: boolean; config: OrganizationConfigData }> {
+    const timer = createPerformanceTimer(baseLogger, 'saveOrganizationConfig', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    logger.info({ event: 'service_saveOrganizationConfig_start' });
+
+    try {
+      const existing = await this.repository.getOrganization(organizationId);
+      if (!existing) {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const { changeReason, ...configInput } = input;
+      const incomingConfig: OrganizationConfigData = {};
+      for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+        const value = configInput[key];
+        if (value !== undefined) {
+          (incomingConfig as Record<string, unknown>)[key] = value;
+        }
+      }
+
+      const latestConfig = await this.repository.getLatestOrganizationConfigVersionItem(organizationId);
+
+      if (isSameOrganizationConfig(incomingConfig, latestConfig)) {
+        logger.info({ event: 'service_saveOrganizationConfig_unchanged', version: latestConfig?.version });
+        timer.end();
+        return {
+          organizationId,
+          version: latestConfig!.version,
+          status: latestConfig!.status,
+          created: false,
+          config: incomingConfig,
+        };
+      }
+
+      const draft = await this.repository.createOrganizationConfigDraftVersion(organizationId, incomingConfig, {
+        changeReason,
+        createdBy,
+      });
+
+      logger.info({ event: 'service_saveOrganizationConfig_success', version: draft.version });
+      timer.end();
+      return {
+        organizationId,
+        version: draft.version,
+        status: draft.status,
+        created: true,
+        config: incomingConfig,
+      };
+    } catch (err) {
+      logger.error({ event: 'service_saveOrganizationConfig_error', err: serializeError(err) });
       timer.end();
       throw err;
     }

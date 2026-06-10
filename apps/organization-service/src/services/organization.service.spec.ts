@@ -31,6 +31,8 @@ describe('OrganizationService organizationConfig updates', () => {
     updateOrganization: jest.fn(),
     getLatestOrganizationConfig: jest.fn(),
     createOrganizationConfigVersion: jest.fn(),
+    getLatestOrganizationConfigVersionItem: jest.fn(),
+    createOrganizationConfigDraftVersion: jest.fn(),
   } as any;
 
   const userRepository = {} as any;
@@ -44,40 +46,15 @@ describe('OrganizationService organizationConfig updates', () => {
     jest.clearAllMocks();
   });
 
-  it('merges organizationConfig patch with latest active config', async () => {
+  it('does not create any config version from the profile update API even when organizationConfig is sent', async () => {
     repository.getOrganization
-      .mockResolvedValueOnce({
-        organizationId: 'org-1',
-        name: 'Org 1',
-      })
-      .mockResolvedValueOnce({
-        organizationId: 'org-1',
-        name: 'Org 1',
-      });
-
-    repository.getLatestOrganizationConfig.mockResolvedValue({
-      pk: 'ORG#org-1',
-      sk: 'CONFIG#v1',
-      entityType: OrgConfigEntityType.ORG_CONFIG,
-      orgId: 'org-1',
-      version: 1,
-      supportedCountries: ['IN'],
-      supportedLanguages: ['en'],
-      supportedStates: ['KA'],
-      supportedCategories: ['CAT_A'],
-      supportedConditions: ['COND_A'],
-      status: OrgConfigStatus.ACTIVE,
-      createdAt: 1,
-      updatedAt: 1,
-    });
-
-    repository.createOrganizationConfigVersion.mockResolvedValue({
-      version: 2,
-    });
+      .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+      .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1 Updated' });
 
     await service.updateOrganization(
       'org-1',
       {
+        name: 'Org 1 Updated',
         organizationConfig: {
           supportedLanguages: ['en', 'es'],
           supportedConditions: ['COND_B'],
@@ -86,54 +63,11 @@ describe('OrganizationService organizationConfig updates', () => {
       'corr-1',
     );
 
-    expect(repository.updateOrganization).not.toHaveBeenCalled();
-    expect(repository.createOrganizationConfigVersion).toHaveBeenCalledWith('org-1', {
-      supportedCountries: ['IN'],
-      supportedLanguages: ['en', 'es'],
-      supportedStates: ['KA'],
-      supportedCategories: ['CAT_A'],
-      supportedConditions: ['COND_B'],
-    });
-  });
-
-  it('does not create a new config version when merged config is unchanged', async () => {
-    repository.getOrganization
-      .mockResolvedValueOnce({
-        organizationId: 'org-1',
-        name: 'Org 1',
-      })
-      .mockResolvedValueOnce({
-        organizationId: 'org-1',
-        name: 'Org 1',
-      });
-
-    repository.getLatestOrganizationConfig.mockResolvedValue({
-      pk: 'ORG#org-1',
-      sk: 'CONFIG#v3',
-      entityType: OrgConfigEntityType.ORG_CONFIG,
-      orgId: 'org-1',
-      version: 3,
-      supportedCountries: ['IN'],
-      supportedLanguages: ['en', 'hi'],
-      supportedStates: ['KA'],
-      supportedCategories: ['CARDIO'],
-      supportedConditions: ['STABLE'],
-      status: OrgConfigStatus.ACTIVE,
-      createdAt: 1,
-      updatedAt: 1,
-    });
-
-    await service.updateOrganization(
-      'org-1',
-      {
-        organizationConfig: {
-          supportedLanguages: ['en', 'hi'],
-        },
-      },
-      'corr-1',
-    );
-
+    expect(repository.updateOrganization).toHaveBeenCalledTimes(1);
     expect(repository.createOrganizationConfigVersion).not.toHaveBeenCalled();
+    expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
+    expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+    expect(repository.getLatestOrganizationConfigVersionItem).not.toHaveBeenCalled();
   });
 
   it('returns latest organizationConfig in getOrganization response', async () => {
@@ -223,6 +157,112 @@ describe('OrganizationService organizationConfig updates', () => {
 
       await expect(service.getOrganizationConfig('missing-org')).rejects.toThrow(/missing-org/);
       expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('saveOrganizationConfig', () => {
+    const sampleConfig = {
+      countryCode: 'IN',
+      timezone: 'Asia/Kolkata',
+      defaultLanguageCode: 'en',
+      supportedLanguageCodes: ['en', 'hi'],
+      enabledModuleCodes: ['MOD_A'],
+      enabledFeatureCodes: ['FEAT_A'],
+      enabledCategoryCodes: ['CAT_A'],
+      enabledConditionCodes: ['COND_A'],
+      enabledMetricCodes: ['METRIC_CHECKIN'],
+      enabledDeviceCodes: ['DEV_A'],
+      linkedOrgReferences: ['org-2'],
+      requiredAgreementIds: ['agr-1'],
+    };
+
+    it('creates CONFIG#v1 draft for the first config', async () => {
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue(null);
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      const result = await service.saveOrganizationConfig('org-1', sampleConfig, 'corr-1', 'user-1');
+
+      expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith('org-1', sampleConfig, {
+        changeReason: undefined,
+        createdBy: 'user-1',
+      });
+      expect(result.created).toBe(true);
+      expect(result.version).toBe(1);
+      expect(result.status).toBe(OrgConfigStatus.DRAFT);
+    });
+
+    it('creates the next draft version when config changed', async () => {
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue({
+        version: 2,
+        status: OrgConfigStatus.DRAFT,
+        countryCode: 'IN',
+        supportedLanguageCodes: ['en'],
+      });
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 3,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      const result = await service.saveOrganizationConfig(
+        'org-1',
+        { countryCode: 'US', changeReason: 'switch country' },
+        'corr-1',
+        'user-1',
+      );
+
+      expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
+        'org-1',
+        { countryCode: 'US' },
+        { changeReason: 'switch country', createdBy: 'user-1' },
+      );
+      expect(result.created).toBe(true);
+      expect(result.version).toBe(3);
+    });
+
+    it('does not create a new version when config matches the latest', async () => {
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue({
+        version: 5,
+        status: OrgConfigStatus.ACTIVE,
+        ...sampleConfig,
+      });
+
+      const result = await service.saveOrganizationConfig('org-1', { ...sampleConfig }, 'corr-1', 'user-1');
+
+      expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
+      expect(result.created).toBe(false);
+      expect(result.version).toBe(5);
+      expect(result.status).toBe(OrgConfigStatus.ACTIVE);
+    });
+
+    it('throws OrganizationNotFoundError when org does not exist', async () => {
+      repository.getOrganization.mockResolvedValue(null);
+
+      await expect(
+        service.saveOrganizationConfig('missing-org', sampleConfig, 'corr-1', 'user-1'),
+      ).rejects.toThrow(/missing-org/);
+      expect(repository.getLatestOrganizationConfigVersionItem).not.toHaveBeenCalled();
+      expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
+    });
+
+    it('does not emit any event when saving config', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { publishEvent } = require('../events/event.publisher');
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue(null);
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      await service.saveOrganizationConfig('org-1', sampleConfig, 'corr-1', 'user-1');
+
+      expect(publishEvent).not.toHaveBeenCalled();
     });
   });
 });

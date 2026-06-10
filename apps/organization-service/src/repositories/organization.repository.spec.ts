@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { OrganizationRepository } from './organization.repository';
 import { OrgConfigEntityType, OrgConfigStatus } from '../models';
 
-const mockSend: jest.Mock = jest.fn();
+const mockSend = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock('@api-hub/utils', () => ({
   ddbDocClient: {
@@ -38,7 +38,7 @@ describe('OrganizationRepository organization config versioning', () => {
   it('creates first config version when none exists', async () => {
     mockSend
       .mockResolvedValueOnce({ Items: [] })
-      .mockResolvedValueOnce({} as never);
+      .mockResolvedValueOnce({});
 
     const result = await repository.createOrganizationConfigVersion('org-1', {
       supportedCountries: ['IN'],
@@ -224,6 +224,96 @@ describe('OrganizationRepository organization config versioning', () => {
     const latest = await repository.getLatestOrganizationConfig('org-1', { preferActive: false });
     expect(latest?.version).toBe(4);
     expect(latest?.status).toBe(OrgConfigStatus.INACTIVE);
+  });
+
+  describe('config draft save (TLH-12120)', () => {
+    it('getLatestOrganizationConfigVersionItem picks the highest numeric version (v10 > v9)', async () => {
+      mockSend.mockResolvedValueOnce({
+        Items: [
+          {
+            pk: 'ORG#org-1',
+            sk: 'CONFIG#v9',
+            entityType: OrgConfigEntityType.ORG_CONFIG,
+            orgId: 'org-1',
+            version: 9,
+            status: OrgConfigStatus.DRAFT,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          {
+            pk: 'ORG#org-1',
+            sk: 'CONFIG#v10',
+            entityType: OrgConfigEntityType.ORG_CONFIG,
+            orgId: 'org-1',
+            version: 10,
+            status: OrgConfigStatus.DRAFT,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      });
+
+      const latest = await repository.getLatestOrganizationConfigVersionItem('org-1');
+      expect(latest?.version).toBe(10);
+    });
+
+    it('creates first draft config as CONFIG#v1 with status draft', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Items: [] })
+        .mockResolvedValueOnce({});
+
+      const result = await repository.createOrganizationConfigDraftVersion(
+        'org-1',
+        { countryCode: 'IN', enabledModuleCodes: ['MOD_A'] },
+        { createdBy: 'user-1' },
+      );
+
+      expect(result.version).toBe(1);
+      expect(result.sk).toBe('CONFIG#v1');
+      expect(result.status).toBe(OrgConfigStatus.DRAFT);
+      expect(result.createdBy).toBe('user-1');
+
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(mockSend.mock.calls[0][0]).toBeInstanceOf(QueryCommand);
+      expect(mockSend.mock.calls[1][0]).toBeInstanceOf(PutCommand);
+      const putItem = (mockSend.mock.calls[1][0] as PutCommand).input.Item as any;
+      expect(putItem.entityType).toBe(OrgConfigEntityType.ORG_CONFIG);
+      expect(putItem.countryCode).toBe('IN');
+      expect(putItem.enabledModuleCodes).toEqual(['MOD_A']);
+    });
+
+    it('increments to the next version and does NOT deactivate previous versions', async () => {
+      mockSend
+        .mockResolvedValueOnce({
+          Items: [
+            {
+              pk: 'ORG#org-1',
+              sk: 'CONFIG#v2',
+              entityType: OrgConfigEntityType.ORG_CONFIG,
+              orgId: 'org-1',
+              version: 2,
+              status: OrgConfigStatus.ACTIVE,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({});
+
+      const result = await repository.createOrganizationConfigDraftVersion(
+        'org-1',
+        { countryCode: 'US' },
+        { changeReason: 'switch' },
+      );
+
+      expect(result.version).toBe(3);
+      expect(result.sk).toBe('CONFIG#v3');
+      expect(result.status).toBe(OrgConfigStatus.DRAFT);
+      // Single Put only — no TransactWrite, so no previous version is deactivated.
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(mockSend.mock.calls[1][0]).toBeInstanceOf(PutCommand);
+      expect(mockSend.mock.calls[1][0]).not.toBeInstanceOf(TransactWriteCommand);
+    });
   });
 });
 

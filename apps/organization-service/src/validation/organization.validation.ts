@@ -235,6 +235,48 @@ export const setOrgStatusSchema = z.object({
   status: z.enum(['ACTIVE', 'HOLD', 'DISABLED'], { message: 'status must be ACTIVE, HOLD, or DISABLED' }),
 });
 
+/**
+ * Body schema for `PUT /organization/{organizationId}/config`. Metadata codes only; no
+ * Metadata Registry validation here (that happens on publish). Requires at least one
+ * config field so empty drafts are rejected.
+ */
+export const updateOrganizationConfigSchema = z
+  .object({
+    countryCode: configCodeSchema.optional(),
+    timezone: z.string().min(1).optional(),
+    defaultLanguageCode: configCodeSchema.optional(),
+    supportedLanguageCodes: z.array(configCodeSchema).optional(),
+    enabledModuleCodes: z.array(configCodeSchema).optional(),
+    enabledFeatureCodes: z.array(configCodeSchema).optional(),
+    enabledCategoryCodes: z.array(configCodeSchema).optional(),
+    enabledConditionCodes: z.array(configCodeSchema).optional(),
+    enabledMetricCodes: z.array(configCodeSchema).optional(),
+    enabledDeviceCodes: z.array(configCodeSchema).optional(),
+    linkedOrgReferences: z.array(configCodeSchema).optional(),
+    requiredAgreementIds: z.array(configCodeSchema).optional(),
+    changeReason: z.string().trim().min(1).max(500).optional(),
+  })
+  .refine(
+    (value) =>
+      value.countryCode !== undefined ||
+      value.timezone !== undefined ||
+      value.defaultLanguageCode !== undefined ||
+      value.supportedLanguageCodes !== undefined ||
+      value.enabledModuleCodes !== undefined ||
+      value.enabledFeatureCodes !== undefined ||
+      value.enabledCategoryCodes !== undefined ||
+      value.enabledConditionCodes !== undefined ||
+      value.enabledMetricCodes !== undefined ||
+      value.enabledDeviceCodes !== undefined ||
+      value.linkedOrgReferences !== undefined ||
+      value.requiredAgreementIds !== undefined,
+    {
+      message: 'organizationConfig must include at least one config field',
+    },
+  );
+
+export type UpdateOrganizationConfigInput = z.infer<typeof updateOrganizationConfigSchema>;
+
 export const organizationListSchema = z.object({
   organizationId: z.string().optional(),
   organizationID: z.string().optional(),

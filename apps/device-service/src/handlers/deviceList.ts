@@ -7,7 +7,9 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { deviceListSchema } from '../validation/device.validation';
-import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../utils/helpers';
+import { getAuthorizerOrganizationId, resolveDeviceListUserId } from '../utils/helpers';
+import { PATHS } from '../constants/paths';
+import { HTTP_METHODS } from '../constants/httpMethods';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 const deviceService = new DeviceService();
@@ -43,38 +45,72 @@ const applyListFilters = (devices: any[], category?: string, searchValue?: strin
   return filteredDevices;
 };
 
-const deviceListImpl: any = async (event: any, context?: Context) => {
+const toSyncCategory = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+const mapCatalogDevice = (device: Record<string, unknown>) => ({
+  category: device.category,
+  deviceId: device.deviceId,
+  deviceImage: device.deviceImage || '',
+  displayName: device.displayName || device.name,
+  countriesSupported: device.countriesSupported || [],
+  manufacturerImage: device.manufacturerImage || '',
+  manufacturerName: device.manufacturerName || '',
+  name: device.name,
+  template: device.template || 1,
+  deviceDetails: device.deviceDetails || '',
+  supportedVitals: device.supportedVitals || [],
+  syncCategory: toSyncCategory(device.syncCategory),
+});
+
+const deviceListImpl: any = async (req: any, context?: Context) => {
+  const evt = req.event ?? req;
   const startTime = Date.now();
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+  const correlationId = req.context?.correlationId ?? extractCorrelationId(evt);
+  const awsRequestId = req.context?.awsRequestId ?? (context ? extractAwsRequestId(context) : undefined);
+  const httpMethod = evt.httpMethod || HTTP_METHODS.POST;
+  const path = evt.path || PATHS.DEVICES_LIST;
   const logger = createChildLogger(baseLogger, { correlationId, ...(awsRequestId && { awsRequestId }) });
   logger.info({ event: 'deviceList_received' });
 
   try {
-    // Parse request body for POST requests
     let requestData: any = {};
-    
-    if (event.httpMethod === 'POST' && event.body) {
-      requestData = JSON.parse(event.body);
+    if (req.body && typeof req.body === 'object') {
+      requestData = req.body;
       logger.info({ event: 'deviceList_post_body', action: requestData.action });
-      
-      // Validate request data
+
       const validation = deviceListSchema.safeParse(requestData);
       if (!validation.success) {
         logger.error({ event: 'deviceList_validation_error', errors: validation.error.issues });
-        return ApiResponse.badRequest('DEVICE.INVALID_REQUEST_DATA', {  correlationId: correlationId, event });
+        return ApiResponse.badRequest('DEVICE.INVALID_REQUEST_DATA', { correlationId, event: evt });
+      }
+    } else if (evt.body && httpMethod === HTTP_METHODS.POST) {
+      requestData = typeof evt.body === 'string' ? JSON.parse(evt.body) : evt.body;
+      logger.info({ event: 'deviceList_post_body', action: requestData.action });
+
+      const validation = deviceListSchema.safeParse(requestData);
+      if (!validation.success) {
+        logger.error({ event: 'deviceList_validation_error', errors: validation.error.issues });
+        return ApiResponse.badRequest('DEVICE.INVALID_REQUEST_DATA', { correlationId, event: evt });
       }
     } else {
-      // For GET requests, use query parameters (backward compatibility)
-      requestData = event.queryStringParameters || {};
+      requestData = evt.queryStringParameters || {};
     }
 
-    // Handle both organizationID and organizationId for flexibility
     const organizationID =
       requestData.organizationID ||
       requestData.organizationId ||
-      getAuthorizerOrganizationId(event);
-    const { action, category, searchValue, deviceId, deviceType, userId, countryCode, patientUserId } = requestData;
+      getAuthorizerOrganizationId(evt) ||
+      req.context?.userContext?.organizationId;
+    const userIdForDeviceList =
+      resolveDeviceListUserId(evt, requestData) ||
+      req.context?.userContext?.userId;
+    const { action, category, searchValue, deviceId, deviceType, countryCode, patientUserId } = requestData;
     
     logger.info({ 
       event: 'deviceList_parsed_params', 
@@ -82,10 +118,11 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       category,
       searchValue,
       organizationID,
+      userIdForDeviceList,
       hasOrganizationId: !!requestData.organizationId,
-      hasOrganizationID: !!requestData.organizationID
+      hasOrganizationID: !!requestData.organizationID,
+      hasBodyUserId: !!(requestData.userId || requestData.userID),
     });
-
     // Scenario 1: Return only device category names
     if (action?.toLowerCase() === 'devicecategory') {
       logger.info({ event: 'deviceList_category_names' });
@@ -105,11 +142,11 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       const categoryNames = Array.from(categoryNamesSet).sort();
       
       const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
+      logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
       return ApiResponse.ok(
         { items: categoryNames },
         'DEVICE.DEVICE_CATEGORY_SUCCESS',
-        {  correlationId: correlationId, event }
+        { correlationId, event: evt }
       );
     }
 
@@ -137,26 +174,14 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       allDevices = applyListFilters(allDevices, category, searchValue);
       
       // Map devices to the requested response format
-      const deviceList = allDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
-      
+      const deviceList = allDevices.map((device: any) => mapCatalogDevice(device));
+
       const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
+      logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
         'DEVICE.DEVICE_LIST_SUCCESS',
-        {  correlationId: correlationId, event }
+        { correlationId, event: evt }
       );
     }
 
@@ -175,27 +200,15 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       logger.info({ event: 'deviceList_patient_enabled_count', count: enabledDevices.length });
       
       // Map devices to the requested response format
-      const deviceList = enabledDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
+      const deviceList = enabledDevices.map((device: any) => mapCatalogDevice(device));
       
       logger.info({ event: 'deviceList_patient_final_count', count: deviceList.length });
       const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
+      logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
         'DEVICE.DEVICE_LIST_SUCCESS',
-        {  correlationId: correlationId, event }
+        { correlationId, event: evt }
       );
     }
 
@@ -229,6 +242,7 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
           template: recommendation.template || globalDevice?.template || 1,
           deviceDetails: recommendation.deviceDetails || globalDevice?.deviceDetails || '',
           supportedVitals: recommendation.supportedVitals || globalDevice?.supportedVitals || [],
+          syncCategory: toSyncCategory(recommendation.syncCategory ?? globalDevice?.syncCategory),
           status: recommendation.status, // Include recommendation status (UNPAIRED/PAIRED)
           doctorData: recommendation.doctorData, // Include doctor information
           referredBy: referredBy,
@@ -238,27 +252,25 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
       
       logger.info({ event: 'deviceList_recommend_final_count', count: deviceList.length });
       const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'POST', event.path || '/devices/list', 200, duration, correlationId);
+      logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
       return ApiResponse.ok(
         { items: deviceList },
         'DEVICE.DEVICE_LIST_SUCCESS',
-        {  correlationId: correlationId, event }
+        { correlationId, event: evt }
       );
     }
 
-    // Scenario 5: Return user-specific devices (backward compatibility)
-    // Try to get userId from authorizer context or JWT token, fallback to request body/query params
-    const userIdFromAuth = getAuthorizerUserId(event) || userId;
-    
-    if (userIdFromAuth) {
-      logger.info({ event: 'deviceList_user_devices', userId: userIdFromAuth });
-      const devices = await deviceService.getUserDevices(userIdFromAuth, {
+    // Scenario 5: User paired devices (DEVICE_LIST#userId) — legacy retrieve-device-list path.
+    // syncCategory and other pairing fields live only on these rows, not the global catalog.
+    if (userIdForDeviceList) {
+      logger.info({ event: 'deviceList_user_devices', userId: userIdForDeviceList });
+      const devices = await deviceService.getUserDevices(userIdForDeviceList, {
         deviceId,
         deviceType,
       });
       const duration = Date.now() - startTime;
-      logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 200, duration, correlationId);
-      return ApiResponse.ok(devices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
+      logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
+      return ApiResponse.ok(devices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', { correlationId, event: evt });
     }
 
     // Default: Return all global devices (backward compatibility)
@@ -277,13 +289,13 @@ const deviceListImpl: any = async (event: any, context?: Context) => {
     }
     
     const duration = Date.now() - startTime;
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 200, duration, correlationId);
-    return  ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', {  correlationId: correlationId, event });
+    logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
+    return  ApiResponse.ok(allDevices, 'DEVICE.DEVICE_LIST_RETRIEVED_SUCCESS', { correlationId, event: evt });
   } catch (err) {
     const duration = Date.now() - startTime;
     logger.error({ event: 'deviceList_error', err: serializeError(err) });
-    logHttpRequest(logger, event.httpMethod || 'GET', event.path || '/devices/list', 500, duration, correlationId);
-    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', {  correlationId: correlationId, event }, { code: 'LIST_RETRIEVAL_FAILED' });
+    logHttpRequest(logger, httpMethod, path, 500, duration, correlationId);
+    return ApiResponse.internalServerError('DEVICE.LIST_RETRIEVAL_FAILED', { correlationId, event: evt }, { code: 'LIST_RETRIEVAL_FAILED' });
   }
 };
 

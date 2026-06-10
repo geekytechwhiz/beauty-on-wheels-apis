@@ -7,7 +7,7 @@ info:
     (Care Plan Runtime / workflow), **POST /tasks/monitoring-action** (Monitoring Runtime), and **POST /tasks**
     (service-flow / authorized manual-system). Patients and staff retrieve tasks via **GET /action-center/items**,
     **GET /tasks**, **GET /staff/tasks**, and **GET /tasks/{runtimeTaskInstanceId}**. Portal may
-    **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings** and **PUT /tasks/{runtimeTaskInstanceId}/owner**.
+    **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings** and **PUT /tasks/{runtimeTaskInstanceId}/assigned-staff**.
 
     **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header and no `orgId` query parameter).
 
@@ -38,7 +38,7 @@ tags:
     description: >
       Generate care-plan tasks (POST /tasks/generate-care-plan), monitoring actions (POST /tasks/monitoring-action),
       ad-hoc creates (POST /tasks), patient/staff lists (GET /tasks, GET /staff/tasks, GET /action-center/items),
-      detail, state, owner, reminder settings, history, and care-plan readiness summary.
+      detail, state, staff assign/reassign, reminder settings, history, and care-plan readiness summary.
 
 components:
   securitySchemes:
@@ -234,11 +234,6 @@ components:
       type: string
       enum: [Patient, CareTeam, Provider, System]
 
-    OwnerType:
-      type: string
-      description: Care-manager/staff task ownership (Requirements v2).
-      enum: [User, Role, Team]
-
     RuntimeTaskCard:
       type: object
       description: Task summary for lists and Action Center cards.
@@ -262,6 +257,10 @@ components:
           type: string
           description: Organization resolved from JWT at read time (echoed in responses).
         patientId: { type: string }
+        patientDisplayName:
+          type: string
+          nullable: true
+          description: Denormalized patient display name captured at create time.
         carePlanInstanceId: { type: string, nullable: true }
         workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
         runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
@@ -276,25 +275,11 @@ components:
         assignedToStaffId:
           type: string
           nullable: true
-          description: When ownerType=User; mirrors ownerUserId for staff inbox (GSI1).
-        ownerType:
-          $ref: '#/components/schemas/OwnerType'
-          nullable: true
-        ownerUserId:
+          description: Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox.
+        assignedToStaffDisplayName:
           type: string
           nullable: true
-          description: Required when ownerType=User.
-        ownerRoleCode:
-          type: string
-          nullable: true
-          description: Required when ownerType=Role.
-        ownerTeamId:
-          type: string
-          nullable: true
-          description: Required when ownerType=Team.
-        ownerDisplayName:
-          type: string
-          nullable: true
+          description: Denormalized staff display name; required in requests when assignedToStaffId is set.
         displayToPatient: { type: boolean }
         dueWindowStart:
           $ref: '#/components/schemas/EpochMillis'
@@ -387,11 +372,11 @@ components:
       type: string
       description: Append-only audit event kind (Requirements v2; stored on HIST# rows).
       enum:
-        - StateChange
-        - OwnerChange
-        - ReminderSettingsChange
-        - ReminderRegisterRequest
-        - ReminderCancelRequest
+        - stateChange
+        - assignedToStaffChange
+        - reminderSettingsChange
+        - reminderRegisterRequest
+        - reminderCancelRequest
 
     ReminderSettings:
       type: object
@@ -409,7 +394,7 @@ components:
       type: object
       description: >
         One append-only HIST# audit row. State transitions require from/to state; other event types populate
-        owner or reminder audit fields per HistoryEventType.
+        staff-assignment or reminder audit fields per historyEventType.
       required: [taskStateHistoryId, historyEventType, transitionAt, transitionBy, transitionSource]
       properties:
         taskStateHistoryId: { type: string }
@@ -426,20 +411,10 @@ components:
         transitionSource: { $ref: '#/components/schemas/TransitionSource' }
         transitionReason: { type: string, nullable: true }
         sourceEventId: { type: string, nullable: true }
-        previousOwnerType:
-          $ref: '#/components/schemas/OwnerType'
-          nullable: true
-        previousOwnerUserId: { type: string, nullable: true }
-        previousOwnerRoleCode: { type: string, nullable: true }
-        previousOwnerTeamId: { type: string, nullable: true }
-        previousOwnerDisplayName: { type: string, nullable: true }
-        newOwnerType:
-          $ref: '#/components/schemas/OwnerType'
-          nullable: true
-        newOwnerUserId: { type: string, nullable: true }
-        newOwnerRoleCode: { type: string, nullable: true }
-        newOwnerTeamId: { type: string, nullable: true }
-        newOwnerDisplayName: { type: string, nullable: true }
+        previousAssignedToStaffId: { type: string, nullable: true }
+        newAssignedToStaffId: { type: string, nullable: true }
+        previousAssignedToStaffDisplayName: { type: string, nullable: true }
+        newAssignedToStaffDisplayName: { type: string, nullable: true }
         previousReminderEnabled: { type: boolean, nullable: true }
         newReminderEnabled: { type: boolean, nullable: true }
         previousReminderSettings:
@@ -539,35 +514,26 @@ components:
           nullable: true
         historyEntry: { $ref: '#/components/schemas/TaskHistoryEntry' }
 
-    UpdateTaskOwnerRequest:
+    UpdateAssignedStaffRequest:
       type: object
       description: >
-        Reassign care-manager/staff task ownership (Requirements v2). Updates META Owner* and GSI1 when
-        ownerUserId changes; writes HIST# OwnerChange audit.
-      required: [actorId, ownerType]
+        Assign or reassign a careTeam or provider task to a staff member. When the task has no
+        assignedToStaffId, sets sparse GSI1 (gsi1Pk + gsi1Sk); when already assigned, updates gsi1Pk only.
+        Writes HIST# assignedToStaffChange audit. Does not change META SK or lsi1Sk.
+      required: [actorId, assignedToStaffId, assignedToStaffDisplayName]
       properties:
         actorId: { type: string }
-        ownerType: { $ref: '#/components/schemas/OwnerType' }
-        ownerUserId:
+        assignedToStaffId:
           type: string
-          nullable: true
-          description: Required when ownerType=User.
-        ownerRoleCode:
+          description: New staff user id for the staff inbox (GSI1).
+        assignedToStaffDisplayName:
           type: string
-          nullable: true
-          description: Required when ownerType=Role.
-        ownerTeamId:
-          type: string
-          nullable: true
-          description: Required when ownerType=Team.
-        ownerDisplayName:
-          type: string
-          nullable: true
+          description: Display name for the assigned staff member.
         reason:
           type: string
           nullable: true
 
-    UpdateTaskOwnerResult:
+    UpdateAssignedStaffResult:
       type: object
       required: [runtimeTaskInstanceId, task, historyEntry]
       properties:
@@ -582,6 +548,7 @@ components:
         per-task idempotency uses deterministic IDs + conditional writes.
       required:
         - patientId
+        - patientDisplayName
         - carePlanInstanceId
         - taskGenerationTrigger
         - sourceLinkageContext
@@ -589,6 +556,7 @@ components:
         - idempotencyKey
       properties:
         patientId: { type: string }
+        patientDisplayName: { type: string }
         carePlanInstanceId: { type: string }
         taskGenerationTrigger: { type: string }
         idempotencyKey:
@@ -632,6 +600,7 @@ components:
         Organization is from the JWT (not in body). Requested by Monitoring Runtime for metric/symptom/setup check-ins.
       required:
         - patientId
+        - patientDisplayName
         - carePlanInstanceId
         - monitoringInstanceId
         - taskBehaviorCode
@@ -639,6 +608,7 @@ components:
         - dueWindowEnd
       properties:
         patientId: { type: string }
+        patientDisplayName: { type: string }
         carePlanInstanceId:
           type: string
           description: Required per requirements §5.2 minimum input for CreateMonitoringAction.
@@ -669,6 +639,7 @@ components:
         Organization is from the JWT (not in body). Authorized manual/system or service-flow task where product rules permit.
       required:
         - patientId
+        - patientDisplayName
         - runtimeTaskSource
         - taskBehaviorCode
         - taskDisplayGroup
@@ -677,6 +648,7 @@ components:
         - displayToPatient
       properties:
         patientId: { type: string }
+        patientDisplayName: { type: string }
         carePlanInstanceId: { type: string, nullable: true }
         workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
         runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
@@ -688,14 +660,11 @@ components:
         assignedToStaffId:
           type: string
           nullable: true
-          description: When ownerType=User; same value as ownerUserId.
-        ownerType:
-          $ref: '#/components/schemas/OwnerType'
+          description: Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox.
+        assignedToStaffDisplayName:
+          type: string
           nullable: true
-        ownerUserId: { type: string, nullable: true }
-        ownerRoleCode: { type: string, nullable: true }
-        ownerTeamId: { type: string, nullable: true }
-        ownerDisplayName: { type: string, nullable: true }
+          description: Required when assignedToType is careTeam or provider.
         displayToPatient: { type: boolean }
         actionTargetId: { type: string, nullable: true }
         completionSourceType: { type: string, nullable: true }
@@ -880,13 +849,13 @@ components:
             data:
               $ref: '#/components/schemas/UpdateReminderSettingsResult'
 
-    SuccessResponseUpdateTaskOwner:
+    SuccessResponseUpdateAssignedStaff:
       allOf:
         - $ref: '#/components/schemas/SuccessResponse'
         - type: object
           properties:
             data:
-              $ref: '#/components/schemas/UpdateTaskOwnerResult'
+              $ref: '#/components/schemas/UpdateAssignedStaffResult'
 
     SuccessResponseTaskStatusSummaryByCarePlan:
       allOf:
@@ -1136,10 +1105,8 @@ paths:
                   taskDisplayGroup: StaffTask
                   displayTitle: Call patient about missed reading
                   description: Follow up on missed BP reading from yesterday
-                  assignedToType: CareTeam
-                  ownerType: User
-                  ownerUserId: staff-nurse-44721
-                  ownerDisplayName: Nurse Lee
+                  assignedToType: careTeam
+                  assignedToStaffId: staff-nurse-44721
                   displayToPatient: false
                   dueWindowStart: 1780581600000
                   dueWindowEnd: 1780668000000
@@ -1234,8 +1201,7 @@ paths:
       description: >
         Staff worklist via **GSI1 (`StaffPatientTasksIndex`)**. Organization scope is from the JWT.
         **`staffUserId`** is required. Optional **`patientId`** narrows results to one patient.
-        Optional **`ownerRoleCode`** / **`ownerTeamId`** filter by META ownership. Paginate with **`pageSize`**
-        and **`nextToken`**.
+        Paginate with **`pageSize`** and **`nextToken`**.
       tags: [Task instances]
       parameters:
         - name: staffUserId
@@ -1269,18 +1235,6 @@ paths:
           description: Filter by task state.
           schema:
             $ref: '#/components/schemas/CurrentState'
-        - name: ownerRoleCode
-          in: query
-          required: false
-          description: Filter staff worklist by META OwnerRoleCode.
-          schema:
-            type: string
-        - name: ownerTeamId
-          in: query
-          required: false
-          description: Filter staff worklist by META OwnerTeamID.
-          schema:
-            type: string
         - name: pageSize
           in: query
           schema:
@@ -1440,38 +1394,44 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
-  /tasks/{runtimeTaskInstanceId}/owner:
+  /tasks/{runtimeTaskInstanceId}/assigned-staff:
     parameters:
       - $ref: '#/components/parameters/runtimeTaskInstanceId'
     put:
-      operationId: updateTaskOwner
-      summary: Reassign staff task ownership (portal)
+      operationId: updateAssignedStaff
+      summary: Assign or reassign staff task to a staff member (portal)
       description: >
-        Reassign owner for care-manager/staff tasks only. Updates META `Owner*` and sparse **GSI1** when
-        `ownerUserId` changes; appends **HIST#** `OwnerChange` audit. Does not change META SK or LSI1SK.
+        **careTeam** or **provider** tasks only. Initial assignment sets `assignedToStaffId` plus sparse **GSI1**
+        (`gsi1Pk` and `gsi1Sk`). Reassignment updates `assignedToStaffId` and `gsi1Pk` only. Appends **HIST#**
+        `assignedToStaffChange` audit. Does not change META SK or `lsi1Sk`.
       tags: [Task instances]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateTaskOwnerRequest'
+              $ref: '#/components/schemas/UpdateAssignedStaffRequest'
             examples:
-              reassignToUser:
+              assignToNurse:
+                summary: Assign to a nurse
+                value:
+                  actorId: staff-manager-1
+                  assignedToStaffId: staff-nurse-44721
+                  assignedToStaffDisplayName: Nurse Lee
+              reassignToNurse:
                 summary: Reassign to another nurse
                 value:
                   actorId: staff-nurse-44721
-                  ownerType: User
-                  ownerUserId: staff-nurse-55210
-                  ownerDisplayName: Nurse Patel
+                  assignedToStaffId: staff-nurse-55210
+                  assignedToStaffDisplayName: Nurse Patel
                   reason: Shift handoff
       responses:
         '200':
-          description: Updated task ownership and audit entry.
+          description: Updated task staff assignment and audit entry.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponseUpdateTaskOwner'
+                $ref: '#/components/schemas/SuccessResponseUpdateAssignedStaff'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1544,7 +1504,7 @@ paths:
       summary: Get task audit history
       description: >
         Paged append-only **HIST#** timeline for one runtime task (newest first via SK sort). Includes
-        `StateChange`, `OwnerChange`, `ReminderSettingsChange`, and optional reminder register/cancel request events.
+        `stateChange`, `assignedToStaffChange`, `reminderSettingsChange`, and optional reminder register/cancel request events.
         **`transitionAt`** is epoch milliseconds. Paginate with **`pageSize`** and **`nextToken`**.
       tags: [Task instances]
       parameters:

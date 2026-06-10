@@ -18,7 +18,10 @@ export const deviceRegistrationSchema = z.object({
         deviceCategory: z.string().min(1),
         companyName: z.string().min(1),
         modelName: z.string().min(1),
+        userId: z.string().optional(),
+        userID: z.string().optional(),
         deviceCategoryNum: z.number().optional(),
+        syncCategory: z.coerce.number().optional(),
       }),
     )
     .min(1),
@@ -56,6 +59,7 @@ export const deviceUserRegistrationSchema = z.object({
         userIndex: z.number().optional(),
         isEagleDevice: z.boolean().optional(),
         deviceCategoryNum: z.union([z.string(), z.number()]).optional(),
+        syncCategory: z.coerce.number().optional(),
       }),
     )
     .min(1),
@@ -84,6 +88,7 @@ export const deviceListSchema = z.object({
   deviceId: z.string().optional(),
   deviceType: z.string().optional(),
   userId: z.string().min(1).optional(),
+  userID: z.string().min(1).optional(),
   countryCode: z.string().optional(),
 });
 

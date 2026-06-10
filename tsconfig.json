@@ -86,6 +86,12 @@
     },
     {
       "path": "./packages/fhir"
+    },
+    {
+      "path": "./apps/task-service"
+    },
+    {
+      "path": "./libs/task-core"
     }
   ]
 }

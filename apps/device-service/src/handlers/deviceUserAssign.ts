@@ -52,4 +52,4 @@ const deviceUserAssignImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.userAssign' }, deviceUserAssignImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.userAssign' }, deviceUserAssignImpl);

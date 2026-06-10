@@ -45,4 +45,4 @@ const deviceUserListImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.userList' }, deviceUserListImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.userList' }, deviceUserListImpl);

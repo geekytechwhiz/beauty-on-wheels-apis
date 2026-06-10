@@ -54,4 +54,4 @@ const deviceDeleteImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.delete' }, deviceDeleteImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.delete' }, deviceDeleteImpl);

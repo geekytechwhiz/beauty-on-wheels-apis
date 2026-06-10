@@ -1,3 +1,4 @@
+export * from './lib/task-core.js';
 export * from './lib/builder/task-entity.builder';
 export * from './lib/builder/task-key.builder';
 export * from './lib/constants/task.constants';

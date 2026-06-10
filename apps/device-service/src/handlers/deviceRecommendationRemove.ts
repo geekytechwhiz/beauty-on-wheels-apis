@@ -86,4 +86,4 @@ const deviceRecommendationRemoveImpl: any = async (event: any, context?: Context
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.recommendationRemove' }, deviceRecommendationRemoveImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.recommendationRemove' }, deviceRecommendationRemoveImpl);

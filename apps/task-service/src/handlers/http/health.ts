@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/observability';
+import { createLogger, extractAwsRequestId, extractCorrelationId } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
 
 const logger = createLogger({ service: 'task-service', redactPII: false });
@@ -47,3 +47,5 @@ export async function main(
     },
   );
 }
+
+export default main;

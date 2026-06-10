@@ -122,4 +122,4 @@ const orgDeviceManageImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.orgManage' }, orgDeviceManageImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.orgManage' }, orgDeviceManageImpl);

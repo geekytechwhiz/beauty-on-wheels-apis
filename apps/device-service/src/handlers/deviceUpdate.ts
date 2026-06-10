@@ -76,4 +76,4 @@ const deviceUpdateImpl: any = async (event: any, context?: Context) => {
   }
 };
 
-export const handler = withApiHandler({ operation: 'device.update' }, deviceUpdateImpl);
+export const handler = withApiHandler({   useLegacyResponseFormat: true, operation: 'device.update' }, deviceUpdateImpl);

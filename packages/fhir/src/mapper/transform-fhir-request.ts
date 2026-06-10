@@ -7,6 +7,8 @@ import { isFhirEnabled } from './transform-to-fhir-response';
 import { enrichActivateDeactivateFromFhir } from './activate-deactivate-fhir.transform';
 import { enrichAssignDoctorFromFhir } from './assign-doctor-fhir.transform';
 import { enrichCreateUserCanonical, resolveCreateUserInboundHints } from './create-user-fhir.transform';
+import { enrichAppointmentToServicePayload } from './appointment-fhir.transform';
+import { enrichObservationFromFhir } from './observation-fhir.transform';
 
 const fhirTransformation = new FhirTransformationService();
 
@@ -59,7 +61,9 @@ export function shouldTransformFhirRequest(
 
   if (
     options.inboundProfile === 'assignDoctor' ||
-    options.inboundProfile === 'activateDeactivate'
+    options.inboundProfile === 'activateDeactivate' ||
+    options.inboundProfile === 'createAppointment' ||
+    options.inboundProfile === 'createObservation'
   ) {
     return true;
   }
@@ -178,6 +182,24 @@ export async function transformFhirRequest(
       400,
       'FHIR_RESOURCE_TYPE_REQUIRED',
     );
+  }
+
+  // Special-case Appointment and Observation to provide canonical shapes directly
+  if (resourceType === 'createAppointment') {
+    // produce a CreateServiceScheduleRequest-like payload (covers createSchedule/createSession)
+    req.body = enrichAppointmentToServicePayload(req, fhirResource);
+    const ctx = req.context as unknown as Record<string, unknown>;
+    ctx.fhirResourceType = resourceType;
+    ctx.inboundFhirResource = fhirResource;
+    return;
+  }
+
+  if (resourceType === 'createObservation') {
+    req.body = enrichObservationFromFhir(req, fhirResource);
+    const ctx = req.context as unknown as Record<string, unknown>;
+    ctx.fhirResourceType = resourceType;
+    ctx.inboundFhirResource = fhirResource;
+    return;
   }
 
   const canonical = await fhirTransformation.transformFhirToCanonical(

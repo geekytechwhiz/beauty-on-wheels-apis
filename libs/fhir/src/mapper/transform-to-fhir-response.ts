@@ -30,6 +30,8 @@ export type FhirHandlerOptions = {
   inboundProfile?:
     | 'createUser'
     | 'createOrganization'
+    | 'createAppointment'
+    | 'createObservation'
     | 'assignDoctor'
     | 'activateDeactivate';
   /**

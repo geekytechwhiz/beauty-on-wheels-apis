@@ -20,7 +20,7 @@ export interface ListOrgEnabledParams {
   templateType?: string;
   templateName?: string;
   templateId?: string;
-  /** Filter by enablement flag (`true` / `false`). Omit to return both. */
+  /** Filter by enablement flag (`true` / `false`). Defaults to `true` (enabled only). */
   templateEnabled?: boolean;
   country?: string;
   nextToken?: string;
@@ -51,6 +51,11 @@ export interface OrgEnabledListItem {
   /** Active enablement (false when disabled via `templateEnabled: false` update). */
   templateEnabled: boolean;
   disabledAt?: string | null;
+  /**
+   * True when the latest published platform master display version is greater than
+   * the master version the org copy was derived from (e.g. org 1.2, master 1.3).
+   */
+  upgrade: boolean;
 }
 
 export interface OrgEnabledOrganizationGroup {

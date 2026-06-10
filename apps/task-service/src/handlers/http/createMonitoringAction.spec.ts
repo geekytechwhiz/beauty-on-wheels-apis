@@ -87,19 +87,24 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockCreateMonitoringAction: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGenerateCarePlanTasks: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
+  mockGenerateCarePlanTasks = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
     TaskService: jest.fn().mockImplementation(() => ({
       createMonitoringAction: mockCreateMonitoringAction,
+      generateCarePlanTasks: mockGenerateCarePlanTasks,
     })),
   };
 });
 
 import { main } from './createMonitoringAction';
+import { main as generateCarePlanTasksMain } from './generateCarePlanTasks';
 
 describe('createMonitoringAction HTTP handler', () => {
   let envCleanup: () => void;
@@ -122,6 +127,7 @@ describe('createMonitoringAction HTTP handler', () => {
   function validBody(): Record<string, unknown> {
     return {
       patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
       carePlanInstanceId: 'cp-1',
       monitoringInstanceId: 'mon-1',
       taskBehaviorCode: 'METRIC_CHECKIN',
@@ -206,4 +212,81 @@ describe('createMonitoringAction HTTP handler', () => {
     const body = JSON.parse(res.body);
     expect(body.error?.code ?? body.code).toBeDefined();
   });
+});
+
+describe('generateCarePlanTasks HTTP handler', () => {
+  beforeEach(() => {
+    mockGenerateCarePlanTasks.mockReset();
+  });
+
+  const CP_DUE_START = Date.parse('2026-06-04T10:00:00.000Z');
+  const CP_DUE_END = Date.parse('2026-06-04T22:00:00.000Z');
+
+  function carePlanValidBody(): Record<string, unknown> {
+    return {
+      patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
+      carePlanInstanceId: 'cp-1',
+      taskGenerationTrigger: 'carePlanStageEntered',
+      workflowStage: 'onboarding',
+      actorType: 'system',
+      actorId: 'care-plan-runtime',
+      sourceLinkageContext: {
+        linkages: [
+          {
+            carePlanTaskLinkageId: 'link-1',
+            taskBehaviorCode: 'EDUCATION_VIDEO',
+            taskDisplayGroup: 'learning',
+            displayTitle: 'Watch video',
+            assignedToType: 'patient',
+            displayToPatient: true,
+            dueWindowStart: CP_DUE_START,
+            dueWindowEnd: CP_DUE_END,
+          },
+        ],
+      },
+    };
+  }
+
+  function carePlanBaseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
+    return {
+      httpMethod: 'POST',
+      path: '/dev/tasks/generate-care-plan',
+      pathParameters: null,
+      queryStringParameters: null,
+      headers: {
+        Authorization: bearerToken({
+          'custom:organizationID': 'org-1',
+          'custom:userID': 'user-1',
+        }),
+      },
+      body: JSON.stringify(carePlanValidBody()),
+      ...overrides,
+    } as unknown as APIGatewayProxyEvent;
+  }
+
+  it('returns 200 with batch results on success', async () => {
+    const record = minimalTaskMetaRecord({
+      runtimeTaskSource: 'carePlanTaskLinkage',
+      carePlanTaskLinkageId: 'link-1',
+    });
+    mockGenerateCarePlanTasks.mockResolvedValue({
+      results: [
+        {
+          runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+          outcome: 'created',
+          task: { runtimeTaskInstanceId: record.runtimeTaskInstanceId },
+        },
+      ],
+    });
+
+    const res = await generateCarePlanTasksMain(carePlanBaseEvent(), testLambdaContext());
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.data.results[0]).toMatchObject({
+      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+      outcome: 'created',
+    });
+  });
+
 });

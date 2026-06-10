@@ -15,7 +15,9 @@ export type FhirHandlerOptions = {
     | 'createUser'
     | 'createOrganization'
     | 'assignDoctor'
-    | 'activateDeactivate';
+    | 'activateDeactivate'
+    | 'createAppointment'
+    | 'createObservation';
   outboundProfile?: 'organizationDetail' | 'organizationMetadata';
 };
 

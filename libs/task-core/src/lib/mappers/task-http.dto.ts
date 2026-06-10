@@ -1,4 +1,4 @@
-import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
+import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { deriveSurfaceSection } from '../utils/surface-section';
 
 export function toRuntimeTaskCard(r: TaskMetaDdbRecord, nowMs = Date.now()) {
@@ -26,4 +26,17 @@ export function toRuntimeTaskCard(r: TaskMetaDdbRecord, nowMs = Date.now()) {
       nowMs,
     ),
   };
+}
+
+export function toTaskHistoryEntry(r: TaskHistDdbRecord) {
+  const {
+    pk: _pk,
+    sk: _sk,
+    entityType: _entityType,
+    orgId: _orgId,
+    patientId: _patientId,
+    runtimeTaskInstanceId: _runtimeTaskInstanceId,
+    ...rest
+  } = r;
+  return rest;
 }

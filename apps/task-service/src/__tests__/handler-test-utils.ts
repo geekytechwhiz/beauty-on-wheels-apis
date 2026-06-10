@@ -26,6 +26,7 @@ export function minimalTaskMetaRecord(overrides: Partial<TaskMetaDdbRecord> = {}
     entityType: 'RuntimeTaskInstance',
     orgId: 'org-1',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     runtimeTaskInstanceId,
     runtimeTaskSource: 'monitoringRuntime',
     carePlanInstanceId: 'cp-1',

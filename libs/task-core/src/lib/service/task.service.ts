@@ -9,10 +9,16 @@ import type {
   GenerateCarePlanTasksRequest,
   GenerateCarePlanTasksResult,
 } from '../models/api/generate-care-plan.request';
-import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
+import type {
+  CompletionEvidenceDdbRecord,
+  TaskEvidenceSummaryDdbRecord,
+  TaskMetaDdbRecord,
+} from '../models/persistence/task-ddb.model';
 import { IDEMPOTENCY_OUTCOME, type IdempotencyOutcome } from '../models/types/task-domain.types';
-import { toRuntimeTaskCard } from '../mappers/task-http.dto';
+import { toRuntimeTaskCard, toTaskHistoryEntry } from '../mappers/task-http.dto';
 import { TaskRepository } from '../repositories/task-repository';
+import { organizationIdsMatch } from '../utils/organization-ids-match';
+import { decodeTaskHistoryCursor, encodeTaskHistoryCursor } from '../utils/task.utils';
 
 import { BaseTaskService } from './base-task.service';
 
@@ -25,6 +31,31 @@ export type CreateMonitoringActionResult = {
 
 export type CreateRuntimeTaskResult = {
   record: TaskMetaDdbRecord;
+};
+
+export type GetRuntimeTaskDetailInput = {
+  organizationId: string;
+  runtimeTaskInstanceId: string;
+  includeRelated?: boolean;
+};
+
+export type RuntimeTaskDetail = {
+  task: ReturnType<typeof toRuntimeTaskCard>;
+  reminders?: unknown[];
+  completionEvidence?: CompletionEvidenceDdbRecord[];
+  evidenceSummary?: TaskEvidenceSummaryDdbRecord;
+};
+
+export type GetRuntimeTaskHistoryInput = {
+  organizationId: string;
+  runtimeTaskInstanceId: string;
+  pageSize: number;
+  nextToken?: string;
+};
+
+export type PaginatedTaskHistory = {
+  items: ReturnType<typeof toTaskHistoryEntry>[];
+  nextToken?: string;
 };
 
 export class TaskService extends BaseTaskService {
@@ -90,6 +121,62 @@ export class TaskService extends BaseTaskService {
   async createRuntimeTask(payload: CreateRuntimeTaskPayload): Promise<CreateRuntimeTaskResult> {
     const record = await this.repo.createRuntimeTask(payload);
     return { record };
+  }
+
+  async getRuntimeTaskDetail(input: GetRuntimeTaskDetailInput): Promise<RuntimeTaskDetail> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (!organizationIdsMatch(lookup.orgId, input.organizationId)) {
+      throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
+    }
+
+    const record = await this.repo.getMetaByLookup(lookup);
+    if (!record) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    const detail: RuntimeTaskDetail = {
+      task: toRuntimeTaskCard(record),
+    };
+
+    if (input.includeRelated !== false) {
+      detail.reminders = lookup.reminderHistory ?? [];
+      if (lookup.evidenceSummary) {
+        detail.evidenceSummary = lookup.evidenceSummary;
+      }
+      detail.completionEvidence = await this.repo.queryCompletionEvidence(input.runtimeTaskInstanceId);
+    }
+
+    return detail;
+  }
+
+  async getRuntimeTaskHistory(input: GetRuntimeTaskHistoryInput): Promise<PaginatedTaskHistory> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (!organizationIdsMatch(lookup.orgId, input.organizationId)) {
+      throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
+    }
+
+    const exclusiveStartKey = input.nextToken?.trim()
+      ? decodeTaskHistoryCursor(input.nextToken)
+      : undefined;
+
+    const { items, lastEvaluatedKey } = await this.repo.queryTaskHistoryPage(
+      input.runtimeTaskInstanceId,
+      input.pageSize,
+      exclusiveStartKey,
+    );
+
+    return {
+      items: items.map(toTaskHistoryEntry),
+      nextToken: encodeTaskHistoryCursor(lastEvaluatedKey),
+    };
   }
 
   async generateCarePlanTasks(payload: GenerateCarePlanTasksRequest): Promise<GenerateCarePlanTasksResult> {
@@ -189,4 +276,14 @@ export class TaskService extends BaseTaskService {
       throw e;
     }
   }
+}
+
+function taskHttpError(message: string, statusCode: number, code: string): Error & {
+  statusCode: number;
+  code: string;
+} {
+  const err = new Error(message) as Error & { statusCode: number; code: string };
+  err.statusCode = statusCode;
+  err.code = code;
+  return err;
 }

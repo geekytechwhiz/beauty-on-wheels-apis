@@ -194,5 +194,51 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  getRuntimeTask:
+    handler: src/handlers/http/getRuntimeTask.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}
+          method: get
+          summary: Get one runtime task detail
+          description: Resolve task detail by LOOKUP, scoped to organization from JWT.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Task detail
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "500": Server error
+
+  getRuntimeTaskHistory:
+    handler: src/handlers/http/getRuntimeTaskHistory.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}/history
+          method: get
+          summary: Get task audit history
+          description: Paged HIST# timeline for one runtime task (newest first), scoped to organization from JWT.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Paged history entries
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "500": Server error
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

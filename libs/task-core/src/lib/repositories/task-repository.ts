@@ -7,7 +7,12 @@ import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
-import type { TaskLookupDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
+import type {
+  CompletionEvidenceDdbRecord,
+  TaskHistDdbRecord,
+  TaskLookupDdbRecord,
+  TaskMetaDdbRecord,
+} from '../models/persistence/task-ddb.model';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import { buildCarePlanTaskKeys } from '../utils/monitoring-idempotency';
 import {
@@ -48,6 +53,59 @@ export class TaskRepository extends BaseRepository {
     return this.get<TaskMetaDdbRecord>(table, {
       pk: patientPk,
       sk: lookup.taskSk,
+    });
+  }
+
+  async getLookupByTaskId(runtimeTaskInstanceId: string): Promise<TaskLookupDdbRecord | null> {
+    const table = assertTaskTable();
+    return this.get<TaskLookupDdbRecord>(table, {
+      pk: TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
+      sk: TASK_LOOKUP_SK,
+    });
+  }
+
+  async queryTaskHistory(runtimeTaskInstanceId: string): Promise<TaskHistDdbRecord[]> {
+    const table = assertTaskTable();
+    return this.query<TaskHistDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
+        ':prefix': 'HIST#',
+      },
+      ScanIndexForward: false,
+    });
+  }
+
+  async queryTaskHistoryPage(
+    runtimeTaskInstanceId: string,
+    pageSize: number,
+    exclusiveStartKey?: Record<string, unknown>,
+  ): Promise<{ items: TaskHistDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertTaskTable();
+    return this.queryPage<TaskHistDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
+        ':prefix': 'HIST#',
+      },
+      ScanIndexForward: false,
+      Limit: pageSize,
+      ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+    });
+  }
+
+  async queryCompletionEvidence(runtimeTaskInstanceId: string): Promise<CompletionEvidenceDdbRecord[]> {
+    const table = assertTaskTable();
+    return this.query<CompletionEvidenceDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
+        ':prefix': 'EVID#',
+      },
+      ScanIndexForward: false,
     });
   }
 

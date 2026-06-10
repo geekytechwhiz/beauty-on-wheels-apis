@@ -12,11 +12,17 @@ var mockCreateMonitoringAction: jest.Mock;
 var mockCreateRuntimeTask: jest.Mock;
 // eslint-disable-next-line no-var
 var mockGenerateCarePlanTasks: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGetRuntimeTaskDetail: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGetRuntimeTaskHistory: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
   mockCreateRuntimeTask = jest.fn();
   mockGenerateCarePlanTasks = jest.fn();
+  mockGetRuntimeTaskDetail = jest.fn();
+  mockGetRuntimeTaskHistory = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
@@ -24,6 +30,8 @@ jest.mock('@api-hub/task-core', () => {
       createMonitoringAction: mockCreateMonitoringAction,
       createRuntimeTask: mockCreateRuntimeTask,
       generateCarePlanTasks: mockGenerateCarePlanTasks,
+      getRuntimeTaskDetail: mockGetRuntimeTaskDetail,
+      getRuntimeTaskHistory: mockGetRuntimeTaskHistory,
     })),
   };
 });
@@ -77,6 +85,8 @@ describe('TaskHttpController', () => {
     mockCreateMonitoringAction.mockReset();
     mockCreateRuntimeTask.mockReset();
     mockGenerateCarePlanTasks.mockReset();
+    mockGetRuntimeTaskDetail.mockReset();
+    mockGetRuntimeTaskHistory.mockReset();
   });
 
   it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
@@ -228,6 +238,95 @@ describe('TaskHttpController', () => {
       code: 'INTERNAL_ERROR',
     });
     expect(mockCreateRuntimeTask).not.toHaveBeenCalled();
+  });
+
+  it('handleGetRuntimeTask returns task detail on success', async () => {
+    const c = new TaskHttpController();
+    const record = minimalTaskMetaRecord();
+    const serviceResult = {
+      task: {
+        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+        orgId: 'org-1',
+        patientId: 'pat-1',
+      },
+      reminders: [],
+      completionEvidence: [],
+    };
+    mockGetRuntimeTaskDetail.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetRuntimeTask: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+        includeRelated: false,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetRuntimeTask(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockGetRuntimeTaskDetail).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+      includeRelated: false,
+    });
+  });
+
+  it('handleGetRuntimeTask throws 500 when validatedGetRuntimeTask missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleGetRuntimeTask(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockGetRuntimeTaskDetail).not.toHaveBeenCalled();
+  });
+
+  it('handleGetRuntimeTaskHistory returns paged history on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      items: [
+        {
+          taskStateHistoryId: 'hist-1',
+          historyEventType: 'stateChange',
+          transitionAt: 1780581600000,
+          transitionBy: 'system:monitoring-runtime',
+          transitionSource: 'system',
+        },
+      ],
+      nextToken: 'cursor-1',
+    };
+    mockGetRuntimeTaskHistory.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetRuntimeTaskHistory: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        pageSize: 50,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetRuntimeTaskHistory(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockGetRuntimeTaskHistory).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      pageSize: 50,
+      nextToken: undefined,
+    });
+  });
+
+  it('handleGetRuntimeTaskHistory throws 500 when validatedGetRuntimeTaskHistory missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleGetRuntimeTaskHistory(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockGetRuntimeTaskHistory).not.toHaveBeenCalled();
   });
 
   it('handleGenerateCarePlanTasks returns batch results on success', async () => {

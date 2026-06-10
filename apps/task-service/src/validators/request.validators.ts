@@ -4,6 +4,8 @@ import {
   CARE_PLAN_SYSTEM_ACTOR,
   manualSystemActor,
   SERVICE_FLOW_SYSTEM_ACTOR,
+  TASK_HISTORY_DEFAULT_PAGE_SIZE,
+  TASK_HISTORY_MAX_PAGE_SIZE,
 } from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
@@ -111,4 +113,77 @@ export function validateGenerateCarePlanTasksRequest(req: LambdaRequest): void {
       body,
       authHeader: req.context.authHeader,
     };
+}
+
+export type ValidatedGetRuntimeTask = {
+  orgId: string;
+  runtimeTaskInstanceId: string;
+  includeRelated: boolean;
+  authHeader: string | undefined;
+};
+
+export function validateGetRuntimeTaskRequest(req: LambdaRequest): void {
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const runtimeTaskInstanceId = req.pathParameters?.runtimeTaskInstanceId;
+  if (!runtimeTaskInstanceId) {
+    throwVal('runtimeTaskInstanceId path parameter is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const includeRelated = req.params?.includeRelated === 'false' ? false : true;
+
+  (req as LambdaRequest & { validatedGetRuntimeTask: ValidatedGetRuntimeTask }).validatedGetRuntimeTask =
+    {
+      orgId,
+      runtimeTaskInstanceId,
+      includeRelated,
+      authHeader: req.context.authHeader,
+    };
+}
+
+export type ValidatedGetRuntimeTaskHistory = {
+  orgId: string;
+  runtimeTaskInstanceId: string;
+  pageSize: number;
+  nextToken?: string;
+  authHeader: string | undefined;
+};
+
+function parseHistoryPageSize(raw: string | undefined): number {
+  if (!raw?.trim()) return TASK_HISTORY_DEFAULT_PAGE_SIZE;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    throwVal('pageSize must be a positive integer', 400, 'VALIDATION_ERROR');
+  }
+  if (n > TASK_HISTORY_MAX_PAGE_SIZE) {
+    throwVal(`pageSize must not exceed ${TASK_HISTORY_MAX_PAGE_SIZE}`, 400, 'VALIDATION_ERROR');
+  }
+  return n;
+}
+
+export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const runtimeTaskInstanceId = req.pathParameters?.runtimeTaskInstanceId;
+  if (!runtimeTaskInstanceId) {
+    throwVal('runtimeTaskInstanceId path parameter is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const pageSize = parseHistoryPageSize(req.params?.pageSize);
+  const nextToken = req.params?.nextToken?.trim() || undefined;
+
+  (req as LambdaRequest & { validatedGetRuntimeTaskHistory: ValidatedGetRuntimeTaskHistory })
+    .validatedGetRuntimeTaskHistory = {
+    orgId,
+    runtimeTaskInstanceId,
+    pageSize,
+    nextToken,
+    authHeader: req.context.authHeader,
+  };
 }

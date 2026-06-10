@@ -87,19 +87,29 @@ jest.mock('@api-hub/middleware', () => {
 
 // eslint-disable-next-line no-var
 var mockCreateRuntimeTask: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGetRuntimeTaskDetail: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGetRuntimeTaskHistory: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateRuntimeTask = jest.fn();
+  mockGetRuntimeTaskDetail = jest.fn();
+  mockGetRuntimeTaskHistory = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
     TaskService: jest.fn().mockImplementation(() => ({
       createRuntimeTask: mockCreateRuntimeTask,
+      getRuntimeTaskDetail: mockGetRuntimeTaskDetail,
+      getRuntimeTaskHistory: mockGetRuntimeTaskHistory,
     })),
   };
 });
 
 import { main } from './createRuntimeTask';
+import { main as getRuntimeTaskMain } from './getRuntimeTask';
+import { main as getRuntimeTaskHistoryMain } from './getRuntimeTaskHistory';
 
 describe('createRuntimeTask HTTP handler', () => {
   let envCleanup: () => void;
@@ -114,6 +124,7 @@ describe('createRuntimeTask HTTP handler', () => {
 
   beforeEach(() => {
     mockCreateRuntimeTask.mockReset();
+    mockGetRuntimeTaskDetail.mockReset();
   });
 
   function validStaffBody(): Record<string, unknown> {
@@ -219,5 +230,169 @@ describe('createRuntimeTask HTTP handler', () => {
       testLambdaContext(),
     );
     expect(res.statusCode).toBe(422);
+  });
+});
+
+describe('getRuntimeTask HTTP handler', () => {
+  function baseGetEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
+    return {
+      httpMethod: 'GET',
+      path: '/dev/tasks/rtask-test-001',
+      pathParameters: { runtimeTaskInstanceId: 'rtask-test-001' },
+      queryStringParameters: null,
+      headers: {
+        Authorization: bearerToken({
+          'custom:organizationID': 'org-1',
+          'custom:userID': 'user-1',
+        }),
+      },
+      body: null,
+      ...overrides,
+    } as unknown as APIGatewayProxyEvent;
+  }
+
+  it('returns 200 with task detail on success', async () => {
+    const record = minimalTaskMetaRecord();
+    mockGetRuntimeTaskDetail.mockResolvedValue({
+      task: { runtimeTaskInstanceId: record.runtimeTaskInstanceId, orgId: 'org-1' },
+      reminders: [],
+      completionEvidence: [],
+    });
+
+    const res = await getRuntimeTaskMain(baseGetEvent(), testLambdaContext());
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(true);
+    expect(body.data.task.runtimeTaskInstanceId).toBe(record.runtimeTaskInstanceId);
+    expect(mockGetRuntimeTaskDetail).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-test-001',
+      includeRelated: true,
+    });
+  });
+
+  it('parses includeRelated=false', async () => {
+    mockGetRuntimeTaskDetail.mockResolvedValue({
+      task: { runtimeTaskInstanceId: 'rtask-test-001' },
+    });
+
+    const res = await getRuntimeTaskMain(
+      baseGetEvent({ queryStringParameters: { includeRelated: 'false' } }),
+      testLambdaContext(),
+    );
+    expect(res.statusCode).toBe(200);
+    expect(mockGetRuntimeTaskDetail).toHaveBeenCalledWith(
+      expect.objectContaining({ includeRelated: false }),
+    );
+  });
+
+  it('returns 401 when org missing from token', async () => {
+    const res = await getRuntimeTaskMain(
+      baseGetEvent({
+        headers: {
+          Authorization: bearerToken({ 'custom:userID': 'user-1' }),
+        },
+      }),
+      testLambdaContext(),
+    );
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('returns 404 when service reports task not found', async () => {
+    const err = new Error('Runtime task not found') as Error & {
+      statusCode: number;
+      code: string;
+    };
+    err.statusCode = 404;
+    err.code = 'TASK_NOT_FOUND';
+    mockGetRuntimeTaskDetail.mockRejectedValue(err);
+
+    const res = await getRuntimeTaskMain(baseGetEvent(), testLambdaContext());
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('getRuntimeTaskHistory HTTP handler', () => {
+  function baseHistoryEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
+    return {
+      httpMethod: 'GET',
+      path: '/dev/tasks/rtask-test-001/history',
+      pathParameters: { runtimeTaskInstanceId: 'rtask-test-001' },
+      queryStringParameters: null,
+      headers: {
+        Authorization: bearerToken({
+          'custom:organizationID': 'org-1',
+          'custom:userID': 'user-1',
+        }),
+      },
+      body: null,
+      ...overrides,
+    } as unknown as APIGatewayProxyEvent;
+  }
+
+  it('returns 200 with paged history on success', async () => {
+    mockGetRuntimeTaskHistory.mockResolvedValue({
+      items: [
+        {
+          taskStateHistoryId: 'hist-1',
+          historyEventType: 'stateChange',
+          transitionAt: 1780581600000,
+          transitionBy: 'system:monitoring-runtime',
+          transitionSource: 'system',
+        },
+      ],
+    });
+
+    const res = await getRuntimeTaskHistoryMain(baseHistoryEvent(), testLambdaContext());
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(true);
+    expect(body.data.items).toHaveLength(1);
+    expect(mockGetRuntimeTaskHistory).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-test-001',
+      pageSize: 50,
+      nextToken: undefined,
+    });
+  });
+
+  it('parses pageSize and nextToken query params', async () => {
+    mockGetRuntimeTaskHistory.mockResolvedValue({ items: [] });
+
+    const res = await getRuntimeTaskHistoryMain(
+      baseHistoryEvent({
+        queryStringParameters: { pageSize: '25', nextToken: 'abc' },
+      }),
+      testLambdaContext(),
+    );
+    expect(res.statusCode).toBe(200);
+    expect(mockGetRuntimeTaskHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ pageSize: 25, nextToken: 'abc' }),
+    );
+  });
+
+  it('returns 401 when org missing from token', async () => {
+    const res = await getRuntimeTaskHistoryMain(
+      baseHistoryEvent({
+        headers: {
+          Authorization: bearerToken({ 'custom:userID': 'user-1' }),
+        },
+      }),
+      testLambdaContext(),
+    );
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('returns 404 when service reports task not found', async () => {
+    const err = new Error('Runtime task not found') as Error & {
+      statusCode: number;
+      code: string;
+    };
+    err.statusCode = 404;
+    err.code = 'TASK_NOT_FOUND';
+    mockGetRuntimeTaskHistory.mockRejectedValue(err);
+
+    const res = await getRuntimeTaskHistoryMain(baseHistoryEvent(), testLambdaContext());
+    expect(res.statusCode).toBe(404);
   });
 });

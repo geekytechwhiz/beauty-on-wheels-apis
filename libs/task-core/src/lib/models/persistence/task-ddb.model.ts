@@ -77,6 +77,36 @@ export interface TaskLookupDdbRecord {
   ownerTeamId?: string;
   ownerDisplayName?: string;
   reminderHistory?: unknown[];
+  evidenceSummary?: TaskEvidenceSummaryDdbRecord;
+}
+
+export interface TaskEvidenceSummaryDdbRecord {
+  runtimeTaskInstanceId?: string;
+  generatedAt: number;
+  latestCompletionSummary?: string;
+  currentState?: RuntimeTaskState;
+  completedAt?: number;
+  missedAt?: number;
+  completionSourceType?: string;
+  completionSourceReferenceId?: string;
+  [key: string]: unknown;
+}
+
+export interface CompletionEvidenceDdbRecord {
+  pk: string;
+  sk: string;
+  entityType?: 'CompletionEvidence';
+  completionEvidenceId: string;
+  runtimeTaskInstanceId: string;
+  orgId: string;
+  patientId: string;
+  completionSource: string;
+  completionSourceType?: string;
+  completionSourceReferenceId?: string;
+  completionEventId?: string;
+  completedAt: number;
+  completedBy?: string;
+  evidencePayload?: Record<string, unknown>;
 }
 
 export interface TaskHistDdbRecord {
@@ -96,4 +126,8 @@ export interface TaskHistDdbRecord {
   transitionReason?: string;
 }
 
-export type TaskDdbRecord = TaskMetaDdbRecord | TaskLookupDdbRecord | TaskHistDdbRecord;
+export type TaskDdbRecord =
+  | TaskMetaDdbRecord
+  | TaskLookupDdbRecord
+  | TaskHistDdbRecord
+  | CompletionEvidenceDdbRecord;

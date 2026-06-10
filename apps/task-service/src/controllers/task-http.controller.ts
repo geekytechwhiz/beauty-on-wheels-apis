@@ -13,6 +13,8 @@ import type {
   ValidatedCreateMonitoringAction,
   ValidatedCreateRuntimeTask,
   ValidatedGenerateCarePlanTasks,
+  ValidatedGetRuntimeTask,
+  ValidatedGetRuntimeTaskHistory,
 } from '../validators/request.validators';
 
 let taskService: TaskService | undefined;
@@ -109,6 +111,84 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_runtime_create_service_error',
+      });
+    }
+  }
+
+  async handleGetRuntimeTask(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedGetRuntimeTask?: ValidatedGetRuntimeTask })
+      .validatedGetRuntimeTask;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getRuntimeTaskDetail({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        includeRelated: validated.includeRelated,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_get_service_error',
+      });
+    }
+  }
+
+  async handleGetRuntimeTaskHistory(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & {
+      validatedGetRuntimeTaskHistory?: ValidatedGetRuntimeTaskHistory;
+    }).validatedGetRuntimeTaskHistory;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getRuntimeTaskHistory({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        pageSize: validated.pageSize,
+        nextToken: validated.nextToken,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_history_get_service_error',
       });
     }
   }

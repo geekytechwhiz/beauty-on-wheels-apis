@@ -287,6 +287,91 @@
           "items": { "$ref": "#/definitions/GeneratedCarePlanTaskResultItem" }
         }
       }
+    },
+    "ReminderRecord": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "CompletionEvidence": {
+      "type": "object",
+      "required": ["completionEvidenceId", "completedAt", "completionSource"],
+      "properties": {
+        "completionEvidenceId": { "type": "string" },
+        "completionSource": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "completionEventId": { "type": "string" },
+        "completedAt": { "$ref": "#/definitions/EpochMillis" },
+        "completedBy": { "type": "string" },
+        "evidencePayload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "TaskEvidenceSummary": {
+      "type": "object",
+      "required": ["generatedAt"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "generatedAt": { "$ref": "#/definitions/EpochMillis" },
+        "latestCompletionSummary": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "RuntimeTaskDetail": {
+      "type": "object",
+      "required": ["task"],
+      "properties": {
+        "task": { "type": "object" },
+        "reminders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ReminderRecord" }
+        },
+        "completionEvidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CompletionEvidence" }
+        },
+        "evidenceSummary": { "$ref": "#/definitions/TaskEvidenceSummary" }
+      }
+    },
+    "TaskHistoryEventType": {
+      "type": "string",
+      "enum": [
+        "stateChange",
+        "ownerChange",
+        "reminderSettingsChange",
+        "reminderRegisterRequest",
+        "reminderCancelRequest"
+      ]
+    },
+    "TransitionSource": {
+      "type": "string",
+      "enum": ["manual", "scheduler", "sourceEvent", "system"]
+    },
+    "TaskHistoryEntry": {
+      "type": "object",
+      "required": ["taskStateHistoryId", "historyEventType", "transitionAt", "transitionBy", "transitionSource"],
+      "properties": {
+        "taskStateHistoryId": { "type": "string" },
+        "historyEventType": { "$ref": "#/definitions/TaskHistoryEventType" },
+        "transitionAt": { "$ref": "#/definitions/EpochMillis" },
+        "fromState": { "type": "string" },
+        "toState": { "type": "string" },
+        "transitionBy": { "type": "string" },
+        "transitionSource": { "$ref": "#/definitions/TransitionSource" },
+        "transitionReason": { "type": "string" }
+      }
+    },
+    "PaginatedTaskHistory": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TaskHistoryEntry" }
+        },
+        "nextToken": { "type": "string" }
+      }
     }
   },
   "paths": {
@@ -344,6 +429,78 @@
           "401": { "description": "Unauthorized" },
           "409": { "description": "Conflict (cross-org idempotency)" },
           "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}": {
+      "get": {
+        "summary": "Get one runtime task detail",
+        "description": "Full task context for detail views. Organization scope is from JWT; task must belong to the caller's org.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "includeRelated",
+            "required": false,
+            "type": "string",
+            "enum": ["true", "false"],
+            "default": "true"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task detail.",
+            "schema": { "$ref": "#/definitions/RuntimeTaskDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}/history": {
+      "get": {
+        "summary": "Get task audit history",
+        "description": "Paged append-only HIST# timeline for one runtime task (newest first). Organization scope is from JWT.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "maximum": 200
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged history entries.",
+            "schema": { "$ref": "#/definitions/PaginatedTaskHistory" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
           "500": { "description": "Server error" }
         }
       }

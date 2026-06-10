@@ -24,6 +24,10 @@ export {
   type TaskRecord,
   type CreateMonitoringActionResult,
   type CreateRuntimeTaskResult,
+  type GetRuntimeTaskDetailInput,
+  type GetRuntimeTaskHistoryInput,
+  type PaginatedTaskHistory,
+  type RuntimeTaskDetail,
 } from './lib/service/task.service';
 export { BaseTaskService } from './lib/service/base-task.service';
 export { createMonitoringActionPayloadFromHttpBody } from './lib/models/api/create-monitoring-action.types';

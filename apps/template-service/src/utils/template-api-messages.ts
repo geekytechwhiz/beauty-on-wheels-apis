@@ -102,6 +102,10 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'TEMPLATE_CONFIG_UPDATED',
     'Template UI config updated successfully.',
   ),
+  'template-config.meta': msg(
+    'TEMPLATE_CONFIG_META_RETRIEVED',
+    'Template config metadata retrieved successfully.',
+  ),
 };
 
 export const MASTER_TEMPLATE_CREATED = msg(

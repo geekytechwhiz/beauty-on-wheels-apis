@@ -46,6 +46,7 @@ export async function registerDevices(params: RegisterDevicesParams): Promise<De
             modelName: device.modelName,
             deviceCategoryNum:
               device.deviceCategoryNum !== undefined ? String(device.deviceCategoryNum) : undefined,
+            syncCategory: device.syncCategory,
           },
           correlationId,
         );

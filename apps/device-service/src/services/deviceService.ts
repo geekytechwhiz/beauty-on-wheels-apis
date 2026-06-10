@@ -10,6 +10,20 @@ import { isThirdPartyApp } from '../validation/device.validation';
 
 const baseLogger = createLogger({ service: 'device-service', redactPII: true });
 
+function resolveSyncCategory(
+  userValue: number | undefined | null,
+  catalogValue: unknown,
+): number | undefined {
+  if (userValue !== undefined && userValue !== null) {
+    return Number(userValue);
+  }
+  if (catalogValue !== undefined && catalogValue !== null && catalogValue !== '') {
+    const n = Number(catalogValue);
+    return Number.isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}
+
 export class DeviceService {
   private deviceRepository: DeviceRepository;
   private orgDeviceRepository: OrgDeviceRepository;
@@ -21,6 +35,25 @@ export class DeviceService {
     this.orgDeviceRepository = new OrgDeviceRepository();
     this.globalDeviceRepository = new GlobalDeviceRepository();
     this.recommendationRepository = new RecommendationRepository();
+  }
+
+  /** Persist syncCategory on global catalog (pk DEVICE_LIST) used by list/catalog APIs. */
+  private async persistSyncCategoryOnGlobalCatalog(
+    configDeviceId: string,
+    syncCategory: number | undefined,
+    correlationId?: string,
+  ): Promise<void> {
+    if (syncCategory === undefined) {
+      return;
+    }
+
+    const logger = createChildLogger(baseLogger, { correlationId, configDeviceId, syncCategory });
+    try {
+      await this.globalDeviceRepository.updateGlobalDevice(configDeviceId, { syncCategory });
+      logger.info({ event: 'syncCategory_persisted_global_catalog' });
+    } catch (err) {
+      logger.warn({ event: 'syncCategory_global_catalog_skipped', err: serializeError(err) });
+    }
   }
 
   /**
@@ -55,6 +88,7 @@ export class DeviceService {
       iOSIdentifier?: string;
       isEagleDevice?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: number;
       deviceId?: string;
     },
     correlationId?: string,
@@ -97,6 +131,8 @@ export class DeviceService {
           isEagleDevice: data.isEagleDevice !== undefined ? data.isEagleDevice : existing.isEagleDevice,
           isSync: data.isSync !== undefined ? data.isSync : existing.isSync,
           deviceCategoryNum: data.deviceCategoryNum !== undefined ? data.deviceCategoryNum : existing.deviceCategoryNum,
+          syncCategory:
+            data.syncCategory !== undefined ? data.syncCategory : existing.syncCategory,
         };
 
         // Append only the new update entry; repository uses list_append on existing updates.
@@ -118,7 +154,13 @@ export class DeviceService {
           await this.recommendationRepository.updateRecommendationStatus(data.userId, data.configDeviceId, 'PAIRED');
         }
 
-        logger.info({ event: 'device_updated', deviceId: updatedDevice.deviceId });
+        await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
+
+        logger.info({
+          event: 'device_updated',
+          deviceId: updatedDevice.deviceId,
+          syncCategory: updatedDevice.syncCategory,
+        });
         return { deviceId: updatedDevice.deviceId, configDeviceId: data.configDeviceId, isUpdate: true };
       } else {
         // Device doesn't exist - create new entry
@@ -131,7 +173,6 @@ export class DeviceService {
             // Try to get device from global device list
             const globalDevice = await this.globalDeviceRepository.getDeviceById(data.configDeviceId);
             if (!globalDevice || !globalDevice.enabled) {
-              // throw new DeviceNotInOrganizationError(data.configDeviceId, data.organizationId);
               const deviceEntry = await this.deviceRepository.createDeviceUserEntry({
                 userId: data.userId,
                 configDeviceId: data.configDeviceId,
@@ -158,8 +199,37 @@ export class DeviceService {
                 iOSIdentifier: data.iOSIdentifier,
                 isEagleDevice: data.isEagleDevice,
                 deviceCategoryNum: data.deviceCategoryNum,
+                syncCategory: data.syncCategory,
               });
               logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
+
+              const recommendation = await this.recommendationRepository.getRecommendation(
+                data.userId,
+                data.configDeviceId,
+              );
+              if (recommendation) {
+                await this.recommendationRepository.updateRecommendationStatus(
+                  data.userId,
+                  data.configDeviceId,
+                  'PAIRED',
+                );
+              }
+
+              await publishEvent(
+                {
+                  eventType: 'Device.Paired',
+                  userId: data.userId,
+                  organizationId: data.organizationId,
+                  deviceId: deviceEntry.deviceId,
+                  configDeviceId: data.configDeviceId,
+                  timestamp: Date.now(),
+                },
+                correlationId,
+              );
+
+              await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
+
+              return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
             }
           }
         }
@@ -191,6 +261,7 @@ export class DeviceService {
           iOSIdentifier: data.iOSIdentifier,
           isEagleDevice: data.isEagleDevice,
           deviceCategoryNum: data.deviceCategoryNum,
+          syncCategory: data.syncCategory,
         });
         logger.info({ event: 'device_registered', deviceId: deviceEntry.deviceId });
 
@@ -212,6 +283,8 @@ export class DeviceService {
           },
           correlationId,
         );
+
+        await this.persistSyncCategoryOnGlobalCatalog(data.configDeviceId, data.syncCategory, correlationId);
 
         return { deviceId: deviceEntry.deviceId, configDeviceId: data.configDeviceId, isUpdate: false };
       }
@@ -253,6 +326,7 @@ export class DeviceService {
         userIndex?: number;
         isEagleDevice?: boolean;
         deviceCategoryNum?: string | number;
+        syncCategory?: number;
       }>;
     },
     correlationId?: string,
@@ -295,6 +369,7 @@ export class DeviceService {
             isEagleDevice: device.isEagleDevice,
             deviceCategoryNum:
               device.deviceCategoryNum !== undefined ? String(device.deviceCategoryNum) : undefined,
+            syncCategory: device.syncCategory,
           },
           correlationId,
         );
@@ -426,6 +501,7 @@ export class DeviceService {
             deviceCategoryNum: entry.deviceCategoryNum ? parseInt(entry.deviceCategoryNum, 10) : undefined,
             localName: entry.localName,
             lastSequenceNumber: entry.lastSequenceNumber,
+            syncCategory: resolveSyncCategory(entry.syncCategory, globalDevice?.syncCategory),
           } as Device;
         }),
       );

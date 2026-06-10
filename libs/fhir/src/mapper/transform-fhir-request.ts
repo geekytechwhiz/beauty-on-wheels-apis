@@ -8,6 +8,7 @@ import { enrichActivateDeactivateFromFhir } from './activate-deactivate-fhir.tra
 import { enrichAssignDoctorFromFhir } from './assign-doctor-fhir.transform';
 import { enrichCreateOrganizationCanonical } from './create-organization-fhir.transform';
 import { enrichCreateUserCanonical, resolveCreateUserInboundHints } from './create-user-fhir.transform';
+import { enrichCreateAppointmentFromFhir } from './create-appointment-fhir.transform';
 
 const fhirTransformation = new FhirTransformationService();
 
@@ -204,6 +205,14 @@ export async function transformFhirRequest(
 
   if (options.inboundProfile === 'activateDeactivate') {
     req.body = enrichActivateDeactivateFromFhir(req, rawBody as Record<string, unknown>);
+    const ctx = req.context as unknown as Record<string, unknown>;
+    ctx.inboundFhirResource = rawBody;
+    ctx.fhirResourceType = (rawBody as Record<string, unknown>).resourceType;
+    return;
+  }
+
+  if (options.inboundProfile === 'createAppointment') {
+    req.body = enrichCreateAppointmentFromFhir(req, rawBody as Record<string, unknown>);
     const ctx = req.context as unknown as Record<string, unknown>;
     ctx.inboundFhirResource = rawBody;
     ctx.fhirResourceType = (rawBody as Record<string, unknown>).resourceType;

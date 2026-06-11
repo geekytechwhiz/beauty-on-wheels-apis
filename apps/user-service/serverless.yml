@@ -10,7 +10,6 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
-  - serverless-offline
   - serverless-prune-plugin
 
 provider:

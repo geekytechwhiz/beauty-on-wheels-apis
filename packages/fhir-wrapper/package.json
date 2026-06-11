@@ -1,6 +1,6 @@
 {
   "name": "@myvitalrx/fhir-wrapper",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "MyVitalRx FHIR R4 transformation, mapping, validation, and withApiHandler middleware",
   "license": "UNLICENSED",
   "type": "module",
@@ -44,7 +44,7 @@
     "@myvitalrx/platform-tools": ">=0.2.0"
   },
   "devDependencies": {
-    "@api-hub/fhir": "workspace:*",
+    "@api-hub/fhir-pkg": "workspace:*",
     "@api-hub/observability": "workspace:*",
     "@api-hub/terminology": "workspace:*",
     "@api-hub/utils": "workspace:*",

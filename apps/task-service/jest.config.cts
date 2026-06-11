@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 const { readFileSync } = require('fs');
 
@@ -10,12 +11,19 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 module.exports = {
-  displayName: '@api-hub/task-service',
+  displayName: 'task-service',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: 'test-output/jest/coverage',
+  moduleNameMapper: {
+    '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
+    '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
+    '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
+    '^@api-hub/task-core$': '<rootDir>/../../libs/task-core/src/index.ts',
+  },
+  coverageDirectory: '../../coverage/apps/task-service',
+  verbose: true,
 };

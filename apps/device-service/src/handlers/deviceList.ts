@@ -7,7 +7,7 @@ import { GlobalDeviceRepository } from '../repositories/globalDeviceRepository';
 import { OrgDeviceRepository } from '../repositories/orgDeviceRepository';
 import { RecommendationRepository } from '../repositories/recommendationRepository';
 import { deviceListSchema } from '../validation/device.validation';
-import { getAuthorizerOrganizationId, getAuthorizerUserId } from '../utils/helpers';
+import { getAuthorizerOrganizationId, resolveDeviceListUserId } from '../utils/helpers';
 import { PATHS } from '../constants/paths';
 import { HTTP_METHODS } from '../constants/httpMethods';
 
@@ -44,6 +44,29 @@ const applyListFilters = (devices: any[], category?: string, searchValue?: strin
 
   return filteredDevices;
 };
+
+const toSyncCategory = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+const mapCatalogDevice = (device: Record<string, unknown>) => ({
+  category: device.category,
+  deviceId: device.deviceId,
+  deviceImage: device.deviceImage || '',
+  displayName: device.displayName || device.name,
+  countriesSupported: device.countriesSupported || [],
+  manufacturerImage: device.manufacturerImage || '',
+  manufacturerName: device.manufacturerName || '',
+  name: device.name,
+  template: device.template || 1,
+  deviceDetails: device.deviceDetails || '',
+  supportedVitals: device.supportedVitals || [],
+  syncCategory: toSyncCategory(device.syncCategory),
+});
 
 const deviceListImpl: any = async (req: any, context?: Context) => {
   const evt = req.event ?? req;
@@ -84,7 +107,10 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
       requestData.organizationId ||
       getAuthorizerOrganizationId(evt) ||
       req.context?.userContext?.organizationId;
-    const { action, category, searchValue, deviceId, deviceType, userId, countryCode, patientUserId } = requestData;
+    const userIdForDeviceList =
+      resolveDeviceListUserId(evt, requestData) ||
+      req.context?.userContext?.userId;
+    const { action, category, searchValue, deviceId, deviceType, countryCode, patientUserId } = requestData;
     
     logger.info({ 
       event: 'deviceList_parsed_params', 
@@ -92,8 +118,10 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
       category,
       searchValue,
       organizationID,
+      userIdForDeviceList,
       hasOrganizationId: !!requestData.organizationId,
-      hasOrganizationID: !!requestData.organizationID
+      hasOrganizationID: !!requestData.organizationID,
+      hasBodyUserId: !!(requestData.userId || requestData.userID),
     });
     // Scenario 1: Return only device category names
     if (action?.toLowerCase() === 'devicecategory') {
@@ -146,20 +174,8 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
       allDevices = applyListFilters(allDevices, category, searchValue);
       
       // Map devices to the requested response format
-      const deviceList = allDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
-      
+      const deviceList = allDevices.map((device: any) => mapCatalogDevice(device));
+
       const duration = Date.now() - startTime;
       logHttpRequest(logger, httpMethod, path, 200, duration, correlationId);
       return ApiResponse.ok(
@@ -184,19 +200,7 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
       logger.info({ event: 'deviceList_patient_enabled_count', count: enabledDevices.length });
       
       // Map devices to the requested response format
-      const deviceList = enabledDevices.map((device: any) => ({
-        category: device.category,
-        deviceId: device.deviceId,
-        deviceImage: device.deviceImage || '',
-        displayName: device.displayName || device.name,
-        countriesSupported: device.countriesSupported || [],
-        manufacturerImage: device.manufacturerImage || '',
-        manufacturerName: device.manufacturerName || '',
-        name: device.name,
-        template: device.template || 1,
-        deviceDetails: device.deviceDetails || '',
-        supportedVitals: device.supportedVitals || [],
-      }));
+      const deviceList = enabledDevices.map((device: any) => mapCatalogDevice(device));
       
       logger.info({ event: 'deviceList_patient_final_count', count: deviceList.length });
       const duration = Date.now() - startTime;
@@ -238,6 +242,7 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
           template: recommendation.template || globalDevice?.template || 1,
           deviceDetails: recommendation.deviceDetails || globalDevice?.deviceDetails || '',
           supportedVitals: recommendation.supportedVitals || globalDevice?.supportedVitals || [],
+          syncCategory: toSyncCategory(recommendation.syncCategory ?? globalDevice?.syncCategory),
           status: recommendation.status, // Include recommendation status (UNPAIRED/PAIRED)
           doctorData: recommendation.doctorData, // Include doctor information
           referredBy: referredBy,
@@ -255,13 +260,11 @@ const deviceListImpl: any = async (req: any, context?: Context) => {
       );
     }
 
-    // Scenario 5: Return user-specific devices (backward compatibility)
-    // Try to get userId from authorizer context or JWT token, fallback to request body/query params
-    const userIdFromAuth = getAuthorizerUserId(evt) || req.context?.userContext?.userId || userId;
-    
-    if (userIdFromAuth) {
-      logger.info({ event: 'deviceList_user_devices', userId: userIdFromAuth });
-      const devices = await deviceService.getUserDevices(userIdFromAuth, {
+    // Scenario 5: User paired devices (DEVICE_LIST#userId) — legacy retrieve-device-list path.
+    // syncCategory and other pairing fields live only on these rows, not the global catalog.
+    if (userIdForDeviceList) {
+      logger.info({ event: 'deviceList_user_devices', userId: userIdForDeviceList });
+      const devices = await deviceService.getUserDevices(userIdForDeviceList, {
         deviceId,
         deviceType,
       });

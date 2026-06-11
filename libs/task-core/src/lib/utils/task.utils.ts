@@ -13,3 +13,36 @@ export function assertTaskTable(): string {
 export function isMetaConditionalFailure(err: unknown): boolean {
   return isConditionalWriteConflictAtIndex(err, TRANSACT_INDEX_META);
 }
+
+export const TASK_HISTORY_DEFAULT_PAGE_SIZE = 50;
+export const TASK_HISTORY_MAX_PAGE_SIZE = 200;
+
+/** Opaque GET /tasks/{id}/history pagination: DynamoDB Query `LastEvaluatedKey` as `nextToken`. */
+export function encodeTaskHistoryCursor(
+  lastEvaluatedKey: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!lastEvaluatedKey || Object.keys(lastEvaluatedKey).length === 0) return undefined;
+  return Buffer.from(JSON.stringify(lastEvaluatedKey), 'utf8').toString('base64url');
+}
+
+export function decodeTaskHistoryCursor(token: string | undefined): Record<string, unknown> | undefined {
+  const t = token?.trim();
+  if (!t) return undefined;
+  try {
+    const json = Buffer.from(t, 'base64url').toString('utf8');
+    const parsed = JSON.parse(json) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      invalidTaskHistoryCursor();
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    invalidTaskHistoryCursor();
+  }
+}
+
+function invalidTaskHistoryCursor(): never {
+  const e = new Error('Invalid nextToken') as Error & { statusCode: number; code: string };
+  e.statusCode = 400;
+  e.code = 'VALIDATION_ERROR';
+  throw e;
+}

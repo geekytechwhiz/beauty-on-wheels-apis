@@ -16,6 +16,7 @@ module.exports = {
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/template-core$': '<rootDir>/../../libs/template-core/src/index.ts',
+    '^@api-hub/service-clients$': '<rootDir>/../../libs/service-clients/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/template-service',
   coverageReporters: ['text', 'text-summary', 'html', 'lcov'],

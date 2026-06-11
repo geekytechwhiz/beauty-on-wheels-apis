@@ -25,8 +25,10 @@ export class OrgTemplateSyncService {
     organizationId: string,
     masterVersion: TemplateDdbRecord,
     orgTemplateId: string,
+    options?: { adoptMasterVersion?: boolean },
   ): Promise<EnablementDdbRecord> {
     const masterTemplateId = masterVersion.meta.templateId;
+    const adoptMasterVersion = options?.adoptMasterVersion !== false;
     const masterTemplateVersionId = masterVersion.meta.templateVersionId;
     const nowIso = new Date().toISOString();
 
@@ -36,15 +38,20 @@ export class OrgTemplateSyncService {
     );
 
     if (existing) {
-      const masterTemplateVersion =
-        typeof masterVersion.meta.version === 'number' && masterVersion.meta.version > 0
+      const masterTemplateVersion = adoptMasterVersion
+        ? typeof masterVersion.meta.version === 'number' && masterVersion.meta.version > 0
           ? masterVersion.meta.version
-          : existing.meta.masterTemplateVersion;
+          : existing.meta.masterTemplateVersion
+        : existing.meta.masterTemplateVersion;
+
+      const resolvedMasterTemplateVersionId = adoptMasterVersion
+        ? masterTemplateVersionId
+        : existing.meta.masterTemplateVersionId;
 
       const meta = {
         ...existing.meta,
         masterTemplateId,
-        masterTemplateVersionId,
+        masterTemplateVersionId: resolvedMasterTemplateVersionId,
         masterTemplateVersion,
         orgTemplateId,
         templateName: masterVersion.meta.templateName,
@@ -91,6 +98,7 @@ export class OrgTemplateSyncService {
     masterTemplateId: string,
     masterVersion: TemplateDdbRecord,
     actor?: TemplateActorUser,
+    options?: { adoptMasterVersion?: boolean },
   ): Promise<TemplateDdbRecord> {
     const metaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
     if (!metaRow) {
@@ -123,19 +131,31 @@ export class OrgTemplateSyncService {
       ctx,
       actor,
     );
+    const adoptMasterVersion = options?.adoptMasterVersion !== false;
     const syncedMasterVersion =
       typeof masterVersion.meta.version === 'number' && masterVersion.meta.version > 0
         ? masterVersion.meta.version
         : mergedMeta.derivedFromMasterVersion;
+    const adoptedMasterVersion = adoptMasterVersion
+      ? syncedMasterVersion
+      : typeof metaRow.meta.derivedFromMasterVersion === 'number' &&
+          metaRow.meta.derivedFromMasterVersion > 0
+        ? metaRow.meta.derivedFromMasterVersion
+        : syncedMasterVersion;
+    const adoptedMasterTemplateVersionId = adoptMasterVersion
+      ? masterVersion.meta.templateVersionId
+      : metaRow.meta.derivedFromTemplateVersionId?.trim() ||
+        metaRow.meta.masterTemplateVersionId?.trim() ||
+        masterVersion.meta.templateVersionId;
 
     const preserved: TemplateMeta = {
       ...mergedMeta,
       templateId: metaRow.meta.templateId,
       templateVersionId: metaRow.meta.templateVersionId,
       version: metaRow.meta.version,
-      derivedFromMasterVersion: syncedMasterVersion,
-      derivedFromTemplateVersionId: masterVersion.meta.templateVersionId,
-      masterTemplateVersionId: masterVersion.meta.templateVersionId,
+      derivedFromMasterVersion: adoptedMasterVersion,
+      derivedFromTemplateVersionId: adoptedMasterTemplateVersionId,
+      masterTemplateVersionId: adoptedMasterTemplateVersionId,
       createdAt: metaRow.meta.createdAt,
       createdBy: metaRow.meta.createdBy,
       status: metaRow.meta.status ?? mergedMeta.status,
@@ -171,18 +191,11 @@ export class OrgTemplateSyncService {
           en.meta.orgTemplateId?.trim() ||
           OrgTemplateEntityBuilder.buildOrgTemplateId(masterTemplateId, orgId);
 
-        const orgMeta = await this.orgRepo.getOrgMeta(orgId, orgTemplateId);
-        if (orgMeta) {
-          await this.syncOrgTemplateContentFromMaster(
-            orgId,
-            orgTemplateId,
-            masterTemplateId,
-            masterVersion,
-            actor,
-          );
-        }
-
-        await this.upsertEnablementForOrg(orgId, masterVersion, orgTemplateId);
+        // Passive master publish/update: refresh enablement display fields only.
+        // Org templates stay on their adopted master version until explicit derive/adopt.
+        await this.upsertEnablementForOrg(orgId, masterVersion, orgTemplateId, {
+          adoptMasterVersion: false,
+        });
       }
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);

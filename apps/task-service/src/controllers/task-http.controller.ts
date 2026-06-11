@@ -3,11 +3,20 @@ import { BaseError } from '@api-hub/utils';
 import {
   TaskService,
   createMonitoringActionPayloadFromHttpBody,
+  createRuntimeTaskPayloadFromHttpBody,
+  generateCarePlanTasksPayloadFromHttpBody,
   normalizeTaskServiceError,
   toRuntimeTaskCard,
 } from '@api-hub/task-core';
 
-import type { ValidatedCreateMonitoringAction } from '../validators/request.validators';
+import type {
+  ValidatedCreateMonitoringAction,
+  ValidatedCreateRuntimeTask,
+  ValidatedGenerateCarePlanTasks,
+  ValidatedGetRuntimeTask,
+  ValidatedGetRuntimeTaskHistory,
+  ValidatedUpdateAssignedStaff,
+} from '../validators/request.validators';
 
 let taskService: TaskService | undefined;
 function getTaskService(): TaskService {
@@ -58,6 +67,210 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_monitoring_create_service_error',
+      });
+    }
+  }
+
+  async handleCreateRuntimeTask(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedCreateRuntimeTask?: ValidatedCreateRuntimeTask })
+      .validatedCreateRuntimeTask;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const payload = createRuntimeTaskPayloadFromHttpBody(
+        validated.orgId,
+        validated.body,
+        validated.createdBy,
+      );
+      const { record } = await this.svc.createRuntimeTask(payload);
+      const task = toRuntimeTaskCard(record);
+
+      return {
+        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+        task,
+      };
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_create_service_error',
+      });
+    }
+  }
+
+  async handleGetRuntimeTask(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedGetRuntimeTask?: ValidatedGetRuntimeTask })
+      .validatedGetRuntimeTask;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getRuntimeTaskDetail({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        includeRelated: validated.includeRelated,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_get_service_error',
+      });
+    }
+  }
+
+  async handleUpdateAssignedStaff(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & {
+      validatedUpdateAssignedStaff?: ValidatedUpdateAssignedStaff;
+    }).validatedUpdateAssignedStaff;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.reassignAssignedStaff({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        actorId: validated.body.actorId,
+        assignedToStaffId: validated.body.assignedToStaffId,
+        assignedToStaffDisplayName: validated.body.assignedToStaffDisplayName,
+        reason: validated.body.reason,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_reassign_staff_service_error',
+      });
+    }
+  }
+
+  async handleGetRuntimeTaskHistory(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & {
+      validatedGetRuntimeTaskHistory?: ValidatedGetRuntimeTaskHistory;
+    }).validatedGetRuntimeTaskHistory;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getRuntimeTaskHistory({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        pageSize: validated.pageSize,
+        nextToken: validated.nextToken,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_history_get_service_error',
+      });
+    }
+  }
+
+  async handleGenerateCarePlanTasks(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedGenerateCarePlanTasks?: ValidatedGenerateCarePlanTasks })
+      .validatedGenerateCarePlanTasks;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      const payload = generateCarePlanTasksPayloadFromHttpBody(
+        validated.orgId,
+        validated.body,
+        validated.createdBy,
+      );
+      return await this.svc.generateCarePlanTasks(payload);
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_care_plan_generate_service_error',
       });
     }
   }

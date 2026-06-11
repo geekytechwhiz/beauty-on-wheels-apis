@@ -142,5 +142,130 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  generateCarePlanTasks:
+    handler: src/handlers/http/generateCarePlanTasks.main
+    events:
+      - http:
+          path: tasks/generate-care-plan
+          method: post
+          bodyType: GenerateCarePlanTasksRequest
+          summary: Generate care-plan linkage runtime tasks (idempotent batch)
+          description: Called by Care Plan Runtime. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — batch results (created or skippedDuplicate per linkage)
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "409": Conflict (cross-org idempotency)
+            "422": Validation or business rule error
+            "500": Server error
+
+  createRuntimeTask:
+    handler: src/handlers/http/createRuntimeTask.main
+    events:
+      - http:
+          path: tasks
+          method: post
+          bodyType: CreateRuntimeTaskRequest
+          summary: Create an ad-hoc/service-flow/manual runtime task
+          description: >
+            Called by Service Flow Runtime or authorized staff/system (runtimeTaskSource =
+            serviceFlowRuntime or manualSystem). Organization scope from JWT only.
+            Prefer manualSystem when the origin is this API or the care UI.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — new runtime task created
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "422": Validation or business rule error
+            "500": Server error
+
+  getRuntimeTask:
+    handler: src/handlers/http/getRuntimeTask.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}
+          method: get
+          summary: Get one runtime task detail
+          description: Resolve task detail by LOOKUP, scoped to organization from JWT.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Task detail
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "500": Server error
+
+  getRuntimeTaskHistory:
+    handler: src/handlers/http/getRuntimeTaskHistory.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}/history
+          method: get
+          summary: Get task audit history
+          description: Paged HIST# timeline for one runtime task (newest first), scoped to organization from JWT.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Paged history entries
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "500": Server error
+
+  updateAssignedStaff:
+    handler: src/handlers/http/updateAssignedStaff.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}/assigned-staff
+          method: put
+          bodyType: UpdateAssignedStaffRequest
+          summary: Assign or reassign staff task to a staff member
+          description: >
+            Portal assign/reassign for careTeam/provider tasks. Initial assignment sets GSI1 pk+sk;
+            reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Updated task and audit entry
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "422": Not a staff task or already assigned
+            "500": Server error
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

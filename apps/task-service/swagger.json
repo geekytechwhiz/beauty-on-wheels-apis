@@ -44,6 +44,7 @@
       "type": "object",
       "required": [
         "patientId",
+        "patientDisplayName",
         "carePlanInstanceId",
         "monitoringInstanceId",
         "taskBehaviorCode",
@@ -52,6 +53,7 @@
       ],
       "properties": {
         "patientId": { "type": "string" },
+        "patientDisplayName": { "type": "string" },
         "carePlanInstanceId": { "type": "string" },
         "monitoringInstanceId": { "type": "string" },
         "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
@@ -65,6 +67,7 @@
       "additionalProperties": false,
       "example": {
         "patientId": "pat-101",
+        "patientDisplayName": "Maria Lopez",
         "carePlanInstanceId": "cp-2026-001",
         "monitoringInstanceId": "mon-bp-daily-001",
         "taskBehaviorCode": "METRIC_CHECKIN",
@@ -80,6 +83,332 @@
         "runtimeTaskInstanceId": { "type": "string" },
         "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
         "task": { "type": "object" }
+      }
+    },
+    "RuntimeTaskSourceCreate": {
+      "type": "string",
+      "enum": ["serviceFlowRuntime", "manualSystem"]
+    },
+    "TaskDisplayGroup": {
+      "type": "string",
+      "enum": ["action", "learning", "checkIn", "staffTask"]
+    },
+    "AssignedToType": {
+      "type": "string",
+      "enum": ["patient", "careTeam", "provider", "system"]
+    },
+    "WorkflowStage": {
+      "type": "string",
+      "enum": ["onboarding", "ongoing", "review", "closure"]
+    },
+    "CreateRuntimeTaskRequest": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "patientDisplayName",
+        "runtimeTaskSource",
+        "taskBehaviorCode",
+        "taskDisplayGroup",
+        "displayTitle",
+        "assignedToType",
+        "displayToPatient"
+      ],
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientDisplayName": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
+        "runtimeTaskSource": { "$ref": "#/definitions/RuntimeTaskSourceCreate" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
+        "displayTitle": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "assignedToStaffId": {
+          "type": "string",
+          "description": "Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox."
+        },
+        "assignedToStaffDisplayName": {
+          "type": "string",
+          "description": "Required when assignedToType is careTeam or provider."
+        },
+        "displayToPatient": { "type": "boolean" },
+        "actionTargetId": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "reminderEnabled": { "type": "boolean" },
+        "requiredForStageCompletion": { "type": "boolean" },
+        "displayAsChecklistItem": { "type": "boolean" }
+      },
+      "additionalProperties": false,
+      "example": {
+        "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+        "patientDisplayName": "Maria Lopez",
+        "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+        "workflowStage": "ongoing",
+        "runtimeTaskSource": "manualSystem",
+        "taskBehaviorCode": "CARE_TEAM_TASK",
+        "taskDisplayGroup": "staffTask",
+        "displayTitle": "Call patient about missed reading",
+        "description": "Follow up on missed BP reading from yesterday",
+        "assignedToType": "careTeam",
+        "assignedToStaffId": "staff-nurse-44721",
+        "assignedToStaffDisplayName": "Nurse Lee",
+        "displayToPatient": false,
+        "dueWindowStart": 1780581600000,
+        "dueWindowEnd": 1780668000000,
+        "reminderEnabled": false
+      }
+    },
+    "CreateRuntimeTaskResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "task"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "task": { "type": "object" }
+      }
+    },
+    "CarePlanLinkageMaterialization": {
+      "type": "object",
+      "required": [
+        "carePlanTaskLinkageId",
+        "taskBehaviorCode",
+        "taskDisplayGroup",
+        "displayTitle",
+        "assignedToType",
+        "displayToPatient",
+        "dueWindowStart",
+        "dueWindowEnd"
+      ],
+      "properties": {
+        "carePlanTaskLinkageId": { "type": "string" },
+        "sourceTaskTemplateVersionId": { "type": "string" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
+        "displayTitle": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "assignedToStaffId": {
+          "type": "string",
+          "description": "Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox."
+        },
+        "assignedToStaffDisplayName": {
+          "type": "string",
+          "description": "Required when assignedToType is careTeam or provider."
+        },
+        "displayToPatient": { "type": "boolean" },
+        "actionTargetId": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "reminderEnabled": { "type": "boolean" },
+        "reminderSettings": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "requiredForStageCompletion": { "type": "boolean" },
+        "displayAsChecklistItem": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "GenerateCarePlanTasksRequest": {
+      "type": "object",
+      "required": [
+        "patientId",
+        "patientDisplayName",
+        "carePlanInstanceId",
+        "taskGenerationTrigger",
+        "sourceLinkageContext"
+      ],
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientDisplayName": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "taskGenerationTrigger": { "type": "string" },
+        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
+        "dryRun": { "type": "boolean" },
+        "actorType": { "type": "string" },
+        "actorId": { "type": "string" },
+        "sourceLinkageContext": {
+          "type": "object",
+          "required": ["linkages"],
+          "properties": {
+            "linkages": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/definitions/CarePlanLinkageMaterialization" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "patientId": "pat-maria",
+        "patientDisplayName": "Maria Lopez",
+        "carePlanInstanceId": "cp-maria-001",
+        "taskGenerationTrigger": "carePlanStageEntered",
+        "workflowStage": "onboarding",
+        "dryRun": false,
+        "actorType": "system",
+        "actorId": "care-plan-runtime",
+        "sourceLinkageContext": {
+          "linkages": [
+            {
+              "carePlanTaskLinkageId": "link-watch-bp-video",
+              "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
+              "taskBehaviorCode": "EDUCATION_VIDEO",
+              "taskDisplayGroup": "learning",
+              "displayTitle": "Watch: How to measure BP",
+              "assignedToType": "patient",
+              "displayToPatient": true,
+              "actionTargetId": "video-how-to-measure-bp",
+              "dueWindowStart": 1780567200000,
+              "dueWindowEnd": 1780610400000,
+              "requiredForStageCompletion": true,
+              "displayAsChecklistItem": true,
+              "reminderEnabled": true,
+              "reminderSettings": { "channels": ["push"], "quietHoursRespected": true }
+            }
+          ]
+        }
+      }
+    },
+    "GeneratedCarePlanTaskResultItem": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "outcome", "task"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
+        "task": { "type": "object" }
+      }
+    },
+    "GenerateCarePlanTasksResult": {
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/GeneratedCarePlanTaskResultItem" }
+        }
+      }
+    },
+    "ReminderRecord": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "CompletionEvidence": {
+      "type": "object",
+      "required": ["completionEvidenceId", "completedAt", "completionSource"],
+      "properties": {
+        "completionEvidenceId": { "type": "string" },
+        "completionSource": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "completionEventId": { "type": "string" },
+        "completedAt": { "$ref": "#/definitions/EpochMillis" },
+        "completedBy": { "type": "string" },
+        "evidencePayload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "TaskEvidenceSummary": {
+      "type": "object",
+      "required": ["generatedAt"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "generatedAt": { "$ref": "#/definitions/EpochMillis" },
+        "latestCompletionSummary": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "RuntimeTaskDetail": {
+      "type": "object",
+      "required": ["task"],
+      "properties": {
+        "task": { "type": "object" },
+        "reminders": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ReminderRecord" }
+        },
+        "completionEvidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CompletionEvidence" }
+        },
+        "evidenceSummary": { "$ref": "#/definitions/TaskEvidenceSummary" }
+      }
+    },
+    "TaskHistoryEventType": {
+      "type": "string",
+      "enum": [
+        "stateChange",
+        "assignedToStaffChange",
+        "reminderSettingsChange",
+        "reminderRegisterRequest",
+        "reminderCancelRequest"
+      ]
+    },
+    "TransitionSource": {
+      "type": "string",
+      "enum": ["manual", "scheduler", "sourceEvent", "system"]
+    },
+    "TaskHistoryEntry": {
+      "type": "object",
+      "required": ["taskStateHistoryId", "historyEventType", "transitionAt", "transitionBy", "transitionSource"],
+      "properties": {
+        "taskStateHistoryId": { "type": "string" },
+        "historyEventType": { "$ref": "#/definitions/TaskHistoryEventType" },
+        "transitionAt": { "$ref": "#/definitions/EpochMillis" },
+        "fromState": { "type": "string" },
+        "toState": { "type": "string" },
+        "transitionBy": { "type": "string" },
+        "transitionSource": { "$ref": "#/definitions/TransitionSource" },
+        "transitionReason": { "type": "string" },
+        "previousAssignedToStaffId": { "type": "string" },
+        "newAssignedToStaffId": { "type": "string" },
+        "previousAssignedToStaffDisplayName": { "type": "string" },
+        "newAssignedToStaffDisplayName": { "type": "string" }
+      }
+    },
+    "UpdateAssignedStaffRequest": {
+      "type": "object",
+      "required": ["actorId", "assignedToStaffId", "assignedToStaffDisplayName"],
+      "properties": {
+        "actorId": { "type": "string" },
+        "assignedToStaffId": { "type": "string" },
+        "assignedToStaffDisplayName": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "example": {
+        "actorId": "staff-nurse-44721",
+        "assignedToStaffId": "staff-nurse-55210",
+        "assignedToStaffDisplayName": "Nurse Patel",
+        "reason": "Shift handoff"
+      }
+    },
+    "UpdateAssignedStaffResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "task", "historyEntry"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "task": { "type": "object" },
+        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+      }
+    },
+    "PaginatedTaskHistory": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TaskHistoryEntry" }
+        },
+        "nextToken": { "type": "string" }
       }
     }
   },
@@ -112,6 +441,160 @@
           },
           "401": { "description": "Unauthorized" },
           "409": { "description": "Conflict (cross-org idempotency)" },
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/generate-care-plan": {
+      "post": {
+        "summary": "Generate care-plan linkage runtime tasks (idempotent batch)",
+        "description": "Called by Care Plan Runtime. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch generate results (created or skipped duplicate per linkage).",
+            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Conflict (cross-org idempotency)" },
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}": {
+      "get": {
+        "summary": "Get one runtime task detail",
+        "description": "Full task context for detail views. Organization scope is from JWT; task must belong to the caller's org.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "includeRelated",
+            "required": false,
+            "type": "string",
+            "enum": ["true", "false"],
+            "default": "true"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task detail.",
+            "schema": { "$ref": "#/definitions/RuntimeTaskDetail" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}/assigned-staff": {
+      "put": {
+        "summary": "Assign or reassign staff task to a staff member",
+        "description": "Portal assign/reassign for careTeam/provider tasks. Initial assignment sets assignedToStaffId plus GSI1 (gsi1Pk and gsi1Sk); reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/UpdateAssignedStaffRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated task and audit entry.",
+            "schema": { "$ref": "#/definitions/UpdateAssignedStaffResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "422": { "description": "Not a staff task or already assigned to this staff member" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}/history": {
+      "get": {
+        "summary": "Get task audit history",
+        "description": "Paged append-only HIST# timeline for one runtime task (newest first). Organization scope is from JWT.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "maximum": 200
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged history entries.",
+            "schema": { "$ref": "#/definitions/PaginatedTaskHistory" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "summary": "Create an ad-hoc/service-flow/manual runtime task",
+        "description": "Called by Service Flow Runtime or authorized staff/system. Prefer manualSystem for care UI. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateRuntimeTaskRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — new runtime task created.",
+            "schema": { "$ref": "#/definitions/CreateRuntimeTaskResult" }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
           "422": { "description": "Validation error" },
           "500": { "description": "Server error" }
         }

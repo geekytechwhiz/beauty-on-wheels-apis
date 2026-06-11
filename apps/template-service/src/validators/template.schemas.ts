@@ -214,6 +214,30 @@ export const listTemplateConfigQuerySchema = z.object({
   templateType: z.string().trim().min(1).optional(),
 });
 
+const metadataTypeCodeZ = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[A-Z][A-Za-z0-9]*$/, 'Must match ^[A-Z][A-Za-z0-9]*$');
+
+/** POST `/template-configs/meta` body. */
+export const postTemplateConfigMetaBodySchema = z.object({
+  metadataTypeCodes: z
+    .array(metadataTypeCodeZ)
+    .min(1, 'Must contain at least one metadataTypeCode')
+    .transform((codes) => {
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      for (const code of codes) {
+        if (!seen.has(code)) {
+          seen.add(code);
+          deduped.push(code);
+        }
+      }
+      return deduped;
+    }),
+});
+
 export const createTemplateConfigBodySchema = z
   .object({
     configType: z.enum(['TEMPLATE', 'ORG']),

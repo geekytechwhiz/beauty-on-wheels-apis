@@ -514,7 +514,7 @@ export class UserRepository {
     userId: string,
     organizationId: string,
     updates: Partial<User>,
-  ): Promise<void> {
+  ): Promise<User | undefined> {
     const updateParts: string[] = ['modifiedDate = :modifiedDate'];
     const exprNames: Record<string, string> = {};
     const exprValues: Record<string, unknown> = {
@@ -553,32 +553,60 @@ export class UserRepository {
         event: 'user_update_no_changes',
         message: 'No fields to update',
       });
-      return;
+      return undefined;
     }
 
+    const logger = createChildLogger(baseLogger, { userId });
+    const updateExpression = `SET ${updateParts.join(', ')}`;
+    const primaryUpdate = sendDoc<UpdateCommandOutput>(
+      docClient,
+      new UpdateCommand({
+        TableName: USER_TABLE_NAME,
+        Key: {
+          pk: userOrgPk(organizationId),
+          sk: userPk(userId),
+        },
+        UpdateExpression: updateExpression,
+        ExpressionAttributeNames: exprNames,
+        ExpressionAttributeValues: exprValues,
+        ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    const mappingUpdate = sendDoc<UpdateCommandOutput>(
+      docClient,
+      new UpdateCommand({
+        TableName: USER_TABLE_NAME,
+        Key: {
+          pk: userPk(userId),
+          sk: userOrgPk(organizationId),
+        },
+        UpdateExpression: updateExpression,
+        ExpressionAttributeNames: exprNames,
+        ExpressionAttributeValues: exprValues,
+        ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
+      }),
+    ).catch((err: unknown) => {
+      const code = (err as { name?: string })?.name;
+      if (code !== 'ConditionalCheckFailedException') {
+        logger.warn({
+          event: 'user_update_org_mapping_failed',
+          err: serializeError(err),
+        });
+      }
+      return undefined;
+    });
+
     try {
-      await sendDoc<UpdateCommandOutput>(docClient,
-        new UpdateCommand({
-          TableName: USER_TABLE_NAME,
-          Key: {
-            pk: userOrgPk(organizationId),
-            sk: userPk(userId),
-          },
-          UpdateExpression: `SET ${updateParts.join(', ')}`,
-          ExpressionAttributeNames: exprNames,
-          ExpressionAttributeValues: exprValues,
-          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
-      );
-      const logger = createChildLogger(baseLogger, { userId });
+      const [primaryResult] = await Promise.all([primaryUpdate, mappingUpdate]);
       logger.info({
         event: 'user_updated',
         message: 'User updated',
         fields: Object.keys(updates),
       });
+      return (primaryResult.Attributes as User | undefined) ?? undefined;
     } catch (err: unknown) {
       const code = (err as { name?: string })?.name;
-      const logger = createChildLogger(baseLogger, { userId });
       if (code === 'ConditionalCheckFailedException') {
         throw new UserNotFoundError(userId);
       }
@@ -588,37 +616,6 @@ export class UserRepository {
         message: 'Failed to update user',
       });
       throw err;
-    }
-
-    try {
-      await sendDoc<UpdateCommandOutput>(docClient,
-        new UpdateCommand({
-          TableName: USER_TABLE_NAME,
-          Key: {
-            pk: userPk(userId),
-            sk: userOrgPk(organizationId),
-          },
-          UpdateExpression: `SET ${updateParts.join(', ')}`,
-          ExpressionAttributeNames: exprNames,
-          ExpressionAttributeValues: exprValues,
-          ConditionExpression: 'attribute_exists(pk) AND attribute_exists(sk)',
-        }),
-      );
-      const logger = createChildLogger(baseLogger, { userId });
-      logger.info({
-        event: 'user_updated_org_mapping',
-        message: 'User org mapping updated',
-        fields: Object.keys(updates),
-      });
-    } catch (err: unknown) {
-      const code = (err as { name?: string })?.name;
-      const logger = createChildLogger(baseLogger, { userId });
-      if (code !== 'ConditionalCheckFailedException') {
-        logger.warn({
-          event: 'user_update_org_mapping_failed',
-          err: serializeError(err),
-        });
-      }
     }
   }
 

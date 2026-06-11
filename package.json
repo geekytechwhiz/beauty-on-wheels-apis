@@ -53,7 +53,9 @@
     "build:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools",
     "publish:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
     "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
+      "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
+ 
   },
   "private": true,
   "dependencies": {
@@ -90,6 +92,10 @@
     "axios-retry": "^4.5.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-promise": "^7.3.0",
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "eslint-plugin-unicorn": "^65.0.1",
     "fhir": "^4.12.0",
     "fhir-package-loader": "^2.2.4",
     "fhirpath": "^4.10.1",
@@ -140,6 +146,9 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "20.19.9",
     "@types/winston": "^2.4.4",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "@typescript-eslint/utils": "^8.61.0",
     "@vitest/ui": "^4.0.0",
     "babel-jest": "^30.0.2",
     "esbuild": "^0.19.2",

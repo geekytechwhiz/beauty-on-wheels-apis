@@ -1,5 +1,9 @@
 /* eslint-disable no-restricted-syntax */
 import nx from '@nx/eslint-plugin';
+import { createJiti } from 'jiti';
+
+const jiti = createJiti(import.meta.url, { interopDefault: true });
+const mvrxPlugin = jiti('./tools/eslint-plugin-mvrx/src/index.ts');
 
 export default [
   // ✅ Nx Base Configs
@@ -73,7 +77,18 @@ export default [
       '@nx/dependency-check': 'off',
       '@nx/enforce-module-boundaries': 'off',
       '@nx/use-nx-project': 'off',
-      '@nx/use-nx-project': 'off',
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    plugins: {
+      mvrx: mvrxPlugin,
+    },
+    rules: {
+      'mvrx/no-direct-dynamodb': 'error',
+      'mvrx/no-process-env-outside-config': 'error',
+      'mvrx/no-controller-business-logic': 'error',
+      'mvrx/enforce-platform-logger': 'error',
     },
   },
 ];

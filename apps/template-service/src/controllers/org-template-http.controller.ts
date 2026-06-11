@@ -12,6 +12,8 @@ import type {
   ValidatedListOrg,
   ValidatedSetOrgTemplateEnable,
   ValidatedUpdateOrgVersion,
+  ValidatedGetOrgTemplateRules,
+  ValidatedUpdateOrgTemplateRules,
 } from '../validators/request.validators';
 import { enrichRecordActorsForApi } from '../utils/enrich-record-actors';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
@@ -256,6 +258,61 @@ export class OrgTemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'get_org_version_status_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleGetOrgTemplateRules(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
+      .validatedGetOrgTemplateRules;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.getOrgTemplateRules({
+        masterTemplateId: v.masterTemplateId,
+        organizationId: v.organizationId,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'get_org_template_rules_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleUpdateOrgTemplateRules(req: LambdaRequest) {
+    const v = (
+      req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules }
+    ).validatedUpdateOrgTemplateRules;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.updateOrgTemplateRules({
+        masterTemplateId: v.masterTemplateId,
+        organizationId: v.organizationId,
+        rules: v.body.rules,
+        actorUser: v.actorUser,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'update_org_template_rules_error',
         correlationId: req.context.correlationId as string,
       });
     }

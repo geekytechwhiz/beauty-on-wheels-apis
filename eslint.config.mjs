@@ -3,7 +3,7 @@ import nx from '@nx/eslint-plugin';
 import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url, { interopDefault: true });
-const mvrxPlugin = jiti('./tools/eslint-plugin-mvrx/src/index.ts');
+const mvrxPlugin = jiti('./tools/mvrx-eslint-plugin/src/index.ts');
 
 export default [
   // ✅ Nx Base Configs

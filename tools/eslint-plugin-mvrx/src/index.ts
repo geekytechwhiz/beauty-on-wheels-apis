@@ -8,7 +8,7 @@ import noHardcodedAwsResource from './rules/no-hardcoded-aws-resource';
 
 const plugin: TSESLint.FlatConfig.Plugin = {
   meta: {
-    name: '@api-hub/eslint-plugin-mvrx',
+    name: '@api-hub/mvrx-eslint-plugin',
     version: '1.0.0',
   },
 

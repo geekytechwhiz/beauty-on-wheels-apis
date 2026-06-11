@@ -25,7 +25,7 @@ export type FhirHandlerOptions = {
   /**
    * Shapes inbound FHIR bodies into handler-specific canonical contracts.
    */
-  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate';
+  inboundProfile?: 'createUser' | 'assignDoctor' | 'activateDeactivate' | 'createAppointment' | 'createObservation';
 };
 
 export type FhirResponsePayload = {
@@ -65,7 +65,9 @@ export function isFhirEnabled(options?: FhirHandlerOptions): boolean {
     options.resourceTypeFromContext === true ||
     options.inboundProfile === 'createUser' ||
     options.inboundProfile === 'assignDoctor' ||
-    options.inboundProfile === 'activateDeactivate'
+    options.inboundProfile === 'activateDeactivate' ||
+    options.inboundProfile === 'createAppointment' ||
+    options.inboundProfile === 'createObservation'
   );
 }
 

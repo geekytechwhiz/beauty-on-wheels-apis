@@ -48,6 +48,7 @@ import {
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
   saveMasterTemplateBodySchema,
+  postTemplateConfigMetaBodySchema,
   listTemplateConfigQuerySchema,
   templateConfigIdPathSchema,
 } from './template.schemas';
@@ -1003,6 +1004,11 @@ export type ValidatedGetTemplateConfig = {
   actorUserId: string;
 };
 
+export type ValidatedPostTemplateConfigMeta = {
+  metadataTypeCodes: string[];
+  actorUserId: string;
+};
+
 export type ValidatedCreateTemplateConfig = {
   body: Record<string, unknown>;
   actorUserId: string;
@@ -1048,6 +1054,20 @@ export async function validateListTemplateConfigsRequest(req: LambdaRequest): Pr
   ).validatedListTemplateConfigs = {
     configType: query.data.configType,
     templateType: query.data.templateType,
+    actorUserId,
+  };
+}
+
+export async function validatePostTemplateConfigMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const body = postTemplateConfigMetaBodySchema.safeParse(parseUiMetaBody(req.body));
+  if (!body.success) {
+    throwVal('Invalid metadata request body', 400, 'VALIDATION_ERROR');
+  }
+  (
+    req as LambdaRequest & { validatedPostTemplateConfigMeta?: ValidatedPostTemplateConfigMeta }
+  ).validatedPostTemplateConfigMeta = {
+    metadataTypeCodes: body.data.metadataTypeCodes,
     actorUserId,
   };
 }

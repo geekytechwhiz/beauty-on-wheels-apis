@@ -23,13 +23,13 @@ type CuratedMappingJson = {
 };
 
 const CURATED_MAPPINGS: CuratedMappingJson[] = [
-  patientMapping,
-  practitionerMapping,
-  organizationMapping,
-  relatedPersonMapping,
-  observationMapping,
-  deviceMapping,
-  appointmentMapping,
+  patientMapping as CuratedMappingJson,
+  practitionerMapping as CuratedMappingJson,
+  organizationMapping as CuratedMappingJson,
+  relatedPersonMapping as CuratedMappingJson,
+  observationMapping as CuratedMappingJson,
+  deviceMapping as CuratedMappingJson,
+  appointmentMapping as CuratedMappingJson,
 ];
 
 function asProfileArray(profile: string | string[] | undefined): string[] {

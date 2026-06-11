@@ -15,7 +15,7 @@ export interface TemplateMeta {
   languages?: string[];
   specialty?: string[];
   version?: number;
-  /** Master `meta.version` at derive / last sync from master (supports 1.2 on same V01 row). */
+  /** Master `meta.version` at derive or explicit adopt (supports 1.2 on same V01 row). */
   derivedFromMasterVersion?: number;
   status?: TemplateStatus;
   isActive?: boolean;

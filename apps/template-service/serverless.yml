@@ -337,6 +337,25 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  postTemplateConfigMeta:
+    handler: src/handlers/http/postTemplateConfigMeta.main
+    events:
+      - http:
+          path: template-configs/meta
+          method: post
+          summary: Template config metadata (dropdown options)
+          description: |
+            Proxies metadata-registry POST `/metadata/values/by-types` and returns UI-friendly
+            dropdown options for template-config forms. Body requires `metadataTypeCodes` array
+            (e.g. Country, Language, Conditions, SPECIALITY).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   getTemplateConfig:
     handler: src/handlers/http/getTemplateConfig.main
     events:

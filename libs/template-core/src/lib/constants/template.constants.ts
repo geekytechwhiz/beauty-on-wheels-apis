@@ -68,6 +68,13 @@ export const MASTER_SIMPLE_STATUSES: TemplateStatus[] = [
 /** Master VERSION rows with these statuses may be updated via POST /templates/{id}. */
 export const MASTER_EDITABLE_STATUSES: TemplateStatus[] = [...MASTER_SIMPLE_STATUSES];
 
+/** Org template VERSION rows editable via fieldValues/rules PUT. */
+export const ORG_EDITABLE_STATUSES: TemplateStatus[] = [
+  TEMPLATE_STATUS.DRAFT,
+  TEMPLATE_STATUS.SAVED,
+  TEMPLATE_STATUS.IN_REVIEW,
+];
+
 export const STATUS_TRANSITION_ACTION = {
   SUBMIT_REVIEW: 'SUBMIT_REVIEW',
   PUBLISH: 'PUBLISH',

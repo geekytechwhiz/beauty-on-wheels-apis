@@ -74,6 +74,33 @@ export function templateVersionIdToSk(templateVersionId: string): string | undef
 }
 
 /**
+ * DynamoDB VERSION sk for the row pointed to by org/master META.
+ * `meta.version` may be a display minor (e.g. 1.2) while the physical row stays `VERSION#001`.
+ */
+export function resolveOrgVersionPointerSk(meta: {
+  templateVersionId?: string;
+  version?: number;
+}): string {
+  const templateVersionId = meta.templateVersionId?.trim();
+  if (templateVersionId) {
+    const fromId = templateVersionIdToSk(templateVersionId);
+    if (fromId) return fromId;
+  }
+
+  const version = meta.version;
+  if (
+    typeof version === 'number' &&
+    Number.isFinite(version) &&
+    Number.isInteger(version) &&
+    version >= 1
+  ) {
+    return `${VERSION_SK_PREFIX}${String(version).padStart(3, '0')}`;
+  }
+
+  return `${VERSION_SK_PREFIX}001`;
+}
+
+/**
  * Display version for API (e.g. 1.2). Prefers stored `meta.version` (in-place master publishes)
  * over the major segment in `templateVersionId` (`-V01` → 1).
  */

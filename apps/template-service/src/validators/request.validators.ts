@@ -40,6 +40,9 @@ import {
   type ListCompatibleTemplatesQuery,
   type UpdateOrgTemplateBody,
   updateOrgTemplateBodySchema,
+  orgTemplateRulesPathSchema,
+  updateOrgTemplateRulesBodySchema,
+  type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
@@ -854,6 +857,54 @@ export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest
       actorUser,
       body,
     };
+}
+
+export type ValidatedGetOrgTemplateRules = {
+  masterTemplateId: string;
+  organizationId: string;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedUpdateOrgTemplateRules = ValidatedGetOrgTemplateRules & {
+  body: UpdateOrgTemplateRulesBody;
+};
+
+export async function validateGetOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+
+  (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
+    .validatedGetOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+  };
+}
+
+export async function validateUpdateOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+  const body = updateOrgTemplateRulesBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules })
+    .validatedUpdateOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+    body,
+  };
 }
 
 export async function validateCreateOrgEnablementRequest(req: LambdaRequest): Promise<void> {

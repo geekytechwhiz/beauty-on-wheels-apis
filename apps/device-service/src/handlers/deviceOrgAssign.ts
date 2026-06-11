@@ -178,4 +178,3 @@ export const handler = withApiHandler(
 );
 
 export default handler;
- 

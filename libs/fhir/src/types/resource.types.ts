@@ -127,7 +127,7 @@ export interface MappingField {
  
   template?: string;
  
-  transform?: TransformConfig;
+  transform?: TransformConfig | TransformConfig['name'];
  
   skipIfEmpty?: boolean;
 

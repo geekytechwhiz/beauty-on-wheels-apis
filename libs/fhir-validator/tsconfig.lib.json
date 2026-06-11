@@ -11,10 +11,16 @@
     "emitDeclarationOnly": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node"],
-    "paths": {
-      "@api-hub/fhir": ["libs/fhir/src/index.ts"]
-    }
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../fhir/tsconfig.lib.json"
+    },
+    {
+      "path": "../terminology/tsconfig.lib.json"
+    }
+  ]
 }

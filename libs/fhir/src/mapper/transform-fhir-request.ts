@@ -1,6 +1,6 @@
-import { FhirTransformationService } from '@api-hub/fhir';
 import { BaseError } from '@api-hub/utils';
 import type { LambdaRequest } from '@api-hub/utils';
+import { FhirTransformationService } from '../services/fhir-transformation.service';
 
 import type { FhirHandlerOptions } from './transform-to-fhir-response';
 import { isFhirEnabled } from './transform-to-fhir-response';

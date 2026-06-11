@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "@api-hub/fhir": "workspace:*",
+    "@api-hub/terminology": "workspace:*",
+    "object-path": "^0.11.8",
     "tslib": "^2.3.0"
   }
 }

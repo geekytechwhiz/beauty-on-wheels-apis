@@ -8,3 +8,4 @@
  export * from "./models/validation-result";
  export * from "./models/validation-issue";
  export * from "./errors/fhir-validation.error";
+ export * from "./builders/operation-outcome.builder";

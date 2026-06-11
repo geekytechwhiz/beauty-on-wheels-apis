@@ -152,12 +152,25 @@ export class GenericMapper {
     return field.template.replace('{{value}}', String(value));
   }
 
-  private applyTransform(value: unknown, field: MappingField): unknown {
+  private resolveTransformName(field: MappingField): string | undefined {
     if (!field.transform) {
+      return undefined;
+    }
+
+    if (typeof field.transform === 'string') {
+      return field.transform;
+    }
+
+    return field.transform.name;
+  }
+
+  private applyTransform(value: unknown, field: MappingField): unknown {
+    const transformName = this.resolveTransformName(field);
+    if (!transformName) {
       return value;
     }
 
-    switch (field.transform.name) {
+    switch (transformName) {
       case 'firstName':
         return String(value).split(' ')[0];
 

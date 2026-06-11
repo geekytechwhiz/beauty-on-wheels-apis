@@ -40,12 +40,17 @@ export const apiHubFhirPeer: ApiHubFhirPeerModule = {
       skipLog?: boolean;
     },
   ): APIGatewayProxyResult => {
-    if (error instanceof FhirValidationError) {
-      return mapFhirValidationErrorResponse(error, {
-        correlationId: options?.correlationId,
-        logger: options?.logger  ,
-        skipLog: options?.skipLog,
-      });
+    if (isFhirValidationErrorLike(error) || error instanceof FhirValidationError) {
+      return mapFhirValidationErrorResponse(
+        error as FhirValidationError,
+        {
+          correlationId: options?.correlationId,
+          logger: options?.logger as Parameters<
+            typeof mapFhirValidationErrorResponse
+          >[1]['logger'],
+          skipLog: options?.skipLog,
+        },
+      );
     }
 
     throw error;

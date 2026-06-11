@@ -1,27 +1,49 @@
-import { ValidationResult } from '../models/validation-result';
+import objectPath from 'object-path';
+
+import { getRequiredFields } from '@api-hub/fhir';
+
 import { ValidationIssue } from '../models/validation-issue';
+import { ValidationResult } from '../models/validation-result';
 
 export class StructureValidator {
-  constructor(private readonly metadataRegistry: any) {}
-
-  validate(resource: any): ValidationResult {
-    const metadata = this.metadataRegistry.get(resource.resourceType);
+  validate(resource: Record<string, unknown>, version = 'R4'): ValidationResult {
     const issues: ValidationIssue[] = [];
+    const resourceType =
+      typeof resource?.resourceType === 'string' ? resource.resourceType : undefined;
 
-    if (!metadata?.fields) {
-      return { valid: true, issues };
+    if (!resourceType) {
+      issues.push({
+        validator: 'StructureValidator',
+        resourceType: 'Unknown',
+        path: 'resourceType',
+        code: 'RESOURCE_MISSING',
+        message: 'FHIR resource missing resourceType',
+      });
+      return { valid: false, issues };
     }
 
-    for (const field of metadata.fields) {
-      const value = resource[field.name];
+    if (resource.resourceType !== resourceType) {
+      issues.push({
+        validator: 'StructureValidator',
+        resourceType,
+        path: 'resourceType',
+        code: 'INVALID_RESOURCE_TYPE',
+        message: `Expected ${resourceType} but received ${String(resource.resourceType)}`,
+      });
+    }
 
-      if (field.required && (value === undefined || value === null)) {
+    const requiredFields = getRequiredFields(resourceType, version);
+    for (const field of requiredFields) {
+      const value = objectPath.get(resource, field);
+      const empty = value === undefined || value === null || value === '';
+
+      if (empty) {
         issues.push({
           validator: 'StructureValidator',
-          resourceType: resource.resourceType,
-          path: field.path,
+          resourceType,
+          path: field,
           code: 'REQUIRED',
-          message: `${field.path} is required`,
+          message: `Required field missing: ${field}`,
         });
       }
     }

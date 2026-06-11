@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { OrganizationService } from './organization.service';
 import { OrgConfigEntityType, OrgConfigStatus } from '../models';
 
@@ -25,6 +25,8 @@ jest.mock('../events/event.publisher', () => ({
   publishEvent: jest.fn().mockResolvedValue(undefined as never),
 }));
 
+const ROOT_ADMIN = 'ROOT_ADMIN';
+
 describe('OrganizationService organizationConfig updates', () => {
   const repository = {
     getOrganization: jest.fn(),
@@ -42,32 +44,271 @@ describe('OrganizationService organizationConfig updates', () => {
 
   const service = new OrganizationService(repository, userRepository, secretManagerService);
 
+  const originalFlag = process.env.ENABLE_NEW_ORG_CONFIG_FLOW;
+
+  afterEach(() => {
+    if (originalFlag === undefined) {
+      delete process.env.ENABLE_NEW_ORG_CONFIG_FLOW;
+    } else {
+      process.env.ENABLE_NEW_ORG_CONFIG_FLOW = originalFlag;
+    }
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('does not create any config version from the profile update API even when organizationConfig is sent', async () => {
-    repository.getOrganization
-      .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
-      .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1 Updated' });
+  describe('legacy flow (ENABLE_NEW_ORG_CONFIG_FLOW=false)', () => {
+    beforeEach(() => {
+      process.env.ENABLE_NEW_ORG_CONFIG_FLOW = 'false';
+    });
 
-    await service.updateOrganization(
-      'org-1',
-      {
-        name: 'Org 1 Updated',
-        organizationConfig: {
-          supportedLanguages: ['en', 'es'],
-          supportedConditions: ['COND_B'],
+    it('merges organizationConfig patch with latest active config and creates ACTIVE version', async () => {
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' });
+
+      repository.getLatestOrganizationConfig.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v1',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 1,
+        supportedCountries: ['IN'],
+        supportedLanguages: ['EN'],
+        supportedStates: ['KA'],
+        supportedCategories: ['CAT_A'],
+        supportedConditions: ['COND_A'],
+        status: OrgConfigStatus.ACTIVE,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      repository.createOrganizationConfigVersion.mockResolvedValue({
+        version: 2,
+        status: OrgConfigStatus.ACTIVE,
+      });
+
+      await service.updateOrganization(
+        'org-1',
+        {
+          organizationConfig: {
+            supportedLanguages: ['EN', 'ES'],
+            supportedConditions: ['COND_B'],
+          },
         },
-      },
-      'corr-1',
-    );
+        'corr-1',
+        ROOT_ADMIN,
+      );
 
-    expect(repository.updateOrganization).toHaveBeenCalledTimes(1);
-    expect(repository.createOrganizationConfigVersion).not.toHaveBeenCalled();
-    expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
-    expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
-    expect(repository.getLatestOrganizationConfigVersionItem).not.toHaveBeenCalled();
+      expect(repository.createOrganizationConfigVersion).toHaveBeenCalledWith('org-1', {
+        supportedCountries: ['IN'],
+        supportedLanguages: ['EN', 'ES'],
+        supportedStates: ['KA'],
+        supportedCategories: ['CAT_A'],
+        supportedConditions: ['COND_B'],
+      });
+      expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
+      expect(repository.getLatestOrganizationConfigVersionItem).not.toHaveBeenCalled();
+    });
+
+    it('does not create a new config version when merged legacy config is unchanged', async () => {
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' });
+
+      repository.getLatestOrganizationConfig.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v3',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 3,
+        supportedCountries: ['IN'],
+        supportedLanguages: ['EN', 'HI'],
+        supportedStates: ['KA'],
+        supportedCategories: ['CARDIO'],
+        supportedConditions: ['STABLE'],
+        status: OrgConfigStatus.ACTIVE,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      await service.updateOrganization(
+        'org-1',
+        {
+          organizationConfig: {
+            supportedLanguages: ['EN', 'HI'],
+          },
+        },
+        'corr-1',
+        ROOT_ADMIN,
+      );
+
+      expect(repository.createOrganizationConfigVersion).not.toHaveBeenCalled();
+    });
+
+    it('skips config update when caller is not ROOT_ADMIN', async () => {
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' });
+
+      await service.updateOrganization(
+        'org-1',
+        {
+          organizationConfig: {
+            supportedLanguages: ['EN'],
+          },
+        },
+        'corr-1',
+        'ORG_ADMIN',
+      );
+
+      expect(repository.createOrganizationConfigVersion).not.toHaveBeenCalled();
+      expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+    });
+
+    it('includes organizationConfig in OrganizationUpdated.v1 updatedFields', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { publishEvent } = require('../events/event.publisher');
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1', modifiedDate: 99 })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1', modifiedDate: 99 });
+
+      repository.getLatestOrganizationConfig.mockResolvedValue(null);
+      repository.createOrganizationConfigVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.ACTIVE,
+      });
+
+      const organizationConfig = {
+        supportedCountries: ['IN'],
+        supportedLanguages: ['EN'],
+      };
+
+      await service.updateOrganization(
+        'org-1',
+        { organizationConfig },
+        'corr-1',
+        ROOT_ADMIN,
+      );
+
+      expect(publishEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'OrganizationUpdated.v1',
+          payload: expect.objectContaining({
+            updatedFields: expect.objectContaining({
+              organizationConfig,
+              organizationConfigVersion: 1,
+            }),
+          }),
+        }),
+        'corr-1',
+      );
+    });
+  });
+
+  describe('new flow (ENABLE_NEW_ORG_CONFIG_FLOW=true)', () => {
+    beforeEach(() => {
+      process.env.ENABLE_NEW_ORG_CONFIG_FLOW = 'true';
+    });
+
+    it('maps legacy organizationConfig and saves draft via new config flow', async () => {
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1' });
+
+      repository.getLatestOrganizationConfigVersionItem
+        .mockResolvedValueOnce({
+          version: 1,
+          status: OrgConfigStatus.ACTIVE,
+          countryCode: 'IN',
+          supportedLanguageCodes: ['EN'],
+          enabledCategoryCodes: ['CAT_A'],
+          enabledConditionCodes: ['COND_A'],
+        })
+        .mockResolvedValueOnce({
+          version: 1,
+          status: OrgConfigStatus.ACTIVE,
+          countryCode: 'IN',
+          supportedLanguageCodes: ['EN'],
+          enabledCategoryCodes: ['CAT_A'],
+          enabledConditionCodes: ['COND_A'],
+        });
+
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 2,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      await service.updateOrganization(
+        'org-1',
+        {
+          organizationConfig: {
+            supportedLanguages: ['EN', 'ES'],
+            supportedConditions: ['COND_B'],
+          },
+          modules: { MOD_A: true },
+        },
+        'corr-1',
+        ROOT_ADMIN,
+      );
+
+      expect(repository.createOrganizationConfigVersion).not.toHaveBeenCalled();
+      expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+      expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
+        'org-1',
+        {
+          countryCode: 'IN',
+          defaultLanguageCode: 'EN',
+          supportedLanguageCodes: ['EN', 'ES'],
+          enabledCategoryCodes: ['CAT_A'],
+          enabledConditionCodes: ['COND_B'],
+          enabledModuleCodes: ['MOD_A'],
+        },
+        { changeReason: undefined, createdBy: undefined },
+      );
+    });
+
+    it('keeps OrganizationUpdated.v1 payload shape with organizationConfig fields', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { publishEvent } = require('../events/event.publisher');
+      repository.getOrganization
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1', modifiedDate: 99 })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1', modifiedDate: 99 })
+        .mockResolvedValueOnce({ organizationId: 'org-1', name: 'Org 1', modifiedDate: 99 });
+
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue(null);
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      const organizationConfig = {
+        supportedCountries: ['IN'],
+        supportedLanguages: ['EN'],
+      };
+
+      await service.updateOrganization(
+        'org-1',
+        { organizationConfig },
+        'corr-1',
+        ROOT_ADMIN,
+      );
+
+      expect(publishEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'OrganizationUpdated.v1',
+          payload: expect.objectContaining({
+            updatedFields: expect.objectContaining({
+              organizationConfig,
+              organizationConfigVersion: 1,
+            }),
+          }),
+        }),
+        'corr-1',
+      );
+    });
   });
 
   it('returns latest organizationConfig in getOrganization response', async () => {
@@ -266,4 +507,3 @@ describe('OrganizationService organizationConfig updates', () => {
     });
   });
 });
-

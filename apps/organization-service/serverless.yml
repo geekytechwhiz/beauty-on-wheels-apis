@@ -44,6 +44,7 @@ provider:
     GET_ONBOARDING_SCREENS_LAMBDA: ${self:provider.stage}_global_get_onboarding_screens
     DEVICE_API_BASE_URL: ${self:custom.deviceApiUrl.${self:provider.stage}}
     SECRET_MANAGER_NAME: ${self:custom.SecretManagerService.${self:provider.stage}}
+    ENABLE_NEW_ORG_CONFIG_FLOW: ${self:custom.enableNewOrgConfigFlow.${self:provider.stage}, 'false'}
 
   tags:
     Service: ${self:service}
@@ -140,6 +141,10 @@ custom:
     dev: DEV_DEMO_SECRETMANAGER
     stg: STG_DEMO_SECRETMANAGER
     prd: PRD_DEMO_SECRETMANAGER
+  enableNewOrgConfigFlow:
+    dev: true
+    stg: false
+    prd: false
 
   # Disable sourcemaps in CI to reduce memory (avoids esbuild "The service was stopped: write EPIPE").
   # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.

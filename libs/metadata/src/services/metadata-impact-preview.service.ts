@@ -1,9 +1,5 @@
 import { ValidationError } from '../domain/errors';
-import {
-  getChangePolicyCatalog,
-  matchPolicyRules,
-  RUNTIME_IMPACT,
-} from '../change-policy';
+import { getChangePolicyCatalog, matchPolicyRules } from '../change-policy';
 import { getMetadataRepository } from '../dynamodb/dynamodb.client';
 import {
   CHANGE_REQUEST_OPERATION,
@@ -14,9 +10,9 @@ import type { ImpactPreviewResponse } from '../models/impact-preview.types';
 import type { RegistryPostMetadataInput } from './metadata.service.types';
 import { prepareTypeRegistryChange, prepareValueRegistryChange } from './metadata-change-request.service';
 import {
+  buildConsumerGatedImpact,
   evaluateRegistryChangeImpact,
   loadPublishedBasePayload,
-  isConfirmationRequired,
 } from './metadata-registry-change.shared';
 
 function isDraftPreviewBody(body: Record<string, unknown>): boolean {
@@ -48,27 +44,7 @@ function resolveNextVersion(
   return requiresMetadataVersion ? baseVersion + 1 : baseVersion;
 }
 
-function deriveAffectedConsumers(summary: ImpactPreviewResponse['impactSummary']): string[] {
-  const out = new Set<string>();
-  if (summary.requiresTemplateAdoption) {
-    out.add('Template');
-  }
-  if (summary.requiresOrgCapabilityReevaluation) {
-    out.add('OrgCapability');
-    out.add('Package');
-    out.add('ServiceCatalog');
-    out.add('Appointment');
-  }
-  if (
-    summary.runtimeImpact === RUNTIME_IMPACT.REVIEW_REQUIRED ||
-    summary.runtimeImpact === RUNTIME_IMPACT.MIGRATION_REQUIRED
-  ) {
-    out.add('Runtime');
-  }
-  return [...out];
-}
-
-function buildImpactPreviewResponse(params: {
+async function buildImpactPreviewResponse(params: {
   entityType: 'type' | 'value';
   operation: ChangeRequestOperation;
   metadataTypeCode: string;
@@ -77,7 +53,7 @@ function buildImpactPreviewResponse(params: {
   baseVersion: number | null;
   basePayload: Record<string, unknown> | null;
   proposedPayload: Record<string, unknown>;
-}): ImpactPreviewResponse {
+}): Promise<ImpactPreviewResponse> {
   const catalog = getChangePolicyCatalog();
   const impact = evaluateRegistryChangeImpact({
     entityType: params.entityType,
@@ -97,16 +73,13 @@ function buildImpactPreviewResponse(params: {
     policyGroup: rule.policyGroup,
   }));
 
-  const impactSummary: ImpactPreviewResponse['impactSummary'] = {
-    policyGroups: impact.policyGroups,
-    versionImpact: impact.versionImpact,
-    requiresMetadataVersion: impact.requiresMetadataVersion,
-    requiresTemplateAdoption: impact.requiresTemplateAdoption,
-    requiresOrgCapabilityReevaluation: impact.requiresOrgCapabilityReevaluation,
-    runtimeImpact: impact.runtimeImpact,
-    mergeBehavior: impact.mergeBehavior,
-    uxDiffRequired: impact.uxDiffRequired,
-  };
+  const gated = await buildConsumerGatedImpact({
+    entityType: params.entityType,
+    operation: params.operation,
+    metadataTypeCode: params.metadataTypeCode,
+    metadataValueCode: params.metadataValueCode,
+    policyImpact: impact,
+  });
 
   const nextVersion = resolveNextVersion(
     params.operation,
@@ -114,7 +87,7 @@ function buildImpactPreviewResponse(params: {
     impact.requiresMetadataVersion,
   );
 
-  const response: ImpactPreviewResponse = {
+  return {
     entityType: params.entityType,
     operation: params.operation,
     metadataTypeCode: params.metadataTypeCode,
@@ -123,12 +96,10 @@ function buildImpactPreviewResponse(params: {
     baseVersion: params.baseVersion,
     nextVersion,
     changedFields,
-    impactSummary,
-    confirmationRequired: isConfirmationRequired(impactSummary),
-    affectedConsumers: deriveAffectedConsumers(impactSummary),
+    impactSummary: gated.impactSummary,
+    confirmationRequired: gated.confirmationRequired,
+    affectedConsumers: gated.affectedConsumers,
   };
-
-  return response;
 }
 
 async function previewFromDraft(

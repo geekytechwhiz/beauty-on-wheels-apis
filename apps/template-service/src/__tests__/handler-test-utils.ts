@@ -133,9 +133,14 @@ export function publishedMasterTemplateRecord(
   });
 }
 
-/** Shared Jest mock factory for `@api-hub/middleware` withApiHandler (used in handler specs). */
+/** Shared Jest mock factory for `@api-hub/middleware` (used in handler specs). */
 export function createWithApiHandlerMock() {
-  const { ApiResponse } = jest.requireActual<typeof import('@api-hub/utils')>('@api-hub/utils');
+  const { ApiResponse, toBaseError } = jest.requireActual<typeof import('@api-hub/utils')>(
+    '@api-hub/utils',
+  );
+  const { buildRequestContext } = jest.requireActual<typeof import('@api-hub/middleware')>(
+    '@api-hub/middleware',
+  );
 
   function tryParseJson(body: unknown): unknown {
     if (typeof body !== 'string') return body;
@@ -210,6 +215,32 @@ export function createWithApiHandlerMock() {
           );
         }
       },
+    buildApiExecutionPipeline: () => [],
+    runMiddlewares:
+      <TEvent, TResult, TContext>(
+        _middlewares: unknown[],
+        handler: (event: TEvent, context: TContext) => Promise<TResult>,
+      ) =>
+      async (event: TEvent, context: TContext): Promise<TResult> => {
+        try {
+          return await handler(event, context);
+        } catch (error: unknown) {
+          const appError = toBaseError(error);
+          const statusCode = appError.statusCode ?? 500;
+          const code = appError.code ?? 'INTERNAL_ERROR';
+          return ApiResponse.error(
+            statusCode,
+            {
+              title: code,
+              description: appError.message,
+              severity: 'ERROR',
+            },
+            { correlationId: 'test-correlation-id' },
+            { code },
+          ) as TResult;
+        }
+      },
+    buildRequestContext,
   };
 }
 

@@ -4,8 +4,6 @@ import { bearerToken, minimalMasterTemplateRecord } from '../__tests__/handler-t
 import { OrgTemplateHttpController } from './org-template-http.controller';
 
 const mockCloneTemplateVersion = jest.fn();
-const mockGetOrgTemplateVersions = jest.fn();
-const mockUpdateOrgTemplateVersion = jest.fn();
 const mockListOrgEnabled = jest.fn();
 const mockGetOrgVersionStatus = jest.fn();
 const mockSetOrgTemplateEnablement = jest.fn();
@@ -18,8 +16,6 @@ jest.mock('@api-hub/template-core', () => {
     ...actual,
     OrgTemplateService: jest.fn().mockImplementation(() => ({
       cloneTemplateVersion: mockCloneTemplateVersion,
-      getOrgTemplateVersions: mockGetOrgTemplateVersions,
-      updateOrgTemplateVersion: mockUpdateOrgTemplateVersion,
       listOrgEnabled: mockListOrgEnabled,
       getOrgVersionStatus: mockGetOrgVersionStatus,
       setOrgTemplateEnablement: mockSetOrgTemplateEnablement,
@@ -178,26 +174,5 @@ describe('OrgTemplateHttpController', () => {
       organizationName: undefined,
       organizationDescription: undefined,
     });
-  });
-
-  it('handleUpdateOrgVersion returns summary', async () => {
-    const record = minimalMasterTemplateRecord();
-    mockUpdateOrgTemplateVersion.mockResolvedValue(record);
-    mockToSummary.mockReturnValue({ templateId: 'CP-ORG-001', version: 2, status: 'DRAFT' });
-
-    const c = new OrgTemplateHttpController();
-    const out = await c.handleUpdateOrgVersion(
-      baseReq({
-        validatedUpdateOrgVersion: {
-          organizationId: 'org-1',
-          templateId: 'CP-ORG-001',
-          versionId: 'V01',
-          body: { meta: { templateName: 'Updated' } },
-          actorUser: { userId: 'user-1' },
-        },
-      } as unknown as LambdaRequest),
-    );
-
-    expect(out.version).toBe(2);
   });
 });

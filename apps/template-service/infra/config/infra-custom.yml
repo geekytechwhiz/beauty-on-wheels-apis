@@ -1,5 +1,8 @@
 # Naming for externally provisioned DynamoDB + in-stack EventBridge/SQS, and per-stage service URLs.
 templateDynamoTableName: template-service-${self:provider.stage}
+# Same buckets as provider.deploymentBucket (dev|stg|prd-mvx-template-service-bucket).
+templateConfigBucketName: ${self:provider.stage}-mvx-template-service-bucket
+templateConfigS3Prefix: template-configs
 eventBusName: template-service-bus-${self:provider.stage}
 templateEventsDlqName: template-events-dlq-${self:provider.stage}
 corsOrigin:

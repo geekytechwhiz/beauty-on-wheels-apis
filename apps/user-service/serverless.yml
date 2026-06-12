@@ -11,11 +11,12 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-  - serverless-prune-plugin
+  # - serverless-prune-plugin
 
 provider:
   name: aws
   runtime: nodejs22.x
+  versionFunctions: false
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -189,9 +190,9 @@ package:
   individually: true
   
 custom:
-  prune:
-      automatic: true
-      number: 3
+  # prune:
+  #     automatic: true
+  #     number: 3
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
     dev: true

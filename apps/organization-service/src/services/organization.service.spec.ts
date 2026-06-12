@@ -333,7 +333,7 @@ describe('OrganizationService organizationConfig updates', () => {
     });
   });
 
-  it('returns latest organizationConfig in getOrganization response', async () => {
+  it('returns enriched organizationConfig in getOrganization response', async () => {
     repository.getOrganization.mockResolvedValue({
       organizationId: 'org-1',
       name: 'Org 1',
@@ -344,30 +344,63 @@ describe('OrganizationService organizationConfig updates', () => {
       entityType: OrgConfigEntityType.ORG_CONFIG,
       orgId: 'org-1',
       version: 4,
-      supportedCountries: ['IN'],
-      supportedLanguages: ['en'],
-      supportedStates: ['KA'],
-      supportedCategories: ['CARDIO'],
-      supportedConditions: ['STABLE'],
+      countryCode: 'IN',
+      defaultLanguageCode: 'EN',
+      enabledCategoryCodes: ['CARDIO'],
+      enabledConditionCodes: ['STABLE'],
       status: OrgConfigStatus.ACTIVE,
       createdAt: 1,
       updatedAt: 1,
     });
+    metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+      items: [
+        {
+          metadataType: 'Country',
+          displayName: 'Country',
+          multiSelectAllowed: false,
+          valueDataType: 'string',
+          values: [{ valueCode: 'IN', label: 'India', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+        },
+        {
+          metadataType: 'Language',
+          displayName: 'Language',
+          multiSelectAllowed: false,
+          valueDataType: 'string',
+          values: [{ valueCode: 'EN', label: 'English', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+        },
+        {
+          metadataType: 'Category',
+          displayName: 'Category',
+          multiSelectAllowed: true,
+          valueDataType: 'string',
+          values: [{ valueCode: 'CARDIO', label: 'Cardiology', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+        },
+        {
+          metadataType: 'Condition',
+          displayName: 'Condition',
+          multiSelectAllowed: true,
+          valueDataType: 'string',
+          values: [{ valueCode: 'STABLE', label: 'Stable', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+        },
+      ],
+      missingMetadataTypeCodes: [],
+    });
+    metadataRegistryClient.getRelatedValues.mockResolvedValue({ groups: [] });
 
-    const response = await service.getOrganization('org-1');
+    const response = await service.getOrganization('org-1', { authHeader: 'Bearer token' });
 
     expect(response.organizationConfig).toEqual({
-      supportedCountries: ['IN'],
-      supportedLanguages: ['en'],
-      supportedStates: ['KA'],
-      supportedCategories: ['CARDIO'],
-      supportedConditions: ['STABLE'],
+      countryCode: { code: 'IN', label: 'India' },
+      defaultLanguageCode: { code: 'EN', label: 'English' },
+      enabledCategoryCodes: [{ code: 'CARDIO', label: 'Cardiology' }],
+      enabledConditionCodes: [{ code: 'STABLE', label: 'Stable' }],
     });
     expect(response.organizationConfigVersion).toBe(4);
+    expect(response.organizationConfigStatus).toBe(OrgConfigStatus.ACTIVE);
   });
 
   describe('getOrganizationConfig', () => {
-    it('returns wrapped latest organizationConfig when present', async () => {
+    it('returns enriched ACTIVE config with code+label values', async () => {
       repository.getOrganization.mockResolvedValue({
         organizationId: 'org-1',
         name: 'Org 1',
@@ -378,6 +411,123 @@ describe('OrganizationService organizationConfig updates', () => {
         entityType: OrgConfigEntityType.ORG_CONFIG,
         orgId: 'org-1',
         version: 4,
+        countryCode: 'IN',
+        stateCode: 'KA',
+        enabledCategoryCodes: ['CARDIOLOGY'],
+        enabledConditionCodes: ['HYPERTENSION'],
+        status: OrgConfigStatus.ACTIVE,
+        orgCapabilities: ['CAP-CARDIOLOGY__HYPERTENSION'],
+        publishedAt: 1_700_000_000_000,
+        publishedBy: 'user-1',
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Country',
+            displayName: 'Country',
+            multiSelectAllowed: false,
+            valueDataType: 'string',
+            values: [{ valueCode: 'IN', label: 'India', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+          {
+            metadataType: 'State',
+            displayName: 'State',
+            multiSelectAllowed: false,
+            valueDataType: 'string',
+            values: [{ valueCode: 'KA', label: 'Karnataka', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+          {
+            metadataType: 'Category',
+            displayName: 'Category',
+            multiSelectAllowed: true,
+            valueDataType: 'string',
+            values: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+          {
+            metadataType: 'Condition',
+            displayName: 'Condition',
+            multiSelectAllowed: true,
+            valueDataType: 'string',
+            values: [{ valueCode: 'HYPERTENSION', label: 'Hypertension', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({
+        groups: [
+          {
+            fromMetadataTypeCode: 'Category',
+            fromMetadataValueCode: 'CARDIOLOGY',
+            fromLabel: 'Cardiology',
+            values: [{ metadataTypeCode: 'Condition', metadataValueCode: 'HYPERTENSION', label: 'Hypertension' }],
+          },
+        ],
+      });
+
+      const response = await service.getOrganizationConfig('org-1', 'Bearer token');
+
+      expect(response).toEqual({
+        organizationId: 'org-1',
+        organizationConfigVersion: 4,
+        organizationConfigStatus: OrgConfigStatus.ACTIVE,
+        organizationConfig: {
+          countryCode: { code: 'IN', label: 'India' },
+          stateCode: { code: 'KA', label: 'Karnataka' },
+          enabledCategoryCodes: [{ code: 'CARDIOLOGY', label: 'Cardiology' }],
+          enabledConditionCodes: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
+        },
+        orgCapabilities: ['CAP-CARDIOLOGY__HYPERTENSION'],
+        publishedAt: new Date(1_700_000_000_000).toISOString(),
+        publishedBy: 'user-1',
+        enabledCategoryConditionGroups: [
+          {
+            category: { code: 'CARDIOLOGY', label: 'Cardiology' },
+            conditions: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
+          },
+        ],
+        countryStateCityGroup: {
+          country: { code: 'IN', label: 'India' },
+          state: { code: 'KA', label: 'Karnataka' },
+        },
+      });
+    });
+
+    it('falls back to label=code when metadata registry fails', async () => {
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getLatestOrganizationConfig.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v1',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 1,
+        defaultLanguageCode: 'EN',
+        status: OrgConfigStatus.ACTIVE,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      metadataRegistryClient.getValuesByTypes.mockRejectedValue(new Error('registry down'));
+
+      const response = await service.getOrganizationConfig('org-1', 'Bearer token');
+
+      expect(response.organizationConfig?.defaultLanguageCode).toEqual({ code: 'EN', label: 'EN' });
+    });
+
+    it('maps legacy supported* config into enriched response', async () => {
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getLatestOrganizationConfig.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v2',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 2,
         supportedCountries: ['IN'],
         supportedLanguages: ['en'],
         supportedStates: ['KA'],
@@ -387,19 +537,18 @@ describe('OrganizationService organizationConfig updates', () => {
         createdAt: 1,
         updatedAt: 1,
       });
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({ items: [], missingMetadataTypeCodes: [] });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({ groups: [] });
 
-      const response = await service.getOrganizationConfig('org-1');
+      const response = await service.getOrganizationConfig('org-1', 'Bearer token');
 
-      expect(response).toEqual({
-        organizationId: 'org-1',
-        organizationConfig: {
-          supportedCountries: ['IN'],
-          supportedLanguages: ['en'],
-          supportedStates: ['KA'],
-          supportedCategories: ['CARDIO'],
-          supportedConditions: ['STABLE'],
-        },
-        organizationConfigVersion: 4,
+      expect(response.organizationConfig).toEqual({
+        countryCode: { code: 'IN', label: 'IN' },
+        stateCode: { code: 'KA', label: 'KA' },
+        defaultLanguageCode: { code: 'EN', label: 'EN' },
+        supportedLanguageCodes: [{ code: 'EN', label: 'EN' }],
+        enabledCategoryCodes: [{ code: 'CARDIO', label: 'CARDIO' }],
+        enabledConditionCodes: [{ code: 'STABLE', label: 'STABLE' }],
       });
     });
 

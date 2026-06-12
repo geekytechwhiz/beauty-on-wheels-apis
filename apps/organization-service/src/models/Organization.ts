@@ -61,8 +61,12 @@ export interface Organization {
   modules?: unknown;
   devices?: unknown;
   supportedVitals?: unknown;
-  organizationConfig?: OrganizationConfigPatch;
+  organizationConfig?: OrganizationConfigPatch | EnrichedOrganizationConfig;
   organizationConfigVersion?: number;
+  organizationConfigStatus?: OrgConfigStatus;
+  enabledCategoryConditionGroups?: CategoryConditionGroup[];
+  countryStateCityGroup?: CountryStateCityGroup;
+  orgCapabilities?: string[];
   organizationInfo?: unknown;
   searchFields?: unknown;
   website?: string;
@@ -89,6 +93,48 @@ export interface OrganizationConfigPatch {
  * (`PUT /organization/{organizationId}/config`). Holds metadata-driven codes only;
  * labels are not stored here (resolved from the Metadata Registry on read).
  */
+export interface MetadataCodeLabel {
+  code: string;
+  label: string;
+}
+
+/** GET response config with registry-resolved labels (codes only in DynamoDB). */
+export interface EnrichedOrganizationConfig {
+  countryCode?: MetadataCodeLabel;
+  stateCode?: MetadataCodeLabel;
+  cityCode?: MetadataCodeLabel;
+  timezone?: string;
+  defaultLanguageCode?: MetadataCodeLabel;
+  supportedLanguageCodes?: MetadataCodeLabel[];
+  enabledCategoryCodes?: MetadataCodeLabel[];
+  enabledConditionCodes?: MetadataCodeLabel[];
+  enabledSpecialtyCodes?: MetadataCodeLabel[];
+  enabledDeviceCodes?: MetadataCodeLabel[];
+  enabledVitalCodes?: MetadataCodeLabel[];
+  enabledMetricCodes?: MetadataCodeLabel[];
+  enabledReminderChannels?: MetadataCodeLabel[];
+  enabledRoleTypes?: MetadataCodeLabel[];
+  requiredDocumentTypes?: MetadataCodeLabel[];
+  requiredAgreementTypes?: MetadataCodeLabel[];
+  currencyCode?: MetadataCodeLabel;
+  paymentModeCodes?: MetadataCodeLabel[];
+  enabledModuleCodes?: MetadataCodeLabel[];
+  enabledFeatureCodes?: MetadataCodeLabel[];
+  linkedOrgReferences?: string[];
+  requiredAgreementIds?: string[];
+}
+
+export interface CategoryConditionGroup {
+  category: MetadataCodeLabel;
+  conditions: MetadataCodeLabel[];
+}
+
+export interface CountryStateCityGroup {
+  country?: MetadataCodeLabel;
+  state?: MetadataCodeLabel;
+  city?: MetadataCodeLabel;
+}
+
 export interface OrganizationConfigData {
   countryCode?: string;
   stateCode?: string;
@@ -148,6 +194,19 @@ export enum OrgConfigStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
   DRAFT = 'draft',
+}
+
+/** Response for `GET /organization/{organizationId}?view=config`. */
+export interface OrganizationConfigView {
+  organizationId: string;
+  organizationConfigVersion?: number;
+  organizationConfigStatus?: OrgConfigStatus;
+  organizationConfig?: EnrichedOrganizationConfig;
+  orgCapabilities?: string[];
+  publishedAt?: string;
+  publishedBy?: string;
+  enabledCategoryConditionGroups?: CategoryConditionGroup[];
+  countryStateCityGroup?: CountryStateCityGroup;
 }
 
 export const ORG_CONFIG_CHANGE_TYPE = {

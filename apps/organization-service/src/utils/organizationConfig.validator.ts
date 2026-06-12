@@ -4,6 +4,7 @@ import type {
 } from '@api-hub/service-clients';
 import type { OrganizationConfigData } from '../models';
 import { ORGANIZATION_CONFIG_DATA_KEYS } from '../models/Organization';
+import { CONFIG_FIELD_TO_METADATA_TYPE } from './organizationConfig.metadata-types';
 import {
   InvalidMetadataRelationError,
   InvalidMetadataValueError,
@@ -25,27 +26,6 @@ export interface OrgConfigMetadataReader {
 export interface OrgConfigValidationContext {
   conditionsByCategory: Map<string, Set<string>>;
 }
-
-/** Maps org config fields to Metadata Registry type codes for code-existence validation. */
-const CONFIG_FIELD_TO_METADATA_TYPE: Partial<Record<keyof OrganizationConfigData, string>> = {
-  countryCode: 'Country',
-  stateCode: 'State',
-  cityCode: 'City',
-  defaultLanguageCode: 'Language',
-  supportedLanguageCodes: 'Language',
-  enabledCategoryCodes: 'Category',
-  enabledConditionCodes: 'Condition',
-  enabledSpecialtyCodes: 'Specialty',
-  enabledDeviceCodes: 'Device',
-  enabledVitalCodes: 'Vital',
-  enabledMetricCodes: 'MetricCode',
-  enabledReminderChannels: 'ReminderChannel',
-  enabledRoleTypes: 'RoleType',
-  requiredDocumentTypes: 'DocumentType',
-  requiredAgreementTypes: 'AgreementType',
-  currencyCode: 'Currency',
-  paymentModeCodes: 'PaymentMode',
-};
 
 const normalizeCode = (value: string): string => value.trim().toUpperCase();
 

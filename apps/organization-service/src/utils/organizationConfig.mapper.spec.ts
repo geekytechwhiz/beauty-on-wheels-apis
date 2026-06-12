@@ -3,6 +3,7 @@ import {
   extractDeviceCodes,
   extractModuleCodes,
   mapLegacyOrganizationConfigToNew,
+  mapStoredOrganizationConfigToData,
   mergeLegacyOrganizationConfigPatch,
   mergeOrganizationConfigData,
 } from './organizationConfig.mapper';
@@ -22,6 +23,26 @@ describe('organizationConfig.mapper', () => {
       supportedLanguageCodes: ['EN', 'HI'],
       enabledCategoryCodes: ['CHRONIC'],
       enabledConditionCodes: ['HYPERTENSION'],
+    });
+  });
+
+  it('maps legacy supportedStates to stateCode', () => {
+    const mapped = mapLegacyOrganizationConfigToNew({
+      supportedStates: ['ka'],
+    });
+
+    expect(mapped.stateCode).toBe('KA');
+  });
+
+  it('maps stored CONFIG item with new fields and legacy fallback', () => {
+    const mapped = mapStoredOrganizationConfigToData({
+      countryCode: 'US',
+      supportedCategories: ['LEGACY_CAT'],
+    });
+
+    expect(mapped).toEqual({
+      countryCode: 'US',
+      enabledCategoryCodes: ['LEGACY_CAT'],
     });
   });
 

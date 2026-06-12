@@ -61,6 +61,9 @@ export function mapLegacyOrganizationConfigToNew(
   if (legacy.supportedCountries?.length) {
     mapped.countryCode = normalizeCode(legacy.supportedCountries[0]);
   }
+  if (legacy.supportedStates?.length) {
+    mapped.stateCode = normalizeCode(legacy.supportedStates[0]);
+  }
   if (legacy.supportedLanguages?.length) {
     mapped.defaultLanguageCode = normalizeCode(legacy.supportedLanguages[0]);
     mapped.supportedLanguageCodes = uniqueCodes(legacy.supportedLanguages);
@@ -134,4 +137,26 @@ export function toOrganizationConfigData(
     }
   }
   return data;
+}
+
+/**
+ * Maps a persisted CONFIG item to `OrganizationConfigData` for read APIs.
+ * New-model fields win; legacy `supported*` arrays fill gaps for older versions.
+ */
+export function mapStoredOrganizationConfigToData(
+  item: OrganizationConfigData & OrganizationConfigPatch,
+): OrganizationConfigData {
+  const fromNew = toOrganizationConfigData(item);
+  const fromLegacy = mapLegacyOrganizationConfigToNew({
+    supportedCountries: item.supportedCountries,
+    supportedLanguages: item.supportedLanguages,
+    supportedStates: item.supportedStates,
+    supportedCategories: item.supportedCategories,
+    supportedConditions: item.supportedConditions,
+  });
+  return mergeOrganizationConfigData(fromNew, fromLegacy);
+}
+
+export function hasOrganizationConfigData(config: OrganizationConfigData): boolean {
+  return ORGANIZATION_CONFIG_DATA_KEYS.some((key) => config[key] !== undefined);
 }

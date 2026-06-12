@@ -37,3 +37,4 @@ export * from './lib/services/template-ui-meta.service';
 export * from './lib/services/org-config-meta.service';
 export * from './lib/models/api/template-config.types';
 export * from './lib/services/template-config.service';
+export * from './lib/storage/template-config-s3.store';

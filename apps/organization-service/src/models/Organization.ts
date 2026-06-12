@@ -91,15 +91,25 @@ export interface OrganizationConfigPatch {
  */
 export interface OrganizationConfigData {
   countryCode?: string;
+  stateCode?: string;
+  cityCode?: string;
   timezone?: string;
   defaultLanguageCode?: string;
   supportedLanguageCodes?: string[];
-  enabledModuleCodes?: string[];
-  enabledFeatureCodes?: string[];
   enabledCategoryCodes?: string[];
   enabledConditionCodes?: string[];
-  enabledMetricCodes?: string[];
+  enabledSpecialtyCodes?: string[];
   enabledDeviceCodes?: string[];
+  enabledVitalCodes?: string[];
+  enabledMetricCodes?: string[];
+  enabledReminderChannels?: string[];
+  enabledRoleTypes?: string[];
+  requiredDocumentTypes?: string[];
+  requiredAgreementTypes?: string[];
+  currencyCode?: string;
+  paymentModeCodes?: string[];
+  enabledModuleCodes?: string[];
+  enabledFeatureCodes?: string[];
   linkedOrgReferences?: string[];
   requiredAgreementIds?: string[];
 }
@@ -107,15 +117,25 @@ export interface OrganizationConfigData {
 /** Config fields persisted on `CONFIG#v{n}` items (ordered for stable comparison). */
 export const ORGANIZATION_CONFIG_DATA_KEYS: readonly (keyof OrganizationConfigData)[] = [
   'countryCode',
+  'stateCode',
+  'cityCode',
   'timezone',
   'defaultLanguageCode',
   'supportedLanguageCodes',
-  'enabledModuleCodes',
-  'enabledFeatureCodes',
   'enabledCategoryCodes',
   'enabledConditionCodes',
-  'enabledMetricCodes',
+  'enabledSpecialtyCodes',
   'enabledDeviceCodes',
+  'enabledVitalCodes',
+  'enabledMetricCodes',
+  'enabledReminderChannels',
+  'enabledRoleTypes',
+  'requiredDocumentTypes',
+  'requiredAgreementTypes',
+  'currencyCode',
+  'paymentModeCodes',
+  'enabledModuleCodes',
+  'enabledFeatureCodes',
   'linkedOrgReferences',
   'requiredAgreementIds',
 ];

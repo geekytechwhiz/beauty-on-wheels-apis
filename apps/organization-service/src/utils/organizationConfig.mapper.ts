@@ -1,4 +1,5 @@
 import type { OrganizationConfigData, OrganizationConfigPatch } from '../models';
+import { ORGANIZATION_CONFIG_DATA_KEYS } from '../models/Organization';
 
 const normalizeCode = (value: string): string => value.trim().toUpperCase();
 
@@ -107,22 +108,8 @@ export function mergeOrganizationConfigData(
   latest: OrganizationConfigData | null,
 ): OrganizationConfigData {
   const merged: OrganizationConfigData = {};
-  const keys = [
-    'countryCode',
-    'timezone',
-    'defaultLanguageCode',
-    'supportedLanguageCodes',
-    'enabledModuleCodes',
-    'enabledFeatureCodes',
-    'enabledCategoryCodes',
-    'enabledConditionCodes',
-    'enabledMetricCodes',
-    'enabledDeviceCodes',
-    'linkedOrgReferences',
-    'requiredAgreementIds',
-  ] as const satisfies readonly (keyof OrganizationConfigData)[];
 
-  for (const key of keys) {
+  for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
     const patchValue = patch[key];
     const latestValue = latest?.[key];
     if (patchValue !== undefined) {

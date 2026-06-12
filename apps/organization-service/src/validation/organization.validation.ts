@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ORGANIZATION_CONFIG_DATA_KEYS } from '../models/Organization';
 
 const supportedVitalsSchema = z
   .array(z.string())
@@ -243,33 +244,34 @@ export const setOrgStatusSchema = z.object({
 export const updateOrganizationConfigSchema = z
   .object({
     countryCode: configCodeSchema.optional(),
+    stateCode: configCodeSchema.optional(),
+    cityCode: configCodeSchema.optional(),
     timezone: z.string().min(1).optional(),
     defaultLanguageCode: configCodeSchema.optional(),
     supportedLanguageCodes: z.array(configCodeSchema).optional(),
-    enabledModuleCodes: z.array(configCodeSchema).optional(),
-    enabledFeatureCodes: z.array(configCodeSchema).optional(),
     enabledCategoryCodes: z.array(configCodeSchema).optional(),
     enabledConditionCodes: z.array(configCodeSchema).optional(),
-    enabledMetricCodes: z.array(configCodeSchema).optional(),
+    enabledSpecialtyCodes: z.array(configCodeSchema).optional(),
     enabledDeviceCodes: z.array(configCodeSchema).optional(),
+    enabledVitalCodes: z.array(configCodeSchema).optional(),
+    enabledMetricCodes: z.array(configCodeSchema).optional(),
+    enabledReminderChannels: z.array(configCodeSchema).optional(),
+    enabledRoleTypes: z.array(configCodeSchema).optional(),
+    requiredDocumentTypes: z.array(configCodeSchema).optional(),
+    requiredAgreementTypes: z.array(configCodeSchema).optional(),
+    currencyCode: configCodeSchema.optional(),
+    paymentModeCodes: z.array(configCodeSchema).optional(),
+    enabledModuleCodes: z.array(configCodeSchema).optional(),
+    enabledFeatureCodes: z.array(configCodeSchema).optional(),
     linkedOrgReferences: z.array(configCodeSchema).optional(),
     requiredAgreementIds: z.array(configCodeSchema).optional(),
     changeReason: z.string().trim().min(1).max(500).optional(),
   })
   .refine(
     (value) =>
-      value.countryCode !== undefined ||
-      value.timezone !== undefined ||
-      value.defaultLanguageCode !== undefined ||
-      value.supportedLanguageCodes !== undefined ||
-      value.enabledModuleCodes !== undefined ||
-      value.enabledFeatureCodes !== undefined ||
-      value.enabledCategoryCodes !== undefined ||
-      value.enabledConditionCodes !== undefined ||
-      value.enabledMetricCodes !== undefined ||
-      value.enabledDeviceCodes !== undefined ||
-      value.linkedOrgReferences !== undefined ||
-      value.requiredAgreementIds !== undefined,
+      ORGANIZATION_CONFIG_DATA_KEYS.some(
+        (key) => value[key as keyof typeof value] !== undefined,
+      ),
     {
       message: 'organizationConfig must include at least one config field',
     },

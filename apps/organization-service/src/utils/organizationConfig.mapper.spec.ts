@@ -62,9 +62,10 @@ describe('organizationConfig.mapper', () => {
 
   it('merges new-model patch over latest config fields', () => {
     const merged = mergeOrganizationConfigData(
-      { countryCode: 'US' },
+      { countryCode: 'US', enabledSpecialtyCodes: ['SPEC_B'] },
       {
         countryCode: 'IN',
+        stateCode: 'KA',
         timezone: 'Asia/Kolkata',
         enabledModuleCodes: ['MOD_A'],
       },
@@ -72,8 +73,10 @@ describe('organizationConfig.mapper', () => {
 
     expect(merged).toEqual({
       countryCode: 'US',
+      stateCode: 'KA',
       timezone: 'Asia/Kolkata',
       enabledModuleCodes: ['MOD_A'],
+      enabledSpecialtyCodes: ['SPEC_B'],
     });
   });
 

@@ -404,7 +404,7 @@ export class OrganizationService {
             correlationId,
             updates.modifiedBy,
           );
-          configVersion = saveResult.version;
+          configVersion = saveResult.organizationConfigVersion;
         } else {
           logger.info({
             event: 'service_updateOrganization_config_flow',
@@ -503,7 +503,12 @@ export class OrganizationService {
     input: OrganizationConfigData & { changeReason?: string },
     correlationId?: string,
     createdBy?: string,
-  ): Promise<{ organizationId: string; version: number; status: OrgConfigStatus; created: boolean; config: OrganizationConfigData }> {
+  ): Promise<{
+    organizationId: string;
+    organizationConfigVersion: number;
+    status: OrgConfigStatus;
+    config: OrganizationConfigData;
+  }> {
     const timer = createPerformanceTimer(baseLogger, 'saveOrganizationConfig', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, organizationId });
     logger.info({ event: 'service_saveOrganizationConfig_start' });
@@ -524,32 +529,34 @@ export class OrganizationService {
       }
 
       const latestConfig = await this.repository.getLatestOrganizationConfigVersionItem(organizationId);
+      const mergedConfig = mergeOrganizationConfigData(incomingConfig, latestConfig);
 
-      if (isSameOrganizationConfig(incomingConfig, latestConfig)) {
-        logger.info({ event: 'service_saveOrganizationConfig_unchanged', version: latestConfig?.version });
+      if (isSameOrganizationConfig(mergedConfig, latestConfig)) {
+        logger.info({
+          event: 'service_saveOrganizationConfig_unchanged',
+          organizationConfigVersion: latestConfig?.version,
+        });
         timer.end();
         return {
           organizationId,
-          version: latestConfig!.version,
+          organizationConfigVersion: latestConfig!.version,
           status: latestConfig!.status,
-          created: false,
-          config: incomingConfig,
+          config: mergedConfig,
         };
       }
 
-      const draft = await this.repository.createOrganizationConfigDraftVersion(organizationId, incomingConfig, {
+      const draft = await this.repository.createOrganizationConfigDraftVersion(organizationId, mergedConfig, {
         changeReason,
         createdBy,
       });
 
-      logger.info({ event: 'service_saveOrganizationConfig_success', version: draft.version });
+      logger.info({ event: 'service_saveOrganizationConfig_success', organizationConfigVersion: draft.version });
       timer.end();
       return {
         organizationId,
-        version: draft.version,
+        organizationConfigVersion: draft.version,
         status: draft.status,
-        created: true,
-        config: incomingConfig,
+        config: mergedConfig,
       };
     } catch (err) {
       logger.error({ event: 'service_saveOrganizationConfig_error', err: serializeError(err) });

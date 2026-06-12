@@ -1,3 +1,4 @@
+import { toTemplateConfigRecord } from '../mappers/template-config.mapper';
 import type {
   TemplateConfigListResult,
   TemplateConfigRecord,
@@ -55,12 +56,7 @@ export class TemplateConfigService {
     const rows = await this.store.listAll();
     const items = rows
       .filter((row) => matchesListFilters(row.document, filters))
-      .map(
-        (row): TemplateConfigRecord => ({
-          configId: row.configId,
-          document: row.document,
-        }),
-      );
+      .map((row) => toTemplateConfigRecord(row.configId, row.document));
 
     return { items };
   }
@@ -72,20 +68,14 @@ export class TemplateConfigService {
     }
 
     const row = await this.store.getById(normalizedId);
-    return {
-      configId: row.configId,
-      document: row.document,
-    };
+    return toTemplateConfigRecord(row.configId, row.document);
   }
 
   async createConfig(body: unknown): Promise<TemplateConfigRecord> {
     const configId = extractConfigId(body);
     const document = body as Record<string, unknown>;
     const row = await this.store.create(configId, document);
-    return {
-      configId: row.configId,
-      document: row.document,
-    };
+    return toTemplateConfigRecord(row.configId, row.document);
   }
 
   async updateConfig(configId: string, body: unknown): Promise<TemplateConfigRecord> {
@@ -108,9 +98,6 @@ export class TemplateConfigService {
     }
 
     const row = await this.store.replace(normalizedId, document);
-    return {
-      configId: row.configId,
-      document: row.document,
-    };
+    return toTemplateConfigRecord(row.configId, row.document);
   }
 }

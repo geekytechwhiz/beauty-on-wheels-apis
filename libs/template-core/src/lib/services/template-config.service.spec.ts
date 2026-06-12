@@ -69,8 +69,14 @@ describe('TemplateConfigService', () => {
       fields: { A: { id: 'A' } },
     });
     expect(created.configId).toBe('GOAL-MASTER-001');
+    expect(created.configType).toBe('TEMPLATE');
+    expect(created.templateType).toBe('GOAL');
+    expect(created.document.configType).toBeUndefined();
+    expect(created.document.templateType).toBeUndefined();
 
     const fetched = await svc.getConfigById('GOAL-MASTER-001');
+    expect(fetched.configType).toBe('TEMPLATE');
+    expect(fetched.templateType).toBe('GOAL');
     expect(fetched.document.fields).toEqual({ A: { id: 'A' } });
 
     const updated = await svc.updateConfig('GOAL-MASTER-001', {

@@ -14,6 +14,10 @@ export function normalizeTaskServiceError(error: unknown, log: NormalizeTaskServ
     throw new BaseError(err.message, 409, 'IDEMPOTENCY_KEY_IN_USE', [{ message: err.message }]);
   }
 
+  if (err.statusCode && err.code) {
+    throw new BaseError(err.message, err.statusCode, err.code, [{ message: err.message }]);
+  }
+
   const logEvent = log.logEvent ?? 'task_monitoring_create_service_error';
   log.logger?.error?.({
     event: logEvent,

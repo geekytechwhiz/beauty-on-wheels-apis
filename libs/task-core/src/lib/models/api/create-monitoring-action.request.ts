@@ -3,6 +3,7 @@ import type { ReminderSettings, TaskBehaviorCode } from '../types/task-domain.ty
 export interface CreateMonitoringActionRequest {
   organizationId: string;
   patientId: string;
+  patientDisplayName: string;
   carePlanInstanceId: string;
   monitoringInstanceId: string;
   taskBehaviorCode: TaskBehaviorCode;

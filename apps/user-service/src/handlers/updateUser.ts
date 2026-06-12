@@ -138,7 +138,12 @@ async function updateUser(
     userId: resolvedUserId,
     ...(awsRequestId && { awsRequestId }),
   });
-  logger.info({ event: 'updateUser_received', eventData: event });
+  logger.info({
+    event: 'updateUser_received',
+    userId: resolvedUserId,
+    organizationId: resolvedOrganizationId,
+    action: body?.action,
+  });
 
   let action = body?.action ? String(body.action).toUpperCase() : undefined;
   if (action) {
@@ -658,6 +663,7 @@ async function updateUser(
         resolvedOrganizationId,
         userData,
         correlationId,
+        existing ?? undefined,
       );
 
       if (isWorkingHoursUpdate && userData.workingHours) {

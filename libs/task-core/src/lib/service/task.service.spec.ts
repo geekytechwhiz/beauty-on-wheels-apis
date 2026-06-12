@@ -1,6 +1,16 @@
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
-import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
+import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
+import type {
+  CreateCarePlanTaskRequest,
+  GenerateCarePlanTasksRequest,
+} from '../models/api/generate-care-plan.request';
+import {
+  buildCarePlanTaskIdempotencyKey,
+  buildCarePlanTaskKeys,
+} from '../utils/monitoring-idempotency';
+import { RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
+import type { TaskLookupDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { TaskRepository } from '../repositories/task-repository';
 import { TaskService } from './task.service';
 
@@ -8,6 +18,7 @@ function basePayload(): CreateMonitoringActionPayload {
   return {
     organizationId: 'org-1',
     patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
     carePlanInstanceId: 'cp-1',
     monitoringInstanceId: 'mon-1',
     taskBehaviorCode: 'METRIC_CHECKIN',
@@ -114,5 +125,567 @@ describe('TaskService.createMonitoringAction', () => {
     const result = await svc.createMonitoringAction(payload);
 
     expect(result).toEqual({ record, outcome: 'skippedDuplicate' });
+  });
+});
+
+function runtimePayload(): CreateRuntimeTaskPayload {
+  return {
+    organizationId: 'org-1',
+    createdBy: 'user:staff-1',
+    patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
+    runtimeTaskSource: RUNTIME_TASK_SOURCE.MANUAL_SYSTEM,
+    taskBehaviorCode: 'CARE_TEAM_TASK',
+    taskDisplayGroup: 'staffTask',
+    displayTitle: 'Follow up call',
+    assignedToType: 'careTeam',
+    assignedToStaffId: 'staff-1',
+    assignedToStaffDisplayName: 'Nurse One',
+    displayToPatient: false,
+  };
+}
+
+describe('TaskService.createRuntimeTask', () => {
+  it('returns record on successful create', async () => {
+    const record = {
+      ...sampleRecord(),
+      runtimeTaskSource: 'manualSystem' as const,
+      taskDisplayGroup: 'staffTask' as const,
+    };
+    const repo = {
+      createRuntimeTask: jest.fn().mockResolvedValue(record),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.createRuntimeTask(runtimePayload());
+
+    expect(result).toEqual({ record });
+    expect(repo.createRuntimeTask).toHaveBeenCalledWith(runtimePayload());
+  });
+
+  it('propagates repository errors', async () => {
+    const repo = {
+      createRuntimeTask: jest.fn().mockRejectedValue(new Error('ddb failure')),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(svc.createRuntimeTask(runtimePayload())).rejects.toThrow('ddb failure');
+  });
+});
+
+function sampleLookup(overrides: Partial<TaskLookupDdbRecord> = {}): TaskLookupDdbRecord {
+  return {
+    pk: 'TASK#rtask-abc',
+    sk: 'LOOKUP',
+    entityType: 'TaskLookup',
+    runtimeTaskInstanceId: 'rtask-abc',
+    orgId: 'org-1',
+    patientId: 'pat-1',
+    taskSk: 'DUE#1780581600000#TASK#rtask-abc',
+    dueWindowStart: 1780581600000,
+    dueWindowEnd: 1780668000000,
+    reminderHistory: [],
+    ...overrides,
+  };
+}
+
+describe('TaskService.getRuntimeTaskDetail', () => {
+  it('returns task detail with related data by default', async () => {
+    const record = sampleRecord();
+    const lookup = sampleLookup({
+      reminderHistory: [{ reminderRecordId: 'rem-1' }],
+      evidenceSummary: {
+        runtimeTaskInstanceId: 'rtask-abc',
+        generatedAt: 1780581700000,
+        latestCompletionSummary: 'Submitted',
+      },
+    });
+    const evidence = [
+      {
+        pk: 'TASK#rtask-abc',
+        sk: 'EVID#evt-1',
+        completionEvidenceId: 'evt-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        orgId: 'org-1',
+        patientId: 'pat-1',
+        completionSource: 'LinkedObject',
+        completedAt: 1780581800000,
+      },
+    ];
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(record),
+      queryCompletionEvidence: jest.fn().mockResolvedValue(evidence),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.getRuntimeTaskDetail({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+    });
+
+    expect(result.task.runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.reminders).toEqual([{ reminderRecordId: 'rem-1' }]);
+    expect(result.evidenceSummary).toMatchObject({ latestCompletionSummary: 'Submitted' });
+    expect(result.completionEvidence).toEqual(evidence);
+    expect(repo.queryCompletionEvidence).toHaveBeenCalledWith('rtask-abc');
+  });
+
+  it('omits related data when includeRelated is false', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      getMetaByLookup: jest.fn().mockResolvedValue(sampleRecord()),
+      queryCompletionEvidence: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.getRuntimeTaskDetail({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      includeRelated: false,
+    });
+
+    expect(result.task.runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result).not.toHaveProperty('reminders');
+    expect(result).not.toHaveProperty('completionEvidence');
+    expect(repo.queryCompletionEvidence).not.toHaveBeenCalled();
+  });
+
+  it('throws 404 when lookup is missing', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(null),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.getRuntimeTaskDetail({ organizationId: 'org-1', runtimeTaskInstanceId: 'rtask-missing' }),
+    ).rejects.toMatchObject({ statusCode: 404, code: 'TASK_NOT_FOUND' });
+  });
+
+  it('throws 403 when lookup belongs to another org', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup({ orgId: 'org-2' })),
+      getMetaByLookup: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.getRuntimeTaskDetail({ organizationId: 'org-1', runtimeTaskInstanceId: 'rtask-abc' }),
+    ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+    expect(repo.getMetaByLookup).not.toHaveBeenCalled();
+  });
+});
+
+function carePlanBatchPayload(): GenerateCarePlanTasksRequest {
+  return {
+    organizationId: 'org-1',
+    createdBy: 'system:care-plan-runtime',
+    patientId: 'pat-1',
+    patientDisplayName: 'Test Patient',
+    carePlanInstanceId: 'cp-1',
+    taskGenerationTrigger: 'carePlanStageEntered',
+    linkages: [
+      {
+        carePlanTaskLinkageId: 'link-1',
+        taskBehaviorCode: 'EDUCATION_VIDEO',
+        taskDisplayGroup: 'learning',
+        displayTitle: 'Watch video',
+        assignedToType: 'patient',
+        displayToPatient: true,
+        dueWindowStart: 1780567200000,
+        dueWindowEnd: 1780610400000,
+      },
+    ],
+  };
+}
+
+function sampleHistEntry() {
+  return {
+    pk: 'TASK#rtask-abc',
+    sk: 'HIST#1780581600000#hist-1',
+    entityType: 'TaskStateHistory' as const,
+    taskStateHistoryId: 'hist-1',
+    runtimeTaskInstanceId: 'rtask-abc',
+    orgId: 'org-1',
+    patientId: 'pat-1',
+    historyEventType: 'stateChange' as const,
+    toState: 'active' as const,
+    transitionAt: 1780581600000,
+    transitionBy: 'system:monitoring-runtime',
+    transitionSource: 'system' as const,
+    transitionReason: 'monitoringRuntime create',
+  };
+}
+
+describe('TaskService.getRuntimeTaskHistory', () => {
+  it('returns paged history entries newest-first', async () => {
+    const hist = sampleHistEntry();
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      queryTaskHistoryPage: jest.fn().mockResolvedValue({
+        items: [hist],
+        lastEvaluatedKey: { pk: 'TASK#rtask-abc', sk: 'HIST#1780581500000#hist-0' },
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.getRuntimeTaskHistory({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      pageSize: 50,
+    });
+
+    expect(result.items).toEqual([
+      {
+        taskStateHistoryId: 'hist-1',
+        historyEventType: 'stateChange',
+        toState: 'active',
+        transitionAt: 1780581600000,
+        transitionBy: 'system:monitoring-runtime',
+        transitionSource: 'system',
+        transitionReason: 'monitoringRuntime create',
+      },
+    ]);
+    expect(result.nextToken).toBeTruthy();
+    expect(repo.queryTaskHistoryPage).toHaveBeenCalledWith('rtask-abc', 50, undefined);
+  });
+
+  it('passes decoded nextToken cursor to repository', async () => {
+    const cursor = Buffer.from(JSON.stringify({ pk: 'TASK#rtask-abc', sk: 'HIST#x' }), 'utf8').toString(
+      'base64url',
+    );
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      queryTaskHistoryPage: jest.fn().mockResolvedValue({ items: [] }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await svc.getRuntimeTaskHistory({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      pageSize: 10,
+      nextToken: cursor,
+    });
+
+    expect(repo.queryTaskHistoryPage).toHaveBeenCalledWith('rtask-abc', 10, {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#x',
+    });
+  });
+
+  it('throws 404 when lookup is missing', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(null),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.getRuntimeTaskHistory({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-missing',
+        pageSize: 50,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404, code: 'TASK_NOT_FOUND' });
+  });
+
+  it('throws 403 when lookup belongs to another org', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup({ orgId: 'org-2' })),
+      queryTaskHistoryPage: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.getRuntimeTaskHistory({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        pageSize: 50,
+      }),
+    ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+    expect(repo.queryTaskHistoryPage).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskService.generateCarePlanTasks', () => {
+  it('returns created result on successful batch create', async () => {
+    const record = {
+      ...sampleRecord(),
+      runtimeTaskSource: 'carePlanTaskLinkage' as const,
+      carePlanTaskLinkageId: 'link-1',
+    };
+    const repo = {
+      buildCarePlanTaskKeys: jest.fn().mockReturnValue({
+        idempotencyKey: 'key',
+        runtimeTaskInstanceId: 'rtask-abc',
+        generationHash: 'hash',
+      }),
+      resolveCarePlanNaturalKey: jest.fn().mockResolvedValue('missing'),
+      createCarePlanTask: jest.fn().mockResolvedValue(record),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.generateCarePlanTasks(carePlanBatchPayload());
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toMatchObject({
+      runtimeTaskInstanceId: 'rtask-abc',
+      outcome: 'created',
+    });
+    expect(repo.createCarePlanTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns skippedDuplicate when natural key exists', async () => {
+    const record = {
+      ...sampleRecord(),
+      runtimeTaskSource: 'carePlanTaskLinkage' as const,
+    };
+    const repo = {
+      buildCarePlanTaskKeys: jest.fn().mockReturnValue({
+        idempotencyKey: 'key',
+        runtimeTaskInstanceId: 'rtask-abc',
+        generationHash: 'hash',
+      }),
+      resolveCarePlanNaturalKey: jest.fn().mockResolvedValue(record),
+      createCarePlanTask: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.generateCarePlanTasks(carePlanBatchPayload());
+
+    expect(result.results[0].outcome).toBe('skippedDuplicate');
+    expect(repo.createCarePlanTask).not.toHaveBeenCalled();
+  });
+
+  it('dryRun does not call repository writes', async () => {
+    const repo = {
+      buildCarePlanTaskKeys: jest.fn().mockReturnValue({
+        idempotencyKey: 'key',
+        runtimeTaskInstanceId: 'rtask-dry',
+        generationHash: 'hash',
+      }),
+      resolveCarePlanNaturalKey: jest.fn(),
+      createCarePlanTask: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.generateCarePlanTasks({ ...carePlanBatchPayload(), dryRun: true });
+
+    expect(result.results[0]).toMatchObject({
+      runtimeTaskInstanceId: 'rtask-dry',
+      outcome: 'created',
+    });
+    expect(repo.resolveCarePlanNaturalKey).not.toHaveBeenCalled();
+    expect(repo.createCarePlanTask).not.toHaveBeenCalled();
+  });
+});
+
+function carePlanIdempotencyInput(
+  overrides: Partial<CreateCarePlanTaskRequest> = {},
+): CreateCarePlanTaskRequest {
+  return {
+    organizationId: 'org-acme-001',
+    createdBy: 'system:care-plan-runtime',
+    patientId: 'pat-maria',
+    patientDisplayName: 'Maria Lopez',
+    carePlanInstanceId: 'cp-maria-001',
+    taskGenerationTrigger: 'carePlanStageEntered',
+    carePlanTaskLinkageId: 'link-watch-bp-video',
+    taskBehaviorCode: 'EDUCATION_VIDEO',
+    taskDisplayGroup: 'learning',
+    displayTitle: 'Watch: How to measure BP',
+    assignedToType: 'patient',
+    displayToPatient: true,
+    dueWindowStart: 1780567200000,
+    dueWindowEnd: 1780610400000,
+    ...overrides,
+  };
+}
+
+function staffTaskRecord(overrides: Partial<TaskMetaDdbRecord> = {}): TaskMetaDdbRecord {
+  return {
+    ...sampleRecord(),
+    taskBehaviorCode: 'CARE_TEAM_TASK',
+    taskDisplayGroup: 'staffTask',
+    assignedToType: 'careTeam',
+    assignedToStaffId: 'staff-1',
+    displayToPatient: false,
+    gsi1Pk: 'ORG#org-1#STAFF#staff-1',
+    ...overrides,
+  };
+}
+
+describe('TaskService.reassignAssignedStaff', () => {
+  it('reassigns staff and returns task with history entry', async () => {
+    const meta = staffTaskRecord();
+    const lookup = sampleLookup({ assignedToStaffId: 'staff-1' });
+    const updatedMeta = staffTaskRecord({
+      assignedToStaffId: 'staff-2',
+      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
+      lastUpdatedBy: 'staff-manager-1',
+    });
+    const historyEntry = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780581700000#hist-reassign',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-reassign',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'assignedToStaffChange' as const,
+      transitionAt: 1780581700000,
+      transitionBy: 'staff-manager-1',
+      transitionSource: 'manual' as const,
+      transitionReason: 'Shift handoff',
+      previousAssignedToStaffId: 'staff-1',
+      newAssignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      reassignStaffTask: jest.fn().mockResolvedValue({ record: updatedMeta, historyEntry }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.reassignAssignedStaff({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+      reason: 'Shift handoff',
+    });
+
+    expect(result.runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.task.assignedToStaffId).toBe('staff-2');
+    expect(result.historyEntry).toMatchObject({
+      historyEventType: 'assignedToStaffChange',
+      previousAssignedToStaffId: 'staff-1',
+      newAssignedToStaffId: 'staff-2',
+      transitionReason: 'Shift handoff',
+    });
+    expect(repo.reassignStaffTask).toHaveBeenCalledWith({
+      meta,
+      lookup,
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+      reason: 'Shift handoff',
+    });
+  });
+
+  it('throws 422 when task is not a staff task', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      getMetaByLookup: jest.fn().mockResolvedValue(sampleRecord({ assignedToType: 'patient' })),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.reassignAssignedStaff({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        assignedToStaffId: 'staff-2',
+        assignedToStaffDisplayName: 'Nurse Two',
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'NOT_STAFF_TASK' });
+  });
+
+  it('assigns staff when task has no prior assignedToStaffId', async () => {
+    const meta = staffTaskRecord({ assignedToStaffId: undefined, gsi1Pk: undefined, gsi1Sk: undefined });
+    const lookup = sampleLookup();
+    const updatedMeta = staffTaskRecord({
+      assignedToStaffId: 'staff-2',
+      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
+      gsi1Sk: 'DUE#1780581600000#PAT#pat-1#TASK#rtask-abc',
+    });
+    const historyEntry = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780581700000#hist-assign',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-assign',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'assignedToStaffChange' as const,
+      transitionAt: 1780581700000,
+      transitionBy: 'staff-manager-1',
+      transitionSource: 'manual' as const,
+      newAssignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      reassignStaffTask: jest.fn().mockResolvedValue({ record: updatedMeta, historyEntry }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.reassignAssignedStaff({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-manager-1',
+      assignedToStaffId: 'staff-2',
+      assignedToStaffDisplayName: 'Nurse Two',
+    });
+
+    expect(result.task.assignedToStaffId).toBe('staff-2');
+    expect(result.historyEntry).toMatchObject({
+      historyEventType: 'assignedToStaffChange',
+      newAssignedToStaffId: 'staff-2',
+    });
+    expect(result.historyEntry).not.toHaveProperty('previousAssignedToStaffId');
+    expect(repo.reassignStaffTask).toHaveBeenCalled();
+  });
+
+  it('throws 422 when staff is already assigned', async () => {
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup({ assignedToStaffId: 'staff-1' })),
+      getMetaByLookup: jest.fn().mockResolvedValue(staffTaskRecord()),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.reassignAssignedStaff({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        assignedToStaffId: 'staff-1',
+        assignedToStaffDisplayName: 'Nurse One',
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'STAFF_ALREADY_ASSIGNED' });
+  });
+});
+
+describe('buildCarePlanTaskIdempotencyKey', () => {
+  it('builds stable idempotency key and deterministic runtime task id', () => {
+    const input = carePlanIdempotencyInput();
+    const key = buildCarePlanTaskIdempotencyKey(input);
+    expect(key).toBe(
+      'org-acme-001|pat-maria|cp-maria-001|link-watch-bp-video|1780567200000|1780610400000',
+    );
+
+    const keys = buildCarePlanTaskKeys(input);
+    expect(keys.idempotencyKey).toBe(key);
+    expect(keys.runtimeTaskInstanceId).toMatch(/^rtask-[a-f0-9]{32}$/);
+    expect(keys.generationHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(buildCarePlanTaskKeys(input).runtimeTaskInstanceId).toBe(keys.runtimeTaskInstanceId);
+  });
+
+  it('uses resolved dueWindowStart when only dueWindowEnd is set', () => {
+    const key = buildCarePlanTaskIdempotencyKey(
+      carePlanIdempotencyInput({ dueWindowStart: undefined, dueWindowEnd: 1780610400000 }),
+    );
+    expect(key).toBe(
+      'org-acme-001|pat-maria|cp-maria-001|link-watch-bp-video|1780610400000|1780610400000',
+    );
   });
 });

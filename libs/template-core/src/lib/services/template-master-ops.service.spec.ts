@@ -120,6 +120,51 @@ describe('TemplateMasterOpsService.updateMasterTemplateVersion', () => {
     );
     expect(result.meta.lastModifiedAt).not.toBe(version.meta.createdAt);
     expect(saved?.meta.shareScope).toBe('ORGANIZATION');
+    expect(result.rules).toEqual(
+      expect.objectContaining({
+        TASK_NAME: expect.objectContaining({ enable: true, orgedit: true }),
+        TASK_DESCRIPTION: expect.objectContaining({ enable: true, orgedit: true }),
+      }),
+    );
+  });
+
+  it('does not change rules when update has no fieldValues', async () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'cp-7',
+      templateName: 'Care Plan 7',
+      templateType: 'CARE_PLAN',
+      status: 'DRAFT',
+    });
+    const version = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'cp-7',
+      templateName: 'Care Plan 7',
+      fieldValues: { CATEGORY: 'CHRONIC_CARE' },
+    });
+    version.rules = {
+      CATEGORY: {
+        enable: true,
+        orgedit: true,
+        add: true,
+        defaultedit: true,
+        delete: true,
+      },
+    };
+
+    const repo = {
+      getMasterMeta: jest.fn().mockResolvedValue(version),
+      getMasterVersion: jest.fn().mockResolvedValue(version),
+      putMasterRecord: jest.fn().mockImplementation(async (row: TemplateDdbRecord) => row),
+      saveMasterMetaAndVersion: jest.fn(),
+    };
+
+    const svc = new TemplateMasterOpsService(repo as never);
+    const result = await svc.updateMasterTemplateVersion({
+      templateId: 'CP-7',
+      versionId: 'CP-7-V01',
+      body: { active: false },
+    });
+
+    expect(result.rules).toEqual(version.rules);
   });
 
   it('sets isActive false via active field on update', async () => {

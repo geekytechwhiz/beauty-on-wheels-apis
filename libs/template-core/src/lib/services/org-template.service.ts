@@ -45,6 +45,11 @@ import { OrgTemplateRepository, listOrgNextToken } from '../repositories/org-tem
 import { TemplateRepository } from '../repositories/template.repository';
 import { TemplateService } from './template.service';
 import { OrgTemplateOpsService } from './org-template-ops.service';
+import { OrgTemplateRulesService } from './org-template-rules.service';
+import type {
+  GetOrgTemplateRulesParams,
+  UpdateOrgTemplateRulesParams,
+} from '../models/api/org-template-rules.types';
 import { OrgTemplateSyncService } from './org-template-sync.service';
 import { isActiveEnablement, resolveEnablementMasterTemplateId } from '../utils/enablement.utils';
 import type {
@@ -248,6 +253,7 @@ function matchesOrgEnabledFilters(
 
 export class OrgTemplateService {
   private readonly orgOps = new OrgTemplateOpsService();
+  private readonly orgRules = new OrgTemplateRulesService();
   private readonly masterSvc = new TemplateService();
   private readonly orgSync = new OrgTemplateSyncService();
 
@@ -788,10 +794,7 @@ export class OrgTemplateService {
     const metaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
     if (!metaRow) return null;
 
-    const versionSk =
-      templateVersionIdToSk(metaRow.meta.templateVersionId) ??
-      `${VERSION_SK_PREFIX}${String(metaRow.meta.version ?? 1).padStart(3, '0')}`;
-    return this.orgRepo.getOrgVersion(organizationId, orgTemplateId, versionSk);
+    return this.orgRepo.getOrgVersionForMeta(organizationId, orgTemplateId, metaRow.meta);
   }
 
   async listOrgTemplates(params: ListOrgTemplatesParams): Promise<ListOrgTemplatesResult> {
@@ -996,6 +999,14 @@ export class OrgTemplateService {
 
   async updateOrgTemplateVersion(params: UpdateOrgTemplateVersionParams) {
     return this.orgOps.updateOrgTemplateVersion(params);
+  }
+
+  async getOrgTemplateRules(params: GetOrgTemplateRulesParams) {
+    return this.orgRules.getOrgTemplateRules(params);
+  }
+
+  async updateOrgTemplateRules(params: UpdateOrgTemplateRulesParams) {
+    return this.orgRules.updateOrgTemplateRules(params);
   }
 
   async transitionOrgTemplateStatus(params: TransitionOrgStatusParams) {

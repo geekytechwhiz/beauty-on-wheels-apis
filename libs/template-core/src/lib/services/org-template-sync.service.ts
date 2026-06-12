@@ -3,6 +3,7 @@ import {
   OrgTemplateEntityBuilder,
   type CloneOrgTemplateContext,
 } from '../builder/org-template-entity.builder';
+import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import { TEMPLATE_STATUS, VERSION_SK_PREFIX } from '../constants/template.constants';
 import type { EnablementDdbRecord } from '../models/api/enablement.types';
 import type { TemplateActorUser } from '../models/template-actor.model';
@@ -12,7 +13,19 @@ import { OrgTemplateRepository } from '../repositories/org-template.repository';
 import { TemplateRepository } from '../repositories/template.repository';
 import { isActiveEnablement, resolveEnablementMasterTemplateId } from '../utils/enablement.utils';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
-import { firstString, templateVersionIdToSk } from '../utils/template.utils';
+import {
+  firstString,
+  resolveOrgVersionPointerSk,
+  templateNotFoundError,
+} from '../utils/template.utils';
+
+function resolveOrgTemplateVersionId(meta: TemplateMeta, orgTemplateId: string): string {
+  const id = meta.templateVersionId?.trim();
+  if (id && id.includes('-ORG-') && /-V\d+$/i.test(id)) {
+    return id;
+  }
+  return TemplateEntityBuilder.buildVersionId(orgTemplateId, 1);
+}
 
 export class OrgTemplateSyncService {
   constructor(
@@ -102,23 +115,23 @@ export class OrgTemplateSyncService {
   ): Promise<TemplateDdbRecord> {
     const metaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
     if (!metaRow) {
-      throw new Error(`Org template ${orgTemplateId} not found`);
+      templateNotFoundError(`Org template ${orgTemplateId} not found`);
     }
 
+    const versionRow = await this.orgRepo.getOrgVersionForMeta(
+      organizationId,
+      orgTemplateId,
+      metaRow.meta,
+    );
     const versionSk =
-      templateVersionIdToSk(metaRow.meta.templateVersionId) ??
-      `${VERSION_SK_PREFIX}${String(metaRow.meta.version ?? 1).padStart(3, '0')}`;
-    const versionRow = await this.orgRepo.getOrgVersion(organizationId, orgTemplateId, versionSk);
-    if (!versionRow) {
-      throw new Error(`Org template version ${orgTemplateId} not found`);
-    }
+      versionRow?.sk ?? resolveOrgVersionPointerSk(metaRow.meta) ?? `${VERSION_SK_PREFIX}001`;
 
     const ctx: CloneOrgTemplateContext = {
       organizationId,
       newTemplateId: orgTemplateId,
-      templateVersionId: metaRow.meta.templateVersionId,
+      templateVersionId: resolveOrgTemplateVersionId(metaRow.meta, orgTemplateId),
       versionNum: metaRow.meta.version ?? 1,
-      versionSk: versionRow.sk,
+      versionSk,
       nowIso: new Date().toISOString(),
       sourceMasterTemplateId: masterTemplateId,
       sourceMasterVersionId: masterVersion.meta.templateVersionId,
@@ -151,7 +164,7 @@ export class OrgTemplateSyncService {
     const preserved: TemplateMeta = {
       ...mergedMeta,
       templateId: metaRow.meta.templateId,
-      templateVersionId: metaRow.meta.templateVersionId,
+      templateVersionId: resolveOrgTemplateVersionId(metaRow.meta, orgTemplateId),
       version: metaRow.meta.version,
       derivedFromMasterVersion: adoptedMasterVersion,
       derivedFromTemplateVersionId: adoptedMasterTemplateVersionId,

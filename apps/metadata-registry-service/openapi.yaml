@@ -1109,7 +1109,10 @@ components:
         affectedConsumers:
           type: array
           items: { type: string }
-          description: Downstream areas that may need to react (Template, OrgCapability, Runtime, etc.)
+          description: |
+            Downstream consumers currently impacted by this change (Template, OrgCapability, Runtime, etc.).
+            Empty when no service has adopted or referenced the metadata yet — e.g. first-time MetadataType or
+            MetadataValue Add with no existing usage.
 
     MetadataPublishRequest:
       type: object

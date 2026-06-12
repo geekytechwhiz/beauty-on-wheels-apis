@@ -1,35 +1,38 @@
-# Naming for externally provisioned DynamoDB + in-stack EventBridge/SQS, and per-stage service URLs.
-templateDynamoTableName: template-service-${self:provider.stage}
-eventBusName: template-service-bus-${self:provider.stage}
-templateEventsDlqName: template-events-dlq-${self:provider.stage}
-corsOrigin:
-  dev: '*'
-  stg: '*'
-  prd: '*'
-logLevel:
-  dev: debug
-  stg: info
-  prd: warn
-
-# Per-stage API Gateway invoke URLs for cross-service HTTP calls (USER_SERVICE / ORGANIZATION_SERVICE).
-# Canonical source in this repo: services/sso-integration/serverless.yml → custom.stageUrls
-# (same API IDs as apps/user-service and apps/organization-service deployments).
-#
-# How to verify or find URLs in AWS (if a stage was redeployed and IDs changed):
-#   1. AWS Console → API Gateway → APIs
-#   2. Open the API for user-service or organization-service (name often includes stage, e.g. dev-user-service)
-#   3. Stages → select dev | stg | prd → copy "Invoke URL" (e.g. https://{api-id}.execute-api.us-east-1.amazonaws.com/dev)
-#   4. Paste base URL here WITHOUT a trailing slash; paths are appended by clients.
-# CLI alternative (after deploy):
-#   cd apps/user-service && npx serverless info --stage dev
-#   cd apps/organization-service && npx serverless info --stage dev
-stageUrls:
-  dev:
-    USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
-    ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
-  stg:
-    USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
-    ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
-  prd:
-    USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
-    ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+# Naming for externally provisioned DynamoDB + in-stack EventBridge/SQS, and per-stage service URLs.
+templateDynamoTableName: template-service-${self:provider.stage}
+eventBusName: template-service-bus-${self:provider.stage}
+templateEventsDlqName: template-events-dlq-${self:provider.stage}
+corsOrigin:
+  dev: '*'
+  stg: '*'
+  prd: '*'
+logLevel:
+  dev: debug
+  stg: info
+  prd: warn
+
+# Per-stage API Gateway invoke URLs for cross-service HTTP calls.
+# Canonical source in this repo: services/sso-integration/serverless.yml → custom.stageUrls
+# (same API IDs as apps/user-service and apps/organization-service deployments).
+#
+# How to verify or find URLs in AWS (if a stage was redeployed and IDs changed):
+#   1. AWS Console → API Gateway → APIs
+#   2. Open the API for user-service or organization-service (name often includes stage, e.g. dev-user-service)
+#   3. Stages → select dev | stg | prd → copy "Invoke URL" (e.g. https://{api-id}.execute-api.us-east-1.amazonaws.com/dev)
+#   4. Paste base URL here WITHOUT a trailing slash; paths are appended by clients.
+# CLI alternative (after deploy):
+#   cd apps/user-service && npx serverless info --stage dev
+#   cd apps/organization-service && npx serverless info --stage dev
+stageUrls:
+  dev:
+    USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://244vhkoib0.execute-api.us-east-1.amazonaws.com/dev'
+  stg:
+    USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://244vhkoib0.execute-api.us-east-1.amazonaws.com/stg'
+  prd:
+    USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
+    ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://244vhkoib0.execute-api.us-east-1.amazonaws.com/prd'

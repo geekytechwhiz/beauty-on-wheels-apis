@@ -444,8 +444,11 @@ functions:
             resultTtlInSeconds: 0
   updateUser:
     handler: src/handlers/updateUser.main
+    warmup:
+      default:
+        enabled: true
     timeout: 10
-    memorySize: 256
+    memorySize: 512
     events:
       - http:
           path: updateUser

@@ -337,6 +337,25 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  postTemplateConfigMeta:
+    handler: src/handlers/http/postTemplateConfigMeta.main
+    events:
+      - http:
+          path: template-configs/meta
+          method: post
+          summary: Template config metadata (dropdown options)
+          description: |
+            Proxies metadata-registry POST `/metadata/values/by-types` and returns UI-friendly
+            dropdown options for template-config forms. Body requires `metadataTypeCodes` array
+            (e.g. Country, Language, Conditions, SPECIALITY).
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
   getTemplateConfig:
     handler: src/handlers/http/getTemplateConfig.main
     events:
@@ -638,6 +657,53 @@ functions:
           responses:
             "200": OK — org template list
             "401": Unauthorized
+            "500": Server error
+
+  getOrgTemplateRules:
+    handler: src/handlers/http/getOrgTemplateRules.main
+    events:
+      - http:
+          path: templates/org/{templateId}/{orgId}
+          method: get
+          summary: Get org template rules
+          description: Org template content (fieldValues and document fields) plus full field rules for an enabled org copy.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK — org template rules
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "500": Server error
+
+  updateOrgTemplateRules:
+    handler: src/handlers/http/updateOrgTemplateRules.main
+    events:
+      - http:
+          path: templates/org/{templateId}/{orgId}
+          method: put
+          summary: Update org template rules
+          description: Partial merge of field rules on the enabled org copy; bumps minor version.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Updated — org template rules
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "409": Conflict
+            "422": Validation error
             "500": Server error
 
   updateOrgTemplateVersion:

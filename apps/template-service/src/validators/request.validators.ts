@@ -40,6 +40,9 @@ import {
   type ListCompatibleTemplatesQuery,
   type UpdateOrgTemplateBody,
   updateOrgTemplateBodySchema,
+  orgTemplateRulesPathSchema,
+  updateOrgTemplateRulesBodySchema,
+  type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
@@ -48,6 +51,7 @@ import {
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
   saveMasterTemplateBodySchema,
+  postTemplateConfigMetaBodySchema,
   listTemplateConfigQuerySchema,
   templateConfigIdPathSchema,
 } from './template.schemas';
@@ -855,6 +859,54 @@ export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest
     };
 }
 
+export type ValidatedGetOrgTemplateRules = {
+  masterTemplateId: string;
+  organizationId: string;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedUpdateOrgTemplateRules = ValidatedGetOrgTemplateRules & {
+  body: UpdateOrgTemplateRulesBody;
+};
+
+export async function validateGetOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+
+  (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
+    .validatedGetOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+  };
+}
+
+export async function validateUpdateOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+  const body = updateOrgTemplateRulesBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules })
+    .validatedUpdateOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+    body,
+  };
+}
+
 export async function validateCreateOrgEnablementRequest(req: LambdaRequest): Promise<void> {
   const authHeader = req.context.authHeader;
   const actorUserId = getActorUserIdForRequest(req.event, authHeader);
@@ -1003,6 +1055,11 @@ export type ValidatedGetTemplateConfig = {
   actorUserId: string;
 };
 
+export type ValidatedPostTemplateConfigMeta = {
+  metadataTypeCodes: string[];
+  actorUserId: string;
+};
+
 export type ValidatedCreateTemplateConfig = {
   body: Record<string, unknown>;
   actorUserId: string;
@@ -1048,6 +1105,20 @@ export async function validateListTemplateConfigsRequest(req: LambdaRequest): Pr
   ).validatedListTemplateConfigs = {
     configType: query.data.configType,
     templateType: query.data.templateType,
+    actorUserId,
+  };
+}
+
+export async function validatePostTemplateConfigMetaRequest(req: LambdaRequest): Promise<void> {
+  const actorUserId = await validateActor(req);
+  const body = postTemplateConfigMetaBodySchema.safeParse(parseUiMetaBody(req.body));
+  if (!body.success) {
+    throwVal('Invalid metadata request body', 400, 'VALIDATION_ERROR');
+  }
+  (
+    req as LambdaRequest & { validatedPostTemplateConfigMeta?: ValidatedPostTemplateConfigMeta }
+  ).validatedPostTemplateConfigMeta = {
+    metadataTypeCodes: body.data.metadataTypeCodes,
     actorUserId,
   };
 }

@@ -5,6 +5,17 @@ export * from "./lib/types/dto";
 export { UserServiceClient, getUserServiceClient } from "./lib/services/user-service-client";
 export{BaseClient} from "./lib/client/base-service-client";
 export { OrganizationServiceClient } from "./lib/services/organization-service-client";
+export {
+  MetadataRegistryServiceClient,
+  MetadataRegistryClientError,
+  getMetadataRegistryServiceClient,
+} from "./lib/services/metadata-registry-service-client";
+export type {
+  MetadataRegistryTypeValuesDto,
+  MetadataRegistryValueDto,
+  MetadataValuesByTypesRequestDto,
+  MetadataValuesByTypesResultDto,
+} from "./lib/types/metadata.dto";
 export { RelationshipServiceClient } from "./lib/services/relationship-service-client";
 export { RoleServiceClient } from "./lib/services/role-service-client";
 export { CognitoUserService } from "./lib/services/cognito-user.service-client";

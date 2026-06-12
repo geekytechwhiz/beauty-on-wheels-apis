@@ -24,6 +24,7 @@ export interface Device {
   iOSIdentifier?: string;
   isEagleDevice?: boolean;
   deviceCategoryNum?: string;
+  syncCategory?: number;
   deviceImage?: string;
 }
 
@@ -58,6 +59,7 @@ export interface DeviceUserEntry {
   autoSyncDelay: number;
   isEagleDevice?: boolean;
   deviceCategoryNum?: string;
+  syncCategory?: number;
   updates?: Array<{
     updatedBy: string;
     updatedAt: number;
@@ -152,6 +154,7 @@ export interface GlobalDevice {
   name: string;
   deviceId: string;
   countriesSupported?: string[];
+  syncCategory?: number;
   [key: string]: unknown;
 }
 
@@ -173,4 +176,5 @@ export type OrganizationDevice = {
   organizationID: string; 
   supportedVitals: string[];
   template: number;
+  syncCategory?: number;
 };

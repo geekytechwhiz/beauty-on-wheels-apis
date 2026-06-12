@@ -169,7 +169,7 @@ describe('orchestrateRegistryPostImpactPreview', () => {
     expect(mockUpdateMetadataValue).not.toHaveBeenCalled();
   });
 
-  it('returns Add flow with null baseVersion and confirmation for new value', async () => {
+  it('returns Add flow with null baseVersion and no current consumer impact for new value', async () => {
     mockGetMetadataValue.mockResolvedValue(null);
 
     const result = await orchestrateRegistryPostImpactPreview({
@@ -193,8 +193,33 @@ describe('orchestrateRegistryPostImpactPreview', () => {
     expect(result.operation).toBe(CHANGE_REQUEST_OPERATION.ADD);
     expect(result.baseVersion).toBeNull();
     expect(result.nextVersion).toBe(1);
-    expect(result.confirmationRequired).toBe(true);
+    expect(result.confirmationRequired).toBe(false);
+    expect(result.affectedConsumers).toEqual([]);
+    expect(result.impactSummary.requiresTemplateAdoption).toBe(false);
+    expect(result.impactSummary.requiresOrgCapabilityReevaluation).toBe(false);
     expect(result.changedFields.every((f) => f.oldValue === null)).toBe(true);
+  });
+
+  it('returns no current consumer impact for first-time MetadataType Add', async () => {
+    mockGetMetadataType.mockResolvedValue(null);
+
+    const result = await orchestrateRegistryPostImpactPreview({
+      entityType: 'type',
+      action: 'impact-preview',
+      body: {
+        metadataTypeCode: 'PackageType',
+        displayName: 'Package Type',
+        valueDataType: 'Enum',
+        multiSelectAllowed: true,
+        status: 'ACTIVE',
+      },
+    });
+
+    expect(result.operation).toBe(CHANGE_REQUEST_OPERATION.ADD);
+    expect(result.affectedConsumers).toEqual([]);
+    expect(result.impactSummary.requiresTemplateAdoption).toBe(false);
+    expect(result.impactSummary.requiresOrgCapabilityReevaluation).toBe(false);
+    expect(result.confirmationRequired).toBe(false);
   });
 
   it('sets confirmationRequired false for label-only update', async () => {

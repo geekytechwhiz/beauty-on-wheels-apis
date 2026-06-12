@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { PutCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { OrganizationRepository } from './organization.repository';
-import { OrgConfigEntityType, OrgConfigStatus } from '../models';
+import { OrgConfigEntityType, OrgConfigStatus, ORG_CONFIG_CHANGE_TYPE } from '../models';
 
 const mockSend = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
@@ -313,6 +313,64 @@ describe('OrganizationRepository organization config versioning', () => {
       expect(mockSend).toHaveBeenCalledTimes(2);
       expect(mockSend.mock.calls[1][0]).toBeInstanceOf(PutCommand);
       expect(mockSend.mock.calls[1][0]).not.toBeInstanceOf(TransactWriteCommand);
+    });
+  });
+
+  describe('publishOrganizationConfigVersion', () => {
+    const draftItem = {
+      pk: 'ORG#org-1',
+      sk: 'CONFIG#v5',
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: 'org-1',
+      version: 5,
+      status: OrgConfigStatus.DRAFT,
+      enabledCategoryCodes: ['CHRONIC'],
+      enabledConditionCodes: ['HYPERTENSION'],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const activeItem = {
+      pk: 'ORG#org-1',
+      sk: 'CONFIG#v4',
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: 'org-1',
+      version: 4,
+      status: OrgConfigStatus.ACTIVE,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    it('activates draft and deactivates previous ACTIVE config in one transaction', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Item: draftItem })
+        .mockResolvedValueOnce({ Items: [activeItem, draftItem] })
+        .mockResolvedValueOnce({});
+
+      const result = await repository.publishOrganizationConfigVersion('org-1', 5, {
+        publishedAt: 1000,
+        changedSections: ['enabledCategoryCodes'],
+        changeType: ORG_CONFIG_CHANGE_TYPE.UPDATE,
+        orgCapabilities: ['CAP-CHRONIC__HYPERTENSION'],
+        publishedBy: 'user-1',
+      });
+
+      expect(result.status).toBe(OrgConfigStatus.ACTIVE);
+      expect(result.version).toBe(5);
+      expect(result.orgCapabilities).toEqual(['CAP-CHRONIC__HYPERTENSION']);
+
+      expect(mockSend.mock.calls[0][0]).toBeInstanceOf(GetCommand);
+      expect(mockSend.mock.calls[1][0]).toBeInstanceOf(QueryCommand);
+      expect(mockSend.mock.calls[2][0]).toBeInstanceOf(TransactWriteCommand);
+
+      const transactionInput = (mockSend.mock.calls[2][0] as TransactWriteCommand).input;
+      expect(transactionInput.TransactItems).toHaveLength(2);
+      expect((transactionInput.TransactItems?.[0] as any).Update.ExpressionAttributeValues[':active']).toBe(
+        OrgConfigStatus.ACTIVE,
+      );
+      expect((transactionInput.TransactItems?.[1] as any).Update.ExpressionAttributeValues[':inactive']).toBe(
+        OrgConfigStatus.INACTIVE,
+      );
     });
   });
 });

@@ -44,6 +44,7 @@ provider:
     GET_ONBOARDING_SCREENS_LAMBDA: ${self:provider.stage}_global_get_onboarding_screens
     DEVICE_API_BASE_URL: ${self:custom.deviceApiUrl.${self:provider.stage}}
     SECRET_MANAGER_NAME: ${self:custom.SecretManagerService.${self:provider.stage}}
+    METADATA_REGISTRY_SERVICE_BASE_URL: ${self:custom.metadataRegistryServiceUrl.${self:provider.stage}}
     ENABLE_NEW_ORG_CONFIG_FLOW: ${self:custom.enableNewOrgConfigFlow.${self:provider.stage}, 'false'}
 
   tags:
@@ -133,6 +134,10 @@ custom:
     dev: https://qxsh98saok.execute-api.us-east-1.amazonaws.com/dev
     stg: https://0o74c84ww4.execute-api.us-east-1.amazonaws.com/stg
     prd: https://wrdiw6uwjl.execute-api.us-east-1.amazonaws.com/prd
+  metadataRegistryServiceUrl:
+    dev: https://244vhkoib0.execute-api.us-east-1.amazonaws.com/dev
+    stg: https://244vhkoib0.execute-api.us-east-1.amazonaws.com/stg
+    prd: https://244vhkoib0.execute-api.us-east-1.amazonaws.com/prd
   deploymentBucket:
     dev: dev-mvx-organization-service-bucket
     stg: nvstg-mvx-organization-service-bucket
@@ -329,6 +334,24 @@ functions:
       - http:
           path: organization/{organizationId}/config
           method: put
+          cors:
+            origin: ${self:custom.cors.origin}
+            headers: ${self:custom.cors.headers}
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  publishOrganizationConfig:
+    handler: src/handlers/publishOrganizationConfig.main
+    timeout: 15
+    memorySize: 256
+    events:
+      - http:
+          path: organization/{organizationId}/config/publish
+          method: post
           cors:
             origin: ${self:custom.cors.origin}
             headers: ${self:custom.cors.headers}

@@ -279,6 +279,12 @@ export const updateOrganizationConfigSchema = z
 
 export type UpdateOrganizationConfigInput = z.infer<typeof updateOrganizationConfigSchema>;
 
+export const publishOrganizationConfigSchema = z.object({
+  changeReason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type PublishOrganizationConfigInput = z.infer<typeof publishOrganizationConfigSchema>;
+
 export const organizationListSchema = z.object({
   organizationId: z.string().optional(),
   organizationID: z.string().optional(),

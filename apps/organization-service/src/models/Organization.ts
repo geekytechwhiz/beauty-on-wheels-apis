@@ -150,6 +150,13 @@ export enum OrgConfigStatus {
   DRAFT = 'draft',
 }
 
+export const ORG_CONFIG_CHANGE_TYPE = {
+  INITIAL: 'initial',
+  UPDATE: 'update',
+} as const;
+
+export type OrgConfigChangeType = (typeof ORG_CONFIG_CHANGE_TYPE)[keyof typeof ORG_CONFIG_CHANGE_TYPE];
+
 export interface OrgConfigEntity extends OrganizationConfigData {
   pk: string;
   sk: string;
@@ -165,6 +172,11 @@ export interface OrgConfigEntity extends OrganizationConfigData {
   status: OrgConfigStatus;
   changeReason?: string;
   createdBy?: string;
+  publishedBy?: string;
+  publishedAt?: number;
+  changedSections?: string[];
+  changeType?: OrgConfigChangeType;
+  orgCapabilities?: string[];
   createdAt: number;
   updatedAt: number;
 }

@@ -11,8 +11,11 @@ export {
   getMetadataRegistryServiceClient,
 } from "./lib/services/metadata-registry-service-client";
 export type {
+  MetadataRegistryRelatedValueDto,
+  MetadataRegistryRelatedValuesGroupDto,
   MetadataRegistryTypeValuesDto,
   MetadataRegistryValueDto,
+  MetadataRelatedValuesResultDto,
   MetadataValuesByTypesRequestDto,
   MetadataValuesByTypesResultDto,
 } from "./lib/types/metadata.dto";

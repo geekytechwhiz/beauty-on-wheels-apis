@@ -120,3 +120,18 @@ export function mergeOrganizationConfigData(
   }
   return merged;
 }
+
+/** Projects persisted config fields from a CONFIG item or partial patch. */
+export function toOrganizationConfigData(
+  source: OrganizationConfigData | null | undefined,
+): OrganizationConfigData {
+  if (!source) return {};
+  const data: OrganizationConfigData = {};
+  for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+    const value = source[key];
+    if (value !== undefined) {
+      (data as Record<string, unknown>)[key] = value;
+    }
+  }
+  return data;
+}

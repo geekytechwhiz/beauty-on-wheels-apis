@@ -1,7 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
 import { type LambdaRequest } from '@api-hub/utils';
 import { OrganizationService } from '../services/organization.service';
-import { updateOrganizationConfigSchema } from '../validation/organization.validation';
+import { publishOrganizationConfigSchema } from '../validation/organization.validation';
 import { validateOrganizationIdParam } from '../validation/request.validators';
 
 const organizationService = new OrganizationService();
@@ -12,8 +12,8 @@ interface Params {
 }
 
 /**
- * `PUT /organization/{organizationId}/config` — saves org config as draft, validates,
- * publishes as ACTIVE, and emits `OrgConfigPublished.v1` via EventBridge.
+ * `POST /organization/{organizationId}/config/publish` — validates metadata, activates
+ * the latest draft config, and emits `OrgConfigPublished.v1` via EventBridge.
  */
 const handler = async (req: LambdaRequest<Params>) => {
   const organizationId = req.params.organizationId as string;
@@ -21,14 +21,14 @@ const handler = async (req: LambdaRequest<Params>) => {
   const { correlationId } = req.context;
   const authHeader = req.event?.headers?.Authorization ?? req.event?.headers?.authorization;
   const authorizer = req.event?.requestContext?.authorizer as Record<string, any> | undefined;
-  const createdBy =
+  const publishedBy =
     req.context?.userContext?.userId ??
     authorizer?.userId ??
     authorizer?.userID ??
     authorizer?.claims?.sub ??
     authorizer?.claims?.['custom:userID'];
 
-  const validationResult = updateOrganizationConfigSchema.safeParse(body);
+  const validationResult = publishOrganizationConfigSchema.safeParse(body);
   if (!validationResult.success) {
     const err: any = new Error(validationResult.error.issues[0]?.message ?? 'Validation failed');
     err.statusCode = 400;
@@ -37,14 +37,15 @@ const handler = async (req: LambdaRequest<Params>) => {
     throw err;
   }
 
-  return organizationService.saveAndPublishOrganizationConfig(organizationId, validationResult.data, {
-    correlationId,
-    createdBy,
+  return organizationService.publishOrganizationConfig(organizationId, {
     authHeader: typeof authHeader === 'string' ? authHeader : undefined,
+    publishedBy,
+    changeReason: validationResult.data.changeReason,
+    correlationId,
   });
 };
 
 export const main = withApiHandler(
-  { operation: 'updateOrganizationConfig', validator: validateOrganizationIdParam },
+  { operation: 'publishOrganizationConfig', validator: validateOrganizationIdParam },
   handler,
 );

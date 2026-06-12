@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { OrganizationService } from './organization.service';
-import { OrgConfigEntityType, OrgConfigStatus } from '../models';
+import { OrgConfigEntityType, OrgConfigStatus, ORG_CONFIG_CHANGE_TYPE } from '../models';
+import {
+  OrgConfigPublishError,
+} from '../utils/errors';
 
 jest.mock('@api-hub/observability', () => ({
   createLogger: () => ({
@@ -25,6 +28,10 @@ jest.mock('../events/event.publisher', () => ({
   publishEvent: jest.fn().mockResolvedValue(undefined as never),
 }));
 
+import { publishOrgConfigPublishedEvent } from '../handlers/events/publisher/org-config-publisher';
+
+const mockPublishOrgConfigPublishedEvent = jest.mocked(publishOrgConfigPublishedEvent);
+
 const ROOT_ADMIN = 'ROOT_ADMIN';
 
 describe('OrganizationService organizationConfig updates', () => {
@@ -35,6 +42,10 @@ describe('OrganizationService organizationConfig updates', () => {
     createOrganizationConfigVersion: jest.fn(),
     getLatestOrganizationConfigVersionItem: jest.fn(),
     createOrganizationConfigDraftVersion: jest.fn(),
+    getOrganizationConfigByVersion: jest.fn(),
+    getLatestDraftOrganizationConfig: jest.fn(),
+    getActiveOrganizationConfigItem: jest.fn(),
+    publishOrganizationConfigVersion: jest.fn(),
   } as any;
 
   const userRepository = {} as any;
@@ -42,7 +53,17 @@ describe('OrganizationService organizationConfig updates', () => {
     addApiKey: jest.fn(),
   } as any;
 
-  const service = new OrganizationService(repository, userRepository, secretManagerService);
+  const metadataRegistryClient = {
+    getValuesByTypes: jest.fn(),
+    getRelatedValues: jest.fn(),
+  } as any;
+
+  const service = new OrganizationService(
+    repository,
+    userRepository,
+    secretManagerService,
+    metadataRegistryClient,
+  );
 
   const originalFlag = process.env.ENABLE_NEW_ORG_CONFIG_FLOW;
 
@@ -56,6 +77,7 @@ describe('OrganizationService organizationConfig updates', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPublishOrgConfigPublishedEvent.mockResolvedValue(undefined);
   });
 
   describe('legacy flow (ENABLE_NEW_ORG_CONFIG_FLOW=false)', () => {
@@ -571,6 +593,270 @@ describe('OrganizationService organizationConfig updates', () => {
       await service.saveOrganizationConfig('org-1', sampleConfig, 'corr-1', 'user-1');
 
       expect(publishEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('publishOrganizationConfig', () => {
+    const draftConfig = {
+      pk: 'ORG#org-1',
+      sk: 'CONFIG#v5',
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: 'org-1',
+      version: 5,
+      status: OrgConfigStatus.DRAFT,
+      enabledCategoryCodes: ['CHRONIC'],
+      enabledConditionCodes: ['HYPERTENSION'],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const activeConfig = {
+      pk: 'ORG#org-1',
+      sk: 'CONFIG#v4',
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: 'org-1',
+      version: 4,
+      status: OrgConfigStatus.ACTIVE,
+      enabledCategoryCodes: ['CHRONIC'],
+      enabledConditionCodes: ['DIABETES'],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const metadataSuccessMocks = () => {
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Category',
+            values: [{ valueCode: 'CHRONIC', status: 'active' }],
+          },
+          {
+            metadataType: 'Condition',
+            values: [{ valueCode: 'HYPERTENSION', status: 'active' }],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({
+        groups: [
+          {
+            fromMetadataValueCode: 'CHRONIC',
+            values: [{ metadataValueCode: 'HYPERTENSION' }],
+          },
+        ],
+      });
+    };
+
+    it('validates metadata, activates draft, builds orgCapabilities, and emits event', async () => {
+      metadataSuccessMocks();
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestDraftOrganizationConfig.mockResolvedValue(draftConfig);
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(activeConfig);
+      repository.publishOrganizationConfigVersion.mockResolvedValue({
+        ...draftConfig,
+        status: OrgConfigStatus.ACTIVE,
+        orgCapabilities: ['CAP-CHRONIC__HYPERTENSION'],
+        changedSections: ['enabledConditionCodes'],
+        changeType: ORG_CONFIG_CHANGE_TYPE.UPDATE,
+      });
+
+      const result = await service.publishOrganizationConfig('org-1', {
+        authHeader: 'Bearer token',
+        publishedBy: 'user-1',
+        correlationId: 'corr-1',
+      });
+
+      expect(result.status).toBe(OrgConfigStatus.ACTIVE);
+      expect(result.organizationConfigVersion).toBe(5);
+      expect(result.orgCapabilities).toEqual(['CAP-CHRONIC__HYPERTENSION']);
+      expect(repository.publishOrganizationConfigVersion).toHaveBeenCalledWith(
+        'org-1',
+        5,
+        expect.objectContaining({
+          orgCapabilities: ['CAP-CHRONIC__HYPERTENSION'],
+          changeType: ORG_CONFIG_CHANGE_TYPE.UPDATE,
+        }),
+      );
+      expect(mockPublishOrgConfigPublishedEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: 'org-1',
+          orgConfigVersion: 5,
+          changeType: ORG_CONFIG_CHANGE_TYPE.UPDATE,
+        }),
+        { organizationId: 'org-1', correlationId: 'corr-1' },
+      );
+    });
+
+    it('does not activate or emit when metadata validation fails', async () => {
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Condition',
+            values: [{ valueCode: 'HYPERTENSION', status: 'active' }],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestDraftOrganizationConfig.mockResolvedValue({
+        ...draftConfig,
+        enabledCategoryCodes: undefined,
+        enabledConditionCodes: ['HYPERTENSION_XYZ'],
+      });
+
+      await expect(
+        service.publishOrganizationConfig('org-1', { authHeader: 'Bearer token' }),
+      ).rejects.toMatchObject({ code: 'INVALID_METADATA_VALUE' });
+
+      expect(repository.publishOrganizationConfigVersion).not.toHaveBeenCalled();
+      expect(mockPublishOrgConfigPublishedEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not activate or emit when relation validation fails', async () => {
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Category',
+            values: [{ valueCode: 'DIABETES', status: 'active' }],
+          },
+          {
+            metadataType: 'Condition',
+            values: [{ valueCode: 'HYPERTENSION', status: 'active' }],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({
+        groups: [
+          {
+            fromMetadataValueCode: 'DIABETES',
+            values: [{ metadataValueCode: 'TYPE2' }],
+          },
+        ],
+      });
+
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestDraftOrganizationConfig.mockResolvedValue({
+        ...draftConfig,
+        enabledCategoryCodes: ['DIABETES'],
+        enabledConditionCodes: ['HYPERTENSION'],
+      });
+
+      await expect(
+        service.publishOrganizationConfig('org-1', { authHeader: 'Bearer token' }),
+      ).rejects.toMatchObject({ code: 'INVALID_METADATA_RELATION' });
+
+      expect(repository.publishOrganizationConfigVersion).not.toHaveBeenCalled();
+      expect(mockPublishOrgConfigPublishedEvent).not.toHaveBeenCalled();
+    });
+
+    it('throws ORG_CONFIG_PUBLISH_FAILED when event emission fails after activation', async () => {
+      mockPublishOrgConfigPublishedEvent.mockRejectedValueOnce(new Error('bus down'));
+
+      metadataSuccessMocks();
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestDraftOrganizationConfig.mockResolvedValue(draftConfig);
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(null);
+      repository.publishOrganizationConfigVersion.mockResolvedValue({
+        ...draftConfig,
+        status: OrgConfigStatus.ACTIVE,
+        orgCapabilities: ['CAP-CHRONIC__HYPERTENSION'],
+      });
+
+      await expect(
+        service.publishOrganizationConfig('org-1', { authHeader: 'Bearer token' }),
+      ).rejects.toBeInstanceOf(OrgConfigPublishError);
+
+      expect(repository.publishOrganizationConfigVersion).toHaveBeenCalled();
+    });
+  });
+
+  describe('saveAndPublishOrganizationConfig', () => {
+    const sampleConfig = {
+      countryCode: 'IN',
+      enabledCategoryCodes: ['CHRONIC'],
+      enabledConditionCodes: ['HYPERTENSION'],
+    };
+
+    it('auto-publishes after saving draft and returns ACTIVE version', async () => {
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Country',
+            values: [{ valueCode: 'IN', status: 'active' }],
+          },
+          {
+            metadataType: 'Category',
+            values: [{ valueCode: 'CHRONIC', status: 'active' }],
+          },
+          {
+            metadataType: 'Condition',
+            values: [{ valueCode: 'HYPERTENSION', status: 'active' }],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({
+        groups: [
+          {
+            fromMetadataValueCode: 'CHRONIC',
+            values: [{ metadataValueCode: 'HYPERTENSION' }],
+          },
+        ],
+      });
+
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue(null);
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+      });
+      repository.getOrganizationConfigByVersion.mockResolvedValue({
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v1',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+        ...sampleConfig,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(null);
+      repository.publishOrganizationConfigVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.ACTIVE,
+        orgCapabilities: ['CAP-CHRONIC__HYPERTENSION'],
+      });
+
+      const result = await service.saveAndPublishOrganizationConfig('org-1', sampleConfig, {
+        authHeader: 'Bearer token',
+        correlationId: 'corr-1',
+        createdBy: 'user-1',
+      });
+
+      expect(result.status).toBe(OrgConfigStatus.ACTIVE);
+      expect(result.organizationConfigVersion).toBe(1);
+      expect(result.orgCapabilities).toEqual(['CAP-CHRONIC__HYPERTENSION']);
+    });
+
+    it('skips publish when config is unchanged and already ACTIVE', async () => {
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue({
+        version: 2,
+        status: OrgConfigStatus.ACTIVE,
+        ...sampleConfig,
+      });
+
+      const result = await service.saveAndPublishOrganizationConfig('org-1', { countryCode: 'IN' }, {
+        authHeader: 'Bearer token',
+      });
+
+      expect(result.status).toBe(OrgConfigStatus.ACTIVE);
+      expect(result.organizationConfigVersion).toBe(2);
+      expect(repository.publishOrganizationConfigVersion).not.toHaveBeenCalled();
+      expect(mockPublishOrgConfigPublishedEvent).not.toHaveBeenCalled();
     });
   });
 });

@@ -13,6 +13,7 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
+  versionFunctions: false
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:

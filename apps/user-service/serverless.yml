@@ -11,7 +11,6 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-  # - serverless-prune-plugin
 
 provider:
   name: aws
@@ -190,9 +189,6 @@ package:
   individually: true
   
 custom:
-  # prune:
-  #     automatic: true
-  #     number: 3
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
     dev: true

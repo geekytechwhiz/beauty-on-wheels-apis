@@ -1,10 +1,10 @@
 /**
- * Smoke test: seed only 2 metadata types (ApplicableModule + Category).
- * Set to `false` to seed the full catalog from the requirement documents.
+ * Smoke test: seed a small subset for local testing.
+ * Set `METADATA_SEED_SMOKE_TEST` to `false` to seed the full Excel catalog.
  */
-export const METADATA_SEED_SMOKE_TEST = false;
+export const METADATA_SEED_SMOKE_TEST = true;
 
-export const METADATA_SEED_SMOKE_TYPES = ['ApplicableModule', 'Category'] as const;
+export const METADATA_SEED_SMOKE_TYPES = ['ApplicableModule'] as const;
 
 export function isSmokeTestEnabled(): boolean {
   return METADATA_SEED_SMOKE_TEST;

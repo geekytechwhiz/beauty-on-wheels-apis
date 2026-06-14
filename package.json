@@ -36,6 +36,9 @@
     "reset": "nx reset",
     "profile": "NX_PROFILE=profile.json nx build ",
     "migrate:handlers-v1": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts",
+    "metadata-registry-service:offline": "cd apps/metadata-registry-service && npx serverless offline --stage dev",
+    "seed:metadata": "ts-node --project scripts/tsconfig.json scripts/seed-metadata.ts",
+    "generate:metadata-catalog": "ts-node --project scripts/tsconfig.json scripts/generate-metadata-catalog-json.ts",
     "migrate:handlers-v1:metadata-registry": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts metadata-registry-service",
     "migrate:handlers-v1:organization": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts organization-service",
     "fix:imports": "ts-node --project tools/file-import/fix-imports.tsconfig.json tools/file-import/fix-imports.ts",
@@ -168,7 +171,8 @@
     "vite": "^7.0.0",
     "vite-plugin-dts": "~4.5.0",
     "vitest": "^4.0.0",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "xlsx": "^0.18.5"
   },
   "pnpm": {
     "overrides": {

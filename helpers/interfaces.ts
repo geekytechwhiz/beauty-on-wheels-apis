@@ -92,8 +92,14 @@ export interface SeedRuntimeConfig {
   concurrency: number;
   retryMax: number;
   retryDelayMs: number;
+  /** POST `/metadata/type` (append `?action=draft|publish`). */
   typePath: string;
+  /** POST `/metadata/value` (append `?action=draft|publish`). */
   valuePath: string;
+  /** When true, publish immediately after each successful draft (default for seeding). */
+  autoPublish: boolean;
+  /** Sent on `?action=publish`; set true to satisfy breaking-change confirmation. */
+  confirmationAcknowledged: boolean;
   treatConflictAsSuccess: boolean;
 }
 
@@ -124,9 +130,37 @@ export interface SeedSummary {
   }[];
 }
 
+export interface ChangeRequestDraftResponse {
+  changeRequestId: string;
+  status: string;
+  entityType: 'type' | 'value';
+  operation: 'Add' | 'Update';
+  metadataTypeCode: string;
+  metadataValueCode?: string | null;
+  baseVersion: number | null;
+  createdAt: string;
+  createdBy?: string;
+  lastModifiedAt: string;
+}
+
+export interface MetadataPublishResponse {
+  changeRequestId: string;
+  changeRevision: number;
+  entityType: 'type' | 'value';
+  operation: 'Add' | 'Update';
+  metadataTypeCode: string;
+  metadataValueCode?: string | null;
+  publishStrategy: string;
+  version: number;
+  impactSummary?: Record<string, unknown>;
+  published?: Record<string, unknown>;
+}
+
 export interface ApiSuccessResponse {
   metadataTypeCode?: string;
   metadataValueCode?: string;
   valueCode?: string;
   version?: number;
+  changeRequestId?: string;
+  operation?: 'Add' | 'Update';
 }

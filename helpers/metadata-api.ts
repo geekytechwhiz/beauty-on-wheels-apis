@@ -1,8 +1,10 @@
-import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import axiosRetry from 'axios-retry';
 
 import type {
   ApiSuccessResponse,
+  ChangeRequestDraftResponse,
+  MetadataPublishResponse,
   MetadataTypeCreatePayload,
   MetadataValueCreatePayload,
   SeedRuntimeConfig,
@@ -15,6 +17,14 @@ export interface RequestOutcome<T> {
   statusCode?: number;
   error?: string;
   duplicate?: boolean;
+}
+
+type RegistryEntity = 'type' | 'value';
+
+interface ApiEnvelope<T> {
+  success?: boolean;
+  statusCode?: number;
+  data?: T;
 }
 
 /**
@@ -69,7 +79,7 @@ export async function retryRequest<T>(
 
 function extractErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const ax = error as AxiosError<{ message?: string; error?: string }>;
+    const ax = error as AxiosError<{ message?: string; error?: string; data?: { message?: string } }>;
     const body = ax.response?.data;
     if (body && typeof body === 'object') {
       if (typeof body.message === 'string') {
@@ -77,6 +87,9 @@ function extractErrorMessage(error: unknown): string {
       }
       if (typeof body.error === 'string') {
         return body.error;
+      }
+      if (body.data && typeof body.data === 'object' && typeof body.data.message === 'string') {
+        return body.data.message;
       }
     }
     return ax.message;
@@ -94,11 +107,64 @@ function isConflict(status?: number, message?: string): boolean {
   return Boolean(message?.toLowerCase().includes('already exists'));
 }
 
+function unwrapApiData<T>(body: unknown): T | null {
+  if (!body || typeof body !== 'object') {
+    return null;
+  }
+  const envelope = body as ApiEnvelope<T>;
+  if ('data' in envelope && envelope.data !== undefined) {
+    return envelope.data;
+  }
+  return body as T;
+}
+
+function entityPath(config: SeedRuntimeConfig, entity: RegistryEntity): string {
+  return entity === 'type' ? config.typePath : config.valuePath;
+}
+
+function buildPublishBody(
+  draft: ChangeRequestDraftResponse,
+  confirmationAcknowledged: boolean,
+): Record<string, unknown> {
+  return {
+    changeRequestId: draft.changeRequestId,
+    confirmationAcknowledged,
+    expectedBaseVersion: draft.operation === 'Add' ? null : draft.baseVersion,
+  };
+}
+
+function toApiSuccessFromDraft(draft: ChangeRequestDraftResponse): ApiSuccessResponse {
+  return {
+    metadataTypeCode: draft.metadataTypeCode,
+    metadataValueCode: draft.metadataValueCode ?? undefined,
+    valueCode: draft.metadataValueCode ?? undefined,
+    changeRequestId: draft.changeRequestId,
+    operation: draft.operation,
+  };
+}
+
+function toApiSuccessFromPublish(publish: MetadataPublishResponse): ApiSuccessResponse {
+  const published = publish.published ?? {};
+  const valueCode =
+    publish.metadataValueCode ??
+    (typeof published.metadataValueCode === 'string' ? published.metadataValueCode : undefined) ??
+    (typeof published.valueCode === 'string' ? published.valueCode : undefined);
+
+  return {
+    metadataTypeCode: publish.metadataTypeCode,
+    metadataValueCode: valueCode,
+    valueCode,
+    version: publish.version,
+    changeRequestId: publish.changeRequestId,
+    operation: publish.operation,
+  };
+}
+
 /**
  * Validates a minimal success response from the registry API.
  */
 export function validateApiResponse(
-  entity: 'type' | 'value',
+  entity: RegistryEntity,
   payload: MetadataTypeCreatePayload | MetadataValueCreatePayload,
   data: unknown,
   statusCode: number,
@@ -125,9 +191,206 @@ export function validateApiResponse(
   return null;
 }
 
+async function postRegistryAction<T>(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  entity: RegistryEntity,
+  action: 'draft' | 'publish',
+  body: Record<string, unknown>,
+  label: string,
+): Promise<{ status: number; data: T }> {
+  const path = entityPath(config, entity);
+  const url = `${path}?action=${action}`;
+
+  const response = await retryRequest(
+    () => client.post<ApiEnvelope<T>>(url, body),
+    `${label}:${action}`,
+    config.dryRun,
+  );
+
+  if (config.dryRun) {
+    return { status: 200, data: response as T };
+  }
+
+  const res = response as AxiosResponse<ApiEnvelope<T>>;
+  const data = unwrapApiData<T>(res.data);
+  if (!data) {
+    throw new Error(`Empty response data for ${label} (${action})`);
+  }
+  return { status: res.status, data };
+}
+
+async function draftMetadataEntity(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  entity: RegistryEntity,
+  requestBody: Record<string, unknown>,
+  label: string,
+): Promise<RequestOutcome<ChangeRequestDraftResponse>> {
+  try {
+    if (config.dryRun) {
+      const p = requestBody as unknown as MetadataTypeCreatePayload & MetadataValueCreatePayload;
+      return {
+        ok: true,
+        data: {
+          changeRequestId: `dry-run-${label}`,
+          status: 'DRAFT',
+          entityType: entity,
+          operation: 'Add',
+          metadataTypeCode: p.metadataTypeCode,
+          metadataValueCode: p.metadataValueCode ?? null,
+          baseVersion: null,
+          createdAt: new Date().toISOString(),
+          lastModifiedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    const { status, data } = await postRegistryAction<ChangeRequestDraftResponse>(
+      client,
+      config,
+      entity,
+      'draft',
+      requestBody,
+      label,
+    );
+    return { ok: true, data, statusCode: status };
+  } catch (error) {
+    const ax = axios.isAxiosError(error) ? error : undefined;
+    return {
+      ok: false,
+      statusCode: ax?.response?.status,
+      error: extractErrorMessage(error),
+    };
+  }
+}
+
+async function publishMetadataDraft(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  entity: RegistryEntity,
+  draft: ChangeRequestDraftResponse,
+  label: string,
+): Promise<RequestOutcome<MetadataPublishResponse>> {
+  try {
+    if (config.dryRun) {
+      return {
+        ok: true,
+        data: {
+          changeRequestId: draft.changeRequestId,
+          changeRevision: 1,
+          entityType: entity,
+          operation: draft.operation,
+          metadataTypeCode: draft.metadataTypeCode,
+          metadataValueCode: draft.metadataValueCode ?? null,
+          publishStrategy: 'NEW_VERSION',
+          version: draft.baseVersion === null ? 1 : (draft.baseVersion ?? 0) + 1,
+        },
+      };
+    }
+
+    const publishBody = buildPublishBody(draft, config.confirmationAcknowledged);
+    const { status, data } = await postRegistryAction<MetadataPublishResponse>(
+      client,
+      config,
+      entity,
+      'publish',
+      publishBody,
+      label,
+    );
+    return { ok: true, data, statusCode: status };
+  } catch (error) {
+    const ax = axios.isAxiosError(error) ? error : undefined;
+    const statusCode = ax?.response?.status;
+    const message = extractErrorMessage(error);
+    if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
+      logger.info('Metadata publish conflict Î?Ã?Ã¶ treating as success', {
+        label,
+        changeRequestId: draft.changeRequestId,
+      });
+      return {
+        ok: true,
+        duplicate: true,
+        statusCode,
+        data: {
+          changeRequestId: draft.changeRequestId,
+          changeRevision: 0,
+          entityType: entity,
+          operation: draft.operation,
+          metadataTypeCode: draft.metadataTypeCode,
+          metadataValueCode: draft.metadataValueCode ?? null,
+          publishStrategy: 'IN_PLACE',
+          version: draft.baseVersion ?? 1,
+        },
+      };
+    }
+    return { ok: false, statusCode, error: message };
+  }
+}
+
+async function createMetadataEntity(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  entity: RegistryEntity,
+  requestBody: Record<string, unknown>,
+  validationPayload: MetadataTypeCreatePayload | MetadataValueCreatePayload,
+  label: string,
+): Promise<RequestOutcome<ApiSuccessResponse>> {
+  const draftOutcome = await draftMetadataEntity(client, config, entity, requestBody, label);
+  if (!draftOutcome.ok || !draftOutcome.data) {
+    const statusCode = draftOutcome.statusCode;
+    const message = draftOutcome.error ?? 'Draft failed';
+    if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
+      logger.info('Metadata draft conflict Î?Ã?Ã¶ treating as success', { label });
+      const p = validationPayload as MetadataTypeCreatePayload & MetadataValueCreatePayload;
+      return {
+        ok: true,
+        duplicate: true,
+        statusCode,
+        data: {
+          metadataTypeCode: p.metadataTypeCode,
+          valueCode: p.metadataValueCode,
+          metadataValueCode: p.metadataValueCode,
+        },
+      };
+    }
+    return { ok: false, statusCode, error: message };
+  }
+
+  if (!config.autoPublish) {
+    const data = toApiSuccessFromDraft(draftOutcome.data);
+    const validationError = validateApiResponse(entity, validationPayload, data, draftOutcome.statusCode ?? 200);
+    if (validationError) {
+      return { ok: false, statusCode: draftOutcome.statusCode, error: validationError };
+    }
+    return { ok: true, data, statusCode: draftOutcome.statusCode };
+  }
+
+  const publishOutcome = await publishMetadataDraft(client, config, entity, draftOutcome.data, label);
+  if (!publishOutcome.ok || !publishOutcome.data) {
+    return {
+      ok: false,
+      statusCode: publishOutcome.statusCode,
+      error: publishOutcome.error ?? 'Publish failed',
+    };
+  }
+
+  const data = toApiSuccessFromPublish(publishOutcome.data);
+  const validationError = validateApiResponse(entity, validationPayload, data, publishOutcome.statusCode ?? 200);
+  if (validationError) {
+    return { ok: false, statusCode: publishOutcome.statusCode, error: validationError };
+  }
+
+  return {
+    ok: true,
+    data,
+    statusCode: publishOutcome.statusCode,
+    duplicate: publishOutcome.duplicate,
+  };
+}
+
 /**
- * POST metadata type (immutable create / upsert).
- * Default path: `/metadata/type` (override via `METADATA_TYPE_PATH`).
+ * Draft (+ publish) metadata type via `POST /metadata/type?action=draft|publish`.
  */
 export async function createMetadataType(
   client: AxiosInstance,
@@ -135,40 +398,18 @@ export async function createMetadataType(
   payload: MetadataTypeCreatePayload,
 ): Promise<RequestOutcome<ApiSuccessResponse>> {
   const label = `type:${payload.metadataTypeCode}`;
-
-  try {
-    const data = await retryRequest(async () => {
-      const res = await client.post<ApiSuccessResponse>(config.typePath, payload);
-      return res;
-    }, label, config.dryRun);
-
-    if (config.dryRun) {
-      return { ok: true, data: { metadataTypeCode: payload.metadataTypeCode, version: 1 } };
-    }
-
-    const res = data as { status: number; data: ApiSuccessResponse };
-    const validationError = validateApiResponse('type', payload, res.data, res.status);
-    if (validationError) {
-      return { ok: false, statusCode: res.status, error: validationError };
-    }
-    return { ok: true, data: res.data, statusCode: res.status };
-  } catch (error) {
-    const ax = axios.isAxiosError(error) ? error : undefined;
-    const statusCode = ax?.response?.status;
-    const message = extractErrorMessage(error);
-    if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata type already exists â€” treating as success', {
-        metadataTypeCode: payload.metadataTypeCode,
-      });
-      return { ok: true, duplicate: true, statusCode, data: { metadataTypeCode: payload.metadataTypeCode } };
-    }
-    return { ok: false, statusCode, error: message };
-  }
+  return createMetadataEntity(
+    client,
+    config,
+    'type',
+    payload as unknown as Record<string, unknown>,
+    payload,
+    label,
+  );
 }
 
 /**
- * POST metadata value (immutable create / upsert).
- * Default path: `/metadata/value` (override via `METADATA_VALUE_PATH`).
+ * Draft (+ publish) metadata value via `POST /metadata/value?action=draft|publish`.
  */
 export async function createMetadataValue(
   client: AxiosInstance,
@@ -177,7 +418,7 @@ export async function createMetadataValue(
 ): Promise<RequestOutcome<ApiSuccessResponse>> {
   const label = `value:${payload.metadataTypeCode}/${payload.metadataValueCode}`;
 
-  const body = {
+  const body: Record<string, unknown> = {
     metadataTypeCode: payload.metadataTypeCode,
     metadataValueCode: payload.metadataValueCode,
     valueCode: payload.metadataValueCode,
@@ -195,50 +436,7 @@ export async function createMetadataValue(
     ...(payload.relationships?.length ? { relationships: payload.relationships } : {}),
   };
 
-  try {
-    const data = await retryRequest(async () => {
-      const res = await client.post<ApiSuccessResponse>(config.valuePath, body);
-      return res;
-    }, label, config.dryRun);
-
-    if (config.dryRun) {
-      return {
-        ok: true,
-        data: {
-          metadataTypeCode: payload.metadataTypeCode,
-          valueCode: payload.metadataValueCode,
-          version: 1,
-        },
-      };
-    }
-
-    const res = data as { status: number; data: ApiSuccessResponse };
-    const validationError = validateApiResponse('value', payload, res.data, res.status);
-    if (validationError) {
-      return { ok: false, statusCode: res.status, error: validationError };
-    }
-    return { ok: true, data: res.data, statusCode: res.status };
-  } catch (error) {
-    const ax = axios.isAxiosError(error) ? error : undefined;
-    const statusCode = ax?.response?.status;
-    const message = extractErrorMessage(error);
-    if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata value already exists â€” treating as success', {
-        metadataTypeCode: payload.metadataTypeCode,
-        metadataValueCode: payload.metadataValueCode,
-      });
-      return {
-        ok: true,
-        duplicate: true,
-        statusCode,
-        data: {
-          metadataTypeCode: payload.metadataTypeCode,
-          valueCode: payload.metadataValueCode,
-        },
-      };
-    }
-    return { ok: false, statusCode, error: message };
-  }
+  return createMetadataEntity(client, config, 'value', body, payload, label);
 }
 
 /**
@@ -279,8 +477,14 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
   const configured = process.env.BASE_URL?.trim();
   const baseUrl = configured || DEFAULT_LOCAL_BASE_URL;
   if (!configured) {
-    logger.info('BASE_URL not set â€” using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
+    logger.info('BASE_URL not set Î?Ã?Ã¶ using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
   }
+
+  const autoPublish = process.env.AUTO_PUBLISH !== 'false' && process.env.AUTO_PUBLISH !== '0';
+  const confirmationAcknowledged =
+    process.env.CONFIRMATION_ACKNOWLEDGED === 'true' ||
+    process.env.CONFIRMATION_ACKNOWLEDGED === '1' ||
+    process.env.CONFIRMATION_ACKNOWLEDGED === undefined;
 
   return {
     baseUrl,
@@ -291,6 +495,8 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
     retryDelayMs: Math.max(100, parseInt(process.env.RETRY_DELAY_MS ?? '500', 10) || 500),
     typePath: process.env.METADATA_TYPE_PATH ?? '/metadata/type',
     valuePath: process.env.METADATA_VALUE_PATH ?? '/metadata/value',
+    autoPublish,
+    confirmationAcknowledged,
     treatConflictAsSuccess: process.env.TREAT_CONFLICT_AS_SUCCESS !== 'false',
   };
 }

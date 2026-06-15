@@ -29,14 +29,17 @@ interface ApiEnvelope<T> {
 
 /**
  * Configures axios with auth, timeouts, and exponential retry for transient failures.
+ * When `config.authToken` is set, sends `Authorization: Bearer <token>` (actor from JWT on server).
+ * Request bodies must not include `createdBy`; attribution is server-side only.
  */
 export function createMetadataApiClient(config: SeedRuntimeConfig): AxiosInstance {
+  const bearerToken = config.authToken?.trim();
   const client = axios.create({
     baseURL: config.baseUrl.replace(/\/$/, ''),
     timeout: 30_000,
     headers: {
       'Content-Type': 'application/json',
-      ...(config.authToken ? { Authorization: `Bearer ${config.authToken}` } : {}),
+      ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
     },
   });
 
@@ -304,7 +307,7 @@ async function publishMetadataDraft(
     const statusCode = ax?.response?.status;
     const message = extractErrorMessage(error);
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata publish conflict Œ?√?√∂ treating as success', {
+      logger.info('Metadata publish conflict ù?ù?ù treating as success', {
         label,
         changeRequestId: draft.changeRequestId,
       });
@@ -341,7 +344,7 @@ async function createMetadataEntity(
     const statusCode = draftOutcome.statusCode;
     const message = draftOutcome.error ?? 'Draft failed';
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata draft conflict Œ?√?√∂ treating as success', { label });
+      logger.info('Metadata draft conflict ù?ù?ù treating as success', { label });
       const p = validationPayload as MetadataTypeCreatePayload & MetadataValueCreatePayload;
       return {
         ok: true,
@@ -473,11 +476,92 @@ export async function mapWithConcurrency<T, R>(
 /** serverless-offline exposes routes as `http://localhost:3000/{stage}/...` */
 const DEFAULT_LOCAL_BASE_URL = 'http://localhost:3000/dev';
 
+/** Matches `buildRequestContext` in libs/utils ù same JWT claim precedence for actor id. */
+export type SeedActorClaimSource = 'custom:userID' | 'userId' | 'sub';
+
+export interface SeedActorResolution {
+  userId: string;
+  claimSource: SeedActorClaimSource;
+}
+
+function stripBearerPrefix(token: string): string {
+  return token.replace(/^\s*Bearer\s+/i, '').trim();
+}
+
+/** Decodes JWT payload only (no signature verification) for seed attribution logging. */
+function decodeJwtPayloadForSeed(token: string): Record<string, unknown> {
+  try {
+    const jwt = stripBearerPrefix(token);
+    const base64Url = jwt.split('.')[1];
+    if (base64Url == null) {
+      return {};
+    }
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(Buffer.from(base64, 'base64').toString('utf8')) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Resolves the actor user id the metadata registry will persist (same order as request-context.middleware).
+ * Does not log or return the raw token.
+ */
+export function resolveSeedActorFromAuthToken(authToken: string): SeedActorResolution | undefined {
+  const trimmed = authToken?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const decoded = decodeJwtPayloadForSeed(trimmed);
+  const candidates: ReadonlyArray<[SeedActorClaimSource, unknown]> = [
+    ['custom:userID', decoded['custom:userID']],
+    ['userId', decoded.userId],
+    ['sub', decoded.sub],
+  ];
+
+  for (const [claimSource, raw] of candidates) {
+    if (typeof raw === 'string' && raw.trim() !== '') {
+      return { userId: raw.trim(), claimSource };
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Logs seed auth context without printing the token.
+ * When AUTH_TOKEN is absent, the server stores actor `system` (GET may show "Unknown User").
+ */
+export function logSeedAuthContext(config: SeedRuntimeConfig): void {
+  const hasAuthToken = Boolean(config.authToken?.trim());
+  if (!hasAuthToken) {
+    logger.info(
+      'Metadata seed auth: AUTH_TOKEN not set ù requests omit Authorization; server stores createdBy/lastModifiedBy as system',
+    );
+    return;
+  }
+
+  const actor = resolveSeedActorFromAuthToken(config.authToken);
+  if (actor) {
+    logger.info('Metadata seed auth: AUTH_TOKEN set ù Authorization Bearer header will be sent', {
+      actorUserId: actor.userId,
+      actorClaimSource: actor.claimSource,
+      note: 'Registry resolves display name from USER_TABLE on GET/list when this userId exists',
+    });
+    return;
+  }
+
+  logger.warn(
+    'Metadata seed auth: AUTH_TOKEN set but no userId could be decoded (custom:userID, userId, sub) ù server may still store system',
+  );
+}
+
 export function loadRuntimeConfig(): SeedRuntimeConfig {
   const configured = process.env.BASE_URL?.trim();
   const baseUrl = configured || DEFAULT_LOCAL_BASE_URL;
   if (!configured) {
-    logger.info('BASE_URL not set Œ?√?√∂ using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
+    logger.info('BASE_URL not set ó using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
   }
 
   const autoPublish = process.env.AUTO_PUBLISH !== 'false' && process.env.AUTO_PUBLISH !== '0';
@@ -486,9 +570,11 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
     process.env.CONFIRMATION_ACKNOWLEDGED === '1' ||
     process.env.CONFIRMATION_ACKNOWLEDGED === undefined;
 
+  const authToken = stripBearerPrefix(process.env.AUTH_TOKEN?.trim() ?? '');
+
   return {
     baseUrl,
-    authToken: process.env.AUTH_TOKEN?.trim() ?? '',
+    authToken,
     dryRun: process.env.DRY_RUN === 'true' || process.env.DRY_RUN === '1',
     concurrency: Math.max(1, parseInt(process.env.CONCURRENCY ?? '5', 10) || 5),
     retryMax: Math.max(0, parseInt(process.env.RETRY_MAX ?? '3', 10) || 3),

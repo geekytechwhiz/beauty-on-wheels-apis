@@ -45,6 +45,7 @@ import {
   createMetadataType,
   createMetadataValue,
   loadRuntimeConfig,
+  logSeedAuthContext,
   mapWithConcurrency,
 } from '../helpers/metadata-api';
 import {
@@ -380,6 +381,7 @@ function printSummary(summary: SeedSummary, dryRun: boolean): void {
 async function main(): Promise<void> {
   loadDotEnv();
   const config = loadRuntimeConfig();
+  logSeedAuthContext(config);
   const registry: RegistrySnapshot = {
     valuesByType: new Map(),
     typesCreated: new Set(),

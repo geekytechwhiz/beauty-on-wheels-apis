@@ -452,6 +452,27 @@ describe('OrganizationService organizationConfig updates', () => {
             valueDataType: 'string',
             values: [{ valueCode: 'HYPERTENSION', label: 'Hypertension', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
           },
+          {
+            metadataType: 'Department',
+            displayName: 'Department',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [{ valueCode: 'CARDIO_DEPT', label: 'Cardiology Dept', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+          {
+            metadataType: 'ProgramType',
+            displayName: 'Program Type',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [],
+          },
+          {
+            metadataType: 'Specialty',
+            displayName: 'Specialty',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
         ],
         missingMetadataTypeCodes: [],
       });
@@ -491,6 +512,11 @@ describe('OrganizationService organizationConfig updates', () => {
           country: { code: 'IN', label: 'India' },
           state: { code: 'KA', label: 'Karnataka' },
         },
+        metadataDefaults: {
+          department: [{ valueCode: 'CARDIO_DEPT', label: 'Cardiology Dept' }],
+          programType: [],
+          specialty: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology' }],
+        },
       });
     });
 
@@ -515,6 +541,7 @@ describe('OrganizationService organizationConfig updates', () => {
       const response = await service.getOrganizationConfig('org-1', 'Bearer token');
 
       expect(response.organizationConfig?.defaultLanguageCode).toEqual({ code: 'EN', label: 'EN' });
+      expect(response.metadataDefaults).toBeUndefined();
     });
 
     it('maps legacy supported* config into enriched response', async () => {
@@ -549,6 +576,42 @@ describe('OrganizationService organizationConfig updates', () => {
         supportedLanguageCodes: [{ code: 'EN', label: 'EN' }],
         enabledCategoryCodes: [{ code: 'CARDIO', label: 'CARDIO' }],
         enabledConditionCodes: [{ code: 'STABLE', label: 'STABLE' }],
+      });
+      expect(response.metadataDefaults).toEqual({
+        department: [],
+        programType: [],
+        specialty: [],
+      });
+    });
+
+    it('returns metadataDefaults when org exists but has no config record', async () => {
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getLatestOrganizationConfig.mockResolvedValue(null);
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          {
+            metadataType: 'Specialty',
+            displayName: 'Specialty',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
+          },
+        ],
+        missingMetadataTypeCodes: ['Department', 'ProgramType'],
+      });
+
+      const response = await service.getOrganizationConfig('org-1', 'Bearer token');
+
+      expect(response).toEqual({
+        organizationId: 'org-1',
+        metadataDefaults: {
+          department: [],
+          programType: [],
+          specialty: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology' }],
+        },
       });
     });
 

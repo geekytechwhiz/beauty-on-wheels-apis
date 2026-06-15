@@ -37,6 +37,7 @@ import {
   hasOrganizationConfigData,
 } from '../utils/organizationConfig.mapper';
 import { enrichOrganizationConfig } from '../utils/organizationConfig.enrichment';
+import { fetchOrganizationConfigMetadataDefaults } from '../utils/organizationConfig.metadata-defaults';
 import {
   buildOrgCapabilities,
   deriveCategoryConditionPairs,
@@ -292,18 +293,33 @@ export class OrganizationService {
     organizationId: string,
     authHeader?: string,
   ): Promise<OrganizationConfigView> {
+    const attachMetadataDefaults = async (view: OrganizationConfigView): Promise<OrganizationConfigView> => {
+      const authorization = authHeader?.trim();
+      if (!authorization) {
+        return view;
+      }
+      const metadataDefaults = await fetchOrganizationConfigMetadataDefaults(
+        this.metadataRegistryClient,
+        authorization,
+      );
+      if (metadataDefaults) {
+        view.metadataDefaults = metadataDefaults;
+      }
+      return view;
+    };
+
     const item = await this.repository.getLatestOrganizationConfig(organizationId);
     if (item === null) {
-      return { organizationId };
+      return attachMetadataDefaults({ organizationId });
     }
 
     const flatConfig = mapStoredOrganizationConfigToData(item);
     if (!hasOrganizationConfigData(flatConfig)) {
-      return {
+      return attachMetadataDefaults({
         organizationId,
         organizationConfigVersion: item.version,
         organizationConfigStatus: item.status,
-      };
+      });
     }
 
     const enriched = await enrichOrganizationConfig(flatConfig, {
@@ -332,6 +348,9 @@ export class OrganizationService {
     }
     if (enriched.countryStateCityGroup !== undefined) {
       view.countryStateCityGroup = enriched.countryStateCityGroup;
+    }
+    if (enriched.metadataDefaults !== undefined) {
+      view.metadataDefaults = enriched.metadataDefaults;
     }
 
     return view;

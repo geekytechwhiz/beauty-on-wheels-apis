@@ -91,6 +91,61 @@ describe('organizationConfig.enrichment', () => {
       { code: 'CARDIOLOGY', label: 'CARDIOLOGY' },
     ]);
     expect(result.enabledCategoryConditionGroups).toBeUndefined();
+    expect(result.metadataDefaults).toBeUndefined();
+  });
+
+  it('includes metadataDefaults from a single registry batch read', async () => {
+    const reader: OrgConfigMetadataReader = {
+      getValuesByTypes: mockGetValuesByTypes({
+        items: [
+          {
+            metadataType: 'Country',
+            displayName: 'Country',
+            multiSelectAllowed: false,
+            valueDataType: 'string',
+            values: [registryValue('IN', 'India')],
+          },
+          {
+            metadataType: 'Specialty',
+            displayName: 'Specialty',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [registryValue('CARDIOLOGY', 'Cardiology')],
+          },
+          {
+            metadataType: 'Department',
+            displayName: 'Department',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [],
+          },
+          {
+            metadataType: 'ProgramType',
+            displayName: 'Program Type',
+            multiSelectAllowed: true,
+            valueDataType: 'Enum',
+            values: [],
+          },
+        ],
+        missingMetadataTypeCodes: [],
+      }),
+      getRelatedValues: jest.fn<GetRelatedValues>(),
+    };
+
+    const result = await enrichOrganizationConfig(
+      { countryCode: 'IN' },
+      { authHeader: 'Bearer token', reader },
+    );
+
+    expect(reader.getValuesByTypes).toHaveBeenCalledWith(
+      expect.arrayContaining(['Country', 'Department', 'ProgramType', 'Specialty']),
+      'Bearer token',
+    );
+    expect(result.metadataDefaults).toEqual({
+      department: [],
+      programType: [],
+      specialty: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology' }],
+    });
   });
 
   it('derives category->condition groups from relations intersected with enabled conditions', async () => {

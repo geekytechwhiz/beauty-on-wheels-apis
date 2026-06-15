@@ -6,8 +6,13 @@ import type {
   EnrichedOrganizationConfig,
   MetadataCodeLabel,
   OrganizationConfigData,
+  OrganizationConfigMetadataDefaults,
 } from '../models';
 import type { OrgConfigMetadataReader } from './organizationConfig.validator';
+import {
+  collectMetadataTypesForConfigRead,
+  mapMetadataDefaultsFromRegistry,
+} from './organizationConfig.metadata-defaults';
 import {
   CONFIG_FIELD_TO_METADATA_TYPE,
   ENRICHABLE_CONFIG_ARRAY_FIELDS,
@@ -181,20 +186,22 @@ export async function enrichOrganizationConfig(
   organizationConfig: EnrichedOrganizationConfig;
   enabledCategoryConditionGroups?: CategoryConditionGroup[];
   countryStateCityGroup?: CountryStateCityGroup;
+  metadataDefaults?: OrganizationConfigMetadataDefaults;
 }> {
   let labelLookup: MetadataLabelLookup = new Map();
+  let metadataDefaults: OrganizationConfigMetadataDefaults | undefined;
   const authHeader = options.authHeader?.trim();
   const reader = options.reader;
 
   if (authHeader && reader) {
-    const metadataTypes = collectMetadataTypesForConfig(config);
-    if (metadataTypes.length > 0) {
-      try {
-        const registryResult = await reader.getValuesByTypes(metadataTypes, authHeader);
-        labelLookup = buildMetadataLabelLookup(registryResult);
-      } catch {
-        labelLookup = new Map();
-      }
+    const metadataTypes = collectMetadataTypesForConfigRead(config);
+    try {
+      const registryResult = await reader.getValuesByTypes(metadataTypes, authHeader);
+      labelLookup = buildMetadataLabelLookup(registryResult);
+      metadataDefaults = mapMetadataDefaultsFromRegistry(registryResult);
+    } catch {
+      labelLookup = new Map();
+      metadataDefaults = undefined;
     }
   }
 
@@ -217,5 +224,6 @@ export async function enrichOrganizationConfig(
     organizationConfig,
     ...(countryStateCityGroup ? { countryStateCityGroup } : {}),
     ...(enabledCategoryConditionGroups ? { enabledCategoryConditionGroups } : {}),
+    ...(metadataDefaults ? { metadataDefaults } : {}),
   };
 }

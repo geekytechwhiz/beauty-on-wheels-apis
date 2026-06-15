@@ -98,6 +98,19 @@ export interface MetadataCodeLabel {
   label: string;
 }
 
+/** One metadata registry value exposed as a read-time org-config dropdown option. */
+export interface OrganizationConfigMetadataDefaultValue {
+  valueCode: string;
+  label: string;
+}
+
+/** Read-time metadata catalog defaults for org-config UI (not stored on CONFIG items). */
+export interface OrganizationConfigMetadataDefaults {
+  department: OrganizationConfigMetadataDefaultValue[];
+  programType: OrganizationConfigMetadataDefaultValue[];
+  specialty: OrganizationConfigMetadataDefaultValue[];
+}
+
 /** GET response config with registry-resolved labels (codes only in DynamoDB). */
 export interface EnrichedOrganizationConfig {
   countryCode?: MetadataCodeLabel;
@@ -207,6 +220,8 @@ export interface OrganizationConfigView {
   publishedBy?: string;
   enabledCategoryConditionGroups?: CategoryConditionGroup[];
   countryStateCityGroup?: CountryStateCityGroup;
+  /** Full ACTIVE metadata catalogs for UI dropdowns (Department, ProgramType, Specialty). */
+  metadataDefaults?: OrganizationConfigMetadataDefaults;
 }
 
 export const ORG_CONFIG_CHANGE_TYPE = {

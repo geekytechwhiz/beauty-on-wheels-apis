@@ -31,7 +31,10 @@ describe('organizationConfig.metadata-defaults', () => {
     expect(collectMetadataTypesForConfigRead({})).toEqual([
       ...ORG_CONFIG_METADATA_DEFAULT_TYPE_CODES,
     ]);
-    expect(collectMetadataTypesForConfigRead({ countryCode: 'IN' })).toEqual(
+    expect(collectMetadataTypesForConfigRead({ enabledCountryCodes: ['IN'] })).toEqual(
+      expect.arrayContaining(['Country', ...ORG_CONFIG_METADATA_DEFAULT_TYPE_CODES]),
+    );
+    expect(collectMetadataTypesForConfigRead({ enabledCountryCodes: ['IN', 'US'] })).toEqual(
       expect.arrayContaining(['Country', ...ORG_CONFIG_METADATA_DEFAULT_TYPE_CODES]),
     );
   });

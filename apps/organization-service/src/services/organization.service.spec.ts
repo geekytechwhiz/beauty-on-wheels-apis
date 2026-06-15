@@ -244,7 +244,7 @@ describe('OrganizationService organizationConfig updates', () => {
         .mockResolvedValueOnce({
           version: 1,
           status: OrgConfigStatus.ACTIVE,
-          countryCode: 'IN',
+          enabledCountryCodes: ['IN'],
           supportedLanguageCodes: ['EN'],
           enabledCategoryCodes: ['CAT_A'],
           enabledConditionCodes: ['COND_A'],
@@ -252,7 +252,7 @@ describe('OrganizationService organizationConfig updates', () => {
         .mockResolvedValueOnce({
           version: 1,
           status: OrgConfigStatus.ACTIVE,
-          countryCode: 'IN',
+          enabledCountryCodes: ['IN'],
           supportedLanguageCodes: ['EN'],
           enabledCategoryCodes: ['CAT_A'],
           enabledConditionCodes: ['COND_A'],
@@ -281,7 +281,7 @@ describe('OrganizationService organizationConfig updates', () => {
       expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
         'org-1',
         {
-          countryCode: 'IN',
+          enabledCountryCodes: ['IN'],
           defaultLanguageCode: 'EN',
           supportedLanguageCodes: ['EN', 'ES'],
           enabledCategoryCodes: ['CAT_A'],
@@ -344,7 +344,7 @@ describe('OrganizationService organizationConfig updates', () => {
       entityType: OrgConfigEntityType.ORG_CONFIG,
       orgId: 'org-1',
       version: 4,
-      countryCode: 'IN',
+      enabledCountryCodes: ['IN'],
       defaultLanguageCode: 'EN',
       enabledCategoryCodes: ['CARDIO'],
       enabledConditionCodes: ['STABLE'],
@@ -390,7 +390,7 @@ describe('OrganizationService organizationConfig updates', () => {
     const response = await service.getOrganization('org-1', { authHeader: 'Bearer token' });
 
     expect(response.organizationConfig).toEqual({
-      countryCode: { code: 'IN', label: 'India' },
+      enabledCountryCodes: [{ code: 'IN', label: 'India' }],
       defaultLanguageCode: { code: 'EN', label: 'English' },
       enabledCategoryCodes: [{ code: 'CARDIO', label: 'Cardiology' }],
       enabledConditionCodes: [{ code: 'STABLE', label: 'Stable' }],
@@ -411,8 +411,8 @@ describe('OrganizationService organizationConfig updates', () => {
         entityType: OrgConfigEntityType.ORG_CONFIG,
         orgId: 'org-1',
         version: 4,
-        countryCode: 'IN',
-        stateCode: 'KA',
+        enabledCountryCodes: ['IN'],
+        enabledStateCodes: ['KA'],
         enabledCategoryCodes: ['CARDIOLOGY'],
         enabledConditionCodes: ['HYPERTENSION'],
         status: OrgConfigStatus.ACTIVE,
@@ -494,8 +494,8 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationConfigVersion: 4,
         organizationConfigStatus: OrgConfigStatus.ACTIVE,
         organizationConfig: {
-          countryCode: { code: 'IN', label: 'India' },
-          stateCode: { code: 'KA', label: 'Karnataka' },
+          enabledCountryCodes: [{ code: 'IN', label: 'India' }],
+          enabledStateCodes: [{ code: 'KA', label: 'Karnataka' }],
           enabledCategoryCodes: [{ code: 'CARDIOLOGY', label: 'Cardiology' }],
           enabledConditionCodes: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
         },
@@ -509,8 +509,8 @@ describe('OrganizationService organizationConfig updates', () => {
           },
         ],
         countryStateCityGroup: {
-          country: { code: 'IN', label: 'India' },
-          state: { code: 'KA', label: 'Karnataka' },
+          countries: [{ code: 'IN', label: 'India' }],
+          states: [{ code: 'KA', label: 'Karnataka' }],
         },
         metadataDefaults: {
           department: [{ valueCode: 'CARDIO_DEPT', label: 'Cardiology Dept' }],
@@ -570,8 +570,8 @@ describe('OrganizationService organizationConfig updates', () => {
       const response = await service.getOrganizationConfig('org-1', 'Bearer token');
 
       expect(response.organizationConfig).toEqual({
-        countryCode: { code: 'IN', label: 'IN' },
-        stateCode: { code: 'KA', label: 'KA' },
+        enabledCountryCodes: [{ code: 'IN', label: 'IN' }],
+        enabledStateCodes: [{ code: 'KA', label: 'KA' }],
         defaultLanguageCode: { code: 'EN', label: 'EN' },
         supportedLanguageCodes: [{ code: 'EN', label: 'EN' }],
         enabledCategoryCodes: [{ code: 'CARDIO', label: 'CARDIO' }],
@@ -637,9 +637,9 @@ describe('OrganizationService organizationConfig updates', () => {
 
   describe('saveOrganizationConfig', () => {
     const sampleConfig = {
-      countryCode: 'IN',
-      stateCode: 'KA',
-      cityCode: 'BLR',
+      enabledCountryCodes: ['IN'],
+      enabledStateCodes: ['KA'],
+      enabledCityCodes: ['BLR'],
       timezone: 'Asia/Kolkata',
       defaultLanguageCode: 'en',
       supportedLanguageCodes: ['en', 'hi'],
@@ -685,7 +685,7 @@ describe('OrganizationService organizationConfig updates', () => {
       repository.getLatestOrganizationConfigVersionItem.mockResolvedValue({
         version: 2,
         status: OrgConfigStatus.DRAFT,
-        countryCode: 'IN',
+        enabledCountryCodes: ['IN'],
         supportedLanguageCodes: ['en'],
       });
       repository.createOrganizationConfigDraftVersion.mockResolvedValue({
@@ -695,18 +695,18 @@ describe('OrganizationService organizationConfig updates', () => {
 
       const result = await service.saveOrganizationConfig(
         'org-1',
-        { countryCode: 'US', changeReason: 'switch country' },
+        { enabledCountryCodes: ['US'], changeReason: 'switch country' },
         'corr-1',
         'user-1',
       );
 
       expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
         'org-1',
-        { countryCode: 'US', supportedLanguageCodes: ['en'] },
+        { enabledCountryCodes: ['US'], supportedLanguageCodes: ['en'] },
         { changeReason: 'switch country', createdBy: 'user-1' },
       );
       expect(result.organizationConfigVersion).toBe(3);
-      expect(result.config).toEqual({ countryCode: 'US', supportedLanguageCodes: ['en'] });
+      expect(result.config).toEqual({ enabledCountryCodes: ['US'], supportedLanguageCodes: ['en'] });
     });
 
     it('merges incoming patch with latest config before saving', async () => {
@@ -714,7 +714,7 @@ describe('OrganizationService organizationConfig updates', () => {
       repository.getLatestOrganizationConfigVersionItem.mockResolvedValue({
         version: 1,
         status: OrgConfigStatus.DRAFT,
-        countryCode: 'IN',
+        enabledCountryCodes: ['IN'],
         enabledCategoryCodes: ['CAT_A'],
       });
       repository.createOrganizationConfigDraftVersion.mockResolvedValue({
@@ -727,7 +727,7 @@ describe('OrganizationService organizationConfig updates', () => {
       expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
         'org-1',
         {
-          countryCode: 'IN',
+          enabledCountryCodes: ['IN'],
           enabledCategoryCodes: ['CAT_A'],
           enabledConditionCodes: ['COND_A'],
         },
@@ -743,7 +743,7 @@ describe('OrganizationService organizationConfig updates', () => {
         ...sampleConfig,
       });
 
-      const result = await service.saveOrganizationConfig('org-1', { countryCode: 'IN' }, 'corr-1', 'user-1');
+      const result = await service.saveOrganizationConfig('org-1', { enabledCountryCodes: ['IN'] }, 'corr-1', 'user-1');
 
       expect(repository.createOrganizationConfigDraftVersion).not.toHaveBeenCalled();
       expect(result.organizationConfigVersion).toBe(5);
@@ -760,8 +760,8 @@ describe('OrganizationService organizationConfig updates', () => {
       });
 
       const newFieldsConfig = {
-        stateCode: 'KA',
-        cityCode: 'BLR',
+        enabledStateCodes: ['KA'],
+        enabledCityCodes: ['BLR'],
         enabledSpecialtyCodes: ['SPEC_A'],
         enabledVitalCodes: ['VITAL_BP'],
         enabledReminderChannels: ['SMS'],
@@ -780,6 +780,28 @@ describe('OrganizationService organizationConfig updates', () => {
         { changeReason: undefined, createdBy: 'user-1' },
       );
       expect(result.config).toEqual(newFieldsConfig);
+    });
+
+    it('normalizes and persists enabledCountryCodes on draft creation', async () => {
+      repository.getOrganization.mockResolvedValue({ organizationId: 'org-1', name: 'Org 1' });
+      repository.getLatestOrganizationConfigVersionItem.mockResolvedValue(null);
+      repository.createOrganizationConfigDraftVersion.mockResolvedValue({
+        version: 1,
+        status: OrgConfigStatus.DRAFT,
+      });
+
+      await service.saveOrganizationConfig(
+        'org-1',
+        { enabledCountryCodes: ['in', ' US ', 'AE', 'US'] },
+        'corr-1',
+        'user-1',
+      );
+
+      expect(repository.createOrganizationConfigDraftVersion).toHaveBeenCalledWith(
+        'org-1',
+        { enabledCountryCodes: ['IN', 'US', 'AE'] },
+        { changeReason: undefined, createdBy: 'user-1' },
+      );
     });
 
     it('throws OrganizationNotFoundError when org does not exist', async () => {
@@ -986,7 +1008,7 @@ describe('OrganizationService organizationConfig updates', () => {
 
   describe('saveAndPublishOrganizationConfig', () => {
     const sampleConfig = {
-      countryCode: 'IN',
+      enabledCountryCodes: ['IN'],
       enabledCategoryCodes: ['CHRONIC'],
       enabledConditionCodes: ['HYPERTENSION'],
     };
@@ -1061,7 +1083,7 @@ describe('OrganizationService organizationConfig updates', () => {
         ...sampleConfig,
       });
 
-      const result = await service.saveAndPublishOrganizationConfig('org-1', { countryCode: 'IN' }, {
+      const result = await service.saveAndPublishOrganizationConfig('org-1', { enabledCountryCodes: ['IN'] }, {
         authHeader: 'Bearer token',
       });
 

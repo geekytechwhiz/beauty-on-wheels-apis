@@ -31,22 +31,74 @@ const mockGetRelatedValues = (result: MetadataRelatedValuesResultDto) =>
   jest.fn<GetRelatedValues>().mockResolvedValue(result);
 
 describe('organizationConfig.enrichment', () => {
-  it('returns code+label for single-value fields', () => {
+  it('returns code+label arrays for enabled location fields', () => {
     const lookup = buildMetadataLabelLookup({
       items: [
         {
           metadataType: 'Country',
           displayName: 'Country',
-          multiSelectAllowed: false,
+          multiSelectAllowed: true,
           valueDataType: 'string',
           values: [registryValue('IN', 'India')],
+        },
+        {
+          metadataType: 'State',
+          displayName: 'State',
+          multiSelectAllowed: true,
+          valueDataType: 'string',
+          values: [registryValue('KA', 'Karnataka')],
+        },
+        {
+          metadataType: 'City',
+          displayName: 'City',
+          multiSelectAllowed: true,
+          valueDataType: 'string',
+          values: [registryValue('BLR', 'Bengaluru')],
         },
       ],
       missingMetadataTypeCodes: [],
     });
 
-    const enriched = enrichOrganizationConfigFields({ countryCode: 'IN' }, lookup);
-    expect(enriched.countryCode).toEqual({ code: 'IN', label: 'India' });
+    const enriched = enrichOrganizationConfigFields(
+      {
+        enabledCountryCodes: ['IN'],
+        enabledStateCodes: ['KA'],
+        enabledCityCodes: ['BLR'],
+      },
+      lookup,
+    );
+    expect(enriched.enabledCountryCodes).toEqual([{ code: 'IN', label: 'India' }]);
+    expect(enriched.enabledStateCodes).toEqual([{ code: 'KA', label: 'Karnataka' }]);
+    expect(enriched.enabledCityCodes).toEqual([{ code: 'BLR', label: 'Bengaluru' }]);
+  });
+
+  it('returns code+label arrays for enabledCountryCodes', () => {
+    const lookup = buildMetadataLabelLookup({
+      items: [
+        {
+          metadataType: 'Country',
+          displayName: 'Country',
+          multiSelectAllowed: true,
+          valueDataType: 'string',
+          values: [
+            registryValue('IN', 'India'),
+            registryValue('US', 'United States'),
+            registryValue('AE', 'United Arab Emirates'),
+          ],
+        },
+      ],
+      missingMetadataTypeCodes: [],
+    });
+
+    const enriched = enrichOrganizationConfigFields(
+      { enabledCountryCodes: ['IN', 'US', 'AE'] },
+      lookup,
+    );
+    expect(enriched.enabledCountryCodes).toEqual([
+      { code: 'IN', label: 'India' },
+      { code: 'US', label: 'United States' },
+      { code: 'AE', label: 'United Arab Emirates' },
+    ]);
   });
 
   it('returns code+label arrays for multi-value fields', () => {
@@ -82,11 +134,11 @@ describe('organizationConfig.enrichment', () => {
     };
 
     const result = await enrichOrganizationConfig(
-      { countryCode: 'IN', enabledCategoryCodes: ['CARDIOLOGY'] },
+      { enabledCountryCodes: ['IN'], enabledCategoryCodes: ['CARDIOLOGY'] },
       { authHeader: 'Bearer token', reader },
     );
 
-    expect(result.organizationConfig.countryCode).toEqual({ code: 'IN', label: 'IN' });
+    expect(result.organizationConfig.enabledCountryCodes).toEqual([{ code: 'IN', label: 'IN' }]);
     expect(result.organizationConfig.enabledCategoryCodes).toEqual([
       { code: 'CARDIOLOGY', label: 'CARDIOLOGY' },
     ]);
@@ -133,7 +185,7 @@ describe('organizationConfig.enrichment', () => {
     };
 
     const result = await enrichOrganizationConfig(
-      { countryCode: 'IN' },
+      { enabledCountryCodes: ['IN'] },
       { authHeader: 'Bearer token', reader },
     );
 
@@ -208,7 +260,7 @@ describe('organizationConfig.enrichment', () => {
     ]);
   });
 
-  it('builds countryStateCityGroup from single-value location codes', async () => {
+  it('builds countryStateCityGroup from enabled location arrays', async () => {
     const reader: OrgConfigMetadataReader = {
       getValuesByTypes: mockGetValuesByTypes({
         items: [
@@ -233,13 +285,13 @@ describe('organizationConfig.enrichment', () => {
     };
 
     const result = await enrichOrganizationConfig(
-      { countryCode: 'IN', stateCode: 'KA' },
+      { enabledCountryCodes: ['IN'], enabledStateCodes: ['KA'] },
       { authHeader: 'Bearer token', reader },
     );
 
     expect(result.countryStateCityGroup).toEqual({
-      country: { code: 'IN', label: 'India' },
-      state: { code: 'KA', label: 'Karnataka' },
+      countries: [{ code: 'IN', label: 'India' }],
+      states: [{ code: 'KA', label: 'Karnataka' }],
     });
   });
 

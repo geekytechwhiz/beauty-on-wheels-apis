@@ -408,6 +408,8 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
   };
 
   push('ApplicableModule');
+  // Override-only types (not in Excel) — needed for smoke / local testing (e.g. PackageType).
+  push('PackageType');
 
   for (const code of typeOrder) {
     push(code);

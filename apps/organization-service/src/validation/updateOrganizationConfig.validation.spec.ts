@@ -4,9 +4,9 @@ import { updateOrganizationConfigSchema } from './organization.validation';
 describe('updateOrganizationConfigSchema', () => {
   it('accepts a full config payload with changeReason', () => {
     const result = updateOrganizationConfigSchema.safeParse({
-      countryCode: 'IN',
-      stateCode: 'KA',
-      cityCode: 'BLR',
+      enabledCountryCodes: ['IN'],
+      enabledStateCodes: ['KA'],
+      enabledCityCodes: ['BLR'],
       timezone: 'Asia/Kolkata',
       defaultLanguageCode: 'en',
       supportedLanguageCodes: ['en', 'hi'],
@@ -33,14 +33,30 @@ describe('updateOrganizationConfigSchema', () => {
   });
 
   it('accepts new optional org config fields individually', () => {
-    expect(updateOrganizationConfigSchema.safeParse({ stateCode: 'KA' }).success).toBe(true);
+    expect(updateOrganizationConfigSchema.safeParse({ enabledStateCodes: ['KA'] }).success).toBe(true);
     expect(updateOrganizationConfigSchema.safeParse({ enabledSpecialtyCodes: ['SPEC_A'] }).success).toBe(true);
     expect(updateOrganizationConfigSchema.safeParse({ currencyCode: 'INR' }).success).toBe(true);
   });
 
-  it('accepts a partial config with a single field', () => {
-    const result = updateOrganizationConfigSchema.safeParse({ countryCode: 'IN' });
+  it('accepts enabledCountryCodes array', () => {
+    const result = updateOrganizationConfigSchema.safeParse({
+      enabledCountryCodes: ['IN', 'US', 'AE'],
+    });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.enabledCountryCodes).toEqual(['IN', 'US', 'AE']);
+    }
+  });
+
+  it('accepts a partial config with a single field', () => {
+    const result = updateOrganizationConfigSchema.safeParse({ enabledCountryCodes: ['IN'] });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects legacy single location fields', () => {
+    expect(updateOrganizationConfigSchema.safeParse({ countryCode: 'IN' }).success).toBe(false);
+    expect(updateOrganizationConfigSchema.safeParse({ stateCode: 'KA' }).success).toBe(false);
+    expect(updateOrganizationConfigSchema.safeParse({ cityCode: 'BLR' }).success).toBe(false);
   });
 
   it('rejects an empty payload (no config field)', () => {
@@ -55,10 +71,12 @@ describe('updateOrganizationConfigSchema', () => {
 
   it('trims string code values', () => {
     const result = updateOrganizationConfigSchema.parse({
-      countryCode: '  IN  ',
+      enabledCountryCodes: [' in ', ' US '],
+      enabledStateCodes: [' ka '],
       supportedLanguageCodes: [' en '],
     });
-    expect(result.countryCode).toBe('IN');
+    expect(result.enabledCountryCodes).toEqual(['in', 'US']);
+    expect(result.enabledStateCodes).toEqual(['ka']);
     expect(result.supportedLanguageCodes).toEqual(['en']);
   });
 });

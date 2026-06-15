@@ -158,10 +158,19 @@ describe('organizationConfig.validator', () => {
 
   it('computeChangedConfigSections detects field changes', () => {
     const changed = computeChangedConfigSections(
-      { countryCode: 'US', enabledCategoryCodes: ['A'] },
-      { countryCode: 'IN', enabledCategoryCodes: ['A'] },
+      { enabledCountryCodes: ['US'], enabledCategoryCodes: ['A'] },
+      { enabledCountryCodes: ['IN'], enabledCategoryCodes: ['A'] },
     );
 
-    expect(changed).toEqual(['countryCode']);
+    expect(changed).toEqual(['enabledCountryCodes']);
+  });
+
+  it('computeChangedConfigSections detects enabledCountryCodes changes', () => {
+    const changed = computeChangedConfigSections(
+      { enabledCountryCodes: ['IN', 'US'] },
+      { enabledCountryCodes: ['IN', 'AE'] },
+    );
+
+    expect(changed).toEqual(['enabledCountryCodes']);
   });
 });

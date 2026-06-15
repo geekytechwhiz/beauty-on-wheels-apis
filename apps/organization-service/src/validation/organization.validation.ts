@@ -243,9 +243,9 @@ export const setOrgStatusSchema = z.object({
  */
 export const updateOrganizationConfigSchema = z
   .object({
-    countryCode: configCodeSchema.optional(),
-    stateCode: configCodeSchema.optional(),
-    cityCode: configCodeSchema.optional(),
+    enabledCountryCodes: z.array(configCodeSchema).optional(),
+    enabledStateCodes: z.array(configCodeSchema).optional(),
+    enabledCityCodes: z.array(configCodeSchema).optional(),
     timezone: z.string().min(1).optional(),
     defaultLanguageCode: configCodeSchema.optional(),
     supportedLanguageCodes: z.array(configCodeSchema).optional(),

@@ -12,13 +12,15 @@ describe('organizationConfig.mapper', () => {
   it('maps legacy supported* fields to new config model', () => {
     const mapped = mapLegacyOrganizationConfigToNew({
       supportedCountries: ['in'],
+      supportedStates: ['ka'],
       supportedLanguages: ['en', 'hi'],
       supportedCategories: ['chronic'],
       supportedConditions: ['hypertension'],
     });
 
     expect(mapped).toEqual({
-      countryCode: 'IN',
+      enabledCountryCodes: ['IN'],
+      enabledStateCodes: ['KA'],
       defaultLanguageCode: 'EN',
       supportedLanguageCodes: ['EN', 'HI'],
       enabledCategoryCodes: ['CHRONIC'],
@@ -26,22 +28,22 @@ describe('organizationConfig.mapper', () => {
     });
   });
 
-  it('maps legacy supportedStates to stateCode', () => {
+  it('maps legacy supportedStates to enabledStateCodes', () => {
     const mapped = mapLegacyOrganizationConfigToNew({
-      supportedStates: ['ka'],
+      supportedStates: ['ka', 'mh'],
     });
 
-    expect(mapped.stateCode).toBe('KA');
+    expect(mapped.enabledStateCodes).toEqual(['KA', 'MH']);
   });
 
   it('maps stored CONFIG item with new fields and legacy fallback', () => {
     const mapped = mapStoredOrganizationConfigToData({
-      countryCode: 'US',
+      enabledCountryCodes: ['US'],
       supportedCategories: ['LEGACY_CAT'],
     });
 
     expect(mapped).toEqual({
-      countryCode: 'US',
+      enabledCountryCodes: ['US'],
       enabledCategoryCodes: ['LEGACY_CAT'],
     });
   });
@@ -55,7 +57,7 @@ describe('organizationConfig.mapper', () => {
       },
     );
 
-    expect(mapped.countryCode).toBe('US');
+    expect(mapped.enabledCountryCodes).toEqual(['US']);
     expect(mapped.enabledModuleCodes).toEqual(['MOD_A']);
     expect(mapped.enabledDeviceCodes).toEqual(['BP_MONITOR', 'GLUCOSE_METER']);
   });
@@ -81,20 +83,42 @@ describe('organizationConfig.mapper', () => {
     });
   });
 
+  it('maps legacy supportedCountries to all enabledCountryCodes', () => {
+    const mapped = mapLegacyOrganizationConfigToNew({
+      supportedCountries: ['in', 'us', 'ae'],
+    });
+
+    expect(mapped.enabledCountryCodes).toEqual(['IN', 'US', 'AE']);
+  });
+
+  it('reconciles enabled location arrays from legacy single-value fields on read', () => {
+    const mapped = mapStoredOrganizationConfigToData({
+      countryCode: 'IN',
+      stateCode: 'KA',
+      cityCode: 'BLR',
+      enabledModuleCodes: ['MOD_A'],
+    });
+
+    expect(mapped.enabledCountryCodes).toEqual(['IN']);
+    expect(mapped.enabledStateCodes).toEqual(['KA']);
+    expect(mapped.enabledCityCodes).toEqual(['BLR']);
+    expect(mapped.enabledModuleCodes).toEqual(['MOD_A']);
+  });
+
   it('merges new-model patch over latest config fields', () => {
     const merged = mergeOrganizationConfigData(
-      { countryCode: 'US', enabledSpecialtyCodes: ['SPEC_B'] },
+      { enabledCountryCodes: ['US'], enabledSpecialtyCodes: ['SPEC_B'] },
       {
-        countryCode: 'IN',
-        stateCode: 'KA',
+        enabledCountryCodes: ['IN'],
+        enabledStateCodes: ['KA'],
         timezone: 'Asia/Kolkata',
         enabledModuleCodes: ['MOD_A'],
       },
     );
 
     expect(merged).toEqual({
-      countryCode: 'US',
-      stateCode: 'KA',
+      enabledCountryCodes: ['US'],
+      enabledStateCodes: ['KA'],
       timezone: 'Asia/Kolkata',
       enabledModuleCodes: ['MOD_A'],
       enabledSpecialtyCodes: ['SPEC_B'],

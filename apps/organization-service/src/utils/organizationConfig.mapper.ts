@@ -6,6 +6,23 @@ const normalizeCode = (value: string): string => value.trim().toUpperCase();
 const uniqueCodes = (values: string[]): string[] =>
   Array.from(new Set(values.map(normalizeCode).filter((code) => code.length > 0)));
 
+/** Normalizes and deduplicates enabled metadata codes for persistence. */
+export function normalizeEnabledCodes(codes: string[]): string[] {
+  return uniqueCodes(codes);
+}
+
+/** @deprecated Use {@link normalizeEnabledCodes}. */
+export function normalizeEnabledCountryCodes(codes: string[]): string[] {
+  return normalizeEnabledCodes(codes);
+}
+
+/** Legacy single-value location fields on persisted CONFIG items (pre–multi-location). */
+export interface LegacyLocationConfigFields {
+  countryCode?: string;
+  stateCode?: string;
+  cityCode?: string;
+}
+
 /**
  * Extracts module codes from legacy `modules` payloads (object map or string array).
  */
@@ -59,10 +76,10 @@ export function mapLegacyOrganizationConfigToNew(
   const mapped: OrganizationConfigData = {};
 
   if (legacy.supportedCountries?.length) {
-    mapped.countryCode = normalizeCode(legacy.supportedCountries[0]);
+    mapped.enabledCountryCodes = uniqueCodes(legacy.supportedCountries);
   }
   if (legacy.supportedStates?.length) {
-    mapped.stateCode = normalizeCode(legacy.supportedStates[0]);
+    mapped.enabledStateCodes = uniqueCodes(legacy.supportedStates);
   }
   if (legacy.supportedLanguages?.length) {
     mapped.defaultLanguageCode = normalizeCode(legacy.supportedLanguages[0]);
@@ -140,11 +157,52 @@ export function toOrganizationConfigData(
 }
 
 /**
+ * Ensures enabled location arrays are populated from legacy single-value / supported* sources.
+ */
+export function reconcileEnabledLocationCodes(
+  config: OrganizationConfigData,
+  legacy?: LegacyLocationConfigFields,
+): OrganizationConfigData {
+  const reconciled: OrganizationConfigData = { ...config };
+
+  if (!reconciled.enabledCountryCodes?.length) {
+    if (legacy?.countryCode) {
+      reconciled.enabledCountryCodes = [normalizeCode(legacy.countryCode)];
+    }
+  } else {
+    reconciled.enabledCountryCodes = uniqueCodes(reconciled.enabledCountryCodes);
+  }
+
+  if (!reconciled.enabledStateCodes?.length) {
+    if (legacy?.stateCode) {
+      reconciled.enabledStateCodes = [normalizeCode(legacy.stateCode)];
+    }
+  } else {
+    reconciled.enabledStateCodes = uniqueCodes(reconciled.enabledStateCodes);
+  }
+
+  if (!reconciled.enabledCityCodes?.length) {
+    if (legacy?.cityCode) {
+      reconciled.enabledCityCodes = [normalizeCode(legacy.cityCode)];
+    }
+  } else {
+    reconciled.enabledCityCodes = uniqueCodes(reconciled.enabledCityCodes);
+  }
+
+  return reconciled;
+}
+
+/** @deprecated Use {@link reconcileEnabledLocationCodes}. */
+export function reconcileEnabledCountryCodes(config: OrganizationConfigData): OrganizationConfigData {
+  return reconcileEnabledLocationCodes(config);
+}
+
+/**
  * Maps a persisted CONFIG item to `OrganizationConfigData` for read APIs.
  * New-model fields win; legacy `supported*` arrays fill gaps for older versions.
  */
 export function mapStoredOrganizationConfigToData(
-  item: OrganizationConfigData & OrganizationConfigPatch,
+  item: OrganizationConfigData & OrganizationConfigPatch & LegacyLocationConfigFields,
 ): OrganizationConfigData {
   const fromNew = toOrganizationConfigData(item);
   const fromLegacy = mapLegacyOrganizationConfigToNew({
@@ -154,7 +212,11 @@ export function mapStoredOrganizationConfigToData(
     supportedCategories: item.supportedCategories,
     supportedConditions: item.supportedConditions,
   });
-  return mergeOrganizationConfigData(fromNew, fromLegacy);
+  return reconcileEnabledLocationCodes(mergeOrganizationConfigData(fromNew, fromLegacy), {
+    countryCode: item.countryCode,
+    stateCode: item.stateCode,
+    cityCode: item.cityCode,
+  });
 }
 
 export function hasOrganizationConfigData(config: OrganizationConfigData): boolean {

@@ -32,6 +32,7 @@ import {
   mapLegacyOrganizationConfigToNew,
   mergeLegacyOrganizationConfigPatch,
   mergeOrganizationConfigData,
+  normalizeEnabledCodes,
   toOrganizationConfigData,
   mapStoredOrganizationConfigToData,
   hasOrganizationConfigData,
@@ -619,6 +620,15 @@ export class OrganizationService {
         if (value !== undefined) {
           (incomingConfig as Record<string, unknown>)[key] = value;
         }
+      }
+      if (incomingConfig.enabledCountryCodes !== undefined) {
+        incomingConfig.enabledCountryCodes = normalizeEnabledCodes(incomingConfig.enabledCountryCodes);
+      }
+      if (incomingConfig.enabledStateCodes !== undefined) {
+        incomingConfig.enabledStateCodes = normalizeEnabledCodes(incomingConfig.enabledStateCodes);
+      }
+      if (incomingConfig.enabledCityCodes !== undefined) {
+        incomingConfig.enabledCityCodes = normalizeEnabledCodes(incomingConfig.enabledCityCodes);
       }
 
       const latestConfig = await this.repository.getLatestOrganizationConfigVersionItem(organizationId);

@@ -4,7 +4,7 @@
  */
 export const METADATA_SEED_SMOKE_TEST = true;
 
-export const METADATA_SEED_SMOKE_TYPES = ['ApplicableModule'] as const;
+export const METADATA_SEED_SMOKE_TYPES = ['ApplicableModule','PackageType'] as const;
 
 export function isSmokeTestEnabled(): boolean {
   return METADATA_SEED_SMOKE_TEST;

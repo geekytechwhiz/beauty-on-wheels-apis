@@ -101,21 +101,25 @@ export function deriveCountryStateCityGroup(
   config: OrganizationConfigData,
   labelLookup: MetadataLabelLookup,
 ): CountryStateCityGroup | undefined {
-  const country = config.countryCode
-    ? toMetadataCodeLabel(config.countryCode, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.countryCode)
-    : undefined;
-  const state = config.stateCode
-    ? toMetadataCodeLabel(config.stateCode, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.stateCode)
-    : undefined;
-  const city = config.cityCode
-    ? toMetadataCodeLabel(config.cityCode, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.cityCode)
-    : undefined;
+  const countries = (config.enabledCountryCodes ?? []).map((code) =>
+    toMetadataCodeLabel(code, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.enabledCountryCodes),
+  );
+  const states = (config.enabledStateCodes ?? []).map((code) =>
+    toMetadataCodeLabel(code, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.enabledStateCodes),
+  );
+  const cities = (config.enabledCityCodes ?? []).map((code) =>
+    toMetadataCodeLabel(code, labelLookup, CONFIG_FIELD_TO_METADATA_TYPE.enabledCityCodes),
+  );
 
-  if (!country && !state && !city) {
+  if (countries.length === 0 && states.length === 0 && cities.length === 0) {
     return undefined;
   }
 
-  return { ...(country ? { country } : {}), ...(state ? { state } : {}), ...(city ? { city } : {}) };
+  return {
+    ...(countries.length ? { countries } : {}),
+    ...(states.length ? { states } : {}),
+    ...(cities.length ? { cities } : {}),
+  };
 }
 
 export async function deriveCategoryConditionGroups(

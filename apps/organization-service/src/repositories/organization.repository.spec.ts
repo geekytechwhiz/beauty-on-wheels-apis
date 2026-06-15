@@ -264,7 +264,7 @@ describe('OrganizationRepository organization config versioning', () => {
 
       const result = await repository.createOrganizationConfigDraftVersion(
         'org-1',
-        { countryCode: 'IN', enabledModuleCodes: ['MOD_A'] },
+        { enabledCountryCodes: ['IN'], enabledModuleCodes: ['MOD_A'] },
         { createdBy: 'user-1' },
       );
 
@@ -278,8 +278,21 @@ describe('OrganizationRepository organization config versioning', () => {
       expect(mockSend.mock.calls[1][0]).toBeInstanceOf(PutCommand);
       const putItem = (mockSend.mock.calls[1][0] as PutCommand).input.Item as any;
       expect(putItem.entityType).toBe(OrgConfigEntityType.ORG_CONFIG);
-      expect(putItem.countryCode).toBe('IN');
+      expect(putItem.enabledCountryCodes).toEqual(['IN']);
       expect(putItem.enabledModuleCodes).toEqual(['MOD_A']);
+    });
+
+    it('persists enabledCountryCodes on draft config items', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Items: [] })
+        .mockResolvedValueOnce({});
+
+      await repository.createOrganizationConfigDraftVersion('org-1', {
+        enabledCountryCodes: ['IN', 'US', 'AE'],
+      });
+
+      const putItem = (mockSend.mock.calls[1][0] as PutCommand).input.Item as any;
+      expect(putItem.enabledCountryCodes).toEqual(['IN', 'US', 'AE']);
     });
 
     it('increments to the next version and does NOT deactivate previous versions', async () => {
@@ -302,7 +315,7 @@ describe('OrganizationRepository organization config versioning', () => {
 
       const result = await repository.createOrganizationConfigDraftVersion(
         'org-1',
-        { countryCode: 'US' },
+        { enabledCountryCodes: ['US'] },
         { changeReason: 'switch' },
       );
 

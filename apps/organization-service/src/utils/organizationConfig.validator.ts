@@ -137,57 +137,72 @@ export async function validateOrganizationConfigForPublish(
     }
   }
 
-  if (config.countryCode && config.stateCode) {
+  if (config.enabledCountryCodes?.length && config.enabledStateCodes?.length) {
+    const countryCodes = collectCodesForField(config, 'enabledCountryCodes');
     const countryState = await reader.getRelatedValues(
       {
         fromType: 'Country',
-        fromValues: [normalizeCode(config.countryCode)],
+        fromValues: countryCodes,
         relationType: 'PARENT_CHILD',
         toType: 'State',
       },
       authHeader,
     );
-    const stateCode = normalizeCode(config.stateCode);
-    if (!relatedValueCodes(countryState).has(stateCode)) {
-      throwMetadataRelation(
-        `State ${stateCode} is not valid for Country ${normalizeCode(config.countryCode)}`,
+    const statesByCountry = relatedValuesBySource(countryState);
+    for (const stateCode of collectCodesForField(config, 'enabledStateCodes')) {
+      const validForCountry = countryCodes.some((countryCode) =>
+        statesByCountry.get(countryCode)?.has(stateCode),
       );
+      if (!validForCountry) {
+        throwMetadataRelation(
+          `State ${stateCode} is not valid for any enabled Country (${countryCodes.join(', ')})`,
+        );
+      }
     }
   }
 
-  if (config.stateCode && config.cityCode) {
+  if (config.enabledStateCodes?.length && config.enabledCityCodes?.length) {
+    const stateCodes = collectCodesForField(config, 'enabledStateCodes');
     const stateCity = await reader.getRelatedValues(
       {
         fromType: 'State',
-        fromValues: [normalizeCode(config.stateCode)],
+        fromValues: stateCodes,
         relationType: 'PARENT_CHILD',
         toType: 'City',
       },
       authHeader,
     );
-    const cityCode = normalizeCode(config.cityCode);
-    if (!relatedValueCodes(stateCity).has(cityCode)) {
-      throwMetadataRelation(
-        `City ${cityCode} is not valid for State ${normalizeCode(config.stateCode)}`,
-      );
+    const citiesByState = relatedValuesBySource(stateCity);
+    for (const cityCode of collectCodesForField(config, 'enabledCityCodes')) {
+      const validForState = stateCodes.some((stateCode) => citiesByState.get(stateCode)?.has(cityCode));
+      if (!validForState) {
+        throwMetadataRelation(
+          `City ${cityCode} is not valid for any enabled State (${stateCodes.join(', ')})`,
+        );
+      }
     }
   }
 
-  if (config.countryCode && config.currencyCode) {
-    const currencyCountry = await reader.getRelatedValues(
-      {
-        fromType: 'Currency',
-        fromValues: [normalizeCode(config.currencyCode)],
-        relationType: 'VALID_IN',
-        toType: 'Country',
-      },
-      authHeader,
-    );
-    const countryCode = normalizeCode(config.countryCode);
-    if (!relatedValueCodes(currencyCountry).has(countryCode)) {
-      throwMetadataRelation(
-        `Currency ${normalizeCode(config.currencyCode)} is not valid for Country ${countryCode}`,
+  if (config.currencyCode) {
+    const countriesForCurrency = collectCodesForField(config, 'enabledCountryCodes');
+    if (countriesForCurrency.length > 0) {
+      const currencyCountry = await reader.getRelatedValues(
+        {
+          fromType: 'Currency',
+          fromValues: [normalizeCode(config.currencyCode)],
+          relationType: 'VALID_IN',
+          toType: 'Country',
+        },
+        authHeader,
       );
+      const validCountries = relatedValueCodes(currencyCountry);
+      const currencyCode = normalizeCode(config.currencyCode);
+      const matchesCountry = countriesForCurrency.some((country) => validCountries.has(country));
+      if (!matchesCountry) {
+        throwMetadataRelation(
+          `Currency ${currencyCode} is not valid for any enabled Country (${countriesForCurrency.join(', ')})`,
+        );
+      }
     }
   }
 

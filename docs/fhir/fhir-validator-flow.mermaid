@@ -1,0 +1,36 @@
+sequenceDiagram
+
+participant Client
+participant Validator
+participant Registry
+participant Terminology
+participant Mapper
+participant Comparator
+
+Client->>Validator: Submit FHIR Resource
+
+Validator->>Registry: Load Metadata
+Registry-->>Validator: Resource Definition
+
+Validator->>Registry: Load Profile
+Registry-->>Validator: Profile
+
+Validator->>Terminology: Validate Codes
+Terminology-->>Validator: Validation Result
+
+Validator->>Mapper: Validate Mapping
+
+Mapper->>Registry: Resolve Mapping
+Registry-->>Mapper: Mapping Config
+
+Mapper-->>Validator: Mapping Valid
+
+Validator->>Mapper: Transform Resource
+
+Mapper-->>Validator: Output Resource
+
+Validator->>Comparator: Compare Output
+
+Comparator-->>Validator: Differences
+
+Validator-->>Client: Validation Report

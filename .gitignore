@@ -108,6 +108,8 @@ apps/task-service/.esbuild/
 apps/task-service/swagger/
 apps/task-service.zip
 apps/task-service/*.zip
+
+packages/fhir/*.zip
 apps/task-service/.env
 apps/template-service/.esbuild/
 apps/template-service/swagger/

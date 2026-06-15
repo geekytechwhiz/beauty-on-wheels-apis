@@ -56,6 +56,9 @@
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@ahryman40k/ts-fhir-types": "^4.0.39",
     "@aws-lambda-powertools/commons": "^2.33.0",
@@ -107,7 +110,6 @@
     "pdfkit": "^0.17.2",
     "serverless-auto-swagger": "^3.1.0",
     "serverless-dotenv-plugin": "^6.0.0",
-    "serverless-offline": "^13.9.0",
     "serverless-openapi-documentation": "^0.4.0",
     "ts-morph": "^28.0.0",
     "ulid": "^3.0.2",
@@ -155,8 +157,10 @@
     "nx": "22.3.3",
     "prettier": "~3.6.2",
     "react-refresh": "^0.10.0",
+    "resolve": "^1.22.12",
     "serverless": "^3.40.0",
     "serverless-esbuild": "^1.57.2",
+    "serverless-offline": "12.0.4",
     "serverless-openapi-documenter": "^0.1.1",
     "serverless-plugin-warmup": "^8.4.1",
     "ts-jest": "^29.4.0",

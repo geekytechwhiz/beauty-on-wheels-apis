@@ -38,6 +38,13 @@ export type FhirHandlerOptions = {
    * Composite outbound projections (e.g. getOrganization → multi-resource Bundle).
    */
   outboundProfile?: 'organizationDetail' | 'organizationMetadata';
+  /**
+   * Post-projection FHIR validation (bundle + nested resources).
+   */
+  validation?: {
+    enabled?: boolean;
+    failOnValidationError?: boolean;
+  };
 };
 
 export type FhirResponsePayload = {

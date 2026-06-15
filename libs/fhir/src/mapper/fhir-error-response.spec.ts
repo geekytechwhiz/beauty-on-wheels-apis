@@ -37,4 +37,36 @@ describe('fhirValidationErrorResponse', () => {
       ],
     });
   });
+
+  it('maps fhir-validator issue shape to OperationOutcome', () => {
+    const response = fhirValidationErrorResponse(
+      {
+        statusCode: 422,
+        code: 'FHIR_VALIDATION_FAILED',
+        resourceType: 'Patient',
+        issues: [
+          {
+            validator: 'TerminologyValidator',
+            resourceType: 'Patient',
+            path: 'gender',
+            code: 'INVALID_CODE',
+            message: "Invalid code 'jisna' for http://hl7.org/fhir/administrative-gender",
+          },
+        ],
+      },
+      { correlationId: 'req-456' },
+    );
+
+    const body = JSON.parse(response.body);
+    expect(body.resourceType).toBe('OperationOutcome');
+    expect(body.issue[0]).toEqual(
+      expect.objectContaining({
+        severity: 'error',
+        diagnostics: expect.stringContaining('jisna'),
+        expression: ['Patient.gender'],
+        category: 'terminology',
+        validator: 'TerminologyValidator',
+      }),
+    );
+  });
 });

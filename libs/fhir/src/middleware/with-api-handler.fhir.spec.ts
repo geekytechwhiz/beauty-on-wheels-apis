@@ -405,6 +405,120 @@ describe('withApiHandler FHIR integration (fhir-peer)', () => {
     });
   });
 
+  describe('FHIR validation', () => {
+    it('returns OperationOutcome when outbound bundle contains invalid terminology', async () => {
+      const handler = withApiHandler(
+        {
+          operation: 'getPatient',
+          fhir: {
+            resourceType: 'Patient',
+            validation: { enabled: true, failOnValidationError: true },
+          },
+        },
+        async () => ({
+          patientId: 'patient-1',
+          gender: 'jisna',
+          mrn: 'MRN-1',
+        }),
+      );
+
+      const response = await handler(fhirEvent, context);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.headers?.['Content-Type']).toBe('application/fhir+json');
+
+      const body = parseBody(response);
+      expect(body.resourceType).toBe('OperationOutcome');
+      expect(body.issue).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: 'error',
+            diagnostics: expect.stringContaining('jisna'),
+          }),
+        ]),
+      );
+    });
+
+    it('returns success with fhirValidation warnings when failOnValidationError is false', async () => {
+      const handler = withApiHandler(
+        {
+          operation: 'getPatient',
+          fhir: {
+            resourceType: 'Patient',
+            validation: { enabled: true, failOnValidationError: false },
+          },
+        },
+        async () => ({
+          patientId: 'patient-1',
+          gender: 'jisna',
+          mrn: 'MRN-1',
+        }),
+      );
+
+      const response = await handler(fhirEvent, context);
+      const body = parseBody(response);
+
+      expect(response.statusCode).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.fhir.entry[0].resource.gender).toBe('jisna');
+      expect(body.fhirValidation).toMatchObject({
+        valid: false,
+        operationOutcome: {
+          resourceType: 'OperationOutcome',
+          issue: [
+            expect.objectContaining({
+              severity: 'warning',
+              code: 'value',
+              category: 'terminology',
+              validator: 'TerminologyValidator',
+              expression: ['Patient.gender'],
+              diagnostics: expect.stringContaining('jisna'),
+            }),
+          ],
+        },
+      });
+    });
+
+    it('returns OperationOutcome for invalid inbound FHIR bodies when validation is enabled', async () => {
+      const handler = withApiHandler(
+        {
+          operation: 'user.create',
+          fhir: {
+            resourceType: 'Patient',
+            inboundProfile: 'createUser',
+            validation: { enabled: true, failOnValidationError: true },
+          },
+        },
+        async () => ({ message: 'created' }),
+      );
+
+      const response = await handler(
+        {
+          httpMethod: 'POST',
+          path: '/user/create',
+          headers: {
+            Accept: 'application/fhir+json',
+            'Content-Type': 'application/fhir+json',
+          },
+          body: JSON.stringify({
+            resourceType: 'Patient',
+            id: 'patient-1',
+            gender: 'jisna',
+          }),
+          pathParameters: null,
+          queryStringParameters: null,
+        } as unknown as APIGatewayProxyEvent,
+        context,
+      );
+
+      expect(response.statusCode).toBe(422);
+      expect(response.headers?.['Content-Type']).toBe('application/fhir+json');
+
+      const body = parseBody(response);
+      expect(body.resourceType).toBe('OperationOutcome');
+    });
+  });
+
   describe('errors', () => {
     it('returns OperationOutcome when handler throws FhirValidationError', async () => {
       const handler = withApiHandler({ operation: 'getPatient' }, async () => {

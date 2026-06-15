@@ -240,22 +240,21 @@ export const postTemplateConfigMetaBodySchema = z.object({
 
 export const createTemplateConfigBodySchema = z
   .object({
-    configType: z.enum(['TEMPLATE', 'ORG']),
+    id: z.string().trim().min(1),
+    configType: z.enum(['TEMPLATE', 'ORG']).optional(),
     templateType: z.string().trim().min(1).optional(),
     configKey: z.string().trim().min(1).optional(),
-    fileName: z
-      .string()
-      .trim()
-      .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
-      .optional(),
-    id: z.string().trim().min(1).optional(),
     fields: z.record(z.string(), z.unknown()).optional(),
     active: z.boolean().optional(),
     version: z.number().int().positive().optional(),
   })
   .passthrough();
 
-export const updateTemplateConfigBodySchema = z.object({}).passthrough();
+export const updateTemplateConfigBodySchema = z
+  .object({
+    id: z.string().trim().min(1),
+  })
+  .passthrough();
 
 export const templateVersionPathSchema = z.object({
   templateId: z.string().trim().min(1),

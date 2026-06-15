@@ -1,0 +1,6 @@
+Effect: Allow
+Action:
+  - s3:*
+Resource:
+  - arn:aws:s3:::${self:custom.bundle.templateConfigBucketName}
+  - arn:aws:s3:::${self:custom.bundle.templateConfigBucketName}/*

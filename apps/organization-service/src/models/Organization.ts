@@ -113,9 +113,9 @@ export interface OrganizationConfigMetadataDefaults {
 
 /** GET response config with registry-resolved labels (codes only in DynamoDB). */
 export interface EnrichedOrganizationConfig {
-  countryCode?: MetadataCodeLabel;
-  stateCode?: MetadataCodeLabel;
-  cityCode?: MetadataCodeLabel;
+  enabledCountryCodes?: MetadataCodeLabel[];
+  enabledStateCodes?: MetadataCodeLabel[];
+  enabledCityCodes?: MetadataCodeLabel[];
   timezone?: string;
   defaultLanguageCode?: MetadataCodeLabel;
   supportedLanguageCodes?: MetadataCodeLabel[];
@@ -143,15 +143,15 @@ export interface CategoryConditionGroup {
 }
 
 export interface CountryStateCityGroup {
-  country?: MetadataCodeLabel;
-  state?: MetadataCodeLabel;
-  city?: MetadataCodeLabel;
+  countries?: MetadataCodeLabel[];
+  states?: MetadataCodeLabel[];
+  cities?: MetadataCodeLabel[];
 }
 
 export interface OrganizationConfigData {
-  countryCode?: string;
-  stateCode?: string;
-  cityCode?: string;
+  enabledCountryCodes?: string[];
+  enabledStateCodes?: string[];
+  enabledCityCodes?: string[];
   timezone?: string;
   defaultLanguageCode?: string;
   supportedLanguageCodes?: string[];
@@ -175,9 +175,9 @@ export interface OrganizationConfigData {
 
 /** Config fields persisted on `CONFIG#v{n}` items (ordered for stable comparison). */
 export const ORGANIZATION_CONFIG_DATA_KEYS: readonly (keyof OrganizationConfigData)[] = [
-  'countryCode',
-  'stateCode',
-  'cityCode',
+  'enabledCountryCodes',
+  'enabledStateCodes',
+  'enabledCityCodes',
   'timezone',
   'defaultLanguageCode',
   'supportedLanguageCodes',

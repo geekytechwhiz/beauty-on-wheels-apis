@@ -8,7 +8,7 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-auto-swagger
-  - serverless-offline
+  - ../../node_modules/serverless-offline/src/index.js
 
 provider:
   name: aws

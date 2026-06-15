@@ -63,3 +63,23 @@ export async function getTemplateUiApiResponse(templateType?: string | null): Pr
   }
 }
 
+
+
+export type TemplateField = {
+  code: string;
+  displayName: string;
+  type: string;
+
+  labelKey?: string;
+  placeholderKey?: string;
+   options: {
+      labelKey: string;
+      value: string;
+    }[]
+  validation: {
+    required: {
+      value: boolean;
+      messageKey?: string;
+    };
+  };
+};

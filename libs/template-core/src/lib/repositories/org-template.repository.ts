@@ -11,8 +11,13 @@ import {
 } from '../constants/template.constants';
 import type { ListOrgTemplatesParams } from '../models/api/org-template.types';
 import type { GetOrgVersionsParams } from '../models/api/org-template.types';
-import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
-import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../utils/template.utils';
+import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
+import {
+  assertTemplateTable,
+  decodeListCursor,
+  encodeListCursor,
+  resolveOrgVersionPointerSk,
+} from '../utils/template.utils';
 
 export class OrgTemplateRepository extends BaseRepository {
   async getOrgMeta(organizationId: string, templateId: string): Promise<TemplateDdbRecord | null> {
@@ -33,6 +38,28 @@ export class OrgTemplateRepository extends BaseRepository {
       pk: TemplateKeyBuilder.toOrgPk(organizationId, templateId),
       sk: TemplateKeyBuilder.toVersionSk(versionSk),
     });
+  }
+
+  /** Resolve VERSION row from META pointer; falls back to newest VERSION row under the org template. */
+  async getOrgVersionForMeta(
+    organizationId: string,
+    templateId: string,
+    meta: Pick<TemplateMeta, 'templateVersionId' | 'version'>,
+  ): Promise<TemplateDdbRecord | null> {
+    const pointerSk = resolveOrgVersionPointerSk(meta);
+    const candidateSks = new Set([
+      pointerSk,
+      `${VERSION_SK_PREFIX}001`,
+      TemplateKeyBuilder.toVersionSk('001'),
+    ]);
+
+    for (const versionSk of candidateSks) {
+      const versionRow = await this.getOrgVersion(organizationId, templateId, versionSk);
+      if (versionRow) return versionRow;
+    }
+
+    const { items } = await this.queryOrgVersionsPage(organizationId, templateId, { limit: 10 });
+    return items[0] ?? null;
   }
 
   async queryOrgVersionsPage(

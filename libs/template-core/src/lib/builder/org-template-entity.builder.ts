@@ -12,6 +12,7 @@ import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
 import { resolveTemplateActor } from '../utils/template-actor.utils';
 import { firstString } from '../utils/template.utils';
+import { resolveOrgRulesFromMaster } from '../utils/template-rules.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
 
@@ -196,6 +197,7 @@ export class OrgTemplateEntityBuilder {
     if (!ctx.inheritLinks && documentFields.links) {
       delete documentFields.links;
     }
+    documentFields.rules = resolveOrgRulesFromMaster(masterVersion);
 
     const record: TemplateDdbRecord = {
       pk: TemplateKeyBuilder.toOrgPk(ctx.organizationId, ctx.newTemplateId),

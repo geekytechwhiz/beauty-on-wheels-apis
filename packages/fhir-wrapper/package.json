@@ -42,12 +42,13 @@
   },
   "peerDependencies": {
     "@myvitalrx/platform-tools": ">=0.2.0"
-  },
-  "devDependencies": { 
+  }, 
+  "devDependencies": {  
+    
     "@api-hub/observability": "workspace:*",
     "@api-hub/terminology": "workspace:*",
     "@api-hub/utils": "workspace:*",
-    "@myvitalrx/platform-tools": "workspace:*",
+ 
     "tsup": "^8.5.0",
     "typescript": "^5.9.0"
   },

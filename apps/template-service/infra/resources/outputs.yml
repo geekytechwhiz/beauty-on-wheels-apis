@@ -1,4 +1,9 @@
 Outputs:
+  TemplateConfigBucketName:
+    Description: S3 bucket for template UI configuration JSON (existing stage bucket)
+    Value: ${self:custom.bundle.templateConfigBucketName}
+    Export:
+      Name: ${self:provider.stage}-${self:service}-TemplateConfigBucketName
   TemplateEventBusName:
     Description: Name of the Template Service Event Bus
     Value:

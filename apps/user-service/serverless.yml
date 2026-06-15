@@ -14,7 +14,9 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs18.x
+ 
+  runtime: nodejs22.x
+  versionFunctions: false 
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -444,8 +446,11 @@ functions:
           #   resultTtlInSeconds: 0
   updateUser:
     handler: src/handlers/updateUser.main
+    warmup:
+      default:
+        enabled: true
     timeout: 10
-    memorySize: 256
+    memorySize: 512
     events:
       - http:
           path: updateUser

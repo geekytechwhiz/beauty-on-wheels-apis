@@ -18,9 +18,22 @@ export interface MetadataRegistryValueDto {
 /** One metadata type plus active values from the registry batch read API. */
 export interface MetadataRegistryTypeValuesDto {
   metadataType: string;
+  
   displayName: string;
   multiSelectAllowed: boolean;
+  required: boolean;
   valueDataType: string;
+  isGlobal: boolean;
+  sortOrder: number;
+  attributes: Record<string, unknown>;
+  applicability: {
+    module: string[];
+    category: string[];
+    condition: string[];
+    country: string[];
+    language: string[];
+  };
+
   values: MetadataRegistryValueDto[];
 }
 

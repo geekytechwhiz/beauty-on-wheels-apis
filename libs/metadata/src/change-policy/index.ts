@@ -26,5 +26,7 @@ export { parseChangePolicyCatalog, ChangePolicyCatalogError } from './catalog/ch
 export { detectFieldChanges } from './detector/change-detector';
 export { matchPolicyRules } from './matcher/policy-matcher';
 export { aggregateChangeImpact } from './aggregator/impact-aggregator';
+export { applyConsumerImpact } from './consumer/apply-consumer-impact';
+export { resolveMetadataConsumerContext } from './consumer/consumer-impact.resolver';
 export * from './types/change-policy.types';
 export * from './types/policy-group.codes';

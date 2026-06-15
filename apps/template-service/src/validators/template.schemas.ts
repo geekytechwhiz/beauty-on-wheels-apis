@@ -240,22 +240,21 @@ export const postTemplateConfigMetaBodySchema = z.object({
 
 export const createTemplateConfigBodySchema = z
   .object({
-    configType: z.enum(['TEMPLATE', 'ORG']),
+    id: z.string().trim().min(1),
+    configType: z.enum(['TEMPLATE', 'ORG']).optional(),
     templateType: z.string().trim().min(1).optional(),
     configKey: z.string().trim().min(1).optional(),
-    fileName: z
-      .string()
-      .trim()
-      .regex(/^[a-z0-9][a-z0-9._-]*\.json$/i)
-      .optional(),
-    id: z.string().trim().min(1).optional(),
     fields: z.record(z.string(), z.unknown()).optional(),
     active: z.boolean().optional(),
     version: z.number().int().positive().optional(),
   })
   .passthrough();
 
-export const updateTemplateConfigBodySchema = z.object({}).passthrough();
+export const updateTemplateConfigBodySchema = z
+  .object({
+    id: z.string().trim().min(1),
+  })
+  .passthrough();
 
 export const templateVersionPathSchema = z.object({
   templateId: z.string().trim().min(1),
@@ -315,6 +314,43 @@ export const orgTemplatePathSchema = z.object({
   organizationId: z.string().trim().min(1),
   templateId: z.string().trim().min(1),
 });
+
+/** GET/PUT /templates/org/{templateId}/{orgId} — master template id + organization id. */
+export const orgTemplateRulesPathSchema = z.object({
+  templateId: z.string().trim().min(1),
+  orgId: z.string().trim().min(1),
+});
+
+const partialTemplateFieldRuleSchema = z
+  .object({
+    enable: z.boolean().optional(),
+    orgedit: z.boolean().optional(),
+    add: z.boolean().optional(),
+    defaultedit: z.boolean().optional(),
+    delete: z.boolean().optional(),
+    metadataMode: z.string().trim().min(1).optional(),
+    min: z.number().int().min(0).optional(),
+    max: z.number().int().min(0).optional(),
+  })
+  .strict()
+  .superRefine((rule, ctx) => {
+    if (rule.min !== undefined && rule.max !== undefined && rule.min > rule.max) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'min cannot exceed max',
+      });
+    }
+  });
+
+export const updateOrgTemplateRulesBodySchema = z.object({
+  rules: z
+    .record(z.string().trim().min(1), partialTemplateFieldRuleSchema)
+    .refine((rules) => Object.keys(rules).length > 0, {
+      message: 'rules must contain at least one field path',
+    }),
+});
+
+export type UpdateOrgTemplateRulesBody = z.infer<typeof updateOrgTemplateRulesBodySchema>;
 
 export const orgClonePathSchema = z.object({
   organizationId: z.string().trim().min(1),

@@ -73,6 +73,100 @@ describe('OrgTemplateSyncService.syncAllEnabledOrgsFromMaster', () => {
   });
 });
 
+describe('OrgTemplateSyncService.syncOrgTemplateContentFromMaster', () => {
+  it('resolves VERSION#001 when meta.version is a minor display after rules edit', async () => {
+    const masterVersion = buildPublishedMaster(1);
+    const orgMeta: TemplateDdbRecord = {
+      pk: 'ORG#org-1#TMPL#TASK-MONITORING-MASTER-ORG-ORG-1',
+      sk: 'META',
+      entityType: 'ORG_TEMPLATE',
+      meta: {
+        templateId: 'TASK-MONITORING-MASTER-ORG-ORG-1',
+        templateVersionId: 'TASK-MONITORING-MASTER-ORG-ORG-1-V01',
+        version: 1.2,
+        status: TEMPLATE_STATUS.DRAFT,
+        templateName: 'Task Monitoring',
+      },
+    };
+    const orgVersion: TemplateDdbRecord = {
+      pk: orgMeta.pk,
+      sk: 'VERSION#001',
+      entityType: 'ORG_TEMPLATE_VERSION',
+      meta: orgMeta.meta,
+      fieldValues: { a: 1 },
+    };
+    const getOrgMeta = jest.fn().mockResolvedValue(orgMeta);
+    const getOrgVersionForMeta = jest.fn().mockResolvedValue(orgVersion);
+    const saveOrgMetaAndVersion = jest.fn().mockResolvedValue(undefined);
+
+    const svc = new OrgTemplateSyncService(
+      {
+        getOrgMeta,
+        getOrgVersionForMeta,
+        saveOrgMetaAndVersion,
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await svc.syncOrgTemplateContentFromMaster(
+      'org-1',
+      'TASK-MONITORING-MASTER-ORG-ORG-1',
+      'TASK-MONITORING-MASTER',
+      masterVersion,
+    );
+
+    expect(getOrgVersionForMeta).toHaveBeenCalledWith(
+      'org-1',
+      'TASK-MONITORING-MASTER-ORG-ORG-1',
+      orgMeta.meta,
+    );
+    expect(saveOrgMetaAndVersion).toHaveBeenCalled();
+  });
+
+  it('bootstraps VERSION#001 from master when org META exists but VERSION row is missing', async () => {
+    const masterVersion = buildPublishedMaster(1);
+    const orgTemplateId = 'TASK-MONITORING-MASTER-ORG-ORG-1';
+    const orgMeta: TemplateDdbRecord = {
+      pk: 'ORG#org-1#TMPL#TASK-MONITORING-MASTER-ORG-ORG-1',
+      sk: 'META',
+      entityType: 'ORG_TEMPLATE',
+      meta: {
+        templateId: orgTemplateId,
+        templateVersionId: 'TASK-MONITORING-MASTER-V01',
+        version: 1.1,
+        status: TEMPLATE_STATUS.DRAFT,
+        templateName: 'Task Monitoring',
+        masterTemplateId: 'TASK-MONITORING-MASTER',
+      },
+    };
+    const saveOrgMetaAndVersion = jest.fn().mockResolvedValue(undefined);
+
+    const svc = new OrgTemplateSyncService(
+      {
+        getOrgMeta: jest.fn().mockResolvedValue(orgMeta),
+        getOrgVersionForMeta: jest.fn().mockResolvedValue(null),
+        saveOrgMetaAndVersion,
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await svc.syncOrgTemplateContentFromMaster(
+      'org-1',
+      orgTemplateId,
+      'TASK-MONITORING-MASTER',
+      masterVersion,
+    );
+
+    expect(saveOrgMetaAndVersion).toHaveBeenCalled();
+    const versionRow = saveOrgMetaAndVersion.mock.calls[0][1] as TemplateDdbRecord;
+    expect(versionRow.sk).toBe('VERSION#001');
+    expect(versionRow.meta.templateVersionId).toBe(`${orgTemplateId}-V01`);
+    expect(versionRow.rules).toBeDefined();
+  });
+});
+
 describe('OrgTemplateSyncService.upsertEnablementForOrg', () => {
   it('bumps adopted master version on explicit adopt', async () => {
     const masterV13 = buildPublishedMaster(1.3);

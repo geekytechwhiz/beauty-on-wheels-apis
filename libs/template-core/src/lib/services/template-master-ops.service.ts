@@ -22,6 +22,10 @@ import { OrgTemplateSyncService } from './org-template-sync.service';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
+  buildRulesFromFieldValues,
+  mergeRulesAdditive,
+} from '../utils/template-rules.utils';
+import {
   bumpMinorVersion,
   firstString,
   isActiveForStatus,
@@ -198,6 +202,12 @@ export class TemplateMasterOpsService {
 
       const { metaOverrides, documentFields } = parseUpdateBody(params.body);
       const mergedDocument = mergeDocumentFields(sourceVersion, documentFields);
+      if (documentFields.fieldValues !== undefined) {
+        mergedDocument.rules = mergeRulesAdditive(
+          asRecord(sourceVersion.rules),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues)),
+        );
+      }
       const separateMeta = this.usesSeparateMetaRow(metaRow);
 
       if (!separateMeta) {

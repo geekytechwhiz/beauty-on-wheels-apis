@@ -3,7 +3,7 @@ import type {
   MetadataRegistryValueDto,
 } from '@api-hub/service-clients';
 
-import { METADATA_VALUE_STATUS_ACTIVE } from '../constants/template-config-meta.constants';
+import { METADATA_STATUS } from '@api-hub/utils';
 import { TemplateField } from '../utils/template-ui-response';
 
 export interface TemplateConfigMetaValue {
@@ -27,7 +27,7 @@ export interface TemplateConfigMetaResponse {
 }
 
 function mapValue(value: MetadataRegistryValueDto): TemplateConfigMetaValue | null {
-  if (value.status !== METADATA_VALUE_STATUS_ACTIVE) {
+  if (value.status !== METADATA_STATUS.ACTIVE) {
     return null;
   }
 
@@ -64,11 +64,11 @@ const validationBuilder = (item:any) => {
 };
 
 function mapTypeValue(item: MetadataRegistryTypeValuesDto): TemplateField {
- 
-
+  
   return {
     code: item.metadataType,
     displayName: item.displayName,
+    isGlobal: item.isGlobal ?? false,
     type: item.valueDataType === 'Enum' ? 'select' : 'text',
     labelKey: `${item.metadataType?.toLowerCase()}.label`,
     placeholderKey: `${item.metadataType?.toLowerCase()}.placeholder`,
@@ -87,9 +87,10 @@ function mapTypeValue(item: MetadataRegistryTypeValuesDto): TemplateField {
 export function mapTemplateConfigMetaResponse(input: {
   items: MetadataRegistryTypeValuesDto[];
   missingMetadataTypeCodes: string[];
-}): TemplateConfigMetaResponse {
+}): TemplateConfigMetaResponse { 
+  const activeItems = input.items.filter((item) => item.status?.toUpperCase()?.trim()!== METADATA_STATUS.INACTIVE);
   return {
-    items: input.items.map(mapTypeValue),
+    items: activeItems.map(mapTypeValue),
     missingMetadataTypeCodes: input.missingMetadataTypeCodes,
   };
 }

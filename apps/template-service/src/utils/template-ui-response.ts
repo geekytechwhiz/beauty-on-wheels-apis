@@ -68,6 +68,7 @@ export async function getTemplateUiApiResponse(templateType?: string | null): Pr
 export type TemplateField = {
   code: string;
   displayName: string;
+  isGlobal: boolean;
   type: string;
 
   labelKey?: string;
@@ -83,3 +84,4 @@ export type TemplateField = {
     };
   };
 };
+

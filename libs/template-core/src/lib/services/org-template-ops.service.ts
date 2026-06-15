@@ -20,7 +20,7 @@ import { OrgTemplateRepository } from '../repositories/org-template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
   buildRulesFromFieldValues,
-  mergeRulesAdditive,
+  mergeRulesAfterFieldValuesChange,
 } from '../utils/template-rules.utils';
 import {
   bumpMinorVersion,
@@ -189,9 +189,24 @@ export class OrgTemplateOpsService {
       };
 
       if (documentFields.fieldValues !== undefined) {
-        mergedDocument.rules = mergeRulesAdditive(
+        mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
-          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues)),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), {
+            templateType:
+              (typeof mergedDocument.meta?.templateType === 'string' &&
+                mergedDocument.meta.templateType) ||
+              (typeof sourceVersion.meta?.templateType === 'string'
+                ? sourceVersion.meta.templateType
+                : undefined),
+          }),
+          {
+            templateType:
+              (typeof mergedDocument.meta?.templateType === 'string' &&
+                mergedDocument.meta.templateType) ||
+              (typeof sourceVersion.meta?.templateType === 'string'
+                ? sourceVersion.meta.templateType
+                : undefined),
+          },
         );
       }
 

@@ -255,7 +255,11 @@ export class TemplateRepository extends BaseRepository {
     const ctx = TemplateEntityBuilder.buildCreateContext(input);
     const versionRow = TemplateEntityBuilder.buildVersionRow(ctx, input);
     const fieldValuesForRules = resolveFieldValuesForRules(versionRow, input);
-    versionRow.rules = buildRulesFromFieldValues(fieldValuesForRules);
+    versionRow.rules = buildRulesFromFieldValues(fieldValuesForRules, {
+      templateType:
+        (typeof versionRow.meta?.templateType === 'string' && versionRow.meta.templateType) ||
+        (typeof input.templateType === 'string' ? input.templateType : undefined),
+    });
     appendVersionHistoryToRecord(versionRow, { isCreate: true });
 
     await this.transactWrite({

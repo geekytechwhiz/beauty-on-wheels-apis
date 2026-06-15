@@ -23,7 +23,7 @@ import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
   buildRulesFromFieldValues,
-  mergeRulesAdditive,
+  mergeRulesAfterFieldValuesChange,
 } from '../utils/template-rules.utils';
 import {
   bumpMinorVersion,
@@ -203,9 +203,24 @@ export class TemplateMasterOpsService {
       const { metaOverrides, documentFields } = parseUpdateBody(params.body);
       const mergedDocument = mergeDocumentFields(sourceVersion, documentFields);
       if (documentFields.fieldValues !== undefined) {
-        mergedDocument.rules = mergeRulesAdditive(
+        mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
-          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues)),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), {
+            templateType:
+              (typeof mergedDocument.meta?.templateType === 'string' &&
+                mergedDocument.meta.templateType) ||
+              (typeof sourceVersion.meta?.templateType === 'string'
+                ? sourceVersion.meta.templateType
+                : undefined),
+          }),
+          {
+            templateType:
+              (typeof mergedDocument.meta?.templateType === 'string' &&
+                mergedDocument.meta.templateType) ||
+              (typeof sourceVersion.meta?.templateType === 'string'
+                ? sourceVersion.meta.templateType
+                : undefined),
+          },
         );
       }
       const separateMeta = this.usesSeparateMetaRow(metaRow);

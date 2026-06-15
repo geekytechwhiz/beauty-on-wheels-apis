@@ -27,6 +27,16 @@ export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
 
+/** Prefix for CARE_PLAN fieldValues keys that store linked templates — rules nest under each matching key. */
+export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_' as const;
+
+export function isLinkedTemplateFieldKey(key: string): boolean {
+  return key.startsWith(LINKED_TEMPLATE_FIELD_KEY_PREFIX);
+}
+
+export const LINKED_TEMPLATE_MAX_LINKS = 20;
+export const LINKED_TEMPLATE_NESTED_ARRAY_MAX = 10;
+
 /** Template types queried on GSI2 for published master catalog / org enablement filterOptions. */
 export const MASTER_CATALOG_TEMPLATE_TYPES = [
   'ALERT',

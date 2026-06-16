@@ -8,7 +8,7 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
-  - serverless-auto-swagger
+  # - serverless-auto-swagger
   - serverless-offline
 
 provider:
@@ -28,17 +28,22 @@ provider:
 
   logRetentionInDays: 14
 
-  environment: ${file(./infra/environments/environment.yml)}
+  # environment: ${file(./infra/environments/environment.yml)}
+  environment:
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    NODE_ENV: ${self:provider.stage}
+    SERVICE_NAME: ${self:service}
 
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
 
-  iamRoleStatements:
-    - ${file(./infra/permissions/dynamodb.yml)}
-    # - ${file(./infra/permissions/eventbridge.yml)}  # disabled until reminder scheduler is integrated
-    - ${file(./infra/permissions/xray.yml)}
+  # iamRoleStatements:
+  #   - ${file(./infra/permissions/dynamodb.yml)}
+  #   # - ${file(./infra/permissions/eventbridge.yml)}  # disabled until reminder scheduler is integrated
+  #   - ${file(./infra/permissions/xray.yml)}
 
 package:
   individually: true
@@ -47,23 +52,23 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  bundle: ${file(./infra/config/infra-custom.yml)}
+  # bundle: ${file(./infra/config/infra-custom.yml)}
 
   # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
   # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
-  cors: &httpApiCors
-    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
-    headers:
-      - Content-Type
-      - X-Amz-Date
-      - Authorization
-      - X-Api-Key
-      - X-Correlation-Id
-      - X-Request-Id
-      - X-Requested-With
-      - Sec-Ch-Ua
-      - Sec-Ch-Ua-Mobile
-      - Sec-Ch-Ua-Platform
+  # cors: &httpApiCors
+  #   origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+  #   headers:
+  #     - Content-Type
+  #     - X-Amz-Date
+  #     - Authorization
+  #     - X-Api-Key
+  #     - X-Correlation-Id
+  #     - X-Request-Id
+  #     - X-Requested-With
+  #     - Sec-Ch-Ua
+  #     - Sec-Ch-Ua-Mobile
+  #     - Sec-Ch-Ua-Platform
 
   sourcemapsByStage:
     dev: true
@@ -95,23 +100,23 @@ custom:
       - '.mjs'
       - '.json'
 
-  autoswagger:
-    title: Task Service API
-    description: Runtime task HTTP API. Swagger 2 merge file for serverless-auto-swagger.
-    version: 1.0.0
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    host: ${self:custom.apiHost, ''}
-    generateSwaggerOnDeploy: true
-    swaggerFiles:
-      - swagger.json
-    useStage: true
-    swaggerPath: swagger
-    excludeStages:
-      - production
+  # autoswagger:
+  #   title: Task Service API
+  #   description: Runtime task HTTP API. Swagger 2 merge file for serverless-auto-swagger.
+  #   version: 1.0.0
+  #   apiType: http
+  #   basePath: /${self:provider.stage}
+  #   schemes:
+  #     - https
+  #     - http
+  #   host: ${self:custom.apiHost, ''}
+  #   generateSwaggerOnDeploy: true
+  #   swaggerFiles:
+  #     - swagger.json
+  #   useStage: true
+  #   swaggerPath: swagger
+  #   excludeStages:
+  #     - production
 
   dotenv:
     logging: false
@@ -425,7 +430,7 @@ functions:
   #           "403": Forbidden
   #           "500": Server error
 
-resources:
-  - ${file(./infra/resources/gateway-responses.yml)}
-  # - ${file(./infra/resources/events/event-bus.yml)}  # disabled until reminder scheduler is integrated
-  # - ${file(./infra/resources/outputs.yml)}
+# resources:
+#   - ${file(./infra/resources/gateway-responses.yml)}
+#   # - ${file(./infra/resources/events/event-bus.yml)}  # disabled until reminder scheduler is integrated
+#   # - ${file(./infra/resources/outputs.yml)}

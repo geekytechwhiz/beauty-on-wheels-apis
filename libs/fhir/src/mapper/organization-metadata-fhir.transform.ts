@@ -122,7 +122,10 @@ function buildCatalogOrganization(payload: AnyRecord): Record<string, unknown> {
         extension: nested,
       };
     })
-    .filter((entry): entry is Record<string, unknown> => entry !== undefined);
+    .filter(
+      (entry): entry is { url: string; extension: Array<Record<string, any>> } =>
+        entry !== undefined,
+    );
 
   const extensions: Array<Record<string, unknown>> = [];
   if (statusExtensions.length > 0) {

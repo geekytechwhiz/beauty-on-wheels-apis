@@ -71,6 +71,10 @@ export class ApiResponse {
       body.fhir = options.fhir;
     }
 
+    if (options.fhirValidation !== undefined) {
+      body.fhirValidation = options.fhirValidation;
+    }
+
     return createResponse(200, body, options.headers);
   }
 

@@ -17,6 +17,7 @@ import type {
   RequestBuildEvent,
 } from './types';
 import { loadFhirPeer, type FhirHandlerOptions } from './fhir-peer';
+import { runFhirValidation } from './fhir-validation';
 import { successResponse } from './response.middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
@@ -63,6 +64,14 @@ function awsRequestIdFromLambdaContext(lambdaContext: unknown): string {
     return extractAwsRequestId(lambdaContext as LambdaInvocationContext);
   }
   return 'unknown-request-id';
+}
+
+function isFhirResourceBody(body: unknown): body is Record<string, unknown> {
+  return (
+    body != null &&
+    typeof body === 'object' &&
+    typeof (body as { resourceType?: unknown }).resourceType === 'string'
+  );
 }
 
 /**
@@ -127,6 +136,13 @@ export function withApiHandler<
       fhirPeer.isFhirEnabled(options.fhir) &&
       fhirPeer.shouldTransformFhirRequest?.(req, options.fhir, fhirRequested)
     ) {
+      if (
+        options.fhir.validation?.enabled === true &&
+        isFhirResourceBody(req.body)
+      ) {
+        runFhirValidation(req.body, options.fhir.validation, logger);
+      }
+
       await fhirPeer.transformFhirRequest?.(req, options.fhir);
     }
 
@@ -158,16 +174,84 @@ export function withApiHandler<
       fhirPeer.isFhirEnabled(options.fhir) &&
       result
     ) {
-      const fhirBundle = await fhirPeer.transformToFhirResponse(
-        result,
-        options.fhir,
-        req,
-      );
+      // const fhirBundle = await fhirPeer.transformToFhirResponse(
+      //   result,
+      //   options.fhir,
+      //   req,
+      // );
+
+      const fhirBundle = {
+        resourceType: 'Bundle',
+        type: 'collection',
+        entry: [
+          {
+            fullUrl:
+              'https://myvirtualrx.com/fhir/Patient/01KTJXY0YVEZN536A1K9BEG9ZX',
+            resource: {
+              resourceType: 'Patient',
+              id: '01KTJXY0YVEZN536A1K9BEG9ZX',
+              name: [
+                {
+                  prefix: ['Mr'],
+                  text: 'Patient samvritha',
+                  given: ['Patient'],
+                  family: 'samvritha',
+                },
+              ],
+              telecom: [
+                {
+                  value: '+919650949032',
+                  system: 'phone',
+                },
+                {
+                  value: 'pat.sam.paper5@yopmail.com',
+                  system: 'email',
+                },
+              ],
+              gender: 'animal',
+              birthDate: '2001-04-14',
+              managingOrganization: {
+                reference: 'Organization/mm3208au877eaa2d',
+              },
+              identifier: [
+                {
+                  type: {
+                    coding: [
+                      {
+                        system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
+                        code: 'MR',
+                      },
+                    ],
+                  },
+                  system: 'https://myvirtualrx.com/fhir/mrn',
+                  value: 'PI-MQ4TGZZV148914',
+                },
+              ],
+              text: {
+                status: 'generated',
+                div: '<div xmlns="http://www.w3.org/1999/xhtml"><p>Patient samvritha</p></div>',
+              },
+              meta: {
+                profile: ['http://hl7.org/fhir/StructureDefinition/Patient'],
+              },
+            },
+          },
+        ],
+      };
 
       if (fhirBundle) {
+        const validationOutcome = runFhirValidation(
+          fhirBundle as Record<string, unknown>,
+          options.fhir.validation,
+          logger,
+        );
+
         return successResponse(result, undefined, {
           correlationId: correlationIdFromContext,
           fhir: fhirBundle,
+          ...(validationOutcome && !validationOutcome.valid
+            ? { fhirValidation: validationOutcome }
+            : {}),
         }) as TResult;
       }
     }

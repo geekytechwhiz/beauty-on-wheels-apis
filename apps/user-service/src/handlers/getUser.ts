@@ -57,6 +57,6 @@ const handler = async (req: LambdaRequest<Params>) => {
 };
 
 export const main = withApiHandler(
-  { operation: 'getUser', fhir: fhirUserHandlerOptions },
+  { operation: 'getUser', fhir: { ...fhirUserHandlerOptions , validation: { enabled: true, failOnValidationError: false } } },
   handler,
 );

@@ -20,6 +20,8 @@ export interface ValidationIssue {
   diagnostics: string;
 
   field?: string;
+
+  validator?: string;
 }
 
 export class FhirValidationError extends Error {

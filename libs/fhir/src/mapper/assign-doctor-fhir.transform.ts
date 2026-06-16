@@ -1,6 +1,6 @@
 import type { LambdaRequest } from '@api-hub/utils';
 
-type AnyObject = Record<string, unknown>;
+export type AnyObject = Record<string, unknown>;
 
 export type AssignDoctorParticipant = {
   userId: string;
@@ -391,7 +391,7 @@ function readParticipant(value: unknown): AssignDoctorParticipant | undefined {
     return undefined;
   }
 
-  const participant = value as Record<string, unknown>;
+  const participant: any = value ;
   if (isFhirResource(participant)) {
     const resourceType = participant.resourceType;
     if (resourceType === 'Practitioner') {

@@ -8,7 +8,7 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-auto-swagger
-  - ../../node_modules/serverless-offline/src/index.js
+  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
   name: aws

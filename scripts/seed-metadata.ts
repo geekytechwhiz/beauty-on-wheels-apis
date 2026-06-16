@@ -16,6 +16,10 @@
  * Requires BASE_URL (see scripts/.env.example). AUTH_TOKEN is optional for local offline.
  * Phase 1 creates types with `applicableModules` aggregated from Excel value rows (and overrides).
  * Re-seed with TREAT_CONFLICT_AS_SUCCESS=true skips existing entities.
+ *
+ * Scoped seed (selected types + their values only):
+ *   $env:METADATA_TYPE_CODES="Department,Specialty"; pnpm seed:metadata
+ *   Prerequisite values (e.g. ApplicableModule TEMPLATE) are hydrated from the API before Phase 2.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -26,12 +30,12 @@ import {
   METADATA_SEED_SMOKE_TYPES,
 } from '../helpers/catalog/seed-scope';
 import {
-  METADATA_RICH_VALUES,
-  METADATA_TYPE_DEFINITIONS,
-  METADATA_TYPE_DEPENDENCY_ORDER,
-  METADATA_VALUE_CATALOG,
-  RICH_VALUE_TYPE_BY_CODE,
-} from '../helpers/constants';
+  countSeedValues,
+  logSeedCatalogScope,
+  resolveSeedCatalogScope,
+  type SeedCatalogScope,
+} from '../helpers/catalog/seed-catalog-scope';
+import { hydrateRegistryForScopedSeed } from '../helpers/catalog/seed-registry-hydration';
 import type {
   MetadataTypeCreatePayload,
   MetadataTypeSeedDefinition,
@@ -106,10 +110,10 @@ function loadDotEnv(): void {
   }
 }
 
-function orderedTypeDefinitions(): MetadataTypeSeedDefinition[] {
-  const byCode = new Map(METADATA_TYPE_DEFINITIONS.map((d) => [d.metadataTypeCode, d]));
+function orderedTypeDefinitions(scope: SeedCatalogScope): MetadataTypeSeedDefinition[] {
+  const byCode = new Map(scope.typeDefinitions.map((d) => [d.metadataTypeCode, d]));
   const ordered: MetadataTypeSeedDefinition[] = [];
-  for (const code of METADATA_TYPE_DEPENDENCY_ORDER) {
+  for (const code of scope.typeDependencyOrder) {
     const def = byCode.get(code);
     if (def) {
       ordered.push(def);
@@ -120,13 +124,19 @@ function orderedTypeDefinitions(): MetadataTypeSeedDefinition[] {
   return ordered;
 }
 
-function collectSimpleValueSeedsForType(metadataTypeCode: string): SimpleValueSeed[] {
-  return METADATA_VALUE_CATALOG[metadataTypeCode] ?? [];
+function collectSimpleValueSeedsForType(
+  scope: SeedCatalogScope,
+  metadataTypeCode: string,
+): SimpleValueSeed[] {
+  return scope.simpleValuesByType[metadataTypeCode] ?? [];
 }
 
-function collectRichValueSeedsForType(metadataTypeCode: string): RichValueSeed[] {
-  return METADATA_RICH_VALUES.filter(
-    (v) => RICH_VALUE_TYPE_BY_CODE[v.metadataValueCode] === metadataTypeCode,
+function collectRichValueSeedsForType(
+  scope: SeedCatalogScope,
+  metadataTypeCode: string,
+): RichValueSeed[] {
+  return scope.richValues.filter(
+    (v) => scope.richValueTypeByCode[v.metadataValueCode] === metadataTypeCode,
   );
 }
 
@@ -134,9 +144,10 @@ async function seedTypes(
   config: ReturnType<typeof loadRuntimeConfig>,
   registry: RegistrySnapshot,
   results: SeedResult[],
+  scope: SeedCatalogScope,
 ): Promise<void> {
   const client = createMetadataApiClient(config);
-  const definitions = orderedTypeDefinitions();
+  const definitions = orderedTypeDefinitions(scope);
 
   logger.info('Phase 1: drafting and publishing metadata types', { count: definitions.length });
 
@@ -262,11 +273,12 @@ async function seedRichValues(
   config: ReturnType<typeof loadRuntimeConfig>,
   registry: RegistrySnapshot,
   results: SeedResult[],
+  scope: SeedCatalogScope,
 ): Promise<void> {
   logger.info('Phase 3: drafting and publishing values with relations / attributes');
 
-  for (const metadataTypeCode of METADATA_TYPE_DEPENDENCY_ORDER) {
-    const seeds = collectRichValueSeedsForType(metadataTypeCode);
+  for (const metadataTypeCode of scope.typeDependencyOrder) {
+    const seeds = collectRichValueSeedsForType(scope, metadataTypeCode);
     if (!seeds.length) {
       continue;
     }
@@ -297,11 +309,12 @@ async function seedValues(
   config: ReturnType<typeof loadRuntimeConfig>,
   registry: RegistrySnapshot,
   results: SeedResult[],
+  scope: SeedCatalogScope,
 ): Promise<void> {
   logger.info('Phase 2: drafting and publishing metadata values');
 
-  for (const metadataTypeCode of METADATA_TYPE_DEPENDENCY_ORDER) {
-    const seeds = collectSimpleValueSeedsForType(metadataTypeCode);
+  for (const metadataTypeCode of scope.typeDependencyOrder) {
+    const seeds = collectSimpleValueSeedsForType(scope, metadataTypeCode);
     if (!seeds.length) {
       logger.debug('No values defined for type', { metadataTypeCode });
       continue;
@@ -391,6 +404,8 @@ async function main(): Promise<void> {
     typesCreated: new Set(),
   };
   const results: SeedResult[] = [];
+  const scope = resolveSeedCatalogScope();
+  logSeedCatalogScope(scope);
 
   logger.info('Starting metadata registry seed', {
     baseUrl: config.baseUrl,
@@ -399,6 +414,14 @@ async function main(): Promise<void> {
     autoPublish: config.autoPublish,
     typePath: config.typePath,
     valuePath: config.valuePath,
+    seedMode: scope.mode,
+    ...(scope.mode === 'SCOPED'
+      ? {
+          selectedTypeCodes: scope.selectedTypeCodes,
+          filteredTypeCount: scope.typeDependencyOrder.length,
+          filteredValueCount: countSeedValues(scope),
+        }
+      : {}),
     smokeTest: isSmokeTestEnabled(),
     ...(isSmokeTestEnabled()
       ? {
@@ -408,9 +431,13 @@ async function main(): Promise<void> {
       : {}),
   });
 
-  await seedTypes(config, registry, results);
-  await seedValues(config, registry, results);
-  await seedRichValues(config, registry, results);
+  const client = createMetadataApiClient(config);
+  await seedTypes(config, registry, results, scope);
+  if (scope.mode === 'SCOPED') {
+    await hydrateRegistryForScopedSeed(client, config, registry, scope);
+  }
+  await seedValues(config, registry, results, scope);
+  await seedRichValues(config, registry, results, scope);
 
   const summary = summarize(results);
   printSummary(summary, config.dryRun);

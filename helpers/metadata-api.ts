@@ -412,13 +412,58 @@ export async function createMetadataType(
   );
 }
 
-/** Alias ó draft (+ publish) type update uses the same governed workflow as create. */
+/** Alias ù draft (+ publish) type update uses the same governed workflow as create. */
 export const updateMetadataType = createMetadataType;
 
 export interface RegistryMetadataTypeRecord {
   metadataTypeCode: string;
   applicableModules?: string[];
   version?: number;
+}
+
+export interface RegistryMetadataValueSummary {
+  valueCode?: string;
+  metadataValueCode?: string;
+}
+
+export interface MetadataValuesByTypeItem {
+  metadataType: string;
+  values: RegistryMetadataValueSummary[];
+}
+
+export interface MetadataValuesByTypesResult {
+  items: MetadataValuesByTypeItem[];
+  missingMetadataTypeCodes: string[];
+}
+
+/**
+ * POST `/metadata/values/by-types` ó batch read published values for prerequisite hydration.
+ */
+export async function getMetadataValuesByTypes(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  metadataTypeCodes: string[],
+): Promise<MetadataValuesByTypesResult> {
+  if (!metadataTypeCodes.length) {
+    return { items: [], missingMetadataTypeCodes: [] };
+  }
+
+  if (config.dryRun) {
+    return { items: [], missingMetadataTypeCodes: [] };
+  }
+
+  const path = process.env.METADATA_VALUES_BY_TYPES_PATH ?? '/metadata/values/by-types';
+  const response = await client.post<ApiEnvelope<MetadataValuesByTypesResult>>(path, {
+    metadataTypeCodes,
+  });
+  const data = unwrapApiData<MetadataValuesByTypesResult>(response.data);
+  if (!data) {
+    return { items: [], missingMetadataTypeCodes: metadataTypeCodes };
+  }
+  return {
+    items: data.items ?? [],
+    missingMetadataTypeCodes: data.missingMetadataTypeCodes ?? [],
+  };
 }
 
 /**

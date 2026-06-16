@@ -13,7 +13,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -28,17 +28,7 @@ provider:
 
   logRetentionInDays: 14
 
-  environment:
-    REGION: ${self:provider.region}
-    STAGE: ${self:provider.stage}
-    NODE_ENV: ${self:provider.stage}
-    SERVICE_NAME: ${self:service}
-    # Table must exist before deploy; name from custom.taskDynamoTableName.
-    TASK_TABLE: ${self:custom.taskDynamoTableName}
-    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
-    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-    # EVENT_BUS: ${self:custom.eventBusName}  # disabled until reminder scheduler consumes task-service bus
+  environment: ${file(./infra/environments/environment.yml)}
 
   tags:
     Service: ${self:service}
@@ -46,31 +36,9 @@ provider:
     ManagedBy: serverless
 
   iamRoleStatements:
-    - Effect: Allow
-      Action:
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-        - dynamodb:Query
-        - dynamodb:BatchGetItem
-        - dynamodb:TransactWriteItems
-        - dynamodb:DescribeTable
-      Resource:
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.taskDynamoTableName}
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.taskDynamoTableName}/index/*
-
-    # - Effect: Allow
-    #   Action:
-    #     - events:PutEvents
-    #   Resource:
-    #     - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.eventBusName}
-
-    - Effect: Allow
-      Action:
-        - xray:PutTraceSegments
-        - xray:PutTelemetryRecords
-      Resource: '*'
+    - ${file(./infra/permissions/dynamodb.yml)}
+    # - ${file(./infra/permissions/eventbridge.yml)}  # disabled until reminder scheduler is integrated
+    - ${file(./infra/permissions/xray.yml)}
 
 package:
   individually: true
@@ -79,9 +47,12 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  bundle: ${file(./infra/config/infra-custom.yml)}
+
   # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
+  # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
   cors: &httpApiCors
-    origin: ${env:CORS_ORIGIN, '*'}
+    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
     headers:
       - Content-Type
       - X-Amz-Date
@@ -93,9 +64,6 @@ custom:
       - Sec-Ch-Ua
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
-
-  taskDynamoTableName: task-service-${self:provider.stage}
-  # eventBusName: task-service-bus-${self:provider.stage}  # disabled until reminder scheduler is integrated
 
   sourcemapsByStage:
     dev: true
@@ -113,9 +81,12 @@ custom:
     external:
       - aws-sdk
     keepNames: true
+    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
     concurrency: 8
     zipConcurrency: 8
+    # Resolve NX workspace dependencies (@api-hub/* packages)
     plugins: esbuild-plugins.js
+    # Ensure proper module resolution
     resolveExtensions:
       - '.ts'
       - '.tsx'
@@ -141,12 +112,6 @@ custom:
     swaggerPath: swagger
     excludeStages:
       - production
-      - dev
-
-  logLevel:
-    dev: debug
-    stg: info
-    prd: warn
 
   dotenv:
     logging: false
@@ -461,30 +426,6 @@ functions:
             "500": Server error
 
 resources:
-  Resources:
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseType: UNAUTHORIZED
-        StatusCode: '401'
-        ResponseParameters:
-          gatewayresponse.header.X-Content-Type-Options: "'nosniff'"
-          gatewayresponse.header.X-XSS-Protection: "'1'"
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.X-Frame-Options: "'DENY'"
-        ResponseTemplates:
-          application/json: "{\"success\":false,\"message\":$context.error.messageString,\"errorCode\":\"INVALID_TOKEN\",\"statusCode\":401}"
-
-    # TaskServiceBus:
-    #   Type: AWS::Events::EventBus
-    #   Properties:
-    #     Name: task-service-bus-${self:provider.stage}
-    #     Tags:
-    #       - Key: Service
-    #         Value: ${self:service}
-    #       - Key: Stage
-    #         Value: ${self:provider.stage}
-    #       - Key: ManagedBy
-    #         Value: serverless
+  - ${file(./infra/resources/gateway-responses.yml)}
+  # - ${file(./infra/resources/events/event-bus.yml)}  # disabled until reminder scheduler is integrated
+  # - ${file(./infra/resources/outputs.yml)}

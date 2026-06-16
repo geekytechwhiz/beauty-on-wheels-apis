@@ -1,4 +1,11 @@
+jest.mock('../events/task-command.publisher', () => ({
+  publishCancelReminderJobs: jest.fn().mockResolvedValue(undefined),
+  publishRegisterReminderJobs: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { publishCancelReminderJobs, publishRegisterReminderJobs } from '../events/task-command.publisher';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
+import { TASK_RUNTIME_ACTION } from '../models/types/task-domain.types';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
 import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
 import type {
@@ -22,6 +29,7 @@ function basePayload(): CreateMonitoringActionPayload {
     carePlanInstanceId: 'cp-1',
     monitoringInstanceId: 'mon-1',
     taskBehaviorCode: 'METRIC_CHECKIN',
+    assignedToType: 'patient',
     dueWindowStart: 1780581600000,
     dueWindowEnd: 1780668000000,
   };
@@ -89,6 +97,74 @@ describe('TaskService.createMonitoringAction', () => {
     expect(result).toEqual({ record, outcome: 'created' });
   });
 
+  it('throws 422 when staff assignment is missing staff fields', async () => {
+    const svc = new TaskService({} as TaskRepository, {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as any);
+
+    await expect(
+      svc.createMonitoringAction({
+        ...basePayload(),
+        assignedToType: 'orgStaff',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('ignores staff fields when assignedToType is patient', async () => {
+    const record = sampleRecord();
+    const repo = {
+      buildMonitoringKeys: jest.fn().mockReturnValue({
+        idempotencyKey: 'key',
+        runtimeTaskInstanceId: 'rtask-abc',
+      }),
+      resolveMonitoringNaturalKey: jest.fn().mockResolvedValue('missing'),
+      createMonitoringTask: jest.fn().mockResolvedValue(record),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await svc.createMonitoringAction({
+      ...basePayload(),
+      assignedToType: 'patient',
+      assignedToStaffId: 'staff-nurse-44721',
+      assignedToStaffDisplayName: 'Nurse Patel',
+    });
+
+    expect(repo.createMonitoringTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignedToType: 'patient',
+      }),
+    );
+    expect(repo.createMonitoringTask).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        assignedToStaffId: expect.anything(),
+        assignedToStaffDisplayName: expect.anything(),
+      }),
+    );
+  });
+
+  it('throws 422 when assignedToType is not patient or staff', async () => {
+    const svc = new TaskService({} as TaskRepository, {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as any);
+
+    await expect(
+      svc.createMonitoringAction({
+        ...basePayload(),
+        assignedToType: 'careTeam' as unknown as CreateMonitoringActionPayload['assignedToType'],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
   it('throws 409 when duplicate resolves to foreign org', async () => {
     const repo = {
       buildMonitoringKeys: jest.fn().mockReturnValue({
@@ -138,7 +214,7 @@ function runtimePayload(): CreateRuntimeTaskPayload {
     taskBehaviorCode: 'CARE_TEAM_TASK',
     taskDisplayGroup: 'staffTask',
     displayTitle: 'Follow up call',
-    assignedToType: 'careTeam',
+    assignedToType: 'orgStaff',
     assignedToStaffId: 'staff-1',
     assignedToStaffDisplayName: 'Nurse One',
     displayToPatient: false,
@@ -171,6 +247,54 @@ describe('TaskService.createRuntimeTask', () => {
     const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
 
     await expect(svc.createRuntimeTask(runtimePayload())).rejects.toThrow('ddb failure');
+  });
+
+  it('throws 422 when staff assignment is missing staff fields', async () => {
+    const svc = new TaskService({} as TaskRepository, {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as any);
+
+    await expect(
+      svc.createRuntimeTask({
+        ...runtimePayload(),
+        assignedToType: 'orgStaff',
+        assignedToStaffId: undefined,
+        assignedToStaffDisplayName: undefined,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('ignores staff fields when assignedToType is patient', async () => {
+    const record = { ...sampleRecord(), runtimeTaskSource: 'manualSystem' as const };
+    const repo = {
+      createRuntimeTask: jest.fn().mockResolvedValue(record),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await svc.createRuntimeTask({
+      ...runtimePayload(),
+      assignedToType: 'patient',
+      displayToPatient: true,
+      assignedToStaffId: 'staff-nurse-44721',
+      assignedToStaffDisplayName: 'Nurse Patel',
+    });
+
+    expect(repo.createRuntimeTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignedToType: 'patient',
+      }),
+    );
+    expect(repo.createRuntimeTask).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        assignedToStaffId: expect.anything(),
+        assignedToStaffDisplayName: expect.anything(),
+      }),
+    );
   });
 });
 
@@ -461,6 +585,27 @@ describe('TaskService.generateCarePlanTasks', () => {
     expect(repo.createCarePlanTask).not.toHaveBeenCalled();
   });
 
+  it('throws 422 when staff linkage is missing staff fields', async () => {
+    const repo = {} as unknown as TaskRepository;
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+
+    await expect(
+      svc.generateCarePlanTasks({
+        ...carePlanBatchPayload(),
+        linkages: [
+          {
+            ...carePlanBatchPayload().linkages[0],
+            assignedToType: 'orgStaff',
+            displayToPatient: false,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
   it('dryRun does not call repository writes', async () => {
     const repo = {
       buildCarePlanTaskKeys: jest.fn().mockReturnValue({
@@ -511,7 +656,7 @@ function staffTaskRecord(overrides: Partial<TaskMetaDdbRecord> = {}): TaskMetaDd
     ...sampleRecord(),
     taskBehaviorCode: 'CARE_TEAM_TASK',
     taskDisplayGroup: 'staffTask',
-    assignedToType: 'careTeam',
+    assignedToType: 'orgStaff',
     assignedToStaffId: 'staff-1',
     displayToPatient: false,
     gsi1Pk: 'ORG#org-1#STAFF#staff-1',
@@ -665,20 +810,269 @@ describe('TaskService.reassignAssignedStaff', () => {
   });
 });
 
-describe('TaskService.listPatientTasks', () => {
-  it('maps META rows to runtime task cards sorted by dueWindowStart', async () => {
-    const early = sampleRecord();
-    const late = {
+describe('TaskService.updateTaskState', () => {
+  beforeEach(() => {
+    jest.mocked(publishCancelReminderJobs).mockClear();
+  });
+
+  it('completes task and publishes cancel reminder jobs when reminders were scheduled', async () => {
+    const meta = sampleRecord({ currentState: 'open' });
+    const lookup = sampleLookup({
+      reminderHistory: [{ reminderRecordId: 'rem-1', reminderStatus: 'scheduled' }],
+    });
+    const historyEntry = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780573500000#hist-1',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'stateChange' as const,
+      fromState: 'open' as const,
+      toState: 'completed' as const,
+      transitionAt: 1780573500000,
+      transitionBy: 'pat-1',
+      transitionSource: 'manual' as const,
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      transitionTaskState: jest.fn().mockResolvedValue({
+        record: { ...meta, currentState: 'completed' },
+        historyEntry,
+        hadCancellableReminders: true,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.updateTaskState({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      action: TASK_RUNTIME_ACTION.COMPLETE,
+      actorId: 'pat-1',
+      actorType: 'patient',
+      expectedCurrentState: 'open',
+      reason: 'Done',
+    });
+
+    expect(result.currentState).toBe('completed');
+    expect(result.historyEntry).toMatchObject({ historyEventType: 'stateChange' });
+    expect(publishCancelReminderJobs).toHaveBeenCalledWith(
+      {
+        runtimeTaskInstanceId: 'rtask-abc',
+        patientId: 'pat-1',
+        reason: 'Done',
+      },
+      undefined,
+    );
+  });
+});
+
+describe('TaskService.updateReminderSettings', () => {
+  beforeEach(() => {
+    jest.mocked(publishCancelReminderJobs).mockClear();
+    jest.mocked(publishRegisterReminderJobs).mockClear();
+  });
+
+  it('enables reminders and publishes register jobs on eligible task', async () => {
+    const meta = { ...sampleRecord(), reminderEnabled: false, currentState: 'open' as const };
+    const lookup = sampleLookup();
+    const settingsChangeHist = {
+      pk: 'TASK#rtask-abc',
+      sk: 'HIST#1780573500000#hist-rem-1',
+      entityType: 'TaskStateHistory' as const,
+      taskStateHistoryId: 'hist-rem-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      historyEventType: 'reminderSettingsChange' as const,
+      transitionAt: 1780573500000,
+      transitionBy: 'staff-1',
+      transitionSource: 'manual' as const,
+      newReminderEnabled: true,
+      newReminderSettings: { channels: ['push'] },
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      updateReminderSettings: jest.fn().mockResolvedValue({
+        record: { ...meta, reminderEnabled: true, reminderSettings: { channels: ['push'] } },
+        settingsChangeHist,
+        registerRequestHist: {
+          historyEventType: 'reminderRegisterRequest',
+        },
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.updateReminderSettings({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-1',
+      reminderEnabled: true,
+      reminderSettings: { channels: ['push'] },
+      reason: 'Patient requested',
+    });
+
+    expect(result.reminderEnabled).toBe(true);
+    expect(result.historyEntry).toMatchObject({ historyEventType: 'reminderSettingsChange' });
+    expect(publishRegisterReminderJobs).toHaveBeenCalledWith(
+      {
+        runtimeTaskInstanceId: 'rtask-abc',
+        patientId: 'pat-1',
+        scheduledReminderAt: lookup.dueWindowEnd,
+        reminderChannel: 'push',
+      },
+      undefined,
+    );
+    expect(publishCancelReminderJobs).not.toHaveBeenCalled();
+  });
+
+  it('rejects unchanged settings with 422', async () => {
+    const meta = {
       ...sampleRecord(),
-      runtimeTaskInstanceId: 'rtask-late',
-      sk: 'DUE#1780668000000#TASK#rtask-late',
-      dueWindowStart: 1780668000000,
-      displayTitle: 'Later task',
+      reminderEnabled: true,
+      reminderSettings: { channels: ['push'] },
+    };
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      updateReminderSettings: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await expect(
+      svc.updateReminderSettings({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        reminderEnabled: true,
+        reminderSettings: { channels: ['push'] },
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'REMINDER_SETTINGS_UNCHANGED' });
+    expect(repo.updateReminderSettings).not.toHaveBeenCalled();
+  });
+
+  it('rejects enable on terminal task with 422', async () => {
+    const meta = {
+      ...sampleRecord(),
+      currentState: 'completed' as const,
+      reminderEnabled: false,
+    };
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(sampleLookup()),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      updateReminderSettings: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await expect(
+      svc.updateReminderSettings({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        reminderEnabled: true,
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'REMINDER_NOT_ELIGIBLE' });
+  });
+});
+
+describe('TaskService.getTaskStatusSummaryByCarePlan', () => {
+  it('aggregates all care plan task pages into a readiness summary', async () => {
+    const requiredDone = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 't-done',
+      currentState: 'completed' as const,
+      requiredForStageCompletion: true,
+    };
+    const requiredOpen = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 't-open',
+      currentState: 'open' as const,
+      requiredForStageCompletion: true,
+      displayTitle: 'Still open',
+    };
+
+    const repo = {
+      queryCarePlanTasksForSummaryPage: jest
+        .fn()
+        .mockResolvedValueOnce({ items: [requiredDone], lastEvaluatedKey: { pk: 'next' } })
+        .mockResolvedValueOnce({ items: [requiredOpen], lastEvaluatedKey: undefined }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.getTaskStatusSummaryByCarePlan({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      carePlanInstanceId: 'cp-1',
+      workflowStage: 'onboarding',
+    });
+
+    expect(repo.queryCarePlanTasksForSummaryPage).toHaveBeenCalledTimes(2);
+    expect(result.readinessStatus).toBe('notReady');
+    expect(result.counts.requiredTotal).toBe(2);
+    expect(result.incompleteRequiredTasks).toHaveLength(1);
+    expect(result.incompleteRequiredTasks?.[0].runtimeTaskInstanceId).toBe('t-open');
+  });
+});
+
+describe('TaskService.listPatientTasks', () => {
+  it('splits patient and staff buckets and normalizes legacy active state to open', async () => {
+    const patientTask = sampleRecord();
+    const staffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-staff',
+      sk: 'DUE#1780668000000#TASK#rtask-staff',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-1',
+      displayToPatient: false,
     };
 
     const repo = {
       queryPatientTasksPage: jest.fn().mockResolvedValue({
-        items: [late, early],
+        items: [staffTask, patientTask],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      pageSize: 50,
+    });
+
+    expect(repo.queryPatientTasksPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excludeTerminalStates: true,
+        pageSize: 50,
+      }),
+    );
+    expect(result.patientId).toBe('pat-1');
+    expect(result.staffUserId).toBe('staff-1');
+    expect(result.patientTasks.items).toHaveLength(1);
+    expect(result.patientTasks.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.patientTasks.items[0].currentState).toBe('open');
+    expect(result.staffTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
+    expect(result.nextToken).toBeUndefined();
+  });
+
+  it('returns empty staffTasks when staffUserId is omitted', async () => {
+    const staffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-staff',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-1',
+    };
+
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [staffTask],
         lastEvaluatedKey: undefined,
       }),
     } as unknown as TaskRepository;
@@ -690,42 +1084,145 @@ describe('TaskService.listPatientTasks', () => {
       pageSize: 50,
     });
 
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
-    expect(result.items[1].runtimeTaskInstanceId).toBe('rtask-late');
-    expect(result.items[0].surfaceSection).toBeDefined();
-    expect(result.nextToken).toBeUndefined();
+    expect(result.patientTasks.items).toHaveLength(0);
+    expect(result.staffTasks.items).toHaveLength(0);
+    expect(result.staffUserId).toBeUndefined();
+  });
+});
+
+describe('TaskService.listActionCenterItems', () => {
+  const NOW = Date.parse('2026-06-05T12:00:00.000Z');
+
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
   });
 
-  it('filters by surfaceSection with additional DynamoDB rounds when needed', async () => {
-    const upcoming = {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('groups items into sections when surfaceSection is all', async () => {
+    const todayTask = sampleRecord();
+    const historyTask = {
       ...sampleRecord(),
-      runtimeTaskInstanceId: 'rtask-upcoming',
-      currentState: 'scheduled' as const,
-      dueWindowStart: 9999999999999,
-      displayToPatient: true,
+      runtimeTaskInstanceId: 'rtask-done',
+      sk: 'DUE#1780200000000#TASK#rtask-done',
+      currentState: 'completed' as const,
+      dueWindowStart: 1780200000000,
+      dueWindowEnd: 1780250000000,
     };
-    const today = sampleRecord();
+    const checklistTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-checklist',
+      sk: 'DUE#1780581600000#TASK#rtask-checklist',
+      displayAsChecklistItem: true,
+    };
 
     const repo = {
-      queryPatientTasksPage: jest
-        .fn()
-        .mockResolvedValueOnce({ items: [today], lastEvaluatedKey: { pk: 'x' } })
-        .mockResolvedValueOnce({ items: [upcoming], lastEvaluatedKey: undefined }),
+      queryActionCenterTasksPage: jest.fn().mockResolvedValue({
+        items: [todayTask, historyTask, checklistTask],
+        lastEvaluatedKey: undefined,
+      }),
     } as unknown as TaskRepository;
 
     const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
-    const result = await svc.listPatientTasks({
+    const result = await svc.listActionCenterItems({
       organizationId: 'org-1',
       patientId: 'pat-1',
-      pageSize: 10,
-      surfaceSection: 'upcoming',
+      surfaceSection: 'all',
+      timezone: 'UTC',
+      pageSize: 50,
     });
 
-    expect(repo.queryPatientTasksPage).toHaveBeenCalledTimes(2);
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-upcoming');
-    expect(result.items[0].surfaceSection).toBe('upcoming');
+    expect(repo.queryActionCenterTasksPage).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1', patientId: 'pat-1', pageSize: 50 }),
+    );
+    expect(result.patientId).toBe('pat-1');
+    expect(result.timezone).toBe('UTC');
+    if ('sections' in result) {
+      expect(result.sections.today).toHaveLength(2);
+      expect(result.sections.today.every((c) => c.surfaceSection === 'today')).toBe(true);
+      expect(result.sections.history).toHaveLength(1);
+      expect(result.sections.history[0].surfaceSection).toBe('history');
+      expect(result.sections.carePlanChecklist).toHaveLength(1);
+      expect(result.sections.carePlanChecklist[0].runtimeTaskInstanceId).toBe('rtask-checklist');
+      expect(result.sections.carePlanChecklist[0].surfaceSection).toBe('carePlanChecklist');
+    } else {
+      throw new Error('expected grouped sections');
+    }
+  });
+
+  it('filters single section with over-fetch rounds', async () => {
+    const upcomingTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-upcoming',
+      sk: 'DUE#1780800000000#TASK#rtask-upcoming',
+      dueWindowStart: 1780800000000,
+      dueWindowEnd: 1780886400000,
+    };
+    const todayTask = sampleRecord();
+
+    const repo = {
+      queryActionCenterTasksPage: jest
+        .fn()
+        .mockResolvedValueOnce({ items: [todayTask], lastEvaluatedKey: { pk: 'next' } })
+        .mockResolvedValueOnce({ items: [upcomingTask], lastEvaluatedKey: undefined }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listActionCenterItems({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      surfaceSection: 'upcoming',
+      timezone: 'UTC',
+      pageSize: 1,
+    });
+
+    expect(repo.queryActionCenterTasksPage).toHaveBeenCalledTimes(2);
+    if ('items' in result) {
+      expect(result.surfaceSection).toBe('upcoming');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-upcoming');
+      expect(result.items[0].surfaceSection).toBe('upcoming');
+    } else {
+      throw new Error('expected single-section items');
+    }
+  });
+});
+
+describe('TaskService.listStaffTasks', () => {
+  it('queries staff inbox and maps cards sorted by dueWindowStart', async () => {
+    const early = sampleRecord();
+    const late = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-late',
+      dueWindowStart: 1780668000000,
+    };
+
+    const repo = {
+      queryStaffTasksPage: jest.fn().mockResolvedValue({
+        items: [late, early],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listStaffTasks({
+      organizationId: 'org-1',
+      staffUserId: 'staff-1',
+      pageSize: 25,
+    });
+
+    expect(repo.queryStaffTasksPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        staffUserId: 'staff-1',
+        excludeTerminalStates: true,
+        pageSize: 25,
+      }),
+    );
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.items[0].currentState).toBe('open');
   });
 });
 

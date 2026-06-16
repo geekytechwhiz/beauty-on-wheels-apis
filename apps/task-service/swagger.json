@@ -48,15 +48,31 @@
         "carePlanInstanceId",
         "monitoringInstanceId",
         "taskBehaviorCode",
+        "assignedToType",
         "dueWindowStart",
         "dueWindowEnd"
       ],
       "properties": {
-        "patientId": { "type": "string" },
-        "patientDisplayName": { "type": "string" },
+        "patientId": {
+          "type": "string",
+          "description": "Patient id from request body (not from JWT)."
+        },
+        "patientDisplayName": {
+          "type": "string",
+          "description": "Patient display name from request body (not from JWT)."
+        },
         "carePlanInstanceId": { "type": "string" },
         "monitoringInstanceId": { "type": "string" },
         "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "assignedToStaffId": {
+          "type": "string",
+          "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
+        },
+        "assignedToStaffDisplayName": {
+          "type": "string",
+          "description": "Required when assignedToType is staff."
+        },
         "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
         "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
         "reminderContext": {
@@ -71,6 +87,7 @@
         "carePlanInstanceId": "cp-2026-001",
         "monitoringInstanceId": "mon-bp-daily-001",
         "taskBehaviorCode": "METRIC_CHECKIN",
+        "assignedToType": "patient",
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
         "reminderContext": { "channels": ["Push", "InApp"] }
@@ -95,7 +112,10 @@
     },
     "AssignedToType": {
       "type": "string",
-      "enum": ["patient", "careTeam", "provider", "system"]
+      "enum": ["patient", "careTeamRole", "user", "orgStaff", "system"],
+      description: >
+        Who completes a runtime task. orgStaff inbox GSI1 is `ORG#<orgId>#STAFF#<assigneeId>`;
+        other non-patient types use `ORG#<orgId>#STAFF#<assignedToType>#<assigneeId>`.
     },
     "WorkflowStage": {
       "type": "string",
@@ -103,7 +123,8 @@
     },
     "CurrentState": {
       "type": "string",
-      "enum": ["scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+      "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"],
+      "description": "API wire uses open for in-progress tasks; active/scheduled are legacy persistence values normalized to open on read."
     },
     "SurfaceSection": {
       "type": "string",
@@ -111,10 +132,9 @@
     },
     "RuntimeTaskCard": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "surfaceSection"],
+      "required": ["runtimeTaskInstanceId", "currentState"],
       "properties": {
         "runtimeTaskInstanceId": { "type": "string" },
-        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
         "patientId": { "type": "string" },
         "patientDisplayName": { "type": "string" },
         "displayTitle": { "type": "string" },
@@ -137,6 +157,83 @@
         "nextToken": { "type": "string" }
       }
     },
+    "RuntimeTaskCardList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeTaskCard" }
+        }
+      }
+    },
+    "SurfaceSectionActionCenter": {
+      "type": "string",
+      "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"]
+    },
+    "ActionCenterTaskCard": {
+      "allOf": [
+        { "$ref": "#/definitions/RuntimeTaskCard" },
+        {
+          "type": "object",
+          "required": ["surfaceSection"],
+          "properties": {
+            "surfaceSection": { "$ref": "#/definitions/SurfaceSection" }
+          }
+        }
+      ]
+    },
+    "ActionCenterGroupedSections": {
+      "type": "object",
+      "required": ["patientId", "timezone", "sections"],
+      "properties": {
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "timezone": { "type": "string" },
+        "sections": {
+          "type": "object",
+          "properties": {
+            "today": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
+            "upcoming": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
+            "needsAttention": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
+            "history": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
+            "carePlanChecklist": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } }
+          }
+        },
+        "nextToken": { "type": "string" }
+      }
+    },
+    "ActionCenterSingleSection": {
+      "type": "object",
+      "required": ["patientId", "surfaceSection", "timezone", "items"],
+      "properties": {
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
+        "timezone": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ActionCenterTaskCard" }
+        },
+        "nextToken": { "type": "string" }
+      }
+    },
+    "PatientTaskListResult": {
+      "type": "object",
+      "required": ["patientId", "patientTasks", "staffTasks"],
+      "properties": {
+        "patientId": { "type": "string" },
+        "staffUserId": {
+          "type": "string",
+          "description": "Present when staffUserId query param was provided for in-patient staff bucket filtering."
+        },
+        "patientTasks": { "$ref": "#/definitions/RuntimeTaskCardList" },
+        "staffTasks": {
+          "$ref": "#/definitions/RuntimeTaskCardList",
+          "description": "Populated only when staffUserId query param is provided; otherwise items is empty."
+        },
+        "nextToken": { "type": "string" }
+      }
+    },
     "CreateRuntimeTaskRequest": {
       "type": "object",
       "required": [
@@ -150,8 +247,14 @@
         "displayToPatient"
       ],
       "properties": {
-        "patientId": { "type": "string" },
-        "patientDisplayName": { "type": "string" },
+        "patientId": {
+          "type": "string",
+          "description": "Patient id from request body (not from JWT)."
+        },
+        "patientDisplayName": {
+          "type": "string",
+          "description": "Patient display name from request body (not from JWT)."
+        },
         "carePlanInstanceId": { "type": "string" },
         "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
         "runtimeTaskSource": { "$ref": "#/definitions/RuntimeTaskSourceCreate" },
@@ -162,11 +265,11 @@
         "assignedToType": { "$ref": "#/definitions/AssignedToType" },
         "assignedToStaffId": {
           "type": "string",
-          "description": "Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox."
+          "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
         },
         "assignedToStaffDisplayName": {
           "type": "string",
-          "description": "Required when assignedToType is careTeam or provider."
+          "description": "Required when assignedToType is staff."
         },
         "displayToPatient": { "type": "boolean" },
         "actionTargetId": { "type": "string" },
@@ -189,7 +292,7 @@
         "taskDisplayGroup": "staffTask",
         "displayTitle": "Call patient about missed reading",
         "description": "Follow up on missed BP reading from yesterday",
-        "assignedToType": "careTeam",
+        "assignedToType": "orgStaff",
         "assignedToStaffId": "staff-nurse-44721",
         "assignedToStaffDisplayName": "Nurse Lee",
         "displayToPatient": false,
@@ -228,11 +331,11 @@
         "assignedToType": { "$ref": "#/definitions/AssignedToType" },
         "assignedToStaffId": {
           "type": "string",
-          "description": "Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox."
+          "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
         },
         "assignedToStaffDisplayName": {
           "type": "string",
-          "description": "Required when assignedToType is careTeam or provider."
+          "description": "Required when assignedToType is staff."
         },
         "displayToPatient": { "type": "boolean" },
         "actionTargetId": { "type": "string" },
@@ -260,14 +363,23 @@
         "sourceLinkageContext"
       ],
       "properties": {
-        "patientId": { "type": "string" },
-        "patientDisplayName": { "type": "string" },
+        "patientId": {
+          "type": "string",
+          "description": "Patient id from request body (not from JWT)."
+        },
+        "patientDisplayName": {
+          "type": "string",
+          "description": "Patient display name from request body (not from JWT)."
+        },
         "carePlanInstanceId": { "type": "string" },
         "taskGenerationTrigger": { "type": "string" },
         "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
         "dryRun": { "type": "boolean" },
         "actorType": { "type": "string" },
-        "actorId": { "type": "string" },
+        "actorId": {
+          "type": "string",
+          "description": "When set, createdBy becomes system:care-plan-runtime:<actorId>."
+        },
         "sourceLinkageContext": {
           "type": "object",
           "required": ["linkages"],
@@ -460,7 +572,7 @@
     "/tasks/monitoring-action": {
       "post": {
         "summary": "Create a monitoring-generated runtime task (idempotent)",
-        "description": "Called by Monitoring Runtime. Organization scope from JWT only.",
+        "description": "Called by Monitoring Runtime. orgId from JWT; patientId and patientDisplayName from request body.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -485,7 +597,7 @@
     "/tasks/generate-care-plan": {
       "post": {
         "summary": "Generate care-plan linkage runtime tasks (idempotent batch)",
-        "description": "Called by Care Plan Runtime. Organization scope from JWT only.",
+        "description": "Called by Care Plan Runtime. orgId from JWT; patientId and patientDisplayName from request body.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -543,7 +655,7 @@
     "/tasks/{runtimeTaskInstanceId}/assigned-staff": {
       "put": {
         "summary": "Assign or reassign staff task to a staff member",
-        "description": "Portal assign/reassign for careTeam/provider tasks. Initial assignment sets assignedToStaffId plus GSI1 (gsi1Pk and gsi1Sk); reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.",
+        "description": "Portal assign/reassign for staff tasks. Initial assignment sets assignedToStaffId plus GSI1 (gsi1Pk and gsi1Sk); reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -638,17 +750,17 @@
           },
           {
             "in": "query",
-            "name": "currentState",
+            "name": "staffUserId",
             "required": false,
             "type": "string",
-            "enum": ["scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+            "description": "When set, staff-assigned tasks for this staff member appear in staffTasks; patientTasks excludes all staff-assigned tasks."
           },
           {
             "in": "query",
-            "name": "surfaceSection",
+            "name": "currentState",
             "required": false,
             "type": "string",
-            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist"]
+            "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
           },
           {
             "in": "query",
@@ -667,8 +779,8 @@
         ],
         "responses": {
           "200": {
-            "description": "Paginated task list.",
-            "schema": { "$ref": "#/definitions/PaginatedRuntimeTaskCards" }
+            "description": "Patient-scoped task list split into patientTasks and staffTasks buckets.",
+            "schema": { "$ref": "#/definitions/PatientTaskListResult" }
           },
           "400": { "description": "Bad request" },
           "401": { "description": "Unauthorized" },
@@ -678,7 +790,7 @@
       },
       "post": {
         "summary": "Create an ad-hoc/service-flow/manual runtime task",
-        "description": "Called by Service Flow Runtime or authorized staff/system. Prefer manualSystem for care UI. Organization scope from JWT only.",
+        "description": "Called by Service Flow Runtime or authorized staff/system. orgId from JWT; patientId and patientDisplayName from request body. GSI1 when assignedToStaffId set.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -696,6 +808,138 @@
           "401": { "description": "Unauthorized" },
           "403": { "description": "Forbidden" },
           "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/action-center/items": {
+      "get": {
+        "summary": "Get Action Center items by surface section",
+        "description": "Patient Action Center with server-derived surfaceSection. Mobile/Portal must render the returned section — do not re-bucket Today vs Upcoming client-side.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patientId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "surfaceSection",
+            "required": true,
+            "type": "string",
+            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"]
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "type": "string",
+            "description": "IANA timezone for calendar Today (default UTC)."
+          },
+          {
+            "in": "query",
+            "name": "carePlanInstanceId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "workflowStage",
+            "required": false,
+            "type": "string",
+            "enum": ["onboarding", "ongoing", "review", "closure"]
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "maximum": 200
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Action Center grouped or single-section response.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "patientId": { "type": "string" },
+                "sections": { "$ref": "#/definitions/ActionCenterGroupedSections/properties/sections" },
+                "items": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
+                "nextToken": { "type": "string" }
+              }
+            }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/staff/tasks": {
+      "get": {
+        "summary": "List tasks assigned to the authenticated staff member",
+        "description": "Staff inbox via GSI1. staffUserId must match JWT user id. Defaults to excluding terminal states when currentState is omitted.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "staffUserId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "patientId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "carePlanInstanceId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "currentState",
+            "required": false,
+            "type": "string",
+            "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "maximum": 200
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated staff task list.",
+            "schema": { "$ref": "#/definitions/PaginatedRuntimeTaskCards" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden — staffUserId must match authenticated user" },
           "500": { "description": "Server error" }
         }
       }

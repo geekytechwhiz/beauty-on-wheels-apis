@@ -18,3 +18,6 @@ export const DUE_SORT_SENTINEL_MS = 9999999999999;
 
 /** LSI1 on patient META partition — care-plan scoped task lists. */
 export const CARE_PLAN_INDEX = 'CarePlanIndex';
+
+/** GSI1 — staff inbox task lists keyed by assigned staff user id. */
+export const STAFF_TASKS_INDEX = 'StaffPatientTasksIndex';

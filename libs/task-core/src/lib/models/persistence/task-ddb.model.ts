@@ -74,6 +74,7 @@ export interface TaskLookupDdbRecord {
 }
 
 export interface TaskEvidenceSummaryDdbRecord {
+  taskEvidenceSummaryId?: string;
   runtimeTaskInstanceId?: string;
   generatedAt: number;
   latestCompletionSummary?: string;

@@ -11,6 +11,7 @@ describe('TaskEntityBuilder', () => {
     carePlanInstanceId: 'cp-1',
     monitoringInstanceId: 'mon-1',
     taskBehaviorCode: 'METRIC_CHECKIN',
+    assignedToType: 'patient',
     dueWindowStart: 1780581600000,
     dueWindowEnd: 1780668000000,
     reminderContext: { channels: ['Push'] },
@@ -19,7 +20,7 @@ describe('TaskEntityBuilder', () => {
   it('builds monitoring META with CheckIn defaults', () => {
     const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
       runtimeTaskInstanceId: 'rtask-abc',
-      idempotencyKey: 'org-1|pat-1|mon-1|METRIC_CHECKIN|1780581600000|1780668000000',
+      idempotencyKey: 'org-1|pat-1|mon-1|METRIC_CHECKIN|1780581600000|1780668000000|patient|',
       input,
       nowMs: 1780581600000,
     });
@@ -29,12 +30,37 @@ describe('TaskEntityBuilder', () => {
     expect(meta.assignedToType).toBe('patient');
     expect(meta.displayToPatient).toBe(true);
     expect(meta.taskDisplayGroup).toBe('checkIn');
-    expect(meta.currentState).toBe('active');
+    expect(meta.currentState).toBe('open');
     expect(meta.reminderEnabled).toBe(true);
     expect(meta.createdBy).toBe('system:monitoring-runtime');
   });
 
-  it('schedules task when dueWindowStart is in the future', () => {
+  it('builds monitoring META for orgStaff assignment with GSI1', () => {
+    const staffInput: CreateMonitoringActionRequest = {
+      ...input,
+      assignedToType: 'orgStaff',
+      assignedToStaffId: 'staff-nurse-44721',
+      assignedToStaffDisplayName: 'Nurse Lee',
+    };
+    const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
+      runtimeTaskInstanceId: 'rtask-staff',
+      idempotencyKey:
+        'org-1|pat-1|mon-1|METRIC_CHECKIN|1780581600000|1780668000000|orgStaff|staff-nurse-44721',
+      input: staffInput,
+      nowMs: 1780581600000,
+    });
+
+    const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
+    expect(meta.assignedToType).toBe('orgStaff');
+    expect(meta.displayToPatient).toBe(false);
+    expect(meta.taskDisplayGroup).toBe('staffTask');
+    expect(meta.assignedToStaffId).toBe('staff-nurse-44721');
+    expect(meta.assignedToStaffDisplayName).toBe('Nurse Lee');
+    expect(meta.gsi1Pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
+    expect(meta.gsi1Sk).toContain('PAT#pat-1');
+  });
+
+  it('uses open state when dueWindowStart is in the future', () => {
     const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
       runtimeTaskInstanceId: 'rtask-future',
       idempotencyKey: 'key',
@@ -43,7 +69,7 @@ describe('TaskEntityBuilder', () => {
     });
 
     const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
-    expect(meta.currentState).toBe('scheduled');
+    expect(meta.currentState).toBe('open');
   });
 
   const staffInput: CreateRuntimeTaskRequest = {
@@ -57,7 +83,7 @@ describe('TaskEntityBuilder', () => {
     taskBehaviorCode: 'CARE_TEAM_TASK',
     taskDisplayGroup: 'staffTask',
     displayTitle: 'Call patient about missed reading',
-    assignedToType: 'careTeam',
+    assignedToType: 'orgStaff',
     assignedToStaffId: 'staff-nurse-44721',
     assignedToStaffDisplayName: 'Nurse Lee',
     displayToPatient: false,
@@ -81,7 +107,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.patientDisplayName).toBe('Maria Lopez');
     expect(meta.gsi1Pk).toBe('ORG#org-acme-health-001#STAFF#staff-nurse-44721');
     expect(meta.gsi1Sk).toContain('PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201');
-    expect(meta.currentState).toBe('active');
+    expect(meta.currentState).toBe('open');
     expect(meta.createdBy).toBe('user:staff-lead-001');
   });
 
@@ -161,7 +187,156 @@ describe('TaskEntityBuilder', () => {
     expect(meta.sourceTaskTemplateVersionId).toBe('task-tpl-document-form-v2');
     expect(meta.lsi1Sk).toBe('CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e');
     expect(meta.reminderEnabled).toBe(true);
-    expect(meta.currentState).toBe('scheduled');
+    expect(meta.currentState).toBe('open');
     expect(meta.createdBy).toBe('system:care-plan-runtime');
+    expect(meta.gsi1Pk).toBeUndefined();
+    expect(meta.gsi1Sk).toBeUndefined();
+  });
+
+  it('builds care plan META with GSI1 when staff linkage has assignedToStaffId', () => {
+    const input = {
+      organizationId: 'org-1',
+      createdBy: 'system:care-plan-runtime',
+      patientId: 'pat-1',
+      patientDisplayName: 'Test Patient',
+      carePlanInstanceId: 'cp-1',
+      taskGenerationTrigger: 'carePlanStageEntered',
+      carePlanTaskLinkageId: 'link-staff-1',
+      taskBehaviorCode: 'CARE_TEAM_TASK' as const,
+      taskDisplayGroup: 'staffTask' as const,
+      displayTitle: 'Call patient',
+      assignedToType: 'orgStaff' as const,
+      displayToPatient: false,
+      assignedToStaffId: 'staff-nurse-44721',
+      assignedToStaffDisplayName: 'Nurse Lee',
+      dueWindowStart: 1780650000000,
+      dueWindowEnd: 1780650000000,
+    };
+
+    const ctx = TaskEntityBuilder.buildCarePlanTaskCreateContext({
+      runtimeTaskInstanceId: 'rtask-staff-call-001',
+      idempotencyKey: 'key',
+      generationHash: 'hash',
+      input,
+    });
+
+    const meta = TaskEntityBuilder.buildCarePlanMetaRecord(ctx);
+    expect(meta.gsi1Pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
+    expect(meta.gsi1Sk).toBe(
+      'DUE#1780650000000#PAT#pat-1#TASK#rtask-staff-call-001',
+    );
+  });
+
+  it('builds state change history record', () => {
+    const meta = {
+      pk: 'ORG#org-1#PAT#pat-1',
+      sk: 'DUE#0001780567200000#TASK#rtask-abc',
+      entityType: 'RuntimeTaskInstance' as const,
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      runtimeTaskSource: 'monitoringRuntime' as const,
+      taskBehaviorCode: 'METRIC_CHECKIN' as const,
+      taskDisplayGroup: 'checkIn' as const,
+      displayTitle: 'Check in',
+      assignedToType: 'patient' as const,
+      displayToPatient: true,
+      currentState: 'open' as const,
+      createdAt: 1,
+      createdBy: 'system',
+      lastUpdatedAt: 1,
+      lastUpdatedBy: 'system',
+    };
+
+    const hist = TaskEntityBuilder.buildStateChangeHistRecord({
+      meta,
+      fromState: 'open',
+      toState: 'completed',
+      actorId: 'pat-1',
+      reason: 'Done',
+      nowMs: 1780573500000,
+    });
+
+    expect(hist).toMatchObject({
+      historyEventType: 'stateChange',
+      fromState: 'open',
+      toState: 'completed',
+      transitionBy: 'pat-1',
+      transitionSource: 'manual',
+      transitionReason: 'Done',
+    });
+    expect(hist.sk).toMatch(/^HIST#1780573500000#/);
+  });
+
+  const reminderMeta = {
+    pk: 'ORG#org-1#PAT#pat-1',
+    sk: 'DUE#0001780567200000#TASK#rtask-abc',
+    entityType: 'RuntimeTaskInstance' as const,
+    orgId: 'org-1',
+    patientId: 'pat-1',
+    runtimeTaskInstanceId: 'rtask-abc',
+    runtimeTaskSource: 'monitoringRuntime' as const,
+    taskBehaviorCode: 'METRIC_CHECKIN' as const,
+    taskDisplayGroup: 'checkIn' as const,
+    displayTitle: 'Check in',
+    assignedToType: 'patient' as const,
+    displayToPatient: true,
+    currentState: 'open' as const,
+    reminderEnabled: true,
+    reminderSettings: { channels: ['push'] },
+    createdAt: 1,
+    createdBy: 'system',
+    lastUpdatedAt: 1,
+    lastUpdatedBy: 'system',
+  };
+
+  it('builds reminder settings change history record', () => {
+    const hist = TaskEntityBuilder.buildReminderSettingsChangeHistRecord({
+      meta: reminderMeta,
+      actorId: 'staff-1',
+      previousReminderEnabled: true,
+      newReminderEnabled: true,
+      previousReminderSettings: { channels: ['push'] },
+      newReminderSettings: { channels: ['sms'] },
+      reason: 'Patient prefers SMS',
+      nowMs: 1780573600000,
+    });
+
+    expect(hist).toMatchObject({
+      historyEventType: 'reminderSettingsChange',
+      previousReminderEnabled: true,
+      newReminderEnabled: true,
+      previousReminderSettings: { channels: ['push'] },
+      newReminderSettings: { channels: ['sms'] },
+      transitionBy: 'staff-1',
+      transitionSource: 'manual',
+      transitionReason: 'Patient prefers SMS',
+    });
+  });
+
+  it('builds reminder register and cancel request history records', () => {
+    const register = TaskEntityBuilder.buildReminderRegisterRequestHistRecord({
+      meta: reminderMeta,
+      actorId: 'staff-1',
+      reason: 'Enable reminders',
+      reminderChannel: 'push',
+      nowMs: 1780573700000,
+    });
+    const cancel = TaskEntityBuilder.buildReminderCancelRequestHistRecord({
+      meta: reminderMeta,
+      actorId: 'staff-1',
+      reason: 'Disable reminders',
+      nowMs: 1780573800000,
+    });
+
+    expect(register).toMatchObject({
+      historyEventType: 'reminderRegisterRequest',
+      reminderChannel: 'push',
+      transitionSource: 'manual',
+    });
+    expect(cancel).toMatchObject({
+      historyEventType: 'reminderCancelRequest',
+      transitionSource: 'manual',
+    });
   });
 });

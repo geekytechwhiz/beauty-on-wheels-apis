@@ -96,22 +96,25 @@ describe('getTasks HTTP handler', () => {
     jest.clearAllMocks();
   });
 
-  it('returns 200 with paginated tasks on success', async () => {
+  it('returns 200 with split patient/staff task buckets on success', async () => {
     mockListPatientTasks.mockResolvedValue({
-      items: [{ runtimeTaskInstanceId: 'rtask-1', surfaceSection: 'today' }],
+      patientId: 'pat-1',
+      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }] },
+      staffTasks: { items: [] },
     });
 
     const res = await main(baseListEvent(), testLambdaContext());
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.data.items).toHaveLength(1);
+    expect(body.data.patientTasks.items).toHaveLength(1);
+    expect(body.data.staffTasks.items).toHaveLength(0);
     expect(mockListPatientTasks).toHaveBeenCalledWith({
       organizationId: 'org-1',
       patientId: 'pat-1',
+      staffUserId: undefined,
       carePlanInstanceId: undefined,
       workflowStage: undefined,
       currentState: undefined,
-      surfaceSection: undefined,
       pageSize: 50,
       nextToken: undefined,
     });
@@ -139,16 +142,21 @@ describe('getTasks HTTP handler', () => {
   });
 
   it('parses optional query filters', async () => {
-    mockListPatientTasks.mockResolvedValue({ items: [] });
+    mockListPatientTasks.mockResolvedValue({
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      patientTasks: { items: [] },
+      staffTasks: { items: [] },
+    });
 
     await main(
       baseListEvent({
         queryStringParameters: {
           patientId: 'pat-1',
+          staffUserId: 'staff-1',
           carePlanInstanceId: 'cp-1',
           workflowStage: 'ongoing',
-          currentState: 'active',
-          surfaceSection: 'today',
+          currentState: 'open',
           pageSize: '10',
         },
       }),
@@ -157,10 +165,10 @@ describe('getTasks HTTP handler', () => {
 
     expect(mockListPatientTasks).toHaveBeenCalledWith(
       expect.objectContaining({
+        staffUserId: 'staff-1',
         carePlanInstanceId: 'cp-1',
         workflowStage: 'ongoing',
-        currentState: 'active',
-        surfaceSection: 'today',
+        currentState: 'open',
         pageSize: 10,
       }),
     );

@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 /** HTTP body shapes — structural type checks only; business rules live in task-core. */
 
+/** Who completes a task — `patient` | `careTeamRole` | `user` | `orgStaff` | `system`. */
+export const assignedToTypeSchema = z.enum([
+  'patient',
+  'careTeamRole',
+  'user',
+  'orgStaff',
+  'system',
+]);
+
 export const createMonitoringActionHttpBodySchema = z
   .object({
     patientId: z.string(),
@@ -9,6 +18,9 @@ export const createMonitoringActionHttpBodySchema = z
     carePlanInstanceId: z.string(),
     monitoringInstanceId: z.string(),
     taskBehaviorCode: z.string(),
+    assignedToType: assignedToTypeSchema,
+    assignedToStaffId: z.string().optional(),
+    assignedToStaffDisplayName: z.string().optional(),
     dueWindowStart: z.number(),
     dueWindowEnd: z.number(),
     reminderContext: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -25,7 +37,7 @@ export const createRuntimeTaskHttpBodySchema = z
     taskBehaviorCode: z.string(),
     taskDisplayGroup: z.string(),
     displayTitle: z.string(),
-    assignedToType: z.string(),
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     carePlanInstanceId: z.string().optional(),
     workflowStage: z.string().optional(),
@@ -52,7 +64,7 @@ export const carePlanLinkageMaterializationSchema = z
     taskBehaviorCode: z.string(),
     taskDisplayGroup: z.string(),
     displayTitle: z.string(),
-    assignedToType: z.string(),
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     description: z.string().optional(),
     assignedToStaffId: z.string().optional(),
@@ -101,3 +113,43 @@ export const updateAssignedStaffHttpBodySchema = z
   .strict();
 
 export type UpdateAssignedStaffHttpBody = z.infer<typeof updateAssignedStaffHttpBodySchema>;
+
+export const updateTaskStateHttpBodySchema = z
+  .object({
+    action: z.enum(['complete', 'dismiss', 'cancel', 'markMissed']),
+    actorId: z.string(),
+    actorType: assignedToTypeSchema,
+    expectedCurrentState: z.enum([
+      'open',
+      'scheduled',
+      'active',
+      'completed',
+      'missed',
+      'dismissed',
+      'cancelled',
+    ]),
+    reason: z.string().optional(),
+    evidencePayload: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export type UpdateTaskStateHttpBody = z.infer<typeof updateTaskStateHttpBodySchema>;
+
+const reminderChannelSchema = z.enum(['push', 'sms', 'email', 'inApp']);
+
+export const updateReminderSettingsHttpBodySchema = z
+  .object({
+    actorId: z.string(),
+    reminderEnabled: z.boolean(),
+    reminderSettings: z
+      .object({
+        channels: z.array(reminderChannelSchema).optional(),
+        quietHoursRespected: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    reason: z.string().optional(),
+  })
+  .strict();
+
+export type UpdateReminderSettingsHttpBody = z.infer<typeof updateReminderSettingsHttpBodySchema>;

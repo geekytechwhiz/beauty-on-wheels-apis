@@ -3,6 +3,8 @@ import {
   createRuntimeTaskHttpBodySchema,
   generateCarePlanTasksHttpBodySchema,
   updateAssignedStaffHttpBodySchema,
+  updateReminderSettingsHttpBodySchema,
+  updateTaskStateHttpBodySchema,
 } from './task.schemas';
 
 const CP_DUE_START = 1780567200000;
@@ -16,6 +18,7 @@ describe('task.schemas', () => {
       carePlanInstanceId: 'cp-1',
       monitoringInstanceId: 'mon-1',
       taskBehaviorCode: 'METRIC_CHECKIN',
+      assignedToType: 'patient',
       dueWindowStart: 'not-a-number',
       dueWindowEnd: CP_DUE_END,
     });
@@ -65,6 +68,47 @@ describe('task.schemas', () => {
       assignedToStaffId: 'staff-2',
       assignedToStaffDisplayName: 'Nurse Two',
       extraField: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid updateTaskState body with optional evidencePayload', () => {
+    const result = updateTaskStateHttpBodySchema.safeParse({
+      action: 'complete',
+      actorId: 'pat-1',
+      actorType: 'patient',
+      expectedCurrentState: 'open',
+      reason: 'Done',
+      evidencePayload: { readingId: 'r-1' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid updateTaskState action', () => {
+    const result = updateTaskStateHttpBodySchema.safeParse({
+      action: 'archive',
+      actorId: 'pat-1',
+      actorType: 'patient',
+      expectedCurrentState: 'open',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid updateReminderSettings body with camelCase channels', () => {
+    const result = updateReminderSettingsHttpBodySchema.safeParse({
+      actorId: 'staff-1',
+      reminderEnabled: true,
+      reminderSettings: { channels: ['push', 'inApp'], quietHoursRespected: true },
+      reason: 'Patient requested',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects PascalCase reminder channels', () => {
+    const result = updateReminderSettingsHttpBodySchema.safeParse({
+      actorId: 'staff-1',
+      reminderEnabled: true,
+      reminderSettings: { channels: ['Push'] },
     });
     expect(result.success).toBe(false);
   });

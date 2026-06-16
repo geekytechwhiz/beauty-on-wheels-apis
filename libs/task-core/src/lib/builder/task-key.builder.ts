@@ -1,3 +1,4 @@
+import { ASSIGNED_TO_TYPE, type AssignedToType } from '../models/types/task-domain.types';
 import { padEpochMs13, dueWindowStartOrMaxMs } from '../utils/task-time';
 
 export class TaskKeyBuilder {
@@ -33,8 +34,17 @@ export class TaskKeyBuilder {
     return `CP#${cp}#TASK#${runtimeTaskInstanceId.trim()}`;
   }
 
-  static buildGsi1Pk(orgId: string, staffUserId: string): string {
-    return `${this.toOrgId(orgId)}#STAFF#${staffUserId.trim()}`;
+  /**
+   * Staff inbox (orgStaff): `ORG#<org>#STAFF#<staffUserId>`.
+   * Other assignee types: `ORG#<org>#STAFF#<assignedToType>#<assigneeId>`.
+   */
+  static buildGsi1Pk(orgId: string, assignedToType: AssignedToType, assigneeId: string): string {
+    const org = this.toOrgId(orgId);
+    const id = assigneeId.trim();
+    if (assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF) {
+      return `${org}#STAFF#${id}`;
+    }
+    return `${org}#STAFF#${assignedToType}#${id}`;
   }
 
   static buildGsi1Sk(

@@ -1,7 +1,9 @@
 import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
-import { deriveSurfaceSection } from '../utils/surface-section';
+import { normalizeAssignedToTypeForWire } from '../models/types/task-domain.types';
+import { normalizeCurrentStateForWire } from '../models/types/runtime-task-state.type';
+import { deriveActionCenterSurfaceSection } from '../utils/surface-section';
 
-export function toRuntimeTaskCard(r: TaskMetaDdbRecord, nowMs = Date.now()) {
+export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
   const {
     pk: _pk,
     sk: _sk,
@@ -12,19 +14,40 @@ export function toRuntimeTaskCard(r: TaskMetaDdbRecord, nowMs = Date.now()) {
     idempotencyKey: _idempotencyKey,
     generationHash: _generationHash,
     version: _version,
+    currentState,
+    assignedToType,
     ...rest
   } = r;
 
   return {
     ...rest,
-    surfaceSection: deriveSurfaceSection(
+    assignedToType: normalizeAssignedToTypeForWire(assignedToType),
+    currentState: normalizeCurrentStateForWire(currentState),
+  };
+}
+
+export function toActionCenterTaskCard(
+  r: TaskMetaDdbRecord,
+  timeZone: string,
+  nowMs = Date.now(),
+  surfaceSection?: SurfaceSection,
+) {
+  const card = toRuntimeTaskCard(r, nowMs);
+  const derived =
+    surfaceSection ??
+    deriveActionCenterSurfaceSection(
       {
         currentState: r.currentState,
         dueWindowStart: r.dueWindowStart,
-        displayToPatient: r.displayToPatient,
+        dueWindowEnd: r.dueWindowEnd,
+        displayAsChecklistItem: r.displayAsChecklistItem,
       },
+      timeZone,
       nowMs,
-    ),
+    );
+  return {
+    ...card,
+    surfaceSection: derived,
   };
 }
 

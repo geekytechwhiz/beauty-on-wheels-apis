@@ -36,6 +36,7 @@ provider:
 
   iamRoleStatements:
     - ${file(./infra/permissions/dynamodb.yml)}
+    - ${file(./infra/permissions/eventbridge.yml)}
     - ${file(./infra/permissions/xray.yml)}
 
 package:
@@ -125,7 +126,7 @@ functions:
           method: post
           bodyType: CreateMonitoringActionRequest
           summary: Create a monitoring-generated runtime task (idempotent)
-          description: Called by Monitoring Runtime. Organization scope from JWT only.
+          description: Called by Monitoring Runtime. orgId from JWT; patientId and patientDisplayName from request body. GSI1 when assignedToStaffId set.
           cors: *httpApiCors
           # authorizer:
           #   name: common_authorizer
@@ -150,7 +151,7 @@ functions:
           method: post
           bodyType: GenerateCarePlanTasksRequest
           summary: Generate care-plan linkage runtime tasks (idempotent batch)
-          description: Called by Care Plan Runtime. Organization scope from JWT only.
+          description: Called by Care Plan Runtime. orgId from JWT; patientId and patientDisplayName from request body. GSI1 per linkage when assignedToStaffId set.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -189,6 +190,50 @@ functions:
             "403": Forbidden
             "500": Server error
 
+  getActionCenterItems:
+    handler: src/handlers/http/getActionCenterItems.main
+    events:
+      - http:
+          path: action-center/items
+          method: get
+          summary: Get Action Center items by surface section
+          description: Patient Action Center with server-derived surfaceSection. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Action Center grouped or single-section response
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
+  getStaffTasks:
+    handler: src/handlers/http/getStaffTasks.main
+    events:
+      - http:
+          path: staff/tasks
+          method: get
+          summary: List tasks assigned to the authenticated staff member
+          description: Staff inbox via GSI1. staffUserId must match JWT user id. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Paginated staff task list
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden (staffUserId mismatch)
+            "500": Server error
+
   createRuntimeTask:
     handler: src/handlers/http/createRuntimeTask.main
     events:
@@ -199,8 +244,8 @@ functions:
           summary: Create an ad-hoc/service-flow/manual runtime task
           description: >
             Called by Service Flow Runtime or authorized staff/system (runtimeTaskSource =
-            serviceFlowRuntime or manualSystem). Organization scope from JWT only.
-            Prefer manualSystem when the origin is this API or the care UI.
+            serviceFlowRuntime or manualSystem). orgId from JWT; patientId and patientDisplayName from request body.
+            GSI1 when assignedToStaffId set. Prefer manualSystem when the origin is this API or the care UI.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -271,8 +316,8 @@ functions:
           bodyType: UpdateAssignedStaffRequest
           summary: Assign or reassign staff task to a staff member
           description: >
-            Portal assign/reassign for careTeam/provider tasks. Initial assignment sets GSI1 pk+sk;
-            reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.
+            Portal assign/reassign for staff tasks. orgId from JWT. Sets or updates GSI1 (gsi1Pk + gsi1Sk on
+            first assignment; gsi1Pk only on reassignment). Appends HIST assignedToStaffChange audit.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -287,6 +332,85 @@ functions:
             "403": Forbidden
             "404": Runtime task not found
             "422": Not a staff task or already assigned
+            "500": Server error
+
+  updateTaskState:
+    handler: src/handlers/http/updateTaskState.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}/state
+          method: post
+          bodyType: UpdateTaskStateRequest
+          summary: Update task state (optimistic validation + audit)
+          description: >
+            Manual runtime action from Mobile, Portal, BFF, or authorized staff. Requires expectedCurrentState
+            for optimistic concurrency. May publish CancelReminderJobs on terminal transitions.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Updated state and history entry
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "409": Expected state mismatch
+            "422": Invalid transition or actor
+            "500": Server error
+
+  updateReminderSettings:
+    handler: src/handlers/http/updateReminderSettings.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}/reminder-settings
+          method: put
+          bodyType: UpdateReminderSettingsRequest
+          summary: Update task reminder settings (portal)
+          description: >
+            Authorized portal users update reminderEnabled and reminderSettings on META with HIST audit.
+            Coordinates CancelReminderJobs / RegisterReminderJobs via EventBridge when eligibility changes.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Updated reminder settings and audit entry
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Runtime task not found
+            "422": Unchanged settings or not eligible to enable reminders
+            "500": Server error
+
+  getTaskStatusSummary:
+    handler: src/handlers/http/getTaskStatusSummary.main
+    events:
+      - http:
+          path: care-plans/{carePlanInstanceId}/task-status-summary
+          method: get
+          summary: Get care plan task readiness/status summary
+          description: >
+            Called by Care Plan Runtime for stage readiness gating. patientId query param required.
+            Aggregates via CarePlanIndex LSI + in-memory rollup. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Readiness summary
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
             "500": Server error
 
 resources:

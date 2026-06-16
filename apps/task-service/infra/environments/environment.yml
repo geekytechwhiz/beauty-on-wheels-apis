@@ -6,4 +6,4 @@ TASK_TABLE: ${self:custom.bundle.taskDynamoTableName}
 LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
 AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-EVENT_BUS: ${self:custom.bundle.eventBusName}
+# EVENT_BUS: ${self:custom.bundle.eventBusName}  # disabled until reminder scheduler is integrated

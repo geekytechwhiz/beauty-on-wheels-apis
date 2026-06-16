@@ -1,5 +1,6 @@
-Effect: Allow
-Action:
-  - events:PutEvents
-Resource:
-  - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.bundle.eventBusName}
+# Disabled until reminder scheduler consumes task-service-bus.
+# Effect: Allow
+# Action:
+#   - events:PutEvents
+# Resource:
+#   - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.bundle.eventBusName}

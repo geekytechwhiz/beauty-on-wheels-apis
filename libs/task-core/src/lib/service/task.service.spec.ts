@@ -815,7 +815,7 @@ describe('TaskService.updateTaskState', () => {
     jest.mocked(publishCancelReminderJobs).mockClear();
   });
 
-  it('completes task and publishes cancel reminder jobs when reminders were scheduled', async () => {
+  it('completes task without publishing cancel reminder jobs while scheduler is disabled', async () => {
     const meta = sampleRecord({ currentState: 'open' });
     const lookup = sampleLookup({
       reminderHistory: [{ reminderRecordId: 'rem-1', reminderStatus: 'scheduled' }],
@@ -859,14 +859,7 @@ describe('TaskService.updateTaskState', () => {
 
     expect(result.currentState).toBe('completed');
     expect(result.historyEntry).toMatchObject({ historyEventType: 'stateChange' });
-    expect(publishCancelReminderJobs).toHaveBeenCalledWith(
-      {
-        runtimeTaskInstanceId: 'rtask-abc',
-        patientId: 'pat-1',
-        reason: 'Done',
-      },
-      undefined,
-    );
+    expect(publishCancelReminderJobs).not.toHaveBeenCalled();
   });
 });
 
@@ -876,7 +869,7 @@ describe('TaskService.updateReminderSettings', () => {
     jest.mocked(publishRegisterReminderJobs).mockClear();
   });
 
-  it('enables reminders and publishes register jobs on eligible task', async () => {
+  it('enables reminders without publishing register jobs while scheduler is disabled', async () => {
     const meta = { ...sampleRecord(), reminderEnabled: false, currentState: 'open' as const };
     const lookup = sampleLookup();
     const settingsChangeHist = {
@@ -919,15 +912,7 @@ describe('TaskService.updateReminderSettings', () => {
 
     expect(result.reminderEnabled).toBe(true);
     expect(result.historyEntry).toMatchObject({ historyEventType: 'reminderSettingsChange' });
-    expect(publishRegisterReminderJobs).toHaveBeenCalledWith(
-      {
-        runtimeTaskInstanceId: 'rtask-abc',
-        patientId: 'pat-1',
-        scheduledReminderAt: lookup.dueWindowEnd,
-        reminderChannel: 'push',
-      },
-      undefined,
-    );
+    expect(publishRegisterReminderJobs).not.toHaveBeenCalled();
     expect(publishCancelReminderJobs).not.toHaveBeenCalled();
   });
 

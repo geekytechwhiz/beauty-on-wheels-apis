@@ -7,6 +7,7 @@ frameworkVersion: '3.x'
 
 plugins:
   - serverless-esbuild
+  - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
 
@@ -27,7 +28,17 @@ provider:
 
   logRetentionInDays: 14
 
-  environment: ${file(./infra/environments/environment.yml)}
+  environment:
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    NODE_ENV: ${self:provider.stage}
+    SERVICE_NAME: ${self:service}
+    # Table must exist before deploy; name from custom.taskDynamoTableName.
+    TASK_TABLE: ${self:custom.taskDynamoTableName}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    # EVENT_BUS: ${self:custom.eventBusName}  # disabled until reminder scheduler consumes task-service bus
 
   tags:
     Service: ${self:service}
@@ -35,9 +46,31 @@ provider:
     ManagedBy: serverless
 
   iamRoleStatements:
-    - ${file(./infra/permissions/dynamodb.yml)}
-    - ${file(./infra/permissions/eventbridge.yml)}
-    - ${file(./infra/permissions/xray.yml)}
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.taskDynamoTableName}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.taskDynamoTableName}/index/*
+
+    # - Effect: Allow
+    #   Action:
+    #     - events:PutEvents
+    #   Resource:
+    #     - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.eventBusName}
+
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: '*'
 
 package:
   individually: true
@@ -46,9 +79,9 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  bundle: ${file(./infra/config/infra-custom.yml)}
+  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
   cors: &httpApiCors
-    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+    origin: ${env:CORS_ORIGIN, '*'}
     headers:
       - Content-Type
       - X-Amz-Date
@@ -61,8 +94,11 @@ custom:
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
 
+  taskDynamoTableName: task-service-${self:provider.stage}
+  # eventBusName: task-service-bus-${self:provider.stage}  # disabled until reminder scheduler is integrated
+
   sourcemapsByStage:
-    dev: false
+    dev: true
     stg: false
     prd: false
 
@@ -70,15 +106,15 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
     external:
       - aws-sdk
     keepNames: true
-    concurrency: 1
-    zipConcurrency: 1
+    concurrency: 8
+    zipConcurrency: 8
     plugins: esbuild-plugins.js
     resolveExtensions:
       - '.ts'
@@ -90,6 +126,8 @@ custom:
 
   autoswagger:
     title: Task Service API
+    description: Runtime task HTTP API. Swagger 2 merge file for serverless-auto-swagger.
+    version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
     schemes:
@@ -105,10 +143,19 @@ custom:
       - production
       - dev
 
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  dotenv:
+    logging: false
+
   serverless-offline:
     httpPort: 3000
     noPrependStageInUrl: true
 
+# REST + CORS; secured routes: cors block first, then shared token authorizer (same as alert-service).
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -128,18 +175,18 @@ functions:
           summary: Create a monitoring-generated runtime task (idempotent)
           description: Called by Monitoring Runtime. orgId from JWT; patientId and patientDisplayName from request body. GSI1 when assignedToStaffId set.
           cors: *httpApiCors
-          # authorizer:
-          #   name: common_authorizer
-          #   type: token
-          #   identitySource: method.request.header.Authorization
-          #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-          #   resultTtlInSeconds: 0
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
           responses:
-            "200": OK — created or SkippedDuplicate
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "409": Conflict (cross-org idempotency)
+            "409": Conflict
             "422": Validation or business rule error
             "500": Server error
 
@@ -160,11 +207,11 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": OK — batch results (created or skippedDuplicate per linkage)
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "409": Conflict (cross-org idempotency)
+            "409": Conflict
             "422": Validation or business rule error
             "500": Server error
 
@@ -184,7 +231,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Paginated task list
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
@@ -206,7 +253,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Action Center grouped or single-section response
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
@@ -228,10 +275,10 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Paginated staff task list
+            "200": OK
             "400": Bad request
             "401": Unauthorized
-            "403": Forbidden (staffUserId mismatch)
+            "403": Forbidden
             "500": Server error
 
   createRuntimeTask:
@@ -254,7 +301,7 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": OK — new runtime task created
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
@@ -277,11 +324,11 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Task detail
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "404": Runtime task not found
+            "404": Not found
             "500": Server error
 
   getRuntimeTaskHistory:
@@ -300,11 +347,11 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Paged history entries
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "404": Runtime task not found
+            "404": Not found
             "500": Server error
 
   updateAssignedStaff:
@@ -326,12 +373,12 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Updated task and audit entry
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "404": Runtime task not found
-            "422": Not a staff task or already assigned
+            "404": Not found
+            "422": Validation or business rule error
             "500": Server error
 
   updateTaskState:
@@ -353,13 +400,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Updated state and history entry
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "404": Runtime task not found
-            "409": Expected state mismatch
-            "422": Invalid transition or actor
+            "404": Not found
+            "409": Conflict
+            "422": Validation or business rule error
             "500": Server error
 
   updateReminderSettings:
@@ -381,12 +428,12 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Updated reminder settings and audit entry
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
-            "404": Runtime task not found
-            "422": Unchanged settings or not eligible to enable reminders
+            "404": Not found
+            "422": Validation or business rule error
             "500": Server error
 
   getTaskStatusSummary:
@@ -407,11 +454,37 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
-            "200": Readiness summary
+            "200": OK
             "400": Bad request
             "401": Unauthorized
             "403": Forbidden
             "500": Server error
 
 resources:
-  - ${file(./infra/resources/gateway-responses.yml)}
+  Resources:
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseType: UNAUTHORIZED
+        StatusCode: '401'
+        ResponseParameters:
+          gatewayresponse.header.X-Content-Type-Options: "'nosniff'"
+          gatewayresponse.header.X-XSS-Protection: "'1'"
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.X-Frame-Options: "'DENY'"
+        ResponseTemplates:
+          application/json: "{\"success\":false,\"message\":$context.error.messageString,\"errorCode\":\"INVALID_TOKEN\",\"statusCode\":401}"
+
+    # TaskServiceBus:
+    #   Type: AWS::Events::EventBus
+    #   Properties:
+    #     Name: task-service-bus-${self:provider.stage}
+    #     Tags:
+    #       - Key: Service
+    #         Value: ${self:service}
+    #       - Key: Stage
+    #         Value: ${self:provider.stage}
+    #       - Key: ManagedBy
+    #         Value: serverless

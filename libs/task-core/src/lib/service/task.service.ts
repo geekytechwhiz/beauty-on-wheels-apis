@@ -45,12 +45,13 @@ import {
 } from '../models/types/task-domain.types';
 import { toActionCenterTaskCard, toRuntimeTaskCard, toTaskHistoryEntry } from '../mappers/task-http.dto';
 import { TaskRepository } from '../repositories/task-repository';
-import { publishCancelReminderJobs, publishRegisterReminderJobs } from '../events/task-command.publisher';
+// Reminder EventBridge integration disabled until reminder scheduler consumes task-service bus.
+// import { publishCancelReminderJobs, publishRegisterReminderJobs } from '../events/task-command.publisher';
 import { prepareAssignedToTypeInput } from '../utils/assigned-to-type.validation';
 import {
   mergeReminderSettingsForUpdate,
   reminderSettingsEqual,
-  resolveReminderCoordination,
+  // resolveReminderCoordination,
   isReminderRegistrationEligible,
 } from '../utils/reminder-settings';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
@@ -359,13 +360,15 @@ export class TaskService extends BaseTaskService {
       );
     }
 
-    const coordination = resolveReminderCoordination({
-      previousEnabled: meta.reminderEnabled,
-      previousSettings: meta.reminderSettings,
-      newEnabled: nextReminderEnabled,
-      newSettings: nextReminderSettings,
-      currentState: meta.currentState,
-    });
+    // Reminder scheduler coordination disabled until EventBridge bus is integrated.
+    // const coordination = resolveReminderCoordination({
+    //   previousEnabled: meta.reminderEnabled,
+    //   previousSettings: meta.reminderSettings,
+    //   newEnabled: nextReminderEnabled,
+    //   newSettings: nextReminderSettings,
+    //   currentState: meta.currentState,
+    // });
+    const coordination = { shouldCancel: false, shouldRegister: false };
 
     const result = await this.repo.updateReminderSettings({
       meta,
@@ -376,28 +379,28 @@ export class TaskService extends BaseTaskService {
       coordination,
     });
 
-    if (coordination.shouldCancel) {
-      await publishCancelReminderJobs(
-        {
-          runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
-          patientId: meta.patientId,
-          reason: input.reason,
-        },
-        options?.correlationId,
-      );
-    }
+    // if (coordination.shouldCancel) {
+    //   await publishCancelReminderJobs(
+    //     {
+    //       runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+    //       patientId: meta.patientId,
+    //       reason: input.reason,
+    //     },
+    //     options?.correlationId,
+    //   );
+    // }
 
-    if (coordination.shouldRegister) {
-      await publishRegisterReminderJobs(
-        {
-          runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
-          patientId: meta.patientId,
-          scheduledReminderAt: lookup.dueWindowEnd ?? lookup.dueWindowStart ?? meta.dueWindowEnd,
-          reminderChannel: nextReminderSettings?.channels?.[0],
-        },
-        options?.correlationId,
-      );
-    }
+    // if (coordination.shouldRegister) {
+    //   await publishRegisterReminderJobs(
+    //     {
+    //       runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+    //       patientId: meta.patientId,
+    //       scheduledReminderAt: lookup.dueWindowEnd ?? lookup.dueWindowStart ?? meta.dueWindowEnd,
+    //       reminderChannel: nextReminderSettings?.channels?.[0],
+    //     },
+    //     options?.correlationId,
+    //   );
+    // }
 
     return {
       runtimeTaskInstanceId: result.record.runtimeTaskInstanceId,
@@ -443,12 +446,6 @@ export class TaskService extends BaseTaskService {
       throw e;
     }
 
-    const terminalCancelStates: RuntimeTaskState[] = [
-      RUNTIME_TASK_STATE.COMPLETED,
-      RUNTIME_TASK_STATE.DISMISSED,
-      RUNTIME_TASK_STATE.CANCELLED,
-    ];
-
     let result;
     try {
       result = await this.repo.transitionTaskState({
@@ -472,19 +469,20 @@ export class TaskService extends BaseTaskService {
       throw e;
     }
 
-    if (
-      result.hadCancellableReminders &&
-      terminalCancelStates.includes(transition.toState)
-    ) {
-      await publishCancelReminderJobs(
-        {
-          runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
-          patientId: meta.patientId,
-          reason: input.reason,
-        },
-        options?.correlationId,
-      );
-    }
+    // Reminder scheduler coordination disabled until EventBridge bus is integrated.
+    // if (
+    //   result.hadCancellableReminders &&
+    //   terminalCancelStates.includes(transition.toState)
+    // ) {
+    //   await publishCancelReminderJobs(
+    //     {
+    //       runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+    //       patientId: meta.patientId,
+    //       reason: input.reason,
+    //     },
+    //     options?.correlationId,
+    //   );
+    // }
 
     const surfaceSection = deriveActionCenterSurfaceSection(
       {

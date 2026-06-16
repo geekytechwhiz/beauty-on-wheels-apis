@@ -1,4 +1,4 @@
-import { CARE_PLAN_INDEX, STAFF_TASKS_INDEX } from '../constants/task.constants';
+import { CARE_PLAN_LSI_INDEX, STAFF_TASKS_GSI_INDEX } from '../constants/task.constants';
 import { ASSIGNED_TO_TYPE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
@@ -15,7 +15,7 @@ describe('TaskRepository.queryPatientTasksPage', () => {
     process.env.TASK_TABLE = originalTaskTable;
   });
 
-  it('queries CarePlanIndex when carePlanInstanceId is provided', async () => {
+  it('queries pk-sk1 LSI when carePlanInstanceId is provided', async () => {
     const repo = new TaskRepository();
     const queryPage = jest
       .spyOn(repo as unknown as { queryPage: jest.Mock }, 'queryPage')
@@ -33,8 +33,8 @@ describe('TaskRepository.queryPatientTasksPage', () => {
     expect(queryPage).toHaveBeenCalledWith(
       expect.objectContaining({
         TableName: 'task-test-table',
-        IndexName: CARE_PLAN_INDEX,
-        KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+        IndexName: CARE_PLAN_LSI_INDEX,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
         FilterExpression: 'entityType = :metaEntity AND workflowStage = :workflowStage AND currentState = :currentState',
         ExpressionAttributeValues: expect.objectContaining({
           ':pk': TaskKeyBuilder.buildPatientPartitionKey('org-1', 'pat-1'),
@@ -111,7 +111,7 @@ describe('TaskRepository.queryStaffTasksPage', () => {
     process.env.TASK_TABLE = originalTaskTable;
   });
 
-  it('queries StaffPatientTasksIndex by gsi1Pk and DUE# prefix', async () => {
+  it('queries GSI1 by gsi1pk and DUE# prefix', async () => {
     const repo = new TaskRepository();
     const queryPage = jest
       .spyOn(repo as unknown as { queryPage: jest.Mock }, 'queryPage')
@@ -128,11 +128,11 @@ describe('TaskRepository.queryStaffTasksPage', () => {
     expect(queryPage).toHaveBeenCalledWith(
       expect.objectContaining({
         TableName: 'task-test-table',
-        IndexName: STAFF_TASKS_INDEX,
-        KeyConditionExpression: 'gsi1Pk = :gsi1Pk AND begins_with(gsi1Sk, :duePrefix)',
+        IndexName: STAFF_TASKS_GSI_INDEX,
+        KeyConditionExpression: 'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :duePrefix)',
         FilterExpression: expect.stringContaining('patientId = :patientId'),
         ExpressionAttributeValues: expect.objectContaining({
-          ':gsi1Pk': TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.ORG_STAFF, 'staff-1'),
+          ':gsi1pk': TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.ORG_STAFF, 'staff-1'),
           ':duePrefix': 'DUE#',
           ':patientId': 'pat-1',
         }),
@@ -180,7 +180,7 @@ describe('TaskRepository.queryActionCenterTasksPage', () => {
     queryPage.mockRestore();
   });
 
-  it('queries CarePlanIndex when carePlanInstanceId is provided', async () => {
+  it('queries pk-sk1 LSI when carePlanInstanceId is provided', async () => {
     const repo = new TaskRepository();
     const queryPage = jest
       .spyOn(repo as unknown as { queryPage: jest.Mock }, 'queryPage')
@@ -196,8 +196,8 @@ describe('TaskRepository.queryActionCenterTasksPage', () => {
 
     expect(queryPage).toHaveBeenCalledWith(
       expect.objectContaining({
-        IndexName: CARE_PLAN_INDEX,
-        KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+        IndexName: CARE_PLAN_LSI_INDEX,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
         FilterExpression: expect.stringContaining('workflowStage = :workflowStage'),
         ExpressionAttributeValues: expect.objectContaining({
           ':cpPrefix': 'CP#cp-1#',
@@ -295,7 +295,7 @@ describe('TaskRepository.queryCarePlanTasksForSummaryPage', () => {
     process.env.TASK_TABLE = originalTaskTable;
   });
 
-  it('queries CarePlanIndex without excluding terminal states', async () => {
+  it('queries pk-sk1 LSI without excluding terminal states', async () => {
     const repo = new TaskRepository();
     const queryPage = jest
       .spyOn(repo as unknown as { queryPage: jest.Mock }, 'queryPage')
@@ -311,8 +311,8 @@ describe('TaskRepository.queryCarePlanTasksForSummaryPage', () => {
 
     expect(queryPage).toHaveBeenCalledWith(
       expect.objectContaining({
-        IndexName: CARE_PLAN_INDEX,
-        KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+        IndexName: CARE_PLAN_LSI_INDEX,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
         FilterExpression: 'entityType = :metaEntity AND workflowStage = :workflowStage',
         ExpressionAttributeValues: expect.objectContaining({
           ':cpPrefix': 'CP#cp-1#',

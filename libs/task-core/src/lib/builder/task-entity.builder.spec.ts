@@ -56,8 +56,8 @@ describe('TaskEntityBuilder', () => {
     expect(meta.taskDisplayGroup).toBe('staffTask');
     expect(meta.assignedToStaffId).toBe('staff-nurse-44721');
     expect(meta.assignedToStaffDisplayName).toBe('Nurse Lee');
-    expect(meta.gsi1Pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
-    expect(meta.gsi1Sk).toContain('PAT#pat-1');
+    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
+    expect(meta.gsi1sk).toContain('PAT#pat-1');
   });
 
   it('uses open state when dueWindowStart is in the future', () => {
@@ -105,8 +105,8 @@ describe('TaskEntityBuilder', () => {
     expect(meta.assignedToStaffId).toBe('staff-nurse-44721');
     expect(meta.assignedToStaffDisplayName).toBe('Nurse Lee');
     expect(meta.patientDisplayName).toBe('Maria Lopez');
-    expect(meta.gsi1Pk).toBe('ORG#org-acme-health-001#STAFF#staff-nurse-44721');
-    expect(meta.gsi1Sk).toContain('PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201');
+    expect(meta.gsi1pk).toBe('ORG#org-acme-health-001#STAFF#staff-nurse-44721');
+    expect(meta.gsi1sk).toContain('PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201');
     expect(meta.currentState).toBe('open');
     expect(meta.createdBy).toBe('user:staff-lead-001');
   });
@@ -142,7 +142,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.dueWindowStart).toBe(1780668000000);
     expect(meta.dueWindowEnd).toBe(1780668000000);
     expect(lookup.dueWindowStart).toBe(1780668000000);
-    expect(meta.gsi1Pk).toBeUndefined();
+    expect(meta.gsi1pk).toBeUndefined();
     expect(lookup.taskSk).toBe(meta.sk);
     expect(hist.transitionSource).toBe('system');
     expect(hist.transitionReason).toBe('serviceFlowRuntime create');
@@ -185,12 +185,12 @@ describe('TaskEntityBuilder', () => {
     expect(meta.runtimeTaskSource).toBe('carePlanTaskLinkage');
     expect(meta.carePlanTaskLinkageId).toBe('link-bp-form');
     expect(meta.sourceTaskTemplateVersionId).toBe('task-tpl-document-form-v2');
-    expect(meta.lsi1Sk).toBe('CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e');
+    expect(meta.sk1).toBe('CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e');
     expect(meta.reminderEnabled).toBe(true);
     expect(meta.currentState).toBe('open');
     expect(meta.createdBy).toBe('system:care-plan-runtime');
-    expect(meta.gsi1Pk).toBeUndefined();
-    expect(meta.gsi1Sk).toBeUndefined();
+    expect(meta.gsi1pk).toBeUndefined();
+    expect(meta.gsi1sk).toBeUndefined();
   });
 
   it('builds care plan META with GSI1 when staff linkage has assignedToStaffId', () => {
@@ -221,8 +221,8 @@ describe('TaskEntityBuilder', () => {
     });
 
     const meta = TaskEntityBuilder.buildCarePlanMetaRecord(ctx);
-    expect(meta.gsi1Pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
-    expect(meta.gsi1Sk).toBe(
+    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#staff-nurse-44721');
+    expect(meta.gsi1sk).toBe(
       'DUE#1780650000000#PAT#pat-1#TASK#rtask-staff-call-001',
     );
   });

@@ -3,9 +3,9 @@ import { BaseRepository } from '@api-hub/utils';
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import {
-  CARE_PLAN_INDEX,
+  CARE_PLAN_LSI_INDEX,
   ENTITY_TYPE_RUNTIME_TASK,
-  STAFF_TASKS_INDEX,
+  STAFF_TASKS_GSI_INDEX,
   TASK_LOOKUP_SK,
 } from '../constants/task.constants';
 import {
@@ -22,6 +22,10 @@ import type {
   ReassignStaffTaskRepoInput,
   ReassignStaffTaskRepoResult,
 } from '../models/api/update-assigned-staff.request';
+import type {
+  TransitionTaskStateRepoInput,
+  TransitionTaskStateRepoResult,
+} from '../models/api/update-task-state.request';
 import type {
   UpdateReminderSettingsRepoInput,
   UpdateReminderSettingsRepoResult,
@@ -207,8 +211,8 @@ export class TaskRepository extends BaseRepository {
       expressionValues[':cpPrefix'] = cpPrefix;
       return this.queryPage<TaskMetaDdbRecord>({
         TableName: table,
-        IndexName: CARE_PLAN_INDEX,
-        KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+        IndexName: CARE_PLAN_LSI_INDEX,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
         FilterExpression: filterExpression,
         ExpressionAttributeValues: expressionValues,
         Limit: input.pageSize,
@@ -256,8 +260,8 @@ export class TaskRepository extends BaseRepository {
       expressionValues[':cpPrefix'] = cpPrefix;
       return this.queryPage<TaskMetaDdbRecord>({
         TableName: table,
-        IndexName: CARE_PLAN_INDEX,
-        KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+        IndexName: CARE_PLAN_LSI_INDEX,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
         FilterExpression: filterExpression,
         ExpressionAttributeValues: expressionValues,
         Limit: input.pageSize,
@@ -297,8 +301,8 @@ export class TaskRepository extends BaseRepository {
 
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
-      IndexName: CARE_PLAN_INDEX,
-      KeyConditionExpression: 'pk = :pk AND begins_with(lsi1Sk, :cpPrefix)',
+      IndexName: CARE_PLAN_LSI_INDEX,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk1, :cpPrefix)',
       FilterExpression: filterParts.join(' AND '),
       ExpressionAttributeValues: expressionValues,
       Limit: input.pageSize,
@@ -310,14 +314,14 @@ export class TaskRepository extends BaseRepository {
     input: QueryStaffTasksPageInput,
   ): Promise<{ items: TaskMetaDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertTaskTable();
-    const gsi1Pk = TaskKeyBuilder.buildGsi1Pk(
+    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
       input.organizationId,
       ASSIGNED_TO_TYPE.ORG_STAFF,
       input.staffUserId,
     );
 
     const expressionValues: Record<string, unknown> = {
-      ':gsi1Pk': gsi1Pk,
+      ':gsi1pk': gsi1pk,
       ':duePrefix': 'DUE#',
       ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
     };
@@ -346,8 +350,8 @@ export class TaskRepository extends BaseRepository {
 
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
-      IndexName: STAFF_TASKS_INDEX,
-      KeyConditionExpression: 'gsi1Pk = :gsi1Pk AND begins_with(gsi1Sk, :duePrefix)',
+      IndexName: STAFF_TASKS_GSI_INDEX,
+      KeyConditionExpression: 'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :duePrefix)',
       FilterExpression: filterParts.join(' AND '),
       ExpressionAttributeValues: expressionValues,
       Limit: input.pageSize,
@@ -532,14 +536,14 @@ export class TaskRepository extends BaseRepository {
     const table = assertTaskTable();
     const { meta, lookup, actorId, assignedToStaffId, assignedToStaffDisplayName, reason } = input;
     const nowMs = Date.now();
-    const gsi1Pk = TaskKeyBuilder.buildGsi1Pk(
+    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
       meta.orgId,
       ASSIGNED_TO_TYPE.ORG_STAFF,
       assignedToStaffId,
     );
     const isFirstAssignment = !meta.assignedToStaffId;
-    const gsi1Sk =
-      meta.gsi1Sk ??
+    const gsi1sk =
+      meta.gsi1sk ??
       TaskKeyBuilder.buildGsi1Sk(
         meta.dueWindowStart ?? lookup.dueWindowStart,
         meta.dueWindowEnd ?? lookup.dueWindowEnd,
@@ -547,17 +551,17 @@ export class TaskRepository extends BaseRepository {
         meta.runtimeTaskInstanceId,
       );
     const metaUpdateExpression = isFirstAssignment
-      ? 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1Pk = :gsi1Pk, gsi1Sk = :gsi1Sk, lastUpdatedAt = :now, lastUpdatedBy = :by'
-      : 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1Pk = :gsi1Pk, lastUpdatedAt = :now, lastUpdatedBy = :by';
+      ? 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1pk = :gsi1pk, gsi1sk = :gsi1sk, lastUpdatedAt = :now, lastUpdatedBy = :by'
+      : 'SET assignedToStaffId = :staffId, assignedToStaffDisplayName = :staffDisplayName, gsi1pk = :gsi1pk, lastUpdatedAt = :now, lastUpdatedBy = :by';
     const metaExpressionValues: Record<string, unknown> = {
       ':staffId': assignedToStaffId,
       ':staffDisplayName': assignedToStaffDisplayName,
-      ':gsi1Pk': gsi1Pk,
+      ':gsi1pk': gsi1pk,
       ':now': nowMs,
       ':by': actorId,
     };
     if (isFirstAssignment) {
-      metaExpressionValues[':gsi1Sk'] = gsi1Sk;
+      metaExpressionValues[':gsi1sk'] = gsi1sk;
     }
     const histPut = TaskEntityBuilder.buildStaffReassignmentHistRecord({
       meta,
@@ -609,8 +613,8 @@ export class TaskRepository extends BaseRepository {
         ...meta,
         assignedToStaffId,
         assignedToStaffDisplayName,
-        gsi1Pk,
-        gsi1Sk: meta.gsi1Sk ?? gsi1Sk,
+        gsi1pk,
+        gsi1sk: meta.gsi1sk ?? gsi1sk,
         lastUpdatedAt: nowMs,
         lastUpdatedBy: actorId,
       },

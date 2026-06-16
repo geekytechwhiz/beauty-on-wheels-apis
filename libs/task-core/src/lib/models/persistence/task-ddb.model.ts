@@ -45,9 +45,10 @@ export interface TaskMetaDdbRecord {
   reminderSettings?: ReminderSettings;
   idempotencyKey?: string;
   generationHash?: string;
-  lsi1Sk?: string;
-  gsi1Pk?: string;
-  gsi1Sk?: string;
+  /** Care-plan LSI sort key (`pk-sk1` index). */
+  sk1?: string;
+  gsi1pk?: string;
+  gsi1sk?: string;
   createdAt: number;
   createdBy: string;
   lastUpdatedAt: number;

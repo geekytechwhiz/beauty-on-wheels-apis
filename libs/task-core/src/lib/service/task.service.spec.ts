@@ -659,7 +659,7 @@ function staffTaskRecord(overrides: Partial<TaskMetaDdbRecord> = {}): TaskMetaDd
     assignedToType: 'orgStaff',
     assignedToStaffId: 'staff-1',
     displayToPatient: false,
-    gsi1Pk: 'ORG#org-1#STAFF#staff-1',
+    gsi1pk: 'ORG#org-1#STAFF#staff-1',
     ...overrides,
   };
 }
@@ -670,7 +670,7 @@ describe('TaskService.reassignAssignedStaff', () => {
     const lookup = sampleLookup({ assignedToStaffId: 'staff-1' });
     const updatedMeta = staffTaskRecord({
       assignedToStaffId: 'staff-2',
-      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
+      gsi1pk: 'ORG#org-1#STAFF#staff-2',
       lastUpdatedBy: 'staff-manager-1',
     });
     const historyEntry = {
@@ -744,12 +744,12 @@ describe('TaskService.reassignAssignedStaff', () => {
   });
 
   it('assigns staff when task has no prior assignedToStaffId', async () => {
-    const meta = staffTaskRecord({ assignedToStaffId: undefined, gsi1Pk: undefined, gsi1Sk: undefined });
+    const meta = staffTaskRecord({ assignedToStaffId: undefined, gsi1pk: undefined, gsi1sk: undefined });
     const lookup = sampleLookup();
     const updatedMeta = staffTaskRecord({
       assignedToStaffId: 'staff-2',
-      gsi1Pk: 'ORG#org-1#STAFF#staff-2',
-      gsi1Sk: 'DUE#1780581600000#PAT#pat-1#TASK#rtask-abc',
+      gsi1pk: 'ORG#org-1#STAFF#staff-2',
+      gsi1sk: 'DUE#1780581600000#PAT#pat-1#TASK#rtask-abc',
     });
     const historyEntry = {
       pk: 'TASK#rtask-abc',

@@ -16,8 +16,8 @@ export function manualSystemActor(userId: string): string {
 
 export const DUE_SORT_SENTINEL_MS = 9999999999999;
 
-/** LSI1 on patient META partition — care-plan scoped task lists. */
-export const CARE_PLAN_INDEX = 'CarePlanIndex';
+/** Care-plan scoped META list (LSI on `pk` + `sk1`). */
+export const CARE_PLAN_LSI_INDEX = process.env.CARE_PLAN_LSI_INDEX?.trim() || 'pk-sk1';
 
-/** GSI1 — staff inbox task lists keyed by assigned staff user id. */
-export const STAFF_TASKS_INDEX = 'StaffPatientTasksIndex';
+/** Staff inbox (GSI on `gsi1pk` + `gsi1sk`). */
+export const STAFF_TASKS_GSI_INDEX = process.env.STAFF_TASKS_GSI_INDEX?.trim() || 'GSI1';

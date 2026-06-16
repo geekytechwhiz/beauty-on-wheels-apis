@@ -4,6 +4,8 @@ NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}
 # Table must exist before deploy; name from custom.bundle.taskDynamoTableName.
 TASK_TABLE: ${self:custom.bundle.taskDynamoTableName}
+CARE_PLAN_LSI_INDEX: pk-sk1
+STAFF_TASKS_GSI_INDEX: GSI1
 LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
 AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net

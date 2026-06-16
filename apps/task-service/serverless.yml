@@ -328,8 +328,8 @@ functions:
           bodyType: UpdateAssignedStaffRequest
           summary: Assign or reassign staff task to a staff member
           description: >
-            Portal assign/reassign for staff tasks. orgId from JWT. Sets or updates GSI1 (gsi1Pk + gsi1Sk on
-            first assignment; gsi1Pk only on reassignment). Appends HIST assignedToStaffChange audit.
+            Portal assign/reassign for staff tasks. orgId from JWT. Sets or updates GSI1 (gsi1pk + gsi1sk on
+            first assignment; gsi1pk only on reassignment). Appends HIST assignedToStaffChange audit.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

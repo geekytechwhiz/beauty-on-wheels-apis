@@ -145,12 +145,12 @@ export class TaskEntityBuilder {
         : {}),
       idempotencyKey,
       generationHash,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
       createdAt: nowMs,
       createdBy: MONITORING_SYSTEM_ACTOR,
       lastUpdatedAt: nowMs,
       lastUpdatedBy: MONITORING_SYSTEM_ACTOR,
       version: 1,
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
 
     if (assignedToStaffId) record.assignedToStaffId = assignedToStaffId;
@@ -159,12 +159,12 @@ export class TaskEntityBuilder {
     }
 
     if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
         input.organizationId,
         input.assignedToType,
         assignedToStaffId,
       );
-      record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
         input.patientId,
@@ -282,7 +282,7 @@ export class TaskEntityBuilder {
       lastUpdatedAt: nowMs,
       lastUpdatedBy: input.createdBy,
       version: 1,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
 
     if (input.carePlanInstanceId) record.carePlanInstanceId = input.carePlanInstanceId;
@@ -308,12 +308,12 @@ export class TaskEntityBuilder {
     }
 
     if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
         input.organizationId,
         input.assignedToType,
         assignedToStaffId,
       );
-      record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
         input.patientId,
@@ -420,7 +420,7 @@ export class TaskEntityBuilder {
       lastUpdatedAt: nowMs,
       lastUpdatedBy: input.createdBy,
       version: 1,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
 
     if (input.workflowStage) record.workflowStage = input.workflowStage;
@@ -449,12 +449,12 @@ export class TaskEntityBuilder {
     }
 
     if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
         input.organizationId,
         input.assignedToType,
         assignedToStaffId,
       );
-      record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
         input.patientId,

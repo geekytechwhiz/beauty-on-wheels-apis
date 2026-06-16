@@ -7,14 +7,14 @@ frameworkVersion: '3.x'
 
 plugins:
   - serverless-esbuild
-  # - serverless-dotenv-plugin
+  - serverless-dotenv-plugin
   # - serverless-auto-swagger
-  # - serverless-offline
+  - serverless-offline
 
 provider:
   name: aws
   # Keep to a Serverless-schema-supported runtime for CI validation.
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -80,7 +80,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node20
+    target: node22
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -101,30 +101,30 @@ custom:
       - '.mjs'
       - '.json'
 
-  # autoswagger:
-  #   title: Task Service API
-  #   description: Runtime task HTTP API. Swagger 2 merge file for serverless-auto-swagger.
-  #   version: 1.0.0
-  #   apiType: http
-  #   basePath: /${self:provider.stage}
-  #   schemes:
-  #     - https
-  #     - http
-  #   host: ${self:custom.apiHost, ''}
-  #   generateSwaggerOnDeploy: true
-  #   swaggerFiles:
-  #     - swagger.json
-  #   useStage: true
-  #   swaggerPath: swagger
-  #   excludeStages:
-  #     - production
+  autoswagger:
+    title: Task Service API
+    description: Runtime task HTTP API. Swagger 2 merge file for serverless-auto-swagger.
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
 
   # dotenv:
   #   logging: false
   #
-  # serverless-offline:
-  #   httpPort: 3000
-  #   noPrependStageInUrl: true
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
 
 # REST + CORS; secured routes: cors block first, then shared token authorizer (same as alert-service).
 functions:

@@ -6,7 +6,7 @@ echo "======================================="
 echo "VERIFYING DEPLOYMENT ARTIFACTS"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/template-service"
+SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/task-service"
 
 cd "$SERVICE_DIR"
 

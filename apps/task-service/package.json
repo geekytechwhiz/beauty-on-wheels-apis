@@ -6,28 +6,26 @@
     "deploy": "npx --no-install serverless deploy",
     "offline": "npx --no-install serverless offline --stage dev",
     "package": "npx --no-install serverless package",
-    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts"
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts",
+    "test:coverage": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts --coverage",
+    "test:watch": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts --watch",
+    "test:all": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts && node node_modules/jest/bin/jest.js --config=libs/task-core/jest.config.cts",
+    "test:all:coverage": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/task-service/jest.config.cts --coverage && node node_modules/jest/bin/jest.js --config=libs/task-core/jest.config.cts --coverage"
   },
   "nx": {
     "targets": {
       "build": {
         "executor": "@nx/esbuild:esbuild",
-        "outputs": [
-          "{options.outputPath}"
-        ],
+        "outputs": ["{options.outputPath}"],
         "defaultConfiguration": "production",
         "options": {
           "platform": "node",
-          "outputPath": "apps/task-service/dist",
-          "format": [
-            "cjs"
-          ],
+          "outputPath": "dist/apps/task-service-esbuild",
+          "format": ["cjs"],
           "bundle": false,
-          "main": "apps/task-service/src/main.ts",
+          "main": "apps/task-service/src/index.ts",
           "tsConfig": "apps/task-service/tsconfig.app.json",
-          "assets": [
-            "apps/task-service/src/assets"
-          ],
+          "assets": [],
           "esbuildOptions": {
             "sourcemap": true,
             "outExtension": {
@@ -48,26 +46,22 @@
         }
       },
       "prune-lockfile": {
-        "dependsOn": [
-          "build"
-        ],
+        "dependsOn": ["build"],
         "cache": true,
         "executor": "@nx/js:prune-lockfile",
         "outputs": [
-          "{workspaceRoot}/apps/task-service/dist/package.json",
-          "{workspaceRoot}/apps/task-service/dist/pnpm-lock.yaml"
+          "{workspaceRoot}/dist/apps/task-service-esbuild/package.json",
+          "{workspaceRoot}/dist/apps/task-service-esbuild/pnpm-lock.yaml"
         ],
         "options": {
           "buildTarget": "build"
         }
       },
       "copy-workspace-modules": {
-        "dependsOn": [
-          "build"
-        ],
+        "dependsOn": ["build"],
         "cache": true,
         "outputs": [
-          "{workspaceRoot}/apps/task-service/dist/workspace_modules"
+          "{workspaceRoot}/dist/apps/task-service-esbuild/workspace_modules"
         ],
         "executor": "@nx/js:copy-workspace-modules",
         "options": {
@@ -75,19 +69,14 @@
         }
       },
       "prune": {
-        "dependsOn": [
-          "prune-lockfile",
-          "copy-workspace-modules"
-        ],
+        "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
         "executor": "nx:noop"
       },
       "serve": {
         "continuous": true,
         "executor": "@nx/js:node",
         "defaultConfiguration": "development",
-        "dependsOn": [
-          "build"
-        ],
+        "dependsOn": ["build"],
         "options": {
           "buildTarget": "@api-hub/task-service:build",
           "runBuildTargetDependencies": false
@@ -100,15 +89,9 @@
             "buildTarget": "@api-hub/task-service:build:production"
           }
         }
-      },
-      "test": {
-        "options": {
-          "passWithNoTests": true
-        }
       }
     }
   },
-  "dependencies": {},
   "devDependencies": {
     "esbuild": "^0.19.2",
     "serverless": "^3.40.0",

@@ -1,22 +1,16 @@
 version: 0.2
 # Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
-# Deploy must use the artifact at apps/task-service/packaged.yaml (see artifacts.files).
+# Deploy must (1) use the artifact template at apps/task-service/packaged.yaml (see artifacts.files),
+# (2) use the same AWS account and region as this build so S3 keys in the template resolve.
+# Deploy CodeBuild: set TASK_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
+# Optional: PACKAGED_TEMPLATE (default apps/task-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
 
 env:
-  # NOTE: `compute-type` is NOT a valid field in a non-batch buildspec — AWS ignores it.
-  # Compute type must be set on the CodeBuild PROJECT (console/CLI/IaC) or via
-  # `--compute-type-override`. This project currently runs on SMALL (~3.6 GiB), so the
-  # settings below are tuned to fit SMALL. To get more memory, change the project to
-  # BUILD_GENERAL1_MEDIUM and you can then raise NODE_OPTIONS to ~6144.
   shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-task-service-bucket'
     STACK_NAME: 'dev-task-service'
-    # Cap Node heap well below the ~3.6 GiB container so the esbuild subprocess has
-    # headroom. A 6144 cap on a 3.6 GiB box prevents GC and OOM-kills esbuild
-    # ("Error: The service was stopped").
-    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
@@ -45,4 +39,4 @@ artifacts:
   files:
     - apps/task-service/packaged.yaml
     - apps/task-service/.serverless/**/*
-  discard-paths: no 
+  discard-paths: no

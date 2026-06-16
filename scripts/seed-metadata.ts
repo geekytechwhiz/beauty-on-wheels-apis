@@ -14,12 +14,15 @@
  *   pnpm seed:metadata
  *
  * Requires BASE_URL (see scripts/.env.example). AUTH_TOKEN is optional for local offline.
+ * Phase 1 creates types with `applicableModules` aggregated from Excel value rows (and overrides).
+ * Re-seed with TREAT_CONFLICT_AS_SUCCESS=true skips existing entities.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import {
   isSmokeTestEnabled,
+  METADATA_SEED_PREREQUISITE_TYPES,
   METADATA_SEED_SMOKE_TYPES,
 } from '../helpers/catalog/seed-scope';
 import {
@@ -284,8 +287,9 @@ async function seedRichValues(
     logger.info('Seeding rich values for type', {
       metadataTypeCode,
       count: seeds.length,
+      concurrency: config.concurrency,
     });
-    await seedValuesForType(config, registry, results, metadataTypeCode, seeds, 1);
+    await seedValuesForType(config, registry, results, metadataTypeCode, seeds);
   }
 }
 
@@ -396,7 +400,12 @@ async function main(): Promise<void> {
     typePath: config.typePath,
     valuePath: config.valuePath,
     smokeTest: isSmokeTestEnabled(),
-    ...(isSmokeTestEnabled() ? { smokeTypes: [...METADATA_SEED_SMOKE_TYPES] } : {}),
+    ...(isSmokeTestEnabled()
+      ? {
+          smokeTypes: [...METADATA_SEED_SMOKE_TYPES],
+          prerequisiteTypes: [...METADATA_SEED_PREREQUISITE_TYPES],
+        }
+      : {}),
   });
 
   await seedTypes(config, registry, results);

@@ -38,6 +38,8 @@
     "migrate:handlers-v1": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts",
     "metadata-registry-service:offline": "cd apps/metadata-registry-service && npx serverless offline --stage dev",
     "seed:metadata": "ts-node --project scripts/tsconfig.json scripts/seed-metadata.ts",
+    "seed:metadata-types": "ts-node --project scripts/tsconfig.json scripts/seed-metadata-types.ts",
+    "backfill:metadata-type-modules": "ts-node --project scripts/tsconfig.json scripts/backfill-metadata-type-modules.ts",
     "generate:metadata-catalog": "ts-node --project scripts/tsconfig.json scripts/generate-metadata-catalog-json.ts",
     "migrate:handlers-v1:metadata-registry": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts metadata-registry-service",
     "migrate:handlers-v1:organization": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts organization-service",

@@ -8,13 +8,15 @@ import {
   humanizeMetadataTypeCode,
   resolveMetadataTypeDefinition,
 } from '../catalog/type-overrides';
+import { enrichCatalogTypeDefinitions } from '../catalog/type-modules-from-values';
 import type {
   MetadataTypeSeedDefinition,
   RichValueSeed,
   SimpleValueSeed,
+  ValueDataTypeSeed,
 } from '../interfaces';
 
-const DEFAULT_EXCEL_FILE = 'Complete metadata.xlsx';
+const DEFAULT_EXCEL_FILE = 'Complete metadata (1).xlsx';
 const MAIN_SHEET = 'Completed Metadata';
 const STATE_SHEET = 'State Values';
 const CITY_SHEET = 'City';
@@ -109,7 +111,9 @@ function normalizeHeader(header: string): string {
 
 const HEADER_ALIASES: Record<string, keyof ParsedRow> = {
   metadatatype: 'metadataTypeCode',
+  displayname: 'displayName',
   metadatavalue: 'metadataValueCode',
+  valuedatatype: 'valueDataType',
   label: 'label',
   applicablemodules: 'applicableModules',
   applicablecategories: 'applicableCategories',
@@ -124,6 +128,8 @@ interface ParsedRow {
   metadataTypeCode: string;
   metadataValueCode: string;
   label: string;
+  displayName?: string;
+  valueDataType?: ValueDataTypeSeed;
   applicableModules?: string[];
   applicableCategories?: string[];
   applicableConditions?: string[];
@@ -131,6 +137,14 @@ interface ParsedRow {
   applicableLanguages?: string[];
   originalStateCode?: string;
   countryLabel?: string;
+}
+
+/** Type-level hints from Excel rows that declare a metadata type without value rows. */
+interface ExcelTypeHint {
+  metadataTypeCode: string;
+  displayName?: string;
+  valueDataType?: ValueDataTypeSeed;
+  applicableModules?: string[];
 }
 
 function parseList(raw: unknown): string[] | undefined {
@@ -148,11 +162,38 @@ function parseList(raw: unknown): string[] | undefined {
   return tokens.length ? tokens : undefined;
 }
 
-function parseRow(raw: RawRow): ParsedRow | null {
+function parseValueDataType(raw: unknown): ValueDataTypeSeed | undefined {
+  const text = String(raw ?? '').trim().toLowerCase();
+  if (!text) {
+    return undefined;
+  }
+  if (text === 'enum') {
+    return 'Enum';
+  }
+  if (text === 'numeric') {
+    return 'Numeric';
+  }
+  if (text === 'boolean') {
+    return 'Boolean';
+  }
+  if (text === 'text') {
+    return 'Text';
+  }
+  return undefined;
+}
+
+function mapRawRow(raw: RawRow): Partial<ParsedRow> {
   const mapped: Partial<ParsedRow> = {};
   for (const [header, value] of Object.entries(raw)) {
     const key = HEADER_ALIASES[normalizeHeader(header)];
     if (!key) {
+      continue;
+    }
+    if (key === 'valueDataType') {
+      const parsed = parseValueDataType(value);
+      if (parsed) {
+        mapped.valueDataType = parsed;
+      }
       continue;
     }
     if (
@@ -170,6 +211,68 @@ function parseRow(raw: RawRow): ParsedRow | null {
       }
     }
   }
+  return mapped;
+}
+
+/** Registers a metadata type from a header row (Metadata Type set, Metadata Value empty). */
+function parseTypeHeaderRow(raw: RawRow): ExcelTypeHint | null {
+  const mapped = mapRawRow(raw);
+  const metadataTypeCode = mapped.metadataTypeCode?.trim();
+  if (!metadataTypeCode || mapped.metadataValueCode) {
+    return null;
+  }
+
+  const displayName = mapped.displayName?.trim() || mapped.label?.trim();
+  return {
+    metadataTypeCode,
+    ...(displayName ? { displayName } : {}),
+    ...(mapped.valueDataType ? { valueDataType: mapped.valueDataType } : {}),
+    ...(mapped.applicableModules?.length ? { applicableModules: mapped.applicableModules } : {}),
+  };
+}
+
+function registerTypeHint(typeHintsByCode: Map<string, ExcelTypeHint>, hint: ExcelTypeHint): void {
+  const existing = typeHintsByCode.get(hint.metadataTypeCode);
+  if (!existing) {
+    typeHintsByCode.set(hint.metadataTypeCode, hint);
+    return;
+  }
+  typeHintsByCode.set(hint.metadataTypeCode, {
+    metadataTypeCode: hint.metadataTypeCode,
+    displayName: hint.displayName ?? existing.displayName,
+    valueDataType: hint.valueDataType ?? existing.valueDataType,
+    applicableModules: hint.applicableModules ?? existing.applicableModules,
+  });
+}
+
+function applyExcelTypeHint(
+  def: MetadataTypeSeedDefinition,
+  hint: ExcelTypeHint | undefined,
+): MetadataTypeSeedDefinition {
+  if (!hint) {
+    return def;
+  }
+
+  const applicableModules = def.applicableModules ?? hint.applicableModules;
+  const merged: MetadataTypeSeedDefinition = {
+    ...def,
+    displayName: hint.displayName?.trim() || def.displayName,
+    valueDataType: hint.valueDataType ?? def.valueDataType,
+  };
+
+  if (applicableModules?.length) {
+    merged.applicableModules = applicableModules;
+    merged.valueApplicabilityConfig = {
+      ...def.valueApplicabilityConfig,
+      moduleScoped: true,
+    };
+  }
+
+  return merged;
+}
+
+function parseRow(raw: RawRow): ParsedRow | null {
+  const mapped = mapRawRow(raw);
 
   if (!mapped.metadataValueCode || !mapped.label) {
     return null;
@@ -224,11 +327,22 @@ function ingestSheetRows(
   rows: RawRow[],
   valuesByType: Map<string, SimpleValueSeed[]>,
   typeOrder: string[],
+  typeHintsByCode: Map<string, ExcelTypeHint>,
   options?: { skipPlaceholders?: boolean },
 ): void {
   let currentType = '';
 
   for (const raw of rows) {
+    const typeHeader = parseTypeHeaderRow(raw);
+    if (typeHeader) {
+      currentType = typeHeader.metadataTypeCode;
+      registerTypeHint(typeHintsByCode, typeHeader);
+      if (!typeOrder.includes(currentType)) {
+        typeOrder.push(currentType);
+      }
+      continue;
+    }
+
     const parsed = parseRow(raw);
     if (!parsed) {
       continue;
@@ -252,7 +366,13 @@ function ingestSheetRows(
     }
 
     const bucket = valuesByType.get(currentType) ?? [];
-    bucket.push(toSimpleValueSeed(parsed, bucket.length + 1));
+    const seed = toSimpleValueSeed(parsed, bucket.length + 1);
+    const existingIdx = bucket.findIndex((entry) => entry.metadataValueCode === seed.metadataValueCode);
+    if (existingIdx >= 0) {
+      bucket[existingIdx] = { ...seed, sortOrder: bucket[existingIdx].sortOrder };
+    } else {
+      bucket.push(seed);
+    }
     valuesByType.set(currentType, bucket);
   }
 }
@@ -396,9 +516,13 @@ function ensureReferencedApplicableModules(valuesByType: Map<string, SimpleValue
   }
 }
 
+/** Large geography catalogs — seeded after all other types (Country must exist first). */
+const DEFERRED_TO_END_TYPES = ['State', 'City'] as const;
+
 function buildDependencyOrder(typeOrder: string[]): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
+  const deferred = new Set<string>(DEFERRED_TO_END_TYPES);
 
   const push = (code: string) => {
     if (!seen.has(code)) {
@@ -412,37 +536,64 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
   push('PackageType');
 
   for (const code of typeOrder) {
-    push(code);
+    if (!deferred.has(code)) {
+      push(code);
+    }
   }
 
-  const relationDeps: Record<string, string> = {
+  const relationDeps: Record<string, string | string[]> = {
     Condition: 'Category',
     State: 'Country',
     City: 'State',
     Currency: 'Country',
     Device: 'Vital',
-    MetricCode: 'QuestionType',
+    MetricCode: ['DataSourceType', 'EvaluationLogic', 'QuestionType'],
     QuestionCode: 'QuestionType',
   };
 
-  for (const [dependent, prerequisite] of Object.entries(relationDeps)) {
+  for (const [dependent, prerequisiteOrList] of Object.entries(relationDeps)) {
     if (!seen.has(dependent)) {
       continue;
     }
-    const depIndex = ordered.indexOf(dependent);
-    const preIndex = ordered.indexOf(prerequisite);
-    if (preIndex === -1) {
-      ordered.splice(Math.max(0, depIndex), 0, prerequisite);
-      seen.add(prerequisite);
-      continue;
+    const prerequisites = Array.isArray(prerequisiteOrList)
+      ? prerequisiteOrList
+      : [prerequisiteOrList];
+    for (const prerequisite of prerequisites) {
+      const depIndex = ordered.indexOf(dependent);
+      const preIndex = ordered.indexOf(prerequisite);
+      if (preIndex === -1) {
+        ordered.splice(Math.max(0, depIndex), 0, prerequisite);
+        seen.add(prerequisite);
+        continue;
+      }
+      if (preIndex > depIndex) {
+        ordered.splice(preIndex, 1);
+        ordered.splice(depIndex, 0, prerequisite);
+      }
     }
-    if (preIndex > depIndex) {
-      ordered.splice(preIndex, 1);
-      ordered.splice(depIndex, 0, prerequisite);
+  }
+
+  for (const code of DEFERRED_TO_END_TYPES) {
+    if (typeOrder.includes(code)) {
+      push(code);
     }
   }
 
   return ordered;
+}
+
+function ingestWorkbook(
+  workbook: XLSX.WorkBook,
+  valuesByType: Map<string, SimpleValueSeed[]>,
+  typeOrder: string[],
+  typeHintsByCode: Map<string, ExcelTypeHint>,
+): RawRow[] {
+  ingestSheetRows(readSheetRows(workbook, MAIN_SHEET), valuesByType, typeOrder, typeHintsByCode, {
+    skipPlaceholders: true,
+  });
+  ingestSheetRows(readSheetRows(workbook, STATE_SHEET), valuesByType, typeOrder, typeHintsByCode);
+  ingestSheetRows(readSheetRows(workbook, CITY_SHEET), valuesByType, typeOrder, typeHintsByCode);
+  return readSheetRows(workbook, STATE_SHEET);
 }
 
 export function loadMetadataCatalogFromExcel(excelPath?: string): LoadedMetadataCatalog {
@@ -453,21 +604,19 @@ export function loadMetadataCatalogFromExcel(excelPath?: string): LoadedMetadata
 
   const workbook = XLSX.readFile(resolvedPath);
   const typeOrder: string[] = [];
+  const typeHintsByCode = new Map<string, ExcelTypeHint>();
   const valuesByType = new Map<string, SimpleValueSeed[]>();
-
-  ingestSheetRows(readSheetRows(workbook, MAIN_SHEET), valuesByType, typeOrder, {
-    skipPlaceholders: true,
-  });
-  ingestSheetRows(readSheetRows(workbook, STATE_SHEET), valuesByType, typeOrder);
-  ingestSheetRows(readSheetRows(workbook, CITY_SHEET), valuesByType, typeOrder);
+  const stateRows = ingestWorkbook(workbook, valuesByType, typeOrder, typeHintsByCode);
 
   ensureReferencedApplicableModules(valuesByType);
 
-  const stateLookup = buildStateLookup(readSheetRows(workbook, STATE_SHEET));
+  const stateLookup = buildStateLookup(stateRows);
   const { richValues, richValueTypeByCode } = promoteToRichValues(valuesByType, stateLookup);
 
   const finalTypeOrder = buildDependencyOrder(typeOrder);
-  const typeDefinitions = finalTypeOrder.map((code) => resolveMetadataTypeDefinition(code));
+  const typeDefinitions = finalTypeOrder.map((code) =>
+    applyExcelTypeHint(resolveMetadataTypeDefinition(code), typeHintsByCode.get(code)),
+  );
 
   for (const code of finalTypeOrder) {
     if (!typeDefinitions.find((def) => def.metadataTypeCode === code)) {
@@ -482,7 +631,7 @@ export function loadMetadataCatalogFromExcel(excelPath?: string): LoadedMetadata
     }
   }
 
-  return {
+  const catalog: LoadedMetadataCatalog = {
     excelPath: resolvedPath,
     typeOrder: finalTypeOrder,
     typeDefinitions,
@@ -490,6 +639,11 @@ export function loadMetadataCatalogFromExcel(excelPath?: string): LoadedMetadata
     richValues,
     richValueTypeByCode,
   };
+
+  // Union modules from value rows (+ overrides / Excel type headers) onto each type definition.
+  catalog.typeDefinitions = enrichCatalogTypeDefinitions(catalog);
+
+  return catalog;
 }
 
 export function getLoadedMetadataCatalog(): LoadedMetadataCatalog {

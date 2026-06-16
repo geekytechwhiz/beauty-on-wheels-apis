@@ -17,7 +17,7 @@ function main(): void {
   const excelPath = resolveMetadataExcelPath();
   logger.info('Loading metadata catalog from Excel', { excelPath });
 
-  const catalog = loadMetadataCatalogFromExcel(excelPath);
+  const catalog = loadMetadataCatalogFromExcel();
   const outPath = path.join(__dirname, '..', 'helpers', 'metadata', 'catalog.generated.json');
   fs.writeFileSync(outPath, catalogToJson(catalog), 'utf8');
 

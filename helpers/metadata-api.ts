@@ -394,6 +394,7 @@ async function createMetadataEntity(
 
 /**
  * Draft (+ publish) metadata type via `POST /metadata/type?action=draft|publish`.
+ * Creates when missing; updates when the type already exists (governed change request).
  */
 export async function createMetadataType(
   client: AxiosInstance,
@@ -409,6 +410,41 @@ export async function createMetadataType(
     payload,
     label,
   );
+}
+
+/** Alias ó draft (+ publish) type update uses the same governed workflow as create. */
+export const updateMetadataType = createMetadataType;
+
+export interface RegistryMetadataTypeRecord {
+  metadataTypeCode: string;
+  applicableModules?: string[];
+  version?: number;
+}
+
+/**
+ * GET published metadata type (for comparing current `applicableModules` before backfill).
+ */
+export async function getMetadataType(
+  client: AxiosInstance,
+  config: SeedRuntimeConfig,
+  metadataTypeCode: string,
+): Promise<RegistryMetadataTypeRecord | null> {
+  if (config.dryRun) {
+    return { metadataTypeCode, applicableModules: [] };
+  }
+
+  const path = config.typePath.replace(/\/$/, '');
+  try {
+    const response = await client.get<ApiEnvelope<RegistryMetadataTypeRecord>>(path, {
+      params: { metadataTypeCode },
+    });
+    return unwrapApiData<RegistryMetadataTypeRecord>(response.data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -561,7 +597,7 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
   const configured = process.env.BASE_URL?.trim();
   const baseUrl = configured || DEFAULT_LOCAL_BASE_URL;
   if (!configured) {
-    logger.info('BASE_URL not set ó using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
+    logger.info('BASE_URL not set ù using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
   }
 
   const autoPublish = process.env.AUTO_PUBLISH !== 'false' && process.env.AUTO_PUBLISH !== '0';

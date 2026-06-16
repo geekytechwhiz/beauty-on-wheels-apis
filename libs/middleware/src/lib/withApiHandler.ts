@@ -1,4 +1,4 @@
-/* eslint-disable @nx/enforce-module-boundaries */
+ 
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { z } from 'zod';
 

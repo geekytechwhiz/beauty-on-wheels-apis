@@ -21,6 +21,9 @@
     },
     {
       "path": "../terminology/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/fhir/tsconfig.lib.json"
     }
   ]
 }

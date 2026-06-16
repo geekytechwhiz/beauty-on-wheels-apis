@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEvent, Context } from 'aws-lambda';
 
-import { FhirTransformationService, FhirValidationError } from '@api-hub/fhir';
+import { FhirTransformationService } from '../services/fhir-transformation.service';
+import { FhirValidationError } from '../validator/fhir.validator';
 
 jest.mock('@aws-lambda-powertools/tracer', () => ({
   Tracer: jest.fn().mockImplementation(() => ({

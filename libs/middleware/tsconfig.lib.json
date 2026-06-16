@@ -23,6 +23,9 @@
       "path": "../fhir/tsconfig.lib.json"
     },
     {
+      "path": "../fhir-validator/tsconfig.lib.json"
+    },
+    {
       "path": "../utils/tsconfig.lib.json"
     },
     {

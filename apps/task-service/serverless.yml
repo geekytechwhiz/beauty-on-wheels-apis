@@ -7,13 +7,14 @@ frameworkVersion: '3.x'
 
 plugins:
   - serverless-esbuild
-  - serverless-dotenv-plugin
+  # - serverless-dotenv-plugin
   # - serverless-auto-swagger
-  - serverless-offline
+  # - serverless-offline
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  # Keep to a Serverless-schema-supported runtime for CI validation.
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -79,7 +80,7 @@ custom:
     bundle: true
     minify: false
     sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node22
+    target: node20
     platform: node
     format: cjs
     tsconfig: ../../tsconfig.base.json
@@ -118,12 +119,12 @@ custom:
   #   excludeStages:
   #     - production
 
-  dotenv:
-    logging: false
-
-  serverless-offline:
-    httpPort: 3000
-    noPrependStageInUrl: true
+  # dotenv:
+  #   logging: false
+  #
+  # serverless-offline:
+  #   httpPort: 3000
+  #   noPrependStageInUrl: true
 
 # REST + CORS; secured routes: cors block first, then shared token authorizer (same as alert-service).
 functions:

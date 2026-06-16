@@ -19,8 +19,7 @@
       "path": "../../libs/observability"
     },
     {
-      "path": "../fhir"
+      "path": "../platform-tools"
     }
-   
   ]
 }

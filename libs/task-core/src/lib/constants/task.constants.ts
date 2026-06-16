@@ -15,3 +15,6 @@ export function manualSystemActor(userId: string): string {
 }
 
 export const DUE_SORT_SENTINEL_MS = 9999999999999;
+
+/** LSI1 on patient META partition — care-plan scoped task lists. */
+export const CARE_PLAN_INDEX = 'CarePlanIndex';

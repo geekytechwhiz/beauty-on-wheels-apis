@@ -167,6 +167,28 @@ functions:
             "422": Validation or business rule error
             "500": Server error
 
+  getTasks:
+    handler: src/handlers/http/getTasks.main
+    events:
+      - http:
+          path: tasks
+          method: get
+          summary: List tasks by patient and (optionally) care plan
+          description: Patient-scoped task list. Organization scope from JWT only.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": Paginated task list
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "500": Server error
+
   createRuntimeTask:
     handler: src/handlers/http/createRuntimeTask.main
     events:

@@ -15,6 +15,7 @@ import type {
   ValidatedGenerateCarePlanTasks,
   ValidatedGetRuntimeTask,
   ValidatedGetRuntimeTaskHistory,
+  ValidatedGetTasks,
   ValidatedUpdateAssignedStaff,
 } from '../validators/request.validators';
 
@@ -192,6 +193,48 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_runtime_reassign_staff_service_error',
+      });
+    }
+  }
+
+  async handleGetTasks(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & { validatedGetTasks?: ValidatedGetTasks }).validatedGetTasks;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.listPatientTasks({
+        organizationId: validated.orgId,
+        patientId: validated.patientId,
+        carePlanInstanceId: validated.carePlanInstanceId,
+        workflowStage: validated.workflowStage,
+        currentState: validated.currentState,
+        surfaceSection: validated.surfaceSection,
+        pageSize: validated.pageSize,
+        nextToken: validated.nextToken,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_list_service_error',
       });
     }
   }

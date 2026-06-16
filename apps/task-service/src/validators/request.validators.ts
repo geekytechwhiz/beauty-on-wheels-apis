@@ -3,9 +3,15 @@ import type { LambdaRequest } from '@api-hub/utils';
 import {
   CARE_PLAN_SYSTEM_ACTOR,
   manualSystemActor,
+  RUNTIME_TASK_STATE,
   SERVICE_FLOW_SYSTEM_ACTOR,
-  TASK_HISTORY_DEFAULT_PAGE_SIZE,
-  TASK_HISTORY_MAX_PAGE_SIZE,
+  SURFACE_SECTION,
+  TASK_LIST_DEFAULT_PAGE_SIZE,
+  TASK_LIST_MAX_PAGE_SIZE,
+  WORKFLOW_STAGE,
+  type RuntimeTaskState,
+  type SurfaceSection,
+  type WorkflowStage,
 } from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
@@ -153,16 +159,33 @@ export type ValidatedGetRuntimeTaskHistory = {
   authHeader: string | undefined;
 };
 
-function parseHistoryPageSize(raw: string | undefined): number {
-  if (!raw?.trim()) return TASK_HISTORY_DEFAULT_PAGE_SIZE;
+const WORKFLOW_STAGE_VALUES = Object.values(WORKFLOW_STAGE) as WorkflowStage[];
+const RUNTIME_TASK_STATE_VALUES = Object.values(RUNTIME_TASK_STATE) as RuntimeTaskState[];
+const SURFACE_SECTION_VALUES = Object.values(SURFACE_SECTION) as SurfaceSection[];
+
+function parsePageSize(raw: string | undefined): number {
+  if (!raw?.trim()) return TASK_LIST_DEFAULT_PAGE_SIZE;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1) {
     throwVal('pageSize must be a positive integer', 400, 'VALIDATION_ERROR');
   }
-  if (n > TASK_HISTORY_MAX_PAGE_SIZE) {
-    throwVal(`pageSize must not exceed ${TASK_HISTORY_MAX_PAGE_SIZE}`, 400, 'VALIDATION_ERROR');
+  if (n > TASK_LIST_MAX_PAGE_SIZE) {
+    throwVal(`pageSize must not exceed ${TASK_LIST_MAX_PAGE_SIZE}`, 400, 'VALIDATION_ERROR');
   }
   return n;
+}
+
+function parseOptionalEnum<T extends string>(
+  raw: string | undefined,
+  allowed: readonly T[],
+  fieldName: string,
+): T | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (!(allowed as readonly string[]).includes(value)) {
+    throwVal(`${fieldName} must be one of: ${allowed.join(', ')}`, 400, 'VALIDATION_ERROR');
+  }
+  return value as T;
 }
 
 export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
@@ -176,13 +199,68 @@ export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
     throwVal('runtimeTaskInstanceId path parameter is required', 400, 'VALIDATION_ERROR');
   }
 
-  const pageSize = parseHistoryPageSize(req.params?.pageSize);
+  const pageSize = parsePageSize(req.params?.pageSize);
   const nextToken = req.params?.nextToken?.trim() || undefined;
 
   (req as LambdaRequest & { validatedGetRuntimeTaskHistory: ValidatedGetRuntimeTaskHistory })
     .validatedGetRuntimeTaskHistory = {
     orgId,
     runtimeTaskInstanceId,
+    pageSize,
+    nextToken,
+    authHeader: req.context.authHeader,
+  };
+}
+
+export type ValidatedGetTasks = {
+  orgId: string;
+  patientId: string;
+  carePlanInstanceId?: string;
+  workflowStage?: WorkflowStage;
+  currentState?: RuntimeTaskState;
+  surfaceSection?: SurfaceSection;
+  pageSize: number;
+  nextToken?: string;
+  authHeader: string | undefined;
+};
+
+export function validateGetTasksRequest(req: LambdaRequest): void {
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const patientId = req.params?.patientId?.trim();
+  if (!patientId) {
+    throwVal('patientId query parameter is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const carePlanInstanceId = req.params?.carePlanInstanceId?.trim() || undefined;
+  const workflowStage = parseOptionalEnum(
+    req.params?.workflowStage,
+    WORKFLOW_STAGE_VALUES,
+    'workflowStage',
+  );
+  const currentState = parseOptionalEnum(
+    req.params?.currentState,
+    RUNTIME_TASK_STATE_VALUES,
+    'currentState',
+  );
+  const surfaceSection = parseOptionalEnum(
+    req.params?.surfaceSection,
+    SURFACE_SECTION_VALUES,
+    'surfaceSection',
+  );
+  const pageSize = parsePageSize(req.params?.pageSize);
+  const nextToken = req.params?.nextToken?.trim() || undefined;
+
+  (req as LambdaRequest & { validatedGetTasks: ValidatedGetTasks }).validatedGetTasks = {
+    orgId,
+    patientId,
+    carePlanInstanceId,
+    workflowStage,
+    currentState,
+    surfaceSection,
     pageSize,
     nextToken,
     authHeader: req.context.authHeader,

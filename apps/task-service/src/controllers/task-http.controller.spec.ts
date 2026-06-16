@@ -18,6 +18,8 @@ var mockGetRuntimeTaskDetail: jest.Mock;
 var mockGetRuntimeTaskHistory: jest.Mock;
 // eslint-disable-next-line no-var
 var mockReassignAssignedStaff: jest.Mock;
+// eslint-disable-next-line no-var
+var mockListPatientTasks: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
@@ -26,6 +28,7 @@ jest.mock('@api-hub/task-core', () => {
   mockGetRuntimeTaskDetail = jest.fn();
   mockGetRuntimeTaskHistory = jest.fn();
   mockReassignAssignedStaff = jest.fn();
+  mockListPatientTasks = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
@@ -35,6 +38,7 @@ jest.mock('@api-hub/task-core', () => {
       generateCarePlanTasks: mockGenerateCarePlanTasks,
       getRuntimeTaskDetail: mockGetRuntimeTaskDetail,
       getRuntimeTaskHistory: mockGetRuntimeTaskHistory,
+      listPatientTasks: mockListPatientTasks,
       reassignAssignedStaff: mockReassignAssignedStaff,
     })),
   };
@@ -91,6 +95,8 @@ describe('TaskHttpController', () => {
     mockGenerateCarePlanTasks.mockReset();
     mockGetRuntimeTaskDetail.mockReset();
     mockGetRuntimeTaskHistory.mockReset();
+    mockListPatientTasks.mockReset();
+    mockReassignAssignedStaff.mockReset();
   });
 
   it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
@@ -397,6 +403,52 @@ describe('TaskHttpController', () => {
       code: 'INTERNAL_ERROR',
     });
     expect(mockGenerateCarePlanTasks).not.toHaveBeenCalled();
+  });
+
+  it('handleGetTasks returns paginated task list on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      items: [{ runtimeTaskInstanceId: 'rtask-1', surfaceSection: 'today' }],
+      nextToken: 'cursor-1',
+    };
+    mockListPatientTasks.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetTasks: {
+        orgId: 'org-1',
+        patientId: 'pat-1',
+        carePlanInstanceId: 'cp-1',
+        workflowStage: 'ongoing',
+        currentState: 'active',
+        surfaceSection: 'today',
+        pageSize: 25,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetTasks(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockListPatientTasks).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      carePlanInstanceId: 'cp-1',
+      workflowStage: 'ongoing',
+      currentState: 'active',
+      surfaceSection: 'today',
+      pageSize: 25,
+      nextToken: undefined,
+    });
+  });
+
+  it('handleGetTasks throws 500 when validatedGetTasks missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleGetTasks(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockListPatientTasks).not.toHaveBeenCalled();
   });
 
   it('handleUpdateAssignedStaff returns reassignment result on success', async () => {

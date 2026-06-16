@@ -665,6 +665,70 @@ describe('TaskService.reassignAssignedStaff', () => {
   });
 });
 
+describe('TaskService.listPatientTasks', () => {
+  it('maps META rows to runtime task cards sorted by dueWindowStart', async () => {
+    const early = sampleRecord();
+    const late = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-late',
+      sk: 'DUE#1780668000000#TASK#rtask-late',
+      dueWindowStart: 1780668000000,
+      displayTitle: 'Later task',
+    };
+
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [late, early],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      pageSize: 50,
+    });
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
+    expect(result.items[1].runtimeTaskInstanceId).toBe('rtask-late');
+    expect(result.items[0].surfaceSection).toBeDefined();
+    expect(result.nextToken).toBeUndefined();
+  });
+
+  it('filters by surfaceSection with additional DynamoDB rounds when needed', async () => {
+    const upcoming = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-upcoming',
+      currentState: 'scheduled' as const,
+      dueWindowStart: 9999999999999,
+      displayToPatient: true,
+    };
+    const today = sampleRecord();
+
+    const repo = {
+      queryPatientTasksPage: jest
+        .fn()
+        .mockResolvedValueOnce({ items: [today], lastEvaluatedKey: { pk: 'x' } })
+        .mockResolvedValueOnce({ items: [upcoming], lastEvaluatedKey: undefined }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      pageSize: 10,
+      surfaceSection: 'upcoming',
+    });
+
+    expect(repo.queryPatientTasksPage).toHaveBeenCalledTimes(2);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-upcoming');
+    expect(result.items[0].surfaceSection).toBe('upcoming');
+  });
+});
+
 describe('buildCarePlanTaskIdempotencyKey', () => {
   it('builds stable idempotency key and deterministic runtime task id', () => {
     const input = carePlanIdempotencyInput();

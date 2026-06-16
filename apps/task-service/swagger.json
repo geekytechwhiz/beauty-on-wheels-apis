@@ -101,6 +101,42 @@
       "type": "string",
       "enum": ["onboarding", "ongoing", "review", "closure"]
     },
+    "CurrentState": {
+      "type": "string",
+      "enum": ["scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+    },
+    "SurfaceSection": {
+      "type": "string",
+      "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist"]
+    },
+    "RuntimeTaskCard": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "surfaceSection"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
+        "patientId": { "type": "string" },
+        "patientDisplayName": { "type": "string" },
+        "displayTitle": { "type": "string" },
+        "currentState": { "$ref": "#/definitions/CurrentState" },
+        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
+        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
+        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" }
+      },
+      "additionalProperties": true
+    },
+    "PaginatedRuntimeTaskCards": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuntimeTaskCard" }
+        },
+        "nextToken": { "type": "string" }
+      }
+    },
     "CreateRuntimeTaskRequest": {
       "type": "object",
       "required": [
@@ -576,6 +612,70 @@
       }
     },
     "/tasks": {
+      "get": {
+        "summary": "List tasks by patient and (optionally) care plan",
+        "description": "Patient-scoped task list for Mobile, Portal, or BFF. Organization scope from JWT only.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patientId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "carePlanInstanceId",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "workflowStage",
+            "required": false,
+            "type": "string",
+            "enum": ["onboarding", "ongoing", "review", "closure"]
+          },
+          {
+            "in": "query",
+            "name": "currentState",
+            "required": false,
+            "type": "string",
+            "enum": ["scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+          },
+          {
+            "in": "query",
+            "name": "surfaceSection",
+            "required": false,
+            "type": "string",
+            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist"]
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "type": "integer",
+            "default": 50,
+            "maximum": 200
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated task list.",
+            "schema": { "$ref": "#/definitions/PaginatedRuntimeTaskCards" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "500": { "description": "Server error" }
+        }
+      },
       "post": {
         "summary": "Create an ad-hoc/service-flow/manual runtime task",
         "description": "Called by Service Flow Runtime or authorized staff/system. Prefer manualSystem for care UI. Organization scope from JWT only.",

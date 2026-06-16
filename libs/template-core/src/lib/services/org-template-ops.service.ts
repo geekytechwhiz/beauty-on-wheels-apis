@@ -62,6 +62,9 @@ function parseOrgUpdateBody(body: UpdateOrgTemplateVersionParams['body']): {
     }
   }
   const documentFields: Record<string, unknown> = { ...rest };
+  if (documentFields.fieldValues === null) {
+    delete documentFields.fieldValues;
+  }
   if (overrides && typeof overrides === 'object') {
     documentFields.overrides = overrides;
   }
@@ -72,6 +75,25 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isFieldValuesRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeOrgDocumentFields(
+  sourceVersion: TemplateDdbRecord,
+  documentFields: Record<string, unknown>,
+): Record<string, unknown> {
+  const base = extractDocumentFields(sourceVersion);
+  const merged: Record<string, unknown> = { ...base, ...documentFields };
+  if (isFieldValuesRecord(documentFields.fieldValues)) {
+    merged.fieldValues = {
+      ...asRecord(base.fieldValues),
+      ...asRecord(documentFields.fieldValues),
+    };
+  }
+  return merged;
 }
 
 function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknown> {
@@ -183,30 +205,14 @@ export class OrgTemplateOpsService {
       assertEditableStatus(currentStatus, 'update');
 
       const { metaOverrides, documentFields } = parseOrgUpdateBody(params.body);
-      const mergedDocument = {
-        ...extractDocumentFields(sourceVersion),
-        ...documentFields,
-      };
+      const mergedDocument = mergeOrgDocumentFields(sourceVersion, documentFields);
 
-      if (documentFields.fieldValues !== undefined) {
+      if (isFieldValuesRecord(documentFields.fieldValues)) {
+        const templateType = sourceVersion.meta?.templateType ?? metaRow.meta.templateType;
         mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
-          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), {
-            templateType:
-              (typeof mergedDocument.meta?.templateType === 'string' &&
-                mergedDocument.meta.templateType) ||
-              (typeof sourceVersion.meta?.templateType === 'string'
-                ? sourceVersion.meta.templateType
-                : undefined),
-          }),
-          {
-            templateType:
-              (typeof mergedDocument.meta?.templateType === 'string' &&
-                mergedDocument.meta.templateType) ||
-              (typeof sourceVersion.meta?.templateType === 'string'
-                ? sourceVersion.meta.templateType
-                : undefined),
-          },
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+          { templateType },
         );
       }
 

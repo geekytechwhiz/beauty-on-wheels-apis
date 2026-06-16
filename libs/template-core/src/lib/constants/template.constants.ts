@@ -1,34 +1,34 @@
-export const TEMPLATE_META_SK = 'META' as const;
-export const VERSION_SK_PREFIX = 'VERSION#' as const;
+export const TEMPLATE_META_SK = 'META';
+export const VERSION_SK_PREFIX = 'VERSION#';
 
-export const ENTITY_TYPE_MASTER_TEMPLATE = 'MASTER_TEMPLATE' as const;
-export const ENTITY_TYPE_ORG_TEMPLATE = 'ORG_TEMPLATE' as const;
+export const ENTITY_TYPE_MASTER_TEMPLATE = 'MASTER_TEMPLATE';
+export const ENTITY_TYPE_ORG_TEMPLATE = 'ORG_TEMPLATE';
 
-export const ORG_TMPL_PK_PREFIX = 'ORG_TMPL#' as const;
-export const GSI1_ORG_PK_PREFIX = 'ORG#' as const;
-export const GSI1_ORG_TMPL_SK_PREFIX = 'TMPL#' as const;
-export const GSI1_ENABLE_SK_PREFIX = 'ENABLE#' as const;
+export const ORG_TMPL_PK_PREFIX = 'ORG_TMPL#';
+export const GSI1_ORG_PK_PREFIX = 'ORG#';
+export const GSI1_ORG_TMPL_SK_PREFIX = 'TMPL#';
+export const GSI1_ENABLE_SK_PREFIX = 'ENABLE#';
 
-export const ENTITY_TYPE_ORG_ENABLEMENT = 'ORG_ENABLEMENT' as const;
-export const ENTITY_TYPE_ORG_PROFILE = 'ORG_PROFILE' as const;
-export const ORG_PROFILE_SK = 'PROFILE' as const;
-export const ENABLE_PK_PREFIX = 'ENABLE#' as const;
+export const ENTITY_TYPE_ORG_ENABLEMENT = 'ORG_ENABLEMENT';
+export const ENTITY_TYPE_ORG_PROFILE = 'ORG_PROFILE';
+export const ORG_PROFILE_SK = 'PROFILE';
+export const ENABLE_PK_PREFIX = 'ENABLE#';
 
-export const GSI1_ORG_INDEX = 'GSI1' as const;
-export const GSI2_TYPE_CATALOG = 'GSI2' as const;
-export const GSI3_MASTER_VERSION = 'GSI3' as const;
-export const GSI4_TEMPLATE_CODE = 'GSI4' as const;
-export const GSI5_MASTER_STATUS = 'GSI5' as const;
+export const GSI1_ORG_INDEX = 'GSI1';
+export const GSI2_TYPE_CATALOG = 'GSI2';
+export const GSI3_MASTER_VERSION = 'GSI3';
+export const GSI4_TEMPLATE_CODE = 'GSI4';
+export const GSI5_MASTER_STATUS = 'GSI5';
 
 export const ENV_TEMPLATE_TABLE = 'TEMPLATE_TABLE';
 
 /** Default page size for template list APIs (not overridable via query). */
 export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
-export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN' as const;
+export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN';
 
 /** Prefix for CARE_PLAN fieldValues keys that store linked templates — rules nest under each matching key. */
-export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_' as const;
+export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_';
 
 export function isLinkedTemplateFieldKey(key: string): boolean {
   return key.startsWith(LINKED_TEMPLATE_FIELD_KEY_PREFIX);

@@ -23,7 +23,7 @@ import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
   buildRulesFromFieldValues,
-  mergeRulesAdditive,
+  mergeRulesAfterFieldValuesChange,
 } from '../utils/template-rules.utils';
 import {
   bumpMinorVersion,
@@ -57,6 +57,10 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isFieldValuesRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function parseUpdateBody(body: MasterTemplateUpdateBody): {
@@ -130,7 +134,12 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
   delete documentFields.shareScope;
   delete documentFields.categoryCode;
   delete documentFields.conditionCode;
-  if (Object.keys(fieldValues).length > 0) {
+  delete documentFields.fieldValues;
+  // null fieldValues is ignored — do not clear stored values or regenerate rules from {}
+  if (
+    rest.fieldValues !== null &&
+    (rest.fieldValues !== undefined || Object.keys(fieldValues).length > 0)
+  ) {
     documentFields.fieldValues = fieldValues;
   }
 
@@ -143,7 +152,7 @@ function mergeDocumentFields(
 ): Record<string, unknown> {
   const base = extractDocumentFields(sourceVersion);
   const merged: Record<string, unknown> = { ...base, ...documentFields };
-  if (documentFields.fieldValues && typeof documentFields.fieldValues === 'object') {
+  if (isFieldValuesRecord(documentFields.fieldValues)) {
     merged.fieldValues = {
       ...asRecord(base.fieldValues),
       ...asRecord(documentFields.fieldValues),
@@ -202,10 +211,12 @@ export class TemplateMasterOpsService {
 
       const { metaOverrides, documentFields } = parseUpdateBody(params.body);
       const mergedDocument = mergeDocumentFields(sourceVersion, documentFields);
-      if (documentFields.fieldValues !== undefined) {
-        mergedDocument.rules = mergeRulesAdditive(
+      if (isFieldValuesRecord(documentFields.fieldValues)) {
+        const templateType = sourceVersion.meta?.templateType ?? metaRow.meta.templateType;
+        mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
-          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues)),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+          { templateType },
         );
       }
       const separateMeta = this.usesSeparateMetaRow(metaRow);

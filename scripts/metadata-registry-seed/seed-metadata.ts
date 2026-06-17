@@ -20,6 +20,9 @@
  * Scoped seed (selected types + their values only):
  *   $env:METADATA_TYPE_CODES="Department,Specialty"; pnpm seed:metadata
  *   Prerequisite values (e.g. ApplicableModule TEMPLATE) are hydrated from the API before Phase 2.
+ *
+ * After each run, JSON + CSV reports are written under scripts/metadata-registry-seed/reports/
+ * (override with SEED_REPORT_PATH; disable CSV with SEED_REPORT_CSV=false).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -66,6 +69,11 @@ import {
   registerValue,
   shouldSkipDueToDependencies,
 } from '../../helpers/validation';
+import {
+  buildSeedReport,
+  resolveSeedReportPaths,
+  writeSeedReport,
+} from '../../helpers/seed-report';
 
 /** Loads a dotenv file; only sets keys not already in process.env. */
 function loadEnvFile(filePath: string): boolean {
@@ -169,7 +177,14 @@ async function seedTypes(
     const outcome = await createMetadataType(client, config, payload);
     if (outcome.ok) {
       registerType(registry, def.metadataTypeCode);
-      results.push({ name, success: true, payload });
+      results.push({
+        name,
+        success: true,
+        payload,
+        operation: outcome.data?.operation,
+        version: outcome.data?.version,
+        duplicate: outcome.duplicate,
+      });
       logger.info('Metadata type published', {
         metadataTypeCode: def.metadataTypeCode,
         duplicate: outcome.duplicate,
@@ -238,7 +253,14 @@ async function seedValuesForType(
         version: outcome.data?.version,
         operation: outcome.data?.operation,
       });
-      return { name, success: true, payload };
+      return {
+        name,
+        success: true,
+        payload,
+        operation: outcome.data?.operation,
+        version: outcome.data?.version,
+        duplicate: outcome.duplicate,
+      };
     }
 
     logger.error('Metadata value draft/publish failed', {
@@ -364,7 +386,7 @@ function summarize(results: SeedResult[]): SeedSummary {
   };
 }
 
-function printSummary(summary: SeedSummary, dryRun: boolean): void {
+function printSummary(summary: SeedSummary, dryRun: boolean, reportPaths?: { jsonPath: string; csvPath: string }): void {
   const prefix = dryRun ? '[DRY RUN] ' : '';
   logger.info(`${prefix}Seed complete`, {
     successCount: summary.successCount,
@@ -392,11 +414,16 @@ function printSummary(summary: SeedSummary, dryRun: boolean): void {
       console.log(JSON.stringify(fp.payload, null, 2));
     }
   }
+  if (reportPaths) {
+    console.log(`\nReport (JSON): ${reportPaths.jsonPath}`);
+    console.log(`Report (CSV):  ${reportPaths.csvPath}`);
+  }
   console.log('===========================================\n');
 }
 
 async function main(): Promise<void> {
   loadDotEnv();
+  const startedAt = new Date();
   const config = loadRuntimeConfig();
   logSeedAuthContext(config);
   const registry: RegistrySnapshot = {
@@ -440,7 +467,18 @@ async function main(): Promise<void> {
   await seedRichValues(config, registry, results, scope);
 
   const summary = summarize(results);
-  printSummary(summary, config.dryRun);
+  const completedAt = new Date();
+  const report = buildSeedReport({
+    results,
+    summary,
+    scope,
+    config,
+    startedAt,
+    completedAt,
+  });
+  const reportPaths = resolveSeedReportPaths(completedAt);
+  writeSeedReport(report, reportPaths);
+  printSummary(summary, config.dryRun, reportPaths);
 
   if (summary.failedCount > 0) {
     process.exitCode = 1;

@@ -123,6 +123,43 @@ export function mergeLegacyOrganizationConfigPatch(
 /**
  * Merges mapped new-model fields over the latest config version (partial-update semantics).
  */
+function hasPresentConfigFieldValue(
+  value: OrganizationConfigData[keyof OrganizationConfigData] | undefined,
+): boolean {
+  if (value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+}
+
+/**
+ * Merges legacy + new-model config for GET reads. New-model values win when present;
+ * legacy values fill gaps. Empty arrays on the stored item do not block legacy fallback.
+ */
+export function mergeStoredOrganizationConfigForRead(
+  fromNew: OrganizationConfigData,
+  fromLegacy: OrganizationConfigData,
+): OrganizationConfigData {
+  const merged: OrganizationConfigData = {};
+
+  for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+    const newValue = fromNew[key];
+    const legacyValue = fromLegacy[key];
+
+    if (hasPresentConfigFieldValue(newValue)) {
+      (merged as Record<string, unknown>)[key] = newValue;
+    } else if (hasPresentConfigFieldValue(legacyValue)) {
+      (merged as Record<string, unknown>)[key] = legacyValue;
+    } else if (newValue !== undefined) {
+      (merged as Record<string, unknown>)[key] = newValue;
+    } else if (legacyValue !== undefined) {
+      (merged as Record<string, unknown>)[key] = legacyValue;
+    }
+  }
+
+  return merged;
+}
+
 export function mergeOrganizationConfigData(
   patch: OrganizationConfigData,
   latest: OrganizationConfigData | null,
@@ -212,7 +249,7 @@ export function mapStoredOrganizationConfigToData(
     supportedCategories: item.supportedCategories,
     supportedConditions: item.supportedConditions,
   });
-  return reconcileEnabledLocationCodes(mergeOrganizationConfigData(fromNew, fromLegacy), {
+  return reconcileEnabledLocationCodes(mergeStoredOrganizationConfigForRead(fromNew, fromLegacy), {
     countryCode: item.countryCode,
     stateCode: item.stateCode,
     cityCode: item.cityCode,

@@ -64,8 +64,6 @@ export interface Organization {
   organizationConfig?: OrganizationConfigPatch | EnrichedOrganizationConfig;
   organizationConfigVersion?: number;
   organizationConfigStatus?: OrgConfigStatus;
-  enabledCategoryConditionGroups?: CategoryConditionGroup[];
-  countryStateCityGroup?: CountryStateCityGroup;
   orgCapabilities?: string[];
   organizationInfo?: unknown;
   searchFields?: unknown;
@@ -98,19 +96,6 @@ export interface MetadataCodeLabel {
   label: string;
 }
 
-/** One metadata registry value exposed as a read-time org-config dropdown option. */
-export interface OrganizationConfigMetadataDefaultValue {
-  valueCode: string;
-  label: string;
-}
-
-/** Read-time metadata catalog defaults for org-config UI (not stored on CONFIG items). */
-export interface OrganizationConfigMetadataDefaults {
-  department: OrganizationConfigMetadataDefaultValue[];
-  programType: OrganizationConfigMetadataDefaultValue[];
-  specialty: OrganizationConfigMetadataDefaultValue[];
-}
-
 /** GET response config with registry-resolved labels (codes only in DynamoDB). */
 export interface EnrichedOrganizationConfig {
   enabledCountryCodes?: MetadataCodeLabel[];
@@ -135,6 +120,7 @@ export interface EnrichedOrganizationConfig {
   enabledFeatureCodes?: MetadataCodeLabel[];
   linkedOrgReferences?: string[];
   requiredAgreementIds?: string[];
+  relationships: OrganizationConfigRelationships;
 }
 
 export interface CategoryConditionGroup {
@@ -142,11 +128,24 @@ export interface CategoryConditionGroup {
   conditions: MetadataCodeLabel[];
 }
 
-export interface CountryStateCityGroup {
-  countries?: MetadataCodeLabel[];
-  states?: MetadataCodeLabel[];
-  cities?: MetadataCodeLabel[];
+export interface CountryStateGroup {
+  country: MetadataCodeLabel;
+  states: MetadataCodeLabel[];
 }
+
+export interface StateCityGroup {
+  state: MetadataCodeLabel;
+  cities: MetadataCodeLabel[];
+}
+
+export interface OrganizationConfigRelationships {
+  categoryConditionGroups: CategoryConditionGroup[];
+  countryStateGroups: CountryStateGroup[];
+  stateCityGroups: StateCityGroup[];
+}
+
+/** MetadataTypeCode -> organizationConfig field names (GET `?view=config` only). */
+export type OrganizationConfigMetadataTypeMapping = Record<string, string[]>;
 
 export interface OrganizationConfigData {
   enabledCountryCodes?: string[];
@@ -214,14 +213,11 @@ export interface OrganizationConfigView {
   organizationId: string;
   organizationConfigVersion?: number;
   organizationConfigStatus?: OrgConfigStatus;
+  metadataTypeMapping: OrganizationConfigMetadataTypeMapping;
   organizationConfig?: EnrichedOrganizationConfig;
   orgCapabilities?: string[];
   publishedAt?: string;
   publishedBy?: string;
-  enabledCategoryConditionGroups?: CategoryConditionGroup[];
-  countryStateCityGroup?: CountryStateCityGroup;
-  /** Full ACTIVE metadata catalogs for UI dropdowns (Department, ProgramType, Specialty). */
-  metadataDefaults?: OrganizationConfigMetadataDefaults;
 }
 
 export const ORG_CONFIG_CHANGE_TYPE = {

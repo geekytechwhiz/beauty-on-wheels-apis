@@ -48,6 +48,21 @@ describe('organizationConfig.mapper', () => {
     });
   });
 
+  it('fills legacy supported* when new-model arrays are empty on read', () => {
+    const mapped = mapStoredOrganizationConfigToData({
+      enabledCountryCodes: ['IN'],
+      enabledStateCodes: [],
+      supportedStates: ['KA'],
+      supportedCategories: ['CAT_A'],
+      supportedConditions: ['COND_A'],
+    });
+
+    expect(mapped.enabledCountryCodes).toEqual(['IN']);
+    expect(mapped.enabledStateCodes).toEqual(['KA']);
+    expect(mapped.enabledCategoryCodes).toEqual(['CAT_A']);
+    expect(mapped.enabledConditionCodes).toEqual(['COND_A']);
+  });
+
   it('maps top-level modules and devices when present', () => {
     const mapped = mapLegacyOrganizationConfigToNew(
       { supportedCountries: ['US'] },

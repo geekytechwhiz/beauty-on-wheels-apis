@@ -38,7 +38,7 @@ import {
   hasOrganizationConfigData,
 } from '../utils/organizationConfig.mapper';
 import { enrichOrganizationConfig } from '../utils/organizationConfig.enrichment';
-import { fetchOrganizationConfigMetadataDefaults } from '../utils/organizationConfig.metadata-defaults';
+import { ORG_CONFIG_METADATA_TYPE_MAPPING } from '../utils/organizationConfig.metadata-types';
 import {
   buildOrgCapabilities,
   deriveCategoryConditionPairs,
@@ -294,33 +294,21 @@ export class OrganizationService {
     organizationId: string,
     authHeader?: string,
   ): Promise<OrganizationConfigView> {
-    const attachMetadataDefaults = async (view: OrganizationConfigView): Promise<OrganizationConfigView> => {
-      const authorization = authHeader?.trim();
-      if (!authorization) {
-        return view;
-      }
-      const metadataDefaults = await fetchOrganizationConfigMetadataDefaults(
-        this.metadataRegistryClient,
-        authorization,
-      );
-      if (metadataDefaults) {
-        view.metadataDefaults = metadataDefaults;
-      }
-      return view;
-    };
+    const metadataTypeMapping = ORG_CONFIG_METADATA_TYPE_MAPPING;
 
-    const item = await this.repository.getLatestOrganizationConfig(organizationId);
+    const item = await this.repository.getActiveOrganizationConfigItem(organizationId);
     if (item === null) {
-      return attachMetadataDefaults({ organizationId });
+      return { organizationId, metadataTypeMapping };
     }
 
     const flatConfig = mapStoredOrganizationConfigToData(item);
     if (!hasOrganizationConfigData(flatConfig)) {
-      return attachMetadataDefaults({
+      return {
         organizationId,
         organizationConfigVersion: item.version,
         organizationConfigStatus: item.status,
-      });
+        metadataTypeMapping,
+      };
     }
 
     const enriched = await enrichOrganizationConfig(flatConfig, {
@@ -332,6 +320,7 @@ export class OrganizationService {
       organizationId,
       organizationConfigVersion: item.version,
       organizationConfigStatus: item.status,
+      metadataTypeMapping,
       organizationConfig: enriched.organizationConfig,
     };
 
@@ -343,15 +332,6 @@ export class OrganizationService {
     }
     if (item.publishedBy !== undefined) {
       view.publishedBy = item.publishedBy;
-    }
-    if (enriched.enabledCategoryConditionGroups !== undefined) {
-      view.enabledCategoryConditionGroups = enriched.enabledCategoryConditionGroups;
-    }
-    if (enriched.countryStateCityGroup !== undefined) {
-      view.countryStateCityGroup = enriched.countryStateCityGroup;
-    }
-    if (enriched.metadataDefaults !== undefined) {
-      view.metadataDefaults = enriched.metadataDefaults;
     }
 
     return view;
@@ -383,12 +363,6 @@ export class OrganizationService {
               organizationConfig: configView.organizationConfig,
               organizationConfigVersion: configView.organizationConfigVersion,
               organizationConfigStatus: configView.organizationConfigStatus,
-              ...(configView.enabledCategoryConditionGroups
-                ? { enabledCategoryConditionGroups: configView.enabledCategoryConditionGroups }
-                : {}),
-              ...(configView.countryStateCityGroup
-                ? { countryStateCityGroup: configView.countryStateCityGroup }
-                : {}),
               ...(configView.orgCapabilities ? { orgCapabilities: configView.orgCapabilities } : {}),
             };
 

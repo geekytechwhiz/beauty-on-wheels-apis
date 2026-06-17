@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { OrganizationService } from './organization.service';
 import { OrgConfigEntityType, OrgConfigStatus, ORG_CONFIG_CHANGE_TYPE } from '../models';
+import { EMPTY_ORGANIZATION_CONFIG_RELATIONSHIPS } from '../utils/organizationConfig.enrichment';
+import { ORG_CONFIG_METADATA_TYPE_MAPPING } from '../utils/organizationConfig.metadata-types';
 import {
   OrgConfigPublishError,
 } from '../utils/errors';
@@ -338,7 +340,7 @@ describe('OrganizationService organizationConfig updates', () => {
       organizationId: 'org-1',
       name: 'Org 1',
     });
-    repository.getLatestOrganizationConfig.mockResolvedValue({
+    repository.getActiveOrganizationConfigItem.mockResolvedValue({
       pk: 'ORG#org-1',
       sk: 'CONFIG#v4',
       entityType: OrgConfigEntityType.ORG_CONFIG,
@@ -394,6 +396,7 @@ describe('OrganizationService organizationConfig updates', () => {
       defaultLanguageCode: { code: 'EN', label: 'English' },
       enabledCategoryCodes: [{ code: 'CARDIO', label: 'Cardiology' }],
       enabledConditionCodes: [{ code: 'STABLE', label: 'Stable' }],
+      relationships: EMPTY_ORGANIZATION_CONFIG_RELATIONSHIPS,
     });
     expect(response.organizationConfigVersion).toBe(4);
     expect(response.organizationConfigStatus).toBe(OrgConfigStatus.ACTIVE);
@@ -405,7 +408,7 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationId: 'org-1',
         name: 'Org 1',
       });
-      repository.getLatestOrganizationConfig.mockResolvedValue({
+      repository.getActiveOrganizationConfigItem.mockResolvedValue({
         pk: 'ORG#org-1',
         sk: 'CONFIG#v4',
         entityType: OrgConfigEntityType.ORG_CONFIG,
@@ -476,15 +479,32 @@ describe('OrganizationService organizationConfig updates', () => {
         ],
         missingMetadataTypeCodes: [],
       });
-      metadataRegistryClient.getRelatedValues.mockResolvedValue({
-        groups: [
-          {
-            fromMetadataTypeCode: 'Category',
-            fromMetadataValueCode: 'CARDIOLOGY',
-            fromLabel: 'Cardiology',
-            values: [{ metadataTypeCode: 'Condition', metadataValueCode: 'HYPERTENSION', label: 'Hypertension' }],
-          },
-        ],
+      metadataRegistryClient.getRelatedValues.mockImplementation(async (params) => {
+        if (params.fromType === 'Category') {
+          return {
+            groups: [
+              {
+                fromMetadataTypeCode: 'Category',
+                fromMetadataValueCode: 'CARDIOLOGY',
+                fromLabel: 'Cardiology',
+                values: [{ metadataTypeCode: 'Condition', metadataValueCode: 'HYPERTENSION', label: 'Hypertension' }],
+              },
+            ],
+          };
+        }
+        if (params.fromType === 'Country') {
+          return {
+            groups: [
+              {
+                fromMetadataTypeCode: 'Country',
+                fromMetadataValueCode: 'IN',
+                fromLabel: 'India',
+                values: [{ metadataTypeCode: 'State', metadataValueCode: 'KA', label: 'Karnataka' }],
+              },
+            ],
+          };
+        }
+        return { groups: [] };
       });
 
       const response = await service.getOrganizationConfig('org-1', 'Bearer token');
@@ -493,31 +513,37 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationId: 'org-1',
         organizationConfigVersion: 4,
         organizationConfigStatus: OrgConfigStatus.ACTIVE,
+        metadataTypeMapping: ORG_CONFIG_METADATA_TYPE_MAPPING,
         organizationConfig: {
           enabledCountryCodes: [{ code: 'IN', label: 'India' }],
           enabledStateCodes: [{ code: 'KA', label: 'Karnataka' }],
           enabledCategoryCodes: [{ code: 'CARDIOLOGY', label: 'Cardiology' }],
           enabledConditionCodes: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
+          relationships: {
+            categoryConditionGroups: [
+              {
+                category: { code: 'CARDIOLOGY', label: 'Cardiology' },
+                conditions: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
+              },
+            ],
+            countryStateGroups: [
+              {
+                country: { code: 'IN', label: 'India' },
+                states: [{ code: 'KA', label: 'Karnataka' }],
+              },
+            ],
+            stateCityGroups: [],
+          },
         },
         orgCapabilities: ['CAP-CARDIOLOGY__HYPERTENSION'],
         publishedAt: new Date(1_700_000_000_000).toISOString(),
         publishedBy: 'user-1',
-        enabledCategoryConditionGroups: [
-          {
-            category: { code: 'CARDIOLOGY', label: 'Cardiology' },
-            conditions: [{ code: 'HYPERTENSION', label: 'Hypertension' }],
-          },
-        ],
-        countryStateCityGroup: {
-          countries: [{ code: 'IN', label: 'India' }],
-          states: [{ code: 'KA', label: 'Karnataka' }],
-        },
-        metadataDefaults: {
-          department: [{ valueCode: 'CARDIO_DEPT', label: 'Cardiology Dept' }],
-          programType: [],
-          specialty: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology' }],
-        },
       });
+      expect(response.metadataTypeMapping.Country).toEqual(['enabledCountryCodes']);
+      expect(response.metadataTypeMapping.timezone).toBeUndefined();
+      expect(response).not.toHaveProperty('metadataDefaults');
+      expect(response).not.toHaveProperty('enabledCategoryConditionGroups');
+      expect(response).not.toHaveProperty('countryStateCityGroup');
     });
 
     it('falls back to label=code when metadata registry fails', async () => {
@@ -525,7 +551,7 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationId: 'org-1',
         name: 'Org 1',
       });
-      repository.getLatestOrganizationConfig.mockResolvedValue({
+      repository.getActiveOrganizationConfigItem.mockResolvedValue({
         pk: 'ORG#org-1',
         sk: 'CONFIG#v1',
         entityType: OrgConfigEntityType.ORG_CONFIG,
@@ -541,7 +567,9 @@ describe('OrganizationService organizationConfig updates', () => {
       const response = await service.getOrganizationConfig('org-1', 'Bearer token');
 
       expect(response.organizationConfig?.defaultLanguageCode).toEqual({ code: 'EN', label: 'EN' });
-      expect(response.metadataDefaults).toBeUndefined();
+      expect(response.organizationConfig?.relationships).toEqual(EMPTY_ORGANIZATION_CONFIG_RELATIONSHIPS);
+      expect(response.metadataTypeMapping).toEqual(ORG_CONFIG_METADATA_TYPE_MAPPING);
+      expect(response).not.toHaveProperty('metadataDefaults');
     });
 
     it('maps legacy supported* config into enriched response', async () => {
@@ -549,7 +577,7 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationId: 'org-1',
         name: 'Org 1',
       });
-      repository.getLatestOrganizationConfig.mockResolvedValue({
+      repository.getActiveOrganizationConfigItem.mockResolvedValue({
         pk: 'ORG#org-1',
         sk: 'CONFIG#v2',
         entityType: OrgConfigEntityType.ORG_CONFIG,
@@ -576,43 +604,27 @@ describe('OrganizationService organizationConfig updates', () => {
         supportedLanguageCodes: [{ code: 'EN', label: 'EN' }],
         enabledCategoryCodes: [{ code: 'CARDIO', label: 'CARDIO' }],
         enabledConditionCodes: [{ code: 'STABLE', label: 'STABLE' }],
+        relationships: EMPTY_ORGANIZATION_CONFIG_RELATIONSHIPS,
       });
-      expect(response.metadataDefaults).toEqual({
-        department: [],
-        programType: [],
-        specialty: [],
-      });
+      expect(response.metadataTypeMapping).toEqual(ORG_CONFIG_METADATA_TYPE_MAPPING);
+      expect(response).not.toHaveProperty('metadataDefaults');
     });
 
-    it('returns metadataDefaults when org exists but has no config record', async () => {
+    it('returns metadataTypeMapping when org exists but has no config record', async () => {
       repository.getOrganization.mockResolvedValue({
         organizationId: 'org-1',
         name: 'Org 1',
       });
-      repository.getLatestOrganizationConfig.mockResolvedValue(null);
-      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
-        items: [
-          {
-            metadataType: 'Specialty',
-            displayName: 'Specialty',
-            multiSelectAllowed: true,
-            valueDataType: 'Enum',
-            values: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }],
-          },
-        ],
-        missingMetadataTypeCodes: ['Department', 'ProgramType'],
-      });
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(null);
 
       const response = await service.getOrganizationConfig('org-1', 'Bearer token');
 
       expect(response).toEqual({
         organizationId: 'org-1',
-        metadataDefaults: {
-          department: [],
-          programType: [],
-          specialty: [{ valueCode: 'CARDIOLOGY', label: 'Cardiology' }],
-        },
+        metadataTypeMapping: ORG_CONFIG_METADATA_TYPE_MAPPING,
       });
+      expect(response).not.toHaveProperty('metadataDefaults');
+      expect(response).not.toHaveProperty('organizationConfig');
     });
 
     it('returns only organizationId when no config record exists', async () => {
@@ -620,18 +632,105 @@ describe('OrganizationService organizationConfig updates', () => {
         organizationId: 'org-1',
         name: 'Org 1',
       });
-      repository.getLatestOrganizationConfig.mockResolvedValue(null);
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(null);
 
       const response = await service.getOrganizationConfig('org-1');
 
-      expect(response).toEqual({ organizationId: 'org-1' });
+      expect(response).toEqual({
+        organizationId: 'org-1',
+        metadataTypeMapping: ORG_CONFIG_METADATA_TYPE_MAPPING,
+      });
     });
 
     it('throws OrganizationNotFoundError when org does not exist', async () => {
       repository.getOrganization.mockResolvedValue(null);
 
       await expect(service.getOrganizationConfig('missing-org')).rejects.toThrow(/missing-org/);
-      expect(repository.getLatestOrganizationConfig).not.toHaveBeenCalled();
+      expect(repository.getActiveOrganizationConfigItem).not.toHaveBeenCalled();
+    });
+
+    it('returns all saved metadata-backed config fields enriched on GET', async () => {
+      const fullStoredConfig = {
+        pk: 'ORG#org-1',
+        sk: 'CONFIG#v5',
+        entityType: OrgConfigEntityType.ORG_CONFIG,
+        orgId: 'org-1',
+        version: 5,
+        status: OrgConfigStatus.ACTIVE,
+        enabledCountryCodes: ['IN'],
+        enabledStateCodes: ['KA'],
+        enabledCityCodes: ['BLR'],
+        timezone: 'Asia/Kolkata',
+        defaultLanguageCode: 'EN',
+        supportedLanguageCodes: ['EN', 'HI'],
+        enabledCategoryCodes: ['CAT_A'],
+        enabledConditionCodes: ['COND_A'],
+        enabledSpecialtyCodes: ['SPEC_A'],
+        enabledDeviceCodes: ['DEV_A'],
+        enabledVitalCodes: ['VITAL_BP'],
+        enabledMetricCodes: ['METRIC_CHECKIN'],
+        enabledReminderChannels: ['SMS'],
+        enabledRoleTypes: ['NURSE'],
+        requiredDocumentTypes: ['DOC_ID'],
+        requiredAgreementTypes: ['AGR_TERMS'],
+        currencyCode: 'INR',
+        paymentModeCodes: ['CARD'],
+        enabledModuleCodes: ['MOD_A'],
+        enabledFeatureCodes: ['FEAT_A'],
+        linkedOrgReferences: ['org-2'],
+        requiredAgreementIds: ['agr-1'],
+        createdAt: 1,
+        updatedAt: 1,
+      };
+
+      repository.getOrganization.mockResolvedValue({
+        organizationId: 'org-1',
+        name: 'Org 1',
+      });
+      repository.getActiveOrganizationConfigItem.mockResolvedValue(fullStoredConfig);
+      metadataRegistryClient.getValuesByTypes.mockResolvedValue({
+        items: [
+          { metadataType: 'Country', displayName: 'Country', multiSelectAllowed: false, valueDataType: 'string', values: [{ valueCode: 'IN', label: 'India', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'State', displayName: 'State', multiSelectAllowed: false, valueDataType: 'string', values: [{ valueCode: 'KA', label: 'Karnataka', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'City', displayName: 'City', multiSelectAllowed: false, valueDataType: 'string', values: [{ valueCode: 'BLR', label: 'Bengaluru', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Language', displayName: 'Language', multiSelectAllowed: false, valueDataType: 'string', values: [{ valueCode: 'EN', label: 'English', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }, { valueCode: 'HI', label: 'Hindi', status: 'active', isGlobal: true, sortOrder: 2, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Category', displayName: 'Category', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'CAT_A', label: 'Category A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Condition', displayName: 'Condition', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'COND_A', label: 'Condition A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Specialty', displayName: 'Specialty', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'SPEC_A', label: 'Specialty A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Device', displayName: 'Device', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'DEV_A', label: 'Device A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Vital', displayName: 'Vital', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'VITAL_BP', label: 'Blood Pressure', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'MetricCode', displayName: 'Metric', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'METRIC_CHECKIN', label: 'Check-in', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'ReminderChannel', displayName: 'Reminder Channel', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'SMS', label: 'SMS', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'RoleType', displayName: 'Role Type', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'NURSE', label: 'Nurse', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'DocumentType', displayName: 'Document Type', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'DOC_ID', label: 'ID Document', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'AgreementType', displayName: 'Agreement Type', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'AGR_TERMS', label: 'Terms', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Currency', displayName: 'Currency', multiSelectAllowed: false, valueDataType: 'string', values: [{ valueCode: 'INR', label: 'Indian Rupee', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'PaymentMode', displayName: 'Payment Mode', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'CARD', label: 'Card', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'ApplicableModule', displayName: 'Module', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'MOD_A', label: 'Module A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+          { metadataType: 'Feature', displayName: 'Feature', multiSelectAllowed: true, valueDataType: 'string', values: [{ valueCode: 'FEAT_A', label: 'Feature A', status: 'active', isGlobal: true, sortOrder: 1, attributes: {}, applicability: { module: [], category: [], condition: [], country: [], language: [] } }] },
+        ],
+        missingMetadataTypeCodes: [],
+      });
+      metadataRegistryClient.getRelatedValues.mockResolvedValue({ groups: [] });
+
+      const response = await service.getOrganizationConfig('org-1', 'Bearer token');
+
+      expect(response.metadataTypeMapping).toEqual(ORG_CONFIG_METADATA_TYPE_MAPPING);
+      expect(response.organizationConfig?.enabledCountryCodes).toEqual([{ code: 'IN', label: 'India' }]);
+      expect(response.organizationConfig?.enabledStateCodes).toEqual([{ code: 'KA', label: 'Karnataka' }]);
+      expect(response.organizationConfig?.enabledCityCodes).toEqual([{ code: 'BLR', label: 'Bengaluru' }]);
+      expect(response.organizationConfig?.enabledCategoryCodes).toEqual([{ code: 'CAT_A', label: 'Category A' }]);
+      expect(response.organizationConfig?.enabledConditionCodes).toEqual([{ code: 'COND_A', label: 'Condition A' }]);
+      expect(response.organizationConfig?.defaultLanguageCode).toEqual({ code: 'EN', label: 'English' });
+      expect(response.organizationConfig?.supportedLanguageCodes).toEqual([
+        { code: 'EN', label: 'English' },
+        { code: 'HI', label: 'Hindi' },
+      ]);
+      expect(response.organizationConfig?.timezone).toBe('Asia/Kolkata');
+      expect(response.organizationConfig?.currencyCode).toEqual({ code: 'INR', label: 'Indian Rupee' });
+      expect(response.organizationConfig?.linkedOrgReferences).toEqual(['org-2']);
+      expect(response.organizationConfig?.requiredAgreementIds).toEqual(['agr-1']);
+      expect(response.organizationConfig?.relationships).toEqual(EMPTY_ORGANIZATION_CONFIG_RELATIONSHIPS);
     });
   });
 

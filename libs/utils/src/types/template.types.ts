@@ -12,3 +12,9 @@ export interface NotificationTemplate {
 }
 
 export type TemplateData = Record<string, unknown>;
+
+export const METADATA_STATUS = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  DELETED: 'DELETED',
+} as const;

@@ -89,10 +89,16 @@ export function enrichCreateAppointmentFromFhir(
 
   const participants = mapParticipants(appt.participant);
 
-  const ownerCandidate = participants.find((p) => (p.role || '').toLowerCase().includes('patient')) || participants[0];
-  const owner = ownerCandidate ? { userId: ownerCandidate.userId, name: ownerCandidate.name, userType: 'MOBILE' } : undefined;
+  const ownerCandidate =
+    participants.find((p) => (pickString(p.role) ?? '').toLowerCase().includes('patient')) ||
+    participants[0];
+  const owner = ownerCandidate
+    ? { userId: ownerCandidate.userId, name: ownerCandidate.name, userType: 'MOBILE' }
+    : undefined;
 
-  const staffCandidate = participants.find((p) => (p.role || '').toLowerCase().includes('practitioner')) || participants.find((p) => p.userId && p !== ownerCandidate);
+  // const staffCandidate =
+  //   participants.find((p) => (pickString(p.role) ?? '').toLowerCase().includes('practitioner')) ||
+  //   participants.find((p) => p.userId && p !== ownerCandidate);
 
   const participantInfo = participants.map((p) => ({ userId: p.userId, name: p.name, userType: p.userId ? 'WEB' : 'MOBILE' }));
 

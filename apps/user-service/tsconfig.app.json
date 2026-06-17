@@ -2,7 +2,6 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
     "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "composite": false,
@@ -10,11 +9,13 @@
     "declarationMap": false,
     "emitDeclarationOnly": false,
     "baseUrl": "../..",
+    "customConditions": [],
+    "disableSourceOfProjectReferenceRedirect": true,
     "paths": {
-      "@api-hub/logger": ["libs/logger/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/logger": ["libs/logger/dist/index.d.ts"],
+      "@api-hub/utils": ["dist/libs/utils/index.d.ts"],
       "@api-hub/canonical": ["libs/canonical/src/index.ts"],
-      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
+      "@api-hub/fhir": ["dist/libs/fhir/index.d.ts"],
       "@api-hub/consent": ["libs/consent/src/index.ts"],
       "@api-hub/capability": ["libs/capability/src/index.ts"],
       "@api-hub/terminology": ["libs/terminology/src/index.ts"],
@@ -25,18 +26,29 @@
       "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
-      "@api-hub/service-clients": ["libs/service-clients/src/index.ts"],
-      "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
+      "@api-hub/service-clients": ["dist/libs/service-clients/index.d.ts"],
+      "@api-hub/event-platform": ["dist/libs/event-platform/index.d.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
       "@api-hub/metadata": ["libs/metadata/src/index.ts"],
-      "@api-hub/middleware": ["libs/middleware/src/index.ts"],
-      "@api-hub/observability": ["libs/observability/src/index.ts"],
+      "@api-hub/middleware": ["libs/middleware/dist/index.d.ts"],
+      "@api-hub/observability": ["libs/observability/dist/index.d.ts"],
       "@api-hub/rule-engine": ["libs/rule-engine/src/index.ts"],
       "@api-hub/template": ["libs/template/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "jest.config.ts",
+    "jest.config.cts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/__tests__/**",
+    "eslint.config.js",
+    "eslint.config.cjs",
+    "eslint.config.mjs"
+  ],
   "references": [
     {
       "path": "../../libs/service-clients/tsconfig.lib.json"

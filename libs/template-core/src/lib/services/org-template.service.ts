@@ -659,7 +659,7 @@ export class OrgTemplateService {
     if (!masterTemplateId) return null;
 
     const catalogMaster = masterById.get(masterTemplateId);
-    let masterVersionId =
+    const masterVersionId =
       enablement.meta.masterTemplateVersionId?.trim() ||
       catalogMaster?.templateVersionId;
     if (!masterVersionId) return null;

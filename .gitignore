@@ -109,6 +109,8 @@ apps/task-service/.esbuild/
 apps/task-service/swagger/
 apps/task-service.zip
 apps/task-service/*.zip
+
+packages/fhir/*.zip
 apps/task-service/.env
 apps/template-service/.esbuild/
 apps/template-service/swagger/
@@ -116,3 +118,4 @@ apps/template-service/swagger/
 .nx/polygraph
 .claude/worktrees
 .claude/settings.local.json
+vitest.config.*.timestamp*

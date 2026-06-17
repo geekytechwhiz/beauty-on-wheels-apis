@@ -38,7 +38,7 @@ export class GenericMapper {
       resourceType: mapping.resource,
     };
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       this.applyFieldMapping(resource, canonical, field);
     }
 
@@ -62,7 +62,7 @@ export class GenericMapper {
   mapHybrid(canonical: AnyObject, mapping: ResourceMappingConfig): AnyObject {
     const hybrid = structuredClone(canonical) as AnyObject;
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       this.applyFieldMapping(hybrid, canonical, field);
     }
 
@@ -91,7 +91,7 @@ export class GenericMapper {
   reverseMap(resource: AnyObject, mapping: ResourceMappingConfig): AnyObject {
     const canonical: AnyObject = {};
 
-    for (const field of mapping.fields) {
+    for (const field of mapping.fields ?? []) {
       let value = objectPath.get(resource, field.target);
 
       if (value === undefined) {
@@ -152,12 +152,25 @@ export class GenericMapper {
     return field.template.replace('{{value}}', String(value));
   }
 
-  private applyTransform(value: unknown, field: MappingField): unknown {
+  private resolveTransformName(field: MappingField): string | undefined {
     if (!field.transform) {
+      return undefined;
+    }
+
+    if (typeof field.transform === 'string') {
+      return field.transform;
+    }
+
+    return field.transform.name;
+  }
+
+  private applyTransform(value: unknown, field: MappingField): unknown {
+    const transformName = this.resolveTransformName(field);
+    if (!transformName) {
       return value;
     }
 
-    switch (field.transform.name) {
+    switch (transformName) {
       case 'firstName':
         return String(value).split(' ')[0];
 

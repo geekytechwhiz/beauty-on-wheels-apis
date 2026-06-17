@@ -2,7 +2,7 @@ import boto3
 import csv
 from botocore.exceptions import ClientError
 
-AWS_PROFILE = # profile name
+AWS_PROFILE = "dev"
 AWS_REGION = "us-east-1"
 
 # Number of Lambda functions to process in one run

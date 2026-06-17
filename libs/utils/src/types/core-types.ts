@@ -25,12 +25,28 @@ export interface ErrorBody {
   details?: ErrorDetail[];
 }
 
+export interface FhirValidationResponse {
+  valid: boolean;
+  operationOutcome: {
+    resourceType: 'OperationOutcome';
+    issue: Array<{
+      severity: string;
+      code: string;
+      category: string;
+      validator: string;
+      diagnostics: string;
+      expression?: string[];
+    }>;
+  };
+}
+
 export interface ApiResponseBody<T = unknown> {
   success: boolean;
   statusCode: number;
   message: Message;
   data: T | null;
   fhir?: unknown;
+  fhirValidation?: FhirValidationResponse;
   error: ErrorBody | null;
   meta: Meta;
 }
@@ -40,6 +56,8 @@ export interface ResponseOptions {
   headers?: Record<string, string>;
   /** Optional FHIR projection (collection Bundle) alongside canonical data. */
   fhir?: unknown;
+  /** Non-blocking FHIR validation outcome (OperationOutcome with classified issues). */
+  fhirValidation?: FhirValidationResponse;
   /** Optional event passthrough for error handlers (e.g. API Gateway event). */
   event?: unknown;
 }

@@ -7,14 +7,19 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-
       "outputs": ["{options.outputPath}"],
-
       "options": {
         "outputPath": "dist/libs/service-clients",
         "main": "libs/service-clients/src/index.ts",
         "tsConfig": "libs/service-clients/tsconfig.lib.json",
         "assets": ["libs/service-clients/*.md"]
+      }
+    },
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../coverage/libs/service-clients"
       }
     }
   }

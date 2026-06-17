@@ -125,7 +125,7 @@ export const main = withApiHandler(
   {
     operation: 'listUsers',
     validator: validateListDoctorPatients,
-    fhir: fhirUserListHandlerOptions,
+    fhir: { ...fhirUserListHandlerOptions, validation: { enabled: true, failOnValidationError: false } },
   },
   handler,
 );

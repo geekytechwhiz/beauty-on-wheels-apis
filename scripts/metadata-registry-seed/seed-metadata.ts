@@ -13,7 +13,7 @@
  * Usage:
  *   pnpm seed:metadata
  *
- * Requires BASE_URL (see tools/scripts/.env.example). AUTH_TOKEN is optional for local offline.
+ * Requires BASE_URL (see scripts/metadata-registry-seed/.env.example). AUTH_TOKEN is optional for local offline.
  * Phase 1 creates types with `applicableModules` aggregated from Excel value rows (and overrides).
  * Re-seed with TREAT_CONFLICT_AS_SUCCESS=true skips existing entities.
  *
@@ -98,7 +98,7 @@ function loadEnvFile(filePath: string): boolean {
 }
 
 /**
- * Loads `tools/scripts/.env`, then `tools/scripts/.env.example` for any unset keys.
+ * Loads `scripts/metadata-registry-seed/.env`, then `.env.example` for any unset keys.
  * BASE_URL still defaults in loadRuntimeConfig when neither file defines it.
  */
 function loadDotEnv(): void {
@@ -106,7 +106,7 @@ function loadDotEnv(): void {
   const loadedEnv = loadEnvFile(path.join(dir, '.env'));
   const loadedExample = loadEnvFile(path.join(dir, '.env.example'));
   if (!loadedEnv && !loadedExample) {
-    logger.debug('No tools/scripts/.env or tools/scripts/.env.example found — using defaults');
+    logger.debug('No scripts/metadata-registry-seed/.env or .env.example found — using defaults');
   }
 }
 

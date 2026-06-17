@@ -965,6 +965,66 @@ describe('TaskService.updateReminderSettings', () => {
   });
 });
 
+describe('TaskService.updateRuntimeTask', () => {
+  it('updates metadata and returns task card with history', async () => {
+    const meta = { ...sampleRecord(), displayTitle: 'Old title', currentState: 'open' as const };
+    const lookup = {
+      pk: 'TASK#rtask-abc',
+      sk: 'LOOKUP' as const,
+      entityType: 'TaskLookup' as const,
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      taskSk: meta.sk,
+    };
+
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue(lookup),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      updateRuntimeTask: jest.fn().mockResolvedValue({
+        record: { ...meta, displayTitle: 'New title' },
+        historyEntry: {
+          historyEventType: 'taskMetadataChange',
+          changedFields: ['displayTitle'],
+        },
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.updateRuntimeTask({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-1',
+      patch: { displayTitle: 'New title' },
+    });
+
+    expect(result.task.displayTitle).toBe('New title');
+    expect(result.historyEntry).toMatchObject({ historyEventType: 'taskMetadataChange' });
+  });
+
+  it('rejects unchanged metadata', async () => {
+    const meta = { ...sampleRecord(), displayTitle: 'Same', currentState: 'open' as const };
+    const repo = {
+      getLookupByTaskId: jest.fn().mockResolvedValue({
+        orgId: 'org-1',
+        taskSk: meta.sk,
+      }),
+      getMetaByLookup: jest.fn().mockResolvedValue(meta),
+      updateRuntimeTask: jest.fn(),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    await expect(
+      svc.updateRuntimeTask({
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        patch: { displayTitle: 'Same' },
+      }),
+    ).rejects.toMatchObject({ statusCode: 422, code: 'TASK_METADATA_UNCHANGED' });
+  });
+});
+
 describe('TaskService.getTaskStatusSummaryByCarePlan', () => {
   it('aggregates all care plan task pages into a readiness summary', async () => {
     const requiredDone = {

@@ -5,6 +5,7 @@ import {
   CARE_PLAN_SYSTEM_ACTOR,
   DEFAULT_ACTION_CENTER_TIMEZONE,
   manualSystemActor,
+  RUNTIME_TASK_METADATA_FIELDS,
   RUNTIME_TASK_STATE,
   SERVICE_FLOW_SYSTEM_ACTOR,
   SURFACE_SECTION,
@@ -25,6 +26,7 @@ import type {
   GenerateCarePlanTasksHttpBody,
   UpdateAssignedStaffHttpBody,
   UpdateReminderSettingsHttpBody,
+  UpdateRuntimeTaskHttpBody,
   UpdateTaskStateHttpBody,
 } from './task.schemas';
 
@@ -516,6 +518,44 @@ export function validateUpdateReminderSettingsRequest(req: LambdaRequest): void 
     orgId,
     runtimeTaskInstanceId,
     body,
+    authHeader: req.context.authHeader,
+  };
+}
+
+export type ValidatedUpdateRuntimeTask = {
+  orgId: string;
+  runtimeTaskInstanceId: string;
+  body: UpdateRuntimeTaskHttpBody;
+  patch: import('@api-hub/task-core').RuntimeTaskMetadataPatch;
+  authHeader: string | undefined;
+};
+
+export function validateUpdateRuntimeTaskRequest(req: LambdaRequest): void {
+  const body = req.body as UpdateRuntimeTaskHttpBody;
+
+  const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
+  if (!orgId) {
+    throwVal('Organization could not be resolved from the access token', 401, 'UNAUTHORIZED');
+  }
+
+  const runtimeTaskInstanceId = req.pathParameters?.runtimeTaskInstanceId;
+  if (!runtimeTaskInstanceId) {
+    throwVal('runtimeTaskInstanceId path parameter is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const patch: import('@api-hub/task-core').RuntimeTaskMetadataPatch = {};
+  for (const field of RUNTIME_TASK_METADATA_FIELDS) {
+    if (body[field] !== undefined) {
+      (patch as Record<string, unknown>)[field] = body[field];
+    }
+  }
+
+  (req as LambdaRequest & { validatedUpdateRuntimeTask: ValidatedUpdateRuntimeTask })
+    .validatedUpdateRuntimeTask = {
+    orgId,
+    runtimeTaskInstanceId,
+    body,
+    patch,
     authHeader: req.context.authHeader,
   };
 }

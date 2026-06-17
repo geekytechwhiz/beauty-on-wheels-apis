@@ -31,6 +31,10 @@ import type {
   UpdateReminderSettingsRepoResult,
 } from '../models/api/update-reminder-settings.request';
 import type {
+  UpdateRuntimeTaskRepoInput,
+  UpdateRuntimeTaskRepoResult,
+} from '../models/api/update-runtime-task.request';
+import type {
   CompletionEvidenceDdbRecord,
   TaskHistDdbRecord,
   TaskLookupDdbRecord,
@@ -882,6 +886,91 @@ export class TaskRepository extends BaseRepository {
       ...(cancelRequestHist ? { cancelRequestHist } : {}),
       ...(registerRequestHist ? { registerRequestHist } : {}),
       coordination,
+    };
+  }
+
+  async updateRuntimeTask(input: UpdateRuntimeTaskRepoInput): Promise<UpdateRuntimeTaskRepoResult> {
+    const table = assertTaskTable();
+    const { meta, lookup, actorId, reason, diff } = input;
+    const nowMs = Date.now();
+    const nextVersion = (meta.version ?? 1) + 1;
+
+    const expressionParts: string[] = [
+      'lastUpdatedAt = :now',
+      'lastUpdatedBy = :by',
+      '#ver = :nextVer',
+    ];
+    const expressionNames: Record<string, string> = { '#ver': 'version' };
+    const expressionValues: Record<string, unknown> = {
+      ':now': nowMs,
+      ':by': actorId,
+      ':nextVer': nextVersion,
+    };
+
+    for (const field of diff.changedFields) {
+      const attrName = `#${field}`;
+      const valueKey = `:${field}`;
+      expressionNames[attrName] = field;
+      expressionValues[valueKey] = diff.newValues[field];
+      expressionParts.push(`${attrName} = ${valueKey}`);
+    }
+
+    const histPut = TaskEntityBuilder.buildTaskMetadataChangeHistRecord({
+      meta,
+      changedFields: [...diff.changedFields],
+      previousValues: diff.previousValues as Record<string, unknown>,
+      newValues: diff.newValues as Record<string, unknown>,
+      actorId,
+      reason,
+      nowMs,
+    });
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: meta.pk, sk: meta.sk },
+          UpdateExpression: `SET ${expressionParts.join(', ')}`,
+          ExpressionAttributeNames: expressionNames,
+          ExpressionAttributeValues: expressionValues,
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    if (diff.lookupUpdates.patientDisplayName != null) {
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression: 'SET patientDisplayName = :patientDisplayName',
+          ExpressionAttributeValues: {
+            ':patientDisplayName': diff.lookupUpdates.patientDisplayName,
+          },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      });
+    }
+
+    transactItems.push({
+      Put: {
+        TableName: table,
+        Item: histPut as unknown as Record<string, unknown>,
+        ConditionExpression: 'attribute_not_exists(sk)',
+      },
+    });
+
+    await this.transactWrite({ TransactItems: transactItems });
+
+    return {
+      record: {
+        ...meta,
+        ...diff.metaUpdates,
+        lastUpdatedAt: nowMs,
+        lastUpdatedBy: actorId,
+        version: nextVersion,
+      },
+      historyEntry: histPut,
     };
   }
 }

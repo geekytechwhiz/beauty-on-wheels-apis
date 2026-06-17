@@ -496,7 +496,8 @@
         "assignedToStaffChange",
         "reminderSettingsChange",
         "reminderRegisterRequest",
-        "reminderCancelRequest"
+        "reminderCancelRequest",
+        "taskMetadataChange"
       ]
     },
     "TransitionSource": {
@@ -518,7 +519,52 @@
         "previousAssignedToStaffId": { "type": "string" },
         "newAssignedToStaffId": { "type": "string" },
         "previousAssignedToStaffDisplayName": { "type": "string" },
-        "newAssignedToStaffDisplayName": { "type": "string" }
+        "newAssignedToStaffDisplayName": { "type": "string" },
+        "changedFields": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "previousValues": { "type": "object" },
+        "newValues": { "type": "object" }
+      }
+    },
+    "UpdateRuntimeTaskRequest": {
+      "type": "object",
+      "required": ["actorId"],
+      "properties": {
+        "actorId": { "type": "string" },
+        "reason": { "type": "string" },
+        "displayTitle": { "type": "string" },
+        "description": { "type": "string" },
+        "displayToPatient": { "type": "boolean" },
+        "requiredForStageCompletion": { "type": "boolean" },
+        "displayAsChecklistItem": { "type": "boolean" },
+        "workflowStage": {
+          "type": "string",
+          "enum": ["onboarding", "ongoing", "review", "closure"]
+        },
+        "actionTargetId": { "type": "string" },
+        "completionSourceType": { "type": "string" },
+        "completionSourceReferenceId": { "type": "string" },
+        "patientDisplayName": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "example": {
+        "actorId": "staff-nurse-001",
+        "displayTitle": "Complete daily blood pressure check",
+        "description": "Use home cuff before breakfast",
+        "displayToPatient": true,
+        "requiredForStageCompletion": true,
+        "reason": "Care plan template wording updated"
+      }
+    },
+    "UpdateRuntimeTaskResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "task", "historyEntry"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "task": { "type": "object" },
+        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
       }
     },
     "UpdateAssignedStaffRequest": {
@@ -646,6 +692,37 @@
           "401": { "description": "Unauthorized" },
           "403": { "description": "Forbidden" },
           "404": { "description": "Runtime task not found" },
+          "500": { "description": "Server error" }
+        }
+      },
+      "patch": {
+        "summary": "Update runtime task metadata (portal)",
+        "description": "Portal partial metadata edit on META (+ LOOKUP when patientDisplayName changes). Appends HIST taskMetadataChange audit.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/UpdateRuntimeTaskRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated task metadata and audit entry.",
+            "schema": { "$ref": "#/definitions/UpdateRuntimeTaskResult" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "422": { "description": "Validation or business rule error" },
           "500": { "description": "Server error" }
         }
       }

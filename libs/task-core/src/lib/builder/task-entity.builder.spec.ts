@@ -290,6 +290,24 @@ describe('TaskEntityBuilder', () => {
     lastUpdatedBy: 'system',
   };
 
+  it('builds task metadata change history record', () => {
+    const hist = TaskEntityBuilder.buildTaskMetadataChangeHistRecord({
+      meta: reminderMeta,
+      changedFields: ['displayTitle'],
+      previousValues: { displayTitle: 'Old' },
+      newValues: { displayTitle: 'New' },
+      actorId: 'staff-1',
+      reason: 'Portal edit',
+    });
+
+    expect(hist).toMatchObject({
+      historyEventType: 'taskMetadataChange',
+      changedFields: ['displayTitle'],
+      previousValues: { displayTitle: 'Old' },
+      newValues: { displayTitle: 'New' },
+    });
+  });
+
   it('builds reminder settings change history record', () => {
     const hist = TaskEntityBuilder.buildReminderSettingsChangeHistRecord({
       meta: reminderMeta,

@@ -420,3 +420,80 @@ describe('TaskRepository.updateReminderSettings', () => {
     transactWrite.mockRestore();
   });
 });
+
+describe('TaskRepository.updateRuntimeTask', () => {
+  const originalTaskTable = process.env.TASK_TABLE;
+
+  const baseMeta: TaskMetaDdbRecord = {
+    pk: 'ORG#org-1#PAT#pat-1',
+    sk: 'DUE#1780581600000#TASK#rtask-abc',
+    entityType: 'RuntimeTaskInstance',
+    orgId: 'org-1',
+    patientId: 'pat-1',
+    patientDisplayName: 'Jane Doe',
+    runtimeTaskInstanceId: 'rtask-abc',
+    runtimeTaskSource: 'monitoringRuntime',
+    taskBehaviorCode: 'METRIC_CHECKIN',
+    taskDisplayGroup: 'checkIn',
+    displayTitle: 'Check in',
+    assignedToType: 'patient',
+    displayToPatient: true,
+    currentState: 'open',
+    version: 2,
+    createdAt: 1780581600000,
+    createdBy: 'system',
+    lastUpdatedAt: 1780581600000,
+    lastUpdatedBy: 'system',
+  };
+
+  const baseLookup = {
+    pk: 'TASK#rtask-abc',
+    sk: 'LOOKUP' as const,
+    entityType: 'TaskLookup' as const,
+    runtimeTaskInstanceId: 'rtask-abc',
+    orgId: 'org-1',
+    patientId: 'pat-1',
+    patientDisplayName: 'Jane Doe',
+    taskSk: baseMeta.sk,
+  };
+
+  beforeAll(() => {
+    process.env.TASK_TABLE = 'task-test-table';
+  });
+
+  afterAll(() => {
+    process.env.TASK_TABLE = originalTaskTable;
+  });
+
+  it('transacts META update, LOOKUP patientDisplayName, and metadata HIST', async () => {
+    const repo = new TaskRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
+      .mockResolvedValue(undefined);
+
+    await repo.updateRuntimeTask({
+      meta: baseMeta,
+      lookup: baseLookup,
+      actorId: 'staff-1',
+      reason: 'Portal edit',
+      diff: {
+        changedFields: ['displayTitle', 'patientDisplayName'],
+        previousValues: { displayTitle: 'Check in', patientDisplayName: 'Jane Doe' },
+        newValues: { displayTitle: 'Updated title', patientDisplayName: 'Jane D.' },
+        metaUpdates: { displayTitle: 'Updated title', patientDisplayName: 'Jane D.' },
+        lookupUpdates: { patientDisplayName: 'Jane D.' },
+      },
+    });
+
+    const items = transactWrite.mock.calls[0][0].TransactItems;
+    expect(items).toHaveLength(3);
+    expect(items[0].Update?.UpdateExpression).toContain('displayTitle');
+    expect(items[1].Update?.Key).toEqual({ pk: 'TASK#rtask-abc', sk: 'LOOKUP' });
+    expect(items[2].Put?.Item).toMatchObject({
+      historyEventType: 'taskMetadataChange',
+      changedFields: ['displayTitle', 'patientDisplayName'],
+    });
+
+    transactWrite.mockRestore();
+  });
+});

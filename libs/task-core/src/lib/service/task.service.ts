@@ -14,6 +14,10 @@ import type {
   UpdateAssignedStaffResult,
 } from '../models/api/update-assigned-staff.request';
 import type {
+  UpdateRuntimeTaskRequest,
+  UpdateRuntimeTaskResult,
+} from '../models/api/update-runtime-task.request';
+import type {
   UpdateReminderSettingsRequest,
   UpdateReminderSettingsResult,
 } from '../models/api/update-reminder-settings.request';
@@ -66,6 +70,10 @@ import {
 } from '../utils/surface-section';
 import { DEFAULT_ACTION_CENTER_TIMEZONE } from '../utils/task-time';
 import { aggregateTaskStatusSummary } from '../utils/task-status-summary';
+import {
+  assertRequiredForStageCompletionAllowed,
+  computeRuntimeTaskMetadataDiff,
+} from '../utils/runtime-task-metadata';
 import {
   decodeTaskHistoryCursor,
   encodeTaskHistoryCursor,
@@ -312,6 +320,51 @@ export class TaskService extends BaseTaskService {
       assignedToStaffId: input.assignedToStaffId,
       assignedToStaffDisplayName: input.assignedToStaffDisplayName,
       reason: input.reason,
+    });
+
+    return {
+      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
+      task: toRuntimeTaskCard(record),
+      historyEntry: toTaskHistoryEntry(historyEntry),
+    };
+  }
+
+  async updateRuntimeTask(input: UpdateRuntimeTaskRequest): Promise<UpdateRuntimeTaskResult> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (!organizationIdsMatch(lookup.orgId, input.organizationId)) {
+      throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
+    }
+
+    const meta = await this.repo.getMetaByLookup(lookup);
+    if (!meta) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    try {
+      assertRequiredForStageCompletionAllowed(meta.currentState, input.patch);
+    } catch (e: unknown) {
+      const err = e as Error & { statusCode?: number; code?: string };
+      if (err.statusCode && err.code) {
+        throw err;
+      }
+      throw e;
+    }
+
+    const diff = computeRuntimeTaskMetadataDiff(meta, input.patch);
+    if (!diff) {
+      throw taskHttpError('Task metadata is unchanged', 422, 'TASK_METADATA_UNCHANGED');
+    }
+
+    const { record, historyEntry } = await this.repo.updateRuntimeTask({
+      meta,
+      lookup,
+      actorId: input.actorId,
+      reason: input.reason,
+      diff,
     });
 
     return {

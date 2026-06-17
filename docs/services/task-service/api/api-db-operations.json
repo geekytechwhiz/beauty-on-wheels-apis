@@ -1243,7 +1243,7 @@
             "ExclusiveStartKey": "decoded nextToken"
           },
           "output": {
-            "items": "TaskHistDdbRecord[] (stateChange, assignedToStaffChange, reminderSettingsChange, reminderRegisterRequest, reminderCancelRequest)",
+            "items": "TaskHistDdbRecord[] (stateChange, assignedToStaffChange, reminderSettingsChange, reminderRegisterRequest, reminderCancelRequest, taskMetadataChange)",
             "lastEvaluatedKey": "nextToken"
           }
         }
@@ -1588,6 +1588,110 @@
             "scheduled": "number"
           },
           "incompleteRequiredTasks": "array of { runtimeTaskInstanceId, displayTitle, requiredForStageCompletion, currentState }"
+        }
+      }
+    },
+    "PATCH /tasks/{runtimeTaskInstanceId}": {
+      "method": "PATCH",
+      "path": "/tasks/{runtimeTaskInstanceId}",
+      "purpose": "Portal partial metadata edit on META (+ LOOKUP when patientDisplayName changes).",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "body": {
+          "actorId": "string (required)",
+          "reason": "string (optional)",
+          "displayTitle": "string (optional)",
+          "description": "string | null (optional)",
+          "displayToPatient": "boolean (optional)",
+          "requiredForStageCompletion": "boolean (optional)",
+          "displayAsChecklistItem": "boolean (optional)",
+          "workflowStage": "onboarding | ongoing | review | closure (optional)",
+          "actionTargetId": "string | null (optional)",
+          "completionSourceType": "string | null (optional)",
+          "completionSourceReferenceId": "string | null (optional)",
+          "patientDisplayName": "string (optional)"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" },
+        "validation": {
+          "atLeastOneMutableField": true,
+          "forbiddenFields": [
+            "dueWindowStart",
+            "dueWindowEnd",
+            "patientId",
+            "orgId",
+            "carePlanInstanceId",
+            "runtimeTaskSource",
+            "currentState",
+            "assignedToType",
+            "assignedToStaffId",
+            "reminderEnabled",
+            "reminderSettings"
+          ]
+        }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } },
+          "output": { "404": "TASK_NOT_FOUND", "403": "org mismatch" }
+        },
+        {
+          "step": 2,
+          "name": "getMeta",
+          "operation": "GetItem",
+          "input": { "Key": "lookup.taskSk (pk + sk)" },
+          "output": { "404": "TASK_NOT_FOUND" }
+        },
+        {
+          "step": 3,
+          "name": "transactWriteMetadata",
+          "operation": "TransactWrite",
+          "items": [
+            {
+              "action": "Update",
+              "target": "META",
+              "UpdateExpression": "SET <changed fields>, lastUpdatedAt, lastUpdatedBy, version++",
+              "ConditionExpression": "attribute_exists(sk)"
+            },
+            {
+              "action": "Update",
+              "target": "LOOKUP",
+              "when": "patientDisplayName changed",
+              "UpdateExpression": "SET patientDisplayName = :name",
+              "ConditionExpression": "attribute_exists(sk)"
+            },
+            {
+              "action": "Put",
+              "target": "HIST",
+              "attributes": {
+                "historyEventType": "taskMetadataChange",
+                "changedFields": "string[]",
+                "previousValues": "map (sparse)",
+                "newValues": "map (sparse)",
+                "transitionSource": "manual"
+              }
+            }
+          ],
+          "output": { "updatedMeta": "TaskMetaDdbRecord", "historyEntry": "TaskHistDdbRecord" }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": {
+          "200": "success",
+          "400": "validation (no mutable fields)",
+          "401": "auth",
+          "403": "forbidden",
+          "404": "not found",
+          "422": "TASK_METADATA_UNCHANGED | INVALID_METADATA_FOR_STATE"
+        },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "task": "RuntimeTaskCard",
+          "historyEntry": "TaskHistoryEntry"
         }
       }
     }

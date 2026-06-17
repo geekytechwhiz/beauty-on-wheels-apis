@@ -107,6 +107,7 @@ META fields returned to clients (DDB keys stripped):
 | 11 | POST | `/tasks/{runtimeTaskInstanceId}/state` | TransactWrite Update×2 + Put (+ optional EVID) | no |
 | 12 | GET | `/care-plans/{carePlanInstanceId}/task-status-summary` | Query LSI1 + aggregate | — |
 | 13 | PUT | `/tasks/{runtimeTaskInstanceId}/reminder-settings` | TransactWrite META + HIST (1–3 puts) | no |
+| 14 | PATCH | `/tasks/{runtimeTaskInstanceId}` | TransactWrite Update×1–2 + Put | no |
 
 ---
 
@@ -978,6 +979,83 @@ Query patient PK `begins_with(DUE#)` or LSI `CarePlanIndex`; filter `displayToPa
 
 ---
 
+## 14. PATCH `/tasks/{runtimeTaskInstanceId}`
+
+**Purpose:** Portal-authorized partial metadata edit on META (and LOOKUP when `patientDisplayName` changes). Appends HIST `taskMetadataChange` audit. Does not change due windows, identity keys, staff assignment, reminders, or task state.
+
+### Input
+
+**Headers:** `Authorization: Bearer <JWT>`
+
+**Path:** `runtimeTaskInstanceId` (required)
+
+**Body:**
+
+| Field | Type | Required |
+|-------|------|----------|
+| `actorId` | string | yes |
+| `reason` | string | no |
+| `displayTitle` | string | no |
+| `description` | string \| null | no |
+| `displayToPatient` | boolean | no |
+| `requiredForStageCompletion` | boolean | no |
+| `displayAsChecklistItem` | boolean | no |
+| `workflowStage` | enum | no | `onboarding`, `ongoing`, `review`, `closure` |
+| `actionTargetId` | string \| null | no |
+| `completionSourceType` | string \| null | no |
+| `completionSourceReferenceId` | string \| null | no |
+| `patientDisplayName` | string | no |
+
+At least one mutable field (other than `actorId` / `reason`) must be present.
+
+**Forbidden in body** (use dedicated APIs or immutable): `dueWindowStart`, `dueWindowEnd`, `patientId`, `orgId`, `carePlanInstanceId`, source/registry fields, `taskBehaviorCode`, `taskDisplayGroup`, staff assignment fields, reminder fields, `currentState`.
+
+**Resolved server-side:** `organizationId` from JWT only.
+
+**Business rules:** No effective change → `422 TASK_METADATA_UNCHANGED`. `requiredForStageCompletion: true` on `completed`, `dismissed`, or `cancelled` → `422 INVALID_METADATA_FOR_STATE`.
+
+### Database flow
+
+```
+1. GetItem LOOKUP → org check
+2. GetItem META via lookup.taskSk
+
+3. TransactWrite (one request):
+   a. Update META  SET only changed fields + lastUpdatedAt, lastUpdatedBy, version++
+
+   b. [patientDisplayName changed] Update LOOKUP SET patientDisplayName
+
+   c. Put HIST  historyEventType = taskMetadataChange
+                changedFields, previousValues, newValues
+                transitionBy = actorId, transitionSource = manual
+```
+
+**Unchanged on this API:** META `sk`, `lsi1Sk`, `gsi1Pk`, `gsi1Sk`, `dueWindowStart`/`dueWindowEnd`, LOOKUP `taskSk`, `reminderHistory`, `evidenceSummary`, staff assignment, reminder config, `currentState`.
+
+### Response (`data`)
+
+```json
+{
+  "runtimeTaskInstanceId": "rtask-...",
+  "task": { },
+  "historyEntry": {
+    "taskStateHistoryId": "uuid",
+    "historyEventType": "taskMetadataChange",
+    "transitionAt": 1780550000000,
+    "transitionBy": "staff-nurse-001",
+    "transitionSource": "manual",
+    "transitionReason": "Care plan template wording updated",
+    "changedFields": ["displayTitle", "description", "requiredForStageCompletion"],
+    "previousValues": { "displayTitle": "BP check", "requiredForStageCompletion": false },
+    "newValues": { "displayTitle": "Complete daily blood pressure check", "requiredForStageCompletion": true }
+  }
+}
+```
+
+**HTTP:** `200` · `400` · `401` · `403` · `404` · `422` (`TASK_METADATA_UNCHANGED`, `INVALID_METADATA_FOR_STATE`)
+
+---
+
 ## Quick DynamoDB operation matrix
 
 | API | Get LOOKUP | Get META | Query | TransactWrite |
@@ -995,3 +1073,4 @@ Query patient PK `begins_with(DUE#)` or LSI `CarePlanIndex`; filter `displayToPa
 | POST `/tasks/{id}/state` | ✓ | ✓ | | TransactWrite (META+HIST+LOOKUP+optional EVID) |
 | GET `/care-plans/{id}/task-status-summary` | | | ✓ LSI1 | |
 | PUT `/tasks/{id}/reminder-settings` | ✓ | ✓ | | TransactWrite (META+HIST 1–3) |
+| PATCH `/tasks/{id}` | ✓ | ✓ | | TransactWrite (META+HIST; optional LOOKUP) |

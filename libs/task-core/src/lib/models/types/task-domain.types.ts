@@ -83,6 +83,7 @@ export const TASK_HISTORY_EVENT_TYPE = {
   REMINDER_SETTINGS_CHANGE: 'reminderSettingsChange',
   REMINDER_REGISTER_REQUEST: 'reminderRegisterRequest',
   REMINDER_CANCEL_REQUEST: 'reminderCancelRequest',
+  TASK_METADATA_CHANGE: 'taskMetadataChange',
 } as const;
 
 export type TaskHistoryEventType =

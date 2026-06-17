@@ -153,3 +153,47 @@ export const updateReminderSettingsHttpBodySchema = z
   .strict();
 
 export type UpdateReminderSettingsHttpBody = z.infer<typeof updateReminderSettingsHttpBodySchema>;
+
+const workflowStageSchema = z.enum(['onboarding', 'ongoing', 'review', 'closure']);
+
+const RUNTIME_TASK_MUTABLE_FIELD_KEYS = [
+  'displayTitle',
+  'description',
+  'displayToPatient',
+  'requiredForStageCompletion',
+  'displayAsChecklistItem',
+  'workflowStage',
+  'actionTargetId',
+  'completionSourceType',
+  'completionSourceReferenceId',
+  'patientDisplayName',
+] as const;
+
+export const updateRuntimeTaskHttpBodySchema = z
+  .object({
+    actorId: z.string().min(1),
+    reason: z.string().optional(),
+    displayTitle: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    displayToPatient: z.boolean().optional(),
+    requiredForStageCompletion: z.boolean().optional(),
+    displayAsChecklistItem: z.boolean().optional(),
+    workflowStage: workflowStageSchema.optional(),
+    actionTargetId: z.string().nullable().optional(),
+    completionSourceType: z.string().nullable().optional(),
+    completionSourceReferenceId: z.string().nullable().optional(),
+    patientDisplayName: z.string().min(1).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const hasMutable = RUNTIME_TASK_MUTABLE_FIELD_KEYS.some((key) => data[key] !== undefined);
+    if (!hasMutable) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'At least one metadata field is required',
+        path: [],
+      });
+    }
+  });
+
+export type UpdateRuntimeTaskHttpBody = z.infer<typeof updateRuntimeTaskHttpBodySchema>;

@@ -123,6 +123,9 @@ export interface TaskHistDdbRecord {
   newAssignedToStaffId?: string;
   previousAssignedToStaffDisplayName?: string;
   newAssignedToStaffDisplayName?: string;
+  changedFields?: string[];
+  previousValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
 }
 
 export type TaskDdbRecord =

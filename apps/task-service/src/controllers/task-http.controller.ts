@@ -21,6 +21,7 @@ import type {
   ValidatedGetTaskStatusSummary,
   ValidatedUpdateAssignedStaff,
   ValidatedUpdateReminderSettings,
+  ValidatedUpdateRuntimeTask,
   ValidatedUpdateTaskState,
 } from '../validators/request.validators';
 
@@ -491,6 +492,47 @@ export class TaskHttpController {
         correlationId: req.context.correlationId,
         organizationId: validated.orgId,
         logEvent: 'task_care_plan_status_summary_service_error',
+      });
+    }
+  }
+
+  async handleUpdateRuntimeTask(req: LambdaRequest) {
+    const requestLogger = req.context.logger;
+    if (!requestLogger) {
+      throw new BaseError(
+        'Logger missing from request context',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Logger missing from request context' }],
+      );
+    }
+
+    const validated = (req as LambdaRequest & {
+      validatedUpdateRuntimeTask?: ValidatedUpdateRuntimeTask;
+    }).validatedUpdateRuntimeTask;
+    if (!validated) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.updateRuntimeTask({
+        organizationId: validated.orgId,
+        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+        actorId: validated.body.actorId,
+        reason: validated.body.reason,
+        patch: validated.patch,
+      });
+    } catch (err: unknown) {
+      normalizeTaskServiceError(err, {
+        logger: requestLogger,
+        correlationId: req.context.correlationId,
+        organizationId: validated.orgId,
+        logEvent: 'task_runtime_update_metadata_service_error',
       });
     }
   }

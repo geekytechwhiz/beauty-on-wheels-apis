@@ -30,6 +30,7 @@ export * from './lib/utils/task-workflow';
 export * from './lib/utils/task-state-transition';
 export * from './lib/utils/task-status-summary';
 export * from './lib/utils/reminder-settings';
+export * from './lib/utils/runtime-task-metadata';
 export * from './lib/events/task-command.publisher';
 
 export {
@@ -55,6 +56,12 @@ export {
   type RuntimeTaskDetail,
 } from './lib/service/task.service';
 export type { UpdateAssignedStaffRequest, UpdateAssignedStaffResult } from './lib/models/api/update-assigned-staff.request';
+export { RUNTIME_TASK_METADATA_FIELDS } from './lib/models/api/update-runtime-task.request';
+export type {
+  UpdateRuntimeTaskRequest,
+  UpdateRuntimeTaskResult,
+  RuntimeTaskMetadataPatch,
+} from './lib/models/api/update-runtime-task.request';
 export type {
   UpdateReminderSettingsRequest,
   UpdateReminderSettingsResult,

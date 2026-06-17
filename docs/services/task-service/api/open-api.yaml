@@ -7,7 +7,8 @@ info:
     (Care Plan Runtime / workflow), **POST /tasks/monitoring-action** (Monitoring Runtime), and **POST /tasks**
     (service-flow / authorized manual-system). Patients and staff retrieve tasks via **GET /action-center/items**,
     **GET /tasks**, **GET /staff/tasks**, and **GET /tasks/{runtimeTaskInstanceId}**. Portal may
-    **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings** and **PUT /tasks/{runtimeTaskInstanceId}/assigned-staff**.
+    **PATCH /tasks/{runtimeTaskInstanceId}** (portal metadata edit), **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings**,
+    and **PUT /tasks/{runtimeTaskInstanceId}/assigned-staff**.
 
     **Tenancy:** organization scope (`orgId`) is derived from the **JWT** only (no `X-Org-Id` header and no `orgId` query parameter).
     **`patientId` and `patientDisplayName`** on create APIs are required in the **request body** — not taken from the JWT.
@@ -39,7 +40,7 @@ tags:
     description: >
       Generate care-plan tasks (POST /tasks/generate-care-plan), monitoring actions (POST /tasks/monitoring-action),
       ad-hoc creates (POST /tasks), patient/staff lists (GET /tasks, GET /staff/tasks, GET /action-center/items),
-      detail, state, staff assign/reassign, reminder settings, history, and care-plan readiness summary.
+      detail, metadata edit, state, staff assign/reassign, reminder settings, history, and care-plan readiness summary.
 
 components:
   securitySchemes:
@@ -393,6 +394,7 @@ components:
         - reminderSettingsChange
         - reminderRegisterRequest
         - reminderCancelRequest
+        - taskMetadataChange
 
     ReminderSettings:
       type: object
@@ -444,6 +446,21 @@ components:
           $ref: '#/components/schemas/ReminderChannel'
           nullable: true
         schedulerJobId: { type: string, nullable: true }
+        changedFields:
+          type: array
+          nullable: true
+          description: Field names changed when historyEventType is taskMetadataChange.
+          items: { type: string }
+        previousValues:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Sparse map of prior values for taskMetadataChange audit.
+        newValues:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Sparse map of new values for taskMetadataChange audit.
 
     TaskStateHistoryEntry:
       description: Alias for state-transition rows; prefer TaskHistoryEntry for full audit timeline.
@@ -554,6 +571,44 @@ components:
           nullable: true
 
     UpdateAssignedStaffResult:
+      type: object
+      required: [runtimeTaskInstanceId, task, historyEntry]
+      properties:
+        runtimeTaskInstanceId: { type: string }
+        task: { $ref: '#/components/schemas/RuntimeTaskCard' }
+        historyEntry: { $ref: '#/components/schemas/TaskHistoryEntry' }
+
+    UpdateRuntimeTaskRequest:
+      type: object
+      description: >
+        Portal-authorized partial metadata edit. Send only fields to change. Does not modify due windows,
+        identity keys, staff assignment, reminders, or task state — use dedicated APIs for those.
+      required: [actorId]
+      properties:
+        actorId: { type: string }
+        reason:
+          type: string
+          nullable: true
+        displayTitle: { type: string }
+        description:
+          type: string
+          nullable: true
+        displayToPatient: { type: boolean }
+        requiredForStageCompletion: { type: boolean }
+        displayAsChecklistItem: { type: boolean }
+        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
+        actionTargetId:
+          type: string
+          nullable: true
+        completionSourceType:
+          type: string
+          nullable: true
+        completionSourceReferenceId:
+          type: string
+          nullable: true
+        patientDisplayName: { type: string }
+
+    UpdateRuntimeTaskResult:
       type: object
       required: [runtimeTaskInstanceId, task, historyEntry]
       properties:
@@ -951,6 +1006,14 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UpdateAssignedStaffResult'
+
+    SuccessResponseUpdateRuntimeTask:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UpdateRuntimeTaskResult'
 
     SuccessResponseTaskStatusSummaryByCarePlan:
       allOf:
@@ -1460,6 +1523,47 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateRuntimeTask
+      summary: Update runtime task metadata (portal)
+      description: >
+        Authorized portal users may partially update editable task metadata on META (and LOOKUP when
+        `patientDisplayName` changes). Appends **HIST#** `taskMetadataChange` audit. Does not change META SK,
+        due windows, staff assignment, reminders, or task state.
+      tags: [Task instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRuntimeTaskRequest'
+            examples:
+              updateDisplayCopy:
+                summary: Update title and description
+                value:
+                  actorId: staff-nurse-001
+                  displayTitle: Complete daily blood pressure check
+                  description: Use home cuff before breakfast
+                  displayToPatient: true
+                  requiredForStageCompletion: true
+                  reason: Care plan template wording updated
+      responses:
+        '200':
+          description: Updated task metadata and audit entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseUpdateRuntimeTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
 
   /tasks/{runtimeTaskInstanceId}/reminder-settings:
     parameters:

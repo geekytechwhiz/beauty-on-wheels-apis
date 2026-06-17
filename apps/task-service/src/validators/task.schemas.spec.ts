@@ -4,6 +4,7 @@ import {
   generateCarePlanTasksHttpBodySchema,
   updateAssignedStaffHttpBodySchema,
   updateReminderSettingsHttpBodySchema,
+  updateRuntimeTaskHttpBodySchema,
   updateTaskStateHttpBodySchema,
 } from './task.schemas';
 
@@ -109,6 +110,32 @@ describe('task.schemas', () => {
       actorId: 'staff-1',
       reminderEnabled: true,
       reminderSettings: { channels: ['Push'] },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid updateRuntimeTask body with at least one mutable field', () => {
+    const result = updateRuntimeTaskHttpBodySchema.safeParse({
+      actorId: 'staff-1',
+      displayTitle: 'Updated title',
+      workflowStage: 'ongoing',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects updateRuntimeTask body without mutable fields', () => {
+    const result = updateRuntimeTaskHttpBodySchema.safeParse({
+      actorId: 'staff-1',
+      reason: 'noop',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects forbidden fields on updateRuntimeTask body', () => {
+    const result = updateRuntimeTaskHttpBodySchema.safeParse({
+      actorId: 'staff-1',
+      displayTitle: 'Updated',
+      dueWindowEnd: 1780668000000,
     });
     expect(result.success).toBe(false);
   });

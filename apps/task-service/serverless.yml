@@ -296,6 +296,34 @@ functions:
             "404": Not found
             "500": Server error
 
+  updateRuntimeTask:
+    handler: src/handlers/http/updateRuntimeTask.main
+    events:
+      - http:
+          path: tasks/{runtimeTaskInstanceId}
+          method: patch
+          bodyType: UpdateRuntimeTaskRequest
+          summary: Update runtime task metadata (portal)
+          description: >
+            Portal partial metadata edit on META (+ LOOKUP when patientDisplayName changes).
+            Appends HIST taskMetadataChange audit. Does not change due windows, staff assignment,
+            reminders, or task state.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+          responses:
+            "200": OK
+            "400": Bad request
+            "401": Unauthorized
+            "403": Forbidden
+            "404": Not found
+            "422": Validation or business rule error
+            "500": Server error
+
   getRuntimeTaskHistory:
     handler: src/handlers/http/getRuntimeTaskHistory.main
     events:

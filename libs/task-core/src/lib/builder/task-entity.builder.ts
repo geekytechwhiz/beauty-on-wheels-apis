@@ -575,6 +575,38 @@ export class TaskEntityBuilder {
     };
   }
 
+  static buildTaskMetadataChangeHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    changedFields: string[];
+    previousValues: Record<string, unknown>;
+    newValues: Record<string, unknown>;
+    actorId: string;
+    reason?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.TASK_METADATA_CHANGE,
+      transitionAt: nowMs,
+      transitionBy: params.actorId,
+      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionReason: params.reason,
+      changedFields: params.changedFields,
+      previousValues: params.previousValues,
+      newValues: params.newValues,
+    };
+  }
+
   static buildStateChangeHistRecord(params: {
     meta: TaskMetaDdbRecord;
     fromState: RuntimeTaskState;

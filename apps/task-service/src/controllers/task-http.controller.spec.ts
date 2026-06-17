@@ -30,6 +30,8 @@ var mockUpdateTaskState: jest.Mock;
 var mockGetTaskStatusSummaryByCarePlan: jest.Mock;
 // eslint-disable-next-line no-var
 var mockUpdateReminderSettings: jest.Mock;
+// eslint-disable-next-line no-var
+var mockUpdateRuntimeTask: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
@@ -44,6 +46,7 @@ jest.mock('@api-hub/task-core', () => {
   mockUpdateTaskState = jest.fn();
   mockGetTaskStatusSummaryByCarePlan = jest.fn();
   mockUpdateReminderSettings = jest.fn();
+  mockUpdateRuntimeTask = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
@@ -60,6 +63,7 @@ jest.mock('@api-hub/task-core', () => {
       updateTaskState: mockUpdateTaskState,
       getTaskStatusSummaryByCarePlan: mockGetTaskStatusSummaryByCarePlan,
       updateReminderSettings: mockUpdateReminderSettings,
+      updateRuntimeTask: mockUpdateRuntimeTask,
     })),
   };
 });
@@ -703,6 +707,40 @@ describe('TaskHttpController', () => {
       patientId: 'pat-1',
       carePlanInstanceId: 'cp-1',
       workflowStage: 'onboarding',
+    });
+  });
+
+  it('handleUpdateRuntimeTask returns updated task on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      runtimeTaskInstanceId: 'rtask-abc',
+      task: { displayTitle: 'Updated title' },
+      historyEntry: { historyEventType: 'taskMetadataChange', changedFields: ['displayTitle'] },
+    };
+    mockUpdateRuntimeTask.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedUpdateRuntimeTask: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        body: {
+          actorId: 'staff-1',
+          displayTitle: 'Updated title',
+          reason: 'Portal edit',
+        },
+        patch: { displayTitle: 'Updated title' },
+      },
+    } as any);
+
+    const out = await c.handleUpdateRuntimeTask(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockUpdateRuntimeTask).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-1',
+      reason: 'Portal edit',
+      patch: { displayTitle: 'Updated title' },
     });
   });
 });

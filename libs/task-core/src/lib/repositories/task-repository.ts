@@ -46,7 +46,6 @@ import {
   buildDeterministicRuntimeTaskInstanceId,
   buildMonitoringIdempotencyKey,
 } from '../utils/monitoring-idempotency';
-import { cancelReminderHistoryEntries } from '../utils/task-state-transition';
 import { assertTaskTable, isMetaConditionalFailure } from '../utils/task.utils';
 
 export type QueryPatientTasksPageInput = {
@@ -677,76 +676,21 @@ export class TaskRepository extends BaseRepository {
       },
     ];
 
-    const terminalWithReminderCancel = new Set<RuntimeTaskState>([
-      RUNTIME_TASK_STATE.COMPLETED,
-      RUNTIME_TASK_STATE.DISMISSED,
-      RUNTIME_TASK_STATE.CANCELLED,
-      RUNTIME_TASK_STATE.MISSED,
-    ]);
-
-    let hadCancellableReminders = false;
-    let reminderCancelHistEntry: TaskHistDdbRecord | undefined;
-
-    if (terminalWithReminderCancel.has(toState)) {
-      const { entries, hadCancellable } = cancelReminderHistoryEntries(
-        lookup.reminderHistory,
+    if (toState === RUNTIME_TASK_STATE.COMPLETED || toState === RUNTIME_TASK_STATE.MISSED) {
+      const evidenceSummary = TaskEntityBuilder.buildEvidenceSummaryForTransition(
+        meta,
+        toState,
         nowMs,
       );
-      hadCancellableReminders = hadCancellable;
-
-      const lookupUpdateValues: Record<string, unknown> = {
-        ':reminderHistory': entries,
-      };
-      let lookupUpdateExpression = 'SET reminderHistory = :reminderHistory';
-
-      if (toState === RUNTIME_TASK_STATE.COMPLETED) {
-        const evidenceSummary = TaskEntityBuilder.buildEvidenceSummaryForTransition(
-          meta,
-          toState,
-          nowMs,
-        );
-        lookupUpdateExpression += ', evidenceSummary = :evidenceSummary';
-        lookupUpdateValues[':evidenceSummary'] = evidenceSummary;
-      } else if (toState === RUNTIME_TASK_STATE.MISSED) {
-        const evidenceSummary = TaskEntityBuilder.buildEvidenceSummaryForTransition(
-          meta,
-          toState,
-          nowMs,
-        );
-        lookupUpdateExpression += ', evidenceSummary = :evidenceSummary';
-        lookupUpdateValues[':evidenceSummary'] = evidenceSummary;
-      }
-
       transactItems.push({
         Update: {
           TableName: table,
           Key: { pk: lookup.pk, sk: lookup.sk },
-          UpdateExpression: lookupUpdateExpression,
-          ExpressionAttributeValues: lookupUpdateValues,
+          UpdateExpression: 'SET evidenceSummary = :evidenceSummary',
+          ExpressionAttributeValues: { ':evidenceSummary': evidenceSummary },
           ConditionExpression: 'attribute_exists(sk)',
         },
       });
-
-      if (
-        hadCancellable &&
-        (toState === RUNTIME_TASK_STATE.COMPLETED ||
-          toState === RUNTIME_TASK_STATE.DISMISSED ||
-          toState === RUNTIME_TASK_STATE.CANCELLED)
-      ) {
-        reminderCancelHistEntry = TaskEntityBuilder.buildReminderCancelRequestHistRecord({
-          meta,
-          actorId,
-          reason,
-          nowMs: nowMs + 1,
-        });
-        transactItems.push({
-          Put: {
-            TableName: table,
-            Item: reminderCancelHistEntry as unknown as Record<string, unknown>,
-            ConditionExpression: 'attribute_not_exists(sk)',
-          },
-        });
-      }
     }
 
     if (toState === RUNTIME_TASK_STATE.COMPLETED && evidencePayload != null) {
@@ -776,8 +720,6 @@ export class TaskRepository extends BaseRepository {
         version: nextVersion,
       },
       historyEntry: stateHistPut,
-      reminderCancelHistEntry,
-      hadCancellableReminders,
     };
   }
 
@@ -785,7 +727,7 @@ export class TaskRepository extends BaseRepository {
     input: UpdateReminderSettingsRepoInput,
   ): Promise<UpdateReminderSettingsRepoResult> {
     const table = assertTaskTable();
-    const { meta, actorId, reminderEnabled, reminderSettings, reason, coordination } = input;
+    const { meta, actorId, reminderEnabled, reminderSettings, reason } = input;
     const nowMs = Date.now();
     const nextVersion = (meta.version ?? 1) + 1;
 
@@ -833,44 +775,6 @@ export class TaskRepository extends BaseRepository {
       },
     ];
 
-    let cancelRequestHist: TaskHistDdbRecord | undefined;
-    let registerRequestHist: TaskHistDdbRecord | undefined;
-    let histOffset = 1;
-
-    if (coordination.shouldCancel) {
-      cancelRequestHist = TaskEntityBuilder.buildReminderCancelRequestHistRecord({
-        meta,
-        actorId,
-        reason,
-        nowMs: nowMs + histOffset,
-      });
-      histOffset++;
-      transactItems.push({
-        Put: {
-          TableName: table,
-          Item: cancelRequestHist as unknown as Record<string, unknown>,
-          ConditionExpression: 'attribute_not_exists(sk)',
-        },
-      });
-    }
-
-    if (coordination.shouldRegister) {
-      registerRequestHist = TaskEntityBuilder.buildReminderRegisterRequestHistRecord({
-        meta,
-        actorId,
-        reason,
-        reminderChannel: reminderSettings?.channels?.[0],
-        nowMs: nowMs + histOffset,
-      });
-      transactItems.push({
-        Put: {
-          TableName: table,
-          Item: registerRequestHist as unknown as Record<string, unknown>,
-          ConditionExpression: 'attribute_not_exists(sk)',
-        },
-      });
-    }
-
     await this.transactWrite({ TransactItems: transactItems });
 
     return {
@@ -883,9 +787,6 @@ export class TaskRepository extends BaseRepository {
         version: nextVersion,
       },
       settingsChangeHist,
-      ...(cancelRequestHist ? { cancelRequestHist } : {}),
-      ...(registerRequestHist ? { registerRequestHist } : {}),
-      coordination,
     };
   }
 

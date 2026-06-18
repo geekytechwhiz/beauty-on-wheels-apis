@@ -31,7 +31,6 @@ export * from './lib/utils/task-state-transition';
 export * from './lib/utils/task-status-summary';
 export * from './lib/utils/reminder-settings';
 export * from './lib/utils/runtime-task-metadata';
-export * from './lib/events/task-command.publisher';
 
 export {
   TaskService,

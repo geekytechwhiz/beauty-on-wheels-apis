@@ -331,30 +331,4 @@ describe('TaskEntityBuilder', () => {
       transitionReason: 'Patient prefers SMS',
     });
   });
-
-  it('builds reminder register and cancel request history records', () => {
-    const register = TaskEntityBuilder.buildReminderRegisterRequestHistRecord({
-      meta: reminderMeta,
-      actorId: 'staff-1',
-      reason: 'Enable reminders',
-      reminderChannel: 'push',
-      nowMs: 1780573700000,
-    });
-    const cancel = TaskEntityBuilder.buildReminderCancelRequestHistRecord({
-      meta: reminderMeta,
-      actorId: 'staff-1',
-      reason: 'Disable reminders',
-      nowMs: 1780573800000,
-    });
-
-    expect(register).toMatchObject({
-      historyEventType: 'reminderRegisterRequest',
-      reminderChannel: 'push',
-      transitionSource: 'manual',
-    });
-    expect(cancel).toMatchObject({
-      historyEventType: 'reminderCancelRequest',
-      transitionSource: 'manual',
-    });
-  });
 });

@@ -14,4 +14,3 @@ USER_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.USE
 ORGANIZATION_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
 USER_SERVICE_TIMEOUT_MS: '8000'
 ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
-# EVENT_BUS: ${self:custom.bundle.eventBusName}  # disabled until reminder scheduler is integrated

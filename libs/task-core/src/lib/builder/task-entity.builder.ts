@@ -637,34 +637,6 @@ export class TaskEntityBuilder {
     };
   }
 
-  static buildReminderCancelRequestHistRecord(params: {
-    meta: TaskMetaDdbRecord;
-    actorId: string;
-    reason?: string;
-    reminderRecordId?: string;
-    nowMs?: number;
-  }): TaskHistDdbRecord {
-    const nowMs = params.nowMs ?? Date.now();
-    const taskStateHistoryId = randomUUID();
-    const { meta } = params;
-
-    return {
-      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
-      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
-      entityType: ENTITY_TYPE_TASK_HISTORY,
-      taskStateHistoryId,
-      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
-      orgId: meta.orgId,
-      patientId: meta.patientId,
-      historyEventType: TASK_HISTORY_EVENT_TYPE.REMINDER_CANCEL_REQUEST,
-      transitionAt: nowMs,
-      transitionBy: params.actorId,
-      transitionSource: TRANSITION_SOURCE.MANUAL,
-      transitionReason: params.reason,
-      ...(params.reminderRecordId ? { reminderRecordId: params.reminderRecordId } : {}),
-    };
-  }
-
   static buildReminderSettingsChangeHistRecord(params: {
     meta: TaskMetaDdbRecord;
     actorId: string;
@@ -700,34 +672,6 @@ export class TaskEntityBuilder {
         ? { previousReminderSettings: params.previousReminderSettings }
         : {}),
       ...(params.newReminderSettings != null ? { newReminderSettings: params.newReminderSettings } : {}),
-    };
-  }
-
-  static buildReminderRegisterRequestHistRecord(params: {
-    meta: TaskMetaDdbRecord;
-    actorId: string;
-    reason?: string;
-    reminderChannel?: string;
-    nowMs?: number;
-  }): TaskHistDdbRecord {
-    const nowMs = params.nowMs ?? Date.now();
-    const taskStateHistoryId = randomUUID();
-    const { meta } = params;
-
-    return {
-      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
-      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
-      entityType: ENTITY_TYPE_TASK_HISTORY,
-      taskStateHistoryId,
-      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
-      orgId: meta.orgId,
-      patientId: meta.patientId,
-      historyEventType: TASK_HISTORY_EVENT_TYPE.REMINDER_REGISTER_REQUEST,
-      transitionAt: nowMs,
-      transitionBy: params.actorId,
-      transitionSource: TRANSITION_SOURCE.MANUAL,
-      transitionReason: params.reason,
-      ...(params.reminderChannel ? { reminderChannel: params.reminderChannel } : {}),
     };
   }
 

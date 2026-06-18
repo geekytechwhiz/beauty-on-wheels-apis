@@ -37,6 +37,4 @@ export type TransitionTaskStateRepoInput = {
 export type TransitionTaskStateRepoResult = {
   record: TaskMetaDdbRecord;
   historyEntry: TaskHistDdbRecord;
-  reminderCancelHistEntry?: TaskHistDdbRecord;
-  hadCancellableReminders: boolean;
 };

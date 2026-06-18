@@ -360,7 +360,7 @@ describe('TaskRepository.updateReminderSettings', () => {
     process.env.TASK_TABLE = originalTaskTable;
   });
 
-  it('transacts META update and settings change HIST when no coordination', async () => {
+  it('transacts META update and settings change HIST', async () => {
     const repo = new TaskRepository();
     const transactWrite = jest
       .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
@@ -372,7 +372,6 @@ describe('TaskRepository.updateReminderSettings', () => {
       reminderEnabled: false,
       reminderSettings: { channels: ['push'] },
       reason: 'Patient opted out',
-      coordination: { shouldCancel: false, shouldRegister: false },
     });
 
     const items = transactWrite.mock.calls[0][0].TransactItems;
@@ -387,35 +386,6 @@ describe('TaskRepository.updateReminderSettings', () => {
       historyEventType: 'reminderSettingsChange',
       newReminderEnabled: false,
     });
-
-    transactWrite.mockRestore();
-  });
-
-  it('transacts four items on re-register path (cancel + register HIST)', async () => {
-    const repo = new TaskRepository();
-    const transactWrite = jest
-      .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
-      .mockResolvedValue(undefined);
-
-    await repo.updateReminderSettings({
-      meta: baseMeta,
-      actorId: 'staff-1',
-      reminderEnabled: true,
-      reminderSettings: { channels: ['sms'] },
-      reason: 'Switch channel',
-      coordination: { shouldCancel: true, shouldRegister: true },
-    });
-
-    const items = transactWrite.mock.calls[0][0].TransactItems;
-    expect(items).toHaveLength(4);
-    const histEventTypes = items
-      .filter((item: { Put?: { Item: { historyEventType?: string } } }) => item.Put)
-      .map((item: { Put: { Item: { historyEventType: string } } }) => item.Put.Item.historyEventType);
-    expect(histEventTypes).toEqual([
-      'reminderSettingsChange',
-      'reminderCancelRequest',
-      'reminderRegisterRequest',
-    ]);
 
     transactWrite.mockRestore();
   });

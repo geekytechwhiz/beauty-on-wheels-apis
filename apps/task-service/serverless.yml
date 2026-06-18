@@ -14,6 +14,7 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
+  versionFunctions: false
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
@@ -384,7 +385,7 @@ functions:
           summary: Update task state (optimistic validation + audit)
           description: >
             Manual runtime action from Mobile, Portal, BFF, or authorized staff. Requires expectedCurrentState
-            for optimistic concurrency. May publish CancelReminderJobs on terminal transitions.
+            for optimistic concurrency.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer
@@ -412,7 +413,6 @@ functions:
           summary: Update task reminder settings (portal)
           description: >
             Authorized portal users update reminderEnabled and reminderSettings on META with HIST audit.
-            Coordinates CancelReminderJobs / RegisterReminderJobs via EventBridge when eligibility changes.
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

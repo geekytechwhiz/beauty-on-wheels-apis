@@ -1,9 +1,3 @@
-jest.mock('../events/task-command.publisher', () => ({
-  publishCancelReminderJobs: jest.fn().mockResolvedValue(undefined),
-  publishRegisterReminderJobs: jest.fn().mockResolvedValue(undefined),
-}));
-
-import { publishCancelReminderJobs, publishRegisterReminderJobs } from '../events/task-command.publisher';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import { TASK_RUNTIME_ACTION } from '../models/types/task-domain.types';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
@@ -811,11 +805,7 @@ describe('TaskService.reassignAssignedStaff', () => {
 });
 
 describe('TaskService.updateTaskState', () => {
-  beforeEach(() => {
-    jest.mocked(publishCancelReminderJobs).mockClear();
-  });
-
-  it('completes task without publishing cancel reminder jobs while scheduler is disabled', async () => {
+  it('completes task and returns state change history', async () => {
     const meta = sampleRecord({ currentState: 'open' });
     const lookup = sampleLookup({
       reminderHistory: [{ reminderRecordId: 'rem-1', reminderStatus: 'scheduled' }],
@@ -842,7 +832,6 @@ describe('TaskService.updateTaskState', () => {
       transitionTaskState: jest.fn().mockResolvedValue({
         record: { ...meta, currentState: 'completed' },
         historyEntry,
-        hadCancellableReminders: true,
       }),
     } as unknown as TaskRepository;
 
@@ -859,17 +848,11 @@ describe('TaskService.updateTaskState', () => {
 
     expect(result.currentState).toBe('completed');
     expect(result.historyEntry).toMatchObject({ historyEventType: 'stateChange' });
-    expect(publishCancelReminderJobs).not.toHaveBeenCalled();
   });
 });
 
 describe('TaskService.updateReminderSettings', () => {
-  beforeEach(() => {
-    jest.mocked(publishCancelReminderJobs).mockClear();
-    jest.mocked(publishRegisterReminderJobs).mockClear();
-  });
-
-  it('enables reminders without publishing register jobs while scheduler is disabled', async () => {
+  it('enables reminders and returns settings change history', async () => {
     const meta = { ...sampleRecord(), reminderEnabled: false, currentState: 'open' as const };
     const lookup = sampleLookup();
     const settingsChangeHist = {
@@ -894,9 +877,6 @@ describe('TaskService.updateReminderSettings', () => {
       updateReminderSettings: jest.fn().mockResolvedValue({
         record: { ...meta, reminderEnabled: true, reminderSettings: { channels: ['push'] } },
         settingsChangeHist,
-        registerRequestHist: {
-          historyEventType: 'reminderRegisterRequest',
-        },
       }),
     } as unknown as TaskRepository;
 
@@ -912,8 +892,6 @@ describe('TaskService.updateReminderSettings', () => {
 
     expect(result.reminderEnabled).toBe(true);
     expect(result.historyEntry).toMatchObject({ historyEventType: 'reminderSettingsChange' });
-    expect(publishRegisterReminderJobs).not.toHaveBeenCalled();
-    expect(publishCancelReminderJobs).not.toHaveBeenCalled();
   });
 
   it('rejects unchanged settings with 422', async () => {

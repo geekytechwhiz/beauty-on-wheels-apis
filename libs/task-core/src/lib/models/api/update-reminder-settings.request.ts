@@ -18,24 +18,15 @@ export interface UpdateReminderSettingsResult {
   historyEntry: ReturnType<typeof toTaskHistoryEntry>;
 }
 
-export type ReminderCoordination = {
-  shouldCancel: boolean;
-  shouldRegister: boolean;
-};
-
 export type UpdateReminderSettingsRepoInput = {
   meta: TaskMetaDdbRecord;
   actorId: string;
   reminderEnabled: boolean;
   reminderSettings?: ReminderSettings;
   reason?: string;
-  coordination: ReminderCoordination;
 };
 
 export type UpdateReminderSettingsRepoResult = {
   record: TaskMetaDdbRecord;
   settingsChangeHist: TaskHistDdbRecord;
-  cancelRequestHist?: TaskHistDdbRecord;
-  registerRequestHist?: TaskHistDdbRecord;
-  coordination: ReminderCoordination;
 };

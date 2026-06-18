@@ -149,7 +149,7 @@ custom:
     prd: PRD_DEMO_SECRETMANAGER
   enableNewOrgConfigFlow:
     dev: true
-    stg: false
+    stg: true
     prd: false
 
   # Disable sourcemaps in CI to reduce memory (avoids esbuild "The service was stopped: write EPIPE").

@@ -212,7 +212,11 @@ export class OrgTemplateOpsService {
         mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
           buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
-          { templateType },
+          {
+            templateType,
+            fieldValues: asRecord(mergedDocument.fieldValues),
+            previousFieldValues: asRecord(sourceVersion.fieldValues),
+          },
         );
       }
 

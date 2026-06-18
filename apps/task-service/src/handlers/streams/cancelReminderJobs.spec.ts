@@ -6,7 +6,7 @@ import {
   setReminderSchedulerGatewayForTests,
 } from '../../reminder/reminder-scheduler.gateway';
 import type { ReminderSchedulerGateway } from '../../reminder/reminder-scheduler.types';
-import { main as cancelReminderJobs } from './cancelReminderJobs';
+import { handler, main } from './cancelReminderJobs';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
@@ -71,10 +71,14 @@ describe('cancelReminderJobs', () => {
     setReminderSchedulerGatewayForTests(undefined);
   });
 
+  it('exports main as handler', () => {
+    expect(main).toBe(handler);
+  });
+
   it('cancels reminder schedule when reminders disabled', async () => {
     const event: DynamoDBStreamEvent = { Records: [streamRecord()] };
 
-    const out = await cancelReminderJobs(event, lambdaContext);
+    const out = await handler(event, lambdaContext);
 
     expect(out.batchItemFailures).toEqual([]);
     expect(cancel).toHaveBeenCalledWith(

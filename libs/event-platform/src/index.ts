@@ -156,4 +156,5 @@ export {
   ALERT_REALTIME_EVENTS,
   ALERT_REALTIME_EVENT_VERSION,
 } from './core/contracts/alert.events';
+export { TASK_REMINDER_STREAM_OPERATIONS } from './core/contracts/task.events';
 export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

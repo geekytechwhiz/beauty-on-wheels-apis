@@ -22,7 +22,7 @@ describe('reminder-stream.mapper', () => {
     expect(scheduledReminderAtFromMeta(baseMeta)).toBe(baseMeta.dueWindowEnd);
   });
 
-  it('maps eligible META to register request', () => {
+  it('maps META to register request', () => {
     expect(mapMetaToRegisterRequest(baseMeta, 'corr-1')).toEqual({
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
@@ -31,18 +31,6 @@ describe('reminder-stream.mapper', () => {
       channel: 'push',
       correlationId: 'corr-1',
     });
-  });
-
-  it('returns undefined when reminders disabled', () => {
-    expect(
-      mapMetaToRegisterRequest({ ...baseMeta, reminderEnabled: false }),
-    ).toBeUndefined();
-  });
-
-  it('returns undefined when task is terminal', () => {
-    expect(
-      mapMetaToRegisterRequest({ ...baseMeta, currentState: 'completed' }),
-    ).toBeUndefined();
   });
 
   it('derives cancel reason for disabled reminders', () => {

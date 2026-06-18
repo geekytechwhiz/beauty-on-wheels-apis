@@ -1,36 +1,24 @@
-import { createDynamoStreamHandler } from '@api-hub/event-platform';
-import { createLogger } from '@api-hub/observability';
+import { createDynamoStreamHandler, TASK_REMINDER_STREAM_OPERATIONS } from '@api-hub/event-platform';
 
-import { getReminderSchedulerGateway } from '../../reminder/reminder-scheduler.gateway';
-import { mapMetaToCancelRequest } from '../../reminder/reminder-stream.mapper';
+import { buildTaskStreamConsumerDeps } from './bootstrap/stream-consumer-deps';
+import { processCancelReminder } from './processors/cancel-reminder.processor';
 import { TaskMetaStreamPayloadSchema } from './task-meta-stream.schema';
+import type { TaskMetaStreamPayload } from './task-meta-stream.payload';
 
-const logger = createLogger({ service: 'task-service', redactPII: true });
-
-const streamConsumerOptions = {
-  retry: { maxAttempts: 3, strategy: 'exponential' as const, delayMs: 200 },
-  dlq: { enabled: false },
-};
-
-export const main = createDynamoStreamHandler({
-  operation: 'task.reminder.cancel',
-  consumer: streamConsumerOptions,
+export const handler = createDynamoStreamHandler({
+  operation: TASK_REMINDER_STREAM_OPERATIONS.CANCEL,
+  consumer: buildTaskStreamConsumerDeps(),
   events: [
     {
       table: 'task-service',
       eventName: ['MODIFY'],
       schema: TaskMetaStreamPayloadSchema,
-      handler: async (payload) => {
-        const request = mapMetaToCancelRequest(payload);
-
-        await getReminderSchedulerGateway().cancel(request);
-
-        logger.info({
-          event: 'cancel_reminder_jobs_ok',
-          runtimeTaskInstanceId: request.runtimeTaskInstanceId,
-          reason: request.reason,
-        });
+      handler: async (input) => {
+        const { meta: _meta, ...payload } = input;
+        await processCancelReminder(payload as TaskMetaStreamPayload);
       },
     },
   ],
 });
+
+export const main = handler;

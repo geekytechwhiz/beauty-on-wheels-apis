@@ -33,7 +33,7 @@ import type { BaseEvent } from '../typings/base-event.types';
 import type { EventConsumerDeps, VersionedPayloadSchemas } from '../typings/consumer.types';
 
 type DynamoStreamOperationName =
-  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
+  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed' | 'register' | 'cancel'}`;
 
 export type CreateDynamoStreamHandlerEventEntry = DynamoStreamRoute & {
   handler: (

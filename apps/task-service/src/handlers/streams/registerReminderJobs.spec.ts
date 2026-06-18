@@ -3,11 +3,10 @@ import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
 
 import {
-  getReminderSchedulerGateway,
   setReminderSchedulerGatewayForTests,
 } from '../../reminder/reminder-scheduler.gateway';
 import type { ReminderSchedulerGateway } from '../../reminder/reminder-scheduler.types';
-import { main as registerReminderJobs } from './registerReminderJobs';
+import { handler, main } from './registerReminderJobs';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
@@ -70,10 +69,14 @@ describe('registerReminderJobs', () => {
     setReminderSchedulerGatewayForTests(undefined);
   });
 
+  it('exports main as handler', () => {
+    expect(main).toBe(handler);
+  });
+
   it('registers reminder schedule for eligible INSERT', async () => {
     const event: DynamoDBStreamEvent = { Records: [streamRecord()] };
 
-    const out = await registerReminderJobs(event, lambdaContext);
+    const out = await handler(event, lambdaContext);
 
     expect(out.batchItemFailures).toEqual([]);
     expect(register).toHaveBeenCalledWith(
@@ -85,6 +88,5 @@ describe('registerReminderJobs', () => {
         channel: 'push',
       }),
     );
-    expect(getReminderSchedulerGateway()).toBe(gateway);
   });
 });

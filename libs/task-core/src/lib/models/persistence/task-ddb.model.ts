@@ -123,6 +123,13 @@ export interface TaskHistDdbRecord {
   newAssignedToStaffId?: string;
   previousAssignedToStaffDisplayName?: string;
   newAssignedToStaffDisplayName?: string;
+  previousReminderEnabled?: boolean;
+  newReminderEnabled?: boolean;
+  previousReminderSettings?: ReminderSettings;
+  newReminderSettings?: ReminderSettings;
+  reminderRecordId?: string;
+  reminderChannel?: string;
+  schedulerJobId?: string;
   changedFields?: string[];
   previousValues?: Record<string, unknown>;
   newValues?: Record<string, unknown>;

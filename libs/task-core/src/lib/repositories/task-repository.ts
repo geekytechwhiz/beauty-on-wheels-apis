@@ -677,7 +677,7 @@ export class TaskRepository extends BaseRepository {
       },
     ];
 
-    const terminalWithReminderCancel = new Set([
+    const terminalWithReminderCancel = new Set<RuntimeTaskState>([
       RUNTIME_TASK_STATE.COMPLETED,
       RUNTIME_TASK_STATE.DISMISSED,
       RUNTIME_TASK_STATE.CANCELLED,

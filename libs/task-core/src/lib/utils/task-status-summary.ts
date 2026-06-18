@@ -9,7 +9,7 @@ import {
   normalizeCurrentStateForWire,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
-import { READINESS_STATUS, type WorkflowStage } from '../models/types/task-domain.types';
+import { READINESS_STATUS, type ReadinessStatus, type WorkflowStage } from '../models/types/task-domain.types';
 
 export type AggregateTaskStatusSummaryContext = {
   orgId: string;
@@ -81,7 +81,7 @@ export function aggregateTaskStatusSummary(
     }
   }
 
-  let readinessStatus = READINESS_STATUS.NOT_APPLICABLE;
+  let readinessStatus: ReadinessStatus = READINESS_STATUS.NOT_APPLICABLE;
   if (counts.requiredTotal > 0) {
     readinessStatus =
       incompleteRequiredTasks.length === 0 ? READINESS_STATUS.READY : READINESS_STATUS.NOT_READY;

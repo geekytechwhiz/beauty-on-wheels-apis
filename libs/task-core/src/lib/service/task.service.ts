@@ -36,7 +36,6 @@ import type {
   TaskMetaDdbRecord,
 } from '../models/persistence/task-ddb.model';
 import {
-  RUNTIME_TASK_STATE,
   normalizeCurrentStateForWire,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';

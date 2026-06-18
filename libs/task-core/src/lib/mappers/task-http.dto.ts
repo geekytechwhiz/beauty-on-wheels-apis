@@ -1,5 +1,5 @@
 import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
-import { normalizeAssignedToTypeForWire } from '../models/types/task-domain.types';
+import { normalizeAssignedToTypeForWire, type SurfaceSection } from '../models/types/task-domain.types';
 import { normalizeCurrentStateForWire } from '../models/types/runtime-task-state.type';
 import { deriveActionCenterSurfaceSection } from '../utils/surface-section';
 

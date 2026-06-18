@@ -1,6 +1,5 @@
 import type { ReminderSettings } from '../models/types/task-domain.types';
 import {
-  RUNTIME_TASK_STATE,
   TERMINAL_RUNTIME_TASK_STATES,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';

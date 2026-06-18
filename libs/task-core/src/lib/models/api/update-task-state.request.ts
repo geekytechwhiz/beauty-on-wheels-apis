@@ -2,7 +2,7 @@ import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../persistence/task-d
 import type { ActorType, TaskRuntimeAction } from '../types/task-domain.types';
 import type { RuntimeTaskState } from '../types/runtime-task-state.type';
 import type { SurfaceSection } from '../types/task-domain.types';
-import type { toRuntimeTaskCard, toTaskHistoryEntry } from '../../mappers/task-http.dto';
+import type { toTaskHistoryEntry } from '../../mappers/task-http.dto';
 
 export interface UpdateTaskStateRequest {
   organizationId: string;

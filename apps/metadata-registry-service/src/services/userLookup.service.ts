@@ -18,7 +18,23 @@ const QUERY_FALLBACK_CHUNK = 25;
 
 export const UNKNOWN_USER_LABEL = 'Unknown User';
 
+/** setup.sh bootstrap root admin — display fallback when USER_TABLE lookup misses on a stage. */
+const ROOT_ADMIN_USER_ID =
+  '88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f';
+const ROOT_ADMIN_DISPLAY_NAME = 'Root Admin';
+
 export type UserDisplayEntry = { name: string };
+
+function resolveActorDisplayName(userId: string, userMap: Map<string, UserDisplayEntry>): string {
+  const fromLookup = userMap.get(userId)?.name;
+  if (fromLookup && fromLookup !== UNKNOWN_USER_LABEL) {
+    return fromLookup;
+  }
+  if (userId === ROOT_ADMIN_USER_ID) {
+    return ROOT_ADMIN_DISPLAY_NAME;
+  }
+  return UNKNOWN_USER_LABEL;
+}
 
 /** Same workaround as libs/utils `sendDoc` — avoids @smithy/types duplicate in the workspace. */
 async function docSend<T>(client: DynamoDBDocumentClient, command: unknown): Promise<T> {
@@ -43,6 +59,10 @@ export function resolveUserDisplayName(item: Record<string, unknown>): string {
   if (typeof email === 'string' && email.trim() !== '') {
     return email.trim();
   }
+  const legacyEmail = item.email;
+  if (typeof legacyEmail === 'string' && legacyEmail.trim() !== '') {
+    return legacyEmail.trim();
+  }
   return UNKNOWN_USER_LABEL;
 }
 
@@ -53,12 +73,39 @@ function userIdFromPk(pk: unknown): string | null {
   return pk.slice(USER_PK_PREFIX.length);
 }
 
+function userIdFromSk(sk: unknown): string | null {
+  if (typeof sk !== 'string' || !sk.startsWith(USER_PK_PREFIX)) {
+    return null;
+  }
+  return sk.slice(USER_PK_PREFIX.length);
+}
+
+function userIdFromUserOrgRow(row: Record<string, unknown>): string | null {
+  const fromPk = userIdFromPk(row.pk);
+  if (fromPk) {
+    return fromPk;
+  }
+  const fromSk = userIdFromSk(row.sk);
+  if (fromSk) {
+    return fromSk;
+  }
+  const userID = row.userID;
+  if (typeof userID === 'string' && userID.trim() !== '') {
+    return userID.trim();
+  }
+  return null;
+}
+
 function mergeRowIntoMap(map: Map<string, UserDisplayEntry>, row: Record<string, unknown>): void {
-  const id = userIdFromPk(row.pk);
+  const id = userIdFromUserOrgRow(row);
   if (!id || map.has(id)) {
     return;
   }
-  map.set(id, { name: resolveUserDisplayName(row) });
+  const name = resolveUserDisplayName(row);
+  if (name === UNKNOWN_USER_LABEL) {
+    return;
+  }
+  map.set(id, { name });
 }
 
 async function batchGetOrgRootRows(tableName: string, userIds: string[]): Promise<Map<string, UserDisplayEntry>> {
@@ -77,6 +124,46 @@ async function batchGetOrgRootRows(tableName: string, userIds: string[]): Promis
     };
 
     // Retry UnprocessedKeys (at most a few rounds).
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const out = await docSend<BatchGetCommandOutput>(client, new BatchGetCommand({ RequestItems: requestItems }));
+      const rows = out.Responses?.[tableName];
+      if (rows) {
+        for (const raw of rows) {
+          mergeRowIntoMap(map, raw as Record<string, unknown>);
+        }
+      }
+
+      const unprocessed = out.UnprocessedKeys;
+      if (unprocessed == null || Object.keys(unprocessed).length === 0) {
+        break;
+      }
+      requestItems = unprocessed as typeof requestItems;
+    }
+  }
+
+  return map;
+}
+
+/** Root admin / org-user index rows from setup.sh: pk = ORG#ROOT, sk = USER#&lt;userId&gt;. */
+async function batchGetOrgScopedUserRows(
+  tableName: string,
+  userIds: string[],
+  orgPk: string,
+): Promise<Map<string, UserDisplayEntry>> {
+  const map = new Map<string, UserDisplayEntry>();
+  const client = ddbDocClient;
+
+  for (let i = 0; i < userIds.length; i += BATCH_GET_MAX_KEYS) {
+    const slice = userIds.slice(i, i + BATCH_GET_MAX_KEYS);
+    let requestItems: NonNullable<BatchGetCommandInput['RequestItems']> = {
+      [tableName]: {
+        Keys: slice.map((userId) => ({
+          pk: orgPk,
+          sk: `${USER_PK_PREFIX}${userId}`,
+        })),
+      },
+    };
+
     for (let attempt = 0; attempt < 4; attempt++) {
       const out = await docSend<BatchGetCommandOutput>(client, new BatchGetCommand({ RequestItems: requestItems }));
       const rows = out.Responses?.[tableName];
@@ -134,8 +221,10 @@ async function fetchMissingViaQueryFallback(
 }
 
 /**
- * Batch-load display names from USER_TABLE (`pk` = USER#&lt;userId&gt;, org rows `sk` begins ORG#).
- * Uses BatchGetItem on USER# / ORG#ROOT first, then Query (bounded concurrency) only for unresolved ids.
+ * Batch-load display names from USER_TABLE.
+ * 1. USER# / ORG#ROOT (user-service org membership rows)
+ * 2. Query USER# / begins_with ORG# for unresolved ids
+ * 3. ORG#ROOT / USER# (setup.sh root-admin and org-user index rows)
  */
 export async function getUsersByIds(userIds: ReadonlyArray<string | undefined>): Promise<Map<string, UserDisplayEntry>> {
   const unique = [...new Set(userIds.map((id) => id?.trim()).filter((id): id is string => Boolean(id)))];
@@ -151,9 +240,17 @@ export async function getUsersByIds(userIds: ReadonlyArray<string | undefined>):
     map.set(k, v);
   }
 
-  const stillMissing = unique.filter((id) => !map.has(id));
+  let stillMissing = unique.filter((id) => !map.has(id));
   if (stillMissing.length > 0) {
     await fetchMissingViaQueryFallback(tableName, stillMissing, map);
+  }
+
+  stillMissing = unique.filter((id) => !map.has(id));
+  if (stillMissing.length > 0) {
+    const fromOrgScoped = await batchGetOrgScopedUserRows(tableName, stillMissing, ORG_SK_ROOT);
+    for (const [k, v] of fromOrgScoped) {
+      map.set(k, v);
+    }
   }
 
   return map;
@@ -195,7 +292,7 @@ export function enrichMetadataRecordActors<
     const userId = String(record.createdBy).trim();
     next.createdBy = {
       userId,
-      name: userMap.get(userId)?.name ?? UNKNOWN_USER_LABEL,
+      name: resolveActorDisplayName(userId, userMap),
     };
   }
 
@@ -203,7 +300,7 @@ export function enrichMetadataRecordActors<
     const userId = String(record.lastModifiedBy).trim();
     next.lastModifiedBy = {
       userId,
-      name: userMap.get(userId)?.name ?? UNKNOWN_USER_LABEL,
+      name: resolveActorDisplayName(userId, userMap),
     };
   }
 

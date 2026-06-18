@@ -89,6 +89,7 @@ api-endpoints-export.xlsx
 *.xlsx
 helpers/metadata/catalog.generated.json
 
+scripts/metadata-registry-seed/reports/
 myVitalRx/
 # Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
 /scripts/

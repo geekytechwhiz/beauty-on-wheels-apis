@@ -186,6 +186,7 @@ export class OrgTemplateHttpController {
         masterTemplateId: v.masterTemplateId,
         organizationId: v.organizationId,
         rules: v.body.rules,
+        fieldValues: v.body.fieldValues,
         actorUser: v.actorUser,
       });
     } catch (e: unknown) {

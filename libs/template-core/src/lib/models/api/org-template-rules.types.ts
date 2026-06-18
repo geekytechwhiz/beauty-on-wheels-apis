@@ -9,6 +9,7 @@ export type GetOrgTemplateRulesParams = {
 export type UpdateOrgTemplateRulesParams = {
   masterTemplateId: string;
   organizationId: string;
-  rules: TemplateRulesPatch;
+  rules?: TemplateRulesPatch;
+  fieldValues?: Record<string, unknown>;
   actorUser?: TemplateActorUser;
 };

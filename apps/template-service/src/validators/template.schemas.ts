@@ -321,26 +321,41 @@ export const orgTemplateRulesPathSchema = z.object({
   orgId: z.string().trim().min(1),
 });
 
-const partialTemplateFieldRuleSchema = z
-  .object({
-    enable: z.boolean().optional(),
-    orgedit: z.boolean().optional(),
-    add: z.boolean().optional(),
-    defaultedit: z.boolean().optional(),
-    delete: z.boolean().optional(),
-    metadataMode: z.string().trim().min(1).optional(),
-    min: z.number().int().min(0).optional(),
-    max: z.number().int().min(0).optional(),
-  })
-  .strict()
-  .superRefine((rule, ctx) => {
-    if (rule.min !== undefined && rule.max !== undefined && rule.min > rule.max) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'min cannot exceed max',
-      });
-    }
-  });
+type PartialTemplateFieldRuleInput = {
+  enable?: boolean;
+  orgedit?: boolean;
+  add?: boolean;
+  defaultedit?: boolean;
+  delete?: boolean;
+  metadataMode?: string;
+  min?: number;
+  max?: number;
+  rules?: Record<string, PartialTemplateFieldRuleInput>;
+};
+
+const partialTemplateFieldRuleSchema: z.ZodType<PartialTemplateFieldRuleInput> = z.lazy(() =>
+  z
+    .object({
+      enable: z.boolean().optional(),
+      orgedit: z.boolean().optional(),
+      add: z.boolean().optional(),
+      defaultedit: z.boolean().optional(),
+      delete: z.boolean().optional(),
+      metadataMode: z.string().trim().min(1).optional(),
+      min: z.number().int().min(0).optional(),
+      max: z.number().int().min(0).optional(),
+      rules: z.record(z.string().trim().min(1), partialTemplateFieldRuleSchema).optional(),
+    })
+    .strict()
+    .superRefine((rule, ctx) => {
+      if (rule.min !== undefined && rule.max !== undefined && rule.min > rule.max) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'min cannot exceed max',
+        });
+      }
+    }),
+);
 
 export const updateOrgTemplateRulesBodySchema = z
   .object({

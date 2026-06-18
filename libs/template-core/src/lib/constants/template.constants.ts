@@ -27,7 +27,7 @@ export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN';
 
-/** Prefix for CARE_PLAN fieldValues keys that store linked templates — container rule at rules[LINKED_*], inner keys flat at rules root. */
+/** Prefix for CARE_PLAN fieldValues keys that store linked templates — container at rules[LINKED_*] with inner keys in rules[LINKED_*].rules. */
 export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_';
 
 export function isLinkedTemplateFieldKey(key: string): boolean {

@@ -1,0 +1,5 @@
+Effect: Allow
+Action:
+  - iam:PassRole
+Resource:
+  - arn:aws:iam::${aws:accountId}:role/*

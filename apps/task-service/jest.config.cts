@@ -23,6 +23,7 @@ module.exports = {
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/task-core$': '<rootDir>/../../libs/task-core/src/index.ts',
+    '^@api-hub/event-platform$': '<rootDir>/../../libs/event-platform/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/task-service',
   verbose: true,

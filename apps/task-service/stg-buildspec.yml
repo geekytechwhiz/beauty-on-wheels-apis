@@ -2,7 +2,7 @@ version: 0.2
 # Split pipeline: build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml.
 # Deploy must (1) use the artifact template at apps/task-service/packaged.yaml (see artifacts.files),
 # (2) use the same AWS account and region as this build so S3 keys in the template resolve.
-# Deploy CodeBuild: set task_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
+# Deploy CodeBuild: set TASK_DEPLOY_GUARD_ONLY=true to run only the S3 head-object guard (before CF deploy).
 # Optional: PACKAGED_TEMPLATE (default apps/task-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
 
 env:

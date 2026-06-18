@@ -14,8 +14,19 @@ export function isMetaConditionalFailure(err: unknown): boolean {
   return isConditionalWriteConflictAtIndex(err, TRANSACT_INDEX_META);
 }
 
-export const TASK_HISTORY_DEFAULT_PAGE_SIZE = 50;
-export const TASK_HISTORY_MAX_PAGE_SIZE = 200;
+export const TASK_LIST_DEFAULT_PAGE_SIZE = 50;
+export const TASK_LIST_MAX_PAGE_SIZE = 200;
+
+/** @deprecated Use TASK_LIST_DEFAULT_PAGE_SIZE */
+export const TASK_HISTORY_DEFAULT_PAGE_SIZE = TASK_LIST_DEFAULT_PAGE_SIZE;
+/** @deprecated Use TASK_LIST_MAX_PAGE_SIZE */
+export const TASK_HISTORY_MAX_PAGE_SIZE = TASK_LIST_MAX_PAGE_SIZE;
+
+/** Max DynamoDB query rounds when filtering by derived surfaceSection. */
+export const TASK_LIST_SURFACE_FILTER_MAX_ROUNDS = 5;
+
+/** Max DynamoDB query rounds when aggregating care-plan task status summary. */
+export const TASK_STATUS_SUMMARY_MAX_QUERY_ROUNDS = 20;
 
 /** Opaque GET /tasks/{id}/history pagination: DynamoDB Query `LastEvaluatedKey` as `nextToken`. */
 export function encodeTaskHistoryCursor(

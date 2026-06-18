@@ -2,7 +2,15 @@ REGION: ${self:provider.region}
 STAGE: ${self:provider.stage}
 NODE_ENV: ${self:provider.stage}
 SERVICE_NAME: ${self:service}
+# Table must exist before deploy; name from custom.bundle.taskDynamoTableName.
 TASK_TABLE: ${self:custom.bundle.taskDynamoTableName}
+CARE_PLAN_LSI_INDEX: pk-sk1
+STAFF_TASKS_GSI_INDEX: GSI1
 LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
 AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+# Same base URLs as services/sso-integration `custom.stageUrls`.
+USER_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
+ORGANIZATION_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+USER_SERVICE_TIMEOUT_MS: '8000'
+ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'

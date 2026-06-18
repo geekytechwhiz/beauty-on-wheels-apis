@@ -1,6 +1,9 @@
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import {
+  ASSIGNED_TO_TYPE,
+  isPatientAssignedToType,
   TASK_DISPLAY_GROUP,
+  type AssignedToType,
   type TaskBehaviorCode,
   type TaskDisplayGroup,
 } from '../models/types/task-domain.types';
@@ -22,15 +25,29 @@ export function taskDisplayGroupForBehavior(code: TaskBehaviorCode): TaskDisplay
   return TASK_DISPLAY_GROUP.CHECK_IN;
 }
 
+export function taskDisplayGroupForMonitoring(
+  code: TaskBehaviorCode,
+  assignedToType: AssignedToType,
+): TaskDisplayGroup {
+  if (!isPatientAssignedToType(assignedToType)) {
+    return TASK_DISPLAY_GROUP.STAFF_TASK;
+  }
+  return taskDisplayGroupForBehavior(code);
+}
+
+export function displayToPatientForMonitoring(assignedToType: AssignedToType): boolean {
+  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+}
+
 export function displayTitleForMonitoringTask(code: TaskBehaviorCode): string {
   return DISPLAY_TITLES[code] ?? `Complete your ${code.replace(/_/g, ' ').toLowerCase()}`;
 }
 
 export function initialStateForMonitoringCreate(
-  dueWindowStart: number,
-  nowMs = Date.now(),
+  _dueWindowStart: number,
+  _nowMs = Date.now(),
 ): RuntimeTaskState {
-  return dueWindowStart <= nowMs ? RUNTIME_TASK_STATE.ACTIVE : RUNTIME_TASK_STATE.SCHEDULED;
+  return RUNTIME_TASK_STATE.OPEN;
 }
 
 export function reminderEnabledFromContext(

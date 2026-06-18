@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 /** HTTP body shapes — structural type checks only; business rules live in task-core. */
 
+/** Who completes a task — `patient` | `careTeamRole` | `user` | `orgStaff` | `system`. */
+export const assignedToTypeSchema = z.enum([
+  'patient',
+  'careTeamRole',
+  'user',
+  'orgStaff',
+  'system',
+]);
+
 export const createMonitoringActionHttpBodySchema = z
   .object({
     patientId: z.string(),
@@ -9,6 +18,9 @@ export const createMonitoringActionHttpBodySchema = z
     carePlanInstanceId: z.string(),
     monitoringInstanceId: z.string(),
     taskBehaviorCode: z.string(),
+    assignedToType: assignedToTypeSchema,
+    assignedToStaffId: z.string().optional(),
+    assignedToStaffDisplayName: z.string().optional(),
     dueWindowStart: z.number(),
     dueWindowEnd: z.number(),
     reminderContext: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -25,7 +37,7 @@ export const createRuntimeTaskHttpBodySchema = z
     taskBehaviorCode: z.string(),
     taskDisplayGroup: z.string(),
     displayTitle: z.string(),
-    assignedToType: z.string(),
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     carePlanInstanceId: z.string().optional(),
     workflowStage: z.string().optional(),
@@ -52,7 +64,7 @@ export const carePlanLinkageMaterializationSchema = z
     taskBehaviorCode: z.string(),
     taskDisplayGroup: z.string(),
     displayTitle: z.string(),
-    assignedToType: z.string(),
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     description: z.string().optional(),
     assignedToStaffId: z.string().optional(),
@@ -101,3 +113,87 @@ export const updateAssignedStaffHttpBodySchema = z
   .strict();
 
 export type UpdateAssignedStaffHttpBody = z.infer<typeof updateAssignedStaffHttpBodySchema>;
+
+export const updateTaskStateHttpBodySchema = z
+  .object({
+    action: z.enum(['complete', 'dismiss', 'cancel', 'markMissed']),
+    actorId: z.string(),
+    actorType: assignedToTypeSchema,
+    expectedCurrentState: z.enum([
+      'open',
+      'scheduled',
+      'active',
+      'completed',
+      'missed',
+      'dismissed',
+      'cancelled',
+    ]),
+    reason: z.string().optional(),
+    evidencePayload: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export type UpdateTaskStateHttpBody = z.infer<typeof updateTaskStateHttpBodySchema>;
+
+const reminderChannelSchema = z.enum(['push', 'sms', 'email', 'inApp']);
+
+export const updateReminderSettingsHttpBodySchema = z
+  .object({
+    actorId: z.string(),
+    reminderEnabled: z.boolean(),
+    reminderSettings: z
+      .object({
+        channels: z.array(reminderChannelSchema).optional(),
+        quietHoursRespected: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    reason: z.string().optional(),
+  })
+  .strict();
+
+export type UpdateReminderSettingsHttpBody = z.infer<typeof updateReminderSettingsHttpBodySchema>;
+
+const workflowStageSchema = z.enum(['onboarding', 'ongoing', 'review', 'closure']);
+
+const RUNTIME_TASK_MUTABLE_FIELD_KEYS = [
+  'displayTitle',
+  'description',
+  'displayToPatient',
+  'requiredForStageCompletion',
+  'displayAsChecklistItem',
+  'workflowStage',
+  'actionTargetId',
+  'completionSourceType',
+  'completionSourceReferenceId',
+  'patientDisplayName',
+] as const;
+
+export const updateRuntimeTaskHttpBodySchema = z
+  .object({
+    actorId: z.string().min(1),
+    reason: z.string().optional(),
+    displayTitle: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    displayToPatient: z.boolean().optional(),
+    requiredForStageCompletion: z.boolean().optional(),
+    displayAsChecklistItem: z.boolean().optional(),
+    workflowStage: workflowStageSchema.optional(),
+    actionTargetId: z.string().nullable().optional(),
+    completionSourceType: z.string().nullable().optional(),
+    completionSourceReferenceId: z.string().nullable().optional(),
+    patientDisplayName: z.string().min(1).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const hasMutable = RUNTIME_TASK_MUTABLE_FIELD_KEYS.some((key) => data[key] !== undefined);
+    if (!hasMutable) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'At least one metadata field is required',
+        path: [],
+      });
+    }
+  });
+
+export type UpdateRuntimeTaskHttpBody = z.infer<typeof updateRuntimeTaskHttpBodySchema>;

@@ -7,9 +7,11 @@ info:
     (Care Plan Runtime / workflow), **POST /tasks/monitoring-action** (Monitoring Runtime), and **POST /tasks**
     (service-flow / authorized manual-system). Patients and staff retrieve tasks via **GET /action-center/items**,
     **GET /tasks**, **GET /staff/tasks**, and **GET /tasks/{runtimeTaskInstanceId}**. Portal may
-    **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings** and **PUT /tasks/{runtimeTaskInstanceId}/assigned-staff**.
+    **PATCH /tasks/{runtimeTaskInstanceId}** (portal metadata edit), **PUT /tasks/{runtimeTaskInstanceId}/reminder-settings**,
+    and **PUT /tasks/{runtimeTaskInstanceId}/assigned-staff**.
 
-    **Tenancy:** organization scope is derived from the **JWT** only (no `X-Org-Id` header and no `orgId` query parameter).
+    **Tenancy:** organization scope (`orgId`) is derived from the **JWT** only (no `X-Org-Id` header and no `orgId` query parameter).
+    **`patientId` and `patientDisplayName`** on create APIs are required in the **request body** — not taken from the JWT.
 
     **Success JSON envelope** (handlers using `@api-hub/utils` `withLambdaHandler` + `ApiResponse.ok`): `success` (boolean),
     `statusCode` (matches HTTP status), `message` (`title`, `description`, `severity`), `data` (operation-specific),
@@ -38,7 +40,7 @@ tags:
     description: >
       Generate care-plan tasks (POST /tasks/generate-care-plan), monitoring actions (POST /tasks/monitoring-action),
       ad-hoc creates (POST /tasks), patient/staff lists (GET /tasks, GET /staff/tasks, GET /action-center/items),
-      detail, state, staff assign/reassign, reminder settings, history, and care-plan readiness summary.
+      detail, metadata edit, state, staff assign/reassign, reminder settings, history, and care-plan readiness summary.
 
 components:
   securitySchemes:
@@ -204,15 +206,19 @@ components:
 
     CurrentState:
       type: string
-      enum: [Scheduled, Active, Completed, Missed, Dismissed, Cancelled]
+      enum: [open, scheduled, active, completed, missed, dismissed, cancelled]
+      description: >
+        Runtime task state on the wire (camelCase). In-progress rows may persist legacy `active` or
+        `scheduled`; reads normalize to `open`. Clients may send `open`, `active`, or `scheduled` for
+        `expectedCurrentState` when locking in-progress tasks.
 
     SurfaceSection:
       type: string
-      enum: [Today, Upcoming, NeedsAttention, History, CarePlanChecklist]
+      enum: [today, upcoming, needsAttention, history, carePlanChecklist]
 
     SurfaceSectionActionCenter:
       type: string
-      enum: [Today, Upcoming, NeedsAttention, History, CarePlanChecklist, All]
+      enum: [today, upcoming, needsAttention, history, carePlanChecklist, all]
 
     ReminderStatus:
       type: string
@@ -220,19 +226,28 @@ components:
 
     ReminderChannel:
       type: string
-      enum: [Push, SMS, Email, InApp]
+      enum: [push, sms, email, inApp]
 
     TransitionSource:
       type: string
-      enum: [Manual, Scheduler, SourceEvent, System]
+      enum: [manual, scheduler, sourceEvent, system]
 
     WorkflowStage:
       type: string
       enum: [Onboarding, Ongoing, Review, Closure]
 
+    AssignedToType:
+      type: string
+      enum: [patient, careTeamRole, user, orgStaff, system]
+      description: >
+        Who completes a runtime task. orgStaff inbox GSI1 is `ORG#<orgId>#STAFF#<assigneeId>`;
+        other non-patient types use `ORG#<orgId>#STAFF#<assignedToType>#<assigneeId>`
+        (`assigneeId` = `assignedToStaffId` on wire).
+
     ActorType:
       type: string
-      enum: [Patient, CareTeam, Provider, System]
+      enum: [patient, staff]
+      description: Who performed an action (e.g. state update); same values as AssignedToType.
 
     RuntimeTaskCard:
       type: object
@@ -256,11 +271,13 @@ components:
         orgId:
           type: string
           description: Organization resolved from JWT at read time (echoed in responses).
-        patientId: { type: string }
+        patientId:
+          type: string
+          description: Patient id from the create request body; persisted on META at create.
         patientDisplayName:
           type: string
           nullable: true
-          description: Denormalized patient display name captured at create time.
+          description: Patient display name from the create request body; denormalized on META at create.
         carePlanInstanceId: { type: string, nullable: true }
         workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
         runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
@@ -271,11 +288,11 @@ components:
         completionSourceReferenceId: { type: string, nullable: true }
         displayTitle: { type: string }
         description: { type: string, nullable: true }
-        assignedToType: { $ref: '#/components/schemas/ActorType' }
+        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
         assignedToStaffId:
           type: string
           nullable: true
-          description: Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox.
+          description: Assignee id when assignedToType is not patient; orgStaff drives GSI1 as `ORG#<org>#STAFF#<id>`.
         assignedToStaffDisplayName:
           type: string
           nullable: true
@@ -377,6 +394,7 @@ components:
         - reminderSettingsChange
         - reminderRegisterRequest
         - reminderCancelRequest
+        - taskMetadataChange
 
     ReminderSettings:
       type: object
@@ -428,6 +446,21 @@ components:
           $ref: '#/components/schemas/ReminderChannel'
           nullable: true
         schedulerJobId: { type: string, nullable: true }
+        changedFields:
+          type: array
+          nullable: true
+          description: Field names changed when historyEventType is taskMetadataChange.
+          items: { type: string }
+        previousValues:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Sparse map of prior values for taskMetadataChange audit.
+        newValues:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Sparse map of new values for taskMetadataChange audit.
 
     TaskStateHistoryEntry:
       description: Alias for state-transition rows; prefer TaskHistoryEntry for full audit timeline.
@@ -462,9 +495,9 @@ components:
 
     UpdateTaskStateAction:
       type: string
+      enum: [complete, dismiss, cancel, markMissed]
       description: >
-        Action verb used by clients; mapped by the service to a state transition and runtime-owned updates.
-        Requirements do not enumerate a fixed action catalog.
+        Action verb mapped by the service to a target `currentState` (`complete` → `completed`, etc.).
 
     UpdateTaskStateRequest:
       type: object
@@ -477,6 +510,10 @@ components:
         reason:
           type: string
           nullable: true
+        evidencePayload:
+          type: object
+          additionalProperties: true
+          description: Optional manual completion proof; when present on `complete`, writes conditional EVID#.
 
     UpdateTaskStateResult:
       type: object
@@ -517,7 +554,7 @@ components:
     UpdateAssignedStaffRequest:
       type: object
       description: >
-        Assign or reassign a careTeam or provider task to a staff member. When the task has no
+        Assign or reassign a staff task to a staff member. When the task has no
         assignedToStaffId, sets sparse GSI1 (gsi1Pk + gsi1Sk); when already assigned, updates gsi1Pk only.
         Writes HIST# assignedToStaffChange audit. Does not change META SK or lsi1Sk.
       required: [actorId, assignedToStaffId, assignedToStaffDisplayName]
@@ -541,40 +578,124 @@ components:
         task: { $ref: '#/components/schemas/RuntimeTaskCard' }
         historyEntry: { $ref: '#/components/schemas/TaskHistoryEntry' }
 
+    UpdateRuntimeTaskRequest:
+      type: object
+      description: >
+        Portal-authorized partial metadata edit. Send only fields to change. Does not modify due windows,
+        identity keys, staff assignment, reminders, or task state — use dedicated APIs for those.
+      required: [actorId]
+      properties:
+        actorId: { type: string }
+        reason:
+          type: string
+          nullable: true
+        displayTitle: { type: string }
+        description:
+          type: string
+          nullable: true
+        displayToPatient: { type: boolean }
+        requiredForStageCompletion: { type: boolean }
+        displayAsChecklistItem: { type: boolean }
+        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
+        actionTargetId:
+          type: string
+          nullable: true
+        completionSourceType:
+          type: string
+          nullable: true
+        completionSourceReferenceId:
+          type: string
+          nullable: true
+        patientDisplayName: { type: string }
+
+    UpdateRuntimeTaskResult:
+      type: object
+      required: [runtimeTaskInstanceId, task, historyEntry]
+      properties:
+        runtimeTaskInstanceId: { type: string }
+        task: { $ref: '#/components/schemas/RuntimeTaskCard' }
+        historyEntry: { $ref: '#/components/schemas/TaskHistoryEntry' }
+
+    CarePlanLinkageMaterialization:
+      type: object
+      description: One eligible linkage occurrence after Care Plan Runtime applied the template snapshot.
+      required:
+        - carePlanTaskLinkageId
+        - taskBehaviorCode
+        - taskDisplayGroup
+        - displayTitle
+        - assignedToType
+        - displayToPatient
+        - dueWindowStart
+        - dueWindowEnd
+      properties:
+        carePlanTaskLinkageId: { type: string }
+        sourceTaskTemplateVersionId: { type: string }
+        taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
+        taskDisplayGroup: { $ref: '#/components/schemas/TaskDisplayGroup' }
+        displayTitle: { type: string }
+        description: { type: string }
+        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        displayToPatient: { type: boolean }
+        assignedToStaffId:
+          type: string
+          description: Assignee id when assignedToType is not patient; orgStaff drives GSI1 as `ORG#<org>#STAFF#<id>`.
+        assignedToStaffDisplayName:
+          type: string
+          description: Required when assignedToType is not patient.
+        actionTargetId: { type: string }
+        completionSourceType: { type: string }
+        completionSourceReferenceId: { type: string }
+        dueWindowStart: { $ref: '#/components/schemas/EpochMillis' }
+        dueWindowEnd: { $ref: '#/components/schemas/EpochMillis' }
+        reminderEnabled: { type: boolean }
+        reminderSettings:
+          type: object
+          additionalProperties: true
+        requiredForStageCompletion: { type: boolean }
+        displayAsChecklistItem: { type: boolean }
+      additionalProperties: false
+
     GenerateCarePlanTasksRequest:
       type: object
       description: >
-        Organization is from the JWT (not in body). Creates one runtime task per eligible linkage and scheduled occurrence;
-        per-task idempotency uses deterministic IDs + conditional writes.
+        `orgId` is from the JWT (not in body). `patientId`, `patientDisplayName`, and linkage fields are from the
+        request body. Creates one runtime task per linkage; per-linkage idempotency uses deterministic IDs + conditional writes.
       required:
         - patientId
         - patientDisplayName
         - carePlanInstanceId
         - taskGenerationTrigger
         - sourceLinkageContext
-        - actorContext
-        - idempotencyKey
       properties:
-        patientId: { type: string }
-        patientDisplayName: { type: string }
+        patientId:
+          type: string
+          description: Patient id from request body (not from JWT).
+        patientDisplayName:
+          type: string
+          description: Patient display name from request body (not from JWT).
         carePlanInstanceId: { type: string }
         taskGenerationTrigger: { type: string }
-        idempotencyKey:
+        actorType: { type: string }
+        actorId:
           type: string
-          description: Caller-provided idempotency key for the overall generation request (requirements §5.2).
-        actorContext:
-          type: object
-          additionalProperties: true
-          description: Actor/system context (schema not defined in requirements).
+          description: When set, `createdBy` becomes `system:care-plan-runtime:<actorId>`.
         sourceLinkageContext:
           type: object
-          additionalProperties: true
-          description: Source linkage context (schema not defined in requirements).
+          required: [linkages]
+          properties:
+            linkages:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/CarePlanLinkageMaterialization'
+          additionalProperties: false
         workflowStage:
           $ref: '#/components/schemas/WorkflowStage'
         dryRun:
           type: boolean
           default: false
+      additionalProperties: false
 
     GenerateCarePlanTasksResult:
       type: object
@@ -597,23 +718,38 @@ components:
     CreateMonitoringActionRequest:
       type: object
       description: >
-        Organization is from the JWT (not in body). Requested by Monitoring Runtime for metric/symptom/setup check-ins.
+        `orgId` is from the JWT (not in body). `patientId` and `patientDisplayName` are from the request body.
+        Requested by Monitoring Runtime for metric/symptom/setup check-ins; assignedToType selects patient vs staff completion.
       required:
         - patientId
         - patientDisplayName
         - carePlanInstanceId
         - monitoringInstanceId
         - taskBehaviorCode
+        - assignedToType
         - dueWindowStart
         - dueWindowEnd
       properties:
-        patientId: { type: string }
-        patientDisplayName: { type: string }
+        patientId:
+          type: string
+          description: Patient id from request body (not from JWT).
+        patientDisplayName:
+          type: string
+          description: Patient display name from request body (not from JWT).
         carePlanInstanceId:
           type: string
           description: Required per requirements §5.2 minimum input for CreateMonitoringAction.
         monitoringInstanceId: { type: string }
         taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
+        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        assignedToStaffId:
+          type: string
+          nullable: true
+          description: Assignee id when assignedToType is not patient; orgStaff drives GSI1 as `ORG#<org>#STAFF#<id>`.
+        assignedToStaffDisplayName:
+          type: string
+          nullable: true
+          description: Required when assignedToType is not patient.
         dueWindowStart:
           $ref: '#/components/schemas/EpochMillis'
         dueWindowEnd:
@@ -636,7 +772,8 @@ components:
     CreateRuntimeTaskRequest:
       type: object
       description: >
-        Organization is from the JWT (not in body). Authorized manual/system or service-flow task where product rules permit.
+        `orgId` is from the JWT (not in body). `patientId` and `patientDisplayName` are from the request body.
+        GSI1 is written when `assignedToStaffId` is set. Authorized manual/system or service-flow task where product rules permit.
       required:
         - patientId
         - patientDisplayName
@@ -647,8 +784,12 @@ components:
         - assignedToType
         - displayToPatient
       properties:
-        patientId: { type: string }
-        patientDisplayName: { type: string }
+        patientId:
+          type: string
+          description: Patient id from request body (not from JWT).
+        patientDisplayName:
+          type: string
+          description: Patient display name from request body (not from JWT).
         carePlanInstanceId: { type: string, nullable: true }
         workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
         runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
@@ -656,15 +797,15 @@ components:
         taskDisplayGroup: { $ref: '#/components/schemas/TaskDisplayGroup' }
         displayTitle: { type: string }
         description: { type: string, nullable: true }
-        assignedToType: { $ref: '#/components/schemas/ActorType' }
+        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
         assignedToStaffId:
           type: string
           nullable: true
-          description: Staff user id when assignedToType is careTeam or provider; drives GSI1 staff inbox.
+          description: Assignee id when assignedToType is not patient; orgStaff drives GSI1 as `ORG#<org>#STAFF#<id>`.
         assignedToStaffDisplayName:
           type: string
           nullable: true
-          description: Required when assignedToType is careTeam or provider.
+          description: Required when assignedToType is not patient.
         displayToPatient: { type: boolean }
         actionTargetId: { type: string, nullable: true }
         completionSourceType: { type: string, nullable: true }
@@ -761,7 +902,7 @@ components:
         workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
         readinessStatus:
           type: string
-          enum: [Ready, NotReady, NotApplicable]
+          enum: [ready, notReady, notApplicable]
         counts:
           type: object
           additionalProperties: false
@@ -775,7 +916,16 @@ components:
         incompleteRequiredTasks:
           type: array
           items:
-            $ref: '#/components/schemas/RuntimeTaskCard'
+            $ref: '#/components/schemas/IncompleteRequiredTaskItem'
+
+    IncompleteRequiredTaskItem:
+      type: object
+      required: [runtimeTaskInstanceId, displayTitle, currentState]
+      properties:
+        runtimeTaskInstanceId: { type: string }
+        displayTitle: { type: string }
+        requiredForStageCompletion: { type: boolean }
+        currentState: { $ref: '#/components/schemas/CurrentState' }
 
     SuccessResponseGenerateCarePlanTasks:
       allOf:
@@ -856,6 +1006,14 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UpdateAssignedStaffResult'
+
+    SuccessResponseUpdateRuntimeTask:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UpdateRuntimeTaskResult'
 
     SuccessResponseTaskStatusSummaryByCarePlan:
       allOf:
@@ -982,9 +1140,9 @@ paths:
       summary: Generate care-plan-linked runtime tasks (idempotent)
       description: >
         Called by **Care Plan Runtime** or an approved workflow consumer. Creates one runtime task per eligible
-        Care Plan Task Linkage and scheduled occurrence. Organization scope is from the JWT. Retries must not create
-        duplicates (`outcome` = `SkippedDuplicate` when the deterministic task already exists). Returns per-task
-        **`results[]`** for idempotency visibility.
+        Care Plan Task Linkage. `orgId` is from the JWT; `patientId`, `patientDisplayName`, and linkage fields are from
+        the request body. Retries must not create duplicates (`outcome` = `skippedDuplicate` when the deterministic
+        task already exists). Returns per-linkage **`results[]`** for idempotency visibility.
       tags: [Task instances]
       requestBody:
         required: true
@@ -996,17 +1154,26 @@ paths:
               onboardingBatch:
                 summary: Care plan task generation
                 value:
-                  patientId: pat-101
-                  carePlanInstanceId: cp-2026-001
-                  taskGenerationTrigger: CarePlanStageEntered
-                  idempotencyKey: gen-cp-2026-001-onboarding-001
-                  workflowStage: Onboarding
-                  actorContext:
-                    actorType: System
-                    actorId: care-plan-runtime
-                  sourceLinkageContext:
-                    linkageIds: [link-education-001, link-device-setup-001]
+                  patientId: pat-maria
+                  patientDisplayName: Maria Lopez
+                  carePlanInstanceId: cp-maria-001
+                  taskGenerationTrigger: carePlanStageEntered
+                  workflowStage: onboarding
+                  actorType: system
+                  actorId: care-plan-runtime
                   dryRun: false
+                  sourceLinkageContext:
+                    linkages:
+                      - carePlanTaskLinkageId: link-watch-bp-video
+                        taskBehaviorCode: EDUCATION_VIDEO
+                        taskDisplayGroup: learning
+                        displayTitle: "Watch: How to measure BP"
+                        assignedToType: patient
+                        displayToPatient: true
+                        dueWindowStart: 1780567200000
+                        dueWindowEnd: 1780610400000
+                        requiredForStageCompletion: true
+                        displayAsChecklistItem: true
       responses:
         '200':
           description: Generation result (created and/or skipped duplicates).
@@ -1051,7 +1218,7 @@ paths:
                   dueWindowStart: 1780581600000
                   dueWindowEnd: 1780668000000
                   reminderContext:
-                    channels: [Push, InApp]
+                    channels: [push, inApp]
       responses:
         '200':
           description: Create result (created or skipped duplicate).
@@ -1105,7 +1272,7 @@ paths:
                   taskDisplayGroup: StaffTask
                   displayTitle: Call patient about missed reading
                   description: Follow up on missed BP reading from yesterday
-                  assignedToType: careTeam
+                  assignedToType: staff
                   assignedToStaffId: staff-nurse-44721
                   displayToPatient: false
                   dueWindowStart: 1780581600000
@@ -1264,9 +1431,9 @@ paths:
       operationId: getActionCenterItems
       summary: Get Action Center items (Today / Upcoming / Needs Attention / History / All)
       description: >
-        Consolidated Action Center retrieval for Mobile/Portal/BFF. Use **`surfaceSection`** for one section or
-        **`All`** for a grouped response. **`patientId`** is required. Organization scope is from the JWT.
-        Paginate with **`pageSize`** and **`nextToken`** where supported.
+        Patient Action Center with server-derived **`surfaceSection`**. Mobile/Portal must render the returned
+        section — do not re-bucket Today vs Upcoming client-side. Use **`surfaceSection=all`** for grouped
+        sections or a single section value. **`timezone`** (IANA) drives calendar Today boundaries (default UTC).
       tags: [Task instances]
       parameters:
         - name: patientId
@@ -1286,10 +1453,17 @@ paths:
           in: query
           required: true
           description: >
-            Select one section (`Today`, `Upcoming`, `NeedsAttention`, `History`, `CarePlanChecklist`) or **`All`**
-            to return grouped sections in one response.
+            One section (`today`, `upcoming`, `needsAttention`, `history`, `carePlanChecklist`) or `all` for
+            grouped sections in one response.
           schema:
             $ref: '#/components/schemas/SurfaceSectionActionCenter'
+        - name: timezone
+          in: query
+          required: false
+          description: IANA timezone for calendar Today (e.g. America/New_York). Defaults to UTC.
+          schema:
+            type: string
+          example: America/New_York
         - name: pageSize
           in: query
           schema:
@@ -1349,6 +1523,47 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateRuntimeTask
+      summary: Update runtime task metadata (portal)
+      description: >
+        Authorized portal users may partially update editable task metadata on META (and LOOKUP when
+        `patientDisplayName` changes). Appends **HIST#** `taskMetadataChange` audit. Does not change META SK,
+        due windows, staff assignment, reminders, or task state.
+      tags: [Task instances]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRuntimeTaskRequest'
+            examples:
+              updateDisplayCopy:
+                summary: Update title and description
+                value:
+                  actorId: staff-nurse-001
+                  displayTitle: Complete daily blood pressure check
+                  description: Use home cuff before breakfast
+                  displayToPatient: true
+                  requiredForStageCompletion: true
+                  reason: Care plan template wording updated
+      responses:
+        '200':
+          description: Updated task metadata and audit entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponseUpdateRuntimeTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
 
   /tasks/{runtimeTaskInstanceId}/reminder-settings:
     parameters:
@@ -1374,7 +1589,7 @@ paths:
                   actorId: staff-nurse-44721
                   reminderEnabled: true
                   reminderSettings:
-                    channels: [Push, InApp]
+                    channels: [push, inApp]
                   reason: Patient requested daily reminders
       responses:
         '200':
@@ -1401,7 +1616,7 @@ paths:
       operationId: updateAssignedStaff
       summary: Assign or reassign staff task to a staff member (portal)
       description: >
-        **careTeam** or **provider** tasks only. Initial assignment sets `assignedToStaffId` plus sparse **GSI1**
+        **staff** tasks only. Initial assignment sets `assignedToStaffId` plus sparse **GSI1**
         (`gsi1Pk` and `gsi1Sk`). Reassignment updates `assignedToStaffId` and `gsi1Pk` only. Appends **HIST#**
         `assignedToStaffChange` audit. Does not change META SK or `lsi1Sk`.
       tags: [Task instances]
@@ -1463,18 +1678,18 @@ paths:
               complete:
                 summary: Mark task completed
                 value:
-                  action: Complete
+                  action: complete
                   actorId: pat-101
-                  actorType: Patient
-                  expectedCurrentState: Active
+                  actorType: patient
+                  expectedCurrentState: open
                   reason: Submitted reading via mobile app
               dismiss:
                 summary: Dismiss task
                 value:
-                  action: Dismiss
+                  action: dismiss
                   actorId: pat-101
-                  actorType: Patient
-                  expectedCurrentState: Active
+                  actorType: patient
+                  expectedCurrentState: open
                   reason: Not applicable today
       responses:
         '200':

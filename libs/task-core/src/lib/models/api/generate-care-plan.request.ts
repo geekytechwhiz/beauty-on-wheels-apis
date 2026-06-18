@@ -15,6 +15,7 @@ export interface CarePlanLinkageMaterialization {
   taskBehaviorCode: TaskBehaviorCode;
   taskDisplayGroup: TaskDisplayGroup;
   displayTitle: string;
+  /** Who completes the task: `patient` or `staff` only. */
   assignedToType: AssignedToType;
   displayToPatient: boolean;
   description?: string;
@@ -31,10 +32,14 @@ export interface CarePlanLinkageMaterialization {
   displayAsChecklistItem?: boolean;
 }
 
+/** Service payload — `organizationId` from JWT; patient and linkage fields from HTTP body. */
 export interface GenerateCarePlanTasksRequest {
+  /** Resolved from JWT at the HTTP layer — never from the client body. */
   organizationId: string;
   createdBy: string;
+  /** From request body input. */
   patientId: string;
+  /** From request body input. */
   patientDisplayName: string;
   carePlanInstanceId: string;
   taskGenerationTrigger: string;
@@ -55,6 +60,7 @@ export type CreateCarePlanTaskRequest = CarePlanLinkageMaterialization & {
 
 export type GenerateCarePlanTasksPayload = GenerateCarePlanTasksRequest;
 
+/** Request body only — `organizationId` is resolved from JWT, not sent by the client. */
 export type GenerateCarePlanTasksHttpBody = {
   patientId: string;
   patientDisplayName: string;
@@ -79,6 +85,10 @@ export type GenerateCarePlanTasksResult = {
   results: GeneratedCarePlanTaskResultItem[];
 };
 
+/**
+ * Maps validated HTTP body into the service payload.
+ * `organizationId` from JWT; `patientId`, `patientDisplayName`, and linkage fields from input.
+ */
 export function generateCarePlanTasksPayloadFromHttpBody(
   organizationId: string,
   body: GenerateCarePlanTasksHttpBody,

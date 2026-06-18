@@ -1,0 +1,1699 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-06-15",
+  "description": "Per-API HTTP input, DynamoDB operations (input/output), and HTTP response data shape for task-service implemented endpoints.",
+  "table": {
+    "envVar": "TASK_TABLE",
+    "keyPatterns": {
+      "metaPk": "ORG#<orgId>#PAT#<patientId>",
+      "metaSk": "DUE#<dueWindowStartOrMaxMs13>#TASK#<runtimeTaskInstanceId>",
+      "lookupPk": "TASK#<runtimeTaskInstanceId>",
+      "lookupSk": "LOOKUP",
+      "histSk": "HIST#<transitionAtMs13>#<taskStateHistoryId>",
+      "evidSkPrefix": "EVID#",
+      "lsi1Sk": "CP#<carePlanInstanceId>#TASK#<runtimeTaskInstanceId>",
+      "gsi1PkStaff": "ORG#<orgId>#STAFF#<staffUserId>",
+      "gsi1Sk": "DUE#<dueMs13>#PAT#<patientId>#TASK#<runtimeTaskInstanceId>"
+    },
+    "indexes": {
+      "CarePlanIndex": "LSI on lsi1Sk — patient PK queries filtered by care plan",
+      "StaffPatientTasksIndex": "GSI1 on gsi1Pk + gsi1Sk — staff inbox"
+    }
+  },
+  "schemas": {
+    "TaskMetaDdbRecord": {
+      "description": "Full META row as returned by Query/GetItem (persistence shape)",
+      "fields": {
+        "pk": { "type": "string", "required": true, "example": "ORG#org-acme-001#PAT#pat-maria-88201" },
+        "sk": { "type": "string", "required": true, "example": "DUE#1780567200000#TASK#rtask-aa11bb22cc33dd44ee55ff6677889900" },
+        "entityType": { "type": "string", "required": true, "value": "RuntimeTaskInstance" },
+        "orgId": { "type": "string", "required": true },
+        "patientId": { "type": "string", "required": true },
+        "patientDisplayName": { "type": "string", "required": false },
+        "runtimeTaskInstanceId": { "type": "string", "required": true },
+        "runtimeTaskSource": {
+          "type": "enum",
+          "required": true,
+          "values": ["carePlanTaskLinkage", "monitoringRuntime", "serviceFlowRuntime", "manualSystem"]
+        },
+        "carePlanInstanceId": { "type": "string", "required": false },
+        "carePlanTaskLinkageId": { "type": "string", "required": false, "when": "carePlanTaskLinkage source" },
+        "sourceTaskTemplateVersionId": { "type": "string", "required": false },
+        "taskGenerationTrigger": { "type": "string", "required": false, "when": "carePlanTaskLinkage source" },
+        "monitoringInstanceId": { "type": "string", "required": false, "when": "monitoringRuntime source" },
+        "taskBehaviorCode": {
+          "type": "enum",
+          "required": true,
+          "values": [
+            "INSTRUCTION",
+            "DOCUMENT_FORM",
+            "UPLOAD_DOCUMENT",
+            "DEVICE_SETUP",
+            "EDUCATION_VIDEO",
+            "EDUCATION_ARTICLE",
+            "CARE_TEAM_TASK",
+            "METRIC_CHECKIN",
+            "SYMPTOM_CHECKIN"
+          ]
+        },
+        "taskDisplayGroup": {
+          "type": "enum",
+          "required": true,
+          "values": ["action", "learning", "checkIn", "staffTask"]
+        },
+        "displayTitle": { "type": "string", "required": true },
+        "description": { "type": "string", "required": false },
+        "assignedToType": {
+          "type": "enum",
+          "required": true,
+          "values": ["patient", "careTeamRole", "user", "orgStaff", "system"]
+        },
+        "assignedToStaffId": { "type": "string", "required": false, "when": "non-patient assignee" },
+        "assignedToStaffDisplayName": { "type": "string", "required": false, "when": "non-patient assignee" },
+        "workflowStage": {
+          "type": "enum",
+          "required": false,
+          "values": ["onboarding", "ongoing", "review", "closure"]
+        },
+        "actionTargetId": { "type": "string", "required": false },
+        "completionSourceType": { "type": "string", "required": false },
+        "completionSourceReferenceId": { "type": "string", "required": false },
+        "requiredForStageCompletion": { "type": "boolean", "required": false },
+        "displayAsChecklistItem": { "type": "boolean", "required": false },
+        "displayToPatient": { "type": "boolean", "required": true },
+        "currentState": {
+          "type": "enum",
+          "required": true,
+          "values": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"],
+          "note": "legacy active/scheduled stored in DDB; normalized to open on HTTP read"
+        },
+        "dueWindowStart": { "type": "number", "required": false, "format": "epoch ms" },
+        "dueWindowEnd": { "type": "number", "required": false, "format": "epoch ms" },
+        "reminderEnabled": { "type": "boolean", "required": false },
+        "reminderSettings": {
+          "type": "object",
+          "required": false,
+          "fields": {
+            "channels": { "type": "string[]", "values": ["push", "sms", "email", "inApp"] },
+            "quietHoursRespected": { "type": "boolean" }
+          }
+        },
+        "idempotencyKey": { "type": "string", "required": false, "strippedOnHttp": true },
+        "generationHash": { "type": "string", "required": false, "strippedOnHttp": true },
+        "lsi1Sk": { "type": "string", "required": false, "strippedOnHttp": true, "example": "CP#<carePlanInstanceId>#TASK#<id>" },
+        "gsi1Pk": { "type": "string", "required": false, "strippedOnHttp": true, "when": "staff inbox index" },
+        "gsi1Sk": { "type": "string", "required": false, "strippedOnHttp": true, "when": "staff inbox index" },
+        "createdAt": { "type": "number", "required": true, "format": "epoch ms" },
+        "createdBy": { "type": "string", "required": true },
+        "lastUpdatedAt": { "type": "number", "required": true, "format": "epoch ms" },
+        "lastUpdatedBy": { "type": "string", "required": true },
+        "version": { "type": "number", "required": false, "strippedOnHttp": true }
+      }
+    },
+    "RuntimeTaskCard": {
+      "description": "META projected for HTTP list/detail — all TaskMetaDdbRecord fields except pk, sk, entityType, lsi1Sk, gsi1Pk, gsi1Sk, idempotencyKey, generationHash, version",
+      "ref": "schemas.TaskMetaDdbRecord.fields where strippedOnHttp !== true",
+      "wireNormalization": {
+        "currentState": "active | scheduled → open",
+        "assignedToType": "staff → orgStaff"
+      }
+    },
+    "PatientTaskListData": {
+      "description": "GET /tasks response data object (inside ApiResponse envelope)",
+      "fields": {
+        "patientId": { "type": "string", "required": true },
+        "staffUserId": { "type": "string", "required": false, "when": "staffUserId query param was sent" },
+        "patientTasks": {
+          "type": "object",
+          "required": true,
+          "fields": {
+            "items": { "type": "RuntimeTaskCard[]", "required": true }
+          }
+        },
+        "staffTasks": {
+          "type": "object",
+          "required": true,
+          "fields": {
+            "items": { "type": "RuntimeTaskCard[]", "required": true }
+          }
+        },
+        "nextToken": { "type": "string", "required": false, "when": "more DDB pages available" }
+      }
+    }
+  },
+  "apis": {
+    "POST /tasks/monitoring-action": {
+      "method": "POST",
+      "path": "/tasks/monitoring-action",
+      "purpose": "Create a monitoring-runtime task (idempotent natural key). Caller: Monitoring Runtime.",
+      "idempotent": true,
+      "httpInput": {
+        "headers": {
+          "Authorization": "Bearer <JWT> (required)"
+        },
+        "body": {
+          "patientId": "string (required)",
+          "patientDisplayName": "string (required)",
+          "carePlanInstanceId": "string (required)",
+          "monitoringInstanceId": "string (required)",
+          "taskBehaviorCode": "string (required, e.g. METRIC_CHECKIN)",
+          "assignedToType": "patient | orgStaff | ... (required)",
+          "assignedToStaffId": "string (required when assignedToType is not patient)",
+          "assignedToStaffDisplayName": "string (required when assignedToType is not patient)",
+          "dueWindowStart": "number epoch ms (required)",
+          "dueWindowEnd": "number epoch ms (required)",
+          "reminderContext": "object | null (optional)"
+        },
+        "resolvedServerSide": {
+          "organizationId": "JWT custom:organizationID",
+          "runtimeTaskInstanceId": "rtask-<sha256-prefix-32> from idempotency key",
+          "createdBy": "system:monitoring-runtime"
+        }
+      },
+      "idempotencyKey": {
+        "formula": "orgId|patientId|monitoringInstanceId|taskBehaviorCode|dueWindowStart|dueWindowEnd|assignedToType|assignedToStaffIdOrEmpty",
+        "runtimeTaskInstanceId": "rtask-<first-32-chars-of-sha256(idempotencyKey)>"
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "resolveLookup",
+          "when": "always (before create)",
+          "operation": "GetItem",
+          "input": {
+            "TableName": "TASK_TABLE",
+            "Key": {
+              "pk": "TASK#<runtimeTaskInstanceId>",
+              "sk": "LOOKUP"
+            }
+          },
+          "output": {
+            "notFound": "proceed to step 2 (create)",
+            "foundSameOrg": "proceed to step 1b",
+            "foundDifferentOrg": "abort — HTTP 409 IDEMPOTENCY_KEY_IN_USE"
+          }
+        },
+        {
+          "step": "1b",
+          "name": "resolveMeta",
+          "when": "LOOKUP exists for same org (idempotent replay)",
+          "operation": "GetItem",
+          "input": {
+            "TableName": "TASK_TABLE",
+            "Key": {
+              "pk": "ORG#<lookup.orgId>#PAT#<lookup.patientId>",
+              "sk": "<lookup.taskSk>"
+            }
+          },
+          "output": {
+            "item": "TaskMetaDdbRecord — returned as existing task, no writes",
+            "notFound": "treat as missing, proceed to create"
+          }
+        },
+        {
+          "step": 2,
+          "name": "createTaskTransact",
+          "when": "resolve returned missing",
+          "operation": "TransactWriteItems",
+          "conditionOnEachPut": "attribute_not_exists(sk)",
+          "items": [
+            {
+              "action": "Put",
+              "entityType": "RuntimeTaskInstance",
+              "key": {
+                "pk": "ORG#<orgId>#PAT#<patientId>",
+                "sk": "DUE#<dueWindowStartOrMaxMs13>#TASK#<runtimeTaskInstanceId>"
+              },
+              "attributes": {
+                "runtimeTaskSource": "monitoringRuntime",
+                "currentState": "open",
+                "taskDisplayGroup": "checkIn | action | staffTask (derived)",
+                "displayTitle": "derived from taskBehaviorCode",
+                "displayToPatient": "true when patient-assigned",
+                "reminderEnabled": "true when reminderContext is object",
+                "reminderSettings": "from reminderContext when enabled",
+                "lsi1Sk": "CP#<carePlanInstanceId>#TASK#<id>",
+                "gsi1Pk": "only when staff-assigned",
+                "gsi1Sk": "only when staff-assigned",
+                "idempotencyKey": "string",
+                "generationHash": "sha256 hex",
+                "version": 1
+              }
+            },
+            {
+              "action": "Put",
+              "entityType": "TaskLookup",
+              "key": {
+                "pk": "TASK#<runtimeTaskInstanceId>",
+                "sk": "LOOKUP"
+              },
+              "attributes": {
+                "taskSk": "full META sk",
+                "orgId": "string",
+                "patientId": "string",
+                "patientDisplayName": "string",
+                "dueWindowStart": "number",
+                "dueWindowEnd": "number",
+                "carePlanInstanceId": "string",
+                "assignedToStaffId": "optional",
+                "assignedToStaffDisplayName": "optional",
+                "reminderHistory": []
+              }
+            },
+            {
+              "action": "Put",
+              "entityType": "TaskHistory",
+              "key": {
+                "pk": "TASK#<runtimeTaskInstanceId>",
+                "sk": "HIST#<nowMs13>#<uuid>"
+              },
+              "attributes": {
+                "historyEventType": "stateChange",
+                "toState": "open",
+                "transitionBy": "system:monitoring-runtime",
+                "transitionSource": "system",
+                "transitionReason": "monitoringRuntime create"
+              }
+            }
+          ],
+          "output": {
+            "success": "returns META record from Put item 1",
+            "TransactionCanceledException": "re-run resolve; if same-org META found → skippedDuplicate"
+          }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": {
+          "200": "created or skippedDuplicate",
+          "401": "missing JWT org",
+          "409": "IDEMPOTENCY_KEY_IN_USE",
+          "422": "VALIDATION_ERROR"
+        },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "outcome": "created | skippedDuplicate",
+          "task": "RuntimeTaskCard (META without pk/sk/entityType/lsi1Sk/gsi1*/idempotencyKey/generationHash/version)"
+        },
+        "example": {
+          "runtimeTaskInstanceId": "rtask-a1b2c3d4e5f6789012345678abcdef01",
+          "outcome": "created",
+          "task": {
+            "orgId": "org-1",
+            "patientId": "pat-101",
+            "patientDisplayName": "Jane Doe",
+            "runtimeTaskSource": "monitoringRuntime",
+            "carePlanInstanceId": "cp-inst-001",
+            "monitoringInstanceId": "mon-inst-001",
+            "taskBehaviorCode": "METRIC_CHECKIN",
+            "taskDisplayGroup": "checkIn",
+            "displayTitle": "Record your health metrics",
+            "assignedToType": "patient",
+            "displayToPatient": true,
+            "currentState": "open",
+            "dueWindowStart": 1780581600000,
+            "dueWindowEnd": 1780668000000,
+            "reminderEnabled": true,
+            "createdBy": "system:monitoring-runtime",
+            "lastUpdatedBy": "system:monitoring-runtime"
+          }
+        }
+      }
+    },
+    "POST /tasks/generate-care-plan": {
+      "method": "POST",
+      "path": "/tasks/generate-care-plan",
+      "purpose": "Batch-create care-plan linkage tasks (idempotent per linkage). Caller: Care Plan Runtime.",
+      "idempotent": true,
+      "idempotentScope": "per linkage in sourceLinkageContext.linkages[] — processed sequentially; first 409 aborts entire request",
+      "httpInput": {
+        "headers": {
+          "Authorization": "Bearer <JWT> (required)"
+        },
+        "body": {
+          "patientId": "string (required)",
+          "patientDisplayName": "string (required)",
+          "carePlanInstanceId": "string (required)",
+          "taskGenerationTrigger": "string (required, e.g. carePlanStageEntered)",
+          "workflowStage": "onboarding | ongoing | review | closure (optional)",
+          "dryRun": "boolean (optional, default false)",
+          "actorType": "string (optional)",
+          "actorId": "string (optional)",
+          "sourceLinkageContext": {
+            "linkages": "array (required) — each item below"
+          }
+        },
+        "linkageItem": {
+          "carePlanTaskLinkageId": "string (required)",
+          "sourceTaskTemplateVersionId": "string (optional)",
+          "taskBehaviorCode": "string (required)",
+          "taskDisplayGroup": "action | learning | checkIn | staffTask (required)",
+          "displayTitle": "string (required)",
+          "assignedToType": "patient | orgStaff | ... (required)",
+          "displayToPatient": "boolean (required)",
+          "description": "string (optional)",
+          "assignedToStaffId": "string (required when assignedToType is not patient)",
+          "assignedToStaffDisplayName": "string (required when assignedToType is not patient)",
+          "actionTargetId": "string (optional)",
+          "completionSourceType": "string (optional)",
+          "completionSourceReferenceId": "string (optional)",
+          "dueWindowStart": "number epoch ms (required)",
+          "dueWindowEnd": "number epoch ms (required)",
+          "reminderEnabled": "boolean (optional)",
+          "reminderSettings": "object (optional)",
+          "requiredForStageCompletion": "boolean (optional)",
+          "displayAsChecklistItem": "boolean (optional)"
+        },
+        "resolvedServerSide": {
+          "organizationId": "JWT custom:organizationID",
+          "createdBy": "system:care-plan-runtime OR system:care-plan-runtime:<actorId> when actorId in body",
+          "runtimeTaskInstanceId": "rtask-<sha256-prefix-32> per linkage from idempotency key"
+        },
+        "exampleBody": {
+          "patientId": "pat-101",
+          "patientDisplayName": "Jane Doe",
+          "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+          "taskGenerationTrigger": "carePlanStageEntered",
+          "workflowStage": "onboarding",
+          "dryRun": false,
+          "sourceLinkageContext": {
+            "linkages": [
+              {
+                "carePlanTaskLinkageId": "link-bp-form",
+                "sourceTaskTemplateVersionId": "task-tpl-document-form-v2",
+                "taskBehaviorCode": "DOCUMENT_FORM",
+                "taskDisplayGroup": "action",
+                "displayTitle": "Complete blood pressure form",
+                "assignedToType": "patient",
+                "displayToPatient": true,
+                "completionSourceType": "document",
+                "completionSourceReferenceId": "doc-req-88210",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderEnabled": true,
+                "reminderSettings": { "channels": ["push"], "quietHoursRespected": true },
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true
+              }
+            ]
+          }
+        }
+      },
+      "idempotencyKey": {
+        "scope": "one key per linkage (not per HTTP request)",
+        "formula": "orgId|patientId|carePlanInstanceId|carePlanTaskLinkageId|resolvedDueWindowStart|dueWindowEnd",
+        "resolvedDueWindowStart": "dueWindowStart if set, else dueWindowEnd",
+        "runtimeTaskInstanceId": "rtask-<first-32-chars-of-sha256(idempotencyKey)>",
+        "generationHash": "sha256 hex of full idempotencyKey",
+        "example": "org-1|pat-101|cp-inst-001|link-bp-form|1780567200000|1780610400000 → rtask-..."
+      },
+      "databaseOperations": [
+        {
+          "step": "loop",
+          "name": "perLinkage",
+          "when": "for each linkage in sourceLinkageContext.linkages (sequential)",
+          "note": "prepareAssignedToTypeInput normalizes each linkage before keys/build"
+        },
+        {
+          "step": "A",
+          "name": "dryRunBuild",
+          "when": "dryRun === true",
+          "operation": "none",
+          "input": "buildCarePlanTaskKeys + buildCarePlanMetaRecord in memory only",
+          "output": {
+            "dynamoDb": "no reads or writes",
+            "httpResultItem": {
+              "outcome": "created (always — no idempotency check on dry run)",
+              "task": "RuntimeTaskCard from in-memory META"
+            }
+          }
+        },
+        {
+          "step": "B1",
+          "name": "resolveLookup",
+          "when": "dryRun === false",
+          "operation": "GetItem",
+          "input": {
+            "TableName": "TASK_TABLE",
+            "Key": {
+              "pk": "TASK#<runtimeTaskInstanceId>",
+              "sk": "LOOKUP"
+            }
+          },
+          "output": {
+            "notFound": "proceed to step B3 (create transact)",
+            "foundSameOrg": "proceed to step B2",
+            "foundDifferentOrg": "abort entire request — HTTP 409 IDEMPOTENCY_KEY_IN_USE"
+          }
+        },
+        {
+          "step": "B2",
+          "name": "resolveMeta",
+          "when": "LOOKUP exists for same org (idempotent replay for this linkage)",
+          "operation": "GetItem",
+          "input": {
+            "TableName": "TASK_TABLE",
+            "Key": {
+              "pk": "ORG#<lookup.orgId>#PAT#<lookup.patientId>",
+              "sk": "<lookup.taskSk>"
+            }
+          },
+          "output": {
+            "item": "TaskMetaDdbRecord — append to results as skippedDuplicate, no writes for this linkage"
+          }
+        },
+        {
+          "step": "B3",
+          "name": "createTaskTransact",
+          "when": "resolve returned missing",
+          "operation": "TransactWriteItems",
+          "conditionOnEachPut": "attribute_not_exists(sk)",
+          "items": [
+            {
+              "action": "Put",
+              "entityType": "RuntimeTaskInstance",
+              "key": {
+                "pk": "ORG#<orgId>#PAT#<patientId>",
+                "sk": "DUE#<dueWindowStartOrMaxMs13>#TASK#<runtimeTaskInstanceId>"
+              },
+              "attributes": {
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "from JWT",
+                "patientId": "from body",
+                "patientDisplayName": "from body",
+                "runtimeTaskInstanceId": "deterministic hash per linkage",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "from body",
+                "carePlanTaskLinkageId": "from linkage",
+                "taskGenerationTrigger": "from body",
+                "workflowStage": "from body when provided",
+                "sourceTaskTemplateVersionId": "from linkage when provided",
+                "taskBehaviorCode": "from linkage",
+                "taskDisplayGroup": "from linkage",
+                "displayTitle": "from linkage",
+                "description": "from linkage when provided",
+                "assignedToType": "from linkage",
+                "displayToPatient": "from linkage",
+                "assignedToStaffId": "from linkage when staff",
+                "assignedToStaffDisplayName": "from linkage when staff",
+                "actionTargetId": "from linkage when provided",
+                "completionSourceType": "from linkage when provided",
+                "completionSourceReferenceId": "from linkage when provided",
+                "currentState": "open",
+                "dueWindowStart": "resolved: dueWindowStart ?? dueWindowEnd",
+                "dueWindowEnd": "from linkage",
+                "reminderEnabled": "from linkage when provided",
+                "reminderSettings": "from linkage when provided",
+                "requiredForStageCompletion": "from linkage when provided",
+                "displayAsChecklistItem": "from linkage when provided",
+                "idempotencyKey": "string",
+                "generationHash": "sha256 hex",
+                "lsi1Sk": "CP#<carePlanInstanceId>#TASK#<id> (always)",
+                "gsi1Pk": "ORG#<org>#STAFF#<staffId> — only when assignedToStaffId set",
+                "gsi1Sk": "DUE#<dueMs13>#PAT#<patient>#TASK#<id> — only when assignedToStaffId set",
+                "createdAt": "now ms",
+                "createdBy": "system:care-plan-runtime[:actorId]",
+                "lastUpdatedAt": "now ms",
+                "lastUpdatedBy": "same as createdBy",
+                "version": 1
+              },
+              "exampleItem": {
+                "pk": "ORG#org-1#PAT#pat-101",
+                "sk": "DUE#1780567200000#TASK#rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "org-1",
+                "patientId": "pat-101",
+                "patientDisplayName": "Jane Doe",
+                "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-bp-form",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "workflowStage": "onboarding",
+                "sourceTaskTemplateVersionId": "task-tpl-document-form-v2",
+                "taskBehaviorCode": "DOCUMENT_FORM",
+                "taskDisplayGroup": "action",
+                "displayTitle": "Complete blood pressure form",
+                "assignedToType": "patient",
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderEnabled": true,
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "lsi1Sk": "CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "idempotencyKey": "org-1|pat-101|cp-inst-onboard-2026-04-001|link-bp-form|1780567200000|1780610400000",
+                "generationHash": "<sha256-hex>",
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime",
+                "version": 1
+              }
+            },
+            {
+              "action": "Put",
+              "entityType": "TaskLookup",
+              "key": {
+                "pk": "TASK#<runtimeTaskInstanceId>",
+                "sk": "LOOKUP"
+              },
+              "attributes": {
+                "entityType": "TaskLookup",
+                "runtimeTaskInstanceId": "string",
+                "orgId": "string",
+                "patientId": "string",
+                "patientDisplayName": "string",
+                "taskSk": "full META sk",
+                "carePlanInstanceId": "string",
+                "dueWindowStart": "resolved number when set",
+                "dueWindowEnd": "from linkage when set",
+                "assignedToStaffId": "optional",
+                "assignedToStaffDisplayName": "optional",
+                "reminderHistory": []
+              },
+              "exampleItem": {
+                "pk": "TASK#rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "sk": "LOOKUP",
+                "entityType": "TaskLookup",
+                "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "orgId": "org-1",
+                "patientId": "pat-101",
+                "patientDisplayName": "Jane Doe",
+                "taskSk": "DUE#1780567200000#TASK#rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderHistory": []
+              }
+            },
+            {
+              "action": "Put",
+              "entityType": "TaskHistory",
+              "key": {
+                "pk": "TASK#<runtimeTaskInstanceId>",
+                "sk": "HIST#<nowMs13>#<uuid>"
+              },
+              "attributes": {
+                "entityType": "TaskHistory",
+                "taskStateHistoryId": "uuid",
+                "historyEventType": "stateChange",
+                "toState": "open",
+                "transitionAt": "now ms",
+                "transitionBy": "system:care-plan-runtime[:actorId]",
+                "transitionSource": "system",
+                "transitionReason": "carePlanTaskLinkage create (<taskGenerationTrigger>)"
+              },
+              "exampleItem": {
+                "pk": "TASK#rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "sk": "HIST#1780554600000#a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "entityType": "TaskHistory",
+                "taskStateHistoryId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "historyEventType": "stateChange",
+                "toState": "open",
+                "transitionAt": 1780554600000,
+                "transitionBy": "system:care-plan-runtime",
+                "transitionSource": "system",
+                "transitionReason": "carePlanTaskLinkage create (carePlanStageEntered)"
+              }
+            }
+          ],
+          "output": {
+            "success": "returns META record — linkage result outcome created",
+            "TransactionCanceledException": "re-run resolve; if same-org META found → skippedDuplicate for linkage"
+          }
+        }
+      ],
+      "operationSummary": {
+        "dryRunTrue": "0 DynamoDB ops per linkage (in-memory only)",
+        "dryRunFalseNewLinkage": "GetItem LOOKUP (miss) + TransactWrite Put×3 per linkage",
+        "dryRunFalseReplay": "GetItem LOOKUP + GetItem META per linkage (no writes)",
+        "multiLinkageBatch": "N linkages → up to 2N Gets + up to 3N Puts (only for new linkages)"
+      },
+      "httpResponse": {
+        "statusCodes": {
+          "200": "all linkages processed (mix of created and skippedDuplicate allowed)",
+          "401": "missing JWT org",
+          "409": "IDEMPOTENCY_KEY_IN_USE (any linkage cross-org conflict aborts whole batch)",
+          "422": "VALIDATION_ERROR (schema or staff fields missing)"
+        },
+        "data": {
+          "results": [
+            {
+              "runtimeTaskInstanceId": "string",
+              "outcome": "created | skippedDuplicate",
+              "task": "RuntimeTaskCard"
+            }
+          ]
+        },
+        "example": {
+          "results": [
+            {
+              "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+              "outcome": "created",
+              "task": {
+                "orgId": "org-1",
+                "patientId": "pat-101",
+                "patientDisplayName": "Jane Doe",
+                "runtimeTaskInstanceId": "rtask-7k9m2p4q8x1n6w3e5r8t0y2u4i6o8",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-bp-form",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "workflowStage": "onboarding",
+                "taskBehaviorCode": "DOCUMENT_FORM",
+                "taskDisplayGroup": "action",
+                "displayTitle": "Complete blood pressure form",
+                "assignedToType": "patient",
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderEnabled": true,
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedBy": "system:care-plan-runtime"
+              }
+            },
+            {
+              "runtimeTaskInstanceId": "rtask-staff-linkage-hash-id",
+              "outcome": "skippedDuplicate",
+              "task": {
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "assignedToType": "orgStaff",
+                "assignedToStaffId": "staff-nurse-44721",
+                "currentState": "open"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "GET /tasks": {
+      "method": "GET",
+      "path": "/tasks",
+      "purpose": "Patient-scoped task list for care UI — one DynamoDB page split into patientTasks and staffTasks buckets. Read-only.",
+      "idempotent": true,
+      "httpInput": {
+        "headers": {
+          "Authorization": "Bearer <JWT> (required)"
+        },
+        "query": {
+          "patientId": "string (required)",
+          "staffUserId": "string (optional — required to populate staffTasks for a specific nurse on this patient chart)",
+          "carePlanInstanceId": "string (optional — switches query to CarePlanIndex LSI)",
+          "workflowStage": "onboarding | ongoing | review | closure (optional FilterExpression)",
+          "currentState": "open | scheduled | active | completed | missed | dismissed | cancelled (optional)",
+          "pageSize": "integer (optional, default 50, max 200)",
+          "nextToken": "opaque pagination cursor (optional)"
+        },
+        "resolvedServerSide": {
+          "organizationId": "JWT custom:organizationID"
+        },
+        "exampleRequest": "GET /tasks?patientId=pat-maria-88201&staffUserId=staff-nurse-patel-44721&workflowStage=onboarding&pageSize=50"
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "queryPatientTasksPage",
+          "operation": "Query",
+          "note": "Single query per HTTP request — pagination token applies to raw DDB page before in-memory split",
+          "variants": [
+            {
+              "name": "defaultDueDateSort",
+              "when": "carePlanInstanceId not provided",
+              "input": {
+                "TableName": "TASK_TABLE",
+                "KeyConditionExpression": "pk = :pk AND begins_with(sk, :duePrefix)",
+                "ExpressionAttributeValues": {
+                  ":pk": "ORG#<orgId>#PAT#<patientId>",
+                  ":duePrefix": "DUE#",
+                  ":metaEntity": "RuntimeTaskInstance"
+                },
+                "FilterExpression": "entityType = :metaEntity [AND workflowStage = :workflowStage] [AND currentState = :currentState] [OR terminal exclusion when currentState omitted]",
+                "terminalExclusionWhenNoCurrentState": "currentState <> completed AND <> missed AND <> dismissed AND <> cancelled",
+                "Limit": "pageSize",
+                "ExclusiveStartKey": "decodeTaskHistoryCursor(nextToken) when provided"
+              },
+              "sortOrder": "sk ascending (due date order via DUE#<ms13> prefix)"
+            },
+            {
+              "name": "carePlanScoped",
+              "when": "carePlanInstanceId provided",
+              "input": {
+                "TableName": "TASK_TABLE",
+                "IndexName": "CarePlanIndex",
+                "KeyConditionExpression": "pk = :pk AND begins_with(lsi1Sk, :cpPrefix)",
+                "ExpressionAttributeValues": {
+                  ":pk": "ORG#<orgId>#PAT#<patientId>",
+                  ":cpPrefix": "CP#<carePlanInstanceId>#",
+                  ":metaEntity": "RuntimeTaskInstance"
+                },
+                "FilterExpression": "same as default variant",
+                "Limit": "pageSize",
+                "ExclusiveStartKey": "decoded nextToken"
+              }
+            }
+          ],
+          "output": {
+            "items": "TaskMetaDdbRecord[] — see schemas.TaskMetaDdbRecord for all fields",
+            "lastEvaluatedKey": "DynamoDB cursor encoded as HTTP nextToken",
+            "noWrites": true
+          },
+          "exampleQueryResult": {
+            "items": [
+              {
+                "pk": "ORG#org-acme-001#PAT#pat-maria-88201",
+                "sk": "DUE#1780567200000#TASK#rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-watch-bp-video",
+                "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "EDUCATION_VIDEO",
+                "taskDisplayGroup": "learning",
+                "displayTitle": "Watch: Managing blood pressure",
+                "description": "5-minute overview of home BP monitoring",
+                "assignedToType": "patient",
+                "workflowStage": "onboarding",
+                "actionTargetId": "content-asset-bp-video-001",
+                "completionSourceType": "linkedObject",
+                "completionSourceReferenceId": "content-asset-bp-video-001",
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780653600000,
+                "reminderEnabled": true,
+                "reminderSettings": { "channels": ["push"], "quietHoursRespected": true },
+                "idempotencyKey": "org-acme-001|pat-maria-88201|cp-inst-onboard-2026-04-001|link-watch-bp-video|1780567200000|1780653600000",
+                "generationHash": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+                "lsi1Sk": "CP#cp-inst-onboard-2026-04-001#TASK#rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime",
+                "version": 1
+              },
+              {
+                "pk": "ORG#org-acme-001#PAT#pat-maria-88201",
+                "sk": "DUE#1780567200000#TASK#rtask-ff99ee88dd77cc66bb55aa4433221100",
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-ff99ee88dd77cc66bb55aa4433221100",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-bp-form",
+                "sourceTaskTemplateVersionId": "task-tpl-document-form-v2",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "DOCUMENT_FORM",
+                "taskDisplayGroup": "action",
+                "displayTitle": "Complete blood pressure form",
+                "assignedToType": "patient",
+                "workflowStage": "onboarding",
+                "completionSourceType": "document",
+                "completionSourceReferenceId": "doc-req-88210",
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderEnabled": false,
+                "idempotencyKey": "org-acme-001|pat-maria-88201|cp-inst-onboard-2026-04-001|link-bp-form|1780567200000|1780610400000",
+                "generationHash": "b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a",
+                "lsi1Sk": "CP#cp-inst-onboard-2026-04-001#TASK#rtask-ff99ee88dd77cc66bb55aa4433221100",
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime",
+                "version": 1
+              },
+              {
+                "pk": "ORG#org-acme-001#PAT#pat-maria-88201",
+                "sk": "DUE#1780581600000#TASK#rtask-8f3a2c1d9e7b4f6a1c0d8e5b2a9f7c3",
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-8f3a2c1d9e7b4f6a1c0d8e5b2a9f7c3",
+                "runtimeTaskSource": "monitoringRuntime",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "monitoringInstanceId": "mon-inst-bp-weekly-042",
+                "taskBehaviorCode": "METRIC_CHECKIN",
+                "taskDisplayGroup": "checkIn",
+                "displayTitle": "Record your health metrics",
+                "assignedToType": "patient",
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780581600000,
+                "dueWindowEnd": 1780668000000,
+                "reminderEnabled": true,
+                "reminderSettings": { "channels": ["push"] },
+                "idempotencyKey": "org-acme-001|pat-maria-88201|mon-inst-bp-weekly-042|METRIC_CHECKIN|1780581600000|1780668000000|patient|",
+                "generationHash": "c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a1b2",
+                "lsi1Sk": "CP#cp-inst-onboard-2026-04-001#TASK#rtask-8f3a2c1d9e7b4f6a1c0d8e5b2a9f7c3",
+                "createdAt": 1780581700000,
+                "createdBy": "system:monitoring-runtime",
+                "lastUpdatedAt": 1780581700000,
+                "lastUpdatedBy": "system:monitoring-runtime",
+                "version": 1
+              },
+              {
+                "pk": "ORG#org-acme-001#PAT#pat-maria-88201",
+                "sk": "DUE#1780650000000#TASK#rtask-staff77abc001def002ghi003jkl004",
+                "entityType": "RuntimeTaskInstance",
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-staff77abc001def002ghi003jkl004",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-nurse-call",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "CARE_TEAM_TASK",
+                "taskDisplayGroup": "staffTask",
+                "displayTitle": "Welcome call with nurse",
+                "assignedToType": "orgStaff",
+                "assignedToStaffId": "staff-nurse-patel-44721",
+                "assignedToStaffDisplayName": "Nurse Patel",
+                "workflowStage": "onboarding",
+                "displayToPatient": false,
+                "currentState": "open",
+                "dueWindowStart": 1780650000000,
+                "dueWindowEnd": 1780736400000,
+                "idempotencyKey": "org-acme-001|pat-maria-88201|cp-inst-onboard-2026-04-001|link-nurse-call|1780650000000|1780736400000",
+                "generationHash": "d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a1b2c3",
+                "lsi1Sk": "CP#cp-inst-onboard-2026-04-001#TASK#rtask-staff77abc001def002ghi003jkl004",
+                "gsi1Pk": "ORG#org-acme-001#STAFF#staff-nurse-patel-44721",
+                "gsi1Sk": "DUE#1780650000000#PAT#pat-maria-88201#TASK#rtask-staff77abc001def002ghi003jkl004",
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime",
+                "version": 1
+              }
+            ],
+            "lastEvaluatedKey": null
+          }
+        }
+      ],
+      "postDbProcessing": {
+        "bucketSplit": {
+          "patientTasks": "assignedToType === patient (includes monitoring + care-plan patient linkages)",
+          "staffTasks": "assignedToType === orgStaff AND assignedToStaffId === staffUserId — only when staffUserId query param is set",
+          "omitted": "orgStaff rows not matching staffUserId appear in neither bucket; without staffUserId param staffTasks is always empty"
+        },
+        "wireNormalization": "legacy currentState active/scheduled → open; legacy assignedToType staff → orgStaff",
+        "sort": "dueWindowStart ascending within each bucket (re-sorted after split)",
+        "pagination": "one nextToken for underlying query — both buckets are slices of the same DDB page"
+      },
+      "operationSummary": {
+        "typicalCall": "1× Query on patient PK (or CarePlanIndex)",
+        "withPagination": "1× Query per page until client exhausts nextToken",
+        "writes": 0
+      },
+      "httpResponse": {
+        "statusCodes": {
+          "200": "success (may return empty buckets)",
+          "400": "VALIDATION_ERROR — missing patientId or invalid enum/pageSize",
+          "401": "UNAUTHORIZED — missing JWT org"
+        },
+        "data": {
+          "ref": "schemas.PatientTaskListData",
+          "patientId": "string",
+          "staffUserId": "string (only when query param provided)",
+          "patientTasks": { "items": "RuntimeTaskCard[] — see schemas.RuntimeTaskCard" },
+          "staffTasks": { "items": "RuntimeTaskCard[] — see schemas.RuntimeTaskCard" },
+          "nextToken": "string | undefined"
+        },
+        "example": {
+          "patientId": "pat-maria-88201",
+          "staffUserId": "staff-nurse-patel-44721",
+          "patientTasks": {
+            "items": [
+              {
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-watch-bp-video",
+                "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "EDUCATION_VIDEO",
+                "taskDisplayGroup": "learning",
+                "displayTitle": "Watch: Managing blood pressure",
+                "description": "5-minute overview of home BP monitoring",
+                "assignedToType": "patient",
+                "workflowStage": "onboarding",
+                "actionTargetId": "content-asset-bp-video-001",
+                "completionSourceType": "linkedObject",
+                "completionSourceReferenceId": "content-asset-bp-video-001",
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780653600000,
+                "reminderEnabled": true,
+                "reminderSettings": { "channels": ["push"], "quietHoursRespected": true },
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime"
+              },
+              {
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-ff99ee88dd77cc66bb55aa4433221100",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-bp-form",
+                "sourceTaskTemplateVersionId": "task-tpl-document-form-v2",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "DOCUMENT_FORM",
+                "taskDisplayGroup": "action",
+                "displayTitle": "Complete blood pressure form",
+                "assignedToType": "patient",
+                "workflowStage": "onboarding",
+                "completionSourceType": "document",
+                "completionSourceReferenceId": "doc-req-88210",
+                "requiredForStageCompletion": true,
+                "displayAsChecklistItem": true,
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780567200000,
+                "dueWindowEnd": 1780610400000,
+                "reminderEnabled": false,
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime"
+              },
+              {
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-8f3a2c1d9e7b4f6a1c0d8e5b2a9f7c3",
+                "runtimeTaskSource": "monitoringRuntime",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "monitoringInstanceId": "mon-inst-bp-weekly-042",
+                "taskBehaviorCode": "METRIC_CHECKIN",
+                "taskDisplayGroup": "checkIn",
+                "displayTitle": "Record your health metrics",
+                "assignedToType": "patient",
+                "displayToPatient": true,
+                "currentState": "open",
+                "dueWindowStart": 1780581600000,
+                "dueWindowEnd": 1780668000000,
+                "reminderEnabled": true,
+                "reminderSettings": { "channels": ["push"] },
+                "createdAt": 1780581700000,
+                "createdBy": "system:monitoring-runtime",
+                "lastUpdatedAt": 1780581700000,
+                "lastUpdatedBy": "system:monitoring-runtime"
+              }
+            ]
+          },
+          "staffTasks": {
+            "items": [
+              {
+                "orgId": "org-acme-001",
+                "patientId": "pat-maria-88201",
+                "patientDisplayName": "Maria Lopez",
+                "runtimeTaskInstanceId": "rtask-staff77abc001def002ghi003jkl004",
+                "runtimeTaskSource": "carePlanTaskLinkage",
+                "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+                "carePlanTaskLinkageId": "link-nurse-call",
+                "taskGenerationTrigger": "carePlanStageEntered",
+                "taskBehaviorCode": "CARE_TEAM_TASK",
+                "taskDisplayGroup": "staffTask",
+                "displayTitle": "Welcome call with nurse",
+                "assignedToType": "orgStaff",
+                "assignedToStaffId": "staff-nurse-patel-44721",
+                "assignedToStaffDisplayName": "Nurse Patel",
+                "workflowStage": "onboarding",
+                "displayToPatient": false,
+                "currentState": "open",
+                "dueWindowStart": 1780650000000,
+                "dueWindowEnd": 1780736400000,
+                "createdAt": 1780554600000,
+                "createdBy": "system:care-plan-runtime",
+                "lastUpdatedAt": 1780554600000,
+                "lastUpdatedBy": "system:care-plan-runtime"
+              }
+            ]
+          },
+          "nextToken": null
+        }
+      },
+      "workflowScenario": {
+        "title": "Care coordinator opens Maria's chart",
+        "actors": ["Care UI", "Nurse Patel viewing Maria's onboarding tasks"],
+        "precondition": "Maria has tasks from generate-care-plan + monitoring-action (Stories 1–2)",
+        "flow": [
+          "Care UI calls GET /tasks?patientId=pat-maria-88201&staffUserId=staff-nurse-patel-44721&workflowStage=onboarding",
+          "DynamoDB Query on ORG#org-acme-001#PAT#pat-maria-88201 begins_with DUE# with workflowStage filter",
+          "DDB returns META rows: 2 patient tasks + 1 staff task (+ monitoring task if in stage)",
+          "Service puts patient-assigned rows in patientTasks, Patel's staff row in staffTasks",
+          "UI renders patient checklist and nurse's assigned call side-by-side on same chart"
+        ]
+      }
+    },
+    "POST /tasks": {
+      "method": "POST",
+      "path": "/tasks",
+      "purpose": "Ad-hoc / service-flow / manual runtime task create (non-idempotent).",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "body": {
+          "patientId": "string (required)",
+          "patientDisplayName": "string (required)",
+          "runtimeTaskSource": "serviceFlowRuntime | manualSystem (required)",
+          "taskBehaviorCode": "string (required)",
+          "taskDisplayGroup": "string (required)",
+          "displayTitle": "string (required)",
+          "assignedToType": "string (required)",
+          "displayToPatient": "boolean (required)",
+          "carePlanInstanceId": "optional",
+          "workflowStage": "optional",
+          "description": "optional",
+          "assignedToStaffId": "required when staff",
+          "assignedToStaffDisplayName": "required when staff",
+          "dueWindowStart": "optional number",
+          "dueWindowEnd": "optional number",
+          "reminderEnabled": "optional boolean"
+        },
+        "resolvedServerSide": {
+          "organizationId": "JWT",
+          "runtimeTaskInstanceId": "rtask-<randomUUID>",
+          "createdBy": "system:service-flow-runtime | user:<jwtUserId> for manualSystem"
+        }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "createTaskTransact",
+          "operation": "TransactWriteItems",
+          "conditionOnEachPut": "attribute_not_exists(sk)",
+          "items": [
+            {
+              "action": "Put",
+              "entityType": "RuntimeTaskInstance",
+              "attributes": {
+                "runtimeTaskSource": "from body",
+                "currentState": "scheduled if future dueWindowStart else open",
+                "gsi1Pk": "only when assignedToStaffId set"
+              }
+            },
+            { "action": "Put", "entityType": "TaskLookup" },
+            {
+              "action": "Put",
+              "entityType": "TaskHistory",
+              "attributes": {
+                "historyEventType": "stateChange",
+                "transitionSource": "manual for manualSystem else system"
+              }
+            }
+          ],
+          "output": { "success": "META record" }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": { "200": "success", "401": "auth", "422": "validation", "500": "internal" },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "task": "RuntimeTaskCard"
+        }
+      }
+    },
+    "GET /tasks/{runtimeTaskInstanceId}": {
+      "method": "GET",
+      "path": "/tasks/{runtimeTaskInstanceId}",
+      "purpose": "Single task detail with optional related records.",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "query": { "includeRelated": "boolean default true" },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } },
+          "output": { "notFound": "404 TASK_NOT_FOUND", "wrongOrg": "403 FORBIDDEN" }
+        },
+        {
+          "step": 2,
+          "name": "getMeta",
+          "operation": "GetItem",
+          "input": {
+            "Key": {
+              "pk": "ORG#<lookup.orgId>#PAT#<lookup.patientId>",
+              "sk": "<lookup.taskSk>"
+            }
+          },
+          "output": { "notFound": "404 TASK_NOT_FOUND" }
+        },
+        {
+          "step": 3,
+          "name": "queryEvidence",
+          "when": "includeRelated !== false",
+          "operation": "Query",
+          "input": {
+            "KeyConditionExpression": "pk = :pk AND begins_with(sk, :prefix)",
+            "ExpressionAttributeValues": {
+              ":pk": "TASK#<id>",
+              ":prefix": "EVID#"
+            },
+            "ScanIndexForward": false
+          },
+          "output": { "items": "CompletionEvidenceDdbRecord[]" }
+        },
+        {
+          "step": "3-inline",
+          "name": "remindersAndSummary",
+          "when": "includeRelated !== false",
+          "operation": "none",
+          "output": {
+            "reminders": "lookup.reminderHistory (embedded on LOOKUP)",
+            "evidenceSummary": "lookup.evidenceSummary if set"
+          }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": { "200": "success", "401": "auth", "403": "forbidden", "404": "not found" },
+        "data": {
+          "task": "RuntimeTaskCard",
+          "reminders": "array (omitted when includeRelated=false)",
+          "completionEvidence": "array (omitted when includeRelated=false)",
+          "evidenceSummary": "object (omitted when includeRelated=false)"
+        }
+      }
+    },
+    "GET /tasks/{runtimeTaskInstanceId}/history": {
+      "method": "GET",
+      "path": "/tasks/{runtimeTaskInstanceId}/history",
+      "purpose": "Paginated audit timeline (newest first).",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "query": {
+          "pageSize": "default 50 max 200",
+          "nextToken": "opaque cursor"
+        }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } },
+          "output": { "note": "org scope check same as GET detail" }
+        },
+        {
+          "step": 2,
+          "name": "queryHistory",
+          "operation": "Query",
+          "input": {
+            "KeyConditionExpression": "pk = :pk AND begins_with(sk, :prefix)",
+            "ExpressionAttributeValues": {
+              ":pk": "TASK#<id>",
+              ":prefix": "HIST#"
+            },
+            "ScanIndexForward": false,
+            "Limit": "pageSize",
+            "ExclusiveStartKey": "decoded nextToken"
+          },
+          "output": {
+            "items": "TaskHistDdbRecord[] (stateChange, assignedToStaffChange, reminderSettingsChange, reminderRegisterRequest, reminderCancelRequest, taskMetadataChange)",
+            "lastEvaluatedKey": "nextToken"
+          }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": { "200": "success", "401": "auth", "403": "forbidden", "404": "not found" },
+        "data": {
+          "items": "TaskHistoryEntry[] (pk/sk/entityType/orgId/patientId/runtimeTaskInstanceId stripped)",
+          "nextToken": "string | undefined"
+        }
+      }
+    },
+    "PUT /tasks/{runtimeTaskInstanceId}/assigned-staff": {
+      "method": "PUT",
+      "path": "/tasks/{runtimeTaskInstanceId}/assigned-staff",
+      "purpose": "Initial staff assignment or reassignment for orgStaff tasks.",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "body": {
+          "actorId": "string (required)",
+          "assignedToStaffId": "string (required)",
+          "assignedToStaffDisplayName": "string (required)",
+          "reason": "string (optional)"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } }
+        },
+        {
+          "step": 2,
+          "name": "getMeta",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "patientPk", "sk": "lookup.taskSk" } }
+        },
+        {
+          "step": 3,
+          "name": "reassignStaffTransact",
+          "operation": "TransactWriteItems",
+          "items": [
+            {
+              "action": "Update",
+              "target": "META",
+              "firstAssignment": "SET assignedToStaffId, assignedToStaffDisplayName, gsi1Pk, gsi1Sk, lastUpdatedAt, lastUpdatedBy",
+              "reassignment": "SET assignedToStaffId, assignedToStaffDisplayName, gsi1Pk, lastUpdatedAt, lastUpdatedBy (gsi1Sk unchanged)",
+              "ConditionExpression": "attribute_exists(sk)"
+            },
+            {
+              "action": "Update",
+              "target": "LOOKUP",
+              "UpdateExpression": "SET assignedToStaffId, assignedToStaffDisplayName"
+            },
+            {
+              "action": "Put",
+              "target": "HIST",
+              "attributes": {
+                "historyEventType": "assignedToStaffChange",
+                "transitionSource": "manual",
+                "staffChangeFields": "previousAssignedToStaffId, newAssignedToStaffId, previousAssignedToStaffDisplayName, newAssignedToStaffDisplayName"
+              },
+              "ConditionExpression": "attribute_not_exists(sk)"
+            }
+          ]
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": {
+          "200": "success",
+          "401": "auth",
+          "403": "forbidden",
+          "404": "not found",
+          "422": "NOT_STAFF_TASK | STAFF_ALREADY_ASSIGNED"
+        },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "task": "RuntimeTaskCard",
+          "historyEntry": "TaskHistoryEntry"
+        }
+      }
+    },
+    "GET /staff/tasks": {
+      "method": "GET",
+      "path": "/staff/tasks",
+      "purpose": "Staff inbox — tasks assigned via GSI1. staffUserId must match JWT custom:userID.",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "query": {
+          "staffUserId": "string (required, must match JWT user)",
+          "patientId": "string (optional FilterExpression)",
+          "carePlanInstanceId": "string (optional FilterExpression)",
+          "currentState": "enum (optional)",
+          "pageSize": "default 50 max 200",
+          "nextToken": "opaque cursor"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "queryStaffInbox",
+          "operation": "Query",
+          "input": {
+            "TableName": "TASK_TABLE",
+            "IndexName": "StaffPatientTasksIndex",
+            "KeyConditionExpression": "gsi1Pk = :gsi1Pk AND begins_with(gsi1Sk, :duePrefix)",
+            "ExpressionAttributeValues": {
+              ":gsi1Pk": "ORG#<orgId>#STAFF#<staffUserId>",
+              ":duePrefix": "DUE#",
+              ":metaEntity": "RuntimeTaskInstance"
+            },
+            "FilterExpression": "entityType = :metaEntity [AND patientId] [AND carePlanInstanceId] [AND currentState] [AND terminal exclusion]",
+            "Limit": "pageSize"
+          },
+          "output": {
+            "items": "TaskMetaDdbRecord[]",
+            "lastEvaluatedKey": "nextToken"
+          }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": { "200": "success", "400": "bad request", "401": "auth", "403": "staffUserId mismatch" },
+        "data": {
+          "items": "RuntimeTaskCard[]",
+          "nextToken": "string | undefined"
+        }
+      }
+    },
+    "GET /action-center/items": {
+      "method": "GET",
+      "path": "/action-center/items",
+      "purpose": "Patient Action Center with server-derived surfaceSection.",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "query": {
+          "patientId": "string (required)",
+          "surfaceSection": "today | upcoming | needsAttention | history | carePlanChecklist | all (required)",
+          "timezone": "IANA string default UTC",
+          "carePlanInstanceId": "optional",
+          "workflowStage": "optional",
+          "pageSize": "optional",
+          "nextToken": "optional"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "queryActionCenterTasks",
+          "operation": "Query",
+          "variants": [
+            {
+              "when": "no carePlanInstanceId",
+              "input": {
+                "KeyConditionExpression": "pk = :pk AND begins_with(sk, :duePrefix)",
+                "FilterExpression": "entityType = RuntimeTaskInstance AND displayToPatient = true AND assignedToType = patient"
+              }
+            },
+            {
+              "when": "carePlanInstanceId provided",
+              "input": {
+                "IndexName": "CarePlanIndex",
+                "KeyConditionExpression": "pk = :pk AND begins_with(lsi1Sk, :cpPrefix)",
+                "FilterExpression": "same patient-facing filters"
+              }
+            }
+          ],
+          "output": { "items": "TaskMetaDdbRecord[]" }
+        }
+      ],
+      "postDbProcessing": {
+        "surfaceSection": "derived from currentState + dueWindowStart/End + timezone",
+        "carePlanChecklist": "displayAsChecklistItem === true and not history"
+      },
+      "httpResponse": {
+        "statusCodes": { "200": "success", "401": "auth", "403": "forbidden", "404": "not found" },
+        "data": {
+          "singleSection": "{ patientId, surfaceSection, timezone, items[], nextToken }",
+          "allSections": "{ patientId, timezone, sections: { today, upcoming, needsAttention, history, carePlanChecklist }, nextToken }",
+          "itemShape": "RuntimeTaskCard + surfaceSection"
+        }
+      }
+    },
+    "POST /tasks/{runtimeTaskInstanceId}/state": {
+      "method": "POST",
+      "path": "/tasks/{runtimeTaskInstanceId}/state",
+      "purpose": "Manual state transition with optimistic concurrency and audit trail.",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "body": {
+          "action": "complete | dismiss | cancel | markMissed (required)",
+          "actorId": "string (required)",
+          "actorType": "patient | staff (required)",
+          "expectedCurrentState": "enum (required)",
+          "reason": "string (optional)",
+          "evidencePayload": "object (optional)"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } }
+        },
+        {
+          "step": 2,
+          "name": "getMeta",
+          "operation": "GetItem"
+        },
+        {
+          "step": 3,
+          "name": "transitionStateTransact",
+          "operation": "TransactWriteItems",
+          "items": [
+            {
+              "action": "Update",
+              "target": "META",
+              "UpdateExpression": "SET currentState, lastUpdatedAt, lastUpdatedBy, version++",
+              "ConditionExpression": "currentState = :expected",
+              "mismatch": "409 EXPECTED_STATE_MISMATCH"
+            },
+            {
+              "action": "Put",
+              "target": "HIST",
+              "attributes": {
+                "historyEventType": "stateChange",
+                "fromState": "from META",
+                "toState": "from action",
+                "transitionSource": "manual"
+              }
+            },
+            {
+              "action": "Update",
+              "target": "LOOKUP",
+              "when": "toState is completed | dismissed | cancelled | missed",
+              "UpdateExpression": "SET reminderHistory (cancel open entries) [, evidenceSummary for completed/missed]"
+            },
+            {
+              "action": "Put",
+              "target": "HIST",
+              "when": "terminal + had cancellable reminders",
+              "attributes": { "historyEventType": "reminderCancelRequest" }
+            },
+            {
+              "action": "Put",
+              "target": "EVID",
+              "when": "completed + evidencePayload present",
+              "key": { "sk": "EVID#..." }
+            }
+          ],
+          "output": { "updatedMeta": "TaskMetaDdbRecord", "historyEntry": "TaskHistDdbRecord" }
+        },
+        {
+          "step": 4,
+          "name": "publishCancelReminderJobs",
+          "when": "after commit, non-blocking",
+          "operation": "EventBridge",
+          "note": "when terminal transition cancelled scheduled reminders"
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": {
+          "200": "success",
+          "401": "auth",
+          "403": "forbidden",
+          "404": "not found",
+          "409": "EXPECTED_STATE_MISMATCH",
+          "422": "INVALID_STATE_TRANSITION | ACTOR_NOT_ALLOWED"
+        },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "currentState": "string",
+          "surfaceSection": "history | today | ... (derived)",
+          "historyEntry": "TaskHistoryEntry"
+        }
+      }
+    },
+    "GET /care-plans/{carePlanInstanceId}/task-status-summary": {
+      "method": "GET",
+      "path": "/care-plans/{carePlanInstanceId}/task-status-summary",
+      "purpose": "Care-plan stage readiness aggregate (computed read, not persisted).",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "carePlanInstanceId": "string (required)" },
+        "query": {
+          "patientId": "string (required)",
+          "workflowStage": "enum (optional)"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "queryCarePlanTasks",
+          "operation": "Query",
+          "input": {
+            "IndexName": "CarePlanIndex",
+            "KeyConditionExpression": "pk = :pk AND begins_with(lsi1Sk, :cpPrefix)",
+            "ExpressionAttributeValues": {
+              ":pk": "ORG#<orgId>#PAT#<patientId>",
+              ":cpPrefix": "CP#<carePlanInstanceId>#",
+              ":metaEntity": "RuntimeTaskInstance"
+            },
+            "FilterExpression": "entityType = :metaEntity [AND workflowStage]",
+            "pagination": "up to 20 rounds × 200 items until exhausted"
+          },
+          "output": { "items": "TaskMetaDdbRecord[] (all pages merged)" }
+        }
+      ],
+      "postDbProcessing": {
+        "counts": "by currentState",
+        "requiredTotal": "requiredForStageCompletion === true",
+        "readinessStatus": "notApplicable | ready | notReady",
+        "incompleteRequiredTasks": "required tasks not completed"
+      },
+      "httpResponse": {
+        "statusCodes": { "200": "success", "400": "bad request", "401": "auth" },
+        "data": {
+          "orgId": "string",
+          "patientId": "string",
+          "carePlanInstanceId": "string",
+          "workflowStage": "string | undefined",
+          "readinessStatus": "notApplicable | ready | notReady",
+          "counts": {
+            "total": "number",
+            "requiredTotal": "number",
+            "completed": "number",
+            "missed": "number",
+            "active": "number",
+            "scheduled": "number"
+          },
+          "incompleteRequiredTasks": "array of { runtimeTaskInstanceId, displayTitle, requiredForStageCompletion, currentState }"
+        }
+      }
+    },
+    "PATCH /tasks/{runtimeTaskInstanceId}": {
+      "method": "PATCH",
+      "path": "/tasks/{runtimeTaskInstanceId}",
+      "purpose": "Portal partial metadata edit on META (+ LOOKUP when patientDisplayName changes).",
+      "idempotent": false,
+      "httpInput": {
+        "headers": { "Authorization": "Bearer <JWT>" },
+        "path": { "runtimeTaskInstanceId": "string (required)" },
+        "body": {
+          "actorId": "string (required)",
+          "reason": "string (optional)",
+          "displayTitle": "string (optional)",
+          "description": "string | null (optional)",
+          "displayToPatient": "boolean (optional)",
+          "requiredForStageCompletion": "boolean (optional)",
+          "displayAsChecklistItem": "boolean (optional)",
+          "workflowStage": "onboarding | ongoing | review | closure (optional)",
+          "actionTargetId": "string | null (optional)",
+          "completionSourceType": "string | null (optional)",
+          "completionSourceReferenceId": "string | null (optional)",
+          "patientDisplayName": "string (optional)"
+        },
+        "resolvedServerSide": { "organizationId": "JWT" },
+        "validation": {
+          "atLeastOneMutableField": true,
+          "forbiddenFields": [
+            "dueWindowStart",
+            "dueWindowEnd",
+            "patientId",
+            "orgId",
+            "carePlanInstanceId",
+            "runtimeTaskSource",
+            "currentState",
+            "assignedToType",
+            "assignedToStaffId",
+            "reminderEnabled",
+            "reminderSettings"
+          ]
+        }
+      },
+      "databaseOperations": [
+        {
+          "step": 1,
+          "name": "getLookup",
+          "operation": "GetItem",
+          "input": { "Key": { "pk": "TASK#<id>", "sk": "LOOKUP" } },
+          "output": { "404": "TASK_NOT_FOUND", "403": "org mismatch" }
+        },
+        {
+          "step": 2,
+          "name": "getMeta",
+          "operation": "GetItem",
+          "input": { "Key": "lookup.taskSk (pk + sk)" },
+          "output": { "404": "TASK_NOT_FOUND" }
+        },
+        {
+          "step": 3,
+          "name": "transactWriteMetadata",
+          "operation": "TransactWrite",
+          "items": [
+            {
+              "action": "Update",
+              "target": "META",
+              "UpdateExpression": "SET <changed fields>, lastUpdatedAt, lastUpdatedBy, version++",
+              "ConditionExpression": "attribute_exists(sk)"
+            },
+            {
+              "action": "Update",
+              "target": "LOOKUP",
+              "when": "patientDisplayName changed",
+              "UpdateExpression": "SET patientDisplayName = :name",
+              "ConditionExpression": "attribute_exists(sk)"
+            },
+            {
+              "action": "Put",
+              "target": "HIST",
+              "attributes": {
+                "historyEventType": "taskMetadataChange",
+                "changedFields": "string[]",
+                "previousValues": "map (sparse)",
+                "newValues": "map (sparse)",
+                "transitionSource": "manual"
+              }
+            }
+          ],
+          "output": { "updatedMeta": "TaskMetaDdbRecord", "historyEntry": "TaskHistDdbRecord" }
+        }
+      ],
+      "httpResponse": {
+        "statusCodes": {
+          "200": "success",
+          "400": "validation (no mutable fields)",
+          "401": "auth",
+          "403": "forbidden",
+          "404": "not found",
+          "422": "TASK_METADATA_UNCHANGED | INVALID_METADATA_FOR_STATE"
+        },
+        "data": {
+          "runtimeTaskInstanceId": "string",
+          "task": "RuntimeTaskCard",
+          "historyEntry": "TaskHistoryEntry"
+        }
+      }
+    }
+  }
+}

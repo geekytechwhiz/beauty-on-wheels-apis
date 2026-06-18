@@ -18,6 +18,20 @@ var mockGetRuntimeTaskDetail: jest.Mock;
 var mockGetRuntimeTaskHistory: jest.Mock;
 // eslint-disable-next-line no-var
 var mockReassignAssignedStaff: jest.Mock;
+// eslint-disable-next-line no-var
+var mockListPatientTasks: jest.Mock;
+// eslint-disable-next-line no-var
+var mockListStaffTasks: jest.Mock;
+// eslint-disable-next-line no-var
+var mockListActionCenterItems: jest.Mock;
+// eslint-disable-next-line no-var
+var mockUpdateTaskState: jest.Mock;
+// eslint-disable-next-line no-var
+var mockGetTaskStatusSummaryByCarePlan: jest.Mock;
+// eslint-disable-next-line no-var
+var mockUpdateReminderSettings: jest.Mock;
+// eslint-disable-next-line no-var
+var mockUpdateRuntimeTask: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
@@ -26,6 +40,13 @@ jest.mock('@api-hub/task-core', () => {
   mockGetRuntimeTaskDetail = jest.fn();
   mockGetRuntimeTaskHistory = jest.fn();
   mockReassignAssignedStaff = jest.fn();
+  mockListPatientTasks = jest.fn();
+  mockListStaffTasks = jest.fn();
+  mockListActionCenterItems = jest.fn();
+  mockUpdateTaskState = jest.fn();
+  mockGetTaskStatusSummaryByCarePlan = jest.fn();
+  mockUpdateReminderSettings = jest.fn();
+  mockUpdateRuntimeTask = jest.fn();
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
@@ -35,7 +56,14 @@ jest.mock('@api-hub/task-core', () => {
       generateCarePlanTasks: mockGenerateCarePlanTasks,
       getRuntimeTaskDetail: mockGetRuntimeTaskDetail,
       getRuntimeTaskHistory: mockGetRuntimeTaskHistory,
+      listPatientTasks: mockListPatientTasks,
+      listStaffTasks: mockListStaffTasks,
+      listActionCenterItems: mockListActionCenterItems,
       reassignAssignedStaff: mockReassignAssignedStaff,
+      updateTaskState: mockUpdateTaskState,
+      getTaskStatusSummaryByCarePlan: mockGetTaskStatusSummaryByCarePlan,
+      updateReminderSettings: mockUpdateReminderSettings,
+      updateRuntimeTask: mockUpdateRuntimeTask,
     })),
   };
 });
@@ -91,6 +119,8 @@ describe('TaskHttpController', () => {
     mockGenerateCarePlanTasks.mockReset();
     mockGetRuntimeTaskDetail.mockReset();
     mockGetRuntimeTaskHistory.mockReset();
+    mockListPatientTasks.mockReset();
+    mockReassignAssignedStaff.mockReset();
   });
 
   it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
@@ -137,6 +167,7 @@ describe('TaskHttpController', () => {
           carePlanInstanceId: 'cp-1',
           monitoringInstanceId: 'mon-1',
           taskBehaviorCode: 'METRIC_CHECKIN',
+          assignedToType: 'patient',
           dueWindowStart: Date.parse('2026-06-05T08:00:00.000Z'),
           dueWindowEnd: Date.parse('2026-06-06T08:00:00.000Z'),
         },
@@ -151,7 +182,7 @@ describe('TaskHttpController', () => {
         orgId: 'org-1',
         patientId: 'pat-1',
         patientDisplayName: 'Test Patient',
-        surfaceSection: expect.any(String),
+        currentState: 'open',
       }),
     });
     expect(mockCreateMonitoringAction).toHaveBeenCalledTimes(1);
@@ -177,6 +208,7 @@ describe('TaskHttpController', () => {
           carePlanInstanceId: 'cp-1',
           monitoringInstanceId: 'mon-1',
           taskBehaviorCode: 'METRIC_CHECKIN',
+          assignedToType: 'patient',
           dueWindowStart: Date.parse('2026-06-05T08:00:00.000Z'),
           dueWindowEnd: Date.parse('2026-06-06T08:00:00.000Z'),
         },
@@ -196,7 +228,7 @@ describe('TaskHttpController', () => {
       taskBehaviorCode: 'CARE_TEAM_TASK',
       taskDisplayGroup: 'staffTask',
       displayTitle: 'Call patient',
-      assignedToType: 'careTeam',
+      assignedToType: 'orgStaff',
       displayToPatient: false,
       assignedToStaffId: 'staff-nurse-44721',
     });
@@ -214,7 +246,7 @@ describe('TaskHttpController', () => {
           taskBehaviorCode: 'CARE_TEAM_TASK',
           taskDisplayGroup: 'staffTask',
           displayTitle: 'Call patient',
-          assignedToType: 'careTeam',
+          assignedToType: 'orgStaff',
           displayToPatient: false,
           assignedToStaffId: 'staff-nurse-44721',
           assignedToStaffDisplayName: 'Nurse Lee',
@@ -228,7 +260,7 @@ describe('TaskHttpController', () => {
       task: expect.objectContaining({
         runtimeTaskSource: 'manualSystem',
         taskDisplayGroup: 'staffTask',
-        surfaceSection: expect.any(String),
+        currentState: 'open',
       }),
     });
     expect(out).not.toHaveProperty('outcome');
@@ -399,6 +431,126 @@ describe('TaskHttpController', () => {
     expect(mockGenerateCarePlanTasks).not.toHaveBeenCalled();
   });
 
+  it('handleGetTasks returns split patient/staff task list on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }] },
+      staffTasks: { items: [] },
+      nextToken: 'cursor-1',
+    };
+    mockListPatientTasks.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetTasks: {
+        orgId: 'org-1',
+        patientId: 'pat-1',
+        staffUserId: 'staff-1',
+        carePlanInstanceId: 'cp-1',
+        workflowStage: 'ongoing',
+        currentState: 'open',
+        pageSize: 25,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetTasks(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockListPatientTasks).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      carePlanInstanceId: 'cp-1',
+      workflowStage: 'ongoing',
+      currentState: 'open',
+      pageSize: 25,
+      nextToken: undefined,
+    });
+  });
+
+  it('handleGetActionCenterItems returns grouped sections on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      patientId: 'pat-1',
+      timezone: 'UTC',
+      sections: {
+        today: [{ runtimeTaskInstanceId: 'rtask-1', surfaceSection: 'today' }],
+        upcoming: [],
+        needsAttention: [],
+        history: [],
+        carePlanChecklist: [],
+      },
+      nextToken: undefined,
+    };
+    mockListActionCenterItems.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetActionCenterItems: {
+        orgId: 'org-1',
+        patientId: 'pat-1',
+        surfaceSection: 'all',
+        timezone: 'UTC',
+        pageSize: 50,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetActionCenterItems(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockListActionCenterItems).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      carePlanInstanceId: undefined,
+      workflowStage: undefined,
+      surfaceSection: 'all',
+      timezone: 'UTC',
+      pageSize: 50,
+      nextToken: undefined,
+    });
+  });
+
+  it('handleGetStaffTasks returns paginated staff inbox on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      items: [{ runtimeTaskInstanceId: 'rtask-staff-1', currentState: 'open' }],
+      nextToken: 'cursor-1',
+    };
+    mockListStaffTasks.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetStaffTasks: {
+        orgId: 'org-1',
+        staffUserId: 'staff-1',
+        pageSize: 25,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1', 'custom:userID': 'staff-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetStaffTasks(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockListStaffTasks).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      staffUserId: 'staff-1',
+      patientId: undefined,
+      carePlanInstanceId: undefined,
+      currentState: undefined,
+      pageSize: 25,
+      nextToken: undefined,
+    });
+  });
+
+  it('handleGetTasks throws 500 when validatedGetTasks missing', async () => {
+    const c = new TaskHttpController();
+    const req = baseReq();
+
+    await expect(c.handleGetTasks(req)).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(mockListPatientTasks).not.toHaveBeenCalled();
+  });
+
   it('handleUpdateAssignedStaff returns reassignment result on success', async () => {
     const c = new TaskHttpController();
     const serviceResult = {
@@ -431,6 +583,164 @@ describe('TaskHttpController', () => {
       assignedToStaffId: 'staff-2',
       assignedToStaffDisplayName: 'Nurse Two',
       reason: 'Shift handoff',
+    });
+  });
+
+  it('handleUpdateTaskState returns state transition result on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      runtimeTaskInstanceId: 'rtask-abc',
+      currentState: 'completed',
+      surfaceSection: 'history',
+      historyEntry: {
+        historyEventType: 'stateChange',
+        fromState: 'open',
+        toState: 'completed',
+      },
+    };
+    mockUpdateTaskState.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedUpdateTaskState: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        body: {
+          action: 'complete',
+          actorId: 'pat-1',
+          actorType: 'patient',
+          expectedCurrentState: 'open',
+          reason: 'Done',
+        },
+      },
+    } as any);
+
+    const out = await c.handleUpdateTaskState(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockUpdateTaskState).toHaveBeenCalledWith(
+      {
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        action: 'complete',
+        actorId: 'pat-1',
+        actorType: 'patient',
+        expectedCurrentState: 'open',
+        reason: 'Done',
+        evidencePayload: undefined,
+      },
+      { correlationId: 'test-correlation-id' },
+    );
+  });
+
+  it('handleUpdateReminderSettings returns updated settings on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      runtimeTaskInstanceId: 'rtask-abc',
+      reminderEnabled: true,
+      reminderSettings: { channels: ['push', 'inApp'] },
+      historyEntry: { historyEventType: 'reminderSettingsChange', newReminderEnabled: true },
+    };
+    mockUpdateReminderSettings.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedUpdateReminderSettings: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        body: {
+          actorId: 'staff-1',
+          reminderEnabled: true,
+          reminderSettings: { channels: ['push', 'inApp'] },
+          reason: 'Patient requested',
+        },
+      },
+    } as any);
+
+    const out = await c.handleUpdateReminderSettings(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockUpdateReminderSettings).toHaveBeenCalledWith(
+      {
+        organizationId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        actorId: 'staff-1',
+        reminderEnabled: true,
+        reminderSettings: { channels: ['push', 'inApp'] },
+        reason: 'Patient requested',
+      },
+      { correlationId: 'test-correlation-id' },
+    );
+  });
+
+  it('handleGetTaskStatusSummary returns readiness summary on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      carePlanInstanceId: 'cp-1',
+      workflowStage: 'onboarding',
+      readinessStatus: 'ready',
+      counts: {
+        total: 2,
+        requiredTotal: 2,
+        completed: 2,
+        missed: 0,
+        active: 0,
+        scheduled: 0,
+      },
+    };
+    mockGetTaskStatusSummaryByCarePlan.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedGetTaskStatusSummary: {
+        orgId: 'org-1',
+        patientId: 'pat-1',
+        carePlanInstanceId: 'cp-1',
+        workflowStage: 'onboarding',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    const out = await c.handleGetTaskStatusSummary(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockGetTaskStatusSummaryByCarePlan).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      carePlanInstanceId: 'cp-1',
+      workflowStage: 'onboarding',
+    });
+  });
+
+  it('handleUpdateRuntimeTask returns updated task on success', async () => {
+    const c = new TaskHttpController();
+    const serviceResult = {
+      runtimeTaskInstanceId: 'rtask-abc',
+      task: { displayTitle: 'Updated title' },
+      historyEntry: { historyEventType: 'taskMetadataChange', changedFields: ['displayTitle'] },
+    };
+    mockUpdateRuntimeTask.mockResolvedValue(serviceResult);
+
+    const req = baseReq({
+      validatedUpdateRuntimeTask: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-abc',
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+        body: {
+          actorId: 'staff-1',
+          displayTitle: 'Updated title',
+          reason: 'Portal edit',
+        },
+        patch: { displayTitle: 'Updated title' },
+      },
+    } as any);
+
+    const out = await c.handleUpdateRuntimeTask(req);
+    expect(out).toEqual(serviceResult);
+    expect(mockUpdateRuntimeTask).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      actorId: 'staff-1',
+      reason: 'Portal edit',
+      patch: { displayTitle: 'Updated title' },
     });
   });
 });

@@ -6,7 +6,7 @@ echo "======================================="
 echo "BUILD STARTED"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/template-service"
+SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/task-service"
 
 cd "$SERVICE_DIR"
 
@@ -16,14 +16,9 @@ pwd
 echo "Cleaning old artifacts..."
 rm -rf .serverless
 
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
+export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
 
-echo "Packaging Serverless service (NODE_OPTIONS=$NODE_OPTIONS)..."
-echo "Node heap limit: $NODE_OPTIONS"
-if command -v free >/dev/null 2>&1; then
-  echo "Container memory:"
-  free -h || true
-fi
+echo "Packaging Serverless service..."
 
 npx serverless package \
   --stage "$STAGE" \
@@ -75,7 +70,7 @@ else
   echo "Uploading Lambda zips to their exact S3 keys..."
   while read -r key; do
     [ -z "$key" ] && continue
-    # Key format: serverless/template-service/<stage>/<timestamp>/<name>.zip
+    # Key format: serverless/task-service/<stage>/<timestamp>/<name>.zip
     # Strip any @... suffix (added by some CF tooling) to get the clean zip filename.
     zip_name=$(basename "${key%%@*}")
     local_path=".serverless/$zip_name"

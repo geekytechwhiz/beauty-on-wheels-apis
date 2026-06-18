@@ -1,0 +1,7 @@
+Effect: Allow
+Action:
+  - scheduler:CreateSchedule
+  - scheduler:DeleteSchedule
+  - scheduler:GetSchedule
+Resource:
+  - arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/default/*

@@ -13,6 +13,8 @@ export function buildMonitoringIdempotencyKey(input: CreateMonitoringActionReque
     input.taskBehaviorCode,
     String(input.dueWindowStart),
     String(input.dueWindowEnd),
+    input.assignedToType,
+    input.assignedToStaffId?.trim() ?? '',
   ].join('|');
 }
 

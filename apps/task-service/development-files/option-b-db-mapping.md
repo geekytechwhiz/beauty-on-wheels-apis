@@ -101,7 +101,7 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 
 ### GSI1 — `StaffPatientTasksIndex` (META only, sparse)
 
-- `gsi1Pk` = `ORG#<orgId>#STAFF#<assignedToStaffId>` when `assignedToStaffId` is set (staff inbox for care-team/provider tasks)
+- `gsi1Pk` = `ORG#<orgId>#STAFF#<assignedToStaffId>` when `assignedToStaffId` is set (staff inbox for staff tasks)
 - `gsi1Sk` = `DUE#<dueWindowStartOrMaxMs>#PAT#<patientId>#TASK#<runtimeTaskInstanceId>` (same **dueWindowStart** ms token as META SK)
 - **Immutable** `gsi1Sk` if due fixed; update **`gsi1Pk`** when `assignedToStaffId` changes (staff reassignment)
 - Tasks without `assignedToStaffId` have no GSI1 row (patient-assigned tasks use patient PK / LSI1 lists)
@@ -137,12 +137,12 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | Attribute | Req | Type | Notes |
 |-----------|-----|------|-------|
 | `entityType` | R | S | `RuntimeTaskInstance` |
-| `orgId`, `patientId`, `patientDisplayName`, `runtimeTaskInstanceId` | R | S | `patientDisplayName` denormalized at create |
+| `orgId`, `patientId`, `patientDisplayName`, `runtimeTaskInstanceId` | R | S | `orgId` from JWT; `patientId` + `patientDisplayName` from request input; denormalized at create |
 | `runtimeTaskSource` | R | S | `CarePlanTaskLinkage` \| `MonitoringRuntime` \| `ServiceFlowRuntime` \| `ManualSystem` |
 | `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle` | R | S | |
 | `assignedToType`, `displayToPatient`, `currentState` | R | S / BOOL | |
 | `createdAt`, `createdBy`, `lastUpdatedAt`, `lastUpdatedBy` | R | **N** / S | instants = **N** (ms) |
-| `assignedToStaffId`, `assignedToStaffDisplayName` | C | S | Staff inbox id + denormalized display name when `assignedToType` is `careTeam` or `provider` |
+| `assignedToStaffId`, `assignedToStaffDisplayName` | C | S | Staff inbox id + denormalized display name when `assignedToType` is `staff` |
 | `dueWindowStart`, `dueWindowEnd` | C/O | **N** | Schedule window start/end (ms); **SK token = `dueWindowStart`**; missed/due rules use `dueWindowEnd` |
 | `reminderEnabled` | O | Eligibility flag on task card |
 | `reminderSettings` | O | Map — **latest** reminder config (channels, schedule rules); updated when portal changes settings (v2 REM-007) |
@@ -216,40 +216,73 @@ Patient mobile / standard portal task UI: show **current** `reminderEnabled` / s
 
 | Rule | Detail |
 |------|--------|
-| Assignment | `assignedToType` (`patient`, `careTeam`, `provider`, `system`) — who completes the task |
-| Staff inbox | `assignedToStaffId` + `assignedToStaffDisplayName` when `assignedToType` is `careTeam` or `provider`; drives sparse GSI1 |
+| Assignment | `assignedToType` (`patient`, `staff`) — who completes the task |
+| Staff inbox | `assignedToStaffId` + `assignedToStaffDisplayName` when `assignedToType` is `staff`; drives sparse GSI1 |
 | Assign / reassign | `PUT /tasks/{id}/assigned-staff` — set or update META/LOOKUP staff id + display name + GSI1; HIST `assignedToStaffChange` |
 | Patient tasks | `assignedToType = patient` — no staff id/name, no GSI1 |
-| API validation | `patientDisplayName` required with every `patientId`; staff id + display name required for careTeam/provider creates and assign/reassign |
+| API validation | `patientDisplayName` required with every `patientId`; staff id + display name required when `assignedToType` is `staff` |
 
 ---
 
 ## 3) API → DynamoDB
 
+### Request sourcing (create / assign APIs)
+
+| Field | Source |
+|-------|--------|
+| `orgId` | JWT (`custom:organizationID`) — never request body |
+| `patientId`, `patientDisplayName` | Request body on POST creates |
+| `assignedToStaffId`, `assignedToStaffDisplayName` | Request body when `assignedToType` is `staff` (or PUT assign) |
+| **GSI1** (`gsi1Pk`, `gsi1Sk`) | META only when `assignedToStaffId` is set at create, or first `PUT .../assigned-staff` |
+
+Patient tasks (`assignedToType = patient`, no `assignedToStaffId`) — **no GSI1**. Care-plan creates always set **LSI1** `lsi1Sk` when `carePlanInstanceId` is present.
+
 ### GET /health
 No DynamoDB.
 
 ### POST /tasks/generate-care-plan
-**TransactWrite per task:** conditional `PutItem` META (`attribute_not_exists(SK)`), `PutItem` HIST on `TASK#<id>`, `PutItem` LOOKUP. Set `lsi1Sk` at create; GSI1 if staff-assigned.
+**TransactWrite per linkage:** conditional `PutItem` META (`attribute_not_exists(SK)`), `PutItem` HIST on `TASK#<id>`, `PutItem` LOOKUP. Set `lsi1Sk` at create; GSI1 if staff-assigned.
 
-**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `taskGenerationTrigger`, `sourceLinkageContext.linkages` (min 1).
+**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `taskGenerationTrigger`, `sourceLinkageContext.linkages` (min 1). **`orgId` from JWT only** — not in body.
 
-**Required per linkage:** `carePlanTaskLinkageId`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`, `dueWindowStart`, `dueWindowEnd`; when `assignedToType` is `careTeam` or `provider`, also `assignedToStaffId` + `assignedToStaffDisplayName`.
+**Required per linkage:** `carePlanTaskLinkageId`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`, `dueWindowStart`, `dueWindowEnd`; when `assignedToType` is `staff`, also `assignedToStaffId` + `assignedToStaffDisplayName`.
+
+**META at create (care-plan linkage)**
+
+| Attribute | Source |
+|-----------|--------|
+| `pk` | `ORG#<orgId>#PAT#<patientId>` — org from JWT, patient from input |
+| `sk` | `DUE#<dueMs13>#TASK#<runtimeTaskInstanceId>` |
+| `entityType` | `RuntimeTaskInstance` |
+| `orgId` | JWT |
+| `patientId`, `patientDisplayName` | request input |
+| `runtimeTaskInstanceId` | deterministic hash per linkage |
+| `runtimeTaskSource` | `carePlanTaskLinkage` |
+| `carePlanInstanceId`, `taskGenerationTrigger` | request input |
+| `carePlanTaskLinkageId` | linkage |
+| `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient` | linkage |
+| `currentState` | `open` |
+| `dueWindowStart` | resolved from linkage (`dueWindowStart` else `dueWindowEnd`) |
+| `dueWindowEnd` | linkage |
+| `idempotencyKey`, `generationHash` | hash(`orgId\|patientId\|carePlanInstanceId\|carePlanTaskLinkageId\|resolvedStart\|dueWindowEnd`) |
+| `lsi1Sk` | `CP#<carePlanInstanceId>#TASK#<id>` |
+| `gsi1Pk`, `gsi1Sk` | when `assignedToStaffId` set |
+| `createdBy` | `system:care-plan-runtime` or `system:care-plan-runtime:<actorId>` |
 
 ### POST /tasks/monitoring-action
-Same pattern; idempotency hash: `patientId|monitoringInstanceId|taskBehaviorCode|dueWindowStart|dueWindowEnd`.
+Same pattern; idempotency hash: `orgId|patientId|monitoringInstanceId|taskBehaviorCode|dueWindowStart|dueWindowEnd|assignedToType|assignedToStaffIdOrEmpty`.
 
-**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `monitoringInstanceId`, `taskBehaviorCode`, `dueWindowStart`, `dueWindowEnd`.
+**Required request fields:** `patientId`, `patientDisplayName`, `carePlanInstanceId`, `monitoringInstanceId`, `taskBehaviorCode`, `assignedToType` (`patient` or `staff`), `dueWindowStart`, `dueWindowEnd`; when `assignedToType` is `staff`, also `assignedToStaffId` + `assignedToStaffDisplayName`. **`orgId` from JWT**; patient fields from request body. **GSI1 only when `assignedToStaffId` set.**
 
 ### POST /tasks
-META + HIST + LOOKUP; persists `patientDisplayName`; GSI1 when staff-assigned (`assignedToStaffId` + `assignedToStaffDisplayName` required for `careTeam`/`provider`).
+META + HIST + LOOKUP; persists `patientDisplayName`; **GSI1 only when `assignedToStaffId` set** (`assignedToStaffId` + `assignedToStaffDisplayName` required when `assignedToType` is `staff`).
 
-**Required request fields:** `patientId`, `patientDisplayName`, `runtimeTaskSource`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`.
+**Required request fields:** `patientId`, `patientDisplayName`, `runtimeTaskSource`, `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient`. **`orgId` from JWT**; patient fields from request body.
 
 ### PUT /tasks/{runtimeTaskInstanceId}/assigned-staff
-**Required body:** `actorId`, `assignedToStaffId`, `assignedToStaffDisplayName`.
+**Required body:** `actorId`, `assignedToStaffId`, `assignedToStaffDisplayName`. **`orgId` from JWT** (scope check only).
 
-**TransactWrite:** `UpdateItem` META (`assignedToStaffId`, `assignedToStaffDisplayName`, `gsi1Pk`, `lastUpdatedAt`, `lastUpdatedBy`; plus `gsi1Sk` on first assignment when not yet set); `UpdateItem` LOOKUP (`assignedToStaffId`, `assignedToStaffDisplayName`); `PutItem` HIST (`historyEventType=assignedToStaffChange`, previous/new staff id + display name, actor, reason). Allowed only when `assignedToType` is `careTeam` or `provider`. META SK and `lsi1Sk` unchanged.
+**TransactWrite:** `UpdateItem` META (`assignedToStaffId`, `assignedToStaffDisplayName`, `gsi1Pk`, `lastUpdatedAt`, `lastUpdatedBy`; plus `gsi1Sk` on first assignment when not yet set); `UpdateItem` LOOKUP (`assignedToStaffId`, `assignedToStaffDisplayName`); `PutItem` HIST (`historyEventType=assignedToStaffChange`, previous/new staff id + display name, actor, reason). Allowed only when `assignedToType` is `staff`. META SK and `lsi1Sk` unchanged.
 
 ### PUT /tasks/{runtimeTaskInstanceId}/reminder-settings
 **TransactWrite:** `UpdateItem` META (`reminderEnabled`, `reminderSettings`); `PutItem` HIST (`historyEventType=reminderSettingsChange`, previous/new settings, actor, reason). Outbound reminder jobs per REM-010.

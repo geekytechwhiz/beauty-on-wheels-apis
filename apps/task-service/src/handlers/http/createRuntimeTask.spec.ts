@@ -135,7 +135,7 @@ describe('createRuntimeTask HTTP handler', () => {
       taskBehaviorCode: 'CARE_TEAM_TASK',
       taskDisplayGroup: 'staffTask',
       displayTitle: 'Call patient',
-      assignedToType: 'careTeam',
+      assignedToType: 'orgStaff',
       assignedToStaffId: 'staff-nurse-44721',
       assignedToStaffDisplayName: 'Nurse Lee',
       displayToPatient: false,
@@ -164,7 +164,7 @@ describe('createRuntimeTask HTTP handler', () => {
       runtimeTaskSource: 'manualSystem',
       taskDisplayGroup: 'staffTask',
       taskBehaviorCode: 'CARE_TEAM_TASK',
-      assignedToType: 'careTeam',
+      assignedToType: 'orgStaff',
       displayToPatient: false,
     });
     mockCreateRuntimeTask.mockResolvedValue({ record });

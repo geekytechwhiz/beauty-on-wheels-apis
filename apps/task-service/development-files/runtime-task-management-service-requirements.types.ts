@@ -63,7 +63,7 @@ export type TaskBehaviorCode =
 
 export type TaskDisplayGroup = 'action' | 'learning' | 'checkIn' | 'staffTask';
 
-export type AssignedToType = 'patient' | 'careTeam' | 'provider' | 'system';
+export type AssignedToType = 'patient' | 'staff';
 
 export type WorkflowStage = 'onboarding' | 'ongoing' | 'review' | 'closure';
 
@@ -108,7 +108,7 @@ export type CompletionSourceType =
   | 'symptom'
   | (string & {});
 
-export type ActorType = 'patient' | 'careTeam' | 'provider' | 'system';
+export type ActorType = 'patient' | 'staff';
 
 export type IdempotencyOutcome = 'created' | 'skippedDuplicate';
 
@@ -134,9 +134,11 @@ export interface ReminderSettings {
  */
 export interface RuntimeTaskInstanceRecord {
   runtimeTaskInstanceId: RuntimeTaskInstanceId;
+  /** Persisted from JWT at create — not sent in HTTP body. */
   orgId: OrgId;
+  /** Persisted from HTTP request body at create. */
   patientId: PatientId;
-  /** Denormalized at create; required on APIs that accept patientId. */
+  /** From request body at create; denormalized on META/LOOKUP. */
   patientDisplayName: string;
   carePlanInstanceId?: CarePlanInstanceId;
   runtimeTaskSource: RuntimeTaskSource;
@@ -151,9 +153,9 @@ export interface RuntimeTaskInstanceRecord {
   displayTitle: string;
   description?: string;
   assignedToType: AssignedToType;
-  /** When assignedToType is careTeam or provider; drives GSI1 staff inbox. */
+  /** When assignedToType is staff; drives GSI1 staff inbox. */
   assignedToStaffId?: Id;
-  /** Required with assignedToStaffId for careTeam/provider tasks and assign/reassign API. */
+  /** Required with assignedToStaffId for staff tasks and assign/reassign API. */
   assignedToStaffDisplayName?: string;
   displayToPatient: boolean;
   workflowStage?: WorkflowStage;
@@ -315,6 +317,7 @@ export interface PaginatedTaskHistory {
 // HTTP APIs
 // =============================================================================
 
+/** HTTP body — organizationId is resolved from JWT, not sent by the client. */
 export interface GenerateCarePlanTasksRequest {
   patientId: PatientId;
   patientDisplayName: string;
@@ -325,19 +328,31 @@ export interface GenerateCarePlanTasksRequest {
   };
   workflowStage?: WorkflowStage;
   dryRun?: boolean;
+  actorType?: string;
+  actorId?: string;
 }
 
 export interface GenerateCarePlanTaskLinkage {
   carePlanTaskLinkageId: Id;
+  sourceTaskTemplateVersionId?: Id;
   taskBehaviorCode: TaskBehaviorCode;
   taskDisplayGroup: TaskDisplayGroup;
   displayTitle: string;
+  description?: string;
   assignedToType: AssignedToType;
   displayToPatient: boolean;
+  /** Required when assignedToType is staff; drives GSI1 at create. */
   assignedToStaffId?: Id;
   assignedToStaffDisplayName?: string;
+  actionTargetId?: Id;
+  completionSourceType?: CompletionSourceType;
+  completionSourceReferenceId?: Id;
   dueWindowStart: EpochMillis;
   dueWindowEnd: EpochMillis;
+  reminderEnabled?: boolean;
+  reminderSettings?: Record<string, unknown>;
+  requiredForStageCompletion?: boolean;
+  displayAsChecklistItem?: boolean;
 }
 
 export interface GeneratedTaskResult {
@@ -353,12 +368,16 @@ export interface GenerateCarePlanTasksResponse {
   failureDetails?: Array<{ message: string; code?: string; context?: Record<string, unknown> }>;
 }
 
+/** HTTP body — organizationId is resolved from JWT, not sent by the client. */
 export interface CreateMonitoringActionRequest {
   patientId: PatientId;
   patientDisplayName: string;
   carePlanInstanceId: CarePlanInstanceId;
   monitoringInstanceId: Id;
   taskBehaviorCode: TaskBehaviorCode;
+  assignedToType: AssignedToType;
+  assignedToStaffId?: Id;
+  assignedToStaffDisplayName?: string;
   dueWindowStart: EpochMillis;
   dueWindowEnd: EpochMillis;
   reminderContext?: Record<string, unknown>;
@@ -370,6 +389,7 @@ export interface CreateMonitoringActionResponse {
   task?: RuntimeTaskCard;
 }
 
+/** HTTP body — organizationId and createdBy are resolved server-side, not sent by the client. */
 export interface CreateRuntimeTaskRequest {
   patientId: PatientId;
   patientDisplayName: string;

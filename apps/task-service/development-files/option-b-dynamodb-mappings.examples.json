@@ -8,7 +8,7 @@
     "scheduleFields": "dueWindowStart + dueWindowEnd only (v2 StartDate → dueWindowStart)",
     "histSK": "HIST#<transitionAtMs13>#<taskStateHistoryId>",
     "lsi1SK": "CP#<carePlanInstanceId|NONE>#TASK#<runtimeTaskInstanceId>",
-    "gsi1PK": "ORG#<orgId>#STAFF#<assignedToStaffId> when assignedToStaffId set (careTeam/provider staff tasks)",
+    "gsi1PK": "ORG#<orgId>#STAFF#<assignedToStaffId> when assignedToStaffId set (staff tasks)",
     "noDueSentinelMs": 9999999999999,
     "reminders": {
       "reminderSettings": "META — latest config (v2 REM-007)",
@@ -330,6 +330,8 @@
   },
   "apiMappings": {
     "POST /tasks/generate-care-plan": {
+      "orgIdFromJwt": true,
+      "patientFieldsFromRequestBody": ["patientId", "patientDisplayName"],
       "requiredRequestFields": [
         "patientId",
         "patientDisplayName",
@@ -357,20 +359,43 @@
         "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> historyEventType=StateChange",
         "PutItem LOOKUP (taskSk, dueWindowStart, dueWindowEnd, reminderHistory=[] optional)"
       ],
-      "outboundOptional": ["RegisterReminderJobs → HIST#<ms13>#<histId> ReminderRegisterRequest + LOOKUP reminderHistory append"]
+      "outboundOptional": ["RegisterReminderJobs → HIST#<ms13>#<histId> ReminderRegisterRequest + LOOKUP reminderHistory append"],
+      "metaAtCreate": {
+        "orgId": "JWT",
+        "patientId": "requestBody",
+        "patientDisplayName": "requestBody",
+        "gsi1": "only when linkage.assignedToStaffId set"
+      }
     },
     "POST /tasks/monitoring-action": {
+      "orgIdFromJwt": true,
+      "patientFieldsFromRequestBody": ["patientId", "patientDisplayName"],
       "requiredRequestFields": [
         "patientId",
         "patientDisplayName",
         "carePlanInstanceId",
         "monitoringInstanceId",
         "taskBehaviorCode",
+        "assignedToType",
         "dueWindowStart",
         "dueWindowEnd"
-      ]
+      ],
+      "requiredRequestFieldsWhenStaffAssigned": [
+        "assignedToStaffId",
+        "assignedToStaffDisplayName"
+      ],
+      "conditionExpression": "attribute_not_exists(SK)",
+      "transactItems": [
+        "PutItem META",
+        "PutItem HIST# StateChange",
+        "PutItem LOOKUP"
+      ],
+      "gsi1": "only when assignedToStaffId set",
+      "businessValidation": "validateAssignedToTypeInput in task-core TaskService"
     },
     "POST /tasks": {
+      "orgIdFromJwt": true,
+      "patientFieldsFromRequestBody": ["patientId", "patientDisplayName"],
       "requiredRequestFields": [
         "patientId",
         "patientDisplayName",
@@ -387,7 +412,7 @@
       ],
       "conditionExpression": "attribute_not_exists(SK)",
       "transactItems": [
-        "PutItem META with patientDisplayName; assignedToStaffId + assignedToStaffDisplayName when careTeam/provider",
+        "PutItem META with patientDisplayName; assignedToStaffId + assignedToStaffDisplayName when staff",
         "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> StateChange",
         "PutItem LOOKUP",
         "GSI1 when assignedToStaffId set"
@@ -449,6 +474,8 @@
       }
     },
     "PUT /tasks/{id}/assigned-staff": {
+      "orgIdFromJwt": true,
+      "patientFieldsFromRequestBody": [],
       "requiredRequestFields": [
         "actorId",
         "assignedToStaffId",
@@ -461,7 +488,7 @@
       ],
       "itemRefs": ["metaStaffTaskAfterStaffReassign", "histAssignedToStaffChange"],
       "rules": [
-        "assignedToType must be careTeam or provider",
+        "assignedToType must be staff",
         "first assignment also sets gsi1Sk when missing",
         "reassignment updates gsi1Pk only; gsi1Sk unchanged",
         "META SK and lsi1Sk unchanged"

@@ -27,7 +27,7 @@ export type UserDisplayEntry = { name: string };
 
 function resolveActorDisplayName(userId: string, userMap: Map<string, UserDisplayEntry>): string {
   const fromLookup = userMap.get(userId)?.name;
-  if (fromLookup) {
+  if (fromLookup && fromLookup !== UNKNOWN_USER_LABEL) {
     return fromLookup;
   }
   if (userId === ROOT_ADMIN_USER_ID) {
@@ -101,7 +101,11 @@ function mergeRowIntoMap(map: Map<string, UserDisplayEntry>, row: Record<string,
   if (!id || map.has(id)) {
     return;
   }
-  map.set(id, { name: resolveUserDisplayName(row) });
+  const name = resolveUserDisplayName(row);
+  if (name === UNKNOWN_USER_LABEL) {
+    return;
+  }
+  map.set(id, { name });
 }
 
 async function batchGetOrgRootRows(tableName: string, userIds: string[]): Promise<Map<string, UserDisplayEntry>> {

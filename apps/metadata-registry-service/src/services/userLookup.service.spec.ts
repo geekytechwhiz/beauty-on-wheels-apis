@@ -62,4 +62,16 @@ describe('enrichMetadataRecordActors', () => {
     expect(enriched.createdBy).toEqual({ userId, name: 'Root Admin' });
     expect(enriched.lastModifiedBy).toEqual({ userId, name: 'Root Admin' });
   });
+
+  it('prefers Root Admin hardcode over Unknown User from a sparse USER_TABLE row', () => {
+    const userId = '88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f';
+    const userMap = new Map([[userId, { name: UNKNOWN_USER_LABEL }]]);
+
+    const enriched = enrichMetadataRecordActors(
+      { metadataTypeCode: 'ApplicableModule', createdBy: userId },
+      userMap,
+    );
+
+    expect(enriched.createdBy).toEqual({ userId, name: 'Root Admin' });
+  });
 });

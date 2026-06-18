@@ -51,10 +51,10 @@ const handler = async (req: LambdaRequest) => {
   const event = req.event;
 
   if (isConfigView) {
-    return organizationService.getOrganizationConfig(organizationId);
+    return organizationService.getOrganizationConfig(organizationId, authHeader);
   }
 
-  const organization = await organizationService.getOrganization(organizationId);
+  const organization = await organizationService.getOrganization(organizationId, { authHeader });
   const orgRecord = organization as unknown as Record<string, unknown>;
   const isRootOrg = organizationId.toUpperCase() === 'ROOT';
 

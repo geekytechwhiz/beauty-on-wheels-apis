@@ -47,3 +47,23 @@ export interface MetadataValuesByTypesResultDto {
   items: MetadataRegistryTypeValuesDto[];
   missingMetadataTypeCodes: string[];
 }
+
+/** Related value ref from GET `/metadata/values/related`. */
+export interface MetadataRegistryRelatedValueDto {
+  metadataTypeCode: string;
+  metadataValueCode: string;
+  label?: string;
+}
+
+/** One source value and its related targets from GET `/metadata/values/related`. */
+export interface MetadataRegistryRelatedValuesGroupDto {
+  fromMetadataTypeCode: string;
+  fromMetadataValueCode: string;
+  fromLabel?: string;
+  values: MetadataRegistryRelatedValueDto[];
+}
+
+/** Unwrapped `data` from GET `/metadata/values/related`. */
+export interface MetadataRelatedValuesResultDto {
+  groups: MetadataRegistryRelatedValuesGroupDto[];
+}

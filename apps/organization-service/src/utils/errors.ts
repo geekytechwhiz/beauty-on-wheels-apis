@@ -25,6 +25,46 @@ export class OrganizationValidationError extends Error {
   }
 }
 
+export class InvalidMetadataValueError extends Error {
+  statusCode = 400;
+  code = 'INVALID_METADATA_VALUE';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidMetadataValueError';
+  }
+}
+
+export class InvalidMetadataRelationError extends Error {
+  statusCode = 400;
+  code = 'INVALID_METADATA_RELATION';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidMetadataRelationError';
+  }
+}
+
+export class OrgConfigDraftNotFoundError extends Error {
+  statusCode = 400;
+  code = 'NO_DRAFT_CONFIG';
+
+  constructor(organizationId: string) {
+    super(`No draft organization config found to publish: ${organizationId}`);
+    this.name = 'OrgConfigDraftNotFoundError';
+  }
+}
+
+export class OrgConfigPublishError extends Error {
+  statusCode = 503;
+  code = 'ORG_CONFIG_PUBLISH_FAILED';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'OrgConfigPublishError';
+  }
+}
+
 export class PermissionDeniedError extends Error {
   statusCode = 403;
   code = 'PERMISSION_ISSUE';

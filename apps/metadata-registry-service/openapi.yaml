@@ -356,7 +356,12 @@ paths:
 
   /metadata/values/related:
     get:
-      summary: List related target values (minimal shape) for a source value
+      summary: List related target values grouped by source value
+      description: |
+        Returns related target values for one or more source values, grouped by
+        source value. Each group includes the source value label (`fromLabel`) and
+        each related value includes its `label`. Related values are deduped per
+        group by `metadataTypeCode` + `metadataValueCode`.
       parameters:
         - in: query
           name: fromType
@@ -365,7 +370,18 @@ paths:
         - in: query
           name: fromValue
           required: true
-          schema: { type: string }
+          description: |
+            Source value(s). Supports:
+            - a single value: `fromValue=IN`
+            - repeated query params: `fromValue=IN&fromValue=US`
+            - a comma-separated value: `fromValue=IN,US`
+            Values are trimmed; empty values are ignored; duplicates are deduped.
+          explode: true
+          schema:
+            oneOf:
+              - type: string
+              - type: array
+                items: { type: string }
         - in: query
           name: relationType
           schema:
@@ -376,7 +392,19 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Wrapper object with `values` array
+          description: Wrapper object with a `groups` array (one group per source value)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      groups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RelatedValuesGroup'
 
   /metadata/relations/{id}:
     patch:
@@ -1081,7 +1109,10 @@ components:
         affectedConsumers:
           type: array
           items: { type: string }
-          description: Downstream areas that may need to react (Template, OrgCapability, Runtime, etc.)
+          description: |
+            Downstream consumers currently impacted by this change (Template, OrgCapability, Runtime, etc.).
+            Empty when no service has adopted or referenced the metadata yet — e.g. first-time MetadataType or
+            MetadataValue Add with no existing usage.
 
     MetadataPublishRequest:
       type: object
@@ -1201,3 +1232,25 @@ components:
       properties:
         metadataTypeCode: { type: string }
         metadataValueCode: { type: string }
+    RelatedValueRefWithLabel:
+      type: object
+      required: [metadataTypeCode, metadataValueCode]
+      properties:
+        metadataTypeCode: { type: string }
+        metadataValueCode: { type: string }
+        label:
+          type: string
+          description: Resolved label for the related value (omitted when not found)
+    RelatedValuesGroup:
+      type: object
+      required: [fromMetadataTypeCode, fromMetadataValueCode, values]
+      properties:
+        fromMetadataTypeCode: { type: string }
+        fromMetadataValueCode: { type: string }
+        fromLabel:
+          type: string
+          description: Resolved label for the source value (omitted when not found)
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelatedValueRefWithLabel'

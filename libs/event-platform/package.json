@@ -37,7 +37,8 @@
     "vite": "^7.0.0",
     "vite-plugin-dts": "~4.5.0",
     "@aws-sdk/client-apigatewaymanagementapi": "^3.958.0",
-    "@aws-lambda-powertools/tracer": "^2.33.0"
+    "@aws-lambda-powertools/tracer": "^2.33.0",
+    "@smithy/node-http-handler": "4.7.7"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159"

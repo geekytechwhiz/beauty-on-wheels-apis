@@ -1171,13 +1171,15 @@ export class UserService {
     organizationId: string,
     updates: Partial<User>,
     correlationId?: string,
+    existingUser?: User,
   ): Promise<User> {
     const timer = createPerformanceTimer(baseLogger, 'updateUser', correlationId);
     const logger = createChildLogger(baseLogger, { correlationId, userId });
     logger.info({ event: 'service_updateUser_start' });
 
     try {
-      const existing = await this.repository.getUser(userId, organizationId);
+      const existing =
+        existingUser ?? (await this.repository.getUser(userId, organizationId));
       if (!existing) {
         throw new UserNotFoundError(userId);
       }
@@ -1218,76 +1220,87 @@ export class UserService {
         }
       }
 
-      // Set modifiedDate
-      updates.modifiedDate = Date.now();
-      updates.generalSetting = updates.generalSetting ?? existing.generalSetting;
-       // console.log("UPDATES: ", JSON.stringify(updates));
-      await this.repository.updateUser(userId, organizationId, updates);
-      const updated = await this.repository.getUser(userId, organizationId);
-      if (!updated) {
-        throw new UserNotFoundError(userId);
+      if (updates.generalSetting !== undefined) {
+        const existingGeneralSetting =
+          existing.generalSetting && typeof existing.generalSetting === 'object'
+            ? existing.generalSetting
+            : {};
+        updates.generalSetting = {
+          ...existingGeneralSetting,
+          ...updates.generalSetting,
+        };
       }
 
+      // Set modifiedDate
+      updates.modifiedDate = Date.now();
+      const updatedFromDb = await this.repository.updateUser(
+        userId,
+        organizationId,
+        updates,
+      );
+      const updated: User = updatedFromDb ?? {
+        ...existing,
+        ...updates,
+      };
+
       // Best-effort email + SMS (same event path as createUser → SNS → notification consumer)
-      try {
-        const phoneRaw =
-          (updated.phoneNumber && String(updated.phoneNumber).trim()) ||
-          (updates.phoneNumber !== undefined && String(updates.phoneNumber).trim()) ||
-          '';
-        const phoneCodeRaw = String(
-          updated.phoneCode ||
-            (updates.phoneCode !== undefined ? String(updates.phoneCode).trim() : '') ||
-            '',
-        ).trim();
-        let notifyPhone: string | undefined;
-        if (phoneRaw) {
-          if (phoneCodeRaw) {
-            notifyPhone = phoneCodeRaw.startsWith('+')
-              ? `${phoneCodeRaw}${phoneRaw}`
-              : `+${phoneCodeRaw}${phoneRaw}`;
-          } else {
-            notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
-          }
-        }
-        const notifyEmail = String(updated.emailAddress || '').trim();
-        const profileChannels: string[] = [];
-        if (notifyPhone) profileChannels.push('sms');
-        if (notifyEmail) profileChannels.push('email');
-        if (profileChannels.length > 0) {
-          const notifyName =
-            (updates.fullName as string | undefined) ??
-            updated.fullName ??
-            updated.firstName ??
-            '';
-          const profileTemplateData: Record<string, unknown> = {};
-          if (notifyEmail && profileChannels.includes('email')) {
-            profileTemplateData.FirstName = notifyName;
-          }
-          await notifyUser({
-            userId: updated.userID,
-            email: notifyEmail || undefined,
-            phone: notifyPhone,
-            name: notifyName,
-            channels: profileChannels,
-            template: 'PROFILE_UPDATED',
-            templateData: profileTemplateData,
-            correlationId,
-          });
+      const phoneRaw =
+        (updated.phoneNumber && String(updated.phoneNumber).trim()) ||
+        (updates.phoneNumber !== undefined && String(updates.phoneNumber).trim()) ||
+        '';
+      const phoneCodeRaw = String(
+        updated.phoneCode ||
+          (updates.phoneCode !== undefined ? String(updates.phoneCode).trim() : '') ||
+          '',
+      ).trim();
+      let notifyPhone: string | undefined;
+      if (phoneRaw) {
+        if (phoneCodeRaw) {
+          notifyPhone = phoneCodeRaw.startsWith('+')
+            ? `${phoneCodeRaw}${phoneRaw}`
+            : `+${phoneCodeRaw}${phoneRaw}`;
         } else {
-          logger.info({
-            event: 'service_updateUser_notification_skipped',
-            message:
-              'PROFILE_UPDATED skipped: no phone and no email on user or request',
-          });
+          notifyPhone = phoneRaw.startsWith('+') ? phoneRaw : `+${phoneRaw}`;
         }
-      } catch (notifyErr) {
-        logger.warn({
-          event: 'service_updateUser_notification_failed',
-          err: serializeError(notifyErr as Error),
+      }
+      const notifyEmail = String(updated.emailAddress || '').trim();
+      const profileChannels: string[] = [];
+      if (notifyPhone) profileChannels.push('sms');
+      if (notifyEmail) profileChannels.push('email');
+      if (profileChannels.length > 0) {
+        const notifyName =
+          (updates.fullName as string | undefined) ??
+          updated.fullName ??
+          updated.firstName ??
+          '';
+        const profileTemplateData: Record<string, unknown> = {};
+        if (notifyEmail && profileChannels.includes('email')) {
+          profileTemplateData.FirstName = notifyName;
+        }
+        void notifyUser({
+          userId: updated.userID,
+          email: notifyEmail || undefined,
+          phone: notifyPhone,
+          name: notifyName,
+          channels: profileChannels,
+          template: 'PROFILE_UPDATED',
+          templateData: profileTemplateData,
+          correlationId,
+        }).catch((notifyErr) => {
+          logger.warn({
+            event: 'service_updateUser_notification_failed',
+            err: serializeError(notifyErr as Error),
+          });
+        });
+      } else {
+        logger.info({
+          event: 'service_updateUser_notification_skipped',
+          message:
+            'PROFILE_UPDATED skipped: no phone and no email on user or request',
         });
       }
 
-      logger.info({ event: 'service_updateUser_success' });
+      logger.info({ event: 'service_updateUser_success', userId: updated.userID });
       timer.end();
       return updated;
     } catch (err) {

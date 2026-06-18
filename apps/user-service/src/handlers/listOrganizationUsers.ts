@@ -97,7 +97,7 @@ export const main = withApiHandler(
   {
     operation: 'listOrganizationUsers',
     validator: validateOrganizationIdParam,
-    fhir: fhirUserListHandlerOptions,
+    fhir: { ...fhirUserListHandlerOptions, validation: { enabled: true, failOnValidationError: false } },
   },
   handler,
 );

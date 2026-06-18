@@ -153,6 +153,33 @@ describe('toMasterFullRecord', () => {
     '../mappers/template-http.dto',
   );
 
+  it('omits internal rules from full master record', () => {
+    const ctx = TemplateEntityBuilder.buildCreateContext({
+      templateCode: 'CP-TEST',
+      templateName: 'Care Plan',
+      templateType: 'CARE_PLAN',
+    });
+    const row = TemplateEntityBuilder.buildVersionRow(ctx, {
+      templateCode: 'CP-TEST',
+      templateName: 'Care Plan',
+      templateType: 'CARE_PLAN',
+      fieldValues: { CATEGORY: 'CHRONIC_CARE' },
+    });
+    row.rules = {
+      CATEGORY: {
+        enable: true,
+        orgedit: true,
+        add: true,
+        defaultedit: true,
+        delete: true,
+      },
+    };
+
+    const full = toMasterFullRecord(row);
+    expect(full.rules).toBeUndefined();
+    expect(full.fieldValues).toEqual({ CATEGORY: 'CHRONIC_CARE' });
+  });
+
   it('includes nested document sections from VERSION row', () => {
     const ctx = TemplateEntityBuilder.buildCreateContext({
       templateCode: 'ALT-VITALS-v1',

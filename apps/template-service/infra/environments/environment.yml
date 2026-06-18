@@ -13,10 +13,12 @@ AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
 ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
 USER_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
 ORGANIZATION_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+METADATA_REGISTRY_SERVICE_BASE_URL: ${self:custom.bundle.stageUrls.${self:provider.stage}.METADATA_REGISTRY_SERVICE_BASE_URL}
 USER_SERVICE_TIMEOUT_MS: '8000'
 ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
+METADATA_REGISTRY_SERVICE_TIMEOUT_MS: '15000'
 TEMPLATE_EVENT_BUS_NAME: ${self:custom.bundle.eventBusName}
-# UI meta JSON store. Local: services-json under app root.
-# Lambda: code uses /tmp/template-service/services-json (writable); do not use /var/task.
-TEMPLATE_UI_META_DIR: ${env:TEMPLATE_UI_META_DIR, 'services-json'}
+# dev|stg|prd-mvx-template-service-bucket — same as deploymentBucket in serverless.yml
+TEMPLATE_CONFIG_S3_BUCKET: ${self:custom.bundle.templateConfigBucketName}
+TEMPLATE_CONFIG_S3_PREFIX: ${self:custom.bundle.templateConfigS3Prefix}
 # Optional per-stage overrides: extend this file with keys gated by ${self:provider.stage}, or add a second map merged in serverless.yml once handlers need it.

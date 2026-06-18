@@ -1,0 +1,416 @@
+{
+  "rules": {
+    "TEMPLATE_NAME": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "CATEGORY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "CONDITION": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "COUNTRY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "LANGUAGE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "SPECIALITY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "SELECT_SCOPE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "DURATION_TYPES": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 6
+    },
+    "DEFAULT_DURATION_TYPE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "BILLING_PROGRAM_TYPES": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 4
+    },
+    "CUSTOM_DURATION_ALLOWED": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "RPM_DEVICES": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "TASK_TEMPLATE_INTRO": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "LINKED_TASK_TEMPLATE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "min": 0
+    },
+    "HBA1C": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "BLOOD_PRESSURE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "FASTING_GLUCOSE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "BMI": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "WEIGHT_KG": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "RESTING_HEART_RATE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "CBC": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "BLOOD_TEST": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "KIDNEY_PROFILE_VALUE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "FAMILY_MEMBER_NAME": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "RELATIONSHIP_TO_PATIENT": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "CARE_GIVER_AVAILABLE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "CARE_GIVER_NAME": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "MEDICATION_ADHERENCE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "TRANSLATOR_AVAILABLE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "FINANCIAL_LIMITATIONS_FUNCTIONAL": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "MENTAL_NEEDS": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "PSYCHOSOCIAL_FINANCIAL_LIMITATIONS": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "MEDICATION_ACCESS": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "DIETARY_LIMITATIONS": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "FAMILY_HISTORY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "STAIRS": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "HOME_SAFETY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "BATHROOM_SAFETY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "OVERALL_RISK_LEVEL": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "ADHERENCE_RISK": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "COMPLICATION_RISK": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "PAIN_SCORE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "MOBILITY_LEVEL": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 1
+    },
+    "WORK_STRESS_LEVEL": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "GOAL_TEMPLATE_INTRO": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "LINKED_GOAL_TEMPLATE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "min": 0
+    },
+    "MONITORING_TEMPLATE_INTRO": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "LINKED_MONITORING_TEMPLATE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "min": 0
+    },
+    "REVIEW_CADENCE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 0,
+      "max": 4
+    }
+  }
+}

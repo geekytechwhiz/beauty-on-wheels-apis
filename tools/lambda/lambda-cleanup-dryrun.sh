@@ -1,6 +1,7 @@
 #!/bin/bash
 
-AWS_PROFILE="ci-user-rx"
+AWS_PROFILE="dev"
+ 
 AWS_REGION="us-east-1"
 MAX_FUNCTIONS=100
 

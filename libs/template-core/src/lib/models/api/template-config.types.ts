@@ -3,10 +3,8 @@ export type TemplateConfigType = (typeof TEMPLATE_CONFIG_TYPES)[number];
 
 export type TemplateConfigRecord = {
   configId: string;
-  configType: TemplateConfigType;
+  configType?: TemplateConfigType;
   templateType?: string;
-  configKey?: string;
-  fileName: string;
   document: Record<string, unknown>;
 };
 

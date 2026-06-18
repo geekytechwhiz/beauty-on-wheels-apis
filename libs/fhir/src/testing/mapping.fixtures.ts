@@ -76,7 +76,7 @@ export const flatCanonicalPatient = {
 export const patientMappingFixture: ResourceMappingConfig = {
   resource: 'Patient',
   version: 'R4',
-  profile: 'http://hl7.org/fhir/StructureDefinition/Patient',
+  profile: ['http://hl7.org/fhir/StructureDefinition/Patient'],
   fields: [
     {
       source: 'organizationID',
@@ -145,6 +145,7 @@ export const clientPatientOverrideFixture: ResourceMappingConfig = {
       fieldType: 'string',
     },
   ],
+  profile: []
 };
 
 export const minimalObservationMappingFixture: ResourceMappingConfig = {
@@ -155,18 +156,28 @@ export const minimalObservationMappingFixture: ResourceMappingConfig = {
       source: 'observationId',
       target: 'id',
       fieldType: 'string',
+      metadata: {
+        profile: ['http://hl7.org/fhir/StructureDefinition/Observation'],
+      },
     },
     {
       source: 'status',
       target: 'status',
       fieldType: 'code',
+      metadata: {
+        profile: ['http://hl7.org/fhir/StructureDefinition/Observation'],
+      },
     },
     {
       source: 'code',
       target: 'code.text',
       fieldType: 'string',
+      metadata: {
+        profile: ['http://hl7.org/fhir/StructureDefinition/Observation'],
+      },
     },
   ],
+  profile: []
 };
 
 export const fhirPatientFromFixture = {
@@ -183,4 +194,4 @@ export const fhirPatientFromFixture = {
 };
 
 export const patientR4MappingFixture =
-  patientR4Mapping as ResourceMappingConfig;
+  patientR4Mapping as any;

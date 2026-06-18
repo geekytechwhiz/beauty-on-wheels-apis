@@ -67,6 +67,7 @@ export class DeviceRepository {
     iOSIdentifier?: string;
     isEagleDevice?: boolean;
     deviceCategoryNum?: string;
+    syncCategory?: number;
   }): Promise<DeviceUserEntry> {
     const logger = createChildLogger(baseLogger, { userId: data.userId, configDeviceId: data.configDeviceId });
     const deviceId = this.generateDeviceId(data.userId, data.configDeviceId);
@@ -103,6 +104,7 @@ export class DeviceRepository {
       autoSyncDelay: data.autoSyncDelay,
       isEagleDevice: data.isEagleDevice,
       deviceCategoryNum: data.deviceCategoryNum,
+      ...(data.syncCategory !== undefined ? { syncCategory: data.syncCategory } : {}),
       createdDate: now,
       modifiedDate: now,
     };
@@ -152,6 +154,7 @@ export class DeviceRepository {
       userIndex?: number;
       isEagleDevice?: boolean;
       deviceCategoryNum?: string | number;
+      syncCategory?: number;
     },
     correlationId?: string,
   ): Promise<DeviceUserEntry> {
@@ -198,6 +201,7 @@ export class DeviceRepository {
       autoSyncDelay: data.autoSyncDelay,
       isEagleDevice: data.isEagleDevice,
       deviceCategoryNum,
+      ...(data.syncCategory !== undefined ? { syncCategory: data.syncCategory } : {}),
       updates,
       createdDate: now,
       modifiedDate: now,
@@ -407,6 +411,7 @@ export class DeviceRepository {
       isEagleDevice?: boolean;
       isSync?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: number;
     },
     userId: string,
     updatesExpression: string,
@@ -482,6 +487,9 @@ export class DeviceRepository {
     addBooleanAttribute('isEagleDevice', device.isEagleDevice);
     addBooleanAttribute('isSync', device.isSync);
     addAttribute('deviceCategoryNum', device.deviceCategoryNum);
+    if (device.syncCategory !== undefined) {
+      addNumberAttribute('syncCategory', device.syncCategory);
+    }
 
     params.UpdateExpression = updateExpression;
     return params;
@@ -522,6 +530,7 @@ export class DeviceRepository {
       isEagleDevice?: boolean;
       isSync?: boolean;
       deviceCategoryNum?: string;
+      syncCategory?: number;
     },
     userId: string,
     newUpdates: Array<{ updatedBy: string; updatedAt: number }>,
@@ -562,7 +571,11 @@ export class DeviceRepository {
         throw new DeviceNotFoundError(device.configDeviceId);
       }
 
-      logger.info({ event: 'device_entry_updated', configDeviceId: device.configDeviceId });
+      logger.info({
+        event: 'device_entry_updated',
+        configDeviceId: device.configDeviceId,
+        syncCategory: updatedDevice.syncCategory,
+      });
       return updatedDevice;
     } catch (err) {
       const code = (err as { name?: string })?.name;

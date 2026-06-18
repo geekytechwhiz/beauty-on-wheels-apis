@@ -12,6 +12,7 @@ export const main = withTemplateApiHandler(
     operation: 'template-config.create',
     bodySchema: createTemplateConfigBodySchema,
     validator: validateCreateTemplateConfigRequest,
+    useCreated: true,
   },
   (req: LambdaRequest) => c.handleCreateConfig(req),
 );

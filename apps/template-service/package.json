@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "deploy": "npx --no-install serverless deploy",
-    "offline": "npx --no-install serverless offline --stage dev",
+    "offline": "npx --no-install serverless offline --config serverless.offline.yml --stage dev",
     "package": "npx --no-install serverless package",
     "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts",
     "test:watch": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/template-service/jest.config.cts --watch",

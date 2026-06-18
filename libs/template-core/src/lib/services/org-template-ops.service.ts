@@ -4,12 +4,12 @@ import {
 } from '../builder/template-entity.builder';
 import { OrgTemplateEntityBuilder } from '../builder/org-template-entity.builder';
 import {
-  MASTER_EDITABLE_STATUSES,
+  ORG_EDITABLE_STATUSES,
   STATUS_TRANSITION_ACTION,
   TEMPLATE_STATUS,
   type TemplateStatus,
 } from '../constants/template.constants';
-import { toTemplateSummary } from '../mappers/template-http.dto';
+import { appendVersionHistoryToRecord, toTemplateSummary } from '../mappers/template-http.dto';
 import type {
   TransitionOrgStatusParams,
   UpdateOrgTemplateVersionParams,
@@ -19,6 +19,11 @@ import type { TemplateMeta } from '../models/persistence/template-ddb.model';
 import { OrgTemplateRepository } from '../repositories/org-template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import {
+  buildRulesFromFieldValues,
+  mergeRulesAfterFieldValuesChange,
+} from '../utils/template-rules.utils';
+import {
+  bumpMinorVersion,
   normalizeVersionToSk,
   templateConflictError,
   templateNotFoundError,
@@ -57,10 +62,38 @@ function parseOrgUpdateBody(body: UpdateOrgTemplateVersionParams['body']): {
     }
   }
   const documentFields: Record<string, unknown> = { ...rest };
+  if (documentFields.fieldValues === null) {
+    delete documentFields.fieldValues;
+  }
   if (overrides && typeof overrides === 'object') {
     documentFields.overrides = overrides;
   }
   return { metaOverrides, documentFields };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function isFieldValuesRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeOrgDocumentFields(
+  sourceVersion: TemplateDdbRecord,
+  documentFields: Record<string, unknown>,
+): Record<string, unknown> {
+  const base = extractDocumentFields(sourceVersion);
+  const merged: Record<string, unknown> = { ...base, ...documentFields };
+  if (isFieldValuesRecord(documentFields.fieldValues)) {
+    merged.fieldValues = {
+      ...asRecord(base.fieldValues),
+      ...asRecord(documentFields.fieldValues),
+    };
+  }
+  return merged;
 }
 
 function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknown> {
@@ -73,8 +106,12 @@ function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknow
   return doc;
 }
 
+function shouldBumpOrgVersionOnUpdate(documentFields: Record<string, unknown>): boolean {
+  return Object.keys(documentFields).length > 0;
+}
+
 function assertEditableStatus(status: TemplateStatus | undefined, action: string): void {
-  if (!status || !MASTER_EDITABLE_STATUSES.includes(status)) {
+  if (!status || !ORG_EDITABLE_STATUSES.includes(status)) {
     templateConflictError(
       `Cannot ${action} org template in status ${status ?? 'UNKNOWN'}; only DRAFT, SAVED, or IN_REVIEW are editable`,
     );
@@ -83,6 +120,69 @@ function assertEditableStatus(status: TemplateStatus | undefined, action: string
 
 export class OrgTemplateOpsService {
   constructor(private readonly orgRepo = new OrgTemplateRepository()) {}
+
+  extractDocumentFields(record: TemplateDdbRecord): Record<string, unknown> {
+    return extractDocumentFields(record);
+  }
+
+  async saveOrgTemplateInPlace(params: {
+    organizationId: string;
+    templateId: string;
+    metaRow: TemplateDdbRecord;
+    sourceVersion: TemplateDdbRecord;
+    mergedDocument: Record<string, unknown>;
+    metaOverrides?: Partial<TemplateMeta>;
+    actorUser?: import('../models/template-actor.model').TemplateActorUser;
+    bumpVersion?: boolean;
+  }): Promise<TemplateDdbRecord> {
+    const currentStatus =
+      params.sourceVersion.meta?.status ?? params.metaRow.meta.status ?? TEMPLATE_STATUS.DRAFT;
+    const nowIso = new Date().toISOString();
+    const bumpVersion = params.bumpVersion !== false;
+    const nextVersionNum = bumpVersion
+      ? bumpMinorVersion(params.metaRow.meta.version ?? params.sourceVersion.meta.version ?? 1)
+      : (params.metaRow.meta.version ?? params.sourceVersion.meta.version ?? 1);
+
+    const writeCtx: MasterVersionWriteContext = {
+      templateId: params.templateId,
+      templateVersionId: params.sourceVersion.meta.templateVersionId,
+      versionNum: nextVersionNum,
+      versionSk: params.sourceVersion.sk,
+      nowIso,
+    };
+
+    const mergedMeta = TemplateEntityBuilder.buildMetaFromExisting(
+      params.metaRow.meta,
+      {
+        ...params.metaOverrides,
+        status: (params.metaOverrides?.status ?? currentStatus) as TemplateStatus,
+        ownerOrgId: params.organizationId,
+        isMaster: false,
+      },
+      writeCtx,
+      params.actorUser,
+    );
+
+    const updatedMetaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(
+      mergedMeta,
+      params.organizationId,
+      params.templateId,
+    );
+    const updatedVersionRow = OrgTemplateEntityBuilder.buildOrgVersionRowFromMeta(
+      mergedMeta,
+      params.organizationId,
+      params.templateId,
+      writeCtx,
+      params.mergedDocument,
+    );
+
+    if (bumpVersion) {
+      appendVersionHistoryToRecord(updatedVersionRow);
+    }
+
+    await this.orgRepo.saveOrgMetaAndVersion(updatedMetaRow, updatedVersionRow);
+    return updatedVersionRow;
+  }
 
   async updateOrgTemplateVersion(params: UpdateOrgTemplateVersionParams): Promise<TemplateDdbRecord> {
     try {
@@ -104,47 +204,35 @@ export class OrgTemplateOpsService {
       const currentStatus = sourceVersion.meta?.status ?? metaRow.meta.status;
       assertEditableStatus(currentStatus, 'update');
 
-      const nextVersionNum = (metaRow.meta.version ?? 1) + 1;
-      const ctx = TemplateEntityBuilder.buildVersionWriteContext(
-        params.templateId,
-        nextVersionNum,
-      );
       const { metaOverrides, documentFields } = parseOrgUpdateBody(params.body);
-      const mergedMeta = TemplateEntityBuilder.buildMetaFromExisting(
-        metaRow.meta,
-        {
+      const mergedDocument = mergeOrgDocumentFields(sourceVersion, documentFields);
+
+      if (isFieldValuesRecord(documentFields.fieldValues)) {
+        const templateType = sourceVersion.meta?.templateType ?? metaRow.meta.templateType;
+        mergedDocument.rules = mergeRulesAfterFieldValuesChange(
+          asRecord(sourceVersion.rules),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+          {
+            templateType,
+            fieldValues: asRecord(mergedDocument.fieldValues),
+            previousFieldValues: asRecord(sourceVersion.fieldValues),
+          },
+        );
+      }
+
+      return await this.saveOrgTemplateInPlace({
+        organizationId: params.organizationId,
+        templateId: params.templateId,
+        metaRow,
+        sourceVersion,
+        mergedDocument,
+        metaOverrides: {
           ...metaOverrides,
           status: (metaOverrides.status ?? currentStatus) as TemplateStatus,
-          ownerOrgId: params.organizationId,
-          isMaster: false,
         },
-        ctx,
-        params.actorUser,
-      );
-
-      const mergedDocument = {
-        ...extractDocumentFields(sourceVersion),
-        ...documentFields,
-      };
-
-      const newMetaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(
-        mergedMeta,
-        params.organizationId,
-        params.templateId,
-      );
-      const newVersionRow = OrgTemplateEntityBuilder.buildOrgVersionRowFromMeta(
-        mergedMeta,
-        params.organizationId,
-        params.templateId,
-        ctx,
-        mergedDocument,
-      );
-
-      await this.orgRepo.saveOrgMetaAndVersion(newMetaRow, newVersionRow, {
-        requireNewVersionSk: true,
+        actorUser: params.actorUser,
+        bumpVersion: shouldBumpOrgVersionOnUpdate(documentFields),
       });
-
-      return newVersionRow;
     } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }

@@ -158,10 +158,13 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
           responses:
+            default: Default response
             "201": Created — TemplateSummaryData
             "400": Bad request
             "401": Unauthorized
+            "403": Forbidden
             "409": Conflict
+            "500": Server error
       - http:
           path: templates/{templateId}
           method: post

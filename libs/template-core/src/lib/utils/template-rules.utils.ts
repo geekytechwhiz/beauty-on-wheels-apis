@@ -4,6 +4,12 @@ import {
   LINKED_TEMPLATE_NESTED_ARRAY_MAX,
   TEMPLATE_TYPE_CARE_PLAN,
 } from '../constants/template.constants';
+import {
+  isLabelValueObject,
+  isLabelValueOnlyArray,
+  normalizeLinkValueForRules,
+  resolveTemplateDisplayName,
+} from './field-values-profile.utils';
 
 export const TEMPLATE_RULE_METADATA_MODE_FIXED = 'Fixed' as const;
 
@@ -68,10 +74,6 @@ export type MergeRulesAfterFieldValuesChangeOptions = BuildRulesFromFieldValuesO
   fieldValues?: Record<string, unknown>;
   previousFieldValues?: Record<string, unknown>;
 };
-
-function collectLinkedTemplateFieldKeys(fieldValues: Record<string, unknown>): Set<string> {
-  return new Set(Object.keys(fieldValues).filter(isLinkedTemplateFieldKey));
-}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -179,25 +181,22 @@ function collectPathsFromLinkedItem(item: Record<string, unknown>, paths: Set<st
   }
 }
 
-/** Inner field paths from CARE_PLAN linked-template array items (for stale flat-key cleanup at rules root). */
+/** Inner field paths from linked-template items (for stale flat-key cleanup at rules root). */
 export function collectLinkedItemInnerRulePaths(fieldValues: Record<string, unknown>): Set<string> {
   const paths = new Set<string>();
 
   for (const linkingKey of Object.keys(fieldValues)) {
     if (!isLinkedTemplateFieldKey(linkingKey)) continue;
-    const value = fieldValues[linkingKey];
-    if (isArrayOfObjects(value)) {
-      collectPathsFromLinkedItem(value[0], paths);
+    const item = normalizeLinkValueForRules(fieldValues[linkingKey]);
+    if (item) {
+      collectPathsFromLinkedItem(item, paths);
     }
   }
 
   return paths;
 }
 
-/** @deprecated Use {@link collectLinkedItemInnerRulePaths} */
-export const collectFlatLinkedItemRulePaths = collectLinkedItemInnerRulePaths;
-
-/** Builds the nested `rules` map for one linked-template array item (CARE_PLAN). */
+/** Builds the nested `rules` map for one linked-template item (CARE_PLAN). */
 export function buildLinkedItemRulesMap(
   item: Record<string, unknown>,
 ): Record<string, TemplateFieldRuleNode> {
@@ -205,57 +204,85 @@ export function buildLinkedItemRulesMap(
 
   for (const [key, value] of Object.entries(item)) {
     if (isLinkedTemplateFieldKey(key)) {
-      const container = generateLinkedTemplateContainerRule();
-      if (isArrayOfObjects(value)) {
-        rulesMap[key] = {
-          ...container,
-          rules: buildLinkedItemRulesMap(value[0]),
-        };
-      } else {
-        rulesMap[key] = container;
-      }
+      rulesMap[key] = buildLinkedTemplateRuleNode(value);
       continue;
     }
 
-    if (isArrayOfObjects(value)) {
-      rulesMap[key] = {
-        ...generateLinkedArrayContainerRule(),
-        rules: buildLinkedItemRulesMap(value[0]),
-      };
-      continue;
-    }
-
-    if (isPlainObject(value)) {
-      rulesMap[key] = {
-        ...generateDefaultRule(),
-        rules: buildLinkedItemRulesMap(value),
-      };
-      continue;
-    }
-
-    rulesMap[key] = generateDefaultRule();
+    rulesMap[key] = buildCarePlanFieldRuleNode(value);
   }
 
   return rulesMap;
 }
 
-function buildCarePlanLinkedTemplateRules(fieldValues: Record<string, unknown>): TemplateRulesMap {
-  const rules: TemplateRulesMap = {};
+function buildLinkedTemplateRuleNode(value: unknown): TemplateFieldRuleNode {
+  const container = generateLinkedTemplateContainerRule();
+  const item = normalizeLinkValueForRules(value);
+  if (!item) {
+    return container;
+  }
+  return {
+    ...container,
+    rules: buildLinkedItemRulesMap(item),
+  };
+}
 
-  for (const linkingKey of Object.keys(fieldValues)) {
-    if (!isLinkedTemplateFieldKey(linkingKey)) continue;
+function buildCarePlanFieldRuleNode(value: unknown): TemplateFieldRuleNode {
+  if (isLabelValueObject(value)) {
+    return generateDefaultRule();
+  }
 
-    const value = fieldValues[linkingKey];
-    const container = generateLinkedTemplateContainerRule();
-
+  if (Array.isArray(value)) {
+    if (value.length === 0 || isLabelValueOnlyArray(value)) {
+      return generateLinkedArrayContainerRule();
+    }
     if (isArrayOfObjects(value)) {
-      rules[linkingKey] = {
-        ...container,
+      return {
+        ...generateLinkedArrayContainerRule(),
         rules: buildLinkedItemRulesMap(value[0]),
       };
-    } else {
-      rules[linkingKey] = container;
     }
+    return generateLinkedArrayContainerRule();
+  }
+
+  if (isPlainObject(value)) {
+    return {
+      ...generateDefaultRule(),
+      rules: buildLinkedItemRulesMap(value),
+    };
+  }
+
+  return generateDefaultRule();
+}
+
+const DERIVED_CATALOG_FIELD_KEYS = new Set(['categoryCode', 'conditionCode']);
+
+function shouldSkipDenormalizedCatalogKey(
+  key: string,
+  fieldValues: Record<string, unknown>,
+): boolean {
+  if (key === 'categoryCode') {
+    return fieldValues.Category !== undefined || fieldValues.CATEGORY !== undefined;
+  }
+  if (key === 'conditionCode') {
+    return fieldValues.Condition !== undefined || fieldValues.CONDITION !== undefined;
+  }
+  return false;
+}
+
+function buildCarePlanRules(fieldValues: Record<string, unknown>): TemplateRulesMap {
+  const rules: TemplateRulesMap = {};
+
+  for (const [key, value] of Object.entries(fieldValues)) {
+    if (DERIVED_CATALOG_FIELD_KEYS.has(key) && shouldSkipDenormalizedCatalogKey(key, fieldValues)) {
+      continue;
+    }
+
+    if (isLinkedTemplateFieldKey(key)) {
+      rules[key] = buildLinkedTemplateRuleNode(value);
+      continue;
+    }
+
+    rules[key] = buildCarePlanFieldRuleNode(value);
   }
 
   return rules;
@@ -265,18 +292,14 @@ export function buildRulesFromFieldValues(
   fieldValues: Record<string, unknown>,
   options?: BuildRulesFromFieldValuesOptions,
 ): TemplateRulesMap {
-  const rules: TemplateRulesMap = {};
-  const carePlan = isCarePlanTemplateType(options?.templateType);
-  const skipKeys = carePlan ? collectLinkedTemplateFieldKeys(fieldValues) : new Set<string>();
-
-  if (carePlan) {
-    Object.assign(rules, buildCarePlanLinkedTemplateRules(fieldValues));
+  if (isCarePlanTemplateType(options?.templateType)) {
+    return buildCarePlanRules(fieldValues);
   }
 
-  for (const path of collectRulePathsFromFieldValues(fieldValues, skipKeys)) {
+  const rules: TemplateRulesMap = {};
+  for (const path of collectRulePathsFromFieldValues(fieldValues)) {
     rules[path] = generateDefaultRule();
   }
-
   return rules;
 }
 
@@ -438,11 +461,8 @@ export function resolveFieldValuesForRules(
     ? { ...document.fieldValues }
     : {};
 
-  if (!fv.TEMPLATE_NAME) {
-    const templateName =
-      (typeof body?.TEMPLATE_NAME === 'string' && body.TEMPLATE_NAME.trim()) ||
-      (typeof body?.templateName === 'string' && body.templateName.trim()) ||
-      (typeof fv.templateName === 'string' && fv.templateName.trim());
+  if (!fv.TEMPLATE_NAME && !fv.TemplateName) {
+    const templateName = resolveTemplateDisplayName(body, fv);
     if (templateName) {
       fv.TEMPLATE_NAME = templateName;
     }

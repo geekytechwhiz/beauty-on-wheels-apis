@@ -27,11 +27,20 @@ export const DEFAULT_TEMPLATE_LIST_PAGE_SIZE = 20;
 
 export const TEMPLATE_TYPE_CARE_PLAN = 'CARE_PLAN';
 
-/** Prefix for CARE_PLAN fieldValues keys that store linked templates — container at rules[LINKED_*] with inner keys in rules[LINKED_*].rules. */
+/** Prefix for legacy CARE_PLAN fieldValues keys that store linked templates. */
 export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_';
 
+/** Console UI keys → legacy catalog names (rules use the key stored in fieldValues). */
+export const LINKED_TEMPLATE_CONSOLE_KEYS = {
+  LinkedTaskTemplate: 'LINKED_TASK_TEMPLATE',
+  LinkedGoalTemplate: 'LINKED_GOAL_TEMPLATE',
+  LinkedMonitoringTemplate: 'LINKED_MONITORING_TEMPLATE',
+} as const;
+
+const CONSOLE_LINKED_TEMPLATE_FIELD_KEYS = new Set(Object.keys(LINKED_TEMPLATE_CONSOLE_KEYS));
+
 export function isLinkedTemplateFieldKey(key: string): boolean {
-  return key.startsWith(LINKED_TEMPLATE_FIELD_KEY_PREFIX);
+  return key.startsWith(LINKED_TEMPLATE_FIELD_KEY_PREFIX) || CONSOLE_LINKED_TEMPLATE_FIELD_KEYS.has(key);
 }
 
 export const LINKED_TEMPLATE_MAX_LINKS = 20;

@@ -25,6 +25,7 @@ import {
   buildRulesFromFieldValues,
   mergeRulesAfterFieldValuesChange,
 } from '../utils/template-rules.utils';
+import { extractCatalogCodes, resolveTemplateDisplayName } from '../utils/field-values-profile.utils';
 import {
   bumpMinorVersion,
   firstString,
@@ -85,28 +86,18 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
   if (typeof rest.shareScope === 'string' && rest.shareScope.trim()) {
     fieldValues.shareScope = rest.shareScope.trim();
   }
-  if (typeof rest.categoryCode === 'string' && rest.categoryCode.trim()) {
-    fieldValues.categoryCode = rest.categoryCode.trim();
-  } else if (rest.category !== undefined) {
-    const cat = firstString(rest.category);
-    if (cat) fieldValues.categoryCode = cat;
-  }
-  if (typeof rest.conditionCode === 'string' && rest.conditionCode.trim()) {
-    fieldValues.conditionCode = rest.conditionCode.trim();
-  } else if (rest.condition !== undefined) {
-    const cond = firstString(rest.condition);
-    if (cond) fieldValues.conditionCode = cond;
-  }
 
-  const taskName = firstString(fieldValues.TASK_NAME) ?? firstString(fieldValues.TEMPLATE_NAME);
+  const catalog = extractCatalogCodes(fieldValues);
+
+  const taskName =
+    resolveTemplateDisplayName(rest, fieldValues) ??
+    firstString(fieldValues.TASK_NAME);
   if (taskName) {
     metaOverrides.templateName = taskName;
   }
-  const categoryCode = firstString(fieldValues.categoryCode);
-  if (categoryCode) metaOverrides.category = categoryCode;
-  const conditionCode = firstString(fieldValues.conditionCode);
-  if (conditionCode) metaOverrides.condition = conditionCode;
-  const shareScopeRaw = firstString(fieldValues.shareScope);
+  if (catalog.categoryCode) metaOverrides.category = catalog.categoryCode;
+  if (catalog.conditionCode) metaOverrides.condition = catalog.conditionCode;
+  const shareScopeRaw = catalog.shareScope ?? firstString(fieldValues.shareScope);
   if (shareScopeRaw) {
     metaOverrides.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
   }

@@ -1,100 +1,94 @@
-# LINKED_* template rules — flat structure in `rules`
+# LINKED_* template rules — separate `rules` object inside each `LINKED_*`
 
 **Status:** design only (no code yet)  
-**Replaces:** nested children inside `rules.LINKED_*` (see `CARE_PLAN_LINKED_TEMPLATE_RULES_PLAN.md`)  
 **Reference response:** org rules GET for `CARE-PLAN-TEMPLATE-5` (Care plan Template 5)
 
 ---
 
 ## Goal
 
-Keep **one `rules` object** — same API flow and DynamoDB storage as today.  
-Change only the **shape** for CARE_PLAN linking keys:
+Keep **one top-level `rules` object** — same API flow and DynamoDB storage as today.  
+For CARE_PLAN, each `LINKED_*` key is a **separate entry** at `rules` root.  
+Inside every `LINKED_*` (and every array container), **container flags** and **child field rules** are split:
 
-1. `rules.LINKED_*` = **container rule only** (`min: 0`, `max: 20`) — no nested children inside the object.
-2. Inner linked-item field rules (`subtitle`, `workflowStage`, `ruleBadges`, `color`, …) = **flat siblings** at `rules` root, same level as `CATEGORY` and `LINKED_TASK_TEMPLATE`.
+| Layer on the node | Keys |
+|-------------------|------|
+| **Container** (this `LINKED_*` or array) | `enable`, `orgedit`, `add`, `defaultedit`, `delete`, `metadataMode`, `min`, `max` |
+| **Children** (fields from `fieldValues` item) | nested **`rules`** object → `id`, `description`, `subtitle`, … |
 
-| What | Where |
-|------|--------|
-| Normal fields (`CATEGORY`, `CONDITION`, `RPM_DEVICES`, …) | `rules.<key>` — unchanged |
-| `LINKED_*` array container | `rules.LINKED_TASK_TEMPLATE` — rule flags only |
-| Inner keys from `fieldValues.LINKED_TASK_TEMPLATE[0]` | `rules.subtitle`, `rules.workflowStage`, `rules.ruleBadges`, `rules.color`, … |
+```
+rules
+├── CATEGORY, CONDITION, …                  → flat leaf (unchanged)
+├── LINKED_TASK_TEMPLATE                    → container flags + rules { id, description, … }
+├── LINKED_GOAL_TEMPLATE                    → container flags only (when null)
+└── LINKED_MONITORING_TEMPLATE              → container flags only (when null)
+```
 
-**No** separate `linkedTemplateRules` JSON. **No** new API field. **No** new DynamoDB attribute.
+**Not** mixed on one level — inner keys like `id` and `description` do **not** sit beside `enable` / `min` / `max` on the same object. They live under **`rules`**.
 
+**No** separate top-level `linkedTemplateRules` API field. **No** new DynamoDB attribute.  
 `fieldValues` shape is **unchanged**.
 
 ---
 
-## Current (today) — nested inside `rules.LINKED_*`
+## Rejected shapes
 
-Inner task fields live **inside** `rules.LINKED_TASK_TEMPLATE` on the same object as the container flags:
+### ❌ Flat at `rules` root
+
+```
+rules.subtitle
+rules.workflowStage
+rules.color
+```
+
+Inner linked fields as siblings of `LINKED_TASK_TEMPLATE` — rejected (collision, no parent context).
+
+### ❌ Mixed container + children on same object
+
+```json
+"LINKED_TASK_TEMPLATE": {
+  "enable": true,
+  "min": 0,
+  "max": 20,
+  "id": { "enable": true, "min": 1, "max": 1 },
+  "description": { "enable": true, "min": 1, "max": 1 }
+}
+```
+
+`id` and `description` beside `enable` / `min` — rejected. Use nested **`rules`** instead.
+
+---
+
+## Proposed shape — `rules` inside each `LINKED_*`
+
+### Node pattern (every container)
 
 ```json
 {
+  "enable": true,
+  "orgedit": true,
+  "add": true,
+  "defaultedit": true,
+  "delete": true,
+  "metadataMode": "Fixed",
+  "min": 0,
+  "max": 20,
   "rules": {
-    "CATEGORY": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
-
-    "LINKED_TASK_TEMPLATE": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 0,
-      "max": 20,
-      "subtitle": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
-      "workflowStage": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
-      "id": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 }
-    },
-
-    "LINKED_GOAL_TEMPLATE": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 0, "max": 20 },
-    "LINKED_MONITORING_TEMPLATE": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 0, "max": 20 }
+    "<childKey>": { }
   }
 }
 ```
 
-**Problem:** inner field rules are nested inside `rules.LINKED_TASK_TEMPLATE` instead of flat siblings.
+- Top-level `LINKED_*` in `fieldValues` → one separate node at `rules.LINKED_*`.
+- Keys inside `fieldValues.LINKED_*[0]` → entries in `rules.LINKED_*.rules`.
+- Array of objects (`ruleBadges`) → container node with its own `rules` for `color`, `bg`, `label`.
+- Nested `LINKED_*` inside an item → separate container node inside parent’s `rules`, with its own `rules` children.
+
+When `fieldValues.LINKED_*` is `null` or `[]`, emit **container flags only** — omit `rules` (or use empty `{}`).
 
 ---
 
-## Proposed — flat siblings inside `rules`
-
-### Top-level response shape (org rules GET) — unchanged
-
-```json
-{
-  "organizationId": "mlepbaj40dac678b",
-  "masterTemplateId": "CARE-PLAN-TEMPLATE-5",
-  "orgTemplateId": "CARE-PLAN-TEMPLATE-5-ORG-MLEPBAJ40DAC678B",
-  "templateVersionId": "CARE-PLAN-TEMPLATE-5-ORG-MLEPBAJ40DAC678B-V01",
-  "templateType": "CARE_PLAN",
-  "fieldValues": { },
-  "rules": { }
-}
-```
-
-### Flat layout inside `rules`
-
-```
-rules
-├── CATEGORY, CONDITION, RPM_DEVICES, …     → normal flat rules (unchanged)
-├── LINKED_TASK_TEMPLATE                    → container only (min: 0, max: 20)
-├── LINKED_GOAL_TEMPLATE                    → container only
-├── LINKED_MONITORING_TEMPLATE              → container only
-├── ruleBadges                              → array container (min: 0, max: 10)
-├── color, bg, label                        → leaf rules (from ruleBadges[0])
-├── description, subtitle, workflowStage    → leaf rules (from LINKED_TASK_TEMPLATE[0])
-├── id, title, version, generationTrigger   → leaf rules
-└── requiredForStageCompletion, displayAsChecklistItem → leaf rules
-```
-
-`rules.LINKED_TASK_TEMPLATE` holds **only** its own rule flags — inner keys are **siblings** at `rules` root, not children.
-
----
-
-## Full example (from Care plan Template 5)
+## Full example 1 — Care plan Template 5
 
 ### `fieldValues` — unchanged
 
@@ -125,7 +119,7 @@ rules
 }
 ```
 
-### `rules` — single object, flat siblings (target shape)
+### `rules` — target shape
 
 ```json
 {
@@ -147,245 +141,304 @@ rules
       "delete": true,
       "metadataMode": "Fixed",
       "min": 0,
-      "max": 20
+      "max": 20,
+      "rules": {
+        "id": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "description": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "subtitle": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "workflowStage": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "title": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "version": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "requiredForStageCompletion": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "displayAsChecklistItem": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "generationTrigger": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "ruleBadges": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 0, "max": 10,
+          "rules": {
+            "color": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            },
+            "bg": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            },
+            "label": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            }
+          }
+        }
+      }
     },
+
     "LINKED_GOAL_TEMPLATE": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 0,
-      "max": 20
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20
     },
     "LINKED_MONITORING_TEMPLATE": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 0,
-      "max": 20
-    },
-    "ruleBadges": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 0,
-      "max": 10
-    },
-    "color": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "bg": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "label": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "description": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "requiredForStageCompletion": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "title": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "version": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "displayAsChecklistItem": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "generationTrigger": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "subtitle": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "workflowStage": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
-    },
-    "id": {
-      "enable": true,
-      "orgedit": true,
-      "add": true,
-      "defaultedit": true,
-      "delete": true,
-      "metadataMode": "Fixed",
-      "min": 1,
-      "max": 1
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20
     }
   }
 }
 ```
 
-When `LINKED_GOAL_TEMPLATE` / `LINKED_MONITORING_TEMPLATE` are `null` in `fieldValues`, only their container rule is generated (no inner field keys from those links).
+### Mirror diagram
+
+```
+fieldValues.LINKED_TASK_TEMPLATE[0]          rules.LINKED_TASK_TEMPLATE
+│ (container — separate at rules root)         ├── enable, orgedit, min: 0, max: 20
+│                                              └── rules
+├── id                                  →          ├── id: { leaf rule }
+├── description                         →          ├── description: { leaf rule }
+├── subtitle                            →          ├── subtitle: { leaf rule }
+├── workflowStage                       →          ├── workflowStage: { leaf rule }
+└── ruleBadges[0]                       →          └── ruleBadges: { container, rules: { color, bg, label } }
+    ├── color                           →              └── color: { leaf rule }
+    ├── bg                              →              └── bg: { leaf rule }
+    └── label                           →              └── label: { leaf rule }
+```
+
+### Assertions
+
+| Path | Expected |
+|------|----------|
+| `rules.LINKED_TASK_TEMPLATE.min` | `0` |
+| `rules.LINKED_TASK_TEMPLATE.rules.id` | leaf rule object |
+| `rules.LINKED_TASK_TEMPLATE.rules.description` | leaf rule object |
+| `rules.LINKED_TASK_TEMPLATE.rules.ruleBadges.rules.color` | leaf rule object |
+| `rules.LINKED_TASK_TEMPLATE.id` | **undefined** (not mixed on container) |
+| `rules.id` | **undefined** (not at root) |
+| `rules.subtitle` | **undefined** (not at root) |
+
+---
+
+## Full example 2 — three separate top-level `LINKED_*` keys
+
+Each `LINKED_*` from `fieldValues` is its **own** entry under `rules` — never merged into one object.
+
+### `fieldValues`
+
+```json
+{
+  "fieldValues": {
+    "LINKED_TASK_TEMPLATE": [
+      { "id": "tasks-htn-care", "title": "HTN Care Tasks", "description": "Task pack" }
+    ],
+    "LINKED_GOAL_TEMPLATE": [
+      { "id": "goal-htn-bp", "title": "BP goal", "description": "Target BP" }
+    ],
+    "LINKED_MONITORING_TEMPLATE": null,
+    "CATEGORY": "CHRONIC_CARE"
+  }
+}
+```
+
+### `rules`
+
+```json
+{
+  "rules": {
+    "CATEGORY": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 1, "max": 1
+    },
+    "LINKED_TASK_TEMPLATE": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20,
+      "rules": {
+        "id": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
+        "title": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
+        "description": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 }
+      }
+    },
+    "LINKED_GOAL_TEMPLATE": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20,
+      "rules": {
+        "id": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
+        "title": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 },
+        "description": { "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true, "metadataMode": "Fixed", "min": 1, "max": 1 }
+      }
+    },
+    "LINKED_MONITORING_TEMPLATE": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20
+    }
+  }
+}
+```
+
+---
+
+## Full example 3 — nested `LINKED_*` inside a linked item
+
+Inner `LINKED_*` follows the **same** pattern: container flags + `rules` for children, placed inside the parent’s `rules` map.
+
+### `fieldValues`
+
+```json
+{
+  "fieldValues": {
+    "LINKED_TASK_TEMPLATE": [
+      {
+        "id": "tasks-htn-care",
+        "description": "Main task pack",
+        "LINKED_GOAL_TEMPLATE": [
+          { "id": "goal-htn-bp", "description": "BP target", "targetValue": "130/80" }
+        ]
+      }
+    ],
+    "LINKED_GOAL_TEMPLATE": null,
+    "CATEGORY": "CHRONIC_CARE"
+  }
+}
+```
+
+### `rules` (excerpt)
+
+```json
+{
+  "rules": {
+    "LINKED_TASK_TEMPLATE": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20,
+      "rules": {
+        "id": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "description": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 1, "max": 1
+        },
+        "LINKED_GOAL_TEMPLATE": {
+          "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+          "metadataMode": "Fixed", "min": 0, "max": 20,
+          "rules": {
+            "id": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            },
+            "description": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            },
+            "targetValue": {
+              "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+              "metadataMode": "Fixed", "min": 1, "max": 1
+            }
+          }
+        }
+      }
+    },
+    "LINKED_GOAL_TEMPLATE": {
+      "enable": true, "orgedit": true, "add": true, "defaultedit": true, "delete": true,
+      "metadataMode": "Fixed", "min": 0, "max": 20
+    }
+  }
+}
+```
+
+Top-level `rules.LINKED_GOAL_TEMPLATE` = container only (`fieldValues` value is `null`).  
+Nested `rules.LINKED_TASK_TEMPLATE.rules.LINKED_GOAL_TEMPLATE` = from the **item** JSON.
 
 ---
 
 ## Rule generation flow (`buildRulesFromFieldValues`)
 
-Same entry point as today — one function builds the full `rules` map.
-
 ```
 buildRulesFromFieldValues(fieldValues, { templateType })
 │
 ├─ For each non-LINKED key in fieldValues
-│    → rules[key] = flat rule (existing algorithm)
+│    → rules[key] = flat leaf rule (existing algorithm)
 │
 └─ When templateType === 'CARE_PLAN'
-     For each key where key.startsWith('LINKED_')
+     For each top-level key where key.startsWith('LINKED_')
      │
-     ├─ rules[linkingKey] = container rule (min: 0, max: 20)
+     ├─ rules[linkingKey] = linked container rule (min: 0, max: 20)
      │
      └─ If value is non-empty array of objects
-          Walk first element → emit flat rules at rules root:
-          • scalar/boolean  → rules[key] = leaf rule
-          • array of objects (ruleBadges) → rules.ruleBadges = container (min: 0, max: 10)
-            then keys in array[0] → rules.color, rules.bg, rules.label
+          rules[linkingKey].rules = buildLinkedItemRulesMap(value[0])
 ```
 
-### `LINKED_*` container keys
+### `buildLinkedItemRulesMap(item)` — builds the inner `rules` object
 
-| `fieldValues` value | `rules[linkingKey]` |
-|---------------------|---------------------|
-| Non-empty array, `null`, or `[]` | Container rule only (`min: 0`, `max: 20`) |
-| Key omitted | Key omitted from `rules` |
+```
+for each [key, value] in item:
+│
+├─ key.startsWith('LINKED_') and isArrayOfObjects(value)
+│    → rulesMap[key] = { ...linkedContainerRule(), rules: buildLinkedItemRulesMap(value[0]) }
+│
+├─ key.startsWith('LINKED_') and (null | [])
+│    → rulesMap[key] = linkedContainerRule() only (no rules)
+│
+├─ Array of objects (e.g. ruleBadges)
+│    → rulesMap[key] = { ...arrayContainerRule(min: 0, max: 10), rules: buildLinkedItemRulesMap(value[0]) }
+│
+├─ Plain object (not array)
+│    → rulesMap[key] = { ...defaultContainerRule(), rules: buildLinkedItemRulesMap(value) }
+│
+└─ Scalar / boolean
+     → rulesMap[key] = defaultLeafRule(min: 1, max: 1)
+```
 
-Container rule = standard defaults. **No nested children on this object.**
+### Container `min` / `max`
 
-### Inner keys from linked array items (flat at `rules` root)
-
-| Value in `fieldValues` item | Rule emitted |
-|-----------------------------|--------------|
-| Scalar / boolean (`subtitle`, `id`, `title`) | `rules.<key>` — leaf rule (`min: 1`, `max: 1`) |
-| Array of objects (`ruleBadges`) | `rules.ruleBadges` — container (`min: 0`, `max: 10`) |
-| Keys inside `ruleBadges[0]` | `rules.color`, `rules.bg`, `rules.label` — leaf rules |
-
-**Scope:** `templateType === 'CARE_PLAN'` only. Other template types keep existing flat walk.
-
-### Collision note
-
-Inner field names (`id`, `title`, `subtitle`, …) are flat at `rules` root alongside `CATEGORY`, etc. If two `LINKED_*` arrays both define the same inner key, last-writer wins during generation. Acceptable for current CARE_PLAN UI (only one link type populated per template today).
+| Node type | `min` | `max` |
+|-----------|------:|------:|
+| Top-level / nested `LINKED_*` | `0` | `20` |
+| Array of objects (`ruleBadges`, …) | `0` | `10` |
+| Scalar / boolean leaf | `1` | `1` |
 
 ### Stale key cleanup
 
-On master/org **fieldValues** update, regenerate linking-related flat keys from scratch:
-- Remove old inner keys (`subtitle`, `color`, …) if `LINKED_TASK_TEMPLATE` becomes `null` or `[]`
-- Keep non-linking keys (`CATEGORY`, …) via existing additive merge
+On `fieldValues` update, **replace each top-level `LINKED_*` node** (container + entire `rules` subtree).  
+Drop `rules` when linking array becomes `null` or `[]`.
 
 ---
 
-## API contract — same as today
+## API contract
 
 | API | `fieldValues` | `rules` |
 |-----|---------------|---------|
 | `POST /templates` (master create) | Yes | No (stripped) |
 | `GET /templates` (master list) | Yes | No |
-| `GET /templates/org/{templateId}/{orgId}` | Yes | Yes (flat, includes LINKED_* + inner keys) |
-| `PUT /templates/org/{templateId}/{orgId}` | Yes | Partial patch on `rules` |
+| `GET /templates/org/{templateId}/{orgId}` | Yes | Yes |
+| `PUT /templates/org/{templateId}/{orgId}` | Yes | Partial patch |
 
-No new response field. Clients keep reading/writing `rules` only.
+### Org rules PUT examples
 
-### Org rules PUT — patch flat keys in `rules`
-
-Patch inner linked field rules:
-
-```json
-{
-  "rules": {
-    "workflowStage": { "orgedit": false },
-    "generationTrigger": { "enable": false },
-    "CATEGORY": { "orgedit": false }
-  }
-}
-```
-
-Patch `LINKED_*` container:
+Patch container on `LINKED_TASK_TEMPLATE`:
 
 ```json
 {
@@ -395,43 +448,73 @@ Patch `LINKED_*` container:
 }
 ```
 
-Patch badge leaf:
+Patch inner `id` / `description` (under `rules`):
 
 ```json
 {
   "rules": {
-    "label": { "orgedit": false }
+    "LINKED_TASK_TEMPLATE": {
+      "rules": {
+        "id": { "orgedit": false },
+        "description": { "orgedit": false }
+      }
+    }
   }
 }
 ```
 
-Patch badge array container:
+Patch `ruleBadges` leaf:
 
 ```json
 {
   "rules": {
-    "ruleBadges": { "max": 3 }
+    "LINKED_TASK_TEMPLATE": {
+      "rules": {
+        "ruleBadges": {
+          "rules": {
+            "label": { "orgedit": false }
+          }
+        }
+      }
+    }
   }
 }
 ```
 
-`mergeOrgRulesPartial` stays **flat key lookup** — no nested path merge needed.
+Patch nested inner `LINKED_GOAL_TEMPLATE`:
+
+```json
+{
+  "rules": {
+    "LINKED_TASK_TEMPLATE": {
+      "rules": {
+        "LINKED_GOAL_TEMPLATE": {
+          "max": 3,
+          "rules": {
+            "description": { "orgedit": false }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`mergeOrgRulesPartial` must deep-merge through **`rules`** paths under each `LINKED_*` key.
 
 ---
 
 ## Storage (DynamoDB) — unchanged
 
-Single `rules` attribute on the VERSION row (same as today).
+Single `rules` attribute on the VERSION row.
 
 | Attribute | Content |
 |-----------|---------|
-| `rules` | All field rules: normal keys + `LINKED_*` containers + flat inner linked-item keys |
-
-No `linkedTemplateRules` column. No mapper split/join layer.
+| `rules` | Flat normal fields + separate `LINKED_*` nodes (each with optional nested `rules`) |
 
 ---
 
-## TypeScript sketch (for implementation)
+## TypeScript sketch
 
 ```typescript
 export interface TemplateFieldRule {
@@ -445,85 +528,93 @@ export interface TemplateFieldRule {
   max: number;
 }
 
-/** All rules flat at root — LINKED_* containers and inner item keys are siblings */
-export type TemplateRulesMap = Record<string, TemplateFieldRule>;
+/** Leaf rule — no nested rules */
+export type TemplateFieldRuleLeaf = TemplateFieldRule;
 
-export interface OrgTemplateRulesPayload {
-  fieldValues: Record<string, unknown>;
-  rules: TemplateRulesMap;
+/** Container: rule flags + child field rules in separate rules map */
+export interface TemplateFieldRuleContainer extends TemplateFieldRule {
+  rules?: Record<string, TemplateFieldRuleNode>;
 }
+
+export type TemplateFieldRuleNode = TemplateFieldRuleLeaf | TemplateFieldRuleContainer;
+
+export type TemplateRulesMap = Record<string, TemplateFieldRuleNode>;
 ```
 
 ```typescript
-export const LINKED_TEMPLATE_FIELD_KEY_PREFIX = 'LINKED_' as const;
-
-export function isLinkedTemplateFieldKey(key: string): boolean {
-  return key.startsWith(LINKED_TEMPLATE_FIELD_KEY_PREFIX);
-}
-
-/** Keys emitted from walking LINKED_* array items — not nested under LINKED_* in rules */
-function emitFlatLinkedItemRules(
+function buildLinkedItemRulesMap(
   item: Record<string, unknown>,
-  rules: TemplateRulesMap,
-): void {
+): Record<string, TemplateFieldRuleNode> {
+  const rulesMap: Record<string, TemplateFieldRuleNode> = {};
+
   for (const [key, value] of Object.entries(item)) {
-    if (Array.isArray(value) && value[0] && typeof value[0] === 'object') {
-      rules[key] = linkedArrayContainerRule(); // min: 0, max: 10
-      for (const [childKey] of Object.entries(value[0] as Record<string, unknown>)) {
-        rules[childKey] = defaultLeafRule();
+    if (isLinkedTemplateFieldKey(key)) {
+      const container = linkedTemplateContainerRule();
+      if (Array.isArray(value) && value[0] && typeof value[0] === 'object') {
+        rulesMap[key] = {
+          ...container,
+          rules: buildLinkedItemRulesMap(value[0] as Record<string, unknown>),
+        };
+      } else {
+        rulesMap[key] = container;
       }
-    } else {
-      rules[key] = defaultLeafRule();
+      continue;
     }
+
+    if (Array.isArray(value) && value[0] && typeof value[0] === 'object') {
+      rulesMap[key] = {
+        ...linkedArrayContainerRule(),
+        rules: buildLinkedItemRulesMap(value[0] as Record<string, unknown>),
+      };
+      continue;
+    }
+
+    if (value !== null && typeof value === 'object') {
+      rulesMap[key] = {
+        ...defaultContainerRule(),
+        rules: buildLinkedItemRulesMap(value as Record<string, unknown>),
+      };
+      continue;
+    }
+
+    rulesMap[key] = defaultLeafRule();
   }
+
+  return rulesMap;
 }
 ```
 
 ---
 
-## Migration from nested-in-`rules.LINKED_*` shape
+## Gap vs other approaches
 
-| From (current code) | To (this plan) |
-|---------------------|----------------|
-| `rules.LINKED_TASK_TEMPLATE.subtitle` | `rules.subtitle` |
-| `rules.LINKED_TASK_TEMPLATE.workflowStage` | `rules.workflowStage` |
-| `rules.LINKED_TASK_TEMPLATE.ruleBadges` (container) | `rules.ruleBadges` |
-| `rules.LINKED_TASK_TEMPLATE.ruleBadges.color` | `rules.color` |
-| `rules.LINKED_TASK_TEMPLATE.enable` … `max` | `rules.LINKED_TASK_TEMPLATE` (unchanged key, container only) |
-
-On read, optionally hoist nested children out of `rules.LINKED_*` until stored data is backfilled.
-
----
-
-## Gap vs current code
-
-| Area | Today | This plan |
-|------|-------|-----------|
-| `rules` storage | Single attribute ✓ | Single attribute ✓ |
-| `LINKED_*` inner keys | Nested inside `rules.LINKED_TASK_TEMPLATE` | Flat at `rules` root |
-| `mergeOrgRulesPartial` | Nested path merge under `LINKED_*` | Flat key merge only |
-| API response | `fieldValues` + `rules` | Same — no new field |
-| `TemplateFieldRuleNode` | Nested type for LINKED children | Not needed — flat `TemplateFieldRule` everywhere |
+| Area | Flat at root | Mixed on container | **This plan** |
+|------|--------------|-------------------|---------------|
+| `LINKED_*` at `rules` root | N/A | One per key ✓ | One per key ✓ |
+| `id`, `description` location | `rules.id` | `rules.LINKED_*.id` | `rules.LINKED_*.rules.id` |
+| Container vs children | Mixed | Mixed | **Separated** via `rules` |
+| `ruleBadges.color` | `rules.color` | `rules.LINKED_*.ruleBadges.color` | `rules.LINKED_*.rules.ruleBadges.rules.color` |
 
 ---
 
 ## Implementation checklist (later)
 
-1. `buildRulesFromFieldValues()` — for CARE_PLAN `LINKED_*`: container at `rules[linkingKey]`, inner keys flat at `rules` root
-2. Remove nested `buildNestedRulesFromLinkedItem` / `TemplateFieldRuleNode` if present
-3. `mergeOrgRulesPartial()` — revert to flat merge only (remove nested `LINKED_*` branch)
-4. `mergeRulesAfterFieldValuesChange()` — drop stale flat inner keys when linking arrays empty
-5. Repository — no schema change; still store `rules` only
-6. `toOrgTemplateRulesResponse()` — no change; returns `rules` as-is
-7. Tests — Care plan Template 5 fixture:
-   - `rules.LINKED_TASK_TEMPLATE.subtitle` is **undefined**
-   - `rules.subtitle`, `rules.workflowStage` exist as flat siblings
-   - `rules.LINKED_TASK_TEMPLATE` has only rule flags (`enable`, `min`, `max`, …)
-   - `rules.ruleBadges`, `rules.color`, `rules.label` exist as flat siblings
+1. `buildRulesFromFieldValues()` — CARE_PLAN: each top-level `LINKED_*` → container + `.rules = buildLinkedItemRulesMap(firstElement)`
+2. `buildLinkedItemRulesMap()` — recursive; same `rules` wrapper for arrays and inner `LINKED_*`
+3. `mergeOrgRulesPartial()` — deep-merge through `.rules` under `LINKED_*`
+4. `mergeRulesAfterFieldValuesChange()` — replace full `LINKED_*` subtree; clear `.rules` when array empty
+5. Tests — Template 5:
+   - `rules.LINKED_TASK_TEMPLATE.rules.id` exists
+   - `rules.LINKED_TASK_TEMPLATE.rules.description` exists
+   - `rules.LINKED_TASK_TEMPLATE.id` is **undefined**
+   - `rules.id` / `rules.description` are **undefined**
+   - `rules.LINKED_TASK_TEMPLATE.rules.ruleBadges.rules.color` exists
+6. Tests — three separate top-level `LINKED_*` (example 2)
+7. Tests — nested inner `LINKED_*` (example 3)
 
 ---
 
 ## Related docs
 
-- `CARE_PLAN_LINKED_TEMPLATE_RULES_PLAN.md` — prior nested-in-`rules.LINKED_*` approach (superseded by this doc)
-- `services-json/care-plan-api-rules.json` — reference rules snapshot (update after implementation)
+- `CARE_PLAN_LINKED_TEMPLATE_RULES_PLAN.md` — prior nested-without-`rules`-wrapper approach (differs on inner shape)
+- `services-json/care-plan-api-rules.json` — update after implementation to match this structure

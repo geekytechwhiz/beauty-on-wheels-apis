@@ -18,7 +18,23 @@ const QUERY_FALLBACK_CHUNK = 25;
 
 export const UNKNOWN_USER_LABEL = 'Unknown User';
 
+/** setup.sh bootstrap root admin — display fallback when USER_TABLE lookup misses on a stage. */
+const ROOT_ADMIN_USER_ID =
+  '88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f';
+const ROOT_ADMIN_DISPLAY_NAME = 'Root Admin';
+
 export type UserDisplayEntry = { name: string };
+
+function resolveActorDisplayName(userId: string, userMap: Map<string, UserDisplayEntry>): string {
+  const fromLookup = userMap.get(userId)?.name;
+  if (fromLookup) {
+    return fromLookup;
+  }
+  if (userId === ROOT_ADMIN_USER_ID) {
+    return ROOT_ADMIN_DISPLAY_NAME;
+  }
+  return UNKNOWN_USER_LABEL;
+}
 
 /** Same workaround as libs/utils `sendDoc` — avoids @smithy/types duplicate in the workspace. */
 async function docSend<T>(client: DynamoDBDocumentClient, command: unknown): Promise<T> {
@@ -272,7 +288,7 @@ export function enrichMetadataRecordActors<
     const userId = String(record.createdBy).trim();
     next.createdBy = {
       userId,
-      name: userMap.get(userId)?.name ?? UNKNOWN_USER_LABEL,
+      name: resolveActorDisplayName(userId, userMap),
     };
   }
 
@@ -280,7 +296,7 @@ export function enrichMetadataRecordActors<
     const userId = String(record.lastModifiedBy).trim();
     next.lastModifiedBy = {
       userId,
-      name: userMap.get(userId)?.name ?? UNKNOWN_USER_LABEL,
+      name: resolveActorDisplayName(userId, userMap),
     };
   }
 

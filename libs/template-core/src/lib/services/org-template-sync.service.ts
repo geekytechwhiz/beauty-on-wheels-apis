@@ -1,4 +1,5 @@
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import {
   OrgTemplateEntityBuilder,
   type CloneOrgTemplateContext,
@@ -78,10 +79,9 @@ export class OrgTemplateSyncService {
         !Array.isArray(masterVersion.fieldValues)
           ? (masterVersion.fieldValues as Record<string, unknown>)
           : {};
-      meta.categoryCode =
-        firstString(masterFv.categoryCode) ?? firstString(masterVersion.meta.category);
-      meta.conditionCode =
-        firstString(masterFv.conditionCode) ?? firstString(masterVersion.meta.condition);
+      const catalog = extractCatalogCodes(masterFv);
+      meta.categoryCode = catalog.categoryCode ?? firstString(masterVersion.meta.category);
+      meta.conditionCode = catalog.conditionCode ?? firstString(masterVersion.meta.condition);
       const row = EnablementEntityBuilder.buildRow(meta);
       await this.enablementRepo.putEnablementOverwrite(row);
       return row;

@@ -86,13 +86,61 @@ describe('collectRulePathsFromFieldValues', () => {
   });
 });
 
+const consoleCarePlanFieldValues = {
+  Category: { labelKey: 'Chronic Disease', value: 'CHRONIC_DISEASE' },
+  Condition: { labelKey: 'Hypertension', value: 'HYPERTENSION' },
+  LinkedTaskTemplate: [],
+  LinkedGoalTemplate: {
+    id: 'TEST-GOAL-45',
+    title: 'TEST goal 45',
+    subtitle: 'v1 - Diabetes - 1 goals',
+    conditionBadge: { label: 'Diabetes', color: '^#B54708', bg: '^#FFF6ED' },
+    detailItems: [
+      {
+        id: 'goal-1',
+        title: 'Drink more Water',
+        description: 'drink water to regulate',
+      },
+    ],
+  },
+  LinkedMonitoringTemplate: {
+    id: 'OXYGEN',
+    title: 'OXY',
+    description: 'Oxygen Reading',
+  },
+  baselineSections: [
+    {
+      sectionName: 'test baseline',
+      parameters: [{ parameterName: 'test parameter', mandatory: false }],
+    },
+  ],
+};
+
 describe('buildRulesFromFieldValues', () => {
   it('generates all-true rules for each path', () => {
     const rules = buildRulesFromFieldValues({ CATEGORY: 'CHRONIC_CARE' });
     expect(rules.CATEGORY).toEqual(defaultRule);
   });
 
-  it('emits CARE_PLAN LINKED_TASK_TEMPLATE container with nested rules map', () => {
+  it('builds console CARE_PLAN rules with nested Linked* rules map', () => {
+    const rules = buildRulesFromFieldValues(consoleCarePlanFieldValues, {
+      templateType: TEMPLATE_TYPE_CARE_PLAN,
+    });
+
+    expect(rules.Category).toEqual(defaultRule);
+    expect(rules.Condition).toEqual(defaultRule);
+    expect(rules.LinkedTaskTemplate).toMatchObject({ min: 0, max: 20 });
+    expect(rules.LinkedTaskTemplate.rules).toBeUndefined();
+    expect(rules.LinkedGoalTemplate.rules?.title).toEqual(defaultRule);
+    expect(rules.LinkedGoalTemplate.rules?.conditionBadge?.rules?.label).toEqual(defaultRule);
+    expect(rules.LinkedGoalTemplate.rules?.detailItems?.rules?.description).toEqual(defaultRule);
+    expect(rules.LinkedMonitoringTemplate.rules?.id).toEqual(defaultRule);
+    expect(rules.baselineSections.rules?.sectionName).toEqual(defaultRule);
+    expect(rules.CATEGORY).toBeUndefined();
+    expect(rules.categoryCode).toBeUndefined();
+  });
+
+  it('emits CARE_PLAN LINKED_TASK_TEMPLATE container with nested rules map (legacy)', () => {
     const rules = buildRulesFromFieldValues(
       {
         CATEGORY: 'CHRONIC_CARE',
@@ -329,7 +377,26 @@ describe('mergeOrgRulesPartial', () => {
     );
   });
 
-  it('merges nested rules patches under LINKED_* containers', () => {
+  it('merges nested rules patches under console Linked* containers', () => {
+    const existing = buildRulesFromFieldValues(consoleCarePlanFieldValues, {
+      templateType: TEMPLATE_TYPE_CARE_PLAN,
+    });
+    const merged = mergeOrgRulesPartial(existing, {
+      LinkedGoalTemplate: {
+        max: 5,
+        rules: {
+          title: { orgedit: false },
+        },
+      },
+      Condition: { orgedit: false },
+    });
+
+    expect(merged.LinkedGoalTemplate.max).toBe(5);
+    expect(merged.LinkedGoalTemplate.rules?.title?.orgedit).toBe(false);
+    expect(merged.Condition.orgedit).toBe(false);
+  });
+
+  it('merges nested rules patches under LINKED_* containers (legacy)', () => {
     const existing = buildRulesFromFieldValues(
       { LINKED_TASK_TEMPLATE: [carePlanLinkedTaskItem] },
       { templateType: TEMPLATE_TYPE_CARE_PLAN },

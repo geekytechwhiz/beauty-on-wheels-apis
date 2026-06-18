@@ -26,6 +26,7 @@ export * from './lib/models/api/org-template-rules.types';
 export * from './lib/mappers/org-template-rules.dto';
 export * from './lib/services/org-template-rules.service';
 export * from './lib/utils/template-rules.utils';
+export * from './lib/utils/field-values-profile.utils';
 export * from './lib/models/api/enablement.types';
 export * from './lib/models/api/compatible-templates.types';
 export * from './lib/mappers/template-http.dto';

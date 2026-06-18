@@ -9,6 +9,7 @@ import type { EnablementDdbRecord, EnablementMeta } from '../models/api/enableme
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { OrgTemplateEntityBuilder } from './org-template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { firstString } from '../utils/template.utils';
 
 export class EnablementEntityBuilder {
@@ -44,6 +45,8 @@ export class EnablementEntityBuilder {
         ? masterMeta.version
         : 1;
 
+    const catalog = extractCatalogCodes(masterFv);
+
     return {
       enablementId,
       organizationId: body.organizationId,
@@ -53,8 +56,8 @@ export class EnablementEntityBuilder {
       orgTemplateId,
       templateName: masterMeta.templateName,
       templateType: masterMeta.templateType,
-      categoryCode: firstString(masterFv.categoryCode) ?? firstString(masterMeta.category),
-      conditionCode: firstString(masterFv.conditionCode) ?? firstString(masterMeta.condition),
+      categoryCode: catalog.categoryCode ?? firstString(masterMeta.category),
+      conditionCode: catalog.conditionCode ?? firstString(masterMeta.condition),
       condition: firstString(masterMeta.condition ?? masterMeta.conditions),
       effectiveFrom: body.effectiveFrom?.trim() || nowIso,
       effectiveTo: body.effectiveTo ?? null,

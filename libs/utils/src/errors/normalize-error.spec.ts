@@ -64,4 +64,16 @@ describe('toBaseError', () => {
     expect(result.code).toBe('INTERNAL_ERROR');
     expect(result.message).toBe('Unexpected non-Error rejection');
   });
+
+  it('maps AWS access denied errors to 403 FORBIDDEN', () => {
+    const denied = new Error(
+      'User: arn:aws:iam::542476693486:user/example is not authorized to perform: dynamodb:GetItem on resource: arn:aws:dynamodb:us-east-1:542476693486:table/template-service-dev with an explicit deny in an identity-based policy',
+    );
+    denied.name = 'AccessDeniedException';
+
+    const result = toBaseError(denied);
+
+    expect(result.statusCode).toBe(403);
+    expect(result.code).toBe('FORBIDDEN');
+  });
 });

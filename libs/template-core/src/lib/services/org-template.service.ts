@@ -57,10 +57,10 @@ import type {
   UpdateOrgTemplateVersionParams,
 } from '../models/api/org-update.types';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import {
   decodeListCursor,
   encodeListCursor,
-  firstString,
   normalizeVersionToSk,
   pickHighestVersionRow,
   templateConflictError,
@@ -161,9 +161,10 @@ function masterCodesFromItem(item: MasterTemplateListItem): {
   conditionCode?: string;
 } {
   const fv = listItemFieldValues(item);
+  const catalog = extractCatalogCodes(fv);
   return {
-    categoryCode: firstString(fv.categoryCode) ?? firstString(fv.category),
-    conditionCode: firstString(fv.conditionCode) ?? firstString(fv.condition),
+    categoryCode: catalog.categoryCode,
+    conditionCode: catalog.conditionCode,
   };
 }
 
@@ -1053,10 +1054,7 @@ export class OrgTemplateService {
     const org = result.record.meta;
     const master = result.masterVersion.meta;
     const fv = fieldValuesOf({ fieldValues: result.masterVersion.fieldValues });
-    const codes = {
-      categoryCode: firstString(fv.categoryCode) ?? firstString(master.category),
-      conditionCode: firstString(fv.conditionCode) ?? firstString(master.condition),
-    };
+    const codes = extractCatalogCodes(fv);
     const ownerOrgId = typeof org.ownerOrgId === 'string' ? org.ownerOrgId : '';
     const organizationMeta: OrganizationMeta = opts?.organizationMeta ?? {
       id: ownerOrgId,

@@ -12,6 +12,7 @@ import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
 import { normalizeTemplateActor, resolveTemplateActor } from '../utils/template-actor.utils';
 import { normalizeShareScope } from '../utils/share-scope.utils';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { firstString, isActiveForStatus } from '../utils/template.utils';
 import { TemplateKeyBuilder } from './template-key.builder';
 
@@ -209,23 +210,33 @@ export class TemplateEntityBuilder {
     const templateProfile = asRecord(rawBody.templateProfile);
 
     const fieldValues = asRecord(rawBody.fieldValues);
+    const catalog = extractCatalogCodes(fieldValues);
     const status = (input.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
     const activeExplicit =
       typeof rawBody.active === 'boolean' ? rawBody.active : undefined;
     const category =
-      firstString(fieldValues.categoryCode) ??
+      catalog.categoryCode ??
       input.category ??
       templateProfile.category ??
       input.conditions?.[0];
     const condition =
-      firstString(fieldValues.conditionCode) ??
+      catalog.conditionCode ??
       input.condition ??
       templateProfile.condition ??
       (Array.isArray(input.conditions) ? input.conditions[0] : undefined);
     const specialty =
-      input.specialty ?? input.specialties ?? asStringArray(templateProfile.specialty);
-    const countries = input.countries ?? asStringArray(templateProfile.country);
-    const languages = input.languages ?? asStringArray(templateProfile.language);
+      input.specialty ??
+      input.specialties ??
+      asStringArray(templateProfile.specialty) ??
+      (catalog.specialty ? [catalog.specialty] : undefined);
+    const countries =
+      input.countries ??
+      asStringArray(templateProfile.country) ??
+      (catalog.country ? [catalog.country] : undefined);
+    const languages =
+      input.languages ??
+      asStringArray(templateProfile.language) ??
+      (catalog.language ? [catalog.language] : undefined);
     const actor = resolveTemplateActor(input.actor);
     const createdAt =
       firstString(templateMetadata.createdDate) ?? nowIso;
@@ -259,6 +270,7 @@ export class TemplateEntityBuilder {
       isLatestVersion: true,
       isMaster: true,
       shareScope:
+        normalizeShareScope(catalog.shareScope) ??
         normalizeShareScope(fieldValues.shareScope) ??
         normalizeShareScope(rawBody.shareScope) ??
         normalizeShareScope(templateMetadata.shareScope) ??

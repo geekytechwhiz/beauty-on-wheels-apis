@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import type { APIGatewayProxyResult } from 'aws-lambda';
 import type { LambdaRequest } from '@api-hub/utils';
 
@@ -11,7 +12,7 @@ import {
   transformFhirRequest,
   transformToFhirResponse,
   type FhirHandlerOptions,
-} from '@api-hub/fhir/middleware';
+} from '@api-hub/fhir';
 
 import type { FhirPeerModule } from './fhir-peer'; 
 
@@ -39,12 +40,17 @@ export const apiHubFhirPeer: ApiHubFhirPeerModule = {
       skipLog?: boolean;
     },
   ): APIGatewayProxyResult => {
-    if (error instanceof FhirValidationError) {
-      return mapFhirValidationErrorResponse(error, {
-        correlationId: options?.correlationId,
-        logger: options?.logger  ,
-        skipLog: options?.skipLog,
-      });
+    if (isFhirValidationErrorLike(error) || error instanceof FhirValidationError) {
+      return mapFhirValidationErrorResponse(
+        error as FhirValidationError,
+        {
+          correlationId: options?.correlationId,
+          logger: options?.logger as Parameters<
+            typeof mapFhirValidationErrorResponse
+          >[1]['logger'],
+          skipLog: options?.skipLog,
+        },
+      );
     }
 
     throw error;

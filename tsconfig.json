@@ -92,6 +92,9 @@
     },
     {
       "path": "./libs/task-core"
+    },
+    {
+      "path": "./libs/fhir-validator"
     }
   ]
 }

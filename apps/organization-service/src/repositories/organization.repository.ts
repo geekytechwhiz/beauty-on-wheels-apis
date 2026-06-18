@@ -3,6 +3,7 @@ import { ddbDocClient } from '@api-hub/utils';
 import { DeleteCommand, GetCommand, PutCommand, QueryCommand, TransactWriteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   Organization,
+  OrganizationConfigData,
   OrganizationConfigPatch,
   OrganizationFile,
   OrganizationLink,
@@ -12,6 +13,8 @@ import {
   OrgConfigEntity,
   OrgConfigEntityType,
   OrgConfigStatus,
+  OrgConfigChangeType,
+  ORGANIZATION_CONFIG_DATA_KEYS,
 } from '../models';
 import { OrganizationAlreadyExistsError, OrganizationNotFoundError } from '../utils/errors';
 import {
@@ -756,6 +759,298 @@ export class OrganizationRepository {
     } catch (err) {
       const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
       logger.error({ event: 'organization_config_version_create_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
+   * Returns the newest `CONFIG#v{n}` item by numeric `version` (any status), or null.
+   * Unlike {@link getLatestOrganizationConfig}, this does not rely on lexicographic SK
+   * order, so it stays correct past version 9 (e.g. v10 > v9). Used by the config-save
+   * draft flow for version detection and change comparison.
+   */
+  async getLatestOrganizationConfigVersionItem(organizationId: string): Promise<OrgConfigEntity | null> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    try {
+      let lastEvaluatedKey: Record<string, unknown> | undefined;
+      let latest: OrgConfigEntity | null = null;
+
+      do {
+        const queryParams: Record<string, unknown> = {
+          TableName: ORGANIZATION_TABLE_NAME,
+          KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
+          ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+          ExpressionAttributeValues: {
+            ':pk': organizationPk(organizationId),
+            ':skPrefix': 'CONFIG#v',
+          },
+        };
+        if (lastEvaluatedKey) {
+          queryParams.ExclusiveStartKey = lastEvaluatedKey;
+        }
+
+        const response: any = await ddbDocClient.send(new QueryCommand(queryParams as any) as any);
+        const items = (response.Items ?? []) as OrgConfigEntity[];
+        for (const item of items) {
+          if (item.entityType !== OrgConfigEntityType.ORG_CONFIG) continue;
+          if (latest === null || item.version > latest.version) {
+            latest = item;
+          }
+        }
+        lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (lastEvaluatedKey);
+
+      return latest;
+    } catch (err) {
+      logger.error({ event: 'organization_config_latest_version_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
+   * Saves a new org config version as a draft (`status = draft`). Single Put; does NOT
+   * deactivate any previous active/current version (publish handles activation later).
+   * `nextVersion` is computed numerically from the latest existing version.
+   */
+  async createOrganizationConfigDraftVersion(
+    organizationId: string,
+    config: OrganizationConfigData,
+    options: { changeReason?: string; createdBy?: string } = {},
+  ): Promise<OrgConfigEntity> {
+    const now = Date.now();
+    const latestConfig = await this.getLatestOrganizationConfigVersionItem(organizationId);
+    const nextVersion = (latestConfig?.version ?? 0) + 1;
+
+    const configData: OrganizationConfigData = {};
+    for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+      const value = config[key];
+      if (value !== undefined) {
+        (configData as Record<string, unknown>)[key] = value;
+      }
+    }
+
+    const nextItem: OrgConfigEntity = {
+      pk: organizationPk(organizationId),
+      sk: `CONFIG#v${nextVersion}`,
+      entityType: OrgConfigEntityType.ORG_CONFIG,
+      orgId: organizationId,
+      version: nextVersion,
+      ...configData,
+      status: OrgConfigStatus.DRAFT,
+      ...(options.changeReason !== undefined ? { changeReason: options.changeReason } : {}),
+      ...(options.createdBy !== undefined ? { createdBy: options.createdBy } : {}),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Item: nextItem,
+          ConditionExpression: 'attribute_not_exists(pk) AND attribute_not_exists(sk)',
+        }) as any,
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.info({ event: 'organization_config_draft_version_created' });
+      return nextItem;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, version: nextVersion });
+      logger.error({ event: 'organization_config_draft_version_create_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  private async queryOrganizationConfigItems(organizationId: string): Promise<OrgConfigEntity[]> {
+    const items: OrgConfigEntity[] = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+
+    do {
+      const queryParams: Record<string, unknown> = {
+        TableName: ORGANIZATION_TABLE_NAME,
+        KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :skPrefix)',
+        ExpressionAttributeNames: { '#pk': 'pk', '#sk': 'sk' },
+        ExpressionAttributeValues: {
+          ':pk': organizationPk(organizationId),
+          ':skPrefix': 'CONFIG#v',
+        },
+      };
+      if (lastEvaluatedKey) {
+        queryParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+
+      const response: any = await ddbDocClient.send(new QueryCommand(queryParams as any) as any);
+      items.push(...((response.Items ?? []) as OrgConfigEntity[]));
+      lastEvaluatedKey = response.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastEvaluatedKey);
+
+    return items.filter((item) => item.entityType === OrgConfigEntityType.ORG_CONFIG);
+  }
+
+  async getOrganizationConfigByVersion(
+    organizationId: string,
+    version: number,
+  ): Promise<OrgConfigEntity | null> {
+    try {
+      const response: any = await ddbDocClient.send(
+        new GetCommand({
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: {
+            pk: organizationPk(organizationId),
+            sk: `CONFIG#v${version}`,
+          },
+        }) as any,
+      );
+      const item = response.Item as OrgConfigEntity | undefined;
+      if (!item || item.entityType !== OrgConfigEntityType.ORG_CONFIG) {
+        return null;
+      }
+      return item;
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, version });
+      logger.error({ event: 'organization_config_get_by_version_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getLatestDraftOrganizationConfig(organizationId: string): Promise<OrgConfigEntity | null> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    try {
+      const items = await this.queryOrganizationConfigItems(organizationId);
+      let latest: OrgConfigEntity | null = null;
+      for (const item of items) {
+        if (item.status !== OrgConfigStatus.DRAFT) continue;
+        if (latest === null || item.version > latest.version) {
+          latest = item;
+        }
+      }
+      return latest;
+    } catch (err) {
+      logger.error({ event: 'organization_config_latest_draft_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  async getActiveOrganizationConfigItem(organizationId: string): Promise<OrgConfigEntity | null> {
+    const logger = createChildLogger(baseLogger, { organizationId });
+    try {
+      const items = await this.queryOrganizationConfigItems(organizationId);
+      let latest: OrgConfigEntity | null = null;
+      for (const item of items) {
+        if (item.status !== OrgConfigStatus.ACTIVE) continue;
+        if (latest === null || item.version > latest.version) {
+          latest = item;
+        }
+      }
+      return latest;
+    } catch (err) {
+      logger.error({ event: 'organization_config_active_item_error', err: serializeError(err) });
+      throw err;
+    }
+  }
+
+  /**
+   * Activates a draft config version and deactivates the current ACTIVE version (if different).
+   */
+  async publishOrganizationConfigVersion(
+    organizationId: string,
+    version: number,
+    audit: {
+      publishedBy?: string;
+      publishedAt: number;
+      changeReason?: string;
+      changedSections: string[];
+      changeType: OrgConfigChangeType;
+      orgCapabilities: string[];
+    },
+  ): Promise<OrgConfigEntity> {
+    const now = audit.publishedAt;
+    const draft = await this.getOrganizationConfigByVersion(organizationId, version);
+    if (!draft) {
+      throw new OrganizationNotFoundError(organizationId);
+    }
+    if (draft.status !== OrgConfigStatus.DRAFT) {
+      throw new Error(`Organization config version ${version} is not a draft`);
+    }
+
+    const activeConfig = await this.getActiveOrganizationConfigItem(organizationId);
+    const transactItems: Array<Record<string, unknown>> = [
+      {
+        Update: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: { pk: draft.pk, sk: draft.sk },
+          UpdateExpression:
+            'SET #status = :active, #updatedAt = :updatedAt, #publishedAt = :publishedAt, #changedSections = :changedSections, #changeType = :changeType, #orgCapabilities = :orgCapabilities' +
+            (audit.publishedBy !== undefined ? ', #publishedBy = :publishedBy' : '') +
+            (audit.changeReason !== undefined ? ', #changeReason = :changeReason' : ''),
+          ConditionExpression: '#status = :draft',
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#updatedAt': 'updatedAt',
+            '#publishedAt': 'publishedAt',
+            '#changedSections': 'changedSections',
+            '#changeType': 'changeType',
+            '#orgCapabilities': 'orgCapabilities',
+            ...(audit.publishedBy !== undefined ? { '#publishedBy': 'publishedBy' } : {}),
+            ...(audit.changeReason !== undefined ? { '#changeReason': 'changeReason' } : {}),
+          },
+          ExpressionAttributeValues: {
+            ':active': OrgConfigStatus.ACTIVE,
+            ':draft': OrgConfigStatus.DRAFT,
+            ':updatedAt': now,
+            ':publishedAt': now,
+            ':changedSections': audit.changedSections,
+            ':changeType': audit.changeType,
+            ':orgCapabilities': audit.orgCapabilities,
+            ...(audit.publishedBy !== undefined ? { ':publishedBy': audit.publishedBy } : {}),
+            ...(audit.changeReason !== undefined ? { ':changeReason': audit.changeReason } : {}),
+          },
+        },
+      },
+    ];
+
+    if (activeConfig && activeConfig.sk !== draft.sk) {
+      transactItems.push({
+        Update: {
+          TableName: ORGANIZATION_TABLE_NAME,
+          Key: { pk: activeConfig.pk, sk: activeConfig.sk },
+          UpdateExpression: 'SET #status = :inactive, #updatedAt = :updatedAt',
+          ConditionExpression: '#status = :active',
+          ExpressionAttributeNames: {
+            '#status': 'status',
+            '#updatedAt': 'updatedAt',
+          },
+          ExpressionAttributeValues: {
+            ':inactive': OrgConfigStatus.INACTIVE,
+            ':active': OrgConfigStatus.ACTIVE,
+            ':updatedAt': now,
+          },
+        },
+      });
+    }
+
+    try {
+      await ddbDocClient.send(
+        new TransactWriteCommand({
+          TransactItems: transactItems as any,
+        }) as any,
+      );
+      const logger = createChildLogger(baseLogger, { organizationId, version });
+      logger.info({ event: 'organization_config_published' });
+      return {
+        ...draft,
+        status: OrgConfigStatus.ACTIVE,
+        publishedAt: now,
+        publishedBy: audit.publishedBy,
+        changeReason: audit.changeReason ?? draft.changeReason,
+        changedSections: audit.changedSections,
+        changeType: audit.changeType,
+        orgCapabilities: audit.orgCapabilities,
+        updatedAt: now,
+      };
+    } catch (err) {
+      const logger = createChildLogger(baseLogger, { organizationId, version });
+      logger.error({ event: 'organization_config_publish_error', err: serializeError(err) });
       throw err;
     }
   }

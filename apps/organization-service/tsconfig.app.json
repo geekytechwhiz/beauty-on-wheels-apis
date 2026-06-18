@@ -8,6 +8,7 @@
     "declaration": false,
     "declarationMap": false,
     "emitDeclarationOnly": false,
+    "baseUrl": "../..",
     "paths": {
       "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
       "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
@@ -38,7 +39,7 @@
     "out-tsc",
     "dist",
     "jest.config.ts",
-    "jest.config.cts",
+    "jest.config.ts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "src/__tests__/**",

@@ -1,0 +1,38 @@
+flowchart TD
+
+    A[Incoming FHIR Resource]
+
+    A --> B[Structure Validator]
+
+    B --> C[Profile Validator]
+
+    C --> D[Terminology Validator]
+
+    D --> E[Extension Validator]
+
+    E --> F[FHIRPath Validator]
+
+    F --> G[Mapping Validator]
+
+    G --> H[Transformation Engine]
+
+    H --> I[Output Validator]
+
+    I --> J[Comparison Engine]
+
+    J --> K[Validation Report]
+
+    subgraph Registry
+        R1[Metadata Registry]
+        R2[Mapping Registry]
+        R3[Profile Registry]
+        R4[ValueSet Registry]
+        R5[Terminology Service]
+    end
+
+    C --> R3
+    D --> R4
+    D --> R5
+    G --> R2
+    H --> R2
+    B --> R1

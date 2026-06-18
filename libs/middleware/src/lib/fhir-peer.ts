@@ -19,8 +19,13 @@ export type FhirHandlerOptions = {
     | 'createAppointment'
     | 'createObservation';
   outboundProfile?: 'organizationDetail' | 'organizationMetadata';
+  validation?: FhirValidationOptions;
 };
+export interface FhirValidationOptions {
+  enabled?: boolean;
 
+  failOnValidationError?: boolean;
+}
 export interface FhirPeerModule {
   isFhirEnabled: (options?: FhirHandlerOptions) => boolean;
   transformToFhirResponse: (

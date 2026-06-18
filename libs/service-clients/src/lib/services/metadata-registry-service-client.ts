@@ -4,11 +4,13 @@ import axios from 'axios';
 
 import { createHttpClient } from '../client/axios-client';
 import type {
+  MetadataRelatedValuesResultDto,
   MetadataValuesByTypesRequestDto,
   MetadataValuesByTypesResultDto,
 } from '../types/metadata.dto';
 
 const VALUES_BY_TYPES_PATH = '/metadata/values/by-types';
+const RELATED_VALUES_PATH = '/metadata/values/related';
 
 export class MetadataRegistryClientError extends Error {
   readonly statusCode: number;
@@ -112,6 +114,74 @@ export class MetadataRegistryServiceClient {
         if (body && typeof body === 'object') {
           try {
             return unwrapEnvelope<MetadataValuesByTypesResultDto>(body, status);
+          } catch (unwrapError) {
+            if (unwrapError instanceof MetadataRegistryClientError) {
+              throw unwrapError;
+            }
+          }
+        }
+
+        throw new MetadataRegistryClientError(
+          error.message || 'Metadata registry request failed',
+          status,
+        );
+      }
+
+      throw new MetadataRegistryClientError(
+        error instanceof Error ? error.message : 'Metadata registry request failed',
+      );
+    }
+  }
+
+  async getRelatedValues(
+    params: {
+      fromType: string;
+      fromValues: string[];
+      relationType?: string;
+      toType?: string;
+    },
+    authHeader?: string,
+  ): Promise<MetadataRelatedValuesResultDto> {
+    const authorization = normalizeAuthHeader(authHeader);
+    if (!authorization) {
+      throw new MetadataRegistryClientError('Authorization header is required', 401, 'UNAUTHORIZED');
+    }
+
+    const searchParams = new URLSearchParams();
+    searchParams.set('fromType', params.fromType);
+    for (const value of params.fromValues) {
+      searchParams.append('fromValue', value);
+    }
+    if (params.relationType) {
+      searchParams.set('relationType', params.relationType);
+    }
+    if (params.toType) {
+      searchParams.set('toType', params.toType);
+    }
+
+    try {
+      const response = await this.client.get<ApiResponseBody<MetadataRelatedValuesResultDto>>(
+        `${RELATED_VALUES_PATH}?${searchParams.toString()}`,
+        {
+          headers: {
+            Authorization: authorization,
+            'X-Service-Name': this.serviceName,
+          },
+        },
+      );
+
+      return unwrapEnvelope<MetadataRelatedValuesResultDto>(response.data, response.status);
+    } catch (error) {
+      if (error instanceof MetadataRegistryClientError) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status ?? 502;
+        const body = error.response?.data;
+        if (body && typeof body === 'object') {
+          try {
+            return unwrapEnvelope<MetadataRelatedValuesResultDto>(body, status);
           } catch (unwrapError) {
             if (unwrapError instanceof MetadataRegistryClientError) {
               throw unwrapError;

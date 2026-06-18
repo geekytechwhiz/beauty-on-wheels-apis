@@ -7,13 +7,50 @@ import {
   OrganizationMetadata,
   OrganizationFile,
   OrganizationConfigPatch,
+  OrganizationConfigData,
   OrgConfigEntity,
+  OrgConfigStatus,
+  OrgConfigChangeType,
+  ORG_CONFIG_CHANGE_TYPE,
+  ORGANIZATION_CONFIG_DATA_KEYS,
+  OrganizationConfigView,
 } from '../models';
-import { OrganizationNotFoundError, OrganizationNotActiveError, LinkedOrganizationsNotFoundError } from '../utils/errors';
+import {
+  OrganizationNotFoundError,
+  OrganizationNotActiveError,
+  LinkedOrganizationsNotFoundError,
+  OrgConfigDraftNotFoundError,
+  OrgConfigPublishError,
+  InvalidMetadataValueError,
+} from '../utils/errors';
 import { publishEvent } from '../events/event.publisher';
 import { randomUUID } from 'crypto';
 import { notifyAdminForOrganizationActivated } from './notification.service';
 import { extractSubdomainFromUrl } from '../utils/helpers';
+import { isNewOrgConfigFlowEnabled } from '../utils/featureFlags';
+import {
+  mapLegacyOrganizationConfigToNew,
+  mergeLegacyOrganizationConfigPatch,
+  mergeOrganizationConfigData,
+  normalizeEnabledCodes,
+  toOrganizationConfigData,
+  mapStoredOrganizationConfigToData,
+  hasOrganizationConfigData,
+} from '../utils/organizationConfig.mapper';
+import { enrichOrganizationConfig } from '../utils/organizationConfig.enrichment';
+import { ORG_CONFIG_METADATA_TYPE_MAPPING } from '../utils/organizationConfig.metadata-types';
+import {
+  buildOrgCapabilities,
+  deriveCategoryConditionPairs,
+} from '../utils/organizationConfig.capabilities';
+import {
+  computeChangedConfigSections,
+  validateOrganizationConfigForPublish,
+  type OrgConfigMetadataReader,
+} from '../utils/organizationConfig.validator';
+import { getMetadataRegistryClient } from '../clients/metadataRegistry.client';
+import { publishOrgConfigPublishedEvent } from '../handlers/events/publisher/org-config-publisher';
+import type { OrgConfigPublishedPayload } from '../handlers/events/outbound/org-config-published.event';
 import { buildOrgListGsi1Sk } from '../utils/organizationList.sort';
 
 const baseLogger = createLogger({ service: 'organization-service', redactPII: true });
@@ -26,20 +63,69 @@ const LATEST_ORG_CONFIG_PATCH_KEYS: readonly (keyof OrgConfigEntity)[] = [
   'supportedConditions',
 ];
 
-const LATEST_ORG_CONFIG_PROJECTION_GET: readonly (keyof OrgConfigEntity)[] = ['version', ...LATEST_ORG_CONFIG_PATCH_KEYS];
-
 const areStringArraysEqual = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index]);
+
+const toComparableStringArray = (value: string | string[] | undefined): string[] => {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+/**
+ * Compares two org config snapshots field-by-field (replace semantics): a field missing
+ * on `incoming` but present on `latest` counts as a change. Returns true when identical.
+ */
+const isSameLegacyOrganizationConfig = (
+  merged: Required<OrganizationConfigPatch>,
+  latest: OrgConfigEntity | null,
+): boolean => {
+  if (latest === null) {
+    return false;
+  }
+  return (
+    areStringArraysEqual(merged.supportedCountries, latest.supportedCountries ?? []) &&
+    areStringArraysEqual(merged.supportedLanguages, latest.supportedLanguages ?? []) &&
+    areStringArraysEqual(merged.supportedStates, latest.supportedStates ?? []) &&
+    areStringArraysEqual(merged.supportedCategories, latest.supportedCategories ?? []) &&
+    areStringArraysEqual(merged.supportedConditions, latest.supportedConditions ?? [])
+  );
+};
+
+const isSameOrganizationConfig = (
+  incoming: OrganizationConfigData,
+  latest: OrganizationConfigData | null,
+): boolean => {
+  if (latest === null) return false;
+  for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+    const incomingValue = incoming[key];
+    const latestValue = latest[key];
+    if (Array.isArray(incomingValue) || Array.isArray(latestValue)) {
+      if (!areStringArraysEqual(toComparableStringArray(incomingValue), toComparableStringArray(latestValue))) {
+        return false;
+      }
+    } else if ((incomingValue ?? undefined) !== (latestValue ?? undefined)) {
+      return false;
+    }
+  }
+  return true;
+};
 
 export class OrganizationService {
   private repository: OrganizationRepository;
   private userRepository: UserRepository;
   private secretManagerService: SecretManagerService;
+  private metadataRegistryClient: OrgConfigMetadataReader;
 
-  constructor(repository?: OrganizationRepository, userRepository?: UserRepository, secretManagerService?: SecretManagerService) {
+  constructor(
+    repository?: OrganizationRepository,
+    userRepository?: UserRepository,
+    secretManagerService?: SecretManagerService,
+    metadataRegistryClient?: OrgConfigMetadataReader,
+  ) {
     this.repository = repository ?? new OrganizationRepository();
     this.userRepository = userRepository ?? new UserRepository();
     this.secretManagerService = secretManagerService ?? new SecretManagerService();
+    this.metadataRegistryClient = metadataRegistryClient ?? getMetadataRegistryClient();
   }
 
   async createOrganization(data: Partial<Organization>, correlationId?: string): Promise<Organization> {
@@ -202,31 +288,59 @@ export class OrganizationService {
   }
 
   /**
-   * Loads the latest organizationConfig record and shapes it as
-   * `{ organizationConfig, organizationConfigVersion }`. Returns `null` when no
-   * config exists. Shared by `getOrganization` and `getOrganizationConfig` so
-   * the read-and-shape logic lives in one place.
+   * Builds enriched org config view from latest ACTIVE CONFIG item.
    */
-  private async loadLatestConfig(
+  private async buildEnrichedOrganizationConfigView(
     organizationId: string,
-  ): Promise<{ organizationConfig: OrganizationConfigPatch; organizationConfigVersion: number } | null> {
-    const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
-      project: LATEST_ORG_CONFIG_PROJECTION_GET,
+    authHeader?: string,
+  ): Promise<OrganizationConfigView> {
+    const metadataTypeMapping = ORG_CONFIG_METADATA_TYPE_MAPPING;
+
+    const item = await this.repository.getActiveOrganizationConfigItem(organizationId);
+    if (item === null) {
+      return { organizationId, metadataTypeMapping };
+    }
+
+    const flatConfig = mapStoredOrganizationConfigToData(item);
+    if (!hasOrganizationConfigData(flatConfig)) {
+      return {
+        organizationId,
+        organizationConfigVersion: item.version,
+        organizationConfigStatus: item.status,
+        metadataTypeMapping,
+      };
+    }
+
+    const enriched = await enrichOrganizationConfig(flatConfig, {
+      authHeader,
+      reader: this.metadataRegistryClient,
     });
-    if (latestConfig === null) return null;
-    return {
-      organizationConfig: {
-        supportedCountries: latestConfig.supportedCountries,
-        supportedLanguages: latestConfig.supportedLanguages,
-        supportedStates: latestConfig.supportedStates,
-        supportedCategories: latestConfig.supportedCategories,
-        supportedConditions: latestConfig.supportedConditions,
-      },
-      organizationConfigVersion: latestConfig.version,
+
+    const view: OrganizationConfigView = {
+      organizationId,
+      organizationConfigVersion: item.version,
+      organizationConfigStatus: item.status,
+      metadataTypeMapping,
+      organizationConfig: enriched.organizationConfig,
     };
+
+    if (item.orgCapabilities !== undefined && item.orgCapabilities.length > 0) {
+      view.orgCapabilities = item.orgCapabilities;
+    }
+    if (item.publishedAt !== undefined) {
+      view.publishedAt = new Date(item.publishedAt).toISOString();
+    }
+    if (item.publishedBy !== undefined) {
+      view.publishedBy = item.publishedBy;
+    }
+
+    return view;
   }
 
-  async getOrganization(organizationId: string): Promise<Organization> {
+  async getOrganization(
+    organizationId: string,
+    options: { authHeader?: string } = {},
+  ): Promise<Organization> {
     const timer = createPerformanceTimer(baseLogger, 'getOrganization');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_getOrganization_start' });
@@ -237,8 +351,20 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      const latestConfig = await this.loadLatestConfig(organizationId);
-      const response: Organization = latestConfig === null ? organization : { ...organization, ...latestConfig };
+      const configView = await this.buildEnrichedOrganizationConfigView(
+        organizationId,
+        options.authHeader,
+      );
+      const response: Organization =
+        configView.organizationConfig === undefined
+          ? organization
+          : {
+              ...organization,
+              organizationConfig: configView.organizationConfig,
+              organizationConfigVersion: configView.organizationConfigVersion,
+              organizationConfigStatus: configView.organizationConfigStatus,
+              ...(configView.orgCapabilities ? { orgCapabilities: configView.orgCapabilities } : {}),
+            };
 
       logger.info({ event: 'service_getOrganization_success' });
       timer.end();
@@ -251,14 +377,13 @@ export class OrganizationService {
   }
 
   /**
-   * Returns only the latest organizationConfig (no admin enrichment, devices,
-   * mobile screens, etc). Used by `GET /organization/{organizationId}?view=config`.
+   * Returns enriched latest ACTIVE organization config.
+   * Used by `GET /organization/{organizationId}?view=config`.
    */
-  async getOrganizationConfig(organizationId: string): Promise<{
-    organizationId: string;
-    organizationConfig?: OrganizationConfigPatch;
-    organizationConfigVersion?: number;
-  }> {
+  async getOrganizationConfig(
+    organizationId: string,
+    authHeader?: string,
+  ): Promise<OrganizationConfigView> {
     const timer = createPerformanceTimer(baseLogger, 'getOrganizationConfig');
     const logger = createChildLogger(baseLogger, { organizationId });
     logger.info({ event: 'service_getOrganizationConfig_start' });
@@ -269,11 +394,7 @@ export class OrganizationService {
         throw new OrganizationNotFoundError(organizationId);
       }
 
-      const latestConfig = await this.loadLatestConfig(organizationId);
-      const response = {
-        organizationId,
-        ...(latestConfig ?? {}),
-      };
+      const response = await this.buildEnrichedOrganizationConfigView(organizationId, authHeader);
 
       logger.info({ event: 'service_getOrganizationConfig_success' });
       timer.end();
@@ -302,6 +423,10 @@ export class OrganizationService {
       }
 
       const { organizationConfig, ...organizationUpdates } = updates;
+      const normalizedUserType = String(userType ?? '').trim().toUpperCase();
+      const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
+      let configVersion: number | undefined;
+
       const resolvedSubdomain =
         organizationUpdates.subdomain ?? extractSubdomainFromUrl(organizationUpdates.integration?.apiBaseUrl) ?? existing.subdomain;
       if (resolvedSubdomain && !organizationUpdates.subdomain) {
@@ -327,32 +452,44 @@ export class OrganizationService {
       if (hasOrganizationFieldUpdates) {
         await this.repository.updateOrganization(organizationId, organizationUpdates);
       }
-      
-      const normalizedUserType = String(userType ?? '').trim().toUpperCase();
-      const canUpdateOrganizationConfig = normalizedUserType === 'ROOT_ADMIN';
-      let configVersion: number | undefined;
-      if (organizationConfig && canUpdateOrganizationConfig) {
-        const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
-          project: LATEST_ORG_CONFIG_PATCH_KEYS,
-        });
-        const mergedConfig: Required<OrganizationConfigPatch> = {
-          supportedCountries: organizationConfig.supportedCountries ?? latestConfig?.supportedCountries ?? [],
-          supportedLanguages: organizationConfig.supportedLanguages ?? latestConfig?.supportedLanguages ?? [],
-          supportedStates: organizationConfig.supportedStates ?? latestConfig?.supportedStates ?? [],
-          supportedCategories: organizationConfig.supportedCategories ?? latestConfig?.supportedCategories ?? [],
-          supportedConditions: organizationConfig.supportedConditions ?? latestConfig?.supportedConditions ?? [],
-        };
-        const isSameAsLatest =
-          latestConfig !== null &&
-          areStringArraysEqual(mergedConfig.supportedCountries, latestConfig.supportedCountries) &&
-          areStringArraysEqual(mergedConfig.supportedLanguages, latestConfig.supportedLanguages) &&
-          areStringArraysEqual(mergedConfig.supportedStates, latestConfig.supportedStates) &&
-          areStringArraysEqual(mergedConfig.supportedCategories, latestConfig.supportedCategories) &&
-          areStringArraysEqual(mergedConfig.supportedConditions, latestConfig.supportedConditions);
 
-        if (!isSameAsLatest) {
-          const configRecord = await this.repository.createOrganizationConfigVersion(organizationId, mergedConfig);
-          configVersion = configRecord.version;
+      if (organizationConfig && canUpdateOrganizationConfig) {
+        if (isNewOrgConfigFlowEnabled()) {
+          logger.info({
+            event: 'service_updateOrganization_config_flow',
+            flow: 'new',
+            message: 'Using new org config flow',
+          });
+          const mappedPatch = mapLegacyOrganizationConfigToNew(organizationConfig, {
+            modules: organizationUpdates.modules,
+            devices: organizationUpdates.devices,
+          });
+          const latestConfig = await this.repository.getLatestOrganizationConfigVersionItem(organizationId);
+          const mergedNewConfig = mergeOrganizationConfigData(mappedPatch, latestConfig);
+          const saveResult = await this.saveOrganizationConfig(
+            organizationId,
+            mergedNewConfig,
+            correlationId,
+            updates.modifiedBy,
+          );
+          configVersion = saveResult.organizationConfigVersion;
+        } else {
+          logger.info({
+            event: 'service_updateOrganization_config_flow',
+            flow: 'legacy',
+            message: 'Using legacy org config flow',
+          });
+          const latestConfig = await this.repository.getLatestOrganizationConfig(organizationId, {
+            project: LATEST_ORG_CONFIG_PATCH_KEYS,
+          });
+          const mergedConfig = mergeLegacyOrganizationConfigPatch(organizationConfig, latestConfig);
+          if (!isSameLegacyOrganizationConfig(mergedConfig, latestConfig)) {
+            const configRecord = await this.repository.createOrganizationConfigVersion(
+              organizationId,
+              mergedConfig,
+            );
+            configVersion = configRecord.version;
+          }
         }
       } else if (organizationConfig && !canUpdateOrganizationConfig) {
         logger.warn({
@@ -387,7 +524,9 @@ export class OrganizationService {
       if (organizationConfig !== undefined && canUpdateOrganizationConfig) {
         updatedFields.organizationConfig = organizationConfig;
       }
-      if (configVersion !== undefined) updatedFields.organizationConfigVersion = configVersion;
+      if (configVersion !== undefined) {
+        updatedFields.organizationConfigVersion = configVersion;
+      }
 
       await publishEvent(
         {
@@ -419,6 +558,282 @@ export class OrganizationService {
       timer.end();
       throw err;
     }
+  }
+
+  /**
+   * Saves organization config as a new draft version (`CONFIG#v{n}`, `status = draft`).
+   * Does NOT validate against the Metadata Registry, publish, emit events, or deactivate
+   * any current version (that is the publish flow, out of scope here). If the incoming
+   * config matches the latest version, no new version is created.
+   */
+  async saveOrganizationConfig(
+    organizationId: string,
+    input: OrganizationConfigData & { changeReason?: string },
+    correlationId?: string,
+    createdBy?: string,
+  ): Promise<{
+    organizationId: string;
+    organizationConfigVersion: number;
+    status: OrgConfigStatus;
+    config: OrganizationConfigData;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'saveOrganizationConfig', correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId, organizationId });
+    logger.info({ event: 'service_saveOrganizationConfig_start' });
+
+    try {
+      const existing = await this.repository.getOrganization(organizationId);
+      if (!existing) {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const { changeReason, ...configInput } = input;
+      const incomingConfig: OrganizationConfigData = {};
+      for (const key of ORGANIZATION_CONFIG_DATA_KEYS) {
+        const value = configInput[key];
+        if (value !== undefined) {
+          (incomingConfig as Record<string, unknown>)[key] = value;
+        }
+      }
+      if (incomingConfig.enabledCountryCodes !== undefined) {
+        incomingConfig.enabledCountryCodes = normalizeEnabledCodes(incomingConfig.enabledCountryCodes);
+      }
+      if (incomingConfig.enabledStateCodes !== undefined) {
+        incomingConfig.enabledStateCodes = normalizeEnabledCodes(incomingConfig.enabledStateCodes);
+      }
+      if (incomingConfig.enabledCityCodes !== undefined) {
+        incomingConfig.enabledCityCodes = normalizeEnabledCodes(incomingConfig.enabledCityCodes);
+      }
+
+      const latestConfig = await this.repository.getLatestOrganizationConfigVersionItem(organizationId);
+      const mergedConfig = mergeOrganizationConfigData(incomingConfig, latestConfig);
+
+      if (isSameOrganizationConfig(mergedConfig, latestConfig)) {
+        logger.info({
+          event: 'service_saveOrganizationConfig_unchanged',
+          organizationConfigVersion: latestConfig?.version,
+        });
+        timer.end();
+        return {
+          organizationId,
+          organizationConfigVersion: latestConfig!.version,
+          status: latestConfig!.status,
+          config: mergedConfig,
+        };
+      }
+
+      const draft = await this.repository.createOrganizationConfigDraftVersion(organizationId, mergedConfig, {
+        changeReason,
+        createdBy,
+      });
+
+      logger.info({ event: 'service_saveOrganizationConfig_success', organizationConfigVersion: draft.version });
+      timer.end();
+      return {
+        organizationId,
+        organizationConfigVersion: draft.version,
+        status: draft.status,
+        config: mergedConfig,
+      };
+    } catch (err) {
+      logger.error({ event: 'service_saveOrganizationConfig_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  /**
+   * Validates metadata + relations, activates the target draft config, and emits
+   * `OrgConfigPublished.v1` via EventBridge. Does not use the legacy SNS publisher.
+   */
+  async publishOrganizationConfig(
+    organizationId: string,
+    options: {
+      authHeader?: string;
+      publishedBy?: string;
+      changeReason?: string;
+      version?: number;
+      correlationId?: string;
+    } = {},
+  ): Promise<{
+    organizationId: string;
+    organizationConfigVersion: number;
+    status: OrgConfigStatus;
+    config: OrganizationConfigData;
+    orgCapabilities: string[];
+    changedSections: string[];
+    changeType: OrgConfigChangeType;
+  }> {
+    const timer = createPerformanceTimer(baseLogger, 'publishOrganizationConfig', options.correlationId);
+    const logger = createChildLogger(baseLogger, { correlationId: options.correlationId, organizationId });
+    logger.info({ event: 'service_publishOrganizationConfig_start' });
+
+    try {
+      const existing = await this.repository.getOrganization(organizationId);
+      if (!existing) {
+        throw new OrganizationNotFoundError(organizationId);
+      }
+
+      const authHeader = options.authHeader?.trim();
+      if (!authHeader) {
+        throw new InvalidMetadataValueError('Authorization header is required to publish organization config');
+      }
+
+      const correlationId = options.correlationId ?? randomUUID();
+
+      const draftItem =
+        options.version !== undefined
+          ? await this.repository.getOrganizationConfigByVersion(organizationId, options.version)
+          : await this.repository.getLatestDraftOrganizationConfig(organizationId);
+
+      if (!draftItem) {
+        throw new OrgConfigDraftNotFoundError(organizationId);
+      }
+
+      const config = toOrganizationConfigData(draftItem);
+
+      if (draftItem.status === OrgConfigStatus.ACTIVE) {
+        logger.info({
+          event: 'service_publishOrganizationConfig_already_active',
+          organizationConfigVersion: draftItem.version,
+        });
+        timer.end();
+        return {
+          organizationId,
+          organizationConfigVersion: draftItem.version,
+          status: OrgConfigStatus.ACTIVE,
+          config,
+          orgCapabilities: draftItem.orgCapabilities ?? [],
+          changedSections: draftItem.changedSections ?? [],
+          changeType: draftItem.changeType ?? ORG_CONFIG_CHANGE_TYPE.UPDATE,
+        };
+      }
+
+      if (draftItem.status !== OrgConfigStatus.DRAFT) {
+        throw new OrgConfigDraftNotFoundError(organizationId);
+      }
+
+      const validationContext = await validateOrganizationConfigForPublish(
+        config,
+        this.metadataRegistryClient,
+        authHeader,
+      );
+
+      const categoryConditionPairs = deriveCategoryConditionPairs(
+        config,
+        validationContext.conditionsByCategory,
+      );
+      const orgCapabilities = buildOrgCapabilities(categoryConditionPairs);
+
+      const previousActive = await this.repository.getActiveOrganizationConfigItem(organizationId);
+      const previousConfig = toOrganizationConfigData(previousActive);
+      const changedSections = computeChangedConfigSections(config, previousConfig);
+      const changeType =
+        previousActive === null ? ORG_CONFIG_CHANGE_TYPE.INITIAL : ORG_CONFIG_CHANGE_TYPE.UPDATE;
+      const publishedAtMs = Date.now();
+      const publishedAtIso = new Date(publishedAtMs).toISOString();
+
+      const published = await this.repository.publishOrganizationConfigVersion(organizationId, draftItem.version, {
+        publishedBy: options.publishedBy,
+        publishedAt: publishedAtMs,
+        changeReason: options.changeReason ?? draftItem.changeReason,
+        changedSections,
+        changeType,
+        orgCapabilities,
+      });
+
+      const eventPayload: OrgConfigPublishedPayload = {
+        organizationId,
+        orgConfigVersion: published.version,
+        changeType,
+        changedSections,
+        publishedAt: publishedAtIso,
+        ...(options.publishedBy !== undefined ? { publishedBy: options.publishedBy } : {}),
+      };
+
+      try {
+        await publishOrgConfigPublishedEvent(eventPayload, { organizationId, correlationId });
+      } catch (err) {
+        logger.error({
+          event: 'service_publishOrganizationConfig_event_failed',
+          err: serializeError(err),
+          organizationConfigVersion: published.version,
+        });
+        throw new OrgConfigPublishError('Failed to publish OrgConfigPublished.v1 event');
+      }
+
+      logger.info({
+        event: 'service_publishOrganizationConfig_success',
+        organizationConfigVersion: published.version,
+      });
+      timer.end();
+      return {
+        organizationId,
+        organizationConfigVersion: published.version,
+        status: OrgConfigStatus.ACTIVE,
+        config,
+        orgCapabilities,
+        changedSections,
+        changeType,
+      };
+    } catch (err) {
+      logger.error({ event: 'service_publishOrganizationConfig_error', err: serializeError(err) });
+      timer.end();
+      throw err;
+    }
+  }
+
+  /**
+   * Saves org config as draft, then validates and publishes it as ACTIVE.
+   * Used by `PUT /organization/{organizationId}/config`.
+   */
+  async saveAndPublishOrganizationConfig(
+    organizationId: string,
+    input: OrganizationConfigData & { changeReason?: string },
+    options: {
+      correlationId?: string;
+      createdBy?: string;
+      authHeader?: string;
+    } = {},
+  ): Promise<{
+    organizationId: string;
+    organizationConfigVersion: number;
+    status: OrgConfigStatus;
+    config: OrganizationConfigData;
+    orgCapabilities?: string[];
+  }> {
+    const saveResult = await this.saveOrganizationConfig(
+      organizationId,
+      input,
+      options.correlationId,
+      options.createdBy,
+    );
+
+    if (saveResult.status === OrgConfigStatus.ACTIVE) {
+      return {
+        organizationId,
+        organizationConfigVersion: saveResult.organizationConfigVersion,
+        status: OrgConfigStatus.ACTIVE,
+        config: saveResult.config,
+        orgCapabilities: undefined,
+      };
+    }
+
+    const publishResult = await this.publishOrganizationConfig(organizationId, {
+      version: saveResult.organizationConfigVersion,
+      authHeader: options.authHeader,
+      publishedBy: options.createdBy,
+      changeReason: input.changeReason,
+      correlationId: options.correlationId,
+    });
+
+    return {
+      organizationId,
+      organizationConfigVersion: publishResult.organizationConfigVersion,
+      status: publishResult.status,
+      config: publishResult.config,
+      orgCapabilities: publishResult.orgCapabilities,
+    };
   }
 
   async deleteOrganization(organizationId: string, correlationId?: string): Promise<void> {

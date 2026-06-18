@@ -1,6 +1,6 @@
 #!/bin/bash
 
-AWS_PROFILE="ci-dev"
+AWS_PROFILE="ci-dev-"
 AWS_REGION="us-east-1"
 MAX_FUNCTIONS=1
 

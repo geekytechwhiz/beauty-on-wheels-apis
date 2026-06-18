@@ -3,7 +3,8 @@ import type {
   MetadataRegistryValueDto,
 } from '@api-hub/service-clients';
 
-import { METADATA_VALUE_STATUS_ACTIVE } from '../constants/template-config-meta.constants';
+import { METADATA_STATUS } from '@api-hub/utils';
+import { TemplateField } from '../utils/template-ui-response';
 
 export interface TemplateConfigMetaValue {
   valueCode: string;
@@ -21,12 +22,12 @@ export interface TemplateConfigMetaTypeItem {
 }
 
 export interface TemplateConfigMetaResponse {
-  items: TemplateConfigMetaTypeItem[];
+  items: TemplateField[];
   missingMetadataTypeCodes: string[];
 }
 
 function mapValue(value: MetadataRegistryValueDto): TemplateConfigMetaValue | null {
-  if (value.status !== METADATA_VALUE_STATUS_ACTIVE) {
+  if (value.status !== METADATA_STATUS.ACTIVE) {
     return null;
   }
 
@@ -50,6 +51,35 @@ function mapTypeItem(item: MetadataRegistryTypeValuesDto): TemplateConfigMetaTyp
   };
 }
 
+const validationBuilder = (item:any) => {
+  if(item.required){
+    return {
+      required: {
+        value: item.required,
+        messageKey: `${item.metadataType}.validation.required`,
+      },
+    };
+  }
+  return {};
+};
+
+function mapTypeValue(item: MetadataRegistryTypeValuesDto): TemplateField {
+  
+  return {
+    code: item.metadataType,
+    displayName: item.displayName,
+    isGlobal: item.isGlobal ?? false,
+    type: item.valueDataType === 'Enum' ? 'select' : 'text',
+    labelKey: `${item.metadataType?.toLowerCase()}.label`,
+    placeholderKey: `${item.metadataType?.toLowerCase()}.placeholder`,
+    options: item.values
+      .map((value) => ({
+        labelKey: value.label,
+        value: value.valueCode,
+      })),
+    validation: validationBuilder(item) as TemplateField['validation'],
+  };
+}
 /**
  * Maps metadata-registry batch read output into template-config meta response.
  * Matches upstream shape; omits `status`, `sortOrder`, and `attributes` from each value.
@@ -57,9 +87,10 @@ function mapTypeItem(item: MetadataRegistryTypeValuesDto): TemplateConfigMetaTyp
 export function mapTemplateConfigMetaResponse(input: {
   items: MetadataRegistryTypeValuesDto[];
   missingMetadataTypeCodes: string[];
-}): TemplateConfigMetaResponse {
+}): TemplateConfigMetaResponse { 
+  const activeItems = input.items.filter((item) => item.status?.toUpperCase()?.trim()!== METADATA_STATUS.INACTIVE);
   return {
-    items: input.items.map(mapTypeItem),
+    items: activeItems.map(mapTypeValue),
     missingMetadataTypeCodes: input.missingMetadataTypeCodes,
   };
 }

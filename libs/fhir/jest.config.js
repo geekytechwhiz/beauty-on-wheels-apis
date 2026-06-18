@@ -19,6 +19,9 @@ module.exports = {
     '^@myvitalrx/platform-tools/fhir/middleware$': '<rootDir>/src/middleware/index.ts',
     '^@api-hub/utils$': '<rootDir>/../../libs/utils/src/index.ts',
     '^@api-hub/terminology$': '<rootDir>/../../libs/terminology/src/index.ts',
+    '^@api-hub/fhir-validator$':
+      '<rootDir>/../../libs/fhir-validator/src/index.ts',
+    '^@myvitalrx/fhir-wrapper/middleware$': '<rootDir>/src/middleware/index.ts',
   },
   coverageDirectory: '../../test-output/jest/coverage/libs/fhir',
   collectCoverageFrom: [

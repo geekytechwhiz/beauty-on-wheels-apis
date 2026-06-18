@@ -7,7 +7,8 @@ export * from './services/resource-discovery.service';
 export * from './validator/fhir.validator';
 export * from './validator/operation-outcome.builder';
 export * from './registry/resource-metadata.registry';
-export * from './registry/mapping.registry'; 
+export * from './registry/mapping.registry';
+export * from './registry/client-mapping.registry';
 export * from './resolver/mapping.resolver';
 export * from './mapper/generic-fhir.mapper';
 export * from './capability/capability.service';
@@ -24,4 +25,8 @@ export * from './mapper/fhir-error-response';
 export * from './mapper/is-fhir-validation-error-like';
 export * from './mapper/is-fhir-request';
 export * from './mapper/fhir-success-response'; 
+export * from './registry/resource-metadata.registry';
+export * from './registry/mapping.registry'; 
+export * from './registry/resource-registry';
+export * from './mapper/transform-fhir-request';
 

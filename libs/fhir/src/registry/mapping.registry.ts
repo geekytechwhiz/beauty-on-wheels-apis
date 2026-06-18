@@ -3,7 +3,7 @@ import { ResourceConfig } from '../types/resource.types';
 /** Subset of {@link ResourceConfig} used by {@link GenericMapper}. */
 export type ResourceMappingConfig = Pick<
   ResourceConfig,
-  'resource' | 'version' | 'profile' | 'fields' | 'extensions'
+  'resource' | 'version' | 'profile' | 'fields' | 'extensions' | 'metadata'
 >;
 
 export class MappingRegistry {

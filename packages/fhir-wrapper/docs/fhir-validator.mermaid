@@ -1,0 +1,89 @@
+flowchart TB
+
+    A[FHIR Resource / Bundle]
+
+    A --> B[Schema Registry]
+
+    subgraph SR [Schema Registry]
+        direction TB
+        B1[Load FHIR R4 Schemas]
+        B2[ResourceType Lookup]
+        B3[Schema Cache]
+        B1 --> B2 --> B3
+    end
+
+    B --> C[AJV Validator]
+
+    subgraph AJV [AJV Structure Validator]
+        direction TB
+        C1[Required Fields Validation]
+        C2[Cardinality Validation]
+        C3[Datatype Validation]
+        C4[JSON Structure Validation]
+        C5[Format Validation]
+        C1 --> C2 --> C3 --> C4 --> C5
+    end
+
+    C --> D[Bundle Validator]
+
+    subgraph BV [Bundle Validator]
+        direction TB
+        D1[Validate Bundle Structure]
+        D2[Validate Entry Collection]
+        D3[Traverse Entry Resources]
+        D4[Validate Each Resource]
+        D5[Aggregate Bundle Errors]
+        D1 --> D2 --> D3 --> D4 --> D5
+    end
+
+    D --> E[ValueSet Validator]
+
+    subgraph VS [ValueSet Validator]
+        direction TB
+        E1[AdministrativeGender]
+        E2[ObservationStatus]
+        E3[EncounterStatus]
+        E4[AppointmentStatus]
+        E5[FHIR Code Validation]
+        E1 --> E2 --> E3 --> E4 --> E5
+    end
+
+    E --> F[Custom Rule Validator]
+
+    subgraph CR [Custom Rule Validator]
+        direction TB
+        F1[Tenant Rules]
+        F2[Organization Rules]
+        F3[Required Extensions]
+        F4[Business Constraints]
+        F5[Security Policies]
+        F1 --> F2 --> F3 --> F4 --> F5
+    end
+
+    F --> G[Validation Result Aggregator]
+
+    subgraph AG [Validation Aggregator]
+        direction TB
+        G1[Collect AJV Errors]
+        G2[Collect Bundle Errors]
+        G3[Collect ValueSet Errors]
+        G4[Collect Business Rule Errors]
+        G1 --> G2 --> G3 --> G4
+    end
+
+    G --> H{Validation Passed?}
+
+    H -->|Yes| I[Return FHIR Resource]
+
+    H -->|No| J[OperationOutcome Builder]
+
+    subgraph OO [OperationOutcome Builder]
+        direction TB
+        J1[Map Validation Issues]
+        J2[Assign Severity]
+        J3[Assign FHIR Error Codes]
+        J4[Generate OperationOutcome]
+        J1 --> J2 --> J3 --> J4
+    end
+
+    J --> K[HTTP 400 + OperationOutcome]

@@ -9,19 +9,37 @@ export type OperationOutcomeSeverity =
 export interface OperationOutcomeIssue {
   severity: OperationOutcomeSeverity;
   code: string;
+  category?: ValidationIssueCategory;
+  validator?: string;
   diagnostics?: string;
   expression?: string[];
 }
+
+export type ValidationIssueCategory =
+  | 'structure'
+  | 'terminology'
+  | 'reference'
+  | 'businessRule';
 
 export interface OperationOutcome {
   resourceType: 'OperationOutcome';
   issue: OperationOutcomeIssue[];
 }
 
+const VALIDATOR_CATEGORY: Record<string, ValidationIssueCategory> = {
+  StructureValidator: 'structure',
+  TerminologyValidator: 'terminology',
+  ReferenceValidator: 'reference',
+  CustomRuleValidator: 'businessRule',
+};
+
 const VALIDATION_CODE_TO_OUTCOME: Record<string, string> = {
   RESOURCE_MISSING: 'required',
+  REQUIRED: 'required',
   REQUIRED_FIELD_MISSING: 'required',
   INVALID_RESOURCE_TYPE: 'invalid',
+  INVALID_CODE: 'value',
+  INVALID_REFERENCE: 'invalid',
 };
 
 export function buildOperationOutcome(
@@ -43,6 +61,11 @@ function toOperationOutcomeIssue(
     code: VALIDATION_CODE_TO_OUTCOME[issue.code] ?? 'invalid',
     diagnostics: issue.diagnostics,
   };
+
+  if (issue.validator) {
+    outcome.validator = issue.validator;
+    outcome.category = VALIDATOR_CATEGORY[issue.validator] ?? 'structure';
+  }
 
   const expression = toExpression(issue, resourceType);
   if (expression) {
@@ -70,7 +93,7 @@ function toExpression(
     return resourceType ?? undefined;
   }
 
-  const match = issue.diagnostics.match(/^Required field missing: (.+)$/);
+  const match = issue.diagnostics?.match(/^Required field missing: (.+)$/);
   if (match?.[1]) {
     const field = match[1];
     return resourceType ? `${resourceType}.${field}` : field;

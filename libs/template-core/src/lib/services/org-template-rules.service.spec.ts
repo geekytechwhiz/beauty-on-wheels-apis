@@ -142,4 +142,31 @@ describe('OrgTemplateRulesService', () => {
     });
     expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalled();
   });
+
+  it('merges fieldValues, regenerates rules, and bumps version on put', async () => {
+    const { enablement, meta, version } = enabledOrgRows();
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockResolvedValue(undefined),
+    };
+    const enablementRepo = {
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(enablement),
+    };
+    const orgOps = new OrgTemplateOpsService(orgRepo as never);
+
+    const svc = new OrgTemplateRulesService(orgRepo as never, enablementRepo as never, orgOps);
+    const result = await svc.updateOrgTemplateRules({
+      masterTemplateId: 'CARE-PLAN-7',
+      organizationId: 'org-1',
+      fieldValues: { CATEGORY: 'ACUTE_CARE' },
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.version).toBe(1.1);
+    expect(result.fieldValues.CATEGORY).toBe('ACUTE_CARE');
+    expect(result.fieldValues.GOALS).toEqual([{ goalName: 'Reduce BP', goalType: 'CLINICAL' }]);
+    expect(result.rules.CATEGORY).toBeDefined();
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalled();
+  });
 });

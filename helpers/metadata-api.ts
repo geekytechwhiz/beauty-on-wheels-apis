@@ -307,7 +307,7 @@ async function publishMetadataDraft(
     const statusCode = ax?.response?.status;
     const message = extractErrorMessage(error);
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata publish conflict ù?ù?ù treating as success', {
+      logger.info('Metadata publish conflict ÔøΩ?ÔøΩ?ÔøΩ treating as success', {
         label,
         changeRequestId: draft.changeRequestId,
       });
@@ -344,7 +344,7 @@ async function createMetadataEntity(
     const statusCode = draftOutcome.statusCode;
     const message = draftOutcome.error ?? 'Draft failed';
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata draft conflict ù?ù?ù treating as success', { label });
+      logger.info('Metadata draft conflict ÔøΩ?ÔøΩ?ÔøΩ treating as success', { label });
       const p = validationPayload as MetadataTypeCreatePayload & MetadataValueCreatePayload;
       return {
         ok: true,
@@ -412,7 +412,7 @@ export async function createMetadataType(
   );
 }
 
-/** Alias ù draft (+ publish) type update uses the same governed workflow as create. */
+/** Alias ÔøΩ draft (+ publish) type update uses the same governed workflow as create. */
 export const updateMetadataType = createMetadataType;
 
 export interface RegistryMetadataTypeRecord {
@@ -437,7 +437,7 @@ export interface MetadataValuesByTypesResult {
 }
 
 /**
- * POST `/metadata/values/by-types` ó batch read published values for prerequisite hydration.
+ * POST `/metadata/values/by-types` ÔøΩ batch read published values for prerequisite hydration.
  */
 export async function getMetadataValuesByTypes(
   client: AxiosInstance,
@@ -557,7 +557,7 @@ export async function mapWithConcurrency<T, R>(
 /** serverless-offline exposes routes as `http://localhost:3000/{stage}/...` */
 const DEFAULT_LOCAL_BASE_URL = 'http://localhost:3000/dev';
 
-/** Matches `buildRequestContext` in libs/utils ù same JWT claim precedence for actor id. */
+/** Matches `buildRequestContext` in libs/utils ÔøΩ same JWT claim precedence for actor id. */
 export type SeedActorClaimSource = 'custom:userID' | 'userId' | 'sub';
 
 export interface SeedActorResolution {
@@ -618,14 +618,14 @@ export function logSeedAuthContext(config: SeedRuntimeConfig): void {
   const hasAuthToken = Boolean(config.authToken?.trim());
   if (!hasAuthToken) {
     logger.info(
-      'Metadata seed auth: AUTH_TOKEN not set ù requests omit Authorization; server stores createdBy/lastModifiedBy as system',
+      'Metadata seed auth: AUTH_TOKEN not set ÔøΩ requests omit Authorization; server stores createdBy/lastModifiedBy as system',
     );
     return;
   }
 
   const actor = resolveSeedActorFromAuthToken(config.authToken);
   if (actor) {
-    logger.info('Metadata seed auth: AUTH_TOKEN set ù Authorization Bearer header will be sent', {
+    logger.info('Metadata seed auth: AUTH_TOKEN set ÔøΩ Authorization Bearer header will be sent', {
       actorUserId: actor.userId,
       actorClaimSource: actor.claimSource,
       note: 'Registry resolves display name from USER_TABLE on GET/list when this userId exists',
@@ -634,7 +634,7 @@ export function logSeedAuthContext(config: SeedRuntimeConfig): void {
   }
 
   logger.warn(
-    'Metadata seed auth: AUTH_TOKEN set but no userId could be decoded (custom:userID, userId, sub) ù server may still store system',
+    'Metadata seed auth: AUTH_TOKEN set but no userId could be decoded (custom:userID, userId, sub) ÔøΩ server may still store system',
   );
 }
 
@@ -642,7 +642,7 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
   const configured = process.env.BASE_URL?.trim();
   const baseUrl = configured || DEFAULT_LOCAL_BASE_URL;
   if (!configured) {
-    logger.info('BASE_URL not set ù using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
+    logger.info('BASE_URL not set ÔøΩ using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
   }
 
   const autoPublish = process.env.AUTO_PUBLISH !== 'false' && process.env.AUTO_PUBLISH !== '0';

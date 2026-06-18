@@ -342,13 +342,23 @@ const partialTemplateFieldRuleSchema = z
     }
   });
 
-export const updateOrgTemplateRulesBodySchema = z.object({
-  rules: z
-    .record(z.string().trim().min(1), partialTemplateFieldRuleSchema)
-    .refine((rules) => Object.keys(rules).length > 0, {
-      message: 'rules must contain at least one field path',
-    }),
-});
+export const updateOrgTemplateRulesBodySchema = z
+  .object({
+    rules: z.record(z.string().trim().min(1), partialTemplateFieldRuleSchema).optional(),
+    fieldValues: fieldValuesSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasRules = data.rules !== undefined && Object.keys(data.rules).length > 0;
+    const hasFieldValues =
+      data.fieldValues !== undefined && Object.keys(data.fieldValues).length > 0;
+    if (!hasRules && !hasFieldValues) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'rules or fieldValues must contain at least one field',
+        path: ['rules'],
+      });
+    }
+  });
 
 export type UpdateOrgTemplateRulesBody = z.infer<typeof updateOrgTemplateRulesBodySchema>;
 

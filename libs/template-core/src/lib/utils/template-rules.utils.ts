@@ -61,6 +61,11 @@ export type BuildRulesFromFieldValuesOptions = {
   templateType?: string;
 };
 
+export type MergeRulesAfterFieldValuesChangeOptions = BuildRulesFromFieldValuesOptions & {
+  fieldValues?: Record<string, unknown>;
+  previousFieldValues?: Record<string, unknown>;
+};
+
 function collectLinkedTemplateFieldKeys(fieldValues: Record<string, unknown>): Set<string> {
   return new Set(Object.keys(fieldValues).filter(isLinkedTemplateFieldKey));
 }
@@ -102,7 +107,7 @@ function expandObjectKeys(obj: Record<string, unknown>, paths: Set<string>): voi
 
 /**
  * Collects flat rule paths by walking fieldValues only (see TEMPLATE_FIELD_RULES_PLAN.md).
- * Skips CARE_PLAN linking keys when provided — those use nested rules instead.
+ * Skips CARE_PLAN linking keys when provided — inner keys are emitted flat via {@link emitFlatLinkedItemRules}.
  */
 export function collectRulePathsFromFieldValues(
   fieldValues: Record<string, unknown>,
@@ -141,7 +146,7 @@ export function generateDefaultRule(): TemplateFieldRule {
   };
 }
 
-function generateLinkedTemplateContainerRule(): TemplateFieldRuleNode {
+function generateLinkedTemplateContainerRule(): TemplateFieldRule {
   return {
     ...generateDefaultRule(),
     min: 0,
@@ -149,51 +154,69 @@ function generateLinkedTemplateContainerRule(): TemplateFieldRuleNode {
   };
 }
 
-/** Nested child rules mirroring one linked-template array item (CARE_PLAN). */
-export function buildNestedRulesFromLinkedItem(
-  item: Record<string, unknown>,
-): Record<string, TemplateFieldRuleNode> {
-  const nested: Record<string, TemplateFieldRuleNode> = {};
+function generateLinkedArrayContainerRule(): TemplateFieldRule {
+  return {
+    ...generateDefaultRule(),
+    min: 0,
+    max: LINKED_TEMPLATE_NESTED_ARRAY_MAX,
+  };
+}
 
+function collectPathsFromLinkedItem(item: Record<string, unknown>, paths: Set<string>): void {
   for (const [key, value] of Object.entries(item)) {
     if (isArrayOfObjects(value)) {
-      nested[key] = {
-        ...generateDefaultRule(),
-        min: 0,
-        max: LINKED_TEMPLATE_NESTED_ARRAY_MAX,
-        ...buildNestedRulesFromLinkedItem(value[0]),
-      };
+      paths.add(key);
+      collectPathsFromLinkedItem(value[0], paths);
     } else if (isPlainObject(value)) {
-      nested[key] = {
-        ...generateDefaultRule(),
-        ...buildNestedRulesFromLinkedItem(value),
-      };
+      paths.add(key);
+      collectPathsFromLinkedItem(value, paths);
     } else {
-      nested[key] = generateDefaultRule();
+      paths.add(key);
+    }
+  }
+}
+
+/** Flat rule paths emitted from CARE_PLAN linked-template array items (excludes LINKED_* container keys). */
+export function collectFlatLinkedItemRulePaths(fieldValues: Record<string, unknown>): Set<string> {
+  const paths = new Set<string>();
+
+  for (const linkingKey of Object.keys(fieldValues)) {
+    if (!isLinkedTemplateFieldKey(linkingKey)) continue;
+    const value = fieldValues[linkingKey];
+    if (isArrayOfObjects(value)) {
+      collectPathsFromLinkedItem(value[0], paths);
     }
   }
 
-  return nested;
+  return paths;
 }
 
-function buildCarePlanLinkedTemplateRules(
-  fieldValues: Record<string, unknown>,
-): TemplateRulesMap {
+/** Emits flat rules at rules root from one linked-template array item (CARE_PLAN). */
+export function emitFlatLinkedItemRules(rules: TemplateRulesMap, item: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(item)) {
+    if (isArrayOfObjects(value)) {
+      rules[key] = generateLinkedArrayContainerRule();
+      emitFlatLinkedItemRules(rules, value[0]);
+    } else if (isPlainObject(value)) {
+      rules[key] = generateDefaultRule();
+      emitFlatLinkedItemRules(rules, value);
+    } else {
+      rules[key] = generateDefaultRule();
+    }
+  }
+}
+
+function buildCarePlanLinkedTemplateRules(fieldValues: Record<string, unknown>): TemplateRulesMap {
   const rules: TemplateRulesMap = {};
 
   for (const linkingKey of Object.keys(fieldValues)) {
     if (!isLinkedTemplateFieldKey(linkingKey)) continue;
 
     const value = fieldValues[linkingKey];
-    const container = generateLinkedTemplateContainerRule();
+    rules[linkingKey] = generateLinkedTemplateContainerRule();
 
     if (isArrayOfObjects(value)) {
-      rules[linkingKey] = {
-        ...container,
-        ...buildNestedRulesFromLinkedItem(value[0]),
-      };
-    } else {
-      rules[linkingKey] = container;
+      emitFlatLinkedItemRules(rules, value[0]);
     }
   }
 
@@ -312,12 +335,12 @@ export function mergeRulesAdditive(
 
 /**
  * After fieldValues change on master/org VERSION rows: additive merge for flat keys;
- * full replace for each CARE_PLAN {@link LINKED_TEMPLATE_FIELD_KEY_PREFIX} rule subtree.
+ * full replace for each CARE_PLAN {@link LINKED_TEMPLATE_FIELD_KEY_PREFIX} container and linked inner flat keys.
  */
 export function mergeRulesAfterFieldValuesChange(
   existing: Record<string, unknown> | undefined,
   generated: TemplateRulesMap,
-  options?: BuildRulesFromFieldValuesOptions,
+  options?: MergeRulesAfterFieldValuesChangeOptions,
 ): TemplateRulesMap {
   const merged = mergeRulesAdditive(existing, generated);
 
@@ -328,6 +351,25 @@ export function mergeRulesAfterFieldValuesChange(
   for (const [key, rule] of Object.entries(generated)) {
     if (isLinkedTemplateFieldKey(key)) {
       merged[key] = rule;
+    }
+  }
+
+  const newLinkedPaths = options?.fieldValues
+    ? collectFlatLinkedItemRulePaths(options.fieldValues)
+    : new Set<string>();
+
+  for (const path of newLinkedPaths) {
+    if (generated[path] !== undefined) {
+      merged[path] = generated[path];
+    }
+  }
+
+  if (options?.previousFieldValues) {
+    const oldLinkedPaths = collectFlatLinkedItemRulePaths(options.previousFieldValues);
+    for (const path of oldLinkedPaths) {
+      if (!newLinkedPaths.has(path)) {
+        delete merged[path];
+      }
     }
   }
 
@@ -423,7 +465,7 @@ function assertRuleCardinality(rule: TemplateFieldRule, fieldPath: string): void
 }
 
 function applyScalarRulePatch(
-  target: TemplateFieldRuleNode,
+  target: TemplateFieldRule,
   key: string,
   value: unknown,
   fieldPath: string,
@@ -458,40 +500,25 @@ function applyScalarRulePatch(
   }
 }
 
-function mergeRuleNodePartial(
-  existing: TemplateFieldRuleNode,
+function mergeRulePartial(
+  existing: TemplateFieldRule,
   patch: Record<string, unknown>,
   fieldPath: string,
-): TemplateFieldRuleNode {
-  const next: TemplateFieldRuleNode = { ...existing };
+): TemplateFieldRule {
+  const next: TemplateFieldRule = { ...existing };
 
   for (const [key, value] of Object.entries(patch)) {
-    if (isRuleScalarKey(key)) {
-      applyScalarRulePatch(next, key, value, fieldPath);
-      continue;
+    if (!isRuleScalarKey(key)) {
+      throw new OrgRulesValidationError(`Unknown rule field path: ${fieldPath}.${key}`);
     }
-
-    if (!isPlainObject(value)) {
-      throw new OrgRulesValidationError(`Invalid rule object for field path: ${fieldPath}.${key}`);
-    }
-
-    const childExisting = existing[key];
-    if (!isPlainObject(childExisting)) {
-      throw new OrgRulesValidationError(`Unknown nested rule field path: ${fieldPath}.${key}`);
-    }
-
-    next[key] = mergeRuleNodePartial(
-      childExisting as TemplateFieldRuleNode,
-      value,
-      `${fieldPath}.${key}`,
-    );
+    applyScalarRulePatch(next, key, value, fieldPath);
   }
 
   assertRuleCardinality(next, fieldPath);
   return next;
 }
 
-/** Per-field merge for org rules PUT; supports nested patches under CARE_PLAN LINKED_* keys. */
+/** Per-field merge for org rules PUT — flat keys only. */
 export function mergeOrgRulesPartial(
   existing: TemplateRulesMap,
   patch: TemplateRulesPatch,
@@ -506,7 +533,7 @@ export function mergeOrgRulesPartial(
       throw new OrgRulesValidationError(`Invalid rule object for field path: ${fieldPath}`);
     }
 
-    merged[fieldPath] = mergeRuleNodePartial(merged[fieldPath], partialRule, fieldPath);
+    merged[fieldPath] = mergeRulePartial(merged[fieldPath], partialRule, fieldPath);
   }
 
   return merged;

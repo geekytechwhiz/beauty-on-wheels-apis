@@ -13,7 +13,9 @@ import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { isActiveEnablement } from '../utils/enablement.utils';
 import {
   asTemplateRulesMap,
+  buildRulesFromFieldValues,
   mergeOrgRulesPartial,
+  mergeRulesAfterFieldValuesChange,
   OrgRulesValidationError,
 } from '../utils/template-rules.utils';
 import {
@@ -22,6 +24,20 @@ import {
   templateValidationError,
 } from '../utils/template.utils';
 import { OrgTemplateOpsService } from './org-template-ops.service';
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function isFieldValuesRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasFieldValuesPatch(value: unknown): value is Record<string, unknown> {
+  return isFieldValuesRecord(value) && Object.keys(value).length > 0;
+}
 
 function assertEditableStatus(status: TemplateStatus | undefined, action: string): void {
   if (!status || !ORG_EDITABLE_STATUSES.includes(status)) {
@@ -57,26 +73,54 @@ export class OrgTemplateRulesService {
   async updateOrgTemplateRules(params: UpdateOrgTemplateRulesParams) {
     try {
       const ruleKeys = Object.keys(params.rules ?? {});
-      if (ruleKeys.length === 0) {
-        templateValidationError('rules must contain at least one field path');
+      const hasFieldValues = hasFieldValuesPatch(params.fieldValues);
+      if (ruleKeys.length === 0 && !hasFieldValues) {
+        templateValidationError('rules or fieldValues must contain at least one field');
       }
 
       const resolved = await this.resolveEnabledOrgTemplate(params);
       const currentStatus = resolved.versionRow.meta?.status ?? resolved.metaRow.meta.status;
       assertEditableStatus(currentStatus, 'update rules');
 
-      const existingRules = asTemplateRulesMap(resolved.versionRow.rules);
-      const mergedRules = mergeOrgRulesPartial(existingRules, params.rules);
+      const mergedDocument = {
+        ...this.orgOps.extractDocumentFields(resolved.versionRow),
+      };
+
+      if (hasFieldValues) {
+        mergedDocument.fieldValues = {
+          ...asRecord(resolved.versionRow.fieldValues),
+          ...params.fieldValues,
+        };
+      }
+
+      const templateType =
+        resolved.versionRow.meta?.templateType ?? resolved.metaRow.meta.templateType;
+
+      let nextRules = asTemplateRulesMap(resolved.versionRow.rules);
+      if (hasFieldValues) {
+        nextRules = mergeRulesAfterFieldValuesChange(
+          asRecord(resolved.versionRow.rules),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+          {
+            templateType,
+            fieldValues: asRecord(mergedDocument.fieldValues),
+            previousFieldValues: asRecord(resolved.versionRow.fieldValues),
+          },
+        );
+      }
+
+      if (ruleKeys.length > 0) {
+        nextRules = mergeOrgRulesPartial(nextRules, params.rules!);
+      }
+
+      mergedDocument.rules = nextRules;
 
       const updatedVersion = await this.orgOps.saveOrgTemplateInPlace({
         organizationId: params.organizationId,
         templateId: resolved.orgTemplateId,
         metaRow: resolved.metaRow,
         sourceVersion: resolved.versionRow,
-        mergedDocument: {
-          ...this.orgOps.extractDocumentFields(resolved.versionRow),
-          rules: mergedRules,
-        },
+        mergedDocument,
         actorUser: params.actorUser,
         bumpVersion: true,
       });

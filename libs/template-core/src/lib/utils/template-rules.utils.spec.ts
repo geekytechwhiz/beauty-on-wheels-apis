@@ -1,7 +1,8 @@
 import {
   buildRulesFromFieldValues,
-  buildNestedRulesFromLinkedItem,
+  collectFlatLinkedItemRulePaths,
   collectRulePathsFromFieldValues,
+  emitFlatLinkedItemRules,
   generateDefaultRule,
   mergeOrgRulesPartial,
   mergeRulesAdditive,
@@ -91,7 +92,7 @@ describe('buildRulesFromFieldValues', () => {
     expect(rules.CATEGORY).toEqual(defaultRule);
   });
 
-  it('nests CARE_PLAN LINKED_TASK_TEMPLATE rules under the linking key', () => {
+  it('emits CARE_PLAN LINKED_TASK_TEMPLATE container and flat inner keys in rules', () => {
     const rules = buildRulesFromFieldValues(
       {
         CATEGORY: 'CHRONIC_CARE',
@@ -101,19 +102,21 @@ describe('buildRulesFromFieldValues', () => {
     );
 
     expect(rules.CATEGORY).toEqual(defaultRule);
-    expect(rules.subtitle).toBeUndefined();
     expect(rules.LINKED_TASK_TEMPLATE).toMatchObject({
       enable: true,
       orgedit: true,
       min: 0,
       max: 20,
     });
-    expect(rules.LINKED_TASK_TEMPLATE.workflowStage).toEqual(defaultRule);
-    expect(rules.LINKED_TASK_TEMPLATE.ruleBadges).toMatchObject({
+    expect(rules.LINKED_TASK_TEMPLATE.workflowStage).toBeUndefined();
+    expect(rules.subtitle).toEqual(defaultRule);
+    expect(rules.workflowStage).toEqual(defaultRule);
+    expect(rules.ruleBadges).toMatchObject({
       min: 0,
       max: 10,
     });
-    expect(rules.LINKED_TASK_TEMPLATE.ruleBadges?.color).toEqual(defaultRule);
+    expect(rules.color).toEqual(defaultRule);
+    expect(rules.label).toEqual(defaultRule);
   });
 
   it('creates LINKED_GOAL_TEMPLATE container only when null', () => {
@@ -123,10 +126,10 @@ describe('buildRulesFromFieldValues', () => {
     );
 
     expect(rules.LINKED_GOAL_TEMPLATE).toMatchObject({ min: 0, max: 20 });
-    expect(rules.LINKED_GOAL_TEMPLATE.goalName).toBeUndefined();
+    expect(rules.goalName).toBeUndefined();
   });
 
-  it('nests any LINKED_* key (not only task/goal/monitoring)', () => {
+  it('emits flat inner keys for any LINKED_* key (not only task/goal/monitoring)', () => {
     const rules = buildRulesFromFieldValues(
       {
         LINKED_THRESHOLD_TEMPLATE: [{ severityLevel: 'CRITICAL', alertRequired: true }],
@@ -136,8 +139,9 @@ describe('buildRulesFromFieldValues', () => {
 
     expect(isLinkedTemplateFieldKey('LINKED_THRESHOLD_TEMPLATE')).toBe(true);
     expect(rules.LINKED_THRESHOLD_TEMPLATE).toMatchObject({ min: 0, max: 20 });
-    expect(rules.LINKED_THRESHOLD_TEMPLATE.severityLevel).toEqual(defaultRule);
-    expect(rules.severityLevel).toBeUndefined();
+    expect(rules.LINKED_THRESHOLD_TEMPLATE.severityLevel).toBeUndefined();
+    expect(rules.severityLevel).toEqual(defaultRule);
+    expect(rules.alertRequired).toEqual(defaultRule);
   });
 
   it('keeps GOALS inner keys flat for non-care-plan templates', () => {
@@ -150,11 +154,26 @@ describe('buildRulesFromFieldValues', () => {
   });
 });
 
-describe('buildNestedRulesFromLinkedItem', () => {
-  it('mirrors nested array item keys', () => {
-    const nested = buildNestedRulesFromLinkedItem(carePlanLinkedTaskItem);
-    expect(nested.workflowStage).toEqual(defaultRule);
-    expect(nested.ruleBadges?.color).toEqual(defaultRule);
+describe('emitFlatLinkedItemRules', () => {
+  it('emits flat rules for linked array item keys', () => {
+    const rules: Record<string, ReturnType<typeof generateDefaultRule>> = {};
+    emitFlatLinkedItemRules(rules, carePlanLinkedTaskItem);
+    expect(rules.workflowStage).toEqual(defaultRule);
+    expect(rules.ruleBadges).toMatchObject({ min: 0, max: 10 });
+    expect(rules.color).toEqual(defaultRule);
+  });
+});
+
+describe('collectFlatLinkedItemRulePaths', () => {
+  it('collects inner paths from LINKED_* arrays only', () => {
+    const paths = collectFlatLinkedItemRulePaths({
+      LINKED_TASK_TEMPLATE: [carePlanLinkedTaskItem],
+      CATEGORY: 'CHRONIC_CARE',
+    });
+    expect(paths.has('LINKED_TASK_TEMPLATE')).toBe(false);
+    expect([...paths]).toEqual(
+      expect.arrayContaining(['subtitle', 'workflowStage', 'ruleBadges', 'color', 'label']),
+    );
   });
 });
 
@@ -171,35 +190,36 @@ describe('mergeRulesAdditive', () => {
 });
 
 describe('mergeRulesAfterFieldValuesChange', () => {
-  it('replaces whole LINKED_* subtree when fieldValues shape changes', () => {
-    const existing = buildRulesFromFieldValues(
-      { LINKED_TASK_TEMPLATE: [carePlanLinkedTaskItem] },
-      { templateType: TEMPLATE_TYPE_CARE_PLAN },
-    );
-    existing.LINKED_TASK_TEMPLATE = {
-      ...existing.LINKED_TASK_TEMPLATE,
-      workflowStage: { ...defaultRule, orgedit: false },
-      removedStaleField: defaultRule,
+  it('replaces LINKED_* container and removes stale flat inner keys', () => {
+    const previousItem = { ...carePlanLinkedTaskItem, removedStaleField: 'stale' };
+    const previousFieldValues = { LINKED_TASK_TEMPLATE: [previousItem] };
+    const existing = buildRulesFromFieldValues(previousFieldValues, {
+      templateType: TEMPLATE_TYPE_CARE_PLAN,
+    });
+    existing.workflowStage = { ...defaultRule, orgedit: false };
+
+    const nextFieldValues = {
+      LINKED_TASK_TEMPLATE: [
+        {
+          ...carePlanLinkedTaskItem,
+          workflowStage: 'MAINTENANCE',
+        },
+      ],
     };
-
-    const generated = buildRulesFromFieldValues(
-      {
-        LINKED_TASK_TEMPLATE: [
-          {
-            ...carePlanLinkedTaskItem,
-            workflowStage: 'MAINTENANCE',
-          },
-        ],
-      },
-      { templateType: TEMPLATE_TYPE_CARE_PLAN },
-    );
-
-    const merged = mergeRulesAfterFieldValuesChange(existing, generated, {
+    const generated = buildRulesFromFieldValues(nextFieldValues, {
       templateType: TEMPLATE_TYPE_CARE_PLAN,
     });
 
-    expect(merged.LINKED_TASK_TEMPLATE.workflowStage).toEqual(defaultRule);
-    expect(merged.LINKED_TASK_TEMPLATE.removedStaleField).toBeUndefined();
+    const merged = mergeRulesAfterFieldValuesChange(existing, generated, {
+      templateType: TEMPLATE_TYPE_CARE_PLAN,
+      fieldValues: nextFieldValues,
+      previousFieldValues,
+    });
+
+    expect(merged.LINKED_TASK_TEMPLATE.workflowStage).toBeUndefined();
+    expect(merged.workflowStage).toEqual(defaultRule);
+    expect(merged.workflowStage.orgedit).toBe(true);
+    expect(merged.removedStaleField).toBeUndefined();
   });
 });
 
@@ -270,20 +290,18 @@ describe('mergeOrgRulesPartial', () => {
     );
   });
 
-  it('merges nested patches under CARE_PLAN LINKED_TASK_TEMPLATE', () => {
+  it('merges flat patches for CARE_PLAN linked inner keys', () => {
     const existing = buildRulesFromFieldValues(
       { LINKED_TASK_TEMPLATE: [carePlanLinkedTaskItem] },
       { templateType: TEMPLATE_TYPE_CARE_PLAN },
     );
     const merged = mergeOrgRulesPartial(existing, {
-      LINKED_TASK_TEMPLATE: {
-        workflowStage: { orgedit: false },
-        generationTrigger: { enable: false },
-      },
+      workflowStage: { orgedit: false },
+      generationTrigger: { enable: false },
     });
 
-    expect(merged.LINKED_TASK_TEMPLATE.workflowStage?.orgedit).toBe(false);
-    expect(merged.LINKED_TASK_TEMPLATE.generationTrigger?.enable).toBe(false);
+    expect(merged.workflowStage.orgedit).toBe(false);
+    expect(merged.generationTrigger.enable).toBe(false);
     expect(merged.LINKED_TASK_TEMPLATE.min).toBe(0);
   });
 });

@@ -216,7 +216,11 @@ export class TemplateMasterOpsService {
         mergedDocument.rules = mergeRulesAfterFieldValuesChange(
           asRecord(sourceVersion.rules),
           buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
-          { templateType },
+          {
+            templateType,
+            fieldValues: asRecord(mergedDocument.fieldValues),
+            previousFieldValues: asRecord(sourceVersion.fieldValues),
+          },
         );
       }
       const separateMeta = this.usesSeparateMetaRow(metaRow);

@@ -167,9 +167,37 @@ function masterCodesFromItem(item: MasterTemplateListItem): {
   };
 }
 
+function matchesMasterCatalogFilter(
+  item: MasterTemplateListItem,
+  filters: {
+    templateType?: string;
+    categoryCode?: string;
+    conditionCode?: string;
+    condition?: string;
+  },
+): boolean {
+  const codes = masterCodesFromItem(item);
+  if (filters.categoryCode && !eqCi(codes.categoryCode, filters.categoryCode)) {
+    return false;
+  }
+  const conditionFilter = filters.conditionCode ?? filters.condition;
+  if (conditionFilter && !eqCi(codes.conditionCode, conditionFilter)) {
+    return false;
+  }
+  if (filters.templateType && !eqCi(item.templateType, filters.templateType)) {
+    return false;
+  }
+  return true;
+}
+
 function buildOrgEnabledFilterOptions(
   items: MasterTemplateListItem[],
-  templateTypeFilter?: string,
+  filters: {
+    templateType?: string;
+    categoryCode?: string;
+    conditionCode?: string;
+    condition?: string;
+  } = {},
 ): OrgEnabledFilterOptions {
   const conditionCode = new Set<string>();
   const categoryCode = new Set<string>();
@@ -182,12 +210,11 @@ function buildOrgEnabledFilterOptions(
     const codes = masterCodesFromItem(item);
     if (codes.conditionCode) conditionCode.add(codes.conditionCode);
     if (codes.categoryCode) categoryCode.add(codes.categoryCode);
+
+    if (!matchesMasterCatalogFilter(item, filters)) continue;
+
     if (item.templateType) templateType.add(item.templateType);
-    if (
-      item.templateId &&
-      !templateNameKeys.has(item.templateId) &&
-      (!templateTypeFilter || eqCi(item.templateType, templateTypeFilter))
-    ) {
+    if (item.templateId && !templateNameKeys.has(item.templateId)) {
       templateNameKeys.add(item.templateId);
       templateName.push({
         key: item.templateId,
@@ -418,10 +445,12 @@ export class OrgTemplateService {
       const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
       const publishedMasters = await this.masterSvc.listPublishedMasterCatalogItems();
       const masterById = new Map(publishedMasters.map((m) => [m.templateId, m]));
-      const filterOptions = buildOrgEnabledFilterOptions(
-        publishedMasters,
-        params.templateType,
-      );
+      const filterOptions = buildOrgEnabledFilterOptions(publishedMasters, {
+        templateType: params.templateType,
+        categoryCode: params.categoryCode,
+        conditionCode: params.conditionCode,
+        condition: params.condition,
+      });
 
       if (params.organizationId) {
         return this.listOrgEnabledForSingleOrg(

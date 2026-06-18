@@ -38,6 +38,9 @@ provider:
 
   iamRoleStatements:
     - ${file(./infra/permissions/dynamodb.yml)}
+    - ${file(./infra/permissions/dynamodb-stream.yml)}
+    - ${file(./infra/permissions/scheduler.yml)}
+    - ${file(./infra/permissions/scheduler-passrole.yml)}
     - ${file(./infra/permissions/eventbridge.yml)}
     - ${file(./infra/permissions/xray.yml)}
 
@@ -116,6 +119,22 @@ custom:
 
   dotenv:
     logging: false
+
+  # DynamoDB stream on manually provisioned task table (task-service-{stage}).
+  # 1) Enable stream (once per stage):
+  #    aws dynamodb update-table --table-name task-service-dev \
+  #      --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
+  # 2) Record LatestStreamLabel:
+  #    aws dynamodb describe-table --table-name task-service-dev \
+  #      --query 'Table.LatestStreamLabel' --output text
+  # 3) Replace TBD below before deploy. Re-enabling stream changes the label — update and redeploy.
+  taskTableStreamTimestamp:
+    dev: '2026-06-05T10:29:35.640'
+    stg: '2026-06-05T10:35:04.797'
+    prd: '2026-06-05T10:35:35.431'
+
+  taskTableStreamArn: >-
+    arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/task-service-${self:provider.stage}/stream/${self:custom.taskTableStreamTimestamp.${self:provider.stage}}
 
   serverless-offline:
     httpPort: 3000
@@ -452,6 +471,102 @@ functions:
             "401": Unauthorized
             "403": Forbidden
             "500": Server error
+
+  # Reminder stream consumers (META RuntimeTaskInstance only).
+  # filterPatterns = coarse business gates; handlers guard idempotency and eligibility.
+  registerReminderJobs:
+    handler: src/handlers/streams/registerReminderJobs.main
+    timeout: 30
+    memorySize: 256
+    description: >
+      DynamoDB stream consumer for RuntimeTaskInstance META. Registers reminder schedules when
+      reminders are enabled on create, turned on, or settings change while enabled on a non-terminal task.
+    events:
+      - stream:
+          type: dynamodb
+          arn: ${self:custom.taskTableStreamArn}
+          batchSize: 10
+          startingPosition: LATEST
+          functionResponseType: ReportBatchItemFailures
+          filterPatterns:
+            # Create with reminders on (non-terminal state only)
+            - eventName: [INSERT]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
+                  currentState:
+                    S: [open, scheduled, active]
+            # Reminders turned on (false → true) on a non-terminal task
+            - eventName: [MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
+                  currentState:
+                    S: [open, scheduled, active]
+                OldImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [false]
+            # Note: reminderSettings-only changes (channels while still enabled) are NOT
+            # filtered here — add a handler diff or an extra pattern when re-register is required.
+
+  cancelReminderJobs:
+    handler: src/handlers/streams/cancelReminderJobs.main
+    timeout: 30
+    memorySize: 256
+    description: Cancels reminder schedules when reminders are disabled or task reaches completed, dismissed, or cancelled (not missed).
+    events:
+      - stream:
+          type: dynamodb
+          arn: ${self:custom.taskTableStreamArn}
+          batchSize: 10
+          startingPosition: LATEST
+          functionResponseType: ReportBatchItemFailures
+          filterPatterns:
+            # Reminders turned off
+            - eventName: [MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [false]
+                OldImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
+            # Task completed/dismissed/cancelled — not missed (reminder already fired or lapsed before miss)
+            - eventName: [MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  currentState:
+                    S: [completed, dismissed, cancelled]
+                OldImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  currentState:
+                    S: [open, scheduled, active]
+
+  processReminder:
+    handler: src/handlers/http/processReminder.main
+    timeout: 30
+    memorySize: 256
+    description: Scheduler callback at reminder fire time; validates META eligibility and dispatches notification (stub).
+    events:
+      - http:
+          path: internal/reminders/process
+          method: post
+          cors: false
 
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

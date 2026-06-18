@@ -447,6 +447,28 @@ function resolveStateCodeForCity(
   return stateLookup.byMetadataValueCode.get(`${country}_${stateOriginal}`);
 }
 
+/** Country codes for Currency VALID_IN relationships (from Excel applicableCountries). */
+export function resolveCountriesForCurrency(seed: SimpleValueSeed): string[] {
+  if (seed.applicableCountries?.length) {
+    return [
+      ...new Set(
+        seed.applicableCountries.map((token) => token.trim().toUpperCase()).filter(Boolean),
+      ),
+    ];
+  }
+
+  const code = seed.metadataValueCode.trim().toUpperCase();
+  const parts = code.split('_').filter(Boolean);
+  if (parts.length >= 2) {
+    const suffix = parts[parts.length - 1]!;
+    if (/^[A-Z]{2}$/.test(suffix)) {
+      return [suffix];
+    }
+  }
+
+  return [];
+}
+
 function promoteToRichValues(
   valuesByType: Map<string, SimpleValueSeed[]>,
   stateLookup: ReturnType<typeof buildStateLookup>,
@@ -498,6 +520,17 @@ function promoteToRichValues(
     promote('City', seed.metadataValueCode, {
       ...seed,
       relationships: [{ targetMetadataValueCode: stateCode }],
+    });
+  }
+
+  for (const seed of valuesByType.get('Currency') ?? []) {
+    const countries = resolveCountriesForCurrency(seed);
+    if (!countries.length) {
+      continue;
+    }
+    promote('Currency', seed.metadataValueCode, {
+      ...seed,
+      relationships: countries.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
     });
   }
 

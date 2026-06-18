@@ -121,13 +121,7 @@ custom:
     logging: false
 
   # DynamoDB stream on manually provisioned task table (task-service-{stage}).
-  # 1) Enable stream (once per stage):
-  #    aws dynamodb update-table --table-name task-service-dev \
-  #      --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
-  # 2) Record LatestStreamLabel:
-  #    aws dynamodb describe-table --table-name task-service-dev \
-  #      --query 'Table.LatestStreamLabel' --output text
-  # 3) Replace TBD below before deploy. Re-enabling stream changes the label — update and redeploy.
+  # Re-enabling stream changes LatestStreamLabel — update timestamp and redeploy.
   taskTableStreamTimestamp:
     dev: '2026-06-05T10:29:35.640'
     stg: '2026-06-05T10:35:04.797'
@@ -473,14 +467,12 @@ functions:
             "500": Server error
 
   # Reminder stream consumers (META RuntimeTaskInstance only).
-  # filterPatterns = coarse business gates; handlers guard idempotency and eligibility.
+  # filterPatterns = coarse business gates; handlers map META → scheduler gateway.
   registerReminderJobs:
     handler: src/handlers/streams/registerReminderJobs.main
     timeout: 30
     memorySize: 256
-    description: >
-      DynamoDB stream consumer for RuntimeTaskInstance META. Registers reminder schedules when
-      reminders are enabled on create, turned on, or settings change while enabled on a non-terminal task.
+    description: Registers reminder schedules when reminders are enabled on create or turned on.
     events:
       - stream:
           type: dynamodb
@@ -489,7 +481,6 @@ functions:
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures
           filterPatterns:
-            # Create with reminders on (non-terminal state only)
             - eventName: [INSERT]
               dynamodb:
                 NewImage:
@@ -499,7 +490,6 @@ functions:
                     BOOL: [true]
                   currentState:
                     S: [open, scheduled, active]
-            # Reminders turned on (false → true) on a non-terminal task
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -514,14 +504,12 @@ functions:
                     S: [RuntimeTaskInstance]
                   reminderEnabled:
                     BOOL: [false]
-            # Note: reminderSettings-only changes (channels while still enabled) are NOT
-            # filtered here — add a handler diff or an extra pattern when re-register is required.
 
   cancelReminderJobs:
     handler: src/handlers/streams/cancelReminderJobs.main
     timeout: 30
     memorySize: 256
-    description: Cancels reminder schedules when reminders are disabled or task reaches completed, dismissed, or cancelled (not missed).
+    description: Cancels reminder schedules when reminders are disabled or task is completed, dismissed, or cancelled.
     events:
       - stream:
           type: dynamodb
@@ -530,7 +518,6 @@ functions:
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures
           filterPatterns:
-            # Reminders turned off
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -543,7 +530,6 @@ functions:
                     S: [RuntimeTaskInstance]
                   reminderEnabled:
                     BOOL: [true]
-            # Task completed/dismissed/cancelled — not missed (reminder already fired or lapsed before miss)
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -561,7 +547,7 @@ functions:
     handler: src/handlers/http/processReminder.main
     timeout: 30
     memorySize: 256
-    description: Scheduler callback at reminder fire time; validates META eligibility and dispatches notification (stub).
+    description: Scheduler callback at reminder fire time; validates META eligibility and dispatches notification.
     events:
       - http:
           path: internal/reminders/process

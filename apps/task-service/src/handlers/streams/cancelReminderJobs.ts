@@ -1,4 +1,4 @@
-import { createDynamoStreamHandler, TASK_REMINDER_STREAM_OPERATIONS } from '@api-hub/event-platform';
+import { createDynamoStreamHandler } from '@api-hub/event-platform';
 
 import { buildTaskStreamConsumerDeps } from './bootstrap/stream-consumer-deps';
 import { processCancelReminder } from './processors/cancel-reminder.processor';
@@ -6,7 +6,7 @@ import { TaskMetaStreamPayloadSchema } from './task-meta-stream.schema';
 import type { TaskMetaStreamPayload } from './task-meta-stream.payload';
 
 export const handler = createDynamoStreamHandler({
-  operation: TASK_REMINDER_STREAM_OPERATIONS.CANCEL,
+  operation: 'task-service.reminder.cancel',
   consumer: buildTaskStreamConsumerDeps(),
   events: [
     {

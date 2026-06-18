@@ -377,8 +377,12 @@ function ingestSheetRows(
   }
 }
 
-function buildStateLookup(stateRows: RawRow[]): Map<string, string> {
-  const lookup = new Map<string, string>();
+function buildStateLookup(stateRows: RawRow[]): {
+  byCountryAndOriginal: Map<string, string>;
+  byMetadataValueCode: Map<string, string>;
+} {
+  const byCountryAndOriginal = new Map<string, string>();
+  const byMetadataValueCode = new Map<string, string>();
   let currentType = 'State';
 
   for (const raw of stateRows) {
@@ -395,17 +399,79 @@ function buildStateLookup(stateRows: RawRow[]): Map<string, string> {
 
     const country = parsed.applicableCountries?.[0];
     const original = parsed.originalStateCode?.trim().toUpperCase();
+    const metadataValueCode = parsed.metadataValueCode.trim().toUpperCase();
+    byMetadataValueCode.set(metadataValueCode, metadataValueCode);
     if (country && original) {
-      lookup.set(`${country}:${original}`, parsed.metadataValueCode.trim().toUpperCase());
+      byCountryAndOriginal.set(`${country}:${original}`, metadataValueCode);
     }
   }
 
-  return lookup;
+  return { byCountryAndOriginal, byMetadataValueCode };
+}
+
+/**
+ * State key segment for `buildStateLookup` (`${country}:${segment}`).
+ * Supports `OH_CITY`, `07_CITY`, and `US_TN_CITY` code shapes.
+ */
+export function resolveCityStateOriginalCode(country: string, cityCode: string): string | null {
+  const normalizedCountry = country.trim().toUpperCase();
+  const segments = cityCode
+    .trim()
+    .toUpperCase()
+    .split('_')
+    .filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+  if (segments[0] === normalizedCountry && segments.length >= 3) {
+    return segments[1] ?? null;
+  }
+  return segments[0] ?? null;
+}
+
+function resolveStateCodeForCity(
+  stateLookup: ReturnType<typeof buildStateLookup>,
+  country: string,
+  cityCode: string,
+): string | undefined {
+  const stateOriginal = resolveCityStateOriginalCode(country, cityCode);
+  if (!stateOriginal) {
+    return undefined;
+  }
+
+  const fromOriginal = stateLookup.byCountryAndOriginal.get(`${country}:${stateOriginal}`);
+  if (fromOriginal) {
+    return fromOriginal;
+  }
+
+  return stateLookup.byMetadataValueCode.get(`${country}_${stateOriginal}`);
+}
+
+/** Country codes for Currency VALID_IN relationships (from Excel applicableCountries). */
+export function resolveCountriesForCurrency(seed: SimpleValueSeed): string[] {
+  if (seed.applicableCountries?.length) {
+    return [
+      ...new Set(
+        seed.applicableCountries.map((token) => token.trim().toUpperCase()).filter(Boolean),
+      ),
+    ];
+  }
+
+  const code = seed.metadataValueCode.trim().toUpperCase();
+  const parts = code.split('_').filter(Boolean);
+  if (parts.length >= 2) {
+    const suffix = parts[parts.length - 1]!;
+    if (/^[A-Z]{2}$/.test(suffix)) {
+      return [suffix];
+    }
+  }
+
+  return [];
 }
 
 function promoteToRichValues(
   valuesByType: Map<string, SimpleValueSeed[]>,
-  stateLookup: Map<string, string>,
+  stateLookup: ReturnType<typeof buildStateLookup>,
 ): { richValues: RichValueSeed[]; richValueTypeByCode: Record<string, string> } {
   const richValues: RichValueSeed[] = [];
   const richValueTypeByCode: Record<string, string> = {};
@@ -444,17 +510,27 @@ function promoteToRichValues(
 
   for (const seed of valuesByType.get('City') ?? []) {
     const country = seed.applicableCountries?.[0];
-    const statePrefix = seed.metadataValueCode.split('_')[0]?.toUpperCase();
-    if (!country || !statePrefix) {
+    if (!country) {
       continue;
     }
-    const stateCode = stateLookup.get(`${country}:${statePrefix}`);
+    const stateCode = resolveStateCodeForCity(stateLookup, country, seed.metadataValueCode);
     if (!stateCode) {
       continue;
     }
     promote('City', seed.metadataValueCode, {
       ...seed,
       relationships: [{ targetMetadataValueCode: stateCode }],
+    });
+  }
+
+  for (const seed of valuesByType.get('Currency') ?? []) {
+    const countries = resolveCountriesForCurrency(seed);
+    if (!countries.length) {
+      continue;
+    }
+    promote('Currency', seed.metadataValueCode, {
+      ...seed,
+      relationships: countries.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
     });
   }
 

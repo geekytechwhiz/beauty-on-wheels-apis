@@ -51,4 +51,15 @@ describe('enrichMetadataRecordActors', () => {
     expect(enriched.createdBy).toEqual({ userId, name: 'rootadmin@yopmail.com' });
     expect(enriched.lastModifiedBy).toEqual({ userId, name: 'rootadmin@yopmail.com' });
   });
+
+  it('falls back to Root Admin for bootstrap root-admin userId when lookup misses', () => {
+    const userId = '88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f';
+    const enriched = enrichMetadataRecordActors(
+      { metadataTypeCode: 'ApplicableModule', createdBy: userId, lastModifiedBy: userId },
+      new Map(),
+    );
+
+    expect(enriched.createdBy).toEqual({ userId, name: 'Root Admin' });
+    expect(enriched.lastModifiedBy).toEqual({ userId, name: 'Root Admin' });
+  });
 });

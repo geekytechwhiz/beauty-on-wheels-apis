@@ -115,6 +115,9 @@ export interface SeedResult {
   reason?: string;
   error?: string;
   statusCode?: number;
+  operation?: 'Add' | 'Update';
+  version?: number;
+  duplicate?: boolean;
   payload?: MetadataTypeCreatePayload | MetadataValueCreatePayload;
 }
 

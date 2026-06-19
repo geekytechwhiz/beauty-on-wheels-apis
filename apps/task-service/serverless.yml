@@ -42,6 +42,7 @@ provider:
     - ${file(./infra/permissions/scheduler.yml)}
     - ${file(./infra/permissions/scheduler-passrole.yml)}
     - ${file(./infra/permissions/eventbridge.yml)}
+    - ${file(./infra/permissions/sqs-dlq.yml)}
     - ${file(./infra/permissions/xray.yml)}
 
 package:
@@ -52,6 +53,15 @@ package:
 
 custom:
   bundle: ${file(./infra/config/infra-custom.yml)}
+
+  # Inbound EventBridge bus owned by task-service. Upstream producers PutEvents here.
+  taskEventIngest:
+    sources:
+      - task-service
+      - monitoring-service
+
+  monitoringActionRequested:
+    eventBridgeDetailType: MonitoringActionRequested.v1
 
   # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
   # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
@@ -555,5 +565,30 @@ functions:
           method: post
           cors: false
 
+  # ──────────────────────────────────────────────────────────────────────────────
+  # EventBridge consumers — monitoring action ingest (MonitoringActionRequested.v1).
+  # ──────────────────────────────────────────────────────────────────────────────
+  onMonitoringActionRequested:
+    handler: src/handlers/events/consumer/event-bridge/monitoringActionRequestedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.monitoringActionRequested.eventBridgeDetailType}
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
+  - ${file(./infra/resources/eventbridge-resources.yml)}

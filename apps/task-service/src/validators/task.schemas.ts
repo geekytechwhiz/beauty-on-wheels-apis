@@ -27,8 +27,6 @@ export const createMonitoringActionHttpBodySchema = z
   })
   .strict();
 
-export type CreateMonitoringActionHttpBody = z.infer<typeof createMonitoringActionHttpBodySchema>;
-
 export const createRuntimeTaskHttpBodySchema = z
   .object({
     patientId: z.string(),
@@ -54,8 +52,6 @@ export const createRuntimeTaskHttpBodySchema = z
     displayAsChecklistItem: z.boolean().optional(),
   })
   .strict();
-
-export type CreateRuntimeTaskHttpBody = z.infer<typeof createRuntimeTaskHttpBodySchema>;
 
 export const carePlanLinkageMaterializationSchema = z
   .object({
@@ -100,8 +96,6 @@ export const generateCarePlanTasksHttpBodySchema = z
       .strict(),
   })
   .strict();
-
-export type GenerateCarePlanTasksHttpBody = z.infer<typeof generateCarePlanTasksHttpBodySchema>;
 
 export const updateAssignedStaffHttpBodySchema = z
   .object({

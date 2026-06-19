@@ -1,10 +1,12 @@
 import { BaseRepository } from '@api-hub/utils';
+import { isConditionalWriteConflictAtIndex } from '@api-hub/utils';
 
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import {
   CARE_PLAN_LSI_INDEX,
   ENTITY_TYPE_RUNTIME_TASK,
+  LINKED_SOURCE_SYSTEM_ACTOR,
   STAFF_TASKS_GSI_INDEX,
   TASK_LOOKUP_SK,
 } from '../constants/task.constants';
@@ -13,9 +15,8 @@ import {
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
 import type { WorkflowStage } from '../models/types/task-domain.types';
-import { ASSIGNED_TO_TYPE } from '../models/types/task-domain.types';
+import { ASSIGNED_TO_TYPE, TRANSITION_SOURCE } from '../models/types/task-domain.types';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
-import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type {
@@ -40,9 +41,11 @@ import type {
   TaskLookupDdbRecord,
   TaskMetaDdbRecord,
 } from '../models/persistence/task-ddb.model';
+import { appendCancelledReminderHistoryEntries } from '../utils/reminder-history';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
-import { buildCarePlanTaskKeys } from '../utils/monitoring-idempotency';
+import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import {
+  buildCarePlanTaskKeys,
   buildDeterministicRuntimeTaskInstanceId,
   buildMonitoringIdempotencyKey,
 } from '../utils/monitoring-idempotency';
@@ -86,6 +89,24 @@ export type QueryCarePlanTasksForSummaryInput = {
   workflowStage?: WorkflowStage;
   pageSize: number;
   exclusiveStartKey?: Record<string, unknown>;
+};
+
+export type QueryPatientMetaByCompletionSourceInput = {
+  organizationId: string;
+  patientId: string;
+  completionSourceType: string;
+  completionSourceReferenceId: string;
+  pageSize: number;
+  exclusiveStartKey?: Record<string, unknown>;
+};
+
+export type CompleteLinkedSourceObjectRepoInput = {
+  meta: TaskMetaDdbRecord;
+  lookup: TaskLookupDdbRecord;
+  completionEventId: string;
+  completedAt: number;
+  actorId?: string;
+  nowMs?: number;
 };
 
 function buildMetaListFilterExpression(input: {
@@ -873,5 +894,123 @@ export class TaskRepository extends BaseRepository {
       },
       historyEntry: histPut,
     };
+  }
+
+  async queryPatientMetaByCompletionSource(
+    input: QueryPatientMetaByCompletionSourceInput,
+  ): Promise<{ items: TaskMetaDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertTaskTable();
+    const pk = TaskKeyBuilder.buildPatientPartitionKey(input.organizationId, input.patientId);
+
+    return this.queryPage<TaskMetaDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
+      FilterExpression:
+        'entityType = :metaEntity AND completionSourceType = :completionSourceType AND completionSourceReferenceId = :completionSourceReferenceId',
+      ExpressionAttributeValues: {
+        ':pk': pk,
+        ':duePrefix': 'DUE#',
+        ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
+        ':completionSourceType': input.completionSourceType,
+        ':completionSourceReferenceId': input.completionSourceReferenceId,
+      },
+      Limit: input.pageSize,
+      ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+    });
+  }
+
+  async completeLinkedSourceObjectTask(
+    input: CompleteLinkedSourceObjectRepoInput,
+  ): Promise<{ outcome: 'completed' | 'skippedDuplicate' }> {
+    const table = assertTaskTable();
+    const { meta, lookup, completionEventId, completedAt } = input;
+    const actorId = input.actorId ?? LINKED_SOURCE_SYSTEM_ACTOR;
+    const nowMs = input.nowMs ?? completedAt;
+    const fromState = meta.currentState;
+    const toState = RUNTIME_TASK_STATE.COMPLETED;
+    const nextVersion = (meta.version ?? 1) + 1;
+
+    const stateHistPut = TaskEntityBuilder.buildStateChangeHistRecord({
+      meta,
+      fromState,
+      toState,
+      actorId,
+      reason: 'Linked source object completed',
+      nowMs,
+      transitionSource: TRANSITION_SOURCE.SOURCE_EVENT,
+    });
+
+    const evidenceSummary = TaskEntityBuilder.buildEvidenceSummaryForTransition(
+      meta,
+      toState,
+      nowMs,
+    );
+    const reminderHistory = appendCancelledReminderHistoryEntries(lookup.reminderHistory, nowMs);
+    const evidPut = TaskEntityBuilder.buildLinkedSourceCompletionEvidenceRecord({
+      meta,
+      completionEventId,
+      completedAt,
+      completedBy: actorId,
+    });
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: meta.pk, sk: meta.sk },
+          UpdateExpression:
+            'SET currentState = :toState, lastUpdatedAt = :now, lastUpdatedBy = :by, #ver = :nextVer',
+          ExpressionAttributeNames: { '#ver': 'version' },
+          ExpressionAttributeValues: {
+            ':toState': toState,
+            ':now': nowMs,
+            ':by': actorId,
+            ':nextVer': nextVersion,
+            ':expected': fromState,
+          },
+          ConditionExpression: 'currentState = :expected',
+        },
+      },
+      {
+        Put: {
+          TableName: table,
+          Item: stateHistPut as unknown as Record<string, unknown>,
+          ConditionExpression: 'attribute_not_exists(sk)',
+        },
+      },
+      {
+        Put: {
+          TableName: table,
+          Item: evidPut as unknown as Record<string, unknown>,
+          ConditionExpression: 'attribute_not_exists(sk)',
+        },
+      },
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression:
+            'SET evidenceSummary = :evidenceSummary, reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: {
+            ':evidenceSummary': evidenceSummary,
+            ':reminderHistory': reminderHistory,
+          },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    try {
+      await this.transactWrite({ TransactItems: transactItems });
+      return { outcome: 'completed' };
+    } catch (e: unknown) {
+      if (isConditionalWriteConflictAtIndex(e, 2)) {
+        return { outcome: 'skippedDuplicate' };
+      }
+      if (isMetaConditionalFailure(e)) {
+        throw e;
+      }
+      throw e;
+    }
   }
 }

@@ -28,7 +28,7 @@ All **instants** use **Unix epoch milliseconds** (`number` / DynamoDB **`N`**). 
 |------|--------|
 | **META** | `createdAt`, `lastUpdatedAt`, `dueWindowStart`, `dueWindowEnd`, `TaskExpirationAt` |
 | **LOOKUP** | `dueWindowStart`, `dueWindowEnd` (schedule snapshot at create) |
-| **LOOKUP `reminderHistory[]`** | `scheduledReminderAt`, `updatedAt`, optional `sentAt` |
+| **LOOKUP `reminderHistory[]`** | `scheduledReminderAt`, `createdAt`, optional `sentAt` |
 | **HIST** | `transitionAt` |
 | **EVID** | `completedAt` |
 | **LOOKUP `evidenceSummary`** | `generatedAt`, `completedAt`, `missedAt` |
@@ -165,7 +165,7 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | `reminderHistory` | O | List of maps — **canonical** per-task reminder audit; append on register/send/cancel; cap length |
 | `evidenceSummary` | O | Map (§11.4 fields); set on complete/miss rollup |
 
-**reminderHistory entry:** `reminderRecordId` (S), `scheduledReminderAt` (**N** ms), `reminderChannel` (S), `reminderStatus` (S), `updatedAt` (**N** ms), optional `sentAt` (**N** ms), optional `schedulerJobId` (S). Dedupe by `reminderRecordId`.
+**reminderHistory entry:** `reminderRecordId` (S), `scheduledReminderAt` (**N** ms), `reminderChannel` (S), `reminderStatus` (S), `createdAt` (**N** ms), optional `sentAt` (**N** ms), optional `schedulerJobId` (S). Append-only — each status is a new row; no `updatedAt`.
 
 **evidenceSummary map fields:** `taskevidenceSummaryId` (S), `generatedAt` (**N**), `runtimeTaskSource`, `taskBehaviorCode`, `taskDisplayGroup`, `currentState`, optional `carePlanInstanceId`, `workflowStage`, `requiredForStageCompletion`, `completedAt` (**N**), `missedAt` (**N**), `completionSourceType`, `completionSourceReferenceId`, `latestCompletionSummary` (S).
 
@@ -351,12 +351,12 @@ Reminders are **per task** — operational trail on **`TASK#<id>/LOOKUP`**. **`H
 | Command / event | LOOKUP `reminderHistory` | META | HIST# |
 |-----------------|--------------------------|------|-------|
 | `RegisterReminderJobs` | Append `Scheduled` entry | — | Optional `ReminderRegisterRequest` |
-| `SendReminderRequest` | Upsert → `Sent`, `sentAt` | — | — (operational only on LOOKUP) |
-| `CancelReminderJobs` / terminal state | Mark `Cancelled` | `UpdateItem` state | Optional `ReminderCancelRequest`; state `HIST` if transition |
+| `SendReminderRequest` | Append `Sent` row with `sentAt` | — | — (operational only on LOOKUP) |
+| `CancelReminderJobs` / terminal state | Append `Cancelled` row per open `Scheduled` | `UpdateItem` state | Optional `ReminderCancelRequest`; state `HIST` if transition |
 | Portal **settings** change | — | `reminderSettings`, `reminderEnabled` | **`reminderSettingsChange`** (required per v2) |
-| `SchedulerWindowExecution` | Append/update after eligibility | Read `currentState`, `reminderEnabled` | — |
+| `SchedulerWindowExecution` | Append after eligibility | Read `currentState`, `reminderEnabled` | — |
 
-Cap LOOKUP list length (e.g. 50). Dedupe by `reminderRecordId`.
+Cap LOOKUP list length (e.g. 50). Append-only audit — each row has `createdAt` only (no `updatedAt`).
 
 ### LinkedSourceObjectCompleted (required contract)
 

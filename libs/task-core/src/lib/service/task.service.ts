@@ -2,6 +2,10 @@ import type { Logger } from '@api-hub/observability';
 
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
+import type {
+  CompleteLinkedSourceObjectRequest,
+  CompleteLinkedSourceObjectResult,
+} from '../models/api/complete-linked-source-object.request';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
 import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
 import type {
@@ -37,6 +41,7 @@ import type {
 } from '../models/persistence/task-ddb.model';
 import {
   normalizeCurrentStateForWire,
+  TERMINAL_RUNTIME_TASK_STATES,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
 import {
@@ -838,6 +843,61 @@ export class TaskService extends BaseTaskService {
       }
       throw e;
     }
+  }
+
+  async completeLinkedSourceObject(
+    payload: CompleteLinkedSourceObjectRequest,
+  ): Promise<CompleteLinkedSourceObjectResult> {
+    const results: CompleteLinkedSourceObjectResult['results'] = [];
+    const pageSize = 100;
+    let exclusiveStartKey: Record<string, unknown> | undefined;
+
+    do {
+      const page = await this.repo.queryPatientMetaByCompletionSource({
+        organizationId: payload.organizationId,
+        patientId: payload.patientId,
+        completionSourceType: payload.completionSourceType,
+        completionSourceReferenceId: payload.completionSourceReferenceId,
+        pageSize,
+        exclusiveStartKey,
+      });
+
+      for (const meta of page.items) {
+        if (TERMINAL_RUNTIME_TASK_STATES.includes(meta.currentState)) {
+          results.push({
+            runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+            outcome: 'skippedTerminal',
+          });
+          continue;
+        }
+
+        const lookup = await this.repo.getLookupByTaskId(meta.runtimeTaskInstanceId);
+        if (!lookup) {
+          this.log.warn({
+            event: 'task_linked_source_lookup_missing',
+            runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+            organizationId: payload.organizationId,
+          });
+          continue;
+        }
+
+        const { outcome } = await this.repo.completeLinkedSourceObjectTask({
+          meta,
+          lookup,
+          completionEventId: payload.completionEventId,
+          completedAt: payload.completedAt,
+        });
+
+        results.push({
+          runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+          outcome: outcome === 'skippedDuplicate' ? 'skippedDuplicate' : 'completed',
+        });
+      }
+
+      exclusiveStartKey = page.lastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    return { results };
   }
 }
 

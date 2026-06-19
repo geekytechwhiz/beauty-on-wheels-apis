@@ -22,6 +22,7 @@ import {
   TASK_HISTORY_EVENT_TYPE,
   TRANSITION_SOURCE,
   type ReminderSettings,
+  type TransitionSource,
   requiresAssigneeGsi,
 } from '../models/types/task-domain.types';
 import type { RuntimeTaskState } from '../models/types/runtime-task-state.type';
@@ -614,6 +615,7 @@ export class TaskEntityBuilder {
     actorId: string;
     reason?: string;
     nowMs?: number;
+    transitionSource?: TransitionSource;
   }): TaskHistDdbRecord {
     const nowMs = params.nowMs ?? Date.now();
     const taskStateHistoryId = randomUUID();
@@ -632,8 +634,35 @@ export class TaskEntityBuilder {
       toState: params.toState,
       transitionAt: nowMs,
       transitionBy: params.actorId,
-      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionSource: params.transitionSource ?? TRANSITION_SOURCE.MANUAL,
       transitionReason: params.reason,
+    };
+  }
+
+  static buildLinkedSourceCompletionEvidenceRecord(params: {
+    meta: TaskMetaDdbRecord;
+    completionEventId: string;
+    completedAt: number;
+    completedBy?: string;
+  }): CompletionEvidenceDdbRecord {
+    return {
+      pk: TaskKeyBuilder.toTaskPk(params.meta.runtimeTaskInstanceId),
+      sk: `EVID#${params.completionEventId}`,
+      entityType: 'CompletionEvidence',
+      completionEvidenceId: params.completionEventId,
+      runtimeTaskInstanceId: params.meta.runtimeTaskInstanceId,
+      orgId: params.meta.orgId,
+      patientId: params.meta.patientId,
+      completionSource: COMPLETION_SOURCE.LINKED_OBJECT,
+      completionEventId: params.completionEventId,
+      completedAt: params.completedAt,
+      completedBy: params.completedBy ?? 'system:linked-source',
+      ...(params.meta.completionSourceType
+        ? { completionSourceType: params.meta.completionSourceType }
+        : {}),
+      ...(params.meta.completionSourceReferenceId
+        ? { completionSourceReferenceId: params.meta.completionSourceReferenceId }
+        : {}),
     };
   }
 

@@ -1,6 +1,6 @@
 import { defineEvent } from '@api-hub/event-platform';
 
-import { MONITORING_ACTION_REQUESTED_DETAIL_TYPE } from '../constants/monitoring-action-requested.constants';
+import { MONITORING_ACTION_REQUESTED_DETAIL_TYPE } from '../constants/task-inbound-events.constants';
 import { monitoringActionRequestedPayloadSchema } from './monitoring-action-requested.payload';
 
 export type { MonitoringActionRequestedPayload } from './monitoring-action-requested.payload';

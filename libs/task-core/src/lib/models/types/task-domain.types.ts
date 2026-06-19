@@ -166,6 +166,20 @@ export const REMINDER_CHANNEL = {
 
 export type ReminderChannel = (typeof REMINDER_CHANNEL)[keyof typeof REMINDER_CHANNEL];
 
+/** Append-only LOOKUP reminderHistory row — each status change is a new entry with createdAt only. */
+export type ReminderHistoryEntry = {
+  reminderRecordId: string;
+  runtimeTaskInstanceId?: string;
+  scheduledReminderAt?: number;
+  reminderChannel?: ReminderChannel;
+  reminderStatus: ReminderStatus;
+  sentAt?: number;
+  createdAt: number;
+  failureReason?: string;
+  suppressedReason?: string;
+  schedulerJobId?: string;
+};
+
 /** Care-plan stage readiness rollup (GET .../task-status-summary). */
 export const READINESS_STATUS = {
   READY: 'ready',

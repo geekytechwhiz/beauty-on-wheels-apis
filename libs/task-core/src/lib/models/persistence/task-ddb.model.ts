@@ -1,5 +1,6 @@
 import type {
   AssignedToType,
+  ReminderHistoryEntry,
   ReminderSettings,
   RuntimeTaskSource,
   TaskBehaviorCode,
@@ -70,7 +71,7 @@ export interface TaskLookupDdbRecord {
   carePlanInstanceId?: string;
   assignedToStaffId?: string;
   assignedToStaffDisplayName?: string;
-  reminderHistory?: unknown[];
+  reminderHistory?: ReminderHistoryEntry[];
   evidenceSummary?: TaskEvidenceSummaryDdbRecord;
 }
 

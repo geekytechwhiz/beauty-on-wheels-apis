@@ -30,6 +30,7 @@ export * from './lib/utils/task-workflow';
 export * from './lib/utils/task-state-transition';
 export * from './lib/utils/task-status-summary';
 export * from './lib/utils/reminder-settings';
+export * from './lib/utils/reminder-history';
 export * from './lib/utils/runtime-task-metadata';
 
 export {
@@ -66,7 +67,13 @@ export type {
   UpdateReminderSettingsResult,
 } from './lib/models/api/update-reminder-settings.request';
 export type { UpdateTaskStateRequest, UpdateTaskStateResult } from './lib/models/api/update-task-state.request';
+export type {
+  CompleteLinkedSourceObjectRequest,
+  CompleteLinkedSourceObjectResult,
+} from './lib/models/api/complete-linked-source-object.request';
 export { BaseTaskService } from './lib/service/base-task.service';
 export { createMonitoringActionPayloadFromHttpBody } from './lib/models/api/create-monitoring-action.types';
 export { createRuntimeTaskPayloadFromHttpBody } from './lib/models/api/create-runtime-task.types';
+export type { CreateRuntimeTaskHttpBody } from './lib/models/api/create-runtime-task.types';
+export type { GenerateCarePlanTasksHttpBody } from './lib/models/api/generate-care-plan.request';
 export { generateCarePlanTasksPayloadFromHttpBody } from './lib/models/api/generate-care-plan.request';

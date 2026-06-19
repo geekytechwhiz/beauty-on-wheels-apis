@@ -59,9 +59,18 @@ custom:
     sources:
       - task-service
       - monitoring-service
+      - service-flow
+      - care-plan-runtime
+      - engagement-service
 
   monitoringActionRequested:
     eventBridgeDetailType: MonitoringActionRequested.v1
+  serviceFlowActivated:
+    eventBridgeDetailType: ServiceFlowActivated.v1
+  carePlanTaskGenerationTriggered:
+    eventBridgeDetailType: CarePlanTaskGenerationTriggered.v1
+  linkedSourceObjectCompleted:
+    eventBridgeDetailType: LinkedSourceObjectCompleted.v1
 
   # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
   # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
@@ -588,6 +597,69 @@ functions:
             source: ${self:custom.taskEventIngest.sources}
             detail-type:
               - ${self:custom.monitoringActionRequested.eventBridgeDetailType}
+
+  onServiceFlowActivated:
+    handler: src/handlers/events/consumer/event-bridge/serviceFlowActivatedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.serviceFlowActivated.eventBridgeDetailType}
+
+  onCarePlanTaskGenerationTriggered:
+    handler: src/handlers/events/consumer/event-bridge/carePlanTaskGenerationTriggeredConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.carePlanTaskGenerationTriggered.eventBridgeDetailType}
+
+  onLinkedSourceObjectCompleted:
+    handler: src/handlers/events/consumer/event-bridge/linkedSourceObjectCompletedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.linkedSourceObjectCompleted.eventBridgeDetailType}
 
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

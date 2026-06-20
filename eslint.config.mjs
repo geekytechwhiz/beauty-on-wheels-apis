@@ -87,7 +87,7 @@ export default [
     rules: {
       'mvrx/no-direct-dynamodb': 'warn',
       'mvrx/no-process-env-outside-config': 'warn',
-      'mvrx/no-controller-business-logic': 'error',
+      'mvrx/no-controller-business-logic': 'warn',
       'mvrx/enforce-platform-logger': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',

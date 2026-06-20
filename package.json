@@ -53,9 +53,9 @@
     "build:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools",
     "publish:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
     "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
-      "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
+    "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
+    "validate:policy:staged": "tsx tools/mvrx-policy-validator/src/validate-staged.ts",
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
- 
   },
   "private": true,
   "dependencies": {
@@ -187,6 +187,9 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "node tools/lint-staged.js"
+    ],
+    "**/serverless.y{a,}ml": [
+      "tsx tools/mvrx-policy-validator/src/index.ts"
     ]
   },
   "nx": {

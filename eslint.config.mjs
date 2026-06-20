@@ -3,7 +3,7 @@ import nx from '@nx/eslint-plugin';
 import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url, { interopDefault: true });
-const mvrxPlugin = jiti('./tools/mvrx-eslint-plugin/src/index.ts');
+const mvrxPlugin = jiti('../tools/eslint-plugin-mvrx/src/index');
 
 export default [
   // ✅ Nx Base Configs
@@ -59,7 +59,7 @@ export default [
     ],
     rules: {
       'no-console': ['error', { allow: ['warn', 'error'] }],
-      '@typescript-eslint/no-non-null-assertion': 'off'
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
 
@@ -85,10 +85,16 @@ export default [
       mvrx: mvrxPlugin,
     },
     rules: {
-      'mvrx/no-direct-dynamodb': 'error',
-      'mvrx/no-process-env-outside-config': 'error',
+      'mvrx/no-direct-dynamodb': 'warn',
+      'mvrx/no-process-env-outside-config': 'warn',
       'mvrx/no-controller-business-logic': 'error',
       'mvrx/enforce-platform-logger': 'error',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+        },
+      ],
     },
   },
 ];

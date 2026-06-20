@@ -94,10 +94,10 @@
       "path": "./libs/task-core"
     },
     {
-      "path": "./tools/mvrx-eslint-plugin"
+      "path": "./tools/mvrx-policy-validator"
     },
     {
-      "path": "./tools/mvrx-policy-validator"
+      "path": "./tools/eslint-plugin-mvrx"
     }
   ]
 }

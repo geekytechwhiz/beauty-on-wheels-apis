@@ -5,24 +5,5 @@
     "noEmit": true
   },
   "include": ["src/**/*.ts", "tsup.config.ts"],
-  "references": [
-    {
-      "path": "../../libs/fhir"
-    },
-    {
-      "path": "../../libs/utils"
-    },
-    {
-      "path": "../../libs/terminology"
-    },
-    {
-      "path": "../../libs/observability"
-    },
-    {
-      "path": "../fhir"
-    },
-    {
-      "path": "../platform-tools"
-    }
-  ]
+  "references": []
 }

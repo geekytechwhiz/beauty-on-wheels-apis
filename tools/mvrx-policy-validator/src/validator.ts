@@ -2,15 +2,61 @@
 import fs from 'fs';
 import { globSync } from 'glob';
 import YAML from 'yaml';
+import { execSync } from 'child_process';
 
 import { validateNoEnvVars } from './rules/no-env-vars';
 import { validateHealthEndpoint } from './rules/require-health-endpoint';
 import { validateAuthorizer } from './rules/require-authorizer';
-import { validateVersioning } from './rules/disable-versioning'; 
+import { validateVersioning } from './rules/disable-versioning';
 
 import type { ValidationError } from './utils/types';
 
-export function validateWorkspace(): void {
+function getChangedFiles(): Set<string> {
+  const changed = new Set<string>();
+
+  try {
+    const statusOutput = execSync('git status --porcelain', {
+      encoding: 'utf8',
+    });
+    statusOutput.split('\n').forEach((line) => {
+      if (line.length > 3) {
+        const filePath = line.substring(3).trim();
+        changed.add(filePath);
+      }
+    });
+  } catch (e) {
+    throw new Error(`Failed to get changed files from git status: ${e}`);
+  }
+
+  const base = process.env.NX_BASE;
+  const head = process.env.NX_HEAD;
+  if (base && head) {
+    try {
+      const diffOutput = execSync(
+        `git diff --name-only "${base}"..."${head}"`,
+        {
+          encoding: 'utf8',
+        },
+      );
+      diffOutput.split('\n').forEach((line) => {
+        const filePath = line.trim();
+        if (filePath) {
+          changed.add(filePath);
+        }
+      });
+    } catch (e) {
+      throw new Error(`Failed to get changed files from git status: ${e}`);
+      // Ignore git diff errors
+    }
+  }
+
+  return changed;
+}
+
+export function validateWorkspace(
+  filePaths?: string[],
+  onlyChanged = false,
+): void {
   const validators = [
     validateNoEnvVars,
     validateHealthEndpoint,
@@ -18,17 +64,36 @@ export function validateWorkspace(): void {
     validateVersioning,
   ];
 
-  const files = globSync('**/serverless.y?(a)ml', {
-    ignore: [
-      '**/node_modules/**',
-      '**/.serverless/**',
-      '**/dist/**',
-      '**/.nx/**',
-    ],
-  });
+  let files = filePaths;
+  if (!files || files.length === 0) {
+    files = globSync('**/serverless.y?(a)ml', {
+      ignore: [
+        '**/node_modules/**',
+        '**/.serverless/**',
+        '**/dist/**',
+        '**/.nx/**',
+      ],
+    });
+  } else {
+    files = files
+      .filter((file) => !file.startsWith('-'))
+      .filter(
+        (file) =>
+          fs.existsSync(file) &&
+          (file.endsWith('serverless.yml') || file.endsWith('serverless.yaml')),
+      );
+  }
+
+  if (onlyChanged) {
+    const changedFiles = getChangedFiles();
+    files = files.filter((file) => changedFiles.has(file));
+  }
 
   if (files.length === 0) {
-    console.warn('⚠️ No serverless.yml files found in workspace');
+    if (filePaths && filePaths.length > 0) {
+      return;
+    }
+    console.warn('⚠️ No serverless.yml files found to validate');
     return;
   }
 
@@ -74,5 +139,4 @@ export function validateWorkspace(): void {
 
     process.exit(1);
   }
- 
 }

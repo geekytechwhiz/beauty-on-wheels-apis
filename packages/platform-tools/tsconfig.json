@@ -5,18 +5,5 @@
     "noEmit": true
   },
   "include": ["src/**/*.ts", "tsup.config.ts"],
-  "references": [
-    {
-      "path": "../../libs/utils"
-    },
-    {
-      "path": "../../libs/observability"
-    },
-    {
-      "path": "../../libs/middleware"
-    },
-    {
-      "path": "../../libs/event-platform"
-    }
-  ]
+  "references": []
 }

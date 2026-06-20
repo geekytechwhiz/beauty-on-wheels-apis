@@ -7,11 +7,11 @@ if (!files.length) {
 }
 
 try {
-  const commands = files.map((file) => `eslint --fix "${file}"`);
+  const filesArgs = files.map((file) => `"${file}"`).join(' ');
 
-  execSync(commands.join(' && '), {
+  execSync(`npx eslint --fix ${filesArgs}`, {
     stdio: 'inherit',
   });
-} catch (e) {
+} catch {
   process.exit(1);
 }

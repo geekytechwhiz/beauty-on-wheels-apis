@@ -6,11 +6,10 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const PRESIGN_EXPIRES_SECONDS = 300;
-
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
 });
+const PRESIGN_EXPIRES_SECONDS = 300;
 
 export interface Yes3FileObject {
   key: string;
@@ -27,7 +26,11 @@ export class S3Service {
     return `${normalizedFolder}/${normalizedFileName}`;
   }
 
-  async generateUploadUrl(folder: string, fileName: string, contentType: string) {
+  async generateUploadUrl(
+    folder: string,
+    fileName: string,
+    contentType: string,
+  ) {
     const key = this.buildKey(folder, fileName);
 
     const command = new PutObjectCommand({
@@ -76,14 +79,15 @@ export class S3Service {
     );
 
     return (
-      result.Contents?.filter((item) => item.Key && !item.Key.endsWith('/'))
-        .map((item) => ({
-          key: item.Key!,
-          fileName: item.Key!.slice(prefix.length),
-          contentType: '',
-          size: item.Size ?? 0,
-          lastModified: item.LastModified?.toISOString(),
-        })) ?? []
+      result.Contents?.filter(
+        (item) => item.Key && !item.Key.endsWith('/'),
+      ).map((item) => ({
+        key: item.Key!,
+        fileName: item.Key!.slice(prefix.length),
+        contentType: '',
+        size: item.Size ?? 0,
+        lastModified: item.LastModified?.toISOString(),
+      })) ?? []
     );
   }
 }

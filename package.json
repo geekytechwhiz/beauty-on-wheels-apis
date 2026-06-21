@@ -22,7 +22,7 @@
     "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build",
     "test:all": "nx run-many --target=test --all --parallel=10 --batch",
     "lint:all": "nx run-many --target=lint --all --parallel=25 --batch",
-    "lint:affected": "nx affected --target=lint --parallel=10 --batch",
+    "lint:affected": "node tools/lint-changed.js",
     "build:affected": "nx affected --target=build --parallel=10",
     "test:affected": "nx affected --target=test --parallel=10 --batch",
     "build:no-cache": "nx build --skip-nx-cache",
@@ -55,6 +55,7 @@
     "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
     "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
     "validate:policy:staged": "tsx tools/mvrx-policy-validator/src/validate-staged.ts",
+    "validate:policy:affected": "tsx tools/mvrx-policy-validator/src/index.ts --only-changed",
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
   },
   "private": true,

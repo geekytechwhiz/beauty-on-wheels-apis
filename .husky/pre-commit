@@ -15,11 +15,16 @@ if [ $LINT_RESULT -ne 0 ]; then
   exit 1
 fi
 
-echo "🛡️ Running MVRX Policy Validator on affected projects..."
+echo "🔍 Running ESLint on all modified files..."
+node tools/lint-changed.js
 
-npx nx affected \
-  --target=validate-policy \
-  --uncommitted
+if [ $? -ne 0 ]; then
+  echo "❌ Lint failed. Commit blocked."
+  exit 1
+fi
+
+echo "🛡️ Running MVRX Policy Validator on modified files..."
+npx tsx tools/mvrx-policy-validator/src/index.ts --only-changed
 
 POLICY_RESULT=$?
 

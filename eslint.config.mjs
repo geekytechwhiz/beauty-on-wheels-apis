@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax */
+ 
 import nx from '@nx/eslint-plugin';
 import { createJiti } from 'jiti';
 
@@ -87,7 +87,7 @@ export default [
     rules: {
       'mvrx/no-direct-dynamodb': 'warn',
       'mvrx/no-process-env-outside-config': 'warn',
-      'mvrx/no-controller-business-logic': 'warn',
+      'mvrx/no-controller-business-logic': 'error',
       'mvrx/enforce-platform-logger': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',

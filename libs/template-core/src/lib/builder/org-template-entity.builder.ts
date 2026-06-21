@@ -11,7 +11,9 @@ import {
 import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
 import { resolveTemplateActor } from '../utils/template-actor.utils';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { firstString } from '../utils/template.utils';
+import { resolveOrgRulesFromMaster } from '../utils/template-rules.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
 
@@ -110,8 +112,7 @@ export class OrgTemplateEntityBuilder {
     const masterMeta = masterVersion.meta;
     const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
     const masterFv = asRecord(masterVersion.fieldValues);
-    const categoryCode = firstString(masterFv.categoryCode);
-    const conditionCode = firstString(masterFv.conditionCode);
+    const catalog = extractCatalogCodes(masterFv);
     const countries = masterMeta.countries;
     const templateType = masterMeta.templateType ?? TEMPLATE_TYPE_CARE_PLAN;
 
@@ -142,8 +143,8 @@ export class OrgTemplateEntityBuilder {
       createdBy: resolveTemplateActor(actor),
       lastModifiedBy: resolveTemplateActor(actor),
       templateType,
-      ...(categoryCode ? { category: categoryCode } : {}),
-      ...(conditionCode ? { condition: conditionCode } : {}),
+      ...(catalog.categoryCode ? { category: catalog.categoryCode } : {}),
+      ...(catalog.conditionCode ? { condition: catalog.conditionCode } : {}),
       ...(countries ? { countries } : {}),
     };
   }
@@ -196,6 +197,7 @@ export class OrgTemplateEntityBuilder {
     if (!ctx.inheritLinks && documentFields.links) {
       delete documentFields.links;
     }
+    documentFields.rules = resolveOrgRulesFromMaster(masterVersion);
 
     const record: TemplateDdbRecord = {
       pk: TemplateKeyBuilder.toOrgPk(ctx.organizationId, ctx.newTemplateId),

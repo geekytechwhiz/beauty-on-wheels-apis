@@ -22,6 +22,11 @@ import { OrgTemplateSyncService } from './org-template-sync.service';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
 import { normalizeShareScopeOrThrow } from '../utils/share-scope.utils';
 import {
+  buildRulesFromFieldValues,
+  mergeRulesAfterFieldValuesChange,
+} from '../utils/template-rules.utils';
+import { extractCatalogCodes, resolveTemplateDisplayName } from '../utils/field-values-profile.utils';
+import {
   bumpMinorVersion,
   firstString,
   isActiveForStatus,
@@ -55,6 +60,10 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function isFieldValuesRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function parseUpdateBody(body: MasterTemplateUpdateBody): {
   metaOverrides: Partial<TemplateMeta>;
   documentFields: Record<string, unknown>;
@@ -77,28 +86,18 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
   if (typeof rest.shareScope === 'string' && rest.shareScope.trim()) {
     fieldValues.shareScope = rest.shareScope.trim();
   }
-  if (typeof rest.categoryCode === 'string' && rest.categoryCode.trim()) {
-    fieldValues.categoryCode = rest.categoryCode.trim();
-  } else if (rest.category !== undefined) {
-    const cat = firstString(rest.category);
-    if (cat) fieldValues.categoryCode = cat;
-  }
-  if (typeof rest.conditionCode === 'string' && rest.conditionCode.trim()) {
-    fieldValues.conditionCode = rest.conditionCode.trim();
-  } else if (rest.condition !== undefined) {
-    const cond = firstString(rest.condition);
-    if (cond) fieldValues.conditionCode = cond;
-  }
 
-  const taskName = firstString(fieldValues.TASK_NAME) ?? firstString(fieldValues.TEMPLATE_NAME);
+  const catalog = extractCatalogCodes(fieldValues);
+
+  const taskName =
+    resolveTemplateDisplayName(rest, fieldValues) ??
+    firstString(fieldValues.TASK_NAME);
   if (taskName) {
     metaOverrides.templateName = taskName;
   }
-  const categoryCode = firstString(fieldValues.categoryCode);
-  if (categoryCode) metaOverrides.category = categoryCode;
-  const conditionCode = firstString(fieldValues.conditionCode);
-  if (conditionCode) metaOverrides.condition = conditionCode;
-  const shareScopeRaw = firstString(fieldValues.shareScope);
+  if (catalog.categoryCode) metaOverrides.category = catalog.categoryCode;
+  if (catalog.conditionCode) metaOverrides.condition = catalog.conditionCode;
+  const shareScopeRaw = catalog.shareScope ?? firstString(fieldValues.shareScope);
   if (shareScopeRaw) {
     metaOverrides.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
   }
@@ -126,7 +125,12 @@ function parseUpdateBody(body: MasterTemplateUpdateBody): {
   delete documentFields.shareScope;
   delete documentFields.categoryCode;
   delete documentFields.conditionCode;
-  if (Object.keys(fieldValues).length > 0) {
+  delete documentFields.fieldValues;
+  // null fieldValues is ignored — do not clear stored values or regenerate rules from {}
+  if (
+    rest.fieldValues !== null &&
+    (rest.fieldValues !== undefined || Object.keys(fieldValues).length > 0)
+  ) {
     documentFields.fieldValues = fieldValues;
   }
 
@@ -139,7 +143,7 @@ function mergeDocumentFields(
 ): Record<string, unknown> {
   const base = extractDocumentFields(sourceVersion);
   const merged: Record<string, unknown> = { ...base, ...documentFields };
-  if (documentFields.fieldValues && typeof documentFields.fieldValues === 'object') {
+  if (isFieldValuesRecord(documentFields.fieldValues)) {
     merged.fieldValues = {
       ...asRecord(base.fieldValues),
       ...asRecord(documentFields.fieldValues),
@@ -198,6 +202,18 @@ export class TemplateMasterOpsService {
 
       const { metaOverrides, documentFields } = parseUpdateBody(params.body);
       const mergedDocument = mergeDocumentFields(sourceVersion, documentFields);
+      if (isFieldValuesRecord(documentFields.fieldValues)) {
+        const templateType = sourceVersion.meta?.templateType ?? metaRow.meta.templateType;
+        mergedDocument.rules = mergeRulesAfterFieldValuesChange(
+          asRecord(sourceVersion.rules),
+          buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+          {
+            templateType,
+            fieldValues: asRecord(mergedDocument.fieldValues),
+            previousFieldValues: asRecord(sourceVersion.fieldValues),
+          },
+        );
+      }
       const separateMeta = this.usesSeparateMetaRow(metaRow);
 
       if (!separateMeta) {

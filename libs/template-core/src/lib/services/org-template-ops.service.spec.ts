@@ -28,8 +28,9 @@ function orgDraftRows(): { meta: TemplateDdbRecord; version: TemplateDdbRecord }
 }
 
 describe('OrgTemplateOpsService.updateOrgTemplateVersion', () => {
-  it('creates a new org version row on successful update', async () => {
+  it('bumps minor version in place on fieldValues update', async () => {
     const { meta, version } = orgDraftRows();
+    version.fieldValues = { CATEGORY: 'CHRONIC_CARE' };
     let savedMeta: TemplateDdbRecord | undefined;
     let savedVersion: TemplateDdbRecord | undefined;
 
@@ -49,19 +50,54 @@ describe('OrgTemplateOpsService.updateOrgTemplateVersion', () => {
       organizationId: 'org-1',
       templateId: 'CP-ORG-001',
       versionId: 'V01',
+      body: {
+        fieldValues: {
+          CATEGORY: 'CHRONIC_CARE',
+          CONDITION: 'DIABETES',
+        },
+      },
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.meta.version).toBe(1.1);
+    expect(result.meta.templateVersionId).toBe('CP-ORG-001-V01');
+    expect(savedMeta?.meta.version).toBe(1.1);
+    expect(savedVersion?.sk).toBe('VERSION#001');
+    expect(result.rules).toEqual(
+      expect.objectContaining({
+        CATEGORY: expect.objectContaining({ enable: true }),
+        CONDITION: expect.objectContaining({ enable: true }),
+      }),
+    );
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledWith(expect.anything(), expect.anything());
+  });
+
+  it('does not bump version on meta-only update', async () => {
+    const { meta, version } = orgDraftRows();
+    let savedVersion: TemplateDdbRecord | undefined;
+
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersion: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockImplementation(
+        async (_m: TemplateDdbRecord, v: TemplateDdbRecord) => {
+          savedVersion = v;
+        },
+      ),
+    };
+
+    const svc = new OrgTemplateOpsService(orgRepo as never);
+    const result = await svc.updateOrgTemplateVersion({
+      organizationId: 'org-1',
+      templateId: 'CP-ORG-001',
+      versionId: 'V01',
       body: { meta: { templateName: 'Updated Org Plan' } },
       actorUser: { userId: 'user-1' },
     });
 
-    expect(result.meta.version).toBe(2);
+    expect(result.meta.version).toBe(1);
     expect(result.meta.templateName).toBe('Updated Org Plan');
-    expect(savedMeta?.meta.version).toBe(2);
-    expect(savedVersion?.sk).toBe('VERSION#002');
-    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      { requireNewVersionSk: true },
-    );
+    expect(savedVersion?.sk).toBe('VERSION#001');
   });
 
   it('rejects update when org template is PUBLISHED', async () => {

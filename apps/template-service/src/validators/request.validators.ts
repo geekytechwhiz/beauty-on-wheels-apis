@@ -1,7 +1,9 @@
 import { LambdaRequest } from '@api-hub/utils';
 import {
+  extractCatalogCodes,
   normalizeShareScopeOrThrow,
   normalizeTemplateServiceError,
+  resolveTemplateDisplayName,
   TEMPLATE_STATUS,
   TemplateEntityBuilder,
   TemplateService,
@@ -40,6 +42,9 @@ import {
   type ListCompatibleTemplatesQuery,
   type UpdateOrgTemplateBody,
   updateOrgTemplateBodySchema,
+  orgTemplateRulesPathSchema,
+  updateOrgTemplateRulesBodySchema,
+  type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
   type ListOrgTemplatesQuery,
@@ -183,37 +188,12 @@ function deriveTemplateCodeFromName(name: string | undefined): string | undefine
   return slug || undefined;
 }
 
-/** Canonical profile fields live only in fieldValues (not duplicated on the VERSION document root). */
+/** Keep fieldValues verbatim — catalog codes are derived at meta/read time. */
 function mergeProfileFieldsIntoFieldValues(
   body: Record<string, unknown>,
-  templateProfile: Record<string, unknown>,
+  _templateProfile: Record<string, unknown>,
 ): Record<string, unknown> {
-  const fv = { ...asRecord(body.fieldValues) };
-  const pick = (key: string, ...sources: unknown[]): void => {
-    for (const raw of sources) {
-      const v = firstString(raw);
-      if (v) {
-        fv[key] = v;
-        return;
-      }
-    }
-  };
-  pick(
-    'categoryCode',
-    body.categoryCode,
-    body.category,
-    fv.categoryCode,
-    templateProfile.category,
-  );
-  pick(
-    'conditionCode',
-    body.conditionCode,
-    body.condition,
-    fv.conditionCode,
-    templateProfile.condition,
-  );
-  pick('shareScope', body.shareScope, fv.shareScope);
-  return fv;
+  return { ...asRecord(body.fieldValues) };
 }
 
 function stripRootProfileFields(body: Record<string, unknown>): void {
@@ -234,12 +214,8 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
 
   const fieldValues = asRecord(body.fieldValues);
   const templateName =
-    firstString(body.templateName) ??
-    firstString(body.TEMPLATE_NAME) ??
-    firstString(templateMetadata.templateName) ??
-    firstString(fieldValues.TEMPLATE_NAME) ??
-    firstString(fieldValues.templateName) ??
-    firstString(fieldValues.TASK_NAME);
+    resolveTemplateDisplayName(body, fieldValues) ??
+    firstString(templateMetadata.templateName);
   // templateCode is optional in the payload: derive it from the name so the client
   // can create with just a name (templateId is built from this code).
   const templateCode =
@@ -264,16 +240,7 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
     firstString(templateMetadata.lastModifiedBy);
 
   const mergedFieldValues = mergeProfileFieldsIntoFieldValues(body, templateProfile);
-  const shareScopeRaw =
-    mergedFieldValues.shareScope ?? body.shareScope ?? templateMetadata.shareScope;
-  if (
-    shareScopeRaw !== undefined &&
-    shareScopeRaw !== null &&
-    shareScopeRaw !== '' &&
-    typeof shareScopeRaw === 'string'
-  ) {
-    mergedFieldValues.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
-  }
+  const catalog = extractCatalogCodes(mergedFieldValues);
 
   const normalized: CreateMasterTemplateBody & { templateCode: string; templateName: string } = {
     ...body,
@@ -285,19 +252,32 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
     ...(version ? { version } : {}),
     conditions: asStringArray(body.conditions ?? mergedFieldValues.conditionCodes),
     countries: asStringArray(
-      body.countries ?? body.countryCodes ?? mergedFieldValues.countryCodes ?? templateProfile.country,
+      body.countries ??
+        body.countryCodes ??
+        mergedFieldValues.countryCodes ??
+        templateProfile.country ??
+        (catalog.country ? [catalog.country] : undefined),
     ),
     languages: asStringArray(
-      body.languages ?? body.languageCodes ?? mergedFieldValues.languageCodes ?? templateProfile.language,
+      body.languages ??
+        body.languageCodes ??
+        mergedFieldValues.languageCodes ??
+        templateProfile.language ??
+        (catalog.language ? [catalog.language] : undefined),
     ),
-    specialty: asStringArray(body.specialty ?? mergedFieldValues.specialty ?? templateProfile.specialty),
+    specialty: asStringArray(
+      body.specialty ??
+        mergedFieldValues.specialty ??
+        templateProfile.specialty ??
+        (catalog.specialty ? [catalog.specialty] : undefined),
+    ),
     specialties: asStringArray(body.specialties),
   };
   stripRootProfileFields(normalized);
 
   if (!normalized.templateName) {
     throwVal(
-      'templateName is required (templateName, TEMPLATE_NAME, templateMetadata.templateName, or fieldValues.TEMPLATE_NAME / TASK_NAME)',
+      'templateName is required (templateName, TEMPLATE_NAME, TemplateName, templateMetadata.templateName, or fieldValues.TEMPLATE_NAME / TASK_NAME)',
       400,
       'VALIDATION_ERROR',
     );
@@ -321,12 +301,8 @@ function normalizeMasterSaveBody(rawBody: unknown): Record<string, unknown> {
   const fieldValues = asRecord(body.fieldValues);
 
   const templateName =
-    firstString(body.templateName) ??
-    firstString(body.TEMPLATE_NAME) ??
-    firstString(templateMetadata.templateName) ??
-    firstString(fieldValues.TEMPLATE_NAME) ??
-    firstString(fieldValues.templateName) ??
-    firstString(fieldValues.TASK_NAME);
+    resolveTemplateDisplayName(body, fieldValues) ??
+    firstString(templateMetadata.templateName);
 
   const templateType = normalizeTemplateType(body.templateType ?? fieldValues.templateType);
   const status =
@@ -335,16 +311,7 @@ function normalizeMasterSaveBody(rawBody: unknown): Record<string, unknown> {
     normalizeStatus(templateMetadata.status);
 
   const mergedFieldValues = mergeProfileFieldsIntoFieldValues(body, templateProfile);
-  const shareScopeRaw =
-    mergedFieldValues.shareScope ?? body.shareScope ?? templateMetadata.shareScope;
-  if (
-    shareScopeRaw !== undefined &&
-    shareScopeRaw !== null &&
-    shareScopeRaw !== '' &&
-    typeof shareScopeRaw === 'string'
-  ) {
-    mergedFieldValues.shareScope = normalizeShareScopeOrThrow(shareScopeRaw);
-  }
+  const catalog = extractCatalogCodes(mergedFieldValues);
 
   const normalized: Record<string, unknown> = { ...body, fieldValues: mergedFieldValues };
   if (templateName) normalized.templateName = templateName;
@@ -353,13 +320,28 @@ function normalizeMasterSaveBody(rawBody: unknown): Record<string, unknown> {
   stripRootProfileFields(normalized);
 
   const countries = asStringArray(
-    body.countries ?? body.countryCodes ?? mergedFieldValues.countryCodes ?? templateProfile.country,
+    body.countries ??
+      body.countryCodes ??
+      mergedFieldValues.countryCodes ??
+      templateProfile.country ??
+      (catalog.country ? [catalog.country] : undefined),
   );
   if (countries) normalized.countries = countries;
   const languages = asStringArray(
-    body.languages ?? body.languageCodes ?? mergedFieldValues.languageCodes ?? templateProfile.language,
+    body.languages ??
+      body.languageCodes ??
+      mergedFieldValues.languageCodes ??
+      templateProfile.language ??
+      (catalog.language ? [catalog.language] : undefined),
   );
   if (languages) normalized.languages = languages;
+  const specialty = asStringArray(
+    body.specialty ??
+      mergedFieldValues.specialty ??
+      templateProfile.specialty ??
+      (catalog.specialty ? [catalog.specialty] : undefined),
+  );
+  if (specialty) normalized.specialty = specialty;
 
   return normalized;
 }
@@ -854,6 +836,54 @@ export async function validateUpdateOrgTemplateVersionRequest(req: LambdaRequest
       actorUser,
       body,
     };
+}
+
+export type ValidatedGetOrgTemplateRules = {
+  masterTemplateId: string;
+  organizationId: string;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedUpdateOrgTemplateRules = ValidatedGetOrgTemplateRules & {
+  body: UpdateOrgTemplateRulesBody;
+};
+
+export async function validateGetOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+
+  (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
+    .validatedGetOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+  };
+}
+
+export async function validateUpdateOrgTemplateRulesRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgTemplateRulesPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('templateId and orgId are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const organizationId = resolveOrganizationId(req, path.data.orgId);
+  const body = updateOrgTemplateRulesBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules })
+    .validatedUpdateOrgTemplateRules = {
+    masterTemplateId: normalizePathTemplateId(path.data.templateId),
+    organizationId,
+    actorUser,
+    body,
+  };
 }
 
 export async function validateCreateOrgEnablementRequest(req: LambdaRequest): Promise<void> {

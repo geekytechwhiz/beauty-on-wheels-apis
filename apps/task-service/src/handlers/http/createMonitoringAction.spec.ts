@@ -131,6 +131,7 @@ describe('createMonitoringAction HTTP handler', () => {
       carePlanInstanceId: 'cp-1',
       monitoringInstanceId: 'mon-1',
       taskBehaviorCode: 'METRIC_CHECKIN',
+      assignedToType: 'patient',
       dueWindowStart: DUE_START,
       dueWindowEnd: DUE_END,
     };

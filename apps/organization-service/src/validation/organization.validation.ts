@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ORGANIZATION_CONFIG_DATA_KEYS } from '../models/Organization';
 
 const supportedVitalsSchema = z
   .array(z.string())
@@ -234,6 +235,55 @@ export const setOrgStatusSchema = z.object({
   organizationId: z.string().min(1, 'organizationId is required'),
   status: z.enum(['ACTIVE', 'HOLD', 'DISABLED'], { message: 'status must be ACTIVE, HOLD, or DISABLED' }),
 });
+
+/**
+ * Body schema for `PUT /organization/{organizationId}/config`. Metadata codes only; no
+ * Metadata Registry validation here (that happens on publish). Requires at least one
+ * config field so empty drafts are rejected.
+ */
+export const updateOrganizationConfigSchema = z
+  .object({
+    enabledCountryCodes: z.array(configCodeSchema).optional(),
+    enabledStateCodes: z.array(configCodeSchema).optional(),
+    enabledCityCodes: z.array(configCodeSchema).optional(),
+    timezone: z.string().min(1).optional(),
+    defaultLanguageCode: configCodeSchema.optional(),
+    supportedLanguageCodes: z.array(configCodeSchema).optional(),
+    enabledCategoryCodes: z.array(configCodeSchema).optional(),
+    enabledConditionCodes: z.array(configCodeSchema).optional(),
+    enabledSpecialtyCodes: z.array(configCodeSchema).optional(),
+    enabledDeviceCodes: z.array(configCodeSchema).optional(),
+    enabledVitalCodes: z.array(configCodeSchema).optional(),
+    enabledMetricCodes: z.array(configCodeSchema).optional(),
+    enabledReminderChannels: z.array(configCodeSchema).optional(),
+    enabledRoleTypes: z.array(configCodeSchema).optional(),
+    requiredDocumentTypes: z.array(configCodeSchema).optional(),
+    requiredAgreementTypes: z.array(configCodeSchema).optional(),
+    currencyCode: configCodeSchema.optional(),
+    paymentModeCodes: z.array(configCodeSchema).optional(),
+    enabledModuleCodes: z.array(configCodeSchema).optional(),
+    enabledFeatureCodes: z.array(configCodeSchema).optional(),
+    linkedOrgReferences: z.array(configCodeSchema).optional(),
+    requiredAgreementIds: z.array(configCodeSchema).optional(),
+    changeReason: z.string().trim().min(1).max(500).optional(),
+  })
+  .refine(
+    (value) =>
+      ORGANIZATION_CONFIG_DATA_KEYS.some(
+        (key) => value[key as keyof typeof value] !== undefined,
+      ),
+    {
+      message: 'organizationConfig must include at least one config field',
+    },
+  );
+
+export type UpdateOrganizationConfigInput = z.infer<typeof updateOrganizationConfigSchema>;
+
+export const publishOrganizationConfigSchema = z.object({
+  changeReason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type PublishOrganizationConfigInput = z.infer<typeof publishOrganizationConfigSchema>;
 
 export const organizationListSchema = z.object({
   organizationId: z.string().optional(),

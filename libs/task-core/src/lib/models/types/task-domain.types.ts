@@ -29,14 +29,43 @@ export const TASK_DISPLAY_GROUP = {
 
 export type TaskDisplayGroup = (typeof TASK_DISPLAY_GROUP)[keyof typeof TASK_DISPLAY_GROUP];
 
+/**
+ * Who completes or owns a runtime task — camelCase on API wire and DynamoDB.
+ * Shared with TASK, ALERT, ROLES_PERMISSIONS domains.
+ */
 export const ASSIGNED_TO_TYPE = {
   PATIENT: 'patient',
-  CARE_TEAM: 'careTeam',
-  PROVIDER: 'provider',
+  CARE_TEAM_ROLE: 'careTeamRole',
+  USER: 'user',
+  ORG_STAFF: 'orgStaff',
   SYSTEM: 'system',
 } as const;
 
 export type AssignedToType = (typeof ASSIGNED_TO_TYPE)[keyof typeof ASSIGNED_TO_TYPE];
+
+/** Non-patient assignees are indexed on GSI1. orgStaff uses `ORG#<org>#STAFF#<id>`; others use `STAFF#<assignedToType>#<id>`. */
+export const GSI_ASSIGNEE_ASSIGNED_TO_TYPES = [
+  ASSIGNED_TO_TYPE.CARE_TEAM_ROLE,
+  ASSIGNED_TO_TYPE.USER,
+  ASSIGNED_TO_TYPE.ORG_STAFF,
+  ASSIGNED_TO_TYPE.SYSTEM,
+] as const satisfies readonly AssignedToType[];
+
+export function isPatientAssignedToType(assignedToType: AssignedToType): boolean {
+  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+}
+
+export function requiresAssigneeGsi(assignedToType: AssignedToType): boolean {
+  return !isPatientAssignedToType(assignedToType);
+}
+
+/** Legacy wire value `staff` → `orgStaff` when reading older rows. */
+export function normalizeAssignedToTypeForWire(value: string): AssignedToType {
+  if (value === 'staff') {
+    return ASSIGNED_TO_TYPE.ORG_STAFF;
+  }
+  return value as AssignedToType;
+}
 
 export const SURFACE_SECTION = {
   TODAY: 'today',
@@ -54,6 +83,7 @@ export const TASK_HISTORY_EVENT_TYPE = {
   REMINDER_SETTINGS_CHANGE: 'reminderSettingsChange',
   REMINDER_REGISTER_REQUEST: 'reminderRegisterRequest',
   REMINDER_CANCEL_REQUEST: 'reminderCancelRequest',
+  TASK_METADATA_CHANGE: 'taskMetadataChange',
 } as const;
 
 export type TaskHistoryEventType =
@@ -89,3 +119,58 @@ export interface ReminderSettings {
   quietHoursRespected?: boolean;
   [key: string]: unknown;
 }
+
+/** Client action verbs for POST /tasks/{id}/state — camelCase wire values. */
+export const TASK_RUNTIME_ACTION = {
+  COMPLETE: 'complete',
+  DISMISS: 'dismiss',
+  CANCEL: 'cancel',
+  MARK_MISSED: 'markMissed',
+} as const;
+
+export type TaskRuntimeAction = (typeof TASK_RUNTIME_ACTION)[keyof typeof TASK_RUNTIME_ACTION];
+
+/** Who performed a state update or portal mutation. */
+export const ACTOR_TYPE = {
+  PATIENT: 'patient',
+  STAFF: 'staff',
+} as const;
+
+export type ActorType = (typeof ACTOR_TYPE)[keyof typeof ACTOR_TYPE];
+
+export const COMPLETION_SOURCE = {
+  MANUAL: 'manual',
+  LINKED_OBJECT: 'linkedObject',
+  SYSTEM: 'system',
+} as const;
+
+export type CompletionSource = (typeof COMPLETION_SOURCE)[keyof typeof COMPLETION_SOURCE];
+
+export const REMINDER_STATUS = {
+  SCHEDULED: 'scheduled',
+  SENT: 'sent',
+  CANCELLED: 'cancelled',
+  FAILED: 'failed',
+  SUPPRESSED: 'suppressed',
+} as const;
+
+export type ReminderStatus = (typeof REMINDER_STATUS)[keyof typeof REMINDER_STATUS];
+
+/** Reminder delivery channels — camelCase wire + persistence. */
+export const REMINDER_CHANNEL = {
+  PUSH: 'push',
+  SMS: 'sms',
+  EMAIL: 'email',
+  IN_APP: 'inApp',
+} as const;
+
+export type ReminderChannel = (typeof REMINDER_CHANNEL)[keyof typeof REMINDER_CHANNEL];
+
+/** Care-plan stage readiness rollup (GET .../task-status-summary). */
+export const READINESS_STATUS = {
+  READY: 'ready',
+  NOT_READY: 'notReady',
+  NOT_APPLICABLE: 'notApplicable',
+} as const;
+
+export type ReadinessStatus = (typeof READINESS_STATUS)[keyof typeof READINESS_STATUS];

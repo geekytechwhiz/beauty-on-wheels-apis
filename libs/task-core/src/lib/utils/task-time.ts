@@ -29,3 +29,45 @@ export function dueWindowStartOrMaxMs(dueWindowStart?: number, dueWindowEnd?: nu
   }
   return DUE_SORT_SENTINEL_MS;
 }
+
+/** DueDate for Action Center calendar rules — falls back to StartDate when end is absent. */
+export function resolveDueWindowEndMs(
+  dueWindowStart?: number,
+  dueWindowEnd?: number,
+): number | undefined {
+  if (dueWindowEnd != null && Number.isFinite(dueWindowEnd)) {
+    return Math.floor(dueWindowEnd);
+  }
+  if (dueWindowStart != null && Number.isFinite(dueWindowStart)) {
+    return Math.floor(dueWindowStart);
+  }
+  return undefined;
+}
+
+/** Local calendar date as `YYYY-MM-DD` in the given IANA timezone. */
+export function calendarDateKey(epochMs: number, timeZone: string): string {
+  assertValidTimeZone(timeZone);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(epochMs));
+}
+
+export function assertValidTimeZone(timeZone: string): void {
+  const tz = timeZone?.trim();
+  if (!tz) {
+    throw new Error('timezone is required');
+  }
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+  } catch {
+    const err = new Error(`Invalid timezone: ${tz}`) as Error & { statusCode: number; code: string };
+    err.statusCode = 400;
+    err.code = 'VALIDATION_ERROR';
+    throw err;
+  }
+}
+
+export const DEFAULT_ACTION_CENTER_TIMEZONE = 'UTC';

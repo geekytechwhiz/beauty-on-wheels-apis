@@ -45,9 +45,10 @@ export interface TaskMetaDdbRecord {
   reminderSettings?: ReminderSettings;
   idempotencyKey?: string;
   generationHash?: string;
-  lsi1Sk?: string;
-  gsi1Pk?: string;
-  gsi1Sk?: string;
+  /** Care-plan LSI sort key (`pk-sk1` index). */
+  sk1?: string;
+  gsi1pk?: string;
+  gsi1sk?: string;
   createdAt: number;
   createdBy: string;
   lastUpdatedAt: number;
@@ -74,6 +75,7 @@ export interface TaskLookupDdbRecord {
 }
 
 export interface TaskEvidenceSummaryDdbRecord {
+  taskEvidenceSummaryId?: string;
   runtimeTaskInstanceId?: string;
   generatedAt: number;
   latestCompletionSummary?: string;
@@ -121,6 +123,16 @@ export interface TaskHistDdbRecord {
   newAssignedToStaffId?: string;
   previousAssignedToStaffDisplayName?: string;
   newAssignedToStaffDisplayName?: string;
+  previousReminderEnabled?: boolean;
+  newReminderEnabled?: boolean;
+  previousReminderSettings?: ReminderSettings;
+  newReminderSettings?: ReminderSettings;
+  reminderRecordId?: string;
+  reminderChannel?: string;
+  schedulerJobId?: string;
+  changedFields?: string[];
+  previousValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
 }
 
 export type TaskDdbRecord =

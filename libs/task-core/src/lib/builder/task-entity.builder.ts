@@ -11,27 +11,35 @@ import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type {
+  CompletionEvidenceDdbRecord,
   TaskHistDdbRecord,
   TaskLookupDdbRecord,
   TaskMetaDdbRecord,
 } from '../models/persistence/task-ddb.model';
 import {
-  ASSIGNED_TO_TYPE,
+  COMPLETION_SOURCE,
   RUNTIME_TASK_SOURCE,
   TASK_HISTORY_EVENT_TYPE,
   TRANSITION_SOURCE,
+  type ReminderSettings,
+  requiresAssigneeGsi,
 } from '../models/types/task-domain.types';
 import type { RuntimeTaskState } from '../models/types/runtime-task-state.type';
 import {
   displayTitleForMonitoringTask,
+  displayToPatientForMonitoring,
   initialStateForMonitoringCreate,
   reminderEnabledFromContext,
-  taskDisplayGroupForBehavior,
+  taskDisplayGroupForMonitoring,
 } from '../utils/monitoring-defaults';
 import { buildGenerationHash } from '../utils/monitoring-idempotency';
 import { initialStateForRuntimeCreate } from '../utils/runtime-task-create';
 
 import { resolveDueWindowStartAtCreate } from '../utils/task-time';
+import {
+  buildEvidenceSummaryRollup,
+  newCompletionEvidenceId,
+} from '../utils/task-state-transition';
 
 import { TaskKeyBuilder } from './task-key.builder';
 
@@ -53,6 +61,7 @@ export interface MonitoringCreateContext {
   input: CreateMonitoringActionRequest;
   currentState: RuntimeTaskState;
   metaSk: string;
+  assignedToStaffId?: string;
 }
 
 export interface CarePlanCreateContext {
@@ -90,16 +99,25 @@ export class TaskEntityBuilder {
       input: params.input,
       currentState,
       metaSk,
+      assignedToStaffId: params.input.assignedToStaffId?.trim() || undefined,
     };
   }
 
   static buildMonitoringMetaRecord(ctx: MonitoringCreateContext): TaskMetaDdbRecord {
-    const { input, runtimeTaskInstanceId, metaSk, currentState, nowMs, idempotencyKey, generationHash } =
-      ctx;
+    const {
+      input,
+      runtimeTaskInstanceId,
+      metaSk,
+      currentState,
+      nowMs,
+      idempotencyKey,
+      generationHash,
+      assignedToStaffId,
+    } = ctx;
     const pk = TaskKeyBuilder.buildPatientPartitionKey(input.organizationId, input.patientId);
     const reminderEnabled = reminderEnabledFromContext(input);
 
-    return {
+    const record: TaskMetaDdbRecord = {
       pk,
       sk: metaSk,
       entityType: ENTITY_TYPE_RUNTIME_TASK,
@@ -111,10 +129,13 @@ export class TaskEntityBuilder {
       carePlanInstanceId: input.carePlanInstanceId,
       monitoringInstanceId: input.monitoringInstanceId,
       taskBehaviorCode: input.taskBehaviorCode,
-      taskDisplayGroup: taskDisplayGroupForBehavior(input.taskBehaviorCode),
+      taskDisplayGroup: taskDisplayGroupForMonitoring(
+        input.taskBehaviorCode,
+        input.assignedToType,
+      ),
       displayTitle: displayTitleForMonitoringTask(input.taskBehaviorCode),
-      assignedToType: ASSIGNED_TO_TYPE.PATIENT,
-      displayToPatient: true,
+      assignedToType: input.assignedToType,
+      displayToPatient: displayToPatientForMonitoring(input.assignedToType),
       currentState,
       dueWindowStart: input.dueWindowStart,
       dueWindowEnd: input.dueWindowEnd,
@@ -124,19 +145,40 @@ export class TaskEntityBuilder {
         : {}),
       idempotencyKey,
       generationHash,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
       createdAt: nowMs,
       createdBy: MONITORING_SYSTEM_ACTOR,
       lastUpdatedAt: nowMs,
       lastUpdatedBy: MONITORING_SYSTEM_ACTOR,
       version: 1,
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
+
+    if (assignedToStaffId) record.assignedToStaffId = assignedToStaffId;
+    if (input.assignedToStaffDisplayName) {
+      record.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
+
+    if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
+        input.organizationId,
+        input.assignedToType,
+        assignedToStaffId,
+      );
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
+        input.dueWindowStart,
+        input.dueWindowEnd,
+        input.patientId,
+        runtimeTaskInstanceId,
+      );
+    }
+
+    return record;
   }
 
   static buildMonitoringLookupRecord(ctx: MonitoringCreateContext): TaskLookupDdbRecord {
-    const { input, runtimeTaskInstanceId, metaSk } = ctx;
+    const { input, runtimeTaskInstanceId, metaSk, assignedToStaffId } = ctx;
 
-    return {
+    const lookup: TaskLookupDdbRecord = {
       pk: TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
       sk: TASK_LOOKUP_SK,
       entityType: ENTITY_TYPE_TASK_LOOKUP,
@@ -150,6 +192,13 @@ export class TaskEntityBuilder {
       carePlanInstanceId: input.carePlanInstanceId,
       reminderHistory: [],
     };
+
+    if (assignedToStaffId) lookup.assignedToStaffId = assignedToStaffId;
+    if (input.assignedToStaffDisplayName) {
+      lookup.assignedToStaffDisplayName = input.assignedToStaffDisplayName;
+    }
+
+    return lookup;
   }
 
   static buildMonitoringCreateHistRecord(ctx: MonitoringCreateContext): TaskHistDdbRecord {
@@ -233,7 +282,7 @@ export class TaskEntityBuilder {
       lastUpdatedAt: nowMs,
       lastUpdatedBy: input.createdBy,
       version: 1,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
 
     if (input.carePlanInstanceId) record.carePlanInstanceId = input.carePlanInstanceId;
@@ -258,9 +307,13 @@ export class TaskEntityBuilder {
       record.displayAsChecklistItem = input.displayAsChecklistItem;
     }
 
-    if (assignedToStaffId) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, assignedToStaffId);
-      record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
+    if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
+        input.organizationId,
+        input.assignedToType,
+        assignedToStaffId,
+      );
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
         input.patientId,
@@ -367,7 +420,7 @@ export class TaskEntityBuilder {
       lastUpdatedAt: nowMs,
       lastUpdatedBy: input.createdBy,
       version: 1,
-      lsi1Sk: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
+      sk1: TaskKeyBuilder.buildLsi1Sk(input.carePlanInstanceId, runtimeTaskInstanceId),
     };
 
     if (input.workflowStage) record.workflowStage = input.workflowStage;
@@ -395,9 +448,13 @@ export class TaskEntityBuilder {
       record.displayAsChecklistItem = input.displayAsChecklistItem;
     }
 
-    if (assignedToStaffId) {
-      record.gsi1Pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, assignedToStaffId);
-      record.gsi1Sk = TaskKeyBuilder.buildGsi1Sk(
+    if (assignedToStaffId && requiresAssigneeGsi(input.assignedToType)) {
+      record.gsi1pk = TaskKeyBuilder.buildGsi1Pk(
+        input.organizationId,
+        input.assignedToType,
+        assignedToStaffId,
+      );
+      record.gsi1sk = TaskKeyBuilder.buildGsi1Sk(
         input.dueWindowStart,
         input.dueWindowEnd,
         input.patientId,
@@ -516,5 +573,144 @@ export class TaskEntityBuilder {
       previousAssignedToStaffDisplayName: params.previousAssignedToStaffDisplayName,
       newAssignedToStaffDisplayName: params.newAssignedToStaffDisplayName,
     };
+  }
+
+  static buildTaskMetadataChangeHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    changedFields: string[];
+    previousValues: Record<string, unknown>;
+    newValues: Record<string, unknown>;
+    actorId: string;
+    reason?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.TASK_METADATA_CHANGE,
+      transitionAt: nowMs,
+      transitionBy: params.actorId,
+      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionReason: params.reason,
+      changedFields: params.changedFields,
+      previousValues: params.previousValues,
+      newValues: params.newValues,
+    };
+  }
+
+  static buildStateChangeHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    fromState: RuntimeTaskState;
+    toState: RuntimeTaskState;
+    actorId: string;
+    reason?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.STATE_CHANGE,
+      fromState: params.fromState,
+      toState: params.toState,
+      transitionAt: nowMs,
+      transitionBy: params.actorId,
+      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionReason: params.reason,
+    };
+  }
+
+  static buildReminderSettingsChangeHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    actorId: string;
+    previousReminderEnabled?: boolean;
+    newReminderEnabled: boolean;
+    previousReminderSettings?: ReminderSettings;
+    newReminderSettings?: ReminderSettings;
+    reason?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.REMINDER_SETTINGS_CHANGE,
+      transitionAt: nowMs,
+      transitionBy: params.actorId,
+      transitionSource: TRANSITION_SOURCE.MANUAL,
+      transitionReason: params.reason,
+      ...(params.previousReminderEnabled != null
+        ? { previousReminderEnabled: params.previousReminderEnabled }
+        : {}),
+      newReminderEnabled: params.newReminderEnabled,
+      ...(params.previousReminderSettings != null
+        ? { previousReminderSettings: params.previousReminderSettings }
+        : {}),
+      ...(params.newReminderSettings != null ? { newReminderSettings: params.newReminderSettings } : {}),
+    };
+  }
+
+  static buildManualCompletionEvidenceRecord(params: {
+    meta: TaskMetaDdbRecord;
+    actorId: string;
+    completedAt: number;
+    evidencePayload?: Record<string, unknown>;
+    completionEvidenceId?: string;
+  }): CompletionEvidenceDdbRecord {
+    const completionEvidenceId = params.completionEvidenceId ?? newCompletionEvidenceId();
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(params.meta.runtimeTaskInstanceId),
+      sk: `EVID#${completionEvidenceId}`,
+      entityType: 'CompletionEvidence',
+      completionEvidenceId,
+      runtimeTaskInstanceId: params.meta.runtimeTaskInstanceId,
+      orgId: params.meta.orgId,
+      patientId: params.meta.patientId,
+      completionSource: COMPLETION_SOURCE.MANUAL,
+      completedAt: params.completedAt,
+      completedBy: params.actorId,
+      ...(params.evidencePayload ? { evidencePayload: params.evidencePayload } : {}),
+      ...(params.meta.completionSourceType
+        ? { completionSourceType: params.meta.completionSourceType }
+        : {}),
+      ...(params.meta.completionSourceReferenceId
+        ? { completionSourceReferenceId: params.meta.completionSourceReferenceId }
+        : {}),
+    };
+  }
+
+  static buildEvidenceSummaryForTransition(
+    meta: TaskMetaDdbRecord,
+    toState: RuntimeTaskState,
+    nowMs: number,
+    latestCompletionSummary?: string,
+  ) {
+    return buildEvidenceSummaryRollup(meta, toState, nowMs, latestCompletionSummary);
   }
 }

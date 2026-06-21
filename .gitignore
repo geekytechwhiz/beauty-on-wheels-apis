@@ -87,7 +87,9 @@ env/
 # Script outputs
 api-endpoints-export.xlsx
 *.xlsx
+helpers/metadata/catalog.generated.json
 
+scripts/metadata-registry-seed/reports/
 myVitalRx/
 # Only ignore top-level scripts/ (e.g. script outputs). App-specific scripts (e.g. device-service seed data) stay tracked.
 /scripts/
@@ -108,6 +110,8 @@ apps/task-service/.esbuild/
 apps/task-service/swagger/
 apps/task-service.zip
 apps/task-service/*.zip
+
+packages/fhir/*.zip
 apps/task-service/.env
 apps/template-service/.esbuild/
 apps/template-service/swagger/
@@ -115,3 +119,4 @@ apps/template-service/swagger/
 .nx/polygraph
 .claude/worktrees
 .claude/settings.local.json
+vitest.config.*.timestamp*

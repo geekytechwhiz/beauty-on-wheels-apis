@@ -20,13 +20,19 @@
   ],
   "references": [
     {
+      "path": "../fhir/tsconfig.lib.json"
+    },
+    {
+      "path": "../fhir-validator/tsconfig.lib.json"
+    },
+    {
       "path": "../utils/tsconfig.lib.json"
     },
     {
       "path": "../observability/tsconfig.lib.json"
     },
     {
-      "path": "../fhir/tsconfig.lib.json"
+      "path": "../../packages/fhir/tsconfig.lib.json"
     }
   ]
 }

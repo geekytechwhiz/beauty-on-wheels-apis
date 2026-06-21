@@ -29,6 +29,40 @@ function detailMessage(error: Error): string {
   return error.message || 'Unexpected error';
 }
 
+type AwsServiceError = Error & {
+  $metadata?: { httpStatusCode?: number };
+};
+
+function awsHttpStatusFromError(error: AwsServiceError): number | undefined {
+  const status = error.$metadata?.httpStatusCode;
+  return typeof status === 'number' ? status : undefined;
+}
+
+function isAwsAccessDenied(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    error.name === 'AccessDeniedException' ||
+    error.name === 'AccessDenied' ||
+    msg.includes('not authorized to perform') ||
+    msg.includes('explicit deny') ||
+    msg.includes('accessdenied')
+  );
+}
+
+function resolveErrorStatus(error: AwsServiceError & { statusCode?: number }): number {
+  if (typeof error.statusCode === 'number') {
+    return error.statusCode;
+  }
+  const awsStatus = awsHttpStatusFromError(error);
+  if (awsStatus !== undefined) {
+    return awsStatus;
+  }
+  if (isAwsAccessDenied(error)) {
+    return 403;
+  }
+  return 500;
+}
+
 type ErrorLike = {
   name?: string;
   message: string;
@@ -95,7 +129,7 @@ export function toBaseError(error: unknown): BaseError {
   }
 
   if (error instanceof Error) {
-    const any = error as Error & {
+    const any = error as AwsServiceError & {
       statusCode?: number;
       code?: string;
       retryable?: boolean;
@@ -103,17 +137,18 @@ export function toBaseError(error: unknown): BaseError {
       details?: BaseError['details'];
     };
     const msg = detailMessage(any);
+    const statusCode = resolveErrorStatus(any);
     const code =
-      typeof any.code === 'string' ? any.code : defaultCodeForStatus(any.statusCode ?? 500);
+      typeof any.code === 'string' ? any.code : defaultCodeForStatus(statusCode);
     return new BaseError(
       msg,
-      any.statusCode ?? 500,
+      statusCode,
       code,
       any.details ?? [{ message: msg }],
       {
         retryable:
           any.retryable ??
-          [502, 503, 504].includes(any.statusCode ?? 0),
+          [502, 503, 504].includes(statusCode),
         metadata: {
           originalName: any.name,
           ...any.metadata,

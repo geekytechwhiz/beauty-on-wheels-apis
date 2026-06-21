@@ -25,10 +25,9 @@ import {
 } from './metadata-value-relation.service';
 import type { RegistryPostMetadataPublishInput } from './metadata.service.types';
 import {
+  buildConsumerGatedImpact,
   evaluateRegistryChangeImpact,
   loadPublishedBasePayload,
-  toImpactSummary,
-  isConfirmationRequired,
 } from './metadata-registry-change.shared';
 import {
   assertMetadataPublishRequestBody,
@@ -54,10 +53,10 @@ function actorFromContext(userId?: string): string | undefined {
 }
 
 function assertPublishConfirmation(
-  impactSummary: ReturnType<typeof toImpactSummary>,
+  confirmationRequired: boolean,
   confirmationAcknowledged: boolean,
 ): void {
-  if (isConfirmationRequired(impactSummary) && !confirmationAcknowledged) {
+  if (confirmationRequired && !confirmationAcknowledged) {
     throw new ValidationError(
       'confirmationAcknowledged must be true for breaking or high-impact changes',
       [{ field: 'confirmationAcknowledged', message: 'Required for this publish' }],
@@ -180,14 +179,22 @@ export async function publishChangeRequest(
     proposedPayload: draft.proposedPayload,
   });
 
-  const impactSummary = toImpactSummary(impact);
-  assertPublishConfirmation(impactSummary, request.confirmationAcknowledged);
+  const gated = await buildConsumerGatedImpact({
+    entityType: draft.entityType,
+    operation: draft.operation,
+    metadataTypeCode: draft.metadataTypeCode,
+    metadataValueCode: draft.metadataValueCode,
+    policyImpact: impact,
+  });
+
+  assertPublishConfirmation(gated.confirmationRequired, request.confirmationAcknowledged);
   assertExpectedBaseVersionForPublish(
     draft.operation,
     request.expectedBaseVersion,
     currentPublishedVersion,
   );
 
+  const impactSummary = gated.impactSummary;
   const publishStrategy = resolvePublishVersionStrategy(draft.operation, impact.requiresMetadataVersion);
   const syncApplicability = shouldSyncApplicabilityOnPublish(impact.changes);
   const now = new Date().toISOString();

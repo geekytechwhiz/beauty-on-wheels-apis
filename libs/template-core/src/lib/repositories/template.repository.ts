@@ -16,6 +16,10 @@ import type { ListMasterTemplatesParams } from '../models/api/list-master.types'
 import type { ListMasterVersionsParams } from '../models/api/get-master-versions.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { appendVersionHistoryToRecord } from '../mappers/template-http.dto';
+import {
+  buildRulesFromFieldValues,
+  resolveFieldValuesForRules,
+} from '../utils/template-rules.utils';
 import { assertTemplateTable, decodeListCursor, encodeListCursor } from '../utils/template.utils';
 
 export type MasterListFilters = Pick<
@@ -250,6 +254,12 @@ export class TemplateRepository extends BaseRepository {
     const table = assertTemplateTable();
     const ctx = TemplateEntityBuilder.buildCreateContext(input);
     const versionRow = TemplateEntityBuilder.buildVersionRow(ctx, input);
+    const fieldValuesForRules = resolveFieldValuesForRules(versionRow, input);
+    versionRow.rules = buildRulesFromFieldValues(fieldValuesForRules, {
+      templateType:
+        (typeof versionRow.meta?.templateType === 'string' && versionRow.meta.templateType) ||
+        (typeof input.templateType === 'string' ? input.templateType : undefined),
+    });
     appendVersionHistoryToRecord(versionRow, { isCreate: true });
 
     await this.transactWrite({

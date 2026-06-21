@@ -1,4 +1,4 @@
-import { FhirTransformationService } from '@api-hub/fhir';
+import { FhirTransformationService } from '../services/fhir-transformation.service';
 import type { LambdaRequest } from '@api-hub/utils';
 
 import {

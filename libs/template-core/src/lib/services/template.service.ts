@@ -33,6 +33,7 @@ import {
   TemplateRepository,
 } from '../repositories/template.repository';
 import { normalizeTemplateServiceError } from '../errors/template-errors';
+import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { normalizeShareScope } from '../utils/share-scope.utils';
 import {
   decodeListCursor,
@@ -103,32 +104,36 @@ function fieldValuesOf(record: TemplateDdbRecord): Record<string, unknown> {
 function matchesActiveFilters(record: TemplateDdbRecord, params: ListMasterTemplatesParams): boolean {
   const meta = record.meta;
   const fv = fieldValuesOf(record);
+  const catalog = extractCatalogCodes(fv);
 
   if (params.status && (meta.status ?? TEMPLATE_STATUS.DRAFT) !== params.status) return false;
 
   if (params.shareScope) {
     const scope =
-      normalizeShareScope(meta.shareScope) ?? normalizeShareScope(firstString(fv.shareScope));
+      normalizeShareScope(meta.shareScope) ??
+      normalizeShareScope(catalog.shareScope) ??
+      normalizeShareScope(firstString(fv.shareScope));
     if (scope !== params.shareScope) return false;
   }
 
   const condition = params.conditionCode ?? params.condition;
   if (condition) {
     const hit =
-      eqCi(firstString(fv.conditionCode), condition) ||
+      eqCi(catalog.conditionCode, condition) ||
       eqCi(firstString(meta.condition), condition) ||
       arrayHasCi(meta.conditions, condition) ||
       arrayHasCi(meta.condition as unknown, condition) ||
-      eqCi(firstString(fv.categoryCode), condition) ||
+      eqCi(catalog.categoryCode, condition) ||
       eqCi(firstString(meta.category), condition);
     if (!hit) return false;
   }
 
+  const categoryFilter = params.categoryCode ?? params.category;
   if (
-    params.category &&
-    !eqCi(firstString(fv.categoryCode), params.category) &&
-    !eqCi(firstString(meta.category), params.category) &&
-    !arrayHasCi(meta.category as unknown, params.category)
+    categoryFilter &&
+    !eqCi(catalog.categoryCode, categoryFilter) &&
+    !eqCi(firstString(meta.category), categoryFilter) &&
+    !arrayHasCi(meta.category as unknown, categoryFilter)
   ) {
     return false;
   }
@@ -389,8 +394,9 @@ export class TemplateService {
       item.fieldValues && typeof item.fieldValues === 'object' && !Array.isArray(item.fieldValues)
         ? (item.fieldValues as Record<string, unknown>)
         : {};
-    const itemCategory = firstString(fv.categoryCode) ?? firstString(fv.category);
-    const itemCondition = firstString(fv.conditionCode) ?? firstString(fv.condition);
+    const catalog = extractCatalogCodes(fv);
+    const itemCategory = catalog.categoryCode;
+    const itemCondition = catalog.conditionCode;
     const eq = (a: string | undefined, b: string) =>
       a?.trim().toUpperCase() === b.trim().toUpperCase();
 

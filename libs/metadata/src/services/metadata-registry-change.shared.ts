@@ -1,7 +1,9 @@
 import { metadataTypeToAuditSnapshot } from '../domain/type-audit-delta';
 import { metadataValueToAuditSnapshot } from '../domain/value-audit-delta';
 import {
+  applyConsumerImpact,
   evaluateChangeImpact,
+  resolveMetadataConsumerContext,
   CHANGE_POLICY_OPERATION,
   RUNTIME_IMPACT,
   VERSION_IMPACT,
@@ -100,7 +102,13 @@ export function toImpactSummary(impact: AggregatedChangeImpact): ImpactPreviewRe
 }
 
 /** True when publish must receive `confirmationAcknowledged: true`. */
-export function isConfirmationRequired(summary: ImpactPreviewResponse['impactSummary']): boolean {
+export function isConfirmationRequired(
+  summary: ImpactPreviewResponse['impactSummary'],
+  opts?: { isFirstTimeCreate: boolean; affectedConsumers: string[] },
+): boolean {
+  if (opts?.isFirstTimeCreate && opts.affectedConsumers.length === 0) {
+    return false;
+  }
   return (
     summary.versionImpact === VERSION_IMPACT.BREAKING ||
     summary.requiresTemplateAdoption ||
@@ -108,4 +116,51 @@ export function isConfirmationRequired(summary: ImpactPreviewResponse['impactSum
     summary.runtimeImpact === RUNTIME_IMPACT.REVIEW_REQUIRED ||
     summary.runtimeImpact === RUNTIME_IMPACT.MIGRATION_REQUIRED
   );
+}
+
+export async function buildConsumerGatedImpact(params: {
+  entityType: 'type' | 'value';
+  operation: ChangeRequestOperation;
+  metadataTypeCode: string;
+  metadataValueCode?: string;
+  policyImpact: AggregatedChangeImpact;
+}): Promise<{
+  impactSummary: ImpactPreviewResponse['impactSummary'];
+  affectedConsumers: string[];
+  confirmationRequired: boolean;
+}> {
+  const isFirstTimeCreate = params.operation === CHANGE_REQUEST_OPERATION.ADD;
+  const consumerContext = await resolveMetadataConsumerContext({
+    entityType: params.entityType,
+    metadataTypeCode: params.metadataTypeCode,
+    metadataValueCode: params.metadataValueCode,
+    isFirstTimeCreate,
+  });
+
+  const consumerImpact = applyConsumerImpact({
+    policyFlags: {
+      requiresTemplateAdoption: params.policyImpact.requiresTemplateAdoption,
+      requiresOrgCapabilityReevaluation: params.policyImpact.requiresOrgCapabilityReevaluation,
+      runtimeImpact: params.policyImpact.runtimeImpact,
+    },
+    consumerContext,
+    isFirstTimeCreate,
+  });
+
+  const impactSummary: ImpactPreviewResponse['impactSummary'] = {
+    ...toImpactSummary(params.policyImpact),
+    requiresTemplateAdoption: consumerImpact.requiresTemplateAdoption,
+    requiresOrgCapabilityReevaluation: consumerImpact.requiresOrgCapabilityReevaluation,
+  };
+
+  const affectedConsumers = [...consumerImpact.affectedConsumers];
+
+  return {
+    impactSummary,
+    affectedConsumers,
+    confirmationRequired: isConfirmationRequired(impactSummary, {
+      isFirstTimeCreate,
+      affectedConsumers,
+    }),
+  };
 }

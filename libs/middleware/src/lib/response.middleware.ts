@@ -1,9 +1,14 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
-import { ApiResponse, type Message } from '@api-hub/utils';
+import {
+  ApiResponse,
+  type FhirValidationResponse,
+  type Message,
+} from '@api-hub/utils';
 
 interface ResponseOptions {
   correlationId?: string;
   fhir?: unknown;
+  fhirValidation?: FhirValidationResponse;
 }
 
 /**
@@ -24,7 +29,11 @@ export const successResponse = <T>(
   return ApiResponse.ok<T>(
     data,
     message,
-    { correlationId: requestId, fhir: options.fhir }
+    {
+      correlationId: requestId,
+      fhir: options.fhir,
+      fhirValidation: options.fhirValidation,
+    },
   );
 };
 

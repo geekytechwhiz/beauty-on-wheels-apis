@@ -1,0 +1,172 @@
+{
+  "rules": {
+    "TEMPLATE_NAME": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "CATEGORY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "CONDITION": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "COUNTRY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "LANGUAGE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "SPECIALITY": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "SELECT_SCOPE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "APPLIES_TO_TYPE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "LINKED_ENTITY_CODE": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "alertRequired": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "evaluationType": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "comparisonOperator": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "thresholdValue": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "minValue": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "maxValue": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "severityLevel": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "consecutiveBreaches": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true
+    },
+    "evaluationWindowDays": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "metadataMode": "Fixed",
+      "min": 1,
+      "max": 1
+    },
+    "linkedAlertTemplate": {
+      "enable": true,
+      "orgedit": true,
+      "add": true,
+      "defaultedit": true,
+      "delete": true,
+      "min": 0,
+      "max": 1
+    }
+  }
+}

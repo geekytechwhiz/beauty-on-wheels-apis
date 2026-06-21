@@ -40,7 +40,7 @@ export function minimalTaskMetaRecord(overrides: Partial<TaskMetaDdbRecord> = {}
     dueWindowStart,
     dueWindowEnd,
     reminderEnabled: true,
-    lsi1Sk: TaskKeyBuilder.buildLsi1Sk('cp-1', runtimeTaskInstanceId),
+    sk1: TaskKeyBuilder.buildLsi1Sk('cp-1', runtimeTaskInstanceId),
     createdAt: created,
     createdBy: 'system:monitoring-runtime',
     lastUpdatedAt: created,

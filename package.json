@@ -36,7 +36,7 @@
     "reset": "nx reset",
     "profile": "NX_PROFILE=profile.json nx build ",
     "migrate:handlers-v1": "ts-node --project tools/handler-migrartion/tsconfig.json tools/handler-migrartion/migrate-handlers-to-v1.ts",
-    "metadata-registry-service:offline": "cd apps/metadata-registry-service && npx serverless offline --stage dev",
+    "metadata-registry-service:offline": "cd apps/metadata-registry-service && npx serverless offline --config serverless.offline.yml --stage dev",
     "seed:metadata": "ts-node --project scripts/metadata-registry-seed/tsconfig.json scripts/metadata-registry-seed/seed-metadata.ts",
     "seed:metadata-types": "ts-node --project scripts/metadata-registry-seed/tsconfig.json scripts/metadata-registry-seed/seed-metadata-types.ts",
     "backfill:metadata-type-modules": "ts-node --project scripts/metadata-registry-seed/tsconfig.json scripts/metadata-registry-seed/backfill-metadata-type-modules.ts",

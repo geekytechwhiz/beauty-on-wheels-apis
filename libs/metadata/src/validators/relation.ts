@@ -42,6 +42,8 @@ export const RELATION_TYPE_ALLOWED_PAIRS: Record<RelationType, { from: string; t
    * to `RELATION#Category#…` / `BELONGS#Condition#…` (swap `from`/`to` type and value on each item + audit keys).
    */
   BELONGS_TO_CATEGORY: [{ from: 'Category', to: 'Condition' }],
+  /** ServiceType value may link to multiple Specialty values (selectionMode MULTI on ServiceType). */
+  ALLOWED_FOR: [{ from: 'ServiceType', to: 'Specialty' }],
 };
 
 function isPairAllowed(

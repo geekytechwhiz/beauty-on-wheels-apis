@@ -7,7 +7,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-dotenv-plugin
   - serverless-esbuild
-  - serverless-offline
+  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
   name: aws

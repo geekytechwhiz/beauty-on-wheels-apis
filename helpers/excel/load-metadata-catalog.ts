@@ -33,6 +33,114 @@ const CONDITION_CATEGORY_RELATIONS: Record<string, string> = {
   ANNUAL_WELLNESS: 'WELLNESS',
 };
 
+/** Excel may use British spelling; canonical metadata type code is `Specialty`. */
+const METADATA_TYPE_CODE_ALIASES: Record<string, string> = {
+  Speciality: 'Specialty',
+};
+
+export function normalizeMetadataTypeCode(code: string): string {
+  const trimmed = code.trim();
+  return METADATA_TYPE_CODE_ALIASES[trimmed] ?? trimmed;
+}
+
+function canonicalizeTypeHint(hint: ExcelTypeHint): ExcelTypeHint {
+  const metadataTypeCode = normalizeMetadataTypeCode(hint.metadataTypeCode);
+  const displayName =
+    metadataTypeCode === 'Specialty' && (!hint.displayName || hint.displayName.trim() === 'Speciality')
+      ? 'Specialty'
+      : hint.displayName;
+  return {
+    ...hint,
+    metadataTypeCode,
+    ...(displayName ? { displayName } : {}),
+  };
+}
+
+/**
+ * ServiceType → Specialty edges applied when matching ServiceType value codes exist in Excel.
+ * Skipped when the ServiceType value is absent from the catalog.
+ */
+export const SERVICE_TYPE_SPECIALTY_RELATIONS: Record<string, string[]> = {
+  CONSULTATION: [
+    'CARDIOLOGY',
+    'ENDOCRINOLOGY',
+    'HEMATOLOGY',
+    'NEPHROLOGY',
+    'PULMONOLOGY',
+    'RHEUMATOLOGY',
+    'FAMILY_MEDICINE',
+    'INTERNAL_MEDICINE',
+    'OBS_AND_GYN',
+    'DERMATOLOGY',
+    'PSYCHIATRY',
+    'PEDIATRIC',
+    'GERIATRICIAN',
+    'IMMUNOLOGY',
+    'UROLOGY',
+    'GASTROENTEROLOGY',
+    'NEUROLOGY',
+    'ONCOLOGY',
+    'ENT',
+    'ORTHOPAEDIST',
+    'OPHTHALMOLOGY',
+    'ODONTOLOGY',
+    'GENERAL',
+  ],
+  REVIEW: [
+    'CARDIOLOGY',
+    'ENDOCRINOLOGY',
+    'NEPHROLOGY',
+    'PULMONOLOGY',
+    'INTERNAL_MEDICINE',
+    'FAMILY_MEDICINE',
+    'GERIATRICIAN',
+    'GENERAL',
+  ],
+  LAB_REVIEW: [
+    'HEMATOLOGY',
+    'ENDOCRINOLOGY',
+    'NEPHROLOGY',
+    'INTERNAL_MEDICINE',
+    'FAMILY_MEDICINE',
+    'BASIC_BLOOD',
+    'DIABETES_SCREENING',
+    'FULL_BODY_CHECKUP',
+  ],
+  PROCEDURE: [
+    'SURGERY',
+    'DERMATOLOGY',
+    'UROLOGY',
+    'GASTROENTEROLOGY',
+    'ENT',
+    'ORTHOPAEDIST',
+    'OPHTHALMOLOGY',
+    'ODONTOLOGY',
+    'OBS_AND_GYN',
+  ],
+  EDUCATION: [
+    'CARDIOLOGY',
+    'ENDOCRINOLOGY',
+    'PULMONOLOGY',
+    'NEPHROLOGY',
+    'DIETICIAN',
+    'FITNESS',
+    'FAMILY_MEDICINE',
+    'INTERNAL_MEDICINE',
+    'GENERAL',
+  ],
+  MONITORING: [
+    'CARDIOLOGY',
+    'ENDOCRINOLOGY',
+    'NEPHROLOGY',
+    'PULMONOLOGY',
+    'FAMILY_MEDICINE',
+    'INTERNAL_MEDICINE',
+    'GERIATRICIAN',
+    'FITNESS',
+    'GENERAL',
+  ],
+  OTHER: ['GENERAL', 'FAMILY_MEDICINE', 'INTERNAL_MEDICINE'],
+};
 const METRIC_VALUE_ATTRIBUTES: Record<string, Record<string, unknown>> = {
   BP_SYSTOLIC: {
     dataType: 'Numeric',
@@ -217,18 +325,19 @@ function mapRawRow(raw: RawRow): Partial<ParsedRow> {
 /** Registers a metadata type from a header row (Metadata Type set, Metadata Value empty). */
 function parseTypeHeaderRow(raw: RawRow): ExcelTypeHint | null {
   const mapped = mapRawRow(raw);
-  const metadataTypeCode = mapped.metadataTypeCode?.trim();
-  if (!metadataTypeCode || mapped.metadataValueCode) {
+  const rawTypeCode = mapped.metadataTypeCode?.trim();
+  if (!rawTypeCode || mapped.metadataValueCode) {
     return null;
   }
 
+  const metadataTypeCode = normalizeMetadataTypeCode(rawTypeCode);
   const displayName = mapped.displayName?.trim() || mapped.label?.trim();
-  return {
+  return canonicalizeTypeHint({
     metadataTypeCode,
     ...(displayName ? { displayName } : {}),
     ...(mapped.valueDataType ? { valueDataType: mapped.valueDataType } : {}),
     ...(mapped.applicableModules?.length ? { applicableModules: mapped.applicableModules } : {}),
-  };
+  });
 }
 
 function registerTypeHint(typeHintsByCode: Map<string, ExcelTypeHint>, hint: ExcelTypeHint): void {
@@ -349,7 +458,7 @@ function ingestSheetRows(
     }
 
     if (parsed.metadataTypeCode) {
-      currentType = parsed.metadataTypeCode.trim();
+      currentType = normalizeMetadataTypeCode(parsed.metadataTypeCode);
       if (!typeOrder.includes(currentType)) {
         typeOrder.push(currentType);
       }
@@ -534,6 +643,17 @@ function promoteToRichValues(
     });
   }
 
+  for (const [serviceTypeCode, specialtyCodes] of Object.entries(SERVICE_TYPE_SPECIALTY_RELATIONS)) {
+    const seed = valuesByType.get('ServiceType')?.find((v) => v.metadataValueCode === serviceTypeCode);
+    if (!seed) {
+      continue;
+    }
+    promote('ServiceType', serviceTypeCode, {
+      ...seed,
+      relationships: specialtyCodes.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
+    });
+  }
+
   for (const seed of valuesByType.get('MetricCode') ?? []) {
     const attrs = METRIC_VALUE_ATTRIBUTES[seed.metadataValueCode];
     if (!attrs) {
@@ -623,6 +743,7 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
     City: 'State',
     Currency: 'Country',
     Device: 'Vital',
+    ServiceType: 'Specialty',
     MetricCode: ['DataSourceType', 'EvaluationLogic', 'QuestionType'],
     QuestionCode: 'QuestionType',
   };

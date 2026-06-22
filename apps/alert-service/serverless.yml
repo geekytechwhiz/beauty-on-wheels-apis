@@ -39,10 +39,10 @@ provider:
     ALERT_TABLE: ${self:custom.alertDynamoTableName}
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    ERROR_MESSAGES_CDN_URL: ${ssm:/mvx/${self:provider.stage}/shared/error-messages-cdn-url}
+    ERROR_MESSAGES_CDN_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.errorMessagesCdnUrl}}
     # Same base URLs as services/sso-integration `custom.stageUrls`.
-    USER_SERVICE_BASE_URL: ${ssm:/mvx/${self:provider.stage}/shared/user-service-base-url}
-    ORGANIZATION_SERVICE_BASE_URL: ${ssm:/mvx/${self:provider.stage}/shared/organization-service-base-url}
+    USER_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.userServiceBaseUrl}}
+    ORGANIZATION_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.organizationServiceBaseUrl}}
     USER_SERVICE_TIMEOUT_MS: '8000'
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
     ALERT_EVENT_BUS_NAME: ${self:custom.eventBusName}
@@ -189,6 +189,21 @@ custom:
     # exclude:
     #   - AWS::SNS::Topic
   alertDynamoTableName: alert-service-${self:provider.stage}
+
+  # Shared SSM parameter paths per stage (account layout differs: dev uses /dev/*, prd uses /firminiq/prd/*).
+  sharedSsmPaths:
+    dev:
+      errorMessagesCdnUrl: /dev/COMMON_ERROR_MESSAGES_CDN_URL
+      userServiceBaseUrl: /dev/USER_SERVICE_URL
+      organizationServiceBaseUrl: /dev/ORG_SERVICE_URL
+    stg:
+      errorMessagesCdnUrl: /stg/COMMON_ERROR_MESSAGES_CDN_URL
+      userServiceBaseUrl: /stg/USER_SERVICE_URL
+      organizationServiceBaseUrl: /stg/ORG_SERVICE_URL
+    prd:
+      errorMessagesCdnUrl: /firminiq/prd/ERROR_MESSAGES_CDN_URL
+      userServiceBaseUrl: /firminiq/prd/USER_SERVICE_URL
+      organizationServiceBaseUrl: /firminiq/prd/ORGANIZATION_SERVICE_URL
 
   # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here;
   # bus name + ARN are exported for cross-stack ImportValue.

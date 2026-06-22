@@ -68,25 +68,25 @@ describe('listRelatedValuesGrouped', () => {
 
   it('returns ServiceType specialties for ALLOWED_FOR with relationType and toType filters', async () => {
     mockListRelationsByFrom.mockResolvedValue([
-      relation('ServiceType', 'CONSULTATION', 'Speciality', 'CARDIOLOGY', 'ALLOWED_FOR'),
-      relation('ServiceType', 'CONSULTATION', 'Speciality', 'ENDOCRINOLOGY', 'ALLOWED_FOR'),
+      relation('ServiceType', 'CONSULTATION', 'Specialty', 'CARDIOLOGY', 'ALLOWED_FOR'),
+      relation('ServiceType', 'CONSULTATION', 'Specialty', 'ENDOCRINOLOGY', 'ALLOWED_FOR'),
     ]);
     mockGetMetadataValue.mockImplementation((typeCode: string, valueCode: string) => {
       const labels: Record<string, string> = {
         'ServiceType#CONSULTATION': 'Consultation',
-        'Speciality#CARDIOLOGY': 'Cardiology',
-        'Speciality#ENDOCRINOLOGY': 'Endocrinology',
+        'Specialty#CARDIOLOGY': 'Cardiology',
+        'Specialty#ENDOCRINOLOGY': 'Endocrinology',
       };
       return Promise.resolve({ label: labels[`${typeCode}#${valueCode}`] });
     });
 
     const groups = await listRelatedValuesGrouped('ServiceType', ['CONSULTATION'], {
       relationType: 'ALLOWED_FOR',
-      toType: 'Speciality',
+      toType: 'Specialty',
     });
 
     expect(mockListRelationsByFrom).toHaveBeenCalledWith('ServiceType', 'CONSULTATION', {
-      skBeginsWith: 'ALLOWED_FOR#Speciality#',
+      skBeginsWith: 'ALLOWED_FOR#Specialty#',
     });
     expect(groups).toEqual([
       {
@@ -94,9 +94,9 @@ describe('listRelatedValuesGrouped', () => {
         fromMetadataValueCode: 'CONSULTATION',
         fromLabel: 'Consultation',
         values: [
-          { metadataTypeCode: 'Speciality', metadataValueCode: 'CARDIOLOGY', label: 'Cardiology' },
+          { metadataTypeCode: 'Specialty', metadataValueCode: 'CARDIOLOGY', label: 'Cardiology' },
           {
-            metadataTypeCode: 'Speciality',
+            metadataTypeCode: 'Specialty',
             metadataValueCode: 'ENDOCRINOLOGY',
             label: 'Endocrinology',
           },

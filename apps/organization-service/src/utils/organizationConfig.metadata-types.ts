@@ -9,7 +9,7 @@ export const CONFIG_FIELD_TO_METADATA_TYPE = {
   supportedLanguageCodes: 'Language',
   enabledCategoryCodes: 'Category',
   enabledConditionCodes: 'Condition',
-  enabledSpecialtyCodes: 'Speciality',
+  enabledSpecialtyCodes: 'Specialty',
   enabledDeviceCodes: 'Device',
   enabledVitalCodes: 'Vital',
   enabledMetricCodes: 'MetricCode',

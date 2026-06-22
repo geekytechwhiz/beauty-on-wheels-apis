@@ -63,14 +63,14 @@ describe('getRelatedValuesSchema', () => {
         fromType: 'ServiceType',
         fromValue: 'CONSULTATION',
         relationType: 'ALLOWED_FOR',
-        toType: 'Speciality',
+        toType: 'Specialty',
       },
     });
     expect(out).toEqual({
       fromType: 'ServiceType',
       fromValues: ['CONSULTATION'],
       relationType: 'ALLOWED_FOR',
-      toType: 'Speciality',
+      toType: 'Specialty',
     });
   });
 

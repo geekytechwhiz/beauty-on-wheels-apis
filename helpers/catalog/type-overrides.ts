@@ -42,8 +42,8 @@ const ALL_TYPE_OVERRIDES: MetadataTypeSeedDefinition[] = [
     relation: {
       supportsRelations: true,
       relationType: 'ALLOWED_FOR',
-      targetMetadataTypeCode: 'Speciality',
-      relationFieldLabel: 'Allowed Specialities',
+      targetMetadataTypeCode: 'Specialty',
+      relationFieldLabel: 'Allowed Specialties',
       selectionMode: 'MULTI',
       relationRequired: false,
     },

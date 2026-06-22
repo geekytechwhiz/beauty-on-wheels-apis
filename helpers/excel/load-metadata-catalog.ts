@@ -33,11 +33,34 @@ const CONDITION_CATEGORY_RELATIONS: Record<string, string> = {
   ANNUAL_WELLNESS: 'WELLNESS',
 };
 
+/** Excel may use British spelling; canonical metadata type code is `Specialty`. */
+const METADATA_TYPE_CODE_ALIASES: Record<string, string> = {
+  Speciality: 'Specialty',
+};
+
+export function normalizeMetadataTypeCode(code: string): string {
+  const trimmed = code.trim();
+  return METADATA_TYPE_CODE_ALIASES[trimmed] ?? trimmed;
+}
+
+function canonicalizeTypeHint(hint: ExcelTypeHint): ExcelTypeHint {
+  const metadataTypeCode = normalizeMetadataTypeCode(hint.metadataTypeCode);
+  const displayName =
+    metadataTypeCode === 'Specialty' && (!hint.displayName || hint.displayName.trim() === 'Speciality')
+      ? 'Specialty'
+      : hint.displayName;
+  return {
+    ...hint,
+    metadataTypeCode,
+    ...(displayName ? { displayName } : {}),
+  };
+}
+
 /**
- * ServiceType → Speciality edges applied when matching ServiceType value codes exist in Excel.
+ * ServiceType → Specialty edges applied when matching ServiceType value codes exist in Excel.
  * Skipped when the ServiceType value is absent from the catalog.
  */
-export const SERVICE_TYPE_SPECIALITY_RELATIONS: Record<string, string[]> = {
+export const SERVICE_TYPE_SPECIALTY_RELATIONS: Record<string, string[]> = {
   CONSULTATION: [
     'CARDIOLOGY',
     'ENDOCRINOLOGY',
@@ -302,18 +325,19 @@ function mapRawRow(raw: RawRow): Partial<ParsedRow> {
 /** Registers a metadata type from a header row (Metadata Type set, Metadata Value empty). */
 function parseTypeHeaderRow(raw: RawRow): ExcelTypeHint | null {
   const mapped = mapRawRow(raw);
-  const metadataTypeCode = mapped.metadataTypeCode?.trim();
-  if (!metadataTypeCode || mapped.metadataValueCode) {
+  const rawTypeCode = mapped.metadataTypeCode?.trim();
+  if (!rawTypeCode || mapped.metadataValueCode) {
     return null;
   }
 
+  const metadataTypeCode = normalizeMetadataTypeCode(rawTypeCode);
   const displayName = mapped.displayName?.trim() || mapped.label?.trim();
-  return {
+  return canonicalizeTypeHint({
     metadataTypeCode,
     ...(displayName ? { displayName } : {}),
     ...(mapped.valueDataType ? { valueDataType: mapped.valueDataType } : {}),
     ...(mapped.applicableModules?.length ? { applicableModules: mapped.applicableModules } : {}),
-  };
+  });
 }
 
 function registerTypeHint(typeHintsByCode: Map<string, ExcelTypeHint>, hint: ExcelTypeHint): void {
@@ -434,7 +458,7 @@ function ingestSheetRows(
     }
 
     if (parsed.metadataTypeCode) {
-      currentType = parsed.metadataTypeCode.trim();
+      currentType = normalizeMetadataTypeCode(parsed.metadataTypeCode);
       if (!typeOrder.includes(currentType)) {
         typeOrder.push(currentType);
       }
@@ -619,14 +643,14 @@ function promoteToRichValues(
     });
   }
 
-  for (const [serviceTypeCode, specialityCodes] of Object.entries(SERVICE_TYPE_SPECIALITY_RELATIONS)) {
+  for (const [serviceTypeCode, specialtyCodes] of Object.entries(SERVICE_TYPE_SPECIALTY_RELATIONS)) {
     const seed = valuesByType.get('ServiceType')?.find((v) => v.metadataValueCode === serviceTypeCode);
     if (!seed) {
       continue;
     }
     promote('ServiceType', serviceTypeCode, {
       ...seed,
-      relationships: specialityCodes.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
+      relationships: specialtyCodes.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
     });
   }
 
@@ -719,7 +743,7 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
     City: 'State',
     Currency: 'Country',
     Device: 'Vital',
-    ServiceType: 'Speciality',
+    ServiceType: 'Specialty',
     MetricCode: ['DataSourceType', 'EvaluationLogic', 'QuestionType'],
     QuestionCode: 'QuestionType',
   };

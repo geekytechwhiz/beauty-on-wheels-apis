@@ -115,6 +115,6 @@
     "serverless-offline": "12.0.4"
   },
   "dependencies": {
-    "@myvitalrx/mvrx-resource-registry": "^0.0.1"
+    "@myvitalrx/mvrx-resource-registry": "^0.0.2"
   }
 }

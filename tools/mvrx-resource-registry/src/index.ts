@@ -43,7 +43,7 @@ class ResourceRegistryPlugin {
       this.serverless.service.resources?.Resources || {};
 
     const generated: Record<string, CFResource> = {};
-
+ 
     Object.entries(resources).forEach(
       ([logicalId, resource]: [string, any]) => {
         switch (resource.Type) {
@@ -51,14 +51,14 @@ class ResourceRegistryPlugin {
             this.addParameter(
               generated,
               `${logicalId}NameParameter`,
-              `/services/${config.serviceName}/${config.stage}/dynamodb/${logicalId}/name`,
+              `/${config.stage}/${config.serviceName}/dynamodb/${logicalId}/name`,
               { Ref: logicalId }
             );
 
             this.addParameter(
               generated,
               `${logicalId}ArnParameter`,
-              `/services/${config.serviceName}/${config.stage}/dynamodb/${logicalId}/arn`,
+              `/${config.stage}//${config.serviceName}/dynamodb/${logicalId}/arn`,
               { "Fn::GetAtt": [logicalId, "Arn"] }
             );
             break;
@@ -67,15 +67,15 @@ class ResourceRegistryPlugin {
             this.addParameter(
               generated,
               `${logicalId}NameParameter`,
-              `/services/${config.serviceName}/${config.stage}/eventbridge/${logicalId}/name`,
-              { Ref: logicalId }
+              `/${config.stage}/${config.serviceName}/eventbridge/${logicalId}/name`,
+              { Ref: logicalId },
             );
 
             this.addParameter(
               generated,
               `${logicalId}ArnParameter`,
-              `/services/${config.serviceName}/${config.stage}/eventbridge/${logicalId}/arn`,
-              { "Fn::GetAtt": [logicalId, "Arn"] }
+              `/${config.stage}/${config.serviceName}/eventbridge/${logicalId}/arn`,
+              { 'Fn::GetAtt': [logicalId, 'Arn'] },
             );
             break;
 
@@ -83,14 +83,14 @@ class ResourceRegistryPlugin {
             this.addParameter(
               generated,
               `${logicalId}UrlParameter`,
-              `/services/${config.serviceName}/${config.stage}/sqs/${logicalId}/url`,
+              `/${config.stage}/${config.serviceName}/sqs/${logicalId}/url`,
               { Ref: logicalId }
             );
 
             this.addParameter(
               generated,
               `${logicalId}ArnParameter`,
-              `/services/${config.serviceName}/${config.stage}/sqs/${logicalId}/arn`,
+              `/${config.stage}/${config.serviceName}/sqs/${logicalId}/arn`,
               { "Fn::GetAtt": [logicalId, "Arn"] }
             );
             break;
@@ -99,7 +99,7 @@ class ResourceRegistryPlugin {
             this.addParameter(
               generated,
               `${logicalId}ArnParameter`,
-              `/services/${config.serviceName}/${config.stage}/sns/${logicalId}/arn`,
+              `/${config.stage}/${config.serviceName}/sns/${logicalId}/arn`,
               { Ref: logicalId }
             );
             break;
@@ -110,7 +110,7 @@ class ResourceRegistryPlugin {
     generated["ApiGatewayUrlParameter"] = {
       Type: "AWS::SSM::Parameter",
       Properties: {
-        Name: `/services/${config.serviceName}/${config.stage}/api-base-url`,
+        Name: `/${config.stage}/${config.serviceName}/api-base-url`,
         Type: "String",
         Value: {
           "Fn::Sub":

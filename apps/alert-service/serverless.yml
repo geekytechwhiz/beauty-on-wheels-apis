@@ -191,7 +191,6 @@ custom:
       - symptom-engine
       - engagement-service
 
-  # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
   sourcemapsByStage:
     dev: true
     stg: false

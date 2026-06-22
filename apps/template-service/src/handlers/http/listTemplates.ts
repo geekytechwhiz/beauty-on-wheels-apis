@@ -4,6 +4,7 @@ import { getOrgTemplateHttpController } from '../../controllers/org-template-htt
 import { getTemplateHttpController } from '../../controllers/template-http.controller';
 import {
   MASTER_TEMPLATES_LISTED,
+  ORG_DERIVED_TEMPLATES_LISTED,
   ORG_ENABLE_CATALOG,
 } from '../../utils/template-api-messages';
 import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
@@ -19,13 +20,15 @@ const orgCtrl = getOrgTemplateHttpController();
 export const main = withTemplateApiHandler(
   {
     operation: 'template.list',
-    resolveSuccessMessage: (req) =>
-      resolveTemplateLevelFromQuery(req) === 'ORG'
-        ? ORG_ENABLE_CATALOG
-        : MASTER_TEMPLATES_LISTED,
+    resolveSuccessMessage: (req) => {
+      const level = resolveTemplateLevelFromQuery(req);
+      if (level === 'ORG_DERIVED') return ORG_DERIVED_TEMPLATES_LISTED;
+      if (level === 'ORG') return ORG_ENABLE_CATALOG;
+      return MASTER_TEMPLATES_LISTED;
+    },
     validator: async (req: LambdaRequest) => {
       const level = resolveTemplateLevelFromQuery(req);
-      if (level === 'ORG') {
+      if (level === 'ORG' || level === 'ORG_DERIVED') {
         await validateListOrgTemplatesRequest(req);
       } else {
         await validateListMasterRequest(req);
@@ -34,7 +37,7 @@ export const main = withTemplateApiHandler(
   },
   async (req: LambdaRequest) => {
     const level = resolveTemplateLevelFromQuery(req);
-    if (level === 'ORG') {
+    if (level === 'ORG' || level === 'ORG_DERIVED') {
       return orgCtrl.handleListOrg(req);
     }
     return masterCtrl.handleListMaster(req);

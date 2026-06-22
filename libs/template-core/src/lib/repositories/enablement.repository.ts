@@ -34,6 +34,15 @@ export class EnablementRepository extends BaseRepository {
     return items.find((r) => r.gsi3sk?.startsWith(prefix)) ?? null;
   }
 
+  async findByOrgAndOrgTemplateId(
+    organizationId: string,
+    orgTemplateId: string,
+  ): Promise<EnablementDdbRecord | null> {
+    const records = await this.queryEnablementsByOrgGsi1(organizationId.trim(), 200);
+    const templateId = orgTemplateId.trim();
+    return records.find((r) => r.meta.orgTemplateId?.trim() === templateId) ?? null;
+  }
+
   async findByOrgAndMasterTemplateId(
     organizationId: string,
     masterTemplateId: string,

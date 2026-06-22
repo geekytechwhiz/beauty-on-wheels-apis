@@ -1,3 +1,5 @@
+import type { DerivationKind } from '../../constants/template.constants';
+
 export type CreateOrgEnablementBody = {
   organizationId: string;
   masterTemplateVersionId: string;
@@ -62,6 +64,8 @@ export interface EnablementMeta {
   /** Master `meta.version` at last derive/sync (e.g. 1.2 on same V01 row). */
   masterTemplateVersion?: number;
   orgTemplateId: string;
+  /** Set on org-derived variant enablements so catalog list can skip them without extra reads. */
+  derivationKind?: DerivationKind;
   templateName?: string;
   templateType?: string;
   categoryCode?: string;

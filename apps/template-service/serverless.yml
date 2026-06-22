@@ -187,7 +187,8 @@ functions:
           method: get
           summary: List templates (canonical)
           description: |
-            List templates. Query templateLevel=MASTER|ORG (default MASTER). Org lists require organizationId or JWT org.
+            List templates. Query templateLevel=MASTER|ORG|ORG_DERIVED (default MASTER).
+            ORG lists canonical org enablement catalog; ORG_DERIVED lists org-derived variants (requires organizationId).
           queryStringParameters:
             templateLevel:
               required: false
@@ -411,6 +412,41 @@ functions:
           method: put
           summary: Update org template rules
           description: Partial merge of field rules on the enabled org copy; bumps minor version.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  createOrgDerived:
+    handler: src/handlers/http/createOrgDerived.main
+    events:
+      - http:
+          path: templates/org-derived
+          method: post
+          summary: Create org-derived template variant from canonical org template
+          description: |
+            Copy the canonical org template (from POST /templates/derive) to a new variant orgTemplateId.
+            sourceOrgTemplateId must be the canonical id, not another variant.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
+  updateOrgDerived:
+    handler: src/handlers/http/updateOrgDerived.main
+    events:
+      - http:
+          path: templates/org-derived/{orgTemplateId}
+          method: put
+          summary: Update org-derived template variant
+          description: |
+            Partial rules or fieldValues update (version bump) and/or templateEnabled toggle (no version bump).
           cors: *httpApiCors
           authorizer:
             name: common_authorizer

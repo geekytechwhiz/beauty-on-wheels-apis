@@ -6,19 +6,33 @@ echo "======================================="
 echo "BUILD STARTED"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/task-service"
+: "${STAGE:?STAGE must be set (dev, stg, or prd)}"
+: "${DEPLOYMENT_BUCKET:?DEPLOYMENT_BUCKET must be set}"
+
+SERVICE_DIR="${CODEBUILD_SRC_DIR:-}/apps/task-service"
+if [ ! -d "$SERVICE_DIR" ]; then
+  SERVICE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 
 cd "$SERVICE_DIR"
 
 echo "Current Directory:"
 pwd
+echo "STAGE=$STAGE DEPLOYMENT_BUCKET=$DEPLOYMENT_BUCKET STACK_NAME=${STACK_NAME:-}"
 
 echo "Cleaning old artifacts..."
 rm -rf .serverless
+rm -f packaged.yaml
 
-export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+# SMALL CodeBuild (~3.6 GiB): cap Node heap so the esbuild subprocess has headroom.
+# A 4096 cap on a 3.6 GiB box OOM-kills esbuild ("Error: The service was stopped").
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
-echo "Packaging Serverless service..."
+echo "Packaging Serverless service (NODE_OPTIONS=$NODE_OPTIONS)..."
+if command -v free >/dev/null 2>&1; then
+  echo "Container memory:"
+  free -h || true
+fi
 
 npx serverless package \
   --stage "$STAGE" \

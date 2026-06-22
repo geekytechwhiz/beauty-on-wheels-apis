@@ -1,0 +1,21 @@
+# Local development only — do not use for CI package/deploy.
+# Usage: pnpm metadata-registry-service:offline
+service: metadata-registry-service
+
+frameworkVersion: '3'
+
+configValidationMode: warn
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-esbuild
+  # ESM entry — package name "serverless-offline" fails with ERR_REQUIRE_ASYNC_MODULE on Node 22.
+  - ./node_modules/serverless-offline/src/index.js
+
+serverless-offline:
+  httpPort: 3000
+
+provider: ${file(./serverless.yml):provider}
+package: ${file(./serverless.yml):package}
+custom: ${file(./serverless.yml):custom}
+functions: ${file(./serverless.yml):functions}

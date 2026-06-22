@@ -9,12 +9,12 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
-  - serverless-offline
+  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
   - '@myvitalrx/mvrx-resource-registry'
 
 provider:
   name: aws
-  runtime: nodejs22.x
+  runtime: ${param:lambdaRuntime, 'nodejs22.x'}
   versionFunctions: false
   region: us-east-1
   stage: ${opt:stage, 'dev'}

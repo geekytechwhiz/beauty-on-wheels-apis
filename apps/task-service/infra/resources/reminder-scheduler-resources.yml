@@ -1,0 +1,37 @@
+Resources:
+  ReminderSchedulerInvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:provider.stage}-${self:service}-reminder-scheduler-invoke
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeProcessReminderLambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  Fn::GetAtt:
+                    - ProcessReminderLambdaFunction
+                    - Arn
+      Tags:
+        - Key: Service
+          Value: ${self:service}
+        - Key: Stage
+          Value: ${self:provider.stage}
+
+  ProcessReminderSchedulerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ProcessReminderLambdaFunction
+      Principal: scheduler.amazonaws.com
+      SourceArn: arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/default/*

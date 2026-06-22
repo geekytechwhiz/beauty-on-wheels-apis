@@ -1,4 +1,4 @@
-/** Outbound register request for EventBridge Scheduler (phase 2). */
+/** Outbound register request for EventBridge Scheduler. */
 export interface RegisterReminderJobRequest {
   runtimeTaskInstanceId: string;
   patientId: string;
@@ -8,7 +8,7 @@ export interface RegisterReminderJobRequest {
   correlationId?: string;
 }
 
-/** Outbound cancel request for EventBridge Scheduler (phase 2). */
+/** Outbound cancel request for EventBridge Scheduler. */
 export interface CancelReminderJobRequest {
   runtimeTaskInstanceId: string;
   patientId?: string;

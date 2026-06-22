@@ -575,8 +575,8 @@ functions:
       EventBridge Scheduler callback at reminder fire time.
       Invoked directly by the Scheduler as a Lambda target (no API Gateway).
       Delegates eligibility checks to TaskService; handles quiet hours and notification dispatch.
-    # No events block — invoked by EventBridge Scheduler via Lambda ARN (phase 2).
-    # The schedule is created programmatically by RegisterReminderJobsCommand when tasks are created.
+    # No events block — invoked by EventBridge Scheduler via Lambda ARN.
+    # Schedules are created programmatically by registerReminderJobs on META stream changes.
 
   # ──────────────────────────────────────────────────────────────────────────────
   # EventBridge consumers — monitoring action ingest (MonitoringActionRequested.v1).
@@ -668,3 +668,4 @@ functions:
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
   - ${file(./infra/resources/eventbridge-resources.yml)}
+  - ${file(./infra/resources/reminder-scheduler-resources.yml)}

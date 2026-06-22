@@ -1,0 +1,122 @@
+import {
+  ActionAfterCompletion,
+  CreateScheduleCommand,
+  DeleteScheduleCommand,
+  FlexibleTimeWindowMode,
+  ResourceNotFoundException,
+  UpdateScheduleCommand,
+} from '@aws-sdk/client-scheduler';
+
+import { EventBridgeSchedulerGateway } from './reminder-scheduler.gateway';
+import type { ReminderSchedulerGatewayConfig } from './reminder-scheduler.gateway';
+
+const config: ReminderSchedulerGatewayConfig = {
+  scheduleGroupName: 'default',
+  targetLambdaArn: 'arn:aws:lambda:us-east-1:123456789012:function:task-service-dev-processReminder',
+  targetRoleArn: 'arn:aws:iam::123456789012:role/reminder-scheduler-invoke',
+  region: 'us-east-1',
+};
+
+function futureMs(minutesAhead = 10): number {
+  return Date.now() + minutesAhead * 60_000;
+}
+
+describe('EventBridgeSchedulerGateway', () => {
+  const send = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  function gateway(): EventBridgeSchedulerGateway {
+    return new EventBridgeSchedulerGateway({ send } as never, config);
+  }
+
+  it('creates schedule when update returns ResourceNotFoundException', async () => {
+    send
+      .mockRejectedValueOnce(new ResourceNotFoundException({ message: 'not found', $metadata: {} }))
+      .mockResolvedValueOnce({});
+
+    await gateway().register({
+      runtimeTaskInstanceId: 'task-1',
+      patientId: 'pat-1',
+      orgId: 'org-1',
+      scheduledAt: futureMs(),
+      channel: 'push',
+      correlationId: 'corr-1',
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0][0]).toBeInstanceOf(UpdateScheduleCommand);
+    expect(send.mock.calls[1][0]).toBeInstanceOf(CreateScheduleCommand);
+
+    const createInput = (send.mock.calls[1][0] as CreateScheduleCommand).input;
+    expect(createInput.Name).toBe('task-reminder-task-1');
+    expect(createInput.GroupName).toBe('default');
+    expect(createInput.ActionAfterCompletion).toBe(ActionAfterCompletion.DELETE);
+    expect(createInput.FlexibleTimeWindow).toEqual({ Mode: FlexibleTimeWindowMode.OFF });
+    expect(createInput.Target?.Arn).toBe(config.targetLambdaArn);
+    expect(createInput.Target?.RoleArn).toBe(config.targetRoleArn);
+    expect(JSON.parse(createInput.Target?.Input ?? '{}')).toMatchObject({
+      runtimeTaskInstanceId: 'task-1',
+      patientId: 'pat-1',
+      orgId: 'org-1',
+      channel: 'push',
+      schedulerJobId: 'task-reminder-task-1',
+    });
+  });
+
+  it('updates schedule when it already exists', async () => {
+    send.mockResolvedValueOnce({});
+
+    await gateway().register({
+      runtimeTaskInstanceId: 'task-1',
+      patientId: 'pat-1',
+      orgId: 'org-1',
+      scheduledAt: futureMs(),
+      channel: 'push',
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toBeInstanceOf(UpdateScheduleCommand);
+  });
+
+  it('skips register when fire time is too soon', async () => {
+    await gateway().register({
+      runtimeTaskInstanceId: 'task-1',
+      patientId: 'pat-1',
+      orgId: 'org-1',
+      scheduledAt: Date.now() + 1_000,
+      channel: 'push',
+    });
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('deletes schedule on cancel', async () => {
+    send.mockResolvedValueOnce({});
+
+    await gateway().cancel({
+      runtimeTaskInstanceId: 'task-1',
+      patientId: 'pat-1',
+      orgId: 'org-1',
+      reason: 'remindersDisabled',
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const deleteInput = (send.mock.calls[0][0] as DeleteScheduleCommand).input;
+    expect(deleteInput.Name).toBe('task-reminder-task-1');
+    expect(deleteInput.GroupName).toBe('default');
+  });
+
+  it('treats missing schedule as successful cancel', async () => {
+    send.mockRejectedValueOnce(new ResourceNotFoundException({ message: 'not found', $metadata: {} }));
+
+    await expect(
+      gateway().cancel({
+        runtimeTaskInstanceId: 'task-1',
+        reason: 'taskTerminalState:completed',
+      }),
+    ).resolves.toBeUndefined();
+  });
+});

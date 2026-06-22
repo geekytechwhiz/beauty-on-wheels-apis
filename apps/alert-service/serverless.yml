@@ -10,6 +10,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - '@myvitalrx/mvrx-resource-registry'
 
 provider:
   name: aws
@@ -28,7 +29,7 @@ provider:
     apiGateway: true
 
   logRetentionInDays: 14
-  
+
   environment:
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
@@ -165,6 +166,13 @@ custom:
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
 
+  resourceRegistry:
+    enabled: true
+    include:
+      - dynamodb
+      - sqs
+    # exclude:
+    #   - sns
   alertDynamoTableName: alert-service-${self:provider.stage}
 
   # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here;
@@ -231,7 +239,6 @@ custom:
     swaggerPath: swagger
     excludeStages:
       - production
-      
 
   logLevel:
     dev: debug
@@ -277,11 +284,11 @@ functions:
           summary: Get upload URL for a file
           description: Get an upload URL for a file
           responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+            '200': OK
+            '400': Bad request
+            '401': Unauthorized
+            '403': Forbidden
+            '500': Server error
   getDownloadUrl:
     handler: src/handlers/http/getDownloadUrl.handler
     events:
@@ -292,9 +299,9 @@ functions:
           summary: Get download URL for a file
           description: Get a presigned download URL for a single file in a folder
           responses:
-            "200": OK
-            "400": Bad request
-            "500": Server error
+            '200': OK
+            '400': Bad request
+            '500': Server error
   listFiles:
     handler: src/handlers/http/listFiles.handler
     events:
@@ -305,9 +312,9 @@ functions:
           summary: List files in a folder
           description: List S3 objects under a folder prefix
           responses:
-            "200": OK
-            "400": Bad request
-            "500": Server error
+            '200': OK
+            '400': Bad request
+            '500': Server error
 
   # Postman → publish CreateAlert.v1 to alert bus (dev manual test; no authorizer).
   testPublishCreateAlertIngest:
@@ -328,21 +335,22 @@ functions:
           bodyType: CreateAlertRequest
           summary: Create alert
           description: Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "409": Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)
-            "422": Validation or business rule error
-            "500": Server error
+            '200': OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)
+            '400': Bad request
+            '401': Unauthorized
+            '403': Forbidden
+            '409': Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)
+            '422': Validation or business rule error
+            '500': Server error
 
   listAlerts:
     handler: src/handlers/http/listAlerts.main
@@ -401,11 +409,11 @@ functions:
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+            '200': OK
+            '400': Bad request
+            '401': Unauthorized
+            '403': Forbidden
+            '500': Server error
 
   getAlertMetadata:
     handler: src/handlers/http/getAlertMetadata.main
@@ -417,18 +425,19 @@ functions:
           description: >
             Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata
             registry is available. Organization scope from JWT; response is the same for all tenants.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+            '200': OK
+            '401': Unauthorized
+            '403': Forbidden
+            '500': Server error
 
   getAlert:
     handler: src/handlers/http/getAlert.main
@@ -438,19 +447,20 @@ functions:
           method: get
           summary: Get alert by id
           description: Alert detail for the authenticated organization (tenant from JWT only).
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+            '200': OK
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Not found
+            '500': Server error
 
   updateAlertWorkflow:
     handler: src/handlers/http/updateAlertWorkflow.main
@@ -463,19 +473,20 @@ functions:
             Command-style workflow for one alert. Body requires `action` (START_WORK, WAIT, RESUME, RESOLVE, DISMISS,
             or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is
             OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK — updated alert detail in envelope `data`
-            "400": Bad request (e.g. missing path context)
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Alert not found
+            '200': OK — updated alert detail in envelope `data`
+            '400': Bad request (e.g. missing path context)
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Alert not found
 
   updateAlertAssignment:
     handler: src/handlers/http/updateAlertAssignment.main
@@ -488,20 +499,21 @@ functions:
             Assignment actions for one or many alerts. Body requires `alertIds` and `action` (ASSIGN, REASSIGN, UNASSIGN, ASSIGN_TO_SELF).
             ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails,
             none are updated. Organization from JWT only.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Alert not found
-            "409": Not allowed from terminal state
-            "422": Validation error
+            '200': OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Alert not found
+            '409': Not allowed from terminal state
+            '422': Validation error
 
   updateAlertPriority:
     handler: src/handlers/http/updateAlertPriority.main
@@ -513,19 +525,20 @@ functions:
           description: >
             Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3).
             **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Alert not found
-            "422": Validation error
+            '200': OK — updated alert detail for single-select, or `{ alertIds }` for multi-select
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Alert not found
+            '422': Validation error
   addAlertNote:
     handler: src/handlers/http/addAlertNote.main
     events:
@@ -535,22 +548,23 @@ functions:
           summary: Add an operational note
           description: Add a note to the alert activity timeline. Organization comes from JWT.
           bodyType: NoteRequest
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "201": Created (NOTE_ADDED activity)
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "409": Illegal state transition (ILLEGAL_TRANSITION)
-            "422": Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)
-            "500": Server error
+            '201': Created (NOTE_ADDED activity)
+            '400': Bad request
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Not found
+            '409': Illegal state transition (ILLEGAL_TRANSITION)
+            '422': Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)
+            '500': Server error
 
   getAlertActivity:
     handler: src/handlers/http/getAlertActivity.main
@@ -562,19 +576,20 @@ functions:
           description: >
             Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query
             Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.
-          cors: *httpApiCors
-             # authorizer:
+          cors:
+            *httpApiCors
+            # authorizer:
           #   name: common_authorizer
           #   type: token
           #   identitySource: method.request.header.Authorization
           #   arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
           #   resultTtlInSeconds: 0
           responses:
-            "200": OK
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+            '200': OK
+            '401': Unauthorized
+            '403': Forbidden
+            '404': Not found
+            '500': Server error
 
   # ──────────────────────────────────────────────────────────────────────────────
   # EventBridge consumers — generic alert create ingest (CreateAlert.v1 envelope).
@@ -667,7 +682,7 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.X-Frame-Options: "'DENY'"
         ResponseTemplates:
-          application/json: "{\"success\":false,\"message\":$context.error.messageString,\"errorCode\":\"INVALID_TOKEN\",\"statusCode\":401}"
+          application/json: '{"success":false,"message":$context.error.messageString,"errorCode":"INVALID_TOKEN","statusCode":401}'
 
     AlertCreateConsumerDLQ:
       Type: AWS::SQS::Queue
@@ -721,7 +736,6 @@ resources:
         QueueName: ${self:provider.stage}-${self:service}-realtime-aggregation-dlq
         MessageRetentionPeriod: 1209600
 
-
     RealtimeAggregationQueue:
       Type: AWS::SQS::Queue
       Properties:
@@ -738,7 +752,6 @@ resources:
               - Arn
 
           maxReceiveCount: 3
-
 
     # OnThresholdBreachInvokePermission:
     #   Type: AWS::Lambda::Permission

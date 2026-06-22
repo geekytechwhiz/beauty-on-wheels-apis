@@ -94,6 +94,7 @@
     }
   },
   "devDependencies": {
+    "@myvitalrx/mvrx-resource-registry": "link:../../dist/tools/mvrx-resource-registry",
     "esbuild": "^0.19.2",
     "serverless": "^3.40.0",
     "serverless-auto-swagger": "^3.1.0",

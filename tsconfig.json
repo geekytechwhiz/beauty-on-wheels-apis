@@ -98,7 +98,12 @@
     },
     {
       "path": "./tools/eslint-plugin-mvrx"
-   
+    },
+    {
+      "path": "./tools/mvrx-resource-registry"
+    },
+    {
+      "path": "./mvrx-resource-registry"
     }
   ]
 }

@@ -1,4 +1,3 @@
- 
 import nx from '@nx/eslint-plugin';
 import { createJiti } from 'jiti';
 

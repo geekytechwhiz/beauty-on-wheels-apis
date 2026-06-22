@@ -5,6 +5,7 @@ export * from './lib/constants/task.constants';
 export * from './lib/errors/duplicate-task.error';
 export * from './lib/errors/task-http-errors';
 export * from './lib/mappers/task-http.dto';
+export * from './lib/models/api/check-reminder-fire-eligibility.types';
 export * from './lib/models/api/create-monitoring-action.request';
 export * from './lib/models/api/create-monitoring-action.types';
 export * from './lib/models/api/create-runtime-task.request';
@@ -31,6 +32,7 @@ export * from './lib/utils/task-state-transition';
 export * from './lib/utils/task-status-summary';
 export * from './lib/utils/reminder-settings';
 export * from './lib/utils/reminder-history';
+export * from './lib/utils/reminder-schedule';
 export * from './lib/utils/runtime-task-metadata';
 
 export {

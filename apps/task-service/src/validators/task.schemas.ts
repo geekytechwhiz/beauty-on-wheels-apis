@@ -139,6 +139,9 @@ export const updateReminderSettingsHttpBodySchema = z
       .object({
         channels: z.array(reminderChannelSchema).optional(),
         quietHoursRespected: z.boolean().optional(),
+        scheduleAnchor: z.enum(['dueWindowStart', 'dueWindowEnd']).optional(),
+        offsetMs: z.number().int().optional(),
+        quietHoursBufferMs: z.number().int().nonnegative().optional(),
       })
       .strict()
       .optional(),
@@ -191,3 +194,4 @@ export const updateRuntimeTaskHttpBodySchema = z
   });
 
 export type UpdateRuntimeTaskHttpBody = z.infer<typeof updateRuntimeTaskHttpBodySchema>;
+

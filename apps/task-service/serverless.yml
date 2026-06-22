@@ -568,15 +568,15 @@ functions:
                     S: [open, scheduled, active]
 
   processReminder:
-    handler: src/handlers/http/processReminder.main
+    handler: src/handlers/scheduler/processReminderConsumer.main
     timeout: 30
     memorySize: 256
-    description: Scheduler callback at reminder fire time; validates META eligibility and dispatches notification.
-    events:
-      - http:
-          path: internal/reminders/process
-          method: post
-          cors: false
+    description: >
+      EventBridge Scheduler callback at reminder fire time.
+      Invoked directly by the Scheduler as a Lambda target (no API Gateway).
+      Delegates eligibility checks to TaskService; handles quiet hours and notification dispatch.
+    # No events block — invoked by EventBridge Scheduler via Lambda ARN (phase 2).
+    # The schedule is created programmatically by RegisterReminderJobsCommand when tasks are created.
 
   # ──────────────────────────────────────────────────────────────────────────────
   # EventBridge consumers — monitoring action ingest (MonitoringActionRequested.v1).

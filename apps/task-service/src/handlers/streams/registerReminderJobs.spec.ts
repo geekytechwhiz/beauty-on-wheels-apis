@@ -6,6 +6,10 @@ import {
   setReminderSchedulerGatewayForTests,
 } from '../../reminder/reminder-scheduler.gateway';
 import type { ReminderSchedulerGateway } from '../../reminder/reminder-scheduler.types';
+import {
+  setQuietHoursProviderForTests,
+  type QuietHoursProvider,
+} from '../../reminder/quiet-hours.provider';
 import { handler, main } from './registerReminderJobs';
 
 jest.mock('@api-hub/observability', () => {
@@ -56,6 +60,10 @@ const lambdaContext = {
   getRemainingTimeInMillis: () => 300_000,
 } satisfies LambdaInvocationContext;
 
+const nullQuietHoursProvider: QuietHoursProvider = {
+  getForPatient: jest.fn().mockResolvedValue(null),
+};
+
 describe('registerReminderJobs', () => {
   const register = jest.fn().mockResolvedValue(undefined);
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
@@ -63,10 +71,12 @@ describe('registerReminderJobs', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setReminderSchedulerGatewayForTests(gateway);
+    setQuietHoursProviderForTests(nullQuietHoursProvider);
   });
 
   afterAll(() => {
     setReminderSchedulerGatewayForTests(undefined);
+    setQuietHoursProviderForTests(undefined);
   });
 
   it('exports main as handler', () => {

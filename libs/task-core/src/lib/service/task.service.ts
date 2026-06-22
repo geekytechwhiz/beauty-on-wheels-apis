@@ -3,6 +3,10 @@ import type { Logger } from '@api-hub/observability';
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type {
+  CheckReminderFireEligibilityInput,
+  CheckReminderFireEligibilityResult,
+} from '../models/api/check-reminder-fire-eligibility.types';
+import type {
   CompleteLinkedSourceObjectRequest,
   CompleteLinkedSourceObjectResult,
 } from '../models/api/complete-linked-source-object.request';
@@ -430,6 +434,38 @@ export class TaskService extends BaseTaskService {
         : {}),
       historyEntry: toTaskHistoryEntry(result.settingsChangeHist),
     };
+  }
+
+  /**
+   * Checks whether a scheduled reminder should be sent at fire time.
+   * Used by the EventBridge Scheduler callback Lambda.
+   *
+   * Throws when the task record is not found (retryable error for the scheduler).
+   * Returns `{ status: 'skipped', reason }` for soft-skip cases (reminders disabled,
+   * task in terminal state) so the caller can log and return without retrying.
+   */
+  async checkReminderFireEligibility(
+    input: CheckReminderFireEligibilityInput,
+  ): Promise<CheckReminderFireEligibilityResult> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    const meta = await this.repo.getMetaByLookup(lookup);
+    if (!meta) {
+      throw taskHttpError('Runtime task META not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (meta.reminderEnabled !== true) {
+      return { status: 'skipped', reason: 'remindersDisabled' };
+    }
+
+    if (!isReminderRegistrationEligible(meta.currentState)) {
+      return { status: 'skipped', reason: `taskTerminalState:${meta.currentState}` };
+    }
+
+    return { status: 'eligible', meta };
   }
 
   async updateTaskState(

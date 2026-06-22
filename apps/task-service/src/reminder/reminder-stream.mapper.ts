@@ -1,3 +1,9 @@
+import {
+  resolveReminderScheduleAt,
+  type PatientQuietWindow,
+  type ReminderScheduleAnchor,
+} from '@api-hub/task-core';
+
 import type {
   CancelReminderJobRequest,
   RegisterReminderJobRequest,
@@ -10,18 +16,21 @@ export type TaskMetaStreamImage = {
   orgId: string;
   patientId: string;
   reminderEnabled?: boolean;
-  reminderSettings?: { channels?: string[] };
+  reminderSettings?: {
+    channels?: string[];
+    quietHoursRespected?: boolean;
+    scheduleAnchor?: ReminderScheduleAnchor;
+    offsetMs?: number;
+    quietHoursBufferMs?: number;
+    [key: string]: unknown;
+  };
   currentState?: string;
   dueWindowStart?: number;
   dueWindowEnd?: number;
 };
 
-export function scheduledReminderAtFromMeta(meta: TaskMetaStreamImage): number {
-  return meta.dueWindowEnd ?? meta.dueWindowStart!;
-}
-
-export function primaryReminderChannel(meta: TaskMetaStreamImage): string {
-  return meta.reminderSettings?.channels?.[0]!;
+export function primaryReminderChannel(meta: TaskMetaStreamImage): string | undefined {
+  return meta.reminderSettings?.channels?.[0];
 }
 
 export function deriveCancelReason(meta: TaskMetaStreamImage): string {
@@ -35,17 +44,37 @@ export function deriveCancelReason(meta: TaskMetaStreamImage): string {
   return 'unknown';
 }
 
-/** Stream filters gate eligibility; processor maps META → scheduler request. */
+/**
+ * Maps META stream image to a register request for EventBridge Scheduler.
+ * Returns `null` when no due-window anchor can be resolved or no channel is configured.
+ */
 export function mapMetaToRegisterRequest(
   meta: TaskMetaStreamImage,
   correlationId?: string,
-): RegisterReminderJobRequest {
+  quietWindow?: PatientQuietWindow | null,
+): RegisterReminderJobRequest | null {
+  const channel = primaryReminderChannel(meta);
+  if (!channel) {
+    return null;
+  }
+
+  const resolved = resolveReminderScheduleAt(
+    meta.dueWindowStart,
+    meta.dueWindowEnd,
+    meta.reminderSettings,
+    quietWindow ?? null,
+  );
+
+  if (!resolved) {
+    return null;
+  }
+
   return {
     runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
     patientId: meta.patientId,
     orgId: meta.orgId,
-    scheduledAt: scheduledReminderAtFromMeta(meta),
-    channel: primaryReminderChannel(meta),
+    scheduledAt: resolved.scheduledAt,
+    channel,
     correlationId,
   };
 }

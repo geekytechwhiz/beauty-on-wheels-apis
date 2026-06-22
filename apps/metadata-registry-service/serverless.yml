@@ -191,6 +191,14 @@ functions:
           method: get
           cors: *defaultHttpCors
 
+  getMetadataChangeRequest:
+    handler: src/handlers/getChangeRequest.main
+    events:
+      - http:
+          path: metadata/change-requests/{changeRequestId}
+          method: get
+          cors: *defaultHttpCors
+
   patchMetadataRelation:
     handler: src/handlers/patchRelation.main
     events:

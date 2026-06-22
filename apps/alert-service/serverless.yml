@@ -59,6 +59,13 @@ provider:
   iamRoleStatements:
     - Effect: Allow
       Action:
+        - ssm:GetParametersByPath
+        - ssm:GetParameter
+        - ssm:GetParametersByPath
+      Resource: '*'
+        
+    - Effect: Allow
+      Action:
         - dynamodb:GetItem
         - dynamodb:PutItem
         - dynamodb:UpdateItem

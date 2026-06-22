@@ -39,10 +39,10 @@ provider:
     ALERT_TABLE: ${self:custom.alertDynamoTableName}
     LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
+    ERROR_MESSAGES_CDN_URL: ${ssm:/mvx/${self:provider.stage}/shared/error-messages-cdn-url}
     # Same base URLs as services/sso-integration `custom.stageUrls`.
-    USER_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.USER_SERVICE_BASE_URL}
-    ORGANIZATION_SERVICE_BASE_URL: ${self:custom.stageUrls.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+    USER_SERVICE_BASE_URL: ${ssm:/mvx/${self:provider.stage}/shared/user-service-base-url}
+    ORGANIZATION_SERVICE_BASE_URL: ${ssm:/mvx/${self:provider.stage}/shared/organization-service-base-url}
     USER_SERVICE_TIMEOUT_MS: '8000'
     ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
     ALERT_EVENT_BUS_NAME: ${self:custom.eventBusName}
@@ -175,11 +175,19 @@ custom:
 
   resourceRegistry:
     enabled: true
-    include:
-      - dynamodb
-      - sqs
+    platformOwner: platform-config
+    parameters:
+      NODEJS_RUNTIME:
+        value: nodejs22.x 
+      DEFAULT_AWS_REGION:
+        value: ${self:provider.region}
+    # include:
+    #   - AWS::DynamoDB::Table
+    #   - AWS::Events::EventBus
+    #   - AWS::SQS::Queue
+    #   - AWS::SNS::Topic
     # exclude:
-    #   - sns
+    #   - AWS::SNS::Topic
   alertDynamoTableName: alert-service-${self:provider.stage}
 
   # Inbound EventBridge bus owned by alert-service. Upstream producers PutEvents here;

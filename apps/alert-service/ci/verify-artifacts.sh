@@ -6,7 +6,10 @@ echo "======================================="
 echo "VERIFYING DEPLOYMENT ARTIFACTS"
 echo "======================================="
 
-SERVICE_DIR="$CODEBUILD_SRC_DIR/apps/alert-service"
+SERVICE_DIR="${CODEBUILD_SRC_DIR:-}/apps/alert-service"
+if [ ! -d "$SERVICE_DIR" ]; then
+  SERVICE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 
 cd "$SERVICE_DIR"
 

@@ -122,6 +122,39 @@ describe('upsertMetadataType (governed relation mapping)', () => {
     expect(mockCreateMetadataType).toHaveBeenCalledTimes(1);
   });
 
+  it('allows ServiceType ALLOWED_FOR → Specialty type configuration', async () => {
+    mockGetMetadataType.mockImplementation((code: string) => {
+      if (code === 'ServiceType') {
+        return Promise.resolve(null);
+      }
+      if (code === 'Specialty') {
+        return Promise.resolve(minimalType('Specialty'));
+      }
+      return Promise.resolve(null);
+    });
+
+    const created = minimalType('ServiceType', {
+      supportsRelations: true,
+      relationFieldLabel: 'Allowed Specialties',
+      targetMetadataTypeCode: 'Specialty',
+      selectionMode: 'MULTI',
+      relationRequired: false,
+      relationType: 'ALLOWED_FOR',
+    });
+    mockCreateMetadataType.mockResolvedValue(created);
+
+    const { upsertMetadataType } = await import('./metadata.service.js');
+
+    const body = relationBody('ServiceType', {
+      targetMetadataTypeCode: 'Specialty',
+      relationType: 'ALLOWED_FOR',
+      relationFieldLabel: 'Allowed Specialties',
+      selectionMode: 'MULTI',
+    });
+    await expect(upsertMetadataType(body)).resolves.toEqual(created);
+    expect(mockCreateMetadataType).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects update before persistence when merged relation pair is not governed', async () => {
     const existing = minimalType('Device', {
       supportsRelations: true,

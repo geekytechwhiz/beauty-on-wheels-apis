@@ -1,6 +1,11 @@
 export type ValueDataTypeSeed = 'Enum' | 'Numeric' | 'Boolean' | 'Text';
 
-export type RelationTypeSeed = 'PARENT_CHILD' | 'VALID_IN' | 'SUPPORTED_BY' | 'BELONGS_TO_CATEGORY';
+export type RelationTypeSeed =
+  | 'PARENT_CHILD'
+  | 'VALID_IN'
+  | 'SUPPORTED_BY'
+  | 'BELONGS_TO_CATEGORY'
+  | 'ALLOWED_FOR';
 
 export interface ValueApplicabilityConfigSeed {
   moduleScoped?: boolean;

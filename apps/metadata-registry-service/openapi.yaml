@@ -316,7 +316,7 @@ paths:
           name: relationType
           schema:
             type: string
-            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
         - in: query
           name: toType
           schema: { type: string }
@@ -362,6 +362,9 @@ paths:
         source value. Each group includes the source value label (`fromLabel`) and
         each related value includes its `label`. Related values are deduped per
         group by `metadataTypeCode` + `metadataValueCode`.
+
+        Example: `fromType=ServiceType&fromValue=CONSULTATION&relationType=ALLOWED_FOR&toType=Specialty`
+        returns allowed specialties for the consultation service type.
       parameters:
         - in: query
           name: fromType
@@ -386,7 +389,7 @@ paths:
           name: relationType
           schema:
             type: string
-            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
         - in: query
           name: toType
           schema: { type: string }
@@ -1212,7 +1215,7 @@ components:
 
     RelationType:
       type: string
-      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
     MetadataRelationRecord:
       type: object
       properties:

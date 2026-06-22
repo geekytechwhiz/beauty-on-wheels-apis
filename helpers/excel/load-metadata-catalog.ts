@@ -33,6 +33,15 @@ const CONDITION_CATEGORY_RELATIONS: Record<string, string> = {
   ANNUAL_WELLNESS: 'WELLNESS',
 };
 
+/**
+ * ServiceType → Specialty edges applied when matching ServiceType value codes exist in Excel.
+ * Add rows here as catalog codes are confirmed; skipped when the ServiceType value is absent.
+ */
+export const SERVICE_TYPE_SPECIALTY_RELATIONS: Record<string, string[]> = {
+  CONSULTATION: ['CARDIOLOGY', 'ENDOCRINOLOGY'],
+  PROCEDURE: ['SURGERY'],
+};
+
 const METRIC_VALUE_ATTRIBUTES: Record<string, Record<string, unknown>> = {
   BP_SYSTOLIC: {
     dataType: 'Numeric',
@@ -534,6 +543,17 @@ function promoteToRichValues(
     });
   }
 
+  for (const [serviceTypeCode, specialtyCodes] of Object.entries(SERVICE_TYPE_SPECIALTY_RELATIONS)) {
+    const seed = valuesByType.get('ServiceType')?.find((v) => v.metadataValueCode === serviceTypeCode);
+    if (!seed) {
+      continue;
+    }
+    promote('ServiceType', serviceTypeCode, {
+      ...seed,
+      relationships: specialtyCodes.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
+    });
+  }
+
   for (const seed of valuesByType.get('MetricCode') ?? []) {
     const attrs = METRIC_VALUE_ATTRIBUTES[seed.metadataValueCode];
     if (!attrs) {
@@ -623,6 +643,7 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
     City: 'State',
     Currency: 'Country',
     Device: 'Vital',
+    ServiceType: 'Specialty',
     MetricCode: ['DataSourceType', 'EvaluationLogic', 'QuestionType'],
     QuestionCode: 'QuestionType',
   };

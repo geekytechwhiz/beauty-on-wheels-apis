@@ -126,7 +126,8 @@
     "ts-morph": "^28.0.0",
     "ulid": "^3.0.2",
     "winston": "^3.19.0",
-    "zod": "^4.2.1"
+    "zod": "^4.2.1",
+    "@myvitalrx/mvrx-resource-registry": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",

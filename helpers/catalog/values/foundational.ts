@@ -33,18 +33,4 @@ export const FOUNDATIONAL_VALUES: Record<string, SimpleValueSeed[]> = {
     global('ES', 'Spanish', 2),
     global('HI', 'Hindi', 3),
   ],
-  Specialty: [
-    global('CARDIOLOGY', 'Cardiology', 1),
-    global('ENDOCRINOLOGY', 'Endocrinology', 2),
-    global('HEMATOLOGY', 'Hematology', 3),
-    global('NEPHROLOGY', 'Nephrology', 4),
-    global('PULMONOLOGY', 'Pulmonology', 5),
-    global('RHEUMATOLOGY', 'Rheumatology', 6),
-    global('FAMILY_MEDICINE', 'Family Medicine', 7),
-    global('INTERNAL_MEDICINE', 'Internal Medicine', 8),
-    global('OBS_GYN', 'Obs & Gyn', 9),
-    global('SURGERY', 'Surgery', 10),
-    global('DERMATOLOGY', 'Dermatology', 11),
-    global('PSYCHIATRIC', 'Psychiatric', 12),
-  ],
 };

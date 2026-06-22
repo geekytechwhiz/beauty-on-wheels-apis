@@ -18,7 +18,7 @@
  * Re-seed with TREAT_CONFLICT_AS_SUCCESS=true skips existing entities.
  *
  * Scoped seed (selected types + their values only):
- *   $env:METADATA_TYPE_CODES="Department,Specialty"; pnpm seed:metadata
+ *   $env:METADATA_TYPE_CODES="Department,Speciality"; pnpm seed:metadata
  *   Prerequisite values (e.g. ApplicableModule TEMPLATE) are hydrated from the API before Phase 2.
  *
  * After each run, JSON + CSV reports are written under scripts/metadata-registry-seed/reports/

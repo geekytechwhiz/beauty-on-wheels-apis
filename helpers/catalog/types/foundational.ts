@@ -40,7 +40,4 @@ export const FOUNDATIONAL_TYPE_DEFINITIONS: MetadataTypeSeedDefinition[] = [
   enumType('Language', 'Language', true, {
     description: 'Platform-supported languages',
   }),
-  enumType('Specialty', 'Specialty', true, {
-    description: 'Clinical specialties',
-  }),
 ];

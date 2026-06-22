@@ -59,11 +59,11 @@ describe('validateValueRelationshipsPayload', () => {
     ).toThrow(/SINGLE/);
   });
 
-  it('allows multiple targets in MULTI mode (ServiceType → Specialty)', () => {
+  it('allows multiple targets in MULTI mode (ServiceType → Speciality)', () => {
     const t: MetadataTypeRecord = {
       ...baseType(),
       metadataTypeCode: 'ServiceType',
-      targetMetadataTypeCode: 'Specialty',
+      targetMetadataTypeCode: 'Speciality',
       selectionMode: 'MULTI',
       relationRequired: false,
       relationType: 'ALLOWED_FOR',
@@ -79,7 +79,7 @@ describe('validateValueRelationshipsPayload', () => {
 });
 
 describe('syncMetadataValueRelationships (ALLOWED_FOR)', () => {
-  it('creates ServiceType → Specialty relation rows with ALLOWED_FOR sort keys', async () => {
+  it('creates ServiceType → Speciality relation rows with ALLOWED_FOR sort keys', async () => {
     const typeRecord: MetadataTypeRecord = {
       metadataTypeCode: 'ServiceType',
       version: 1,
@@ -88,8 +88,8 @@ describe('syncMetadataValueRelationships (ALLOWED_FOR)', () => {
       multiSelectAllowed: true,
       applicableModules: ['SERVICE'],
       supportsRelations: true,
-      relationFieldLabel: 'Allowed Specialties',
-      targetMetadataTypeCode: 'Specialty',
+      relationFieldLabel: 'Allowed Specialities',
+      targetMetadataTypeCode: 'Speciality',
       selectionMode: 'MULTI',
       relationRequired: false,
       relationType: 'ALLOWED_FOR',
@@ -112,13 +112,13 @@ describe('syncMetadataValueRelationships (ALLOWED_FOR)', () => {
       if (typeCode === 'ServiceType' && code === 'CONSULTATION') {
         return Promise.resolve({ valueCode: code, status: STATUS.ACTIVE, label: 'Consultation' });
       }
-      if (typeCode === 'Specialty') {
+      if (typeCode === 'Speciality') {
         return Promise.resolve({ valueCode: code, status: STATUS.ACTIVE, label: code });
       }
       return Promise.resolve(null);
     });
     const mockGetMetadataType = jest.fn().mockImplementation((code: string) => {
-      if (code === 'ServiceType' || code === 'Specialty') {
+      if (code === 'ServiceType' || code === 'Speciality') {
         return Promise.resolve({ metadataTypeCode: code, status: STATUS.ACTIVE });
       }
       return Promise.resolve(null);
@@ -150,12 +150,12 @@ describe('syncMetadataValueRelationships (ALLOWED_FOR)', () => {
       relationType: 'ALLOWED_FOR',
       fromMetadataTypeCode: 'ServiceType',
       fromMetadataValueCode: 'CONSULTATION',
-      toMetadataTypeCode: 'Specialty',
+      toMetadataTypeCode: 'Speciality',
       toMetadataValueCode: 'CARDIOLOGY',
     });
     expect(
-      relationSortKey('ALLOWED_FOR', 'Specialty', 'CARDIOLOGY'),
-    ).toBe('ALLOWED_FOR#Specialty#CARDIOLOGY');
+      relationSortKey('ALLOWED_FOR', 'Speciality', 'CARDIOLOGY'),
+    ).toBe('ALLOWED_FOR#Speciality#CARDIOLOGY');
     expect(relationPartitionKey('ServiceType', 'CONSULTATION')).toBe(
       'RELATION#ServiceType#CONSULTATION',
     );

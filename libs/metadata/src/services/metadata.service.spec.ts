@@ -122,13 +122,13 @@ describe('upsertMetadataType (governed relation mapping)', () => {
     expect(mockCreateMetadataType).toHaveBeenCalledTimes(1);
   });
 
-  it('allows ServiceType ALLOWED_FOR → Specialty type configuration', async () => {
+  it('allows ServiceType ALLOWED_FOR → Speciality type configuration', async () => {
     mockGetMetadataType.mockImplementation((code: string) => {
       if (code === 'ServiceType') {
         return Promise.resolve(null);
       }
-      if (code === 'Specialty') {
-        return Promise.resolve(minimalType('Specialty'));
+      if (code === 'Speciality') {
+        return Promise.resolve(minimalType('Speciality'));
       }
       return Promise.resolve(null);
     });
@@ -136,7 +136,7 @@ describe('upsertMetadataType (governed relation mapping)', () => {
     const created = minimalType('ServiceType', {
       supportsRelations: true,
       relationFieldLabel: 'Allowed Specialties',
-      targetMetadataTypeCode: 'Specialty',
+      targetMetadataTypeCode: 'Speciality',
       selectionMode: 'MULTI',
       relationRequired: false,
       relationType: 'ALLOWED_FOR',
@@ -146,7 +146,7 @@ describe('upsertMetadataType (governed relation mapping)', () => {
     const { upsertMetadataType } = await import('./metadata.service.js');
 
     const body = relationBody('ServiceType', {
-      targetMetadataTypeCode: 'Specialty',
+      targetMetadataTypeCode: 'Speciality',
       relationType: 'ALLOWED_FOR',
       relationFieldLabel: 'Allowed Specialties',
       selectionMode: 'MULTI',

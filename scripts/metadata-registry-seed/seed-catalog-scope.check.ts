@@ -28,12 +28,12 @@ function run(): void {
   assert(one.typeDependencyOrder[0] === 'Department', 'expected Department type');
   assert(countSeedValues(one) === 0, 'Department has no values in Excel');
 
-  process.env.METADATA_TYPE_CODES = 'Department,Specialty';
+  process.env.METADATA_TYPE_CODES = 'Department,Speciality';
   resetMetadataCatalogCache();
   const two = resolveSeedCatalogScope();
-  assert(two.selectedTypeCodes.join(',') === 'Department,Specialty', 'preserve env order in log');
+  assert(two.selectedTypeCodes.join(',') === 'Department,Speciality', 'preserve env order in log');
   assert(two.typeDependencyOrder.length === 2, 'expected 2 filtered types');
-  assert(countSeedValues(two) > 0, 'Specialty should contribute values');
+  assert(countSeedValues(two) > 0, 'Speciality should contribute values');
 
   console.log('seed-catalog-scope.check.ts: all assertions passed');
 }

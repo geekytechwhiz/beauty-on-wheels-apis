@@ -27,15 +27,15 @@ describe('relation-keys', () => {
       toMetadataTypeCode: 'Vital',
       toMetadataValueCode: 'BP_SYSTOLIC',
     });
-    expect(parseRelationSortKey('ALLOWED_FOR#Specialty#CARDIOLOGY')).toEqual({
+    expect(parseRelationSortKey('ALLOWED_FOR#Speciality#CARDIOLOGY')).toEqual({
       skPrefix: 'ALLOWED_FOR',
-      toMetadataTypeCode: 'Specialty',
+      toMetadataTypeCode: 'Speciality',
       toMetadataValueCode: 'CARDIOLOGY',
     });
   });
 
   it('builds ALLOWED_FOR sort keys', () => {
-    const sk = relationSortKey('ALLOWED_FOR', 'Specialty', 'CARDIOLOGY');
-    expect(sk).toBe('ALLOWED_FOR#Specialty#CARDIOLOGY');
+    const sk = relationSortKey('ALLOWED_FOR', 'Speciality', 'CARDIOLOGY');
+    expect(sk).toBe('ALLOWED_FOR#Speciality#CARDIOLOGY');
   });
 });

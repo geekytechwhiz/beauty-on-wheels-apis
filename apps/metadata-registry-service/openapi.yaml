@@ -363,7 +363,7 @@ paths:
         each related value includes its `label`. Related values are deduped per
         group by `metadataTypeCode` + `metadataValueCode`.
 
-        Example: `fromType=ServiceType&fromValue=CONSULTATION&relationType=ALLOWED_FOR&toType=Specialty`
+        Example: `fromType=ServiceType&fromValue=CONSULTATION&relationType=ALLOWED_FOR&toType=Speciality`
         returns allowed specialties for the consultation service type.
       parameters:
         - in: query

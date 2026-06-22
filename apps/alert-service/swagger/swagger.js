@@ -29,27 +29,21 @@
     "/alerts/workflow": {
       "post": {
         "summary": "Apply alert workflow command",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Command-style workflow for one alert. Body requires `action` (START_WORK, WAIT, RESUME, RESOLVE, DISMISS, or aliases ASSIGN, MOVE_TO_WAITING, RESUME_WORK). RESOLVE/DISMISS require `reasonCode`; when reasonCode is OTHER, `comment` or `closureComment` is required. ASSIGN requires `assignedToUserId`. Organization from JWT only.\n",
+        "operationId": "updateAlertWorkflow.post.alerts/workflow",
+        "consumes": [
+          "application/json"
         ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/WorkflowRequest"
-            }
-          }
+        "produces": [
+          "application/json"
         ],
+        "parameters": [],
         "responses": {
           "200": {
-            "description": "OK — updated alert detail when single-select; otherwise mutation summary",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeAlertDetail"
-            }
+            "description": "OK — updated alert detail in envelope `data`"
+          },
+          "400": {
+            "description": "Bad request (e.g. missing path context)"
           },
           "401": {
             "description": "Unauthorized"
@@ -58,13 +52,7 @@
             "description": "Forbidden"
           },
           "404": {
-            "description": "Not found"
-          },
-          "409": {
-            "description": "Illegal transition"
-          },
-          "422": {
-            "description": "Validation error"
+            "description": "Alert not found"
           }
         }
       }
@@ -72,27 +60,18 @@
     "/alerts/assignment": {
       "post": {
         "summary": "Apply alert assignment action",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Assignment actions for one or many alerts. Body requires `alertIds` and `action` (ASSIGN, REASSIGN, UNASSIGN, ASSIGN_TO_SELF). ASSIGN/REASSIGN require `assignToUserId`. ASSIGN_TO_SELF derives assignee from JWT. **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.\n",
+        "operationId": "updateAlertAssignment.post.alerts/assignment",
+        "consumes": [
+          "application/json"
         ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/AssignmentRequestBody"
-            }
-          }
+        "produces": [
+          "application/json"
         ],
+        "parameters": [],
         "responses": {
           "200": {
-            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeAlertDetail"
-            }
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select"
           },
           "401": {
             "description": "Unauthorized"
@@ -101,10 +80,10 @@
             "description": "Forbidden"
           },
           "404": {
-            "description": "Not found"
+            "description": "Alert not found"
           },
           "409": {
-            "description": "Terminal state conflict"
+            "description": "Not allowed from terminal state"
           },
           "422": {
             "description": "Validation error"
@@ -115,27 +94,18 @@
     "/alerts/priority": {
       "patch": {
         "summary": "Update alert priority",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Priority update for one or many alerts. Body requires `alertIds` and `priority` (P0..P3). **All-or-nothing**: if any alert fails, none are updated. Organization from JWT only.\n",
+        "operationId": "updateAlertPriority.patch.alerts/priority",
+        "consumes": [
+          "application/json"
         ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/PriorityUpdateRequestBody"
-            }
-          }
+        "produces": [
+          "application/json"
         ],
+        "parameters": [],
         "responses": {
           "200": {
-            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeAlertDetail"
-            }
+            "description": "OK — updated alert detail for single-select, or `{ alertIds }` for multi-select"
           },
           "401": {
             "description": "Unauthorized"
@@ -144,7 +114,7 @@
             "description": "Forbidden"
           },
           "404": {
-            "description": "Not found"
+            "description": "Alert not found"
           },
           "422": {
             "description": "Validation error"
@@ -155,133 +125,119 @@
     "/alerts": {
       "get": {
         "summary": "List alerts (Team, My, or Patient)",
-        "description": "Use `queue=TEAM` (default), `MY`, or `PATIENT`. For `queue=PATIENT` you must pass `patientId`. For `TEAM` or `MY`, omit `patientId` (patient timeline is `queue=PATIENT` only). Tenant/org scope comes from the JWT; results are filtered to that organization.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Use query `queue=TEAM` (default), `MY`, or `PATIENT`. For `queue=PATIENT`, `patientId` is required. For `TEAM` or `MY`, do not send `patientId` (patient timeline uses `queue=PATIENT` only). Organization scope from JWT; results are restricted to that org.\n",
+        "operationId": "listAlerts.get.alerts",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
         ],
         "parameters": [
           {
+            "in": "query",
             "name": "queue",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "enum": [
-              "TEAM",
-              "MY",
-              "PATIENT"
-            ],
-            "default": "TEAM",
-            "description": "`PATIENT` requires query param `patientId`."
+            "description": "TEAM (default), MY, or PATIENT",
+            "required": false
           },
           {
+            "in": "query",
             "name": "patientId",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "x-example": "pat-123",
-            "description": "Required when queue=PATIENT; must be omitted for TEAM and MY."
+            "description": "Required when queue=PATIENT; omit for TEAM and MY",
+            "required": false
           },
           {
+            "in": "query",
             "name": "state",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "enum": [
-              "UNASSIGNED",
-              "ASSIGNED",
-              "IN_PROGRESS",
-              "WAITING",
-              "RESOLVED",
-              "DISMISSED"
-            ],
-            "description": "Filter by alert workflow / UI status (same as alertState)."
+            "description": "Filter by alert workflow/UI state — UNASSIGNED, ASSIGNED, IN_PROGRESS, WAITING, RESOLVED, DISMISSED",
+            "required": false
           },
           {
+            "in": "query",
             "name": "priority",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "type": "string",
+            "required": false
           },
           {
+            "in": "query",
             "name": "inputType",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "type": "string",
+            "required": false
           },
           {
+            "in": "query",
             "name": "assignment",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "x-example": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
-            "description": "Assignee user id; returns alerts whose assignedToUserId matches (omit to not filter by assignee)."
+            "description": "Assignee user id to filter by (persisted assignedToUserId — same id as workflow ASSIGN)",
+            "required": false
           },
           {
+            "in": "query",
             "name": "dateFrom",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "format": "date-time"
+            "required": false
           },
           {
+            "in": "query",
             "name": "dateTo",
-            "in": "query",
-            "required": false,
             "type": "string",
-            "format": "date-time"
+            "required": false
           },
           {
+            "in": "query",
             "name": "search",
-            "in": "query",
-            "required": false,
-            "type": "string"
+            "type": "string",
+            "required": false
           },
           {
+            "in": "query",
             "name": "pageSize",
-            "in": "query",
-            "required": false,
             "type": "integer",
-            "default": 20
+            "required": false
           },
           {
-            "name": "nextToken",
             "in": "query",
-            "required": false,
-            "type": "string"
+            "name": "nextToken",
+            "type": "string",
+            "required": false
           }
         ],
         "responses": {
           "200": {
-            "description": "OK — list payload in standard success envelope (`data.items` are AlertDetail)",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopePaginatedAlerts"
-            }
+            "description": "OK"
           },
           "400": {
-            "description": "Bad request — e.g. `queue=PATIENT` without `patientId`, or `patientId` with `TEAM`/`MY`"
+            "description": "Bad request"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       },
       "post": {
-        "summary": "Create alert (required: inputEventId, inputType, sourceType, patientId, triggerTimestamp, evidencePayload)",
-        "description": "Request body example shown in Swagger is **MISSED_READING** (see model `CreateAlertRequest`). For **MISSING_DEVICE**, align body with `EvidenceMissingDevice` example on that model (and matching `sourceType` / `evidencePayload.source`).",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "summary": "Create alert",
+        "description": "Requires `inputEventId` (client/UI idempotency key), `inputType`, `sourceType`, `patientId`, `triggerTimestamp`, and `evidencePayload`. Organization scope is taken from the JWT only, not the body.",
+        "operationId": "createAlert.post.alerts",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
         ],
         "parameters": [
           {
             "in": "body",
             "name": "body",
+            "description": "Body required in the request",
             "required": true,
             "schema": {
               "$ref": "#/definitions/CreateAlertRequest"
@@ -290,10 +246,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK — AlertDetail in `data` for new alert or same-org idempotent replay (HTTP 200 for both)",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeAlertDetail"
-            }
+            "description": "OK — AlertDetail in envelope (new alert or same-org idempotent replay on inputEventId)"
           },
           "400": {
             "description": "Bad request"
@@ -305,7 +258,7 @@
             "description": "Forbidden"
           },
           "409": {
-            "description": "Conflict — e.g. IDEMPOTENCY_KEY_IN_USE (different org owns inputEventId); same-org replay uses 200"
+            "description": "Conflict (e.g. IDEMPOTENCY_KEY_IN_USE for different org)"
           },
           "422": {
             "description": "Validation or business rule error"
@@ -319,11 +272,13 @@
     "/alerts/{alertId}": {
       "get": {
         "summary": "Get alert by id",
-        "description": "Returns AlertDetail with epoch-ms instants in the standard success envelope.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Alert detail for the authenticated organization (tenant from JWT only).",
+        "operationId": "getAlert.get.alerts/{alertId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
         ],
         "parameters": [
           {
@@ -335,10 +290,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeAlertDetail"
-            }
+            "description": "OK"
           },
           "401": {
             "description": "Unauthorized"
@@ -348,6 +300,9 @@
           },
           "404": {
             "description": "Not found"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }
@@ -355,55 +310,13 @@
     "/alerts/{alertId}/activity": {
       "get": {
         "summary": "Get alert activity timeline",
-        "description": "Activity list for the alert (newest first). Query `notesOnly=true`|`false` (`true` = NOTE_ADDED only).",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "description": "Activity / audit list for the alert (newest first; no pagination). Tenant from JWT only. Optional query Optional query `notesOnly=true` or `false` (`true` = NOTE_ADDED only). 404 when alert not found for org.\n",
+        "operationId": "getAlertActivity.get.alerts/{alertId}/activity",
+        "consumes": [
+          "application/json"
         ],
-        "parameters": [
-          {
-            "name": "alertId",
-            "in": "path",
-            "required": true,
-            "type": "string",
-            "x-example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-          },
-          {
-            "name": "notesOnly",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "enum": [
-              "true",
-              "false"
-            ],
-            "description": "`true` — NOTE_ADDED only; `false` or omit — full timeline."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK — activity rows in response body `data.items`",
-            "schema": {
-              "$ref": "#/definitions/SuccessEnvelopeActivityList"
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Alert not found"
-          }
-        }
-      }
-    },
-    "/alerts/{alertId}/notes": {
-      "post": {
-        "summary": "Add an operational note",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "produces": [
+          "application/json"
         ],
         "parameters": [
           {
@@ -411,19 +324,11 @@
             "in": "path",
             "required": true,
             "type": "string"
-          },
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/NoteRequest"
-            }
           }
         ],
         "responses": {
-          "201": {
-            "description": "Created"
+          "200": {
+            "description": "OK"
           },
           "401": {
             "description": "Unauthorized"
@@ -434,8 +339,202 @@
           "404": {
             "description": "Not found"
           },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/alerts/{alertId}/notes": {
+      "post": {
+        "summary": "Add an operational note",
+        "description": "Add a note to the alert activity timeline. Organization comes from JWT.",
+        "operationId": "addAlertNote.post.alerts/{alertId}/notes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NoteRequest"
+            }
+          },
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created (NOTE_ADDED activity)"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Illegal state transition (ILLEGAL_TRANSITION)"
+          },
           "422": {
-            "description": "Validation error"
+            "description": "Validation (body, reason codes, OTHER without comment, MISSING_REASON_CODE)"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/upload-url": {
+      "post": {
+        "summary": "Get upload URL for a file",
+        "description": "Get an upload URL for a file",
+        "operationId": "getUploadUrl.post.upload-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UploadUrlRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/download-url": {
+      "post": {
+        "summary": "Get download URL for a file",
+        "description": "Get a presigned download URL for a single file in a folder",
+        "operationId": "getDownloadUrl.post.download-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/list-files": {
+      "get": {
+        "summary": "List files in a folder",
+        "description": "List S3 objects under a folder prefix",
+        "operationId": "listFiles.get.list-files",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/dev/events/ingest/create-alert": {
+      "post": {
+        "summary": "testPublishCreateAlertIngest",
+        "description": "",
+        "operationId": "testPublishCreateAlertIngest.post.dev/events/ingest/create-alert",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/alerts/metadata": {
+      "get": {
+        "summary": "Alert UI metadata (workaround)",
+        "description": "Static lists for priorities, workflow statuses, resolve reasons, and dismiss reasons until a metadata registry is available. Organization scope from JWT; response is the same for all tenants.\n",
+        "operationId": "getAlertMetadata.get.alerts/metadata",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
           }
         }
       }

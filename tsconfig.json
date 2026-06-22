@@ -101,9 +101,6 @@
     },
     {
       "path": "./tools/mvrx-resource-registry"
-    },
-    {
-      "path": "./mvrx-resource-registry"
     }
   ]
 }

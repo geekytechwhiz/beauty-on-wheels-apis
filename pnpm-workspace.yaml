@@ -10,7 +10,6 @@ packages:
   - 'event-platform'
   - 'packages/eslint-mavrix'
   - 'tools'
-  - 'mvrx-resource-registry'
 allowBuilds:
   '@parcel/watcher': true
   '@scarf/scarf': true

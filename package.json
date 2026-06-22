@@ -61,7 +61,8 @@
     "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
     "validate:policy:staged": "tsx tools/mvrx-policy-validator/src/validate-staged.ts",
     "validate:policy:affected": "tsx tools/mvrx-policy-validator/src/index.ts --only-changed",
-    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
+    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
+    "publish:resource-registry": "nx build mvrx-resource-registry && cd dist/tools/mvrx-resource-registry && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --userconfig=../../../.npmrc"
   },
   "private": true,
   "engines": {
@@ -83,12 +84,14 @@
     "@aws-sdk/client-secrets-manager": "^3.966.0",
     "@aws-sdk/client-sns": "^3.958.0",
     "@aws-sdk/client-sqs": "^3.1001.0",
+    "@aws-sdk/client-ssm": "^3.1062.0",
     "@aws-sdk/lib-dynamodb": "^3.958.0",
     "@aws-sdk/s3-request-presigner": "3.1054.0",
     "@aws-sdk/util-dynamodb": "^3.958.0",
     "@babel/parser": "^7.29.2",
     "@babel/traverse": "^7.29.0",
     "@middy/http-cors": "^7.0.2",
+    "@myvitalrx/mvrx-resource-registry": "^0.0.4",
     "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/object-path": "^0.11.4",
@@ -126,8 +129,7 @@
     "ts-morph": "^28.0.0",
     "ulid": "^3.0.2",
     "winston": "^3.19.0",
-    "zod": "^4.2.1",
-    "@myvitalrx/mvrx-resource-registry": "^0.0.2"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",

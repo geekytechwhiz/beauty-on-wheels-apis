@@ -1,7 +1,6 @@
 Effect: Allow
 Action:
   - iam:PassRole
+# Static ARN — matches RoleName on ReminderSchedulerInvokeRole; avoids CF cycle via IamRoleLambdaExecution.
 Resource:
-  - Fn::GetAtt:
-      - ReminderSchedulerInvokeRole
-      - Arn
+  - arn:aws:iam:${self:provider.region}:${aws:accountId}:role/${self:provider.stage}-${self:service}-reminder-scheduler-invoke

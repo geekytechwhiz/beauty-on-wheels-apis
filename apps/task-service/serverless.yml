@@ -39,8 +39,6 @@ provider:
   iamRoleStatements:
     - ${file(./infra/permissions/dynamodb.yml)}
     - ${file(./infra/permissions/dynamodb-stream.yml)}
-    - ${file(./infra/permissions/scheduler.yml)}
-    - ${file(./infra/permissions/scheduler-passrole.yml)}
     - ${file(./infra/permissions/eventbridge.yml)}
     - ${file(./infra/permissions/sqs-dlq.yml)}
     - ${file(./infra/permissions/xray.yml)}
@@ -497,6 +495,12 @@ functions:
     timeout: 30
     memorySize: 256
     description: Registers reminder schedules when reminders are enabled on create or turned on.
+    environment: ${file(./infra/environments/reminder-scheduler-function-env.yml)}
+    iam:
+      role:
+        statements:
+          - ${file(./infra/permissions/scheduler.yml)}
+          - ${file(./infra/permissions/scheduler-passrole.yml)}
     events:
       - stream:
           type: dynamodb
@@ -534,6 +538,12 @@ functions:
     timeout: 30
     memorySize: 256
     description: Cancels reminder schedules when reminders are disabled or task is completed, dismissed, or cancelled.
+    environment: ${file(./infra/environments/reminder-scheduler-function-env.yml)}
+    iam:
+      role:
+        statements:
+          - ${file(./infra/permissions/scheduler.yml)}
+          - ${file(./infra/permissions/scheduler-passrole.yml)}
     events:
       - stream:
           type: dynamodb

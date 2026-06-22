@@ -18,10 +18,10 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
+                # Static ARN — Fn::GetAtt ProcessReminderLambdaFunction creates a CF circular dependency
+                # with IamRoleLambdaExecution (PassRole) and provider-wide scheduler env vars.
                 Resource:
-                  Fn::GetAtt:
-                    - ProcessReminderLambdaFunction
-                    - Arn
+                  - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-processReminder
       Tags:
         - Key: Service
           Value: ${self:service}

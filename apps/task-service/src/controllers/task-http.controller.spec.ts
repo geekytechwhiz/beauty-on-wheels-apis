@@ -68,7 +68,7 @@ jest.mock('@api-hub/task-core', () => {
   };
 });
 
-import { TaskHttpController } from './task-http.controller';
+import { TaskHttpController, getTaskHttpController } from './task-http.controller';
 
 function baseEvent(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEvent {
   return {
@@ -742,5 +742,140 @@ describe('TaskHttpController', () => {
       reason: 'Portal edit',
       patch: { displayTitle: 'Updated title' },
     });
+  });
+
+  it('getTaskHttpController returns singleton controller', () => {
+    const first = getTaskHttpController();
+    const second = getTaskHttpController();
+    expect(first).toBe(second);
+    expect(first).toBeInstanceOf(TaskHttpController);
+  });
+
+  describe('logger missing guards', () => {
+    const noLoggerContext = {
+      correlationId: 'c1',
+      awsRequestId: 'a1',
+      logger: undefined as unknown as any,
+      authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+    };
+
+    it.each([
+      ['handleCreateRuntimeTask', (c: TaskHttpController, req: LambdaRequest) => c.handleCreateRuntimeTask(req)],
+      ['handleGetRuntimeTask', (c: TaskHttpController, req: LambdaRequest) => c.handleGetRuntimeTask(req)],
+      ['handleUpdateAssignedStaff', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateAssignedStaff(req)],
+      ['handleGetTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGetTasks(req)],
+      ['handleGetStaffTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGetStaffTasks(req)],
+      ['handleGetActionCenterItems', (c: TaskHttpController, req: LambdaRequest) => c.handleGetActionCenterItems(req)],
+      ['handleGetRuntimeTaskHistory', (c: TaskHttpController, req: LambdaRequest) => c.handleGetRuntimeTaskHistory(req)],
+      ['handleGenerateCarePlanTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGenerateCarePlanTasks(req)],
+      ['handleUpdateTaskState', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateTaskState(req)],
+      ['handleGetTaskStatusSummary', (c: TaskHttpController, req: LambdaRequest) => c.handleGetTaskStatusSummary(req)],
+      ['handleUpdateRuntimeTask', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateRuntimeTask(req)],
+      ['handleUpdateReminderSettings', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateReminderSettings(req)],
+    ])('%s throws 500 when logger missing', async (_name, invoke) => {
+      const c = new TaskHttpController();
+      const req = baseReq({ context: noLoggerContext });
+      await expect(invoke(c, req)).rejects.toMatchObject({ statusCode: 500, code: 'INTERNAL_ERROR' });
+    });
+  });
+
+  describe('missing validated payload guards', () => {
+    it('handleUpdateAssignedStaff throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleUpdateAssignedStaff(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleGetStaffTasks throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleGetStaffTasks(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleGetActionCenterItems throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleGetActionCenterItems(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleUpdateTaskState throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleUpdateTaskState(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleUpdateReminderSettings throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleUpdateReminderSettings(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleGetTaskStatusSummary throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleGetTaskStatusSummary(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+
+    it('handleUpdateRuntimeTask throws when validated payload missing', async () => {
+      const c = new TaskHttpController();
+      await expect(c.handleUpdateRuntimeTask(baseReq())).rejects.toMatchObject({
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
+    });
+  });
+
+  it('handleGetRuntimeTask propagates service errors', async () => {
+    const c = new TaskHttpController();
+    const err = Object.assign(new Error('Task not found'), { statusCode: 404, code: 'TASK_NOT_FOUND' });
+    mockGetRuntimeTaskDetail.mockRejectedValue(err);
+
+    const req = baseReq({
+      validatedGetRuntimeTask: {
+        orgId: 'org-1',
+        runtimeTaskInstanceId: 'rtask-missing',
+        includeRelated: true,
+        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
+      },
+    } as any);
+
+    await expect(c.handleGetRuntimeTask(req)).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'TASK_NOT_FOUND',
+    });
+  });
+
+  it.each([
+    ['handleCreateRuntimeTask', mockCreateRuntimeTask, 'validatedCreateRuntimeTask', (c: TaskHttpController, req: LambdaRequest) => c.handleCreateRuntimeTask(req)],
+    ['handleUpdateAssignedStaff', mockReassignAssignedStaff, 'validatedUpdateAssignedStaff', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateAssignedStaff(req)],
+    ['handleGetTasks', mockListPatientTasks, 'validatedGetTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGetTasks(req)],
+    ['handleGetStaffTasks', mockListStaffTasks, 'validatedGetStaffTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGetStaffTasks(req)],
+    ['handleGetActionCenterItems', mockListActionCenterItems, 'validatedGetActionCenterItems', (c: TaskHttpController, req: LambdaRequest) => c.handleGetActionCenterItems(req)],
+    ['handleGetRuntimeTaskHistory', mockGetRuntimeTaskHistory, 'validatedGetRuntimeTaskHistory', (c: TaskHttpController, req: LambdaRequest) => c.handleGetRuntimeTaskHistory(req)],
+    ['handleGenerateCarePlanTasks', mockGenerateCarePlanTasks, 'validatedGenerateCarePlanTasks', (c: TaskHttpController, req: LambdaRequest) => c.handleGenerateCarePlanTasks(req)],
+    ['handleUpdateTaskState', mockUpdateTaskState, 'validatedUpdateTaskState', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateTaskState(req)],
+    ['handleGetTaskStatusSummary', mockGetTaskStatusSummaryByCarePlan, 'validatedGetTaskStatusSummary', (c: TaskHttpController, req: LambdaRequest) => c.handleGetTaskStatusSummary(req)],
+    ['handleUpdateRuntimeTask', mockUpdateRuntimeTask, 'validatedUpdateRuntimeTask', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateRuntimeTask(req)],
+    ['handleUpdateReminderSettings', mockUpdateReminderSettings, 'validatedUpdateReminderSettings', (c: TaskHttpController, req: LambdaRequest) => c.handleUpdateReminderSettings(req)],
+  ])('%s propagates service errors', async (_name, mockFn, validatedKey, invoke) => {
+    const c = new TaskHttpController();
+    const err = Object.assign(new Error('service failed'), { statusCode: 500, code: 'INTERNAL_ERROR' });
+    mockFn.mockRejectedValue(err);
+    const req = baseReq({
+      [validatedKey]: { orgId: 'org-1', authHeader: bearerToken({ 'custom:organizationID': 'org-1' }) },
+    } as any);
+    await expect(invoke(c, req)).rejects.toMatchObject({ statusCode: 500, code: 'INTERNAL_ERROR' });
   });
 });

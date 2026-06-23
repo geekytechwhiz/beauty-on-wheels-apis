@@ -41,8 +41,11 @@ jest.mock('@api-hub/event-platform', () => ({
 }));
 
 import { processCarePlanTaskGenerationTriggered } from './carePlanTaskGenerationTriggeredConsumer';
+import { handler as carePlanHandler, main as carePlanMain } from './carePlanTaskGenerationTriggeredConsumer';
 import { processLinkedSourceObjectCompleted } from './linkedSourceObjectCompletedConsumer';
+import { handler as linkedHandler, main as linkedMain } from './linkedSourceObjectCompletedConsumer';
 import { processServiceFlowActivated } from './serviceFlowActivatedConsumer';
+import { handler as serviceFlowHandler, main as serviceFlowMain } from './serviceFlowActivatedConsumer';
 
 const serviceFlowSample = {
   organizationId: 'org-1',
@@ -121,5 +124,17 @@ describe('task event consumers', () => {
     mockCompleteLinkedSourceObject.mockResolvedValue({ results: [] });
     await processLinkedSourceObjectCompleted(linkedSourceSample);
     expect(mockCompleteLinkedSourceObject).toHaveBeenCalledWith(linkedSourceSample);
+  });
+
+  it.each([
+    ['serviceFlow', serviceFlowMain, serviceFlowHandler, () => serviceFlowHandler(serviceFlowSample)],
+    ['carePlan', carePlanMain, carePlanHandler, () => carePlanHandler(carePlanSample)],
+    ['linkedSource', linkedMain, linkedHandler, () => linkedHandler(linkedSourceSample)],
+  ])('%s consumer exports main and routes through onEvent handler', async (_label, main, handler, invoke) => {
+    expect(main).toBe(handler);
+    mockCreateRuntimeTask.mockResolvedValue({ record: { runtimeTaskInstanceId: 'rtask-1' } });
+    mockGenerateCarePlanTasks.mockResolvedValue({ results: [] });
+    mockCompleteLinkedSourceObject.mockResolvedValue({ results: [] });
+    await expect(invoke()).resolves.toBeUndefined();
   });
 });

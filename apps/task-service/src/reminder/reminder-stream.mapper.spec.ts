@@ -66,6 +66,16 @@ describe('reminder-stream.mapper', () => {
       expect(result?.scheduledAt).toBe(dueWindowEnd);
     });
 
+    it('falls back to dueWindowStart when dueWindowEnd is absent', () => {
+      const meta: TaskMetaStreamImage = {
+        ...baseMeta,
+        dueWindowEnd: undefined,
+        reminderSettings: { channels: ['push'] },
+      };
+      const result = mapMetaToRegisterRequest(meta, undefined, null);
+      expect(result?.scheduledAt).toBe(dueWindowStart);
+    });
+
     it('returns null when no channel is configured', () => {
       const meta: TaskMetaStreamImage = { ...baseMeta, reminderSettings: { channels: [] } };
       const result = mapMetaToRegisterRequest(meta, undefined, null);
@@ -89,9 +99,9 @@ describe('reminder-stream.mapper', () => {
     });
 
     it('adjusts scheduledAt when target falls inside quiet hours', () => {
-      // dueWindowEnd is 23:00 UTC — inside 22:00–07:00 UTC quiet window
-      const dueEnd = new Date('2026-06-22T23:00:00.000Z').getTime();
-      const dueStart = new Date('2026-06-22T08:00:00.000Z').getTime();
+      // Use future dates so Date.now() clamp does not override quiet-hours adjustment
+      const dueEnd = new Date('2028-06-22T23:00:00.000Z').getTime();
+      const dueStart = new Date('2028-06-22T08:00:00.000Z').getTime();
       const meta: TaskMetaStreamImage = {
         ...baseMeta,
         dueWindowStart: dueStart,
@@ -108,7 +118,7 @@ describe('reminder-stream.mapper', () => {
         endLocalMinutes: 7 * 60,
       };
       const result = mapMetaToRegisterRequest(meta, undefined, quietWindow);
-      const quietStart = new Date('2026-06-22T22:00:00.000Z').getTime();
+      const quietStart = new Date('2028-06-22T22:00:00.000Z').getTime();
       expect(result?.scheduledAt).toBe(quietStart - 300_000);
     });
 

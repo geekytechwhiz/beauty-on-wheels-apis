@@ -37,10 +37,16 @@ import { handler, main, processMonitoringActionRequested } from './monitoringAct
 describe('monitoringActionRequestedConsumer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateMonitoringAction.mockResolvedValue({ record: minimalTaskMetaRecord(), outcome: 'created' });
   });
 
   it('exports main as handler', () => {
     expect(main).toBe(handler);
+  });
+
+  it('routes onEvent handler to processMonitoringActionRequested', async () => {
+    await expect(handler(monitoringActionRequestedSample)).resolves.toBeUndefined();
+    expect(mockCreateMonitoringAction).toHaveBeenCalledTimes(1);
   });
 
   it('creates monitoring task via TaskService', async () => {

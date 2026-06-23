@@ -34,4 +34,12 @@ describe('configureEventRuntime', () => {
       }),
     );
   });
+
+  it('resetEventRuntimeConfigured allows reconfiguration', async () => {
+    const { configureEventRuntime, resetEventRuntimeConfigured } = await import('./event-runtime');
+    configureEventRuntime();
+    resetEventRuntimeConfigured();
+    configureEventRuntime();
+    expect(mockConfigureEventPlatform).toHaveBeenCalledTimes(2);
+  });
 });

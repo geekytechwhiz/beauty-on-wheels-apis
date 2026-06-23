@@ -34,11 +34,9 @@ node_modules
 # misc
 /.sass-cache
 /connect.lock
-/coverage
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
-testem.log
 /typings
 
 # System Files
@@ -77,7 +75,18 @@ apps/template-service/*.zip
 # Swagger generated files
 apps/user-service/swagger
 
-test-output
+# Test & coverage artifacts (Jest/Nx/Vitest — generated locally, do not commit)
+coverage/
+test-output/
+testem.log
+.nyc_output/
+junit.xml
+**/test-results/
+vitest.config.*.timestamp*
+
+# Local E2E / manual API test harness (environment-specific URLs and IDs)
+*-e2e-inputs.json
+docs/services/*/api/*-http-apis.json
 
 # Python virtual environment
 venv/
@@ -105,8 +114,10 @@ apps/metadata-registry-service/*.zip
 apps/metadata-registry-service/.esbuild/
 apps/alert-service/.esbuild/
 apps/alert-service/swagger/
+apps/alert-service/coverage/
 apps/task-service/.esbuild/
 apps/task-service/swagger/
+apps/task-service/coverage/
 apps/task-service.zip
 apps/task-service/*.zip
 
@@ -118,4 +129,3 @@ apps/template-service/swagger/
 .nx/polygraph
 .claude/worktrees
 .claude/settings.local.json
-vitest.config.*.timestamp*

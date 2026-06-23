@@ -1,3 +1,17 @@
+// eslint-disable-next-line no-var
+var mockRecordReminderCancellation: jest.Mock;
+
+jest.mock('@api-hub/task-core', () => {
+  mockRecordReminderCancellation = jest.fn().mockResolvedValue({ written: true });
+  const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
+  return {
+    ...actual,
+    TaskService: jest.fn().mockImplementation(() => ({
+      recordReminderCancellation: mockRecordReminderCancellation,
+    })),
+  };
+});
+
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';

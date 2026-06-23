@@ -19,7 +19,7 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/libs/alert-core',
-  coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
   collectCoverageFrom: [
     // Restrict coverage scope to repository + service only.
     'src/lib/repositories/**/*.ts',

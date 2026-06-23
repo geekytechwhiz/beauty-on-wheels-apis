@@ -9,8 +9,6 @@ import {
   RUNTIME_TASK_STATE,
   SERVICE_FLOW_SYSTEM_ACTOR,
   SURFACE_SECTION,
-  TASK_LIST_DEFAULT_PAGE_SIZE,
-  TASK_LIST_MAX_PAGE_SIZE,
   WORKFLOW_STAGE,
   type ActionCenterSurfaceFilter,
   type CreateMonitoringActionHttpBody,
@@ -23,6 +21,7 @@ import {
 } from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
+import { parseOptionalEnum, parsePageSize } from './request-parser';
 import type {
   UpdateAssignedStaffHttpBody,
   UpdateReminderSettingsHttpBody,
@@ -175,31 +174,6 @@ const ACTION_CENTER_SURFACE_VALUES: ActionCenterSurfaceFilter[] = [
   ...SURFACE_SECTION_VALUES,
   'all',
 ];
-
-function parsePageSize(raw: string | undefined): number {
-  if (!raw?.trim()) return TASK_LIST_DEFAULT_PAGE_SIZE;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1) {
-    throwVal('pageSize must be a positive integer', 400, 'VALIDATION_ERROR');
-  }
-  if (n > TASK_LIST_MAX_PAGE_SIZE) {
-    throwVal(`pageSize must not exceed ${TASK_LIST_MAX_PAGE_SIZE}`, 400, 'VALIDATION_ERROR');
-  }
-  return n;
-}
-
-function parseOptionalEnum<T extends string>(
-  raw: string | undefined,
-  allowed: readonly T[],
-  fieldName: string,
-): T | undefined {
-  const value = raw?.trim();
-  if (!value) return undefined;
-  if (!(allowed as readonly string[]).includes(value)) {
-    throwVal(`${fieldName} must be one of: ${allowed.join(', ')}`, 400, 'VALIDATION_ERROR');
-  }
-  return value as T;
-}
 
 export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
   const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);

@@ -133,4 +133,78 @@ describe('EventBridgeSchedulerGateway', () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it('rethrows non-ResourceNotFound errors on cancel', async () => {
+    send.mockRejectedValueOnce(new Error('scheduler unavailable'));
+
+    await expect(
+      gateway().cancel({
+        runtimeTaskInstanceId: 'task-1',
+        reason: 'remindersDisabled',
+      }),
+    ).rejects.toThrow('scheduler unavailable');
+  });
+
+  it('rethrows non-ResourceNotFound errors on register', async () => {
+    send.mockRejectedValueOnce(new Error('access denied'));
+
+    await expect(
+      gateway().register({
+        runtimeTaskInstanceId: 'task-1',
+        patientId: 'pat-1',
+        orgId: 'org-1',
+        scheduledAt: futureMs(),
+        channel: 'push',
+      }),
+    ).rejects.toThrow('access denied');
+  });
+});
+
+describe('getReminderSchedulerGateway', () => {
+  const originalEnv = {
+    REMINDER_SCHEDULER_GROUP_NAME: process.env.REMINDER_SCHEDULER_GROUP_NAME,
+    PROCESS_REMINDER_LAMBDA_ARN: process.env.PROCESS_REMINDER_LAMBDA_ARN,
+    REMINDER_SCHEDULER_TARGET_ROLE_ARN: process.env.REMINDER_SCHEDULER_TARGET_ROLE_ARN,
+    AWS_REGION: process.env.AWS_REGION,
+  };
+
+  afterEach(() => {
+    const { setReminderSchedulerGatewayForTests, getReminderSchedulerGateway: getGw } = require('./reminder-scheduler.gateway');
+    setReminderSchedulerGatewayForTests(undefined);
+    process.env.REMINDER_SCHEDULER_GROUP_NAME = originalEnv.REMINDER_SCHEDULER_GROUP_NAME;
+    process.env.PROCESS_REMINDER_LAMBDA_ARN = originalEnv.PROCESS_REMINDER_LAMBDA_ARN;
+    process.env.REMINDER_SCHEDULER_TARGET_ROLE_ARN = originalEnv.REMINDER_SCHEDULER_TARGET_ROLE_ARN;
+    process.env.AWS_REGION = originalEnv.AWS_REGION;
+    jest.resetModules();
+  });
+
+  it('throws when required env vars are missing', () => {
+    delete process.env.REMINDER_SCHEDULER_GROUP_NAME;
+    const { setReminderSchedulerGatewayForTests, getReminderSchedulerGateway: getGw } = require('./reminder-scheduler.gateway');
+    setReminderSchedulerGatewayForTests(undefined);
+    expect(() => getGw()).toThrow(/REMINDER_SCHEDULER_GROUP_NAME/);
+  });
+
+  it('creates gateway from env when configured', () => {
+    process.env.REMINDER_SCHEDULER_GROUP_NAME = 'grp';
+    process.env.PROCESS_REMINDER_LAMBDA_ARN = 'arn:lambda:fn';
+    process.env.REMINDER_SCHEDULER_TARGET_ROLE_ARN = 'arn:iam:role';
+    process.env.AWS_REGION = 'us-east-1';
+    const { setReminderSchedulerGatewayForTests, getReminderSchedulerGateway: getGw } = require('./reminder-scheduler.gateway');
+    setReminderSchedulerGatewayForTests(undefined);
+    const gw1 = getGw();
+    const gw2 = getGw();
+    expect(gw1).toBe(gw2);
+  });
+
+  it('uses REGION env when AWS_REGION unset', () => {
+    process.env.REMINDER_SCHEDULER_GROUP_NAME = 'grp';
+    process.env.PROCESS_REMINDER_LAMBDA_ARN = 'arn:lambda:fn';
+    process.env.REMINDER_SCHEDULER_TARGET_ROLE_ARN = 'arn:iam:role';
+    delete process.env.AWS_REGION;
+    process.env.REGION = 'eu-west-1';
+    const { setReminderSchedulerGatewayForTests, getReminderSchedulerGateway: getGw } = require('./reminder-scheduler.gateway');
+    setReminderSchedulerGatewayForTests(undefined);
+    expect(() => getGw()).not.toThrow();
+  });
 });

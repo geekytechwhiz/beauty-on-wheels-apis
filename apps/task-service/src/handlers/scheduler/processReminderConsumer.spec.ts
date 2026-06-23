@@ -2,13 +2,17 @@
 var mockCheckReminderFireEligibility: jest.Mock;
 // eslint-disable-next-line no-var
 var mockRecordReminderOutcome: jest.Mock;
+// eslint-disable-next-line no-var
+var mockIsInQuietHours: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCheckReminderFireEligibility = jest.fn();
   mockRecordReminderOutcome = jest.fn().mockResolvedValue({ written: true });
+  mockIsInQuietHours = jest.fn().mockReturnValue(false);
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
+    isInQuietHours: (...args: unknown[]) => mockIsInQuietHours(...args),
     TaskService: jest.fn().mockImplementation(() => ({
       checkReminderFireEligibility: mockCheckReminderFireEligibility,
       recordReminderOutcome: mockRecordReminderOutcome,
@@ -60,6 +64,8 @@ describe('processReminderConsumer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetForPatient.mockResolvedValue(null);
+    mockSendReminder.mockResolvedValue(undefined);
+    mockIsInQuietHours.mockReturnValue(false);
   });
 
   it('exports main', () => {
@@ -126,6 +132,30 @@ describe('processReminderConsumer', () => {
       expect(mockSendReminder).not.toHaveBeenCalled();
     });
 
+    it('suppresses and records quietHours when provider returns active window', async () => {
+      const eligible: CheckReminderFireEligibilityResult = {
+        status: 'eligible',
+        meta: { ...eligibleMeta, reminderSettings: { channels: ['push'], quietHoursRespected: true } },
+      };
+      mockCheckReminderFireEligibility.mockResolvedValue(eligible);
+      mockGetForPatient.mockResolvedValue({
+        timezone: 'UTC',
+        startLocalMinutes: 22 * 60,
+        endLocalMinutes: 7 * 60,
+      });
+      mockIsInQuietHours.mockReturnValue(true);
+
+      await processReminderCallback(basePayload);
+
+      expect(mockSendReminder).not.toHaveBeenCalled();
+      expect(mockRecordReminderOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: 'suppressed',
+          reason: 'quietHours',
+        }),
+      );
+    });
+
     it('suppresses and does not send during patient quiet hours', async () => {
       const eligible: CheckReminderFireEligibilityResult = {
         status: 'eligible',
@@ -180,6 +210,29 @@ describe('processReminderConsumer', () => {
 
       await expect(processReminderCallback(basePayload)).rejects.toThrow('Runtime task not found');
       expect(mockSendReminder).not.toHaveBeenCalled();
+    });
+
+    it('records failed outcome and rethrows when notification send fails', async () => {
+      mockCheckReminderFireEligibility.mockResolvedValue({ status: 'eligible', meta: eligibleMeta });
+      mockSendReminder.mockRejectedValue(new Error('notification service down'));
+
+      await expect(processReminderCallback(basePayload)).rejects.toThrow('notification service down');
+      expect(mockRecordReminderOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: 'failed',
+          reason: 'notification service down',
+        }),
+      );
+    });
+
+    it('uses stringified reason when notification error is not an Error', async () => {
+      mockCheckReminderFireEligibility.mockResolvedValue({ status: 'eligible', meta: eligibleMeta });
+      mockSendReminder.mockRejectedValue('raw failure');
+
+      await expect(processReminderCallback(basePayload)).rejects.toBe('raw failure');
+      expect(mockRecordReminderOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'failed', reason: 'notificationFailed' }),
+      );
     });
 
     it('works without schedulerJobId (optional)', async () => {

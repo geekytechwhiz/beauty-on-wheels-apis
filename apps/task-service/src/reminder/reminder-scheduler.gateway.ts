@@ -34,13 +34,13 @@ export interface ReminderSchedulerGatewayConfig {
 }
 
 function readGatewayConfig(): ReminderSchedulerGatewayConfig {
-  const scheduleGroupName = process.env.REMINDER_SCHEDULER_GROUP_NAME ?? 'default';
+  const scheduleGroupName = process.env.REMINDER_SCHEDULER_GROUP_NAME;
   const targetLambdaArn = process.env.PROCESS_REMINDER_LAMBDA_ARN;
   const targetRoleArn = process.env.REMINDER_SCHEDULER_TARGET_ROLE_ARN;
 
-  if (!targetLambdaArn || !targetRoleArn) {
+  if (!scheduleGroupName || !targetLambdaArn || !targetRoleArn) {
     throw new Error(
-      'Reminder scheduler gateway requires PROCESS_REMINDER_LAMBDA_ARN and REMINDER_SCHEDULER_TARGET_ROLE_ARN',
+      'Reminder scheduler gateway requires REMINDER_SCHEDULER_GROUP_NAME, PROCESS_REMINDER_LAMBDA_ARN, and REMINDER_SCHEDULER_TARGET_ROLE_ARN',
     );
   }
 

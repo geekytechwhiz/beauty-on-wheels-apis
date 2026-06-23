@@ -1,4 +1,14 @@
 Resources:
+  TaskReminderScheduleGroup:
+    Type: AWS::Scheduler::ScheduleGroup
+    Properties:
+      Name: ${self:custom.bundle.reminderSchedulerGroupName}
+      Tags:
+        - Key: Service
+          Value: ${self:service}
+        - Key: Stage
+          Value: ${self:provider.stage}
+
   ReminderSchedulerInvokeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -34,4 +44,4 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref ProcessReminderLambdaFunction
       Principal: scheduler.amazonaws.com
-      SourceArn: arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/default/*
+      SourceArn: arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/${self:custom.bundle.reminderSchedulerGroupName}/*

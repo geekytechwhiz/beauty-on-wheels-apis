@@ -1,3 +1,17 @@
+// eslint-disable-next-line no-var
+var mockRecordReminderRegistration: jest.Mock;
+
+jest.mock('@api-hub/task-core', () => {
+  mockRecordReminderRegistration = jest.fn().mockResolvedValue({ written: true });
+  const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
+  return {
+    ...actual,
+    TaskService: jest.fn().mockImplementation(() => ({
+      recordReminderRegistration: mockRecordReminderRegistration,
+    })),
+  };
+});
+
 import {
   setReminderSchedulerGatewayForTests,
 } from '../../../reminder/reminder-scheduler.gateway';
@@ -13,13 +27,18 @@ const nullQuietHoursProvider: QuietHoursProvider = {
 };
 
 describe('processRegisterReminder', () => {
-  const register = jest.fn().mockResolvedValue(undefined);
+  const register = jest.fn();
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
     setReminderSchedulerGatewayForTests(gateway);
     setQuietHoursProviderForTests(nullQuietHoursProvider);
+    register.mockResolvedValue({
+      outcome: 'created',
+      schedulerJobId: 'task-reminder-task-1',
+      scheduledAt: 1_700_000_360_000,
+    });
   });
 
   afterAll(() => {
@@ -38,7 +57,7 @@ describe('processRegisterReminder', () => {
     reminderSettings: { channels: ['push'] },
   };
 
-  it('registers reminder schedule from META payload (no quiet-hours adjustment)', async () => {
+  it('registers reminder schedule and persists LOOKUP history', async () => {
     await processRegisterReminder(basePayload, 'corr-1');
 
     expect(register).toHaveBeenCalledWith({
@@ -47,6 +66,13 @@ describe('processRegisterReminder', () => {
       orgId: 'org-1',
       scheduledAt: 1_700_000_360_000,
       channel: 'push',
+      correlationId: 'corr-1',
+    });
+    expect(mockRecordReminderRegistration).toHaveBeenCalledWith({
+      runtimeTaskInstanceId: 'task-1',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-task-1',
       correlationId: 'corr-1',
     });
   });
@@ -63,16 +89,23 @@ describe('processRegisterReminder', () => {
     const payload = { ...basePayload, reminderSettings: { channels: [] as string[] } };
     await processRegisterReminder(payload, 'corr-1');
     expect(register).not.toHaveBeenCalled();
+    expect(mockRecordReminderRegistration).not.toHaveBeenCalled();
   });
 
   it('skips registration without throwing when no due window', async () => {
     const payload = { ...basePayload, dueWindowEnd: undefined as unknown as number };
     await processRegisterReminder(payload, 'corr-1');
     expect(register).not.toHaveBeenCalled();
+    expect(mockRecordReminderRegistration).not.toHaveBeenCalled();
+  });
+
+  it('does not persist when scheduler skips past fire time', async () => {
+    register.mockResolvedValueOnce({ outcome: 'skipped', reason: 'fireTimeTooSoon' });
+    await processRegisterReminder(basePayload, 'corr-1');
+    expect(mockRecordReminderRegistration).not.toHaveBeenCalled();
   });
 
   it('applies quiet-hours clamp when provider returns a window and target is inside it', async () => {
-    // dueWindowEnd at 23:00 UTC — inside quiet 22:00–07:00 UTC
     const dueEnd = new Date('2026-06-22T23:00:00.000Z').getTime();
     const dueStart = new Date('2026-06-22T08:00:00.000Z').getTime();
     const payload = {
@@ -95,12 +128,24 @@ describe('processRegisterReminder', () => {
     };
     setQuietHoursProviderForTests(quietProvider);
 
+    const quietStart = new Date('2026-06-22T22:00:00.000Z').getTime();
+    const expectedScheduledAt = quietStart - 300_000;
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(dueStart);
+    register.mockResolvedValueOnce({
+      outcome: 'created',
+      schedulerJobId: 'task-reminder-task-1',
+      scheduledAt: expectedScheduledAt,
+    });
+
     await processRegisterReminder(payload, 'corr-1');
 
-    const quietStart = new Date('2026-06-22T22:00:00.000Z').getTime();
     expect(register).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledAt: quietStart - 300_000 }),
+      expect.objectContaining({ scheduledAt: expectedScheduledAt }),
     );
+    expect(mockRecordReminderRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAt: expectedScheduledAt }),
+    );
+    nowSpy.mockRestore();
   });
 
   it('does not adjust when quiet-hours provider returns null', async () => {

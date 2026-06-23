@@ -468,6 +468,30 @@ export class TaskService extends BaseTaskService {
     return { status: 'eligible', meta };
   }
 
+  async recordReminderRegistration(
+    input: {
+      runtimeTaskInstanceId: string;
+      scheduledAt: number;
+      channel: string;
+      schedulerJobId: string;
+      correlationId?: string;
+      writeHist?: boolean;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderRegistered(input);
+  }
+
+  async recordReminderCancellation(
+    input: {
+      runtimeTaskInstanceId: string;
+      reason: string;
+      correlationId?: string;
+      writeHist?: boolean;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderCancelled(input);
+  }
+
   async updateTaskState(
     input: UpdateTaskStateRequest,
     _options?: { correlationId?: string },

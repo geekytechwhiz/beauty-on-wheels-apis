@@ -37,13 +37,19 @@ describe('EventBridgeSchedulerGateway', () => {
       .mockRejectedValueOnce(new ResourceNotFoundException({ message: 'not found', $metadata: {} }))
       .mockResolvedValueOnce({});
 
-    await gateway().register({
+    const result = await gateway().register({
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
       orgId: 'org-1',
       scheduledAt: futureMs(),
       channel: 'push',
       correlationId: 'corr-1',
+    });
+
+    expect(result).toEqual({
+      outcome: 'created',
+      schedulerJobId: 'task-reminder-task-1',
+      scheduledAt: expect.any(Number),
     });
 
     expect(send).toHaveBeenCalledTimes(2);
@@ -69,7 +75,7 @@ describe('EventBridgeSchedulerGateway', () => {
   it('updates schedule when it already exists', async () => {
     send.mockResolvedValueOnce({});
 
-    await gateway().register({
+    const result = await gateway().register({
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
       orgId: 'org-1',
@@ -77,18 +83,26 @@ describe('EventBridgeSchedulerGateway', () => {
       channel: 'push',
     });
 
+    expect(result).toEqual({
+      outcome: 'updated',
+      schedulerJobId: 'task-reminder-task-1',
+      scheduledAt: expect.any(Number),
+    });
+
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0]).toBeInstanceOf(UpdateScheduleCommand);
   });
 
   it('skips register when fire time is too soon', async () => {
-    await gateway().register({
+    const result = await gateway().register({
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
       orgId: 'org-1',
       scheduledAt: Date.now() + 1_000,
       channel: 'push',
     });
+
+    expect(result).toEqual({ outcome: 'skipped', reason: 'fireTimeTooSoon' });
 
     expect(send).not.toHaveBeenCalled();
   });

@@ -10,6 +10,7 @@ export const MONITORING_SYSTEM_ACTOR = 'system:monitoring-runtime';
 export const SERVICE_FLOW_SYSTEM_ACTOR = 'system:service-flow-runtime';
 export const CARE_PLAN_SYSTEM_ACTOR = 'system:care-plan-runtime';
 export const LINKED_SOURCE_SYSTEM_ACTOR = 'system:linked-source';
+export const REMINDER_STREAM_SYSTEM_ACTOR = 'system:runtime-task';
 
 export function manualSystemActor(userId: string): string {
   return `user:${userId.trim()}`;

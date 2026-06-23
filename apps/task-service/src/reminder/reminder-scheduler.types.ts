@@ -8,6 +8,10 @@ export interface RegisterReminderJobRequest {
   correlationId?: string;
 }
 
+export type RegisterReminderResult =
+  | { outcome: 'skipped'; reason: 'fireTimeTooSoon' }
+  | { outcome: 'created' | 'updated'; schedulerJobId: string; scheduledAt: number };
+
 /** Outbound cancel request for EventBridge Scheduler. */
 export interface CancelReminderJobRequest {
   runtimeTaskInstanceId: string;
@@ -17,6 +21,6 @@ export interface CancelReminderJobRequest {
 }
 
 export interface ReminderSchedulerGateway {
-  register(request: RegisterReminderJobRequest): Promise<void>;
+  register(request: RegisterReminderJobRequest): Promise<RegisterReminderResult>;
   cancel(request: CancelReminderJobRequest): Promise<void>;
 }

@@ -41,7 +41,13 @@ import type {
   TaskLookupDdbRecord,
   TaskMetaDdbRecord,
 } from '../models/persistence/task-ddb.model';
-import { appendCancelledReminderHistoryEntries } from '../utils/reminder-history';
+import {
+  appendCancelledReminderHistoryEntries,
+  appendScheduledReminderHistoryEntry,
+  buildReminderRecordId,
+  findOpenScheduledReminderEntries,
+  hasMatchingOpenScheduledEntry,
+} from '../utils/reminder-history';
 import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import {
@@ -107,6 +113,22 @@ export type CompleteLinkedSourceObjectRepoInput = {
   completedAt: number;
   actorId?: string;
   nowMs?: number;
+};
+
+export type RecordReminderRegisteredRepoInput = {
+  runtimeTaskInstanceId: string;
+  scheduledAt: number;
+  channel: string;
+  schedulerJobId: string;
+  correlationId?: string;
+  writeHist?: boolean;
+};
+
+export type RecordReminderCancelledRepoInput = {
+  runtimeTaskInstanceId: string;
+  reason: string;
+  correlationId?: string;
+  writeHist?: boolean;
 };
 
 function buildMetaListFilterExpression(input: {
@@ -1012,5 +1034,139 @@ export class TaskRepository extends BaseRepository {
       }
       throw e;
     }
+  }
+
+  async recordReminderRegistered(
+    input: RecordReminderRegisteredRepoInput,
+  ): Promise<{ written: boolean }> {
+    const table = assertTaskTable();
+    const lookup = await this.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw new Error(`LOOKUP not found for task ${input.runtimeTaskInstanceId}`);
+    }
+
+    if (
+      hasMatchingOpenScheduledEntry(
+        lookup.reminderHistory,
+        input.scheduledAt,
+        input.channel,
+        input.schedulerJobId,
+      )
+    ) {
+      return { written: false };
+    }
+
+    const nowMs = Date.now();
+    const reminderRecordId = buildReminderRecordId(
+      input.runtimeTaskInstanceId,
+      input.scheduledAt,
+      input.channel,
+    );
+    const reminderHistory = appendScheduledReminderHistoryEntry(
+      lookup.reminderHistory,
+      {
+        reminderRecordId,
+        runtimeTaskInstanceId: input.runtimeTaskInstanceId,
+        scheduledAt: input.scheduledAt,
+        channel: input.channel,
+        schedulerJobId: input.schedulerJobId,
+      },
+      nowMs,
+    );
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression: 'SET reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: { ':reminderHistory': reminderHistory },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    const writeHist = input.writeHist !== false;
+    if (writeHist) {
+      const meta = await this.getMetaByLookup(lookup);
+      if (meta) {
+        const histPut = TaskEntityBuilder.buildReminderRegisterRequestHistRecord({
+          meta,
+          reminderRecordId,
+          reminderChannel: input.channel,
+          schedulerJobId: input.schedulerJobId,
+          scheduledAt: input.scheduledAt,
+          correlationId: input.correlationId,
+          nowMs,
+        });
+        transactItems.push({
+          Put: {
+            TableName: table,
+            Item: histPut as unknown as Record<string, unknown>,
+            ConditionExpression: 'attribute_not_exists(sk)',
+          },
+        });
+      }
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
+    return { written: true };
+  }
+
+  async recordReminderCancelled(
+    input: RecordReminderCancelledRepoInput,
+  ): Promise<{ written: boolean }> {
+    const table = assertTaskTable();
+    const lookup = await this.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw new Error(`LOOKUP not found for task ${input.runtimeTaskInstanceId}`);
+    }
+
+    const openScheduled = findOpenScheduledReminderEntries(lookup.reminderHistory);
+    if (openScheduled.length === 0) {
+      return { written: false };
+    }
+
+    const nowMs = Date.now();
+    const reminderHistory = appendCancelledReminderHistoryEntries(lookup.reminderHistory, nowMs);
+    const firstOpen = openScheduled[0];
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression: 'SET reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: { ':reminderHistory': reminderHistory },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    const writeHist = input.writeHist !== false;
+    if (writeHist) {
+      const meta = await this.getMetaByLookup(lookup);
+      if (meta) {
+        const histPut = TaskEntityBuilder.buildReminderCancelRequestHistRecord({
+          meta,
+          reason: input.reason,
+          reminderRecordId: firstOpen.reminderRecordId,
+          reminderChannel: firstOpen.reminderChannel,
+          schedulerJobId: firstOpen.schedulerJobId,
+          correlationId: input.correlationId,
+          nowMs,
+        });
+        transactItems.push({
+          Put: {
+            TableName: table,
+            Item: histPut as unknown as Record<string, unknown>,
+            ConditionExpression: 'attribute_not_exists(sk)',
+          },
+        });
+      }
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
+    return { written: true };
   }
 }

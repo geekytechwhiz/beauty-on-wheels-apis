@@ -14,8 +14,8 @@ export const handler = createDynamoStreamHandler({
       eventName: ['MODIFY'],
       schema: TaskMetaStreamPayloadSchema,
       handler: async (input) => {
-        const { meta: _meta, ...payload } = input;
-        await processCancelReminder(payload as TaskMetaStreamPayload);
+        const { meta, ...payload } = input;
+        await processCancelReminder(payload as TaskMetaStreamPayload, meta.correlationId);
       },
     },
   ],

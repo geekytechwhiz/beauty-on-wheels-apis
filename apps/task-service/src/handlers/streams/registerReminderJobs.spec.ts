@@ -1,3 +1,17 @@
+// eslint-disable-next-line no-var
+var mockRecordReminderRegistration: jest.Mock;
+
+jest.mock('@api-hub/task-core', () => {
+  mockRecordReminderRegistration = jest.fn().mockResolvedValue({ written: true });
+  const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
+  return {
+    ...actual,
+    TaskService: jest.fn().mockImplementation(() => ({
+      recordReminderRegistration: mockRecordReminderRegistration,
+    })),
+  };
+});
+
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
@@ -65,7 +79,11 @@ const nullQuietHoursProvider: QuietHoursProvider = {
 };
 
 describe('registerReminderJobs', () => {
-  const register = jest.fn().mockResolvedValue(undefined);
+  const register = jest.fn().mockResolvedValue({
+    outcome: 'created',
+    schedulerJobId: 'task-reminder-task-1',
+    scheduledAt: 1_700_000_360_000,
+  });
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
 
   beforeEach(() => {
@@ -98,5 +116,12 @@ describe('registerReminderJobs', () => {
         channel: 'push',
       }),
     );
+    expect(mockRecordReminderRegistration).toHaveBeenCalledWith({
+      runtimeTaskInstanceId: 'task-1',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-task-1',
+      correlationId: 'eid-register-1',
+    });
   });
 });

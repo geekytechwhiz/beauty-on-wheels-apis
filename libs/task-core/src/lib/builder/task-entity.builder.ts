@@ -5,6 +5,7 @@ import {
   ENTITY_TYPE_TASK_HISTORY,
   ENTITY_TYPE_TASK_LOOKUP,
   MONITORING_SYSTEM_ACTOR,
+  REMINDER_STREAM_SYSTEM_ACTOR,
   TASK_LOOKUP_SK,
 } from '../constants/task.constants';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
@@ -701,6 +702,71 @@ export class TaskEntityBuilder {
         ? { previousReminderSettings: params.previousReminderSettings }
         : {}),
       ...(params.newReminderSettings != null ? { newReminderSettings: params.newReminderSettings } : {}),
+    };
+  }
+
+  static buildReminderRegisterRequestHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    reminderRecordId: string;
+    reminderChannel: string;
+    schedulerJobId: string;
+    scheduledAt: number;
+    correlationId?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.REMINDER_REGISTER_REQUEST,
+      transitionAt: nowMs,
+      transitionBy: REMINDER_STREAM_SYSTEM_ACTOR,
+      transitionSource: TRANSITION_SOURCE.SYSTEM,
+      reminderRecordId: params.reminderRecordId,
+      reminderChannel: params.reminderChannel,
+      schedulerJobId: params.schedulerJobId,
+      ...(params.correlationId ? { sourceEventId: params.correlationId } : {}),
+    };
+  }
+
+  static buildReminderCancelRequestHistRecord(params: {
+    meta: TaskMetaDdbRecord;
+    reason: string;
+    reminderRecordId?: string;
+    reminderChannel?: string;
+    schedulerJobId?: string;
+    correlationId?: string;
+    nowMs?: number;
+  }): TaskHistDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    const taskStateHistoryId = randomUUID();
+    const { meta } = params;
+
+    return {
+      pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildHistSk(nowMs, taskStateHistoryId),
+      entityType: ENTITY_TYPE_TASK_HISTORY,
+      taskStateHistoryId,
+      runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+      orgId: meta.orgId,
+      patientId: meta.patientId,
+      historyEventType: TASK_HISTORY_EVENT_TYPE.REMINDER_CANCEL_REQUEST,
+      transitionAt: nowMs,
+      transitionBy: REMINDER_STREAM_SYSTEM_ACTOR,
+      transitionSource: TRANSITION_SOURCE.SYSTEM,
+      transitionReason: params.reason,
+      ...(params.reminderRecordId ? { reminderRecordId: params.reminderRecordId } : {}),
+      ...(params.reminderChannel ? { reminderChannel: params.reminderChannel } : {}),
+      ...(params.schedulerJobId ? { schedulerJobId: params.schedulerJobId } : {}),
+      ...(params.correlationId ? { sourceEventId: params.correlationId } : {}),
     };
   }
 

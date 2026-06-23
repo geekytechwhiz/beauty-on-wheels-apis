@@ -529,6 +529,20 @@ functions:
                     S: [RuntimeTaskInstance]
                   reminderEnabled:
                     BOOL: [false]
+            - eventName: [MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
+                  currentState:
+                    S: [open, scheduled, active]
+                OldImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
 
   cancelReminderJobs:
     handler: src/handlers/streams/cancelReminderJobs.main

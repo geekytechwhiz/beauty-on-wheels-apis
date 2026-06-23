@@ -284,6 +284,200 @@ describe('TaskRepository.transitionTaskState', () => {
   });
 });
 
+describe('TaskRepository.recordReminderRegistered', () => {
+  const originalTaskTable = process.env.TASK_TABLE;
+
+  beforeAll(() => {
+    process.env.TASK_TABLE = 'task-test-table';
+  });
+
+  afterAll(() => {
+    process.env.TASK_TABLE = originalTaskTable;
+  });
+
+  it('appends scheduled reminderHistory and optional HIST audit', async () => {
+    const repo = new TaskRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
+      .mockResolvedValue(undefined);
+
+    const lookup = {
+      pk: 'TASK#rtask-abc',
+      sk: 'LOOKUP' as const,
+      entityType: 'TaskLookup' as const,
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      taskSk: 'DUE#0001780567200000#TASK#rtask-abc',
+      reminderHistory: [],
+    };
+    const meta = {
+      pk: 'ORG#org-1#PAT#pat-1',
+      sk: lookup.taskSk,
+      entityType: 'RuntimeTaskInstance' as const,
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      runtimeTaskSource: 'monitoringRuntime' as const,
+      taskBehaviorCode: 'METRIC_CHECKIN' as const,
+      taskDisplayGroup: 'checkIn' as const,
+      displayTitle: 'Check in',
+      assignedToType: 'patient' as const,
+      displayToPatient: true,
+      currentState: 'open' as const,
+      createdAt: 1,
+      createdBy: 'system',
+      lastUpdatedAt: 1,
+      lastUpdatedBy: 'system',
+      version: 1,
+    };
+
+    jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue(lookup);
+    jest.spyOn(repo, 'getMetaByLookup').mockResolvedValue(meta);
+
+    const result = await repo.recordReminderRegistered({
+      runtimeTaskInstanceId: 'rtask-abc',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+    });
+
+    expect(result).toEqual({ written: true });
+    const items = transactWrite.mock.calls[0][0].TransactItems;
+    expect(items).toHaveLength(2);
+    expect(items[0].Update?.ExpressionAttributeValues?.[':reminderHistory']).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reminderStatus: 'scheduled',
+          schedulerJobId: 'task-reminder-rtask-abc',
+          scheduledReminderAt: 1_700_000_360_000,
+          reminderChannel: 'push',
+        }),
+      ]),
+    );
+    expect(items[1].Put?.Item).toMatchObject({
+      historyEventType: 'reminderRegisterRequest',
+      schedulerJobId: 'task-reminder-rtask-abc',
+    });
+
+    transactWrite.mockRestore();
+  });
+
+  it('skips write when matching open scheduled entry already exists', async () => {
+    const repo = new TaskRepository();
+    const transactWrite = jest.spyOn(
+      repo as unknown as { transactWrite: jest.Mock },
+      'transactWrite',
+    );
+
+    jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue({
+      pk: 'TASK#rtask-abc',
+      sk: 'LOOKUP' as const,
+      entityType: 'TaskLookup' as const,
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      taskSk: 'DUE#0001780567200000#TASK#rtask-abc',
+      reminderHistory: [
+        {
+          reminderRecordId: 'rem-1',
+          reminderStatus: 'scheduled',
+          scheduledReminderAt: 1_700_000_360_000,
+          reminderChannel: 'push',
+          schedulerJobId: 'task-reminder-rtask-abc',
+          createdAt: 1,
+        },
+      ],
+    });
+
+    const result = await repo.recordReminderRegistered({
+      runtimeTaskInstanceId: 'rtask-abc',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+    });
+
+    expect(result).toEqual({ written: false });
+    expect(transactWrite).not.toHaveBeenCalled();
+    transactWrite.mockRestore();
+  });
+});
+
+describe('TaskRepository.recordReminderCancelled', () => {
+  const originalTaskTable = process.env.TASK_TABLE;
+
+  beforeAll(() => {
+    process.env.TASK_TABLE = 'task-test-table';
+  });
+
+  afterAll(() => {
+    process.env.TASK_TABLE = originalTaskTable;
+  });
+
+  it('appends cancelled rows for open scheduled reminders', async () => {
+    const repo = new TaskRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
+      .mockResolvedValue(undefined);
+
+    const lookup = {
+      pk: 'TASK#rtask-abc',
+      sk: 'LOOKUP' as const,
+      entityType: 'TaskLookup' as const,
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      taskSk: 'DUE#0001780567200000#TASK#rtask-abc',
+      reminderHistory: [
+        {
+          reminderRecordId: 'rem-1',
+          reminderStatus: 'scheduled',
+          scheduledReminderAt: 1_700_000_360_000,
+          reminderChannel: 'push',
+          schedulerJobId: 'task-reminder-rtask-abc',
+          createdAt: 1,
+        },
+      ],
+    };
+    const meta = {
+      pk: 'ORG#org-1#PAT#pat-1',
+      sk: lookup.taskSk,
+      entityType: 'RuntimeTaskInstance' as const,
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      runtimeTaskSource: 'monitoringRuntime' as const,
+      taskBehaviorCode: 'METRIC_CHECKIN' as const,
+      taskDisplayGroup: 'checkIn' as const,
+      displayTitle: 'Check in',
+      assignedToType: 'patient' as const,
+      displayToPatient: true,
+      currentState: 'open' as const,
+      createdAt: 1,
+      createdBy: 'system',
+      lastUpdatedAt: 1,
+      lastUpdatedBy: 'system',
+      version: 1,
+    };
+
+    jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue(lookup);
+    jest.spyOn(repo, 'getMetaByLookup').mockResolvedValue(meta);
+
+    const result = await repo.recordReminderCancelled({
+      runtimeTaskInstanceId: 'rtask-abc',
+      reason: 'remindersDisabled',
+    });
+
+    expect(result).toEqual({ written: true });
+    const history = transactWrite.mock.calls[0][0].TransactItems[0].Update
+      ?.ExpressionAttributeValues?.[':reminderHistory'] as Array<{ reminderStatus: string }>;
+    expect(history).toHaveLength(2);
+    expect(history[1].reminderStatus).toBe('cancelled');
+
+    transactWrite.mockRestore();
+  });
+});
+
 describe('TaskRepository.queryCarePlanTasksForSummaryPage', () => {
   const originalTaskTable = process.env.TASK_TABLE;
 

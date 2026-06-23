@@ -13,6 +13,7 @@ import { createLogger } from '@api-hub/observability';
 import type {
   CancelReminderJobRequest,
   RegisterReminderJobRequest,
+  RegisterReminderResult,
   ReminderSchedulerGateway,
 } from './reminder-scheduler.types';
 import {
@@ -57,10 +58,13 @@ export class EventBridgeSchedulerGateway implements ReminderSchedulerGateway {
     private readonly config: ReminderSchedulerGatewayConfig,
   ) {}
 
-  async register(request: RegisterReminderJobRequest): Promise<void> {
+  async register(request: RegisterReminderJobRequest): Promise<RegisterReminderResult> {
+    const schedulerJobId = buildReminderScheduleName(request.runtimeTaskInstanceId);
+
     if (!isSchedulerEligibleFireTime(request.scheduledAt)) {
       logger.warn({
         event: 'reminder_schedule_register_skipped_past',
+        schedulerJobId,
         runtimeTaskInstanceId: request.runtimeTaskInstanceId,
         patientId: request.patientId,
         orgId: request.orgId,
@@ -68,10 +72,9 @@ export class EventBridgeSchedulerGateway implements ReminderSchedulerGateway {
         correlationId: request.correlationId,
         message: 'Reminder fire time is in the past or within 1 minute; schedule not created',
       });
-      return;
+      return { outcome: 'skipped', reason: 'fireTimeTooSoon' };
     }
 
-    const schedulerJobId = buildReminderScheduleName(request.runtimeTaskInstanceId);
     const scheduleInput = {
       Name: schedulerJobId,
       GroupName: this.config.scheduleGroupName,
@@ -101,6 +104,11 @@ export class EventBridgeSchedulerGateway implements ReminderSchedulerGateway {
         channel: request.channel,
         correlationId: request.correlationId,
       });
+      return {
+        outcome: 'updated',
+        schedulerJobId,
+        scheduledAt: request.scheduledAt,
+      };
     } catch (error) {
       if (!(error instanceof ResourceNotFoundException)) {
         throw error;
@@ -115,6 +123,11 @@ export class EventBridgeSchedulerGateway implements ReminderSchedulerGateway {
         channel: request.channel,
         correlationId: request.correlationId,
       });
+      return {
+        outcome: 'created',
+        schedulerJobId,
+        scheduledAt: request.scheduledAt,
+      };
     }
   }
 

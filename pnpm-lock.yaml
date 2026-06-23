@@ -77,6 +77,9 @@ importers:
       '@middy/http-cors':
         specifier: ^7.0.2
         version: 7.6.5
+      '@myvitalrx/mvrx-policy-validator':
+        specifier: ^0.0.1
+        version: 0.0.1(serverless@3.40.0(@types/node@20.19.9))
       '@myvitalrx/mvrx-resource-registry':
         specifier: ^0.0.4
         version: 0.0.4(serverless@3.40.0(@types/node@20.19.9))
@@ -949,7 +952,11 @@ importers:
 
   services/sso-integration: {}
 
-  tools/eslint-plugin-mvrx: {}
+  tools/eslint-plugin-mvrx:
+    dependencies:
+      serverless:
+        specifier: ^3.0.0
+        version: 3.40.0(@types/node@20.19.9)
 
   tools/fhir-mapper-generator:
     dependencies:
@@ -3508,6 +3515,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@myvitalrx/mvrx-policy-validator@0.0.1':
+    resolution: {integrity: sha512-ww+I5hjvzUzjlTukKZZDHkYkJv+BPcNSvd942CTDD5jxK2ZLP5tAPV4lBYwn/zp8OJTfrMXTIPq8Rji8vFdvvA==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-policy-validator/0.0.1/4489a8d17c5cce6b4b6acc980c29891f0b185298}
+    peerDependencies:
+      serverless: ^3.0.0
 
   '@myvitalrx/mvrx-resource-registry@0.0.4':
     resolution: {integrity: sha512-qX377OgOj78WDp8c2JggpuN+KiJIL5TybnI70/7dv9VIs+7kgKzZ6EyOHmmFr3u8IQt/oi0PLXNQidDE4U0I4A==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.4/26af2e618a4f1c2f5d1e384e488b665a9084d775}
@@ -15866,6 +15878,10 @@ snapshots:
       react-is: 19.2.7
     optionalDependencies:
       '@types/react': 18.3.30
+
+  '@myvitalrx/mvrx-policy-validator@0.0.1(serverless@3.40.0(@types/node@20.19.9))':
+    dependencies:
+      serverless: 3.40.0(@types/node@20.19.9)
 
   '@myvitalrx/mvrx-resource-registry@0.0.4(serverless@3.40.0(@types/node@20.19.9))':
     dependencies:

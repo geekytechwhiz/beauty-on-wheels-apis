@@ -176,11 +176,11 @@ custom:
   resourceRegistry:
     enabled: true
     platformOwner: platform-config
-    parameters:
-      NODEJS_RUNTIME:
-        value: nodejs22.x 
-      DEFAULT_AWS_REGION:
-        value: ${self:provider.region}
+    # parameters:
+    #   NODEJS_RUNTIME:
+    #     value: nodejs22.x 
+    #   DEFAULT_AWS_REGION:
+    #     value: ${self:provider.region}
     # include:
     #   - AWS::DynamoDB::Table
     #   - AWS::Events::EventBus

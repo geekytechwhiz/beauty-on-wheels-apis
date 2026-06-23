@@ -928,6 +928,10 @@ components:
           type: string
         label:
           type: string
+        description:
+          type: string
+          maxLength: 2000
+          description: Optional documentation for the value (omitted when not stored).
         status:
           type: string
           enum: [ACTIVE, INACTIVE, DELETED]

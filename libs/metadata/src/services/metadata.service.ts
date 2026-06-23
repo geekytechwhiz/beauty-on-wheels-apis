@@ -432,6 +432,7 @@ export interface MetadataValuesByTypeApplicability {
 export interface MetadataValuesByTypeValue {
   valueCode: string;
   label: string;
+  description?: string;
   status: Status;
   isGlobal: boolean;
   sortOrder: number;
@@ -466,6 +467,7 @@ function mapMetadataValuesByTypeItem(
     values: sortValuesForSearch(values).map((v) => ({
       valueCode: v.valueCode,
       label: v.label,
+      ...(v.description !== undefined ? { description: v.description } : {}),
       status: v.status,
       isGlobal: v.isGlobal,
       sortOrder: v.sortOrder,
@@ -764,7 +766,8 @@ export async function orchestrateRegistryPost(
     await assertRelationshipTargetsReferenceValidValues(meta, type, relationshipTargetCodes);
   }
 
-  const { relationships: _relationships, ...valueBody } = normalized;
+  const { relationships, ...valueBody } = normalized;
+  void relationships;
   const record = await upsertMetadataValue(metadataTypeCode, valueBody, input.userId, existing);
 
   const relRepo = await getRelationRepository();

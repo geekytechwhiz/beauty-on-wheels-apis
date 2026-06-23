@@ -1,7 +1,41 @@
 import type { OrganizationMeta } from './list-org-catalog.types';
 import type { ListPagination } from './list-master.types';
+import type { TemplateHistoryEntry } from '../../mappers/template-http.dto';
 import type { TemplateActorUser } from '../template-actor.model';
 import type { TemplateRulesPatch } from '../../utils/template-rules.utils';
+
+export type OrgDerivedAdoptChangeRow = {
+  key: string;
+  label: string;
+  message: string;
+  before?: string;
+  after?: string;
+  preserved?: boolean;
+  severity?: 'info' | 'warning';
+  requiresReview?: boolean;
+};
+
+export type OrgDerivedAdoptChanges = {
+  added: OrgDerivedAdoptChangeRow[];
+  changed: OrgDerivedAdoptChangeRow[];
+  removed: OrgDerivedAdoptChangeRow[];
+};
+
+export type OrgDerivedAdoptPreview = {
+  available: boolean;
+  title: string;
+  fromVersion: number;
+  fromVersionLabel: string;
+  toVersion: number;
+  toVersionLabel: string;
+  sourceOrgTemplateId: string;
+  fromOrgTemplateVersionId: string;
+  toOrgTemplateVersionId: string;
+  localChangesPresent: boolean;
+  localChangesLabel: 'None' | 'Present';
+  footerNote: string;
+  changes: OrgDerivedAdoptChanges;
+};
 
 export type OrgDerivedCreateParams = {
   organizationId: string;
@@ -23,6 +57,11 @@ export type OrgDerivedCreateResult = {
   templateType?: string;
   categoryCode?: string;
   conditionCode?: string;
+  /** Always `DRAFT` on create. */
+  status: string;
+  /** Defaults to `true` on create. */
+  active: boolean;
+  /** Defaults to `true` when omitted in request. */
   templateEnabled: boolean;
   version: number;
 };
@@ -62,8 +101,19 @@ export type OrgDerivedListItem = {
   version: number;
   templateVersionId: string;
   derivedFromOrgTemplateId?: string;
+  derivedFromOrgTemplateVersionId?: string;
+  derivedFromOrgTemplateVersion?: number;
+  status: string;
+  active: boolean;
   templateEnabled: boolean;
+  /**
+   * True when the canonical org template version is newer than the version this variant copied.
+   * Same field name as `upgrade` on GET `/templates?templateLevel=ORG` (master → org derive).
+   */
+  upgrade: boolean;
   lastModifiedAt?: string;
+  /** Variant version timeline (list mode only). */
+  history?: TemplateHistoryEntry[];
 };
 
 export type ListOrgDerivedResult = {
@@ -78,6 +128,33 @@ export type GetOrgDerivedResult = OrgDerivedListItem & {
   derivedFromOrgTemplateVersionId?: string;
   fieldValues?: Record<string, unknown>;
   rules: Record<string, unknown>;
+  /** Populated when upgrade is true; otherwise null. */
+  adopt: OrgDerivedAdoptPreview | null;
+};
+
+export type AdoptOrgDerivedParams = {
+  organizationId: string;
+  orgTemplateId: string;
+  confirm?: boolean;
+  preserveLocalOverrides?: boolean;
+  actorUser?: TemplateActorUser;
+};
+
+export type AdoptOrgDerivedResult = {
+  orgTemplateId: string;
+  templateVersionId: string;
+  templateName?: string;
+  version: number;
+  derivedFromOrgTemplateVersion: number;
+  derivedFromOrgTemplateVersionId: string;
+  status: string;
+  active: boolean;
+  templateEnabled: boolean;
+  upgrade: boolean;
+  adopt: null;
+  fieldValues?: Record<string, unknown>;
+  rules: Record<string, unknown>;
+  history: TemplateHistoryEntry[];
 };
 
 export type UpdateOrgDerivedParams = {
@@ -86,6 +163,10 @@ export type UpdateOrgDerivedParams = {
   rules?: TemplateRulesPatch;
   fieldValues?: Record<string, unknown>;
   templateEnabled?: boolean;
+  /** `DRAFT` or `PUBLISHED` (`PUBLISH` accepted as alias). */
+  status?: 'DRAFT' | 'PUBLISHED';
+  /** Maps to template `isActive`. Defaults to `true` on create only. */
+  active?: boolean;
   actorUser?: TemplateActorUser;
 };
 
@@ -94,6 +175,8 @@ export type UpdateOrgDerivedResult = {
   templateVersionId: string;
   templateName?: string;
   version: number;
+  status: string;
+  active: boolean;
   templateEnabled: boolean;
   fieldValues?: Record<string, unknown>;
   rules: Record<string, unknown>;

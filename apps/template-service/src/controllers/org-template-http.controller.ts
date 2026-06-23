@@ -10,6 +10,7 @@ import type {
   ValidatedUpdateOrgTemplateRules,
   ValidatedCreateOrgDerived,
   ValidatedUpdateOrgDerived,
+  ValidatedAdoptOrgDerived,
 } from '../validators/request.validators';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
 import { resolveTemplateLevelFromQuery } from '../validators/template-level.util';
@@ -326,11 +327,42 @@ export class OrgTemplateHttpController {
         rules: v.body.rules,
         fieldValues: v.body.fieldValues,
         templateEnabled: v.body.templateEnabled,
+        status: v.body.status,
+        active: v.body.active,
         actorUser: v.actorUser,
       });
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'update_org_derived_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleAdoptOrgDerived(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedAdoptOrgDerived?: ValidatedAdoptOrgDerived })
+      .validatedAdoptOrgDerived;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.adoptOrgDerived({
+        organizationId: v.organizationId,
+        orgTemplateId: v.orgTemplateId,
+        confirm: v.body.confirm,
+        preserveLocalOverrides: v.body.preserveLocalOverrides,
+        actorUser: v.actorUser,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'adopt_org_derived_error',
         correlationId: req.context.correlationId as string,
       });
     }

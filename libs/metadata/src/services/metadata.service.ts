@@ -432,7 +432,7 @@ export interface MetadataValuesByTypeApplicability {
 export interface MetadataValuesByTypeValue {
   valueCode: string;
   label: string;
-  description: string | null;
+  description?: string | null;
   status: Status;
   isGlobal: boolean;
   sortOrder: number;

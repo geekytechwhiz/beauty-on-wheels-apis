@@ -37,7 +37,6 @@ import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   DERIVATION_KIND,
   TEMPLATE_STATUS,
-  VERSION_SK_PREFIX,
 } from '../constants/template.constants';
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { EnablementRepository } from '../repositories/enablement.repository';
@@ -54,6 +53,7 @@ import type {
 import { OrgTemplateSyncService } from './org-template-sync.service';
 import { OrgDerivedService } from './org-derived.service';
 import type {
+  AdoptOrgDerivedParams,
   OrgDerivedCreateParams,
   ListOrgDerivedParams,
   UpdateOrgDerivedParams,
@@ -1165,6 +1165,10 @@ export class OrgTemplateService {
 
   async updateOrgDerived(params: UpdateOrgDerivedParams) {
     return this.orgDerived.updateOrgDerived(params);
+  }
+
+  async adoptOrgDerived(params: AdoptOrgDerivedParams) {
+    return this.orgDerived.adoptOrgDerived(params);
   }
 
   async transitionOrgTemplateStatus(params: TransitionOrgStatusParams) {

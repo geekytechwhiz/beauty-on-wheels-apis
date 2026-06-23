@@ -114,5 +114,19 @@ describe('OrgDerivedService.createOrgDerived', () => {
     expect(result.sourceOrgTemplateId).toBe('TEST-TEMPLATE-ORG-ROSEWOOD');
     expect(result.orgTemplateId).toMatch(/^HTN-CARE-PLAN-VARIANT-A-/);
     expect(result.templateEnabled).toBe(true);
+    expect(result.status).toBe('DRAFT');
+    expect(result.active).toBe(true);
+  });
+
+  it('defaults templateEnabled to true when omitted', async () => {
+    const { svc } = buildService();
+
+    const result = await svc.createOrgDerived({
+      organizationId: 'ROSEWOOD',
+      sourceOrgTemplateId: 'TEST-TEMPLATE-ORG-ROSEWOOD',
+      newTemplateName: 'HTN Care Plan — Variant B',
+    });
+
+    expect(result.templateEnabled).toBe(true);
   });
 });

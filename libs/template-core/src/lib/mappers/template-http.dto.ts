@@ -84,6 +84,8 @@ export interface TemplateHistoryEntry {
   changes: string[];
   /** Snapshot of fieldValues at this point in time (for diffing). */
   fieldValues?: Record<string, unknown>;
+  /** Snapshot of rules at this point in time (for org-derived adopt). */
+  rules?: Record<string, unknown>;
 }
 
 function formatChangeValue(value: unknown): string {
@@ -306,6 +308,11 @@ export function appendVersionHistoryToRecord(
   const isCreate = opts?.isCreate ?? existing.length === 0;
   const entry = toHistoryEntry(record, isCreate);
   entry.fieldValues = fv ? { ...fv } : undefined;
+  const rules =
+    record.rules && typeof record.rules === 'object' && !Array.isArray(record.rules)
+      ? (record.rules as Record<string, unknown>)
+      : undefined;
+  entry.rules = rules ? { ...rules } : undefined;
   if (isCreate) {
     entry.changes = [];
   } else {

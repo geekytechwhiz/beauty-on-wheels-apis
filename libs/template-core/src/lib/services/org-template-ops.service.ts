@@ -134,6 +134,7 @@ export class OrgTemplateOpsService {
     metaOverrides?: Partial<TemplateMeta>;
     actorUser?: import('../models/template-actor.model').TemplateActorUser;
     bumpVersion?: boolean;
+    afterHistoryAppend?: (record: TemplateDdbRecord) => void;
   }): Promise<TemplateDdbRecord> {
     const currentStatus =
       params.sourceVersion.meta?.status ?? params.metaRow.meta.status ?? TEMPLATE_STATUS.DRAFT;
@@ -178,6 +179,7 @@ export class OrgTemplateOpsService {
 
     if (bumpVersion) {
       appendVersionHistoryToRecord(updatedVersionRow);
+      params.afterHistoryAppend?.(updatedVersionRow);
     }
 
     await this.orgRepo.saveOrgMetaAndVersion(updatedMetaRow, updatedVersionRow);

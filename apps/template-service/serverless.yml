@@ -455,6 +455,24 @@ functions:
             arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
+  adoptOrgDerived:
+    handler: src/handlers/http/adoptOrgDerived.main
+    events:
+      - http:
+          path: templates/org-derived/{orgTemplateId}/adopt
+          method: post
+          summary: Adopt canonical org template upgrade into variant
+          description: |
+            Applies canonical org template changes to a variant after upgrade review.
+            Requires variant in editable status and upgrade available.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
   - ${file(./infra/resources/events/event-bus.yml)}

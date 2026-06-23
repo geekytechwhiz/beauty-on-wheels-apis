@@ -98,6 +98,10 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'ORG_DERIVED_TEMPLATE_UPDATED',
     'Org-derived template updated successfully.',
   ),
+  'template.org-derived.adopt': msg(
+    'ORG_DERIVED_TEMPLATE_ADOPTED',
+    'Canonical org template upgrade adopted into variant successfully.',
+  ),
   'template-config.list': msg(
     'TEMPLATE_CONFIGS_LISTED',
     'Template UI configs retrieved successfully.',

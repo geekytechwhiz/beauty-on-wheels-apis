@@ -1,17 +1,41 @@
+import { TEMPLATE_STATUS } from '../constants/template.constants';
+import { resolveTemplateHistory, type TemplateHistoryEntry } from '../mappers/template-http.dto';
 import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { asTemplateRulesMap } from '../utils/template-rules.utils';
-import { resolveTemplateDisplayVersion } from '../utils/template.utils';
+import { buildOrgDerivedAdoptPreview } from '../utils/org-derived-adopt.utils';
+import { compareTemplateDisplayVersions, resolveTemplateDisplayVersion } from '../utils/template.utils';
 import type { EnablementDdbRecord } from '../models/api/enablement.types';
 import type {
   OrgDerivedCreateResult,
   GetOrgDerivedResult,
+  OrgDerivedAdoptPreview,
   OrgDerivedFilterOption,
   OrgDerivedFilterOptions,
   OrgDerivedListItem,
+  AdoptOrgDerivedResult,
   UpdateOrgDerivedResult,
 } from '../models/api/org-derived.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { isActiveEnablement } from '../utils/enablement.utils';
+
+function resolveOrgDerivedUpgrade(
+  variantMeta: TemplateDdbRecord['meta'],
+  canonicalMeta: TemplateDdbRecord['meta'] | undefined,
+): boolean {
+  if (!canonicalMeta) return false;
+  const derivedFromVersion =
+    typeof variantMeta.derivedFromOrgTemplateVersion === 'number'
+      ? variantMeta.derivedFromOrgTemplateVersion
+      : resolveTemplateDisplayVersion({
+          templateVersionId:
+            typeof variantMeta.derivedFromOrgTemplateVersionId === 'string'
+              ? variantMeta.derivedFromOrgTemplateVersionId
+              : undefined,
+        });
+  if (!derivedFromVersion) return false;
+  const canonicalVersion = resolveTemplateDisplayVersion(canonicalMeta);
+  return compareTemplateDisplayVersions(canonicalVersion, derivedFromVersion) > 0;
+}
 
 function fieldValuesOf(record: TemplateDdbRecord): Record<string, unknown> {
   const fv = record['fieldValues'];
@@ -41,8 +65,11 @@ export function toOrgDerivedListItem(
   metaRow: TemplateDdbRecord,
   versionRow: TemplateDdbRecord,
   enablement: EnablementDdbRecord | null,
+  canonicalMeta?: TemplateDdbRecord['meta'],
+  history?: TemplateHistoryEntry[],
 ): OrgDerivedListItem {
   const meta = metaRow.meta;
+  const versionMeta = versionRow.meta ?? meta;
   const fv = fieldValuesOf(versionRow);
   const catalog = extractCatalogCodes(fv);
 
@@ -61,8 +88,20 @@ export function toOrgDerivedListItem(
       typeof meta.derivedFromOrgTemplateId === 'string'
         ? meta.derivedFromOrgTemplateId
         : undefined,
+    derivedFromOrgTemplateVersionId:
+      typeof meta.derivedFromOrgTemplateVersionId === 'string'
+        ? meta.derivedFromOrgTemplateVersionId
+        : undefined,
+    derivedFromOrgTemplateVersion:
+      typeof meta.derivedFromOrgTemplateVersion === 'number'
+        ? meta.derivedFromOrgTemplateVersion
+        : undefined,
+    status: versionMeta.status ?? TEMPLATE_STATUS.DRAFT,
+    active: versionMeta.isActive !== false,
     templateEnabled: enablement ? isActiveEnablement(enablement) : false,
+    upgrade: resolveOrgDerivedUpgrade(meta, canonicalMeta),
     lastModifiedAt: meta.lastModifiedAt,
+    ...(history && history.length > 0 ? { history } : {}),
   };
 }
 
@@ -71,9 +110,30 @@ export function toOrgDerivedDetail(
   metaRow: TemplateDdbRecord,
   versionRow: TemplateDdbRecord,
   enablement: EnablementDdbRecord | null,
+  canonicalMeta?: TemplateDdbRecord['meta'],
+  adoptContext?: {
+    canonicalFromRow?: TemplateDdbRecord;
+    canonicalToRow?: TemplateDdbRecord;
+  },
 ): GetOrgDerivedResult {
-  const base = toOrgDerivedListItem(metaRow, versionRow, enablement);
+  const base = toOrgDerivedListItem(metaRow, versionRow, enablement, canonicalMeta);
   const meta = metaRow.meta;
+
+  let adopt: OrgDerivedAdoptPreview | null = null;
+  if (
+    base.upgrade &&
+    adoptContext?.canonicalFromRow &&
+    adoptContext?.canonicalToRow &&
+    typeof meta.derivedFromOrgTemplateId === 'string'
+  ) {
+    adopt = buildOrgDerivedAdoptPreview({
+      variantMeta: meta,
+      variantVersionRow: versionRow,
+      canonicalFromRow: adoptContext.canonicalFromRow,
+      canonicalToRow: adoptContext.canonicalToRow,
+      sourceOrgTemplateId: meta.derivedFromOrgTemplateId,
+    });
+  }
 
   return {
     ...base,
@@ -84,7 +144,15 @@ export function toOrgDerivedDetail(
         : undefined,
     fieldValues: fieldValuesOf(versionRow),
     rules: asTemplateRulesMap(versionRow.rules),
+    adopt,
   };
+}
+
+export function resolveOrgDerivedItemHistory(
+  versionRow: TemplateDdbRecord,
+  allVersionRows: TemplateDdbRecord[] = [],
+): TemplateHistoryEntry[] {
+  return resolveTemplateHistory(versionRow, allVersionRows);
 }
 
 export function toOrgDerivedCreateResult(
@@ -109,8 +177,44 @@ export function toOrgDerivedCreateResult(
     templateType: meta.templateType,
     categoryCode: catalog.categoryCode,
     conditionCode: catalog.conditionCode,
+    status: meta.status ?? TEMPLATE_STATUS.DRAFT,
+    active: meta.isActive !== false,
     templateEnabled,
     version: resolveTemplateDisplayVersion(meta),
+  };
+}
+
+export function toAdoptOrgDerivedResult(
+  metaRow: TemplateDdbRecord,
+  versionRow: TemplateDdbRecord,
+  templateEnabled: boolean,
+  canonicalMeta?: TemplateDdbRecord['meta'],
+): AdoptOrgDerivedResult {
+  const meta = versionRow.meta ?? metaRow.meta;
+  const lineageMeta = metaRow.meta;
+  const history = resolveOrgDerivedItemHistory(versionRow);
+
+  return {
+    orgTemplateId: meta.templateId,
+    templateVersionId: meta.templateVersionId ?? '',
+    templateName: meta.templateName,
+    version: resolveTemplateDisplayVersion(meta),
+    derivedFromOrgTemplateVersion:
+      typeof lineageMeta.derivedFromOrgTemplateVersion === 'number'
+        ? lineageMeta.derivedFromOrgTemplateVersion
+        : resolveTemplateDisplayVersion(meta),
+    derivedFromOrgTemplateVersionId:
+      typeof lineageMeta.derivedFromOrgTemplateVersionId === 'string'
+        ? lineageMeta.derivedFromOrgTemplateVersionId
+        : meta.templateVersionId ?? '',
+    status: meta.status ?? TEMPLATE_STATUS.DRAFT,
+    active: meta.isActive !== false,
+    templateEnabled,
+    upgrade: resolveOrgDerivedUpgrade(lineageMeta, canonicalMeta),
+    adopt: null,
+    fieldValues: fieldValuesOf(versionRow),
+    rules: asTemplateRulesMap(versionRow.rules),
+    history,
   };
 }
 
@@ -126,6 +230,8 @@ export function toUpdateOrgDerivedResult(
     templateVersionId: meta.templateVersionId ?? '',
     templateName: meta.templateName,
     version: resolveTemplateDisplayVersion(meta),
+    status: meta.status ?? TEMPLATE_STATUS.DRAFT,
+    active: meta.isActive !== false,
     templateEnabled,
     fieldValues: fieldValuesOf(versionRow),
     rules: asTemplateRulesMap(versionRow.rules),

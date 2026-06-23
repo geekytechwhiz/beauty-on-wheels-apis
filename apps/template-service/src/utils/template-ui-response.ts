@@ -76,6 +76,7 @@ export type TemplateField = {
    options: {
       labelKey: string;
       value: string;
+      description?: string | null;
     }[]
   validation: {
     required: {

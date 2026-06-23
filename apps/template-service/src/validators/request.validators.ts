@@ -1,7 +1,6 @@
 import { LambdaRequest } from '@api-hub/utils';
 import {
   extractCatalogCodes,
-  normalizeShareScopeOrThrow,
   normalizeTemplateServiceError,
   resolveTemplateDisplayName,
   TEMPLATE_STATUS,
@@ -22,7 +21,6 @@ import {
   deriveTemplateBodySchema,
   updateOrgTemplateEnableBodySchema,
   orgClonePathSchema,
-  orgTemplatePathSchema,
   parseGetMasterVersionsQuery,
   parseListMasterTemplatesQuery,
   parseListOrgTemplatesQuery,
@@ -48,8 +46,10 @@ import {
   orgDerivedCreateBodySchema,
   orgDerivedPathSchema,
   orgDerivedUpdateBodySchema,
+  orgDerivedAdoptBodySchema,
   type OrgDerivedCreateBody,
   type OrgDerivedUpdateBody,
+  type OrgDerivedAdoptBody,
   type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
@@ -58,7 +58,6 @@ import {
   type UpdateOrgTemplateEnableBody,
   type StatusTransitionBody,
   type UpdateMasterTemplateBody,
-  saveMasterTemplateBodySchema,
   postTemplateConfigMetaBodySchema,
   listTemplateConfigQuerySchema,
   templateConfigIdPathSchema,
@@ -239,11 +238,6 @@ function normalizeCreateMasterBody(rawBody: unknown): CreateMasterTemplateBody &
     typeof versionRaw === 'number' && Number.isFinite(versionRaw) && versionRaw > 0
       ? Math.trunc(versionRaw)
       : undefined;
-
-  const createdBy =
-    firstString(body.createdBy) ??
-    firstString(templateMetadata.createdBy) ??
-    firstString(templateMetadata.lastModifiedBy);
 
   const mergedFieldValues = mergeProfileFieldsIntoFieldValues(body, templateProfile);
   const catalog = extractCatalogCodes(mergedFieldValues);
@@ -1181,6 +1175,13 @@ export type ValidatedUpdateOrgDerived = {
   actorUser: TemplateActorUser;
 };
 
+export type ValidatedAdoptOrgDerived = {
+  organizationId: string;
+  orgTemplateId: string;
+  body: OrgDerivedAdoptBody;
+  actorUser: TemplateActorUser;
+};
+
 export async function validateCreateOrgDerivedRequest(req: LambdaRequest): Promise<void> {
   const actorUser = await requireActorUser(req);
 
@@ -1209,6 +1210,27 @@ export async function validateUpdateOrgDerivedRequest(req: LambdaRequest): Promi
 
   (req as LambdaRequest & { validatedUpdateOrgDerived?: ValidatedUpdateOrgDerived })
     .validatedUpdateOrgDerived = {
+    organizationId,
+    orgTemplateId: path.data.orgTemplateId.trim(),
+    body,
+    actorUser,
+  };
+}
+
+export async function validateAdoptOrgDerivedRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgDerivedPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('orgTemplateId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const qs = req.event.queryStringParameters as Record<string, string | undefined> | null;
+  const organizationId = resolveOrganizationId(req, qs?.organizationId);
+  const body = orgDerivedAdoptBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedAdoptOrgDerived?: ValidatedAdoptOrgDerived })
+    .validatedAdoptOrgDerived = {
     organizationId,
     orgTemplateId: path.data.orgTemplateId.trim(),
     body,

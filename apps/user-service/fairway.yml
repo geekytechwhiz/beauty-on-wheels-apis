@@ -17,7 +17,7 @@ phases:
   build:
     commands:
  
-      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+      - export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096 --no-experimental-detect-module --no-experimental-require-module"
       - rm -rf .serverless && npx serverless package --stage "$STAGE" --package .serverless
 
       # 2) select create vs update s3 keys

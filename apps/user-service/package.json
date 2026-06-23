@@ -98,7 +98,7 @@
     }
   },
   "dependencies": {
- 
+    "@myvitalrx/mvrx-resource-registry": "^0.0.4"
   },
   "devDependencies": { 
   }

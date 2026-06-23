@@ -39,6 +39,14 @@ const ALL_TYPE_OVERRIDES: MetadataTypeSeedDefinition[] = [
     applicableModules: ['SERVICE', 'PACKAGE', 'APPOINTMENT'],
     status: 'ACTIVE',
     valueApplicabilityConfig: { moduleScoped: true },
+    relation: {
+      supportsRelations: true,
+      relationType: 'ALLOWED_FOR',
+      targetMetadataTypeCode: 'Specialty',
+      relationFieldLabel: 'Allowed Specialties',
+      selectionMode: 'MULTI',
+      relationRequired: false,
+    },
   },
 ];
 

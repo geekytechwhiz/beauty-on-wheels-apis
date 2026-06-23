@@ -7,7 +7,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-dotenv-plugin
   - serverless-esbuild
-  - serverless-offline
+  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
   name: aws
@@ -188,6 +188,14 @@ functions:
     events:
       - http:
           path: metadata/values/related
+          method: get
+          cors: *defaultHttpCors
+
+  getMetadataChangeRequest:
+    handler: src/handlers/getChangeRequest.main
+    events:
+      - http:
+          path: metadata/change-requests/{changeRequestId}
           method: get
           cors: *defaultHttpCors
 

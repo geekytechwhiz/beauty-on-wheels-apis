@@ -16,6 +16,7 @@ import {
   getOrganizationIdForRequest,
 } from '../utils/helpers';
 import { enrichTemplateActorUser } from '../services/user-lookup.service';
+import { resolveTemplateLevelFromQuery } from './template-level.util';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
@@ -44,6 +45,11 @@ import {
   updateOrgTemplateBodySchema,
   orgTemplateRulesPathSchema,
   updateOrgTemplateRulesBodySchema,
+  orgDerivedCreateBodySchema,
+  orgDerivedPathSchema,
+  orgDerivedUpdateBodySchema,
+  type OrgDerivedCreateBody,
+  type OrgDerivedUpdateBody,
   type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
@@ -740,19 +746,29 @@ function resolveListOrgOrganizationScope(
 export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promise<void> {
   const actorUser = requireAuthenticatedActor(req);
 
-  const rawQuery = parseListOrgTemplatesQuery(
-    req.params as Record<string, string | string[] | undefined>,
-  );
+  const rawQuery = parseListOrgTemplatesQuery({
+    ...(req.event.queryStringParameters as Record<string, string | string[] | undefined> | null),
+    ...(req.params as Record<string, string | string[] | undefined>),
+  });
   const templateEnabledFilter = parseTemplateEnabledQuery(rawQuery.templateEnabled);
   const query: ListOrgTemplatesQuery = {
     ...rawQuery,
     status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
     templateEnabled: undefined,
   };
+  const level = query.templateLevel ?? resolveTemplateLevelFromQuery(req);
   const scope = resolveListOrgOrganizationScope(
     req,
     query.organizationId ?? query.organizationMetaId,
   );
+
+  if (level === 'ORG_DERIVED' && !scope.organizationId) {
+    throwVal(
+      'organizationId query parameter is required when templateLevel=ORG_DERIVED',
+      400,
+      'VALIDATION_ERROR',
+    );
+  }
 
   (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg = {
     ...scope,
@@ -1150,5 +1166,53 @@ export async function validateListCompatibleTemplatesRequest(req: LambdaRequest)
       query,
       actorUser,
     };
+}
+
+export type ValidatedCreateOrgDerived = {
+  organizationId: string;
+  body: OrgDerivedCreateBody;
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedUpdateOrgDerived = {
+  organizationId: string;
+  orgTemplateId: string;
+  body: OrgDerivedUpdateBody;
+  actorUser: TemplateActorUser;
+};
+
+export async function validateCreateOrgDerivedRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const body = orgDerivedCreateBodySchema.parse(req.body ?? {});
+  const organizationId = resolveOrganizationId(req, body.organizationId);
+
+  (req as LambdaRequest & { validatedCreateOrgDerived?: ValidatedCreateOrgDerived })
+    .validatedCreateOrgDerived = {
+    organizationId,
+    body,
+    actorUser,
+  };
+}
+
+export async function validateUpdateOrgDerivedRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = orgDerivedPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('orgTemplateId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const qs = req.event.queryStringParameters as Record<string, string | undefined> | null;
+  const organizationId = resolveOrganizationId(req, qs?.organizationId);
+  const body = orgDerivedUpdateBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgDerived?: ValidatedUpdateOrgDerived })
+    .validatedUpdateOrgDerived = {
+    organizationId,
+    orgTemplateId: path.data.orgTemplateId.trim(),
+    body,
+    actorUser,
+  };
 }
 

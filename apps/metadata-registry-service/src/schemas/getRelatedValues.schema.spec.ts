@@ -57,6 +57,23 @@ describe('getRelatedValuesSchema', () => {
     expect(out.toType).toBe('State');
   });
 
+  it('accepts ALLOWED_FOR for ServiceType related values query', () => {
+    const out = getRelatedValuesSchema.parse({
+      params: {
+        fromType: 'ServiceType',
+        fromValue: 'CONSULTATION',
+        relationType: 'ALLOWED_FOR',
+        toType: 'Specialty',
+      },
+    });
+    expect(out).toEqual({
+      fromType: 'ServiceType',
+      fromValues: ['CONSULTATION'],
+      relationType: 'ALLOWED_FOR',
+      toType: 'Specialty',
+    });
+  });
+
   it('rejects an invalid value in the list', () => {
     expect(() =>
       getRelatedValuesSchema.parse({

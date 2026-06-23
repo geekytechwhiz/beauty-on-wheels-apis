@@ -15,7 +15,10 @@ const shareScopeInputZ = z
 
 const templateStatusZ = z.enum([TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED]);
 
-export const templateLevelZ = z.enum(['MASTER', 'ORG']);
+export const templateLevelZ = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+  z.enum(['MASTER', 'ORG', 'ORG_DERIVED']),
+);
 
 export const fieldValuesSchema = z.record(z.string(), z.unknown());
 
@@ -377,6 +380,45 @@ export const updateOrgTemplateRulesBodySchema = z
 
 export type UpdateOrgTemplateRulesBody = z.infer<typeof updateOrgTemplateRulesBodySchema>;
 
+/** POST /templates/org-derived */
+export const orgDerivedCreateBodySchema = z.object({
+  organizationId: z.string().trim().min(1),
+  organizationMeta: organizationMetaSchema.optional(),
+  sourceOrgTemplateId: z.string().trim().min(1),
+  newTemplateName: z.string().trim().min(1).max(150),
+  sourceVersionId: z.string().trim().min(1).optional(),
+  templateEnabled: z.boolean().optional(),
+});
+
+export type OrgDerivedCreateBody = z.infer<typeof orgDerivedCreateBodySchema>;
+
+/** PUT /templates/org-derived/{orgTemplateId} */
+export const orgDerivedPathSchema = z.object({
+  orgTemplateId: z.string().trim().min(1),
+});
+
+export const orgDerivedUpdateBodySchema = z
+  .object({
+    rules: z.record(z.string().trim().min(1), partialTemplateFieldRuleSchema).optional(),
+    fieldValues: fieldValuesSchema.optional(),
+    templateEnabled: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasRules = data.rules !== undefined && Object.keys(data.rules).length > 0;
+    const hasFieldValues =
+      data.fieldValues !== undefined && Object.keys(data.fieldValues).length > 0;
+    const hasEnable = data.templateEnabled !== undefined;
+    if (!hasRules && !hasFieldValues && !hasEnable) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'rules, fieldValues, or templateEnabled must be provided',
+        path: ['rules'],
+      });
+    }
+  });
+
+export type OrgDerivedUpdateBody = z.infer<typeof orgDerivedUpdateBodySchema>;
+
 export const orgClonePathSchema = z.object({
   organizationId: z.string().trim().min(1),
   templateId: z.string().trim().min(1),
@@ -388,6 +430,8 @@ export const listOrgTemplatesQuerySchema = z.object({
   organizationId: z.string().trim().min(1).optional(),
   /** Same as organizationId — id from organizationMeta returned by this endpoint. */
   organizationMetaId: z.string().trim().min(1).optional(),
+  /** When templateLevel=ORG_DERIVED — return one variant with full fieldValues + rules. */
+  orgTemplateId: z.string().trim().min(1).optional(),
   organizationName: z.string().trim().min(1).optional(),
   organizationDescription: z.string().trim().optional(),
   categoryCode: z.string().trim().min(1).optional(),

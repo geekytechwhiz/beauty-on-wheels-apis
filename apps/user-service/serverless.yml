@@ -11,6 +11,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - '@myvitalrx/mvrx-resource-registry'
 
 provider:
   name: aws
@@ -191,6 +192,14 @@ package:
   
 custom:
   # Disable sourcemaps for staging/prod to reduce memory in CI (avoids esbuild "The service was stopped: write EPIPE")
+  
+  resourceRegistry:
+    enabled: true
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic 
   sourcemapsByStage:
     dev: true
     nvstg: false

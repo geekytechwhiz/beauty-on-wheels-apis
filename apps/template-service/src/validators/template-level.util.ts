@@ -2,7 +2,7 @@ import type { LambdaRequest } from '@api-hub/utils';
 
 import { getOrganizationIdForRequest } from '../utils/helpers';
 
-export type TemplateLevel = 'MASTER' | 'ORG';
+export type TemplateLevel = 'MASTER' | 'ORG' | 'ORG_DERIVED';
 
 function firstQuery(
   req: LambdaRequest,
@@ -20,9 +20,10 @@ function firstQuery(
   return undefined;
 }
 
-/** Resolve MASTER vs ORG for unified /templates routes. */
+/** Resolve MASTER vs ORG vs ORG_DERIVED for unified /templates routes. */
 export function resolveTemplateLevelFromQuery(req: LambdaRequest): TemplateLevel {
   const explicit = firstQuery(req, 'templateLevel');
+  if (explicit === 'ORG_DERIVED') return 'ORG_DERIVED';
   if (explicit === 'ORG') return 'ORG';
   if (explicit === 'MASTER') return 'MASTER';
 

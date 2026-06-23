@@ -12,11 +12,13 @@ import type { MetadataTypeInput, MetadataValueInput } from '../models/types';
 import {
   CHANGE_REQUEST_OPERATION,
   CHANGE_REQUEST_STATUS,
+  type ChangeRequestCancelledResponse,
+  type ChangeRequestDraftDetailResponse,
   type ChangeRequestDraftResponse,
   type ChangeRequestRecord,
-  toChangeRequestDraftResponse,
   toChangeRequestCancelledResponse,
-  type ChangeRequestCancelledResponse,
+  toChangeRequestDraftDetailResponse,
+  toChangeRequestDraftResponse,
 } from '../models/change-request.types';
 import {
   mergeMetadataTypeForUpdate,
@@ -353,4 +355,28 @@ export async function orchestrateRegistryPostCancelDraft(
     cancelledAt,
   });
   return toChangeRequestCancelledResponse(cancelled);
+}
+
+/**
+ * GET `/metadata/change-requests/{changeRequestId}` — load a saved DRAFT with proposedPayload for form restore.
+ */
+export async function getDraftChangeRequest(changeRequestId: string): Promise<ChangeRequestDraftDetailResponse> {
+  const repo = await getMetadataRepository();
+  const record = await repo.getChangeRequest(changeRequestId);
+  if (!record) {
+    throw new NotFoundError(`Change request not found: ${changeRequestId}`, 'CHANGE_REQUEST_NOT_FOUND');
+  }
+  if (record.status !== CHANGE_REQUEST_STATUS.DRAFT) {
+    throw new ConflictError(
+      `Change request ${changeRequestId} is not in DRAFT status`,
+      'CHANGE_REQUEST_NOT_DRAFT',
+    );
+  }
+  return toChangeRequestDraftDetailResponse(record);
+}
+
+export async function orchestrateRegistryGetDraftChangeRequest(
+  changeRequestId: string,
+): Promise<ChangeRequestDraftDetailResponse> {
+  return getDraftChangeRequest(changeRequestId);
 }

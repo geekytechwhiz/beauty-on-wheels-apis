@@ -25,7 +25,7 @@ export const createMetadataTypeSchema = z.object({
   selectionMode: z.enum(['SINGLE', 'MULTI']).nullable().optional(),
   relationRequired: z.boolean().nullable().optional(),
   relationType: z
-    .enum(['PARENT_CHILD', 'VALID_IN', 'SUPPORTED_BY', 'BELONGS_TO_CATEGORY'])
+    .enum(['PARENT_CHILD', 'VALID_IN', 'SUPPORTED_BY', 'BELONGS_TO_CATEGORY', 'ALLOWED_FOR'])
     .nullable()
     .optional(),
   createdBy: z.string().optional(),

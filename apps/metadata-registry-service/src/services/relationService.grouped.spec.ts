@@ -18,10 +18,11 @@ function relation(
   fromValue: string,
   toType: string,
   toValue: string,
+  relationType: MetadataRelationRecord['relationType'] = 'PARENT_CHILD',
 ): MetadataRelationRecord {
   return {
     id: `${fromType}#${fromValue}#${toType}#${toValue}`,
-    relationType: 'PARENT_CHILD',
+    relationType,
     fromMetadataTypeCode: fromType,
     fromMetadataValueCode: fromValue,
     toMetadataTypeCode: toType,
@@ -61,6 +62,45 @@ describe('listRelatedValuesGrouped', () => {
         fromMetadataValueCode: 'IN',
         fromLabel: 'India',
         values: [{ metadataTypeCode: 'State', metadataValueCode: 'KA', label: 'Karnataka' }],
+      },
+    ]);
+  });
+
+  it('returns ServiceType specialties for ALLOWED_FOR with relationType and toType filters', async () => {
+    mockListRelationsByFrom.mockResolvedValue([
+      relation('ServiceType', 'CONSULTATION', 'Specialty', 'CARDIOLOGY', 'ALLOWED_FOR'),
+      relation('ServiceType', 'CONSULTATION', 'Specialty', 'ENDOCRINOLOGY', 'ALLOWED_FOR'),
+    ]);
+    mockGetMetadataValue.mockImplementation((typeCode: string, valueCode: string) => {
+      const labels: Record<string, string> = {
+        'ServiceType#CONSULTATION': 'Consultation',
+        'Specialty#CARDIOLOGY': 'Cardiology',
+        'Specialty#ENDOCRINOLOGY': 'Endocrinology',
+      };
+      return Promise.resolve({ label: labels[`${typeCode}#${valueCode}`] });
+    });
+
+    const groups = await listRelatedValuesGrouped('ServiceType', ['CONSULTATION'], {
+      relationType: 'ALLOWED_FOR',
+      toType: 'Specialty',
+    });
+
+    expect(mockListRelationsByFrom).toHaveBeenCalledWith('ServiceType', 'CONSULTATION', {
+      skBeginsWith: 'ALLOWED_FOR#Specialty#',
+    });
+    expect(groups).toEqual([
+      {
+        fromMetadataTypeCode: 'ServiceType',
+        fromMetadataValueCode: 'CONSULTATION',
+        fromLabel: 'Consultation',
+        values: [
+          { metadataTypeCode: 'Specialty', metadataValueCode: 'CARDIOLOGY', label: 'Cardiology' },
+          {
+            metadataTypeCode: 'Specialty',
+            metadataValueCode: 'ENDOCRINOLOGY',
+            label: 'Endocrinology',
+          },
+        ],
       },
     ]);
   });

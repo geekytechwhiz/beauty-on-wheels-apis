@@ -20,6 +20,8 @@ export function skPrefixForRelationType(relationType: RelationType): string {
       return 'SUPPORTS';
     case 'BELONGS_TO_CATEGORY':
       return 'BELONGS';
+    case 'ALLOWED_FOR':
+      return 'ALLOWED_FOR';
     default: {
       const _exhaustive: never = relationType;
       return _exhaustive;
@@ -40,7 +42,7 @@ export function relationSortKey(
   return `${p}#${toMetadataTypeCode}#${toMetadataValueCode}`;
 }
 
-const SK_PREFIXES = new Set<string>(['CHILD', 'VALID_IN', 'SUPPORTS', 'BELONGS']);
+const SK_PREFIXES = new Set<string>(['CHILD', 'VALID_IN', 'SUPPORTS', 'BELONGS', 'ALLOWED_FOR']);
 
 export interface ParsedRelationSortKey {
   skPrefix: string;
@@ -78,6 +80,8 @@ export function relationTypeFromSkPrefix(skPrefix: string): RelationType | null 
       return 'SUPPORTED_BY';
     case 'BELONGS':
       return 'BELONGS_TO_CATEGORY';
+    case 'ALLOWED_FOR':
+      return 'ALLOWED_FOR';
     default:
       return null;
   }

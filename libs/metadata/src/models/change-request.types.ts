@@ -65,6 +65,41 @@ export function toChangeRequestDraftResponse(record: ChangeRequestRecord): Chang
   };
 }
 
+/** API response for `GET /metadata/change-requests/{changeRequestId}` — DRAFT only, includes form payload. */
+export interface ChangeRequestDraftDetailResponse {
+  changeRequestId: string;
+  status: typeof CHANGE_REQUEST_STATUS.DRAFT;
+  entityType: ChangeRequestEntityType;
+  operation: ChangeRequestOperation;
+  metadataTypeCode: string;
+  metadataValueCode?: string | null;
+  baseVersion: number | null;
+  proposedPayload: Record<string, unknown>;
+  createdAt: string;
+  createdBy?: string;
+  lastModifiedAt: string;
+  lastModifiedBy?: string;
+}
+
+export function toChangeRequestDraftDetailResponse(
+  record: ChangeRequestRecord,
+): ChangeRequestDraftDetailResponse {
+  return {
+    changeRequestId: record.changeRequestId,
+    status: CHANGE_REQUEST_STATUS.DRAFT,
+    entityType: record.entityType,
+    operation: record.operation,
+    metadataTypeCode: record.metadataTypeCode,
+    metadataValueCode: record.metadataValueCode ?? null,
+    baseVersion: record.baseVersion,
+    proposedPayload: record.proposedPayload,
+    createdAt: record.createdAt,
+    createdBy: record.createdBy,
+    lastModifiedAt: record.lastModifiedAt,
+    lastModifiedBy: record.lastModifiedBy,
+  };
+}
+
 /** API response for POST `?action=cancel`. */
 export interface ChangeRequestCancelledResponse {
   changeRequestId: string;

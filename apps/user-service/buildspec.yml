@@ -6,6 +6,7 @@ env:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-user-service-bucket'
     STACK_NAME: 'dev-user-service'
+    NPM_TOKEN: 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
 
 phases:
   install:

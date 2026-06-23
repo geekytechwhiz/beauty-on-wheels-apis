@@ -8,6 +8,7 @@ export const RELATION_TYPES = [
   'VALID_IN',
   'SUPPORTED_BY',
   'BELONGS_TO_CATEGORY',
+  'ALLOWED_FOR',
 ] as const;
 
 export type RelationType = (typeof RELATION_TYPES)[number];

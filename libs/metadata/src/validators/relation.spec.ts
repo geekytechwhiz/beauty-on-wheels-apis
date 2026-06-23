@@ -19,6 +19,36 @@ describe('relation validator', () => {
     expect(() => assertValidRelationType('UNKNOWN')).toThrow();
   });
 
+  it('accepts ALLOWED_FOR as a valid relation type', () => {
+    expect(assertValidRelationType('ALLOWED_FOR')).toBe('ALLOWED_FOR');
+  });
+
+  it('validates ServiceType → Specialty as ALLOWED_FOR', () => {
+    expect(() =>
+      validateRelationPairing({
+        relationType: 'ALLOWED_FOR',
+        fromMetadataTypeCode: 'ServiceType',
+        fromMetadataValueCode: 'CONSULTATION',
+        toMetadataTypeCode: 'Specialty',
+        toMetadataValueCode: 'CARDIOLOGY',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects invalid ALLOWED_FOR pair', () => {
+    expect(() =>
+      validateRelationPairing({
+        relationType: 'ALLOWED_FOR',
+        fromMetadataTypeCode: 'Device',
+        fromMetadataValueCode: 'BP_MONITOR',
+        toMetadataTypeCode: 'Specialty',
+        toMetadataValueCode: 'CARDIOLOGY',
+      }),
+    ).toThrow(
+      'Invalid relation mapping. Device cannot relate to Specialty using ALLOWED_FOR. Allowed mappings for ALLOWED_FOR are: ServiceType -> Specialty.',
+    );
+  });
+
   it('validates known Country → State as PARENT_CHILD', () => {
     expect(
       () =>
@@ -74,6 +104,7 @@ describe('relation validator', () => {
 
   it('exposes an allow list per type', () => {
     expect(RELATION_TYPE_ALLOWED_PAIRS.SUPPORTED_BY[0]).toEqual({ from: 'Device', to: 'Vital' });
+    expect(RELATION_TYPE_ALLOWED_PAIRS.ALLOWED_FOR[0]).toEqual({ from: 'ServiceType', to: 'Specialty' });
   });
 });
 

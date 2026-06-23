@@ -316,7 +316,7 @@ paths:
           name: relationType
           schema:
             type: string
-            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
         - in: query
           name: toType
           schema: { type: string }
@@ -362,6 +362,9 @@ paths:
         source value. Each group includes the source value label (`fromLabel`) and
         each related value includes its `label`. Related values are deduped per
         group by `metadataTypeCode` + `metadataValueCode`.
+
+        Example: `fromType=ServiceType&fromValue=CONSULTATION&relationType=ALLOWED_FOR&toType=Specialty`
+        returns allowed specialties for the consultation service type.
       parameters:
         - in: query
           name: fromType
@@ -386,7 +389,7 @@ paths:
           name: relationType
           schema:
             type: string
-            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+            enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
         - in: query
           name: toType
           schema: { type: string }
@@ -405,6 +408,39 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/RelatedValuesGroup'
+
+  /metadata/change-requests/{changeRequestId}:
+    get:
+      summary: Get a saved metadata change request draft
+      description: |
+        Returns a DRAFT change request by id, including `proposedPayload` so the client can restore
+        the metadata form after a browser refresh. Does not modify published metadata.
+
+        Returns `404` when the id does not exist (`CHANGE_REQUEST_NOT_FOUND`) or `409` when the
+        change request exists but is not in DRAFT status (`CHANGE_REQUEST_NOT_DRAFT`).
+      parameters:
+        - in: path
+          name: changeRequestId
+          required: true
+          schema:
+            type: string
+            description: ULID returned from `POST /metadata/{entityType}?action=draft`
+      responses:
+        '200':
+          description: Draft change request with proposed payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ChangeRequestDraftDetailResponse'
+        '400':
+          description: Invalid changeRequestId format
+        '404':
+          description: Change request not found
+        '409':
+          description: Change request is not in DRAFT status
 
   /metadata/relations/{id}:
     patch:
@@ -977,6 +1013,59 @@ components:
           type: string
           format: date-time
 
+    ChangeRequestDraftDetailResponse:
+      type: object
+      description: |
+        Response for `GET /metadata/change-requests/{changeRequestId}`. DRAFT change requests only;
+        includes `proposedPayload` for form restore. Internal DynamoDB keys are not exposed.
+      required:
+        - changeRequestId
+        - status
+        - entityType
+        - operation
+        - metadataTypeCode
+        - baseVersion
+        - proposedPayload
+        - createdAt
+        - lastModifiedAt
+      properties:
+        changeRequestId:
+          type: string
+          description: ULID assigned at `action=draft`
+        status:
+          type: string
+          enum: [DRAFT]
+        entityType:
+          type: string
+          enum: [type, value]
+        operation:
+          type: string
+          enum: [Add, Update]
+        metadataTypeCode:
+          type: string
+        metadataValueCode:
+          type: string
+          nullable: true
+          description: Present when `entityType=value`; null when `entityType=type`
+        baseVersion:
+          type: integer
+          nullable: true
+          description: Latest published version at draft time; null for `operation=Add`
+        proposedPayload:
+          type: object
+          additionalProperties: true
+          description: Original draft body used to rebuild the metadata form
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        lastModifiedAt:
+          type: string
+          format: date-time
+        lastModifiedBy:
+          type: string
+
     ChangeRequestCancelRequest:
       type: object
       description: Body for `POST /metadata/{entityType}?action=cancel`.
@@ -1212,7 +1301,7 @@ components:
 
     RelationType:
       type: string
-      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY]
+      enum: [PARENT_CHILD, VALID_IN, SUPPORTED_BY, BELONGS_TO_CATEGORY, ALLOWED_FOR]
     MetadataRelationRecord:
       type: object
       properties:

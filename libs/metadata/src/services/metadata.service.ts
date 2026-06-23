@@ -816,11 +816,12 @@ export async function orchestrateRegistryDeleteMetadataValue(
   return enrichMetadataValueForApi(record);
 }
 
-export { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft } from './metadata-change-request.service';
+export { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft, orchestrateRegistryGetDraftChangeRequest, getDraftChangeRequest } from './metadata-change-request.service';
 export { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
 export { orchestrateRegistryPostPublish, publishChangeRequest } from './metadata-publish.service';
 export type {
   ChangeRequestDraftResponse,
+  ChangeRequestDraftDetailResponse,
   ChangeRequestCancelledResponse,
 } from '../models/change-request.types';
 export type { ImpactPreviewResponse } from '../models/impact-preview.types';

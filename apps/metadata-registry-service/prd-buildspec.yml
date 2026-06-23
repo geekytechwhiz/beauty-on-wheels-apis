@@ -6,12 +6,14 @@ env:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'nvprd-mvx-metadata-registry-service-bucket'
     STACK_NAME: 'prd-metadata-registry-service'
+    NPM_TOKEN: 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
 
 phases:
   install:
     runtime-versions:
       nodejs: 22
     commands:
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
 

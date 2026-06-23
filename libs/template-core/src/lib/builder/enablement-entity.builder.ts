@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import {
+  DERIVATION_KIND,
   ENTITY_TYPE_ORG_ENABLEMENT,
   TEMPLATE_META_SK,
 } from '../constants/template.constants';
@@ -61,6 +62,42 @@ export class EnablementEntityBuilder {
       condition: firstString(masterMeta.condition ?? masterMeta.conditions),
       effectiveFrom: body.effectiveFrom?.trim() || nowIso,
       effectiveTo: body.effectiveTo ?? null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+  }
+
+  static buildMetaForOrgDerived(
+    params: {
+      organizationId: string;
+      orgTemplateId: string;
+      masterTemplateId: string;
+      masterTemplateVersionId: string;
+      masterTemplateVersion?: number;
+      templateName: string;
+      templateType?: string;
+      categoryCode?: string;
+      conditionCode?: string;
+      effectiveFrom: string;
+      effectiveTo?: string | null;
+    },
+    enablementId: string,
+    nowIso: string,
+  ): EnablementMeta {
+    return {
+      enablementId,
+      organizationId: params.organizationId,
+      masterTemplateId: params.masterTemplateId,
+      masterTemplateVersionId: params.masterTemplateVersionId,
+      masterTemplateVersion: params.masterTemplateVersion,
+      orgTemplateId: params.orgTemplateId,
+      derivationKind: DERIVATION_KIND.ORG_DERIVE,
+      templateName: params.templateName,
+      templateType: params.templateType,
+      categoryCode: params.categoryCode,
+      conditionCode: params.conditionCode,
+      effectiveFrom: params.effectiveFrom,
+      effectiveTo: params.effectiveTo ?? null,
       createdAt: nowIso,
       updatedAt: nowIso,
     };

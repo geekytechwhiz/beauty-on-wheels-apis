@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import {
+  DERIVATION_KIND,
   ENTITY_TYPE_ORG_TEMPLATE,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
@@ -12,7 +13,6 @@ import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord, TemplateMeta } from '../models/persistence/template-ddb.model';
 import { resolveTemplateActor } from '../utils/template-actor.utils';
 import { extractCatalogCodes } from '../utils/field-values-profile.utils';
-import { firstString } from '../utils/template.utils';
 import { resolveOrgRulesFromMaster } from '../utils/template-rules.utils';
 import { TemplateEntityBuilder, type MasterVersionWriteContext } from './template-entity.builder';
 import { TemplateKeyBuilder } from './template-key.builder';
@@ -34,6 +34,18 @@ export type CloneOrgTemplateContext = {
   sourceMasterVersionId: string;
   newTemplateName: string;
   inheritLinks: boolean;
+};
+
+export type OrgDeriveContext = {
+  organizationId: string;
+  newTemplateId: string;
+  templateVersionId: string;
+  versionNum: number;
+  versionSk: string;
+  nowIso: string;
+  sourceOrgTemplateId: string;
+  sourceOrgTemplateVersionId: string;
+  newTemplateName: string;
 };
 
 const META_ROW_KEYS = new Set([
@@ -64,6 +76,48 @@ function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknow
 }
 
 export class OrgTemplateEntityBuilder {
+  static slugifyTemplateName(name: string): string {
+    const slug = name
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toUpperCase()
+      .slice(0, 40);
+    return slug || 'ORG-TMPL';
+  }
+
+  /** Variant id for POST /templates/org-derived. */
+  static buildDerivedOrgTemplateId(newTemplateName: string): string {
+    const slug = OrgTemplateEntityBuilder.slugifyTemplateName(newTemplateName);
+    const suffix = randomUUID().slice(0, 8).toLowerCase();
+    const base = `${slug}-${suffix}`;
+    return base.length <= 120 ? base : `${slug.slice(0, 110)}-${suffix}`;
+  }
+
+  static buildOrgDeriveContext(
+    organizationId: string,
+    sourceOrgTemplateId: string,
+    sourceOrgTemplateVersionId: string,
+    newTemplateName: string,
+  ): OrgDeriveContext {
+    const newTemplateId = OrgTemplateEntityBuilder.buildDerivedOrgTemplateId(newTemplateName);
+    const versionNum = 1;
+    const templateVersionId = TemplateEntityBuilder.buildVersionId(newTemplateId, versionNum);
+    const versionSk = `${VERSION_SK_PREFIX}${String(versionNum).padStart(3, '0')}`;
+
+    return {
+      organizationId,
+      newTemplateId,
+      templateVersionId,
+      versionNum,
+      versionSk,
+      nowIso: new Date().toISOString(),
+      sourceOrgTemplateId,
+      sourceOrgTemplateVersionId,
+      newTemplateName,
+    };
+  }
+
   static buildOrgTemplateId(masterTemplateId: string, organizationId: string): string {
     const orgSlug = organizationId
       .trim()
@@ -185,6 +239,60 @@ export class OrgTemplateEntityBuilder {
       meta,
     };
     OrgTemplateEntityBuilder.applyOrgGsiKeys(record, meta, organizationId);
+    return record;
+  }
+
+  static buildOrgMetaFromOrgSource(
+    sourceMetaRow: TemplateDdbRecord,
+    ctx: OrgDeriveContext,
+    actor?: TemplateActorUser,
+  ): TemplateMeta {
+    const sourceMeta = sourceMetaRow.meta;
+    const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
+    const masterTemplateId =
+      typeof sourceMeta.masterTemplateId === 'string' && sourceMeta.masterTemplateId.trim()
+        ? sourceMeta.masterTemplateId.trim()
+        : undefined;
+
+    return {
+      ...sourceMeta,
+      templateId: ctx.newTemplateId,
+      templateVersionId: ctx.templateVersionId,
+      templateName: ctx.newTemplateName,
+      version: ctx.versionNum,
+      derivationKind: DERIVATION_KIND.ORG_DERIVE,
+      derivedFromOrgTemplateId: ctx.sourceOrgTemplateId,
+      derivedFromOrgTemplateVersionId: ctx.sourceOrgTemplateVersionId,
+      derivedAt: ctx.nowIso,
+      status,
+      isActive: false,
+      isLatestVersion: true,
+      isMaster: false,
+      ownerOrgId: ctx.organizationId,
+      masterTemplateId,
+      shareScope: 'ORG',
+      publishedAt: null,
+      createdAt: ctx.nowIso,
+      lastModifiedAt: ctx.nowIso,
+      createdBy: resolveTemplateActor(actor),
+      lastModifiedBy: resolveTemplateActor(actor),
+    };
+  }
+
+  static buildOrgVersionRowFromOrgSource(
+    meta: TemplateMeta,
+    ctx: OrgDeriveContext,
+    sourceVersion: TemplateDdbRecord,
+  ): TemplateDdbRecord {
+    const documentFields = extractDocumentFields(sourceVersion);
+    const record: TemplateDdbRecord = {
+      pk: TemplateKeyBuilder.toOrgPk(ctx.organizationId, ctx.newTemplateId),
+      sk: ctx.versionSk,
+      entityType: ENTITY_TYPE_ORG_TEMPLATE,
+      meta,
+      ...documentFields,
+    };
+    OrgTemplateEntityBuilder.applyOrgGsiKeys(record, meta, ctx.organizationId);
     return record;
   }
 

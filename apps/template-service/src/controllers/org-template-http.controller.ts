@@ -8,8 +8,11 @@ import type {
   ValidatedSetOrgTemplateEnable,
   ValidatedGetOrgTemplateRules,
   ValidatedUpdateOrgTemplateRules,
+  ValidatedCreateOrgDerived,
+  ValidatedUpdateOrgDerived,
 } from '../validators/request.validators';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
+import { resolveTemplateLevelFromQuery } from '../validators/template-level.util';
 
 let orgTemplateService: OrgTemplateService | undefined;
 
@@ -210,6 +213,38 @@ export class OrgTemplateHttpController {
     }
 
     try {
+      if (resolveTemplateLevelFromQuery(req) === 'ORG_DERIVED') {
+        if (!v.organizationId) {
+          throw new BaseError(
+            'organizationId is required when templateLevel=ORG_DERIVED',
+            400,
+            'VALIDATION_ERROR',
+            [{ message: 'organizationId is required when templateLevel=ORG_DERIVED' }],
+          );
+        }
+
+        const result = await this.svc.getOrgDerived({
+          organizationId: v.organizationId,
+          orgTemplateId: v.query.orgTemplateId,
+          categoryCode: v.query.categoryCode ?? v.query.category,
+          conditionCode: v.query.conditionCode,
+          condition: v.query.condition,
+          specialty: v.query.specialty,
+          templateType: v.query.templateType,
+          templateName: v.query.templateName,
+          templateEnabled: v.templateEnabledFilter,
+          nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
+        });
+
+        if (v.query.orgTemplateId?.trim()) {
+          return result;
+        }
+
+        return withNextPaginationKey(
+          result as Parameters<typeof withNextPaginationKey>[0],
+        );
+      }
+
       return withNextPaginationKey(
         await this.svc.listOrgEnabled({
           organizationId: v.organizationId,
@@ -229,6 +264,73 @@ export class OrgTemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_org_templates_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleCreateOrgDerived(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedCreateOrgDerived?: ValidatedCreateOrgDerived })
+      .validatedCreateOrgDerived;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.createOrgDerived({
+        organizationId: v.organizationId,
+        sourceOrgTemplateId: v.body.sourceOrgTemplateId,
+        newTemplateName: v.body.newTemplateName,
+        sourceVersionId: v.body.sourceVersionId,
+        templateEnabled: v.body.templateEnabled,
+        organizationMeta: v.body.organizationMeta
+          ? {
+              id: v.body.organizationMeta.id,
+              name: v.body.organizationMeta.name?.trim() || v.body.organizationMeta.id,
+              description: v.body.organizationMeta.description ?? null,
+            }
+          : undefined,
+        actorUser: v.actorUser,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'create_org_derived_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleUpdateOrgDerived(req: LambdaRequest) {
+    const v = (req as LambdaRequest & { validatedUpdateOrgDerived?: ValidatedUpdateOrgDerived })
+      .validatedUpdateOrgDerived;
+
+    if (!v) {
+      throw new BaseError(
+        'Request was not validated before controller',
+        500,
+        'INTERNAL_ERROR',
+        [{ message: 'Request was not validated before controller' }],
+      );
+    }
+
+    try {
+      return await this.svc.updateOrgDerived({
+        organizationId: v.organizationId,
+        orgTemplateId: v.orgTemplateId,
+        rules: v.body.rules,
+        fieldValues: v.body.fieldValues,
+        templateEnabled: v.body.templateEnabled,
+        actorUser: v.actorUser,
+      });
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'update_org_derived_error',
         correlationId: req.context.correlationId as string,
       });
     }

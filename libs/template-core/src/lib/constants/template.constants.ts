@@ -104,3 +104,11 @@ export const STATUS_TRANSITION_ACTION = {
 
 export type StatusTransitionAction =
   (typeof STATUS_TRANSITION_ACTION)[keyof typeof STATUS_TRANSITION_ACTION];
+
+/** How an org template row was created (persisted on ORG_TEMPLATE meta). */
+export const DERIVATION_KIND = {
+  MASTER_DERIVE: 'masterDerive',
+  ORG_DERIVE: 'orgDerive',
+} as const;
+
+export type DerivationKind = (typeof DERIVATION_KIND)[keyof typeof DERIVATION_KIND];

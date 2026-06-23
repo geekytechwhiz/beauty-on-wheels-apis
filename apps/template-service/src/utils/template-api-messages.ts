@@ -86,6 +86,18 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'ENABLEMENT_UPDATED',
     'Org enablement updated successfully.',
   ),
+  'template.org-derived.list': msg(
+    'ORG_DERIVED_TEMPLATES_LISTED',
+    'Org-derived templates retrieved successfully.',
+  ),
+  'template.org-derived.create': msg(
+    'ORG_DERIVED_TEMPLATE_CREATED',
+    'Org-derived template created successfully.',
+  ),
+  'template.org-derived.update': msg(
+    'ORG_DERIVED_TEMPLATE_UPDATED',
+    'Org-derived template updated successfully.',
+  ),
   'template-config.list': msg(
     'TEMPLATE_CONFIGS_LISTED',
     'Template UI configs retrieved successfully.',
@@ -117,6 +129,8 @@ export const MASTER_TEMPLATE_UPDATED = msg(
   'MASTER_TEMPLATE_UPDATED',
   'Master template updated successfully.',
 );
+
+export const ORG_DERIVED_TEMPLATES_LISTED = TEMPLATE_API_MESSAGES['template.org-derived.list'];
 
 export const ORG_ENABLE_CATALOG = msg(
   'ORG_ENABLED_TEMPLATES_LISTED',

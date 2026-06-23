@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "Template Service — Org-derived variants",
+    "description": "Flow: derive canonical (existing) → POST variant → list via GET /templates?templateLevel=ORG_DERIVED → PUT variant.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "{{your_bearer_token}}" },
+    { "key": "organizationId", "value": "ROSEWOOD" },
+    { "key": "sourceOrgTemplateId", "value": "TEST-TEMPLATE-ORG-ROSEWOOD" },
+    { "key": "orgTemplateId", "value": "HTN-VARIANT-A-a1b2c3d4" }
+  ],
+  "item": [
+    {
+      "name": "1. List org-derived variants",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/templates?templateLevel=ORG_DERIVED&organizationId={{organizationId}}&country=all&categoryCode=CHRONIC_DISEASE&conditionCode=HYPERTENSION",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates"],
+          "query": [
+            { "key": "templateLevel", "value": "ORG_DERIVED" },
+            { "key": "organizationId", "value": "{{organizationId}}" },
+            { "key": "country", "value": "all" },
+            { "key": "categoryCode", "value": "CHRONIC_DISEASE" },
+            { "key": "conditionCode", "value": "HYPERTENSION" }
+          ]
+        },
+        "description": "Same endpoint as org catalog; use templateLevel=ORG_DERIVED for variants only. Add orgTemplateId query to get one item with full fieldValues + rules."
+      }
+    },
+    {
+      "name": "1b. Get one org-derived variant",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/templates?templateLevel=ORG_DERIVED&organizationId={{organizationId}}&orgTemplateId={{orgTemplateId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates"],
+          "query": [
+            { "key": "templateLevel", "value": "ORG_DERIVED" },
+            { "key": "organizationId", "value": "{{organizationId}}" },
+            { "key": "orgTemplateId", "value": "{{orgTemplateId}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Create org-derived variant",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationId\": \"{{organizationId}}\",\n  \"sourceOrgTemplateId\": \"{{sourceOrgTemplateId}}\",\n  \"newTemplateName\": \"HTN Care Plan — Variant A\",\n  \"templateEnabled\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/templates/org-derived",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates", "org-derived"]
+        },
+        "description": "sourceOrgTemplateId must be the canonical org template from POST /templates/derive (not another variant)."
+      }
+    },
+    {
+      "name": "3. Update org-derived variant",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rules\": {\n    \"Category\": { \"orgedit\": false }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/templates/org-derived/{{orgTemplateId}}?organizationId={{organizationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates", "org-derived", "{{orgTemplateId}}"],
+          "query": [
+            { "key": "organizationId", "value": "{{organizationId}}" }
+          ]
+        },
+        "description": "Partial rules/fieldValues (version bump) and/or templateEnabled (no version bump)."
+      }
+    }
+  ]
+}

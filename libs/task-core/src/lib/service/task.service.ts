@@ -475,7 +475,6 @@ export class TaskService extends BaseTaskService {
       channel: string;
       schedulerJobId: string;
       correlationId?: string;
-      writeHist?: boolean;
     },
   ): Promise<{ written: boolean }> {
     return this.repo.recordReminderRegistered(input);
@@ -486,10 +485,22 @@ export class TaskService extends BaseTaskService {
       runtimeTaskInstanceId: string;
       reason: string;
       correlationId?: string;
-      writeHist?: boolean;
     },
   ): Promise<{ written: boolean }> {
     return this.repo.recordReminderCancelled(input);
+  }
+
+  async recordReminderOutcome(
+    input: {
+      runtimeTaskInstanceId: string;
+      outcome: 'sent' | 'suppressed' | 'failed';
+      reason?: string;
+      schedulerJobId?: string;
+      channel?: string;
+      scheduledAt?: number;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderOutcome(input);
   }
 
   async updateTaskState(

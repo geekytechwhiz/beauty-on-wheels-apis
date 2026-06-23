@@ -359,7 +359,7 @@
         "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> historyEventType=StateChange",
         "PutItem LOOKUP (taskSk, dueWindowStart, dueWindowEnd, reminderHistory=[] optional)"
       ],
-      "outboundOptional": ["RegisterReminderJobs → HIST#<ms13>#<histId> ReminderRegisterRequest + LOOKUP reminderHistory append"],
+      "outboundOptional": ["RegisterReminderJobs → Put REM#CURRENT + LOOKUP reminderHistory append scheduled"],
       "metaAtCreate": {
         "orgId": "JWT",
         "patientId": "requestBody",

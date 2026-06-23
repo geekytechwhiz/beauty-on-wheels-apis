@@ -1,13 +1,17 @@
 // eslint-disable-next-line no-var
 var mockCheckReminderFireEligibility: jest.Mock;
+// eslint-disable-next-line no-var
+var mockRecordReminderOutcome: jest.Mock;
 
 jest.mock('@api-hub/task-core', () => {
   mockCheckReminderFireEligibility = jest.fn();
+  mockRecordReminderOutcome = jest.fn().mockResolvedValue({ written: true });
   const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
   return {
     ...actual,
     TaskService: jest.fn().mockImplementation(() => ({
       checkReminderFireEligibility: mockCheckReminderFireEligibility,
+      recordReminderOutcome: mockRecordReminderOutcome,
     })),
   };
 });
@@ -84,6 +88,12 @@ describe('processReminderConsumer', () => {
           scheduledAt: 1780668000000,
         }),
       );
+      expect(mockRecordReminderOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runtimeTaskInstanceId: 'rtask-abc',
+          outcome: 'sent',
+        }),
+      );
     });
 
     it('skips and does not send when reminders are disabled', async () => {
@@ -96,6 +106,12 @@ describe('processReminderConsumer', () => {
       await processReminderCallback(basePayload);
 
       expect(mockSendReminder).not.toHaveBeenCalled();
+      expect(mockRecordReminderOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: 'suppressed',
+          reason: 'remindersDisabled',
+        }),
+      );
     });
 
     it('skips and does not send when task is in a terminal state', async () => {

@@ -1,7 +1,9 @@
 import type {
   AssignedToType,
+  ReminderChannel,
   ReminderHistoryEntry,
   ReminderSettings,
+  ReminderStatus,
   RuntimeTaskSource,
   TaskBehaviorCode,
   TaskDisplayGroup,
@@ -105,6 +107,26 @@ export interface CompletionEvidenceDdbRecord {
   evidencePayload?: Record<string, unknown>;
 }
 
+/** Mutable live reminder on TASK# partition (`REM#CURRENT`). */
+export interface ReminderDdbRecord {
+  pk: string;
+  sk: 'REM#CURRENT';
+  entityType: 'ReminderInstance';
+  reminderRecordId: string;
+  runtimeTaskInstanceId: string;
+  orgId: string;
+  patientId: string;
+  reminderStatus: ReminderStatus;
+  scheduledReminderAt: number;
+  reminderChannel: ReminderChannel;
+  schedulerJobId: string;
+  createdAt: number;
+  updatedAt: number;
+  sentAt?: number;
+  failureReason?: string;
+  suppressedReason?: string;
+}
+
 export interface TaskHistDdbRecord {
   pk: string;
   sk: string;
@@ -140,4 +162,5 @@ export type TaskDdbRecord =
   | TaskMetaDdbRecord
   | TaskLookupDdbRecord
   | TaskHistDdbRecord
+  | ReminderDdbRecord
   | CompletionEvidenceDdbRecord;

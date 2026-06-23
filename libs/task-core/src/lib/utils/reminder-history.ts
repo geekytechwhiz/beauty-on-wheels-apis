@@ -125,3 +125,40 @@ export function findOpenScheduledReminderEntries(
     .filter((entry) => (entry as ReminderHistoryEntry).reminderStatus === REMINDER_STATUS.SCHEDULED)
     .map((entry) => entry as ReminderHistoryEntry);
 }
+
+export function appendReminderOutcomeHistoryEntry(
+  reminderHistory: readonly unknown[] | undefined,
+  base: {
+    reminderRecordId: string;
+    runtimeTaskInstanceId?: string;
+    scheduledReminderAt?: number;
+    reminderChannel?: ReminderChannel;
+    schedulerJobId?: string;
+  },
+  outcome: typeof REMINDER_STATUS.SENT | typeof REMINDER_STATUS.SUPPRESSED | typeof REMINDER_STATUS.FAILED,
+  nowMs: number,
+  options?: { sentAt?: number; reason?: string },
+): ReminderHistoryEntry[] {
+  const entry: Omit<ReminderHistoryEntry, 'createdAt'> = {
+    reminderRecordId: base.reminderRecordId,
+    reminderStatus: outcome,
+    ...(base.runtimeTaskInstanceId ? { runtimeTaskInstanceId: base.runtimeTaskInstanceId } : {}),
+    ...(base.scheduledReminderAt != null ? { scheduledReminderAt: base.scheduledReminderAt } : {}),
+    ...(base.reminderChannel ? { reminderChannel: base.reminderChannel } : {}),
+    ...(base.schedulerJobId ? { schedulerJobId: base.schedulerJobId } : {}),
+    ...(outcome === REMINDER_STATUS.SENT && options?.sentAt != null
+      ? { sentAt: options.sentAt }
+      : {}),
+    ...(outcome === REMINDER_STATUS.SUPPRESSED && options?.reason
+      ? { suppressedReason: options.reason }
+      : {}),
+    ...(outcome === REMINDER_STATUS.FAILED && options?.reason
+      ? { failureReason: options.reason }
+      : {}),
+  };
+
+  return capReminderHistory([
+    ...((reminderHistory ?? []) as ReminderHistoryEntry[]),
+    buildReminderHistoryEntry(entry, nowMs),
+  ]);
+}

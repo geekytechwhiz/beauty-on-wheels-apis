@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import {
+  ENTITY_TYPE_REMINDER,
   ENTITY_TYPE_RUNTIME_TASK,
   ENTITY_TYPE_TASK_HISTORY,
   ENTITY_TYPE_TASK_LOOKUP,
@@ -13,6 +14,7 @@ import type { CreateMonitoringActionRequest } from '../models/api/create-monitor
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type {
   CompletionEvidenceDdbRecord,
+  ReminderDdbRecord,
   TaskHistDdbRecord,
   TaskLookupDdbRecord,
   TaskMetaDdbRecord,
@@ -21,8 +23,11 @@ import {
   COMPLETION_SOURCE,
   RUNTIME_TASK_SOURCE,
   TASK_HISTORY_EVENT_TYPE,
+  REMINDER_STATUS,
   TRANSITION_SOURCE,
+  type ReminderChannel,
   type ReminderSettings,
+  type ReminderStatus,
   type TransitionSource,
   requiresAssigneeGsi,
 } from '../models/types/task-domain.types';
@@ -702,6 +707,42 @@ export class TaskEntityBuilder {
         ? { previousReminderSettings: params.previousReminderSettings }
         : {}),
       ...(params.newReminderSettings != null ? { newReminderSettings: params.newReminderSettings } : {}),
+    };
+  }
+
+  static buildReminderCurrentRecord(params: {
+    runtimeTaskInstanceId: string;
+    orgId: string;
+    patientId: string;
+    reminderRecordId: string;
+    scheduledAt: number;
+    channel: string;
+    schedulerJobId: string;
+    reminderStatus?: ReminderStatus;
+    nowMs?: number;
+    sentAt?: number;
+    failureReason?: string;
+    suppressedReason?: string;
+    createdAt?: number;
+  }): ReminderDdbRecord {
+    const nowMs = params.nowMs ?? Date.now();
+    return {
+      pk: TaskKeyBuilder.toTaskPk(params.runtimeTaskInstanceId),
+      sk: TaskKeyBuilder.buildReminderCurrentSk(),
+      entityType: ENTITY_TYPE_REMINDER,
+      reminderRecordId: params.reminderRecordId,
+      runtimeTaskInstanceId: params.runtimeTaskInstanceId,
+      orgId: params.orgId,
+      patientId: params.patientId,
+      reminderStatus: params.reminderStatus ?? REMINDER_STATUS.SCHEDULED,
+      scheduledReminderAt: params.scheduledAt,
+      reminderChannel: params.channel as ReminderChannel,
+      schedulerJobId: params.schedulerJobId,
+      createdAt: params.createdAt ?? nowMs,
+      updatedAt: nowMs,
+      ...(params.sentAt != null ? { sentAt: params.sentAt } : {}),
+      ...(params.failureReason ? { failureReason: params.failureReason } : {}),
+      ...(params.suppressedReason ? { suppressedReason: params.suppressedReason } : {}),
     };
   }
 

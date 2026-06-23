@@ -87,10 +87,11 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | Item | SK | Notes |
 |------|-----|-------|
 | **TaskLookup** | `LOOKUP` | `taskSk` (write-once); **`dueWindowStart`**, **`dueWindowEnd`** (write-once); `orgId`, `patientId`; **`reminderHistory[]`**; **`evidenceSummary`** |
+| **ReminderInstance** | `REM#CURRENT` | Mutable live reminder (`reminderStatus`, `schedulerJobId`, `scheduledReminderAt`, channel); written on register, updated on cancel/send |
 | **CompletionEvidence** | `EVID#<completionEvidenceId>` | Separate append-only proof rows |
 | **TaskStateHistory** | `HIST#<transitionAtMs13>#<taskStateHistoryId>` | Append-only; **SK time-ordered** (13-digit ms + id); `transitionAt` must match SK ms |
 
-**Not used:** `SUMMARY#LATEST`, patient `SUM#TASK#...#LATEST`, `REM#`, `IDEMP#`.
+**Not used:** `SUMMARY#LATEST`, patient `SUM#TASK#...#LATEST`, `IDEMP#`.
 
 ### LSI1 — `CarePlanIndex` (META only)
 
@@ -117,10 +118,10 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 
 ### CompletionEvidence vs evidenceSummary vs reminders (task partition)
 
-| | **EVID#** | **evidenceSummary** (LOOKUP) | **reminderHistory** (LOOKUP) | **HIST#** (reminder-related) |
-|--|-----------|------------------------------|------------------------------|------------------------------|
-| Role | Completion proof | Latest rollup | **Operational** send/register/cancel trail | **Audit** settings change + register/cancel **requests** |
-| Example | Linked form submit | “Completed” summary | `Scheduled` → `Sent` on one `reminderRecordId` | Portal changed channels; `RegisterReminderJobs` called |
+| | **EVID#** | **evidenceSummary** (LOOKUP) | **reminderHistory** (LOOKUP) | **REM#CURRENT** | **HIST#** (reminder-related) |
+|--|-----------|------------------------------|------------------------------|-----------------|------------------------------|
+| Role | Completion proof | Latest rollup | **Append-only** send/register/cancel trail | **Live** reminder status | **Audit** settings change only |
+| Example | Linked form submit | “Completed” summary | `scheduled` → `sent` rows | `scheduled` on register | Portal changed channels |
 
 **META** keeps `reminderEnabled` (eligibility) and optional **`reminderSettings`** (latest config — Requirements v2 REM-007).
 

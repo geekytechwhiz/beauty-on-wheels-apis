@@ -295,7 +295,7 @@ describe('TaskRepository.recordReminderRegistered', () => {
     process.env.TASK_TABLE = originalTaskTable;
   });
 
-  it('appends scheduled reminderHistory and optional HIST audit', async () => {
+  it('writes REM#CURRENT and appends scheduled reminderHistory', async () => {
     const repo = new TaskRepository();
     const transactWrite = jest
       .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
@@ -311,29 +311,9 @@ describe('TaskRepository.recordReminderRegistered', () => {
       taskSk: 'DUE#0001780567200000#TASK#rtask-abc',
       reminderHistory: [],
     };
-    const meta = {
-      pk: 'ORG#org-1#PAT#pat-1',
-      sk: lookup.taskSk,
-      entityType: 'RuntimeTaskInstance' as const,
-      orgId: 'org-1',
-      patientId: 'pat-1',
-      runtimeTaskInstanceId: 'rtask-abc',
-      runtimeTaskSource: 'monitoringRuntime' as const,
-      taskBehaviorCode: 'METRIC_CHECKIN' as const,
-      taskDisplayGroup: 'checkIn' as const,
-      displayTitle: 'Check in',
-      assignedToType: 'patient' as const,
-      displayToPatient: true,
-      currentState: 'open' as const,
-      createdAt: 1,
-      createdBy: 'system',
-      lastUpdatedAt: 1,
-      lastUpdatedBy: 'system',
-      version: 1,
-    };
 
     jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue(lookup);
-    jest.spyOn(repo, 'getMetaByLookup').mockResolvedValue(meta);
+    jest.spyOn(repo, 'getReminderCurrent').mockResolvedValue(null);
 
     const result = await repo.recordReminderRegistered({
       runtimeTaskInstanceId: 'rtask-abc',
@@ -345,7 +325,15 @@ describe('TaskRepository.recordReminderRegistered', () => {
     expect(result).toEqual({ written: true });
     const items = transactWrite.mock.calls[0][0].TransactItems;
     expect(items).toHaveLength(2);
-    expect(items[0].Update?.ExpressionAttributeValues?.[':reminderHistory']).toEqual(
+    expect(items[0].Put?.Item).toMatchObject({
+      sk: 'REM#CURRENT',
+      entityType: 'ReminderInstance',
+      reminderStatus: 'scheduled',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      scheduledReminderAt: 1_700_000_360_000,
+      reminderChannel: 'push',
+    });
+    expect(items[1].Update?.ExpressionAttributeValues?.[':reminderHistory']).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           reminderStatus: 'scheduled',
@@ -355,10 +343,6 @@ describe('TaskRepository.recordReminderRegistered', () => {
         }),
       ]),
     );
-    expect(items[1].Put?.Item).toMatchObject({
-      historyEventType: 'reminderRegisterRequest',
-      schedulerJobId: 'task-reminder-rtask-abc',
-    });
 
     transactWrite.mockRestore();
   });
@@ -439,29 +423,23 @@ describe('TaskRepository.recordReminderCancelled', () => {
         },
       ],
     };
-    const meta = {
-      pk: 'ORG#org-1#PAT#pat-1',
-      sk: lookup.taskSk,
-      entityType: 'RuntimeTaskInstance' as const,
-      orgId: 'org-1',
-      patientId: 'pat-1',
-      runtimeTaskInstanceId: 'rtask-abc',
-      runtimeTaskSource: 'monitoringRuntime' as const,
-      taskBehaviorCode: 'METRIC_CHECKIN' as const,
-      taskDisplayGroup: 'checkIn' as const,
-      displayTitle: 'Check in',
-      assignedToType: 'patient' as const,
-      displayToPatient: true,
-      currentState: 'open' as const,
-      createdAt: 1,
-      createdBy: 'system',
-      lastUpdatedAt: 1,
-      lastUpdatedBy: 'system',
-      version: 1,
-    };
 
     jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue(lookup);
-    jest.spyOn(repo, 'getMetaByLookup').mockResolvedValue(meta);
+    jest.spyOn(repo, 'getReminderCurrent').mockResolvedValue({
+      pk: 'TASK#rtask-abc',
+      sk: 'REM#CURRENT',
+      entityType: 'ReminderInstance',
+      reminderRecordId: 'rem-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      reminderStatus: 'scheduled',
+      scheduledReminderAt: 1_700_000_360_000,
+      reminderChannel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      createdAt: 1,
+      updatedAt: 1,
+    });
 
     const result = await repo.recordReminderCancelled({
       runtimeTaskInstanceId: 'rtask-abc',
@@ -469,10 +447,82 @@ describe('TaskRepository.recordReminderCancelled', () => {
     });
 
     expect(result).toEqual({ written: true });
-    const history = transactWrite.mock.calls[0][0].TransactItems[0].Update
-      ?.ExpressionAttributeValues?.[':reminderHistory'] as Array<{ reminderStatus: string }>;
+    const items = transactWrite.mock.calls[0][0].TransactItems;
+    expect(items).toHaveLength(2);
+    const history = items[0].Update?.ExpressionAttributeValues?.[':reminderHistory'] as Array<{
+      reminderStatus: string;
+    }>;
     expect(history).toHaveLength(2);
     expect(history[1].reminderStatus).toBe('cancelled');
+    expect(items[1].Update?.ExpressionAttributeValues?.[':cancelled']).toBe('cancelled');
+
+    transactWrite.mockRestore();
+  });
+});
+
+describe('TaskRepository.recordReminderOutcome', () => {
+  const originalTaskTable = process.env.TASK_TABLE;
+
+  beforeAll(() => {
+    process.env.TASK_TABLE = 'task-test-table';
+  });
+
+  afterAll(() => {
+    process.env.TASK_TABLE = originalTaskTable;
+  });
+
+  it('updates REM#CURRENT and appends sent row on LOOKUP', async () => {
+    const repo = new TaskRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: jest.Mock }, 'transactWrite')
+      .mockResolvedValue(undefined);
+
+    jest.spyOn(repo, 'getLookupByTaskId').mockResolvedValue({
+      pk: 'TASK#rtask-abc',
+      sk: 'LOOKUP' as const,
+      entityType: 'TaskLookup' as const,
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      taskSk: 'DUE#0001780567200000#TASK#rtask-abc',
+      reminderHistory: [
+        {
+          reminderRecordId: 'rem-1',
+          reminderStatus: 'scheduled',
+          scheduledReminderAt: 1_700_000_360_000,
+          reminderChannel: 'push',
+          schedulerJobId: 'task-reminder-rtask-abc',
+          createdAt: 1,
+        },
+      ],
+    });
+    jest.spyOn(repo, 'getReminderCurrent').mockResolvedValue({
+      pk: 'TASK#rtask-abc',
+      sk: 'REM#CURRENT',
+      entityType: 'ReminderInstance',
+      reminderRecordId: 'rem-1',
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      reminderStatus: 'scheduled',
+      scheduledReminderAt: 1_700_000_360_000,
+      reminderChannel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    const result = await repo.recordReminderOutcome({
+      runtimeTaskInstanceId: 'rtask-abc',
+      outcome: 'sent',
+    });
+
+    expect(result).toEqual({ written: true });
+    const items = transactWrite.mock.calls[0][0].TransactItems;
+    expect(items[0].Put?.Item).toMatchObject({ reminderStatus: 'sent' });
+    expect(items[1].Update?.ExpressionAttributeValues?.[':reminderHistory']).toEqual(
+      expect.arrayContaining([expect.objectContaining({ reminderStatus: 'sent' })]),
+    );
 
     transactWrite.mockRestore();
   });

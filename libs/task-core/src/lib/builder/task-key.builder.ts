@@ -1,3 +1,4 @@
+import { REMINDER_CURRENT_SK } from '../constants/task.constants';
 import { ASSIGNED_TO_TYPE, type AssignedToType } from '../models/types/task-domain.types';
 import { padEpochMs13, dueWindowStartOrMaxMs } from '../utils/task-time';
 
@@ -59,5 +60,9 @@ export class TaskKeyBuilder {
 
   static buildHistSk(transitionAtMs: number, taskStateHistoryId: string): string {
     return `HIST#${padEpochMs13(transitionAtMs)}#${taskStateHistoryId}`;
+  }
+
+  static buildReminderCurrentSk(): typeof REMINDER_CURRENT_SK {
+    return REMINDER_CURRENT_SK;
   }
 }

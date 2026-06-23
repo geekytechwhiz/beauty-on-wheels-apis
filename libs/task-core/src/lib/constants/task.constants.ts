@@ -3,6 +3,10 @@ export const TASK_LOOKUP_SK = 'LOOKUP';
 export const ENTITY_TYPE_RUNTIME_TASK = 'RuntimeTaskInstance';
 export const ENTITY_TYPE_TASK_LOOKUP = 'TaskLookup';
 export const ENTITY_TYPE_TASK_HISTORY = 'TaskStateHistory';
+export const ENTITY_TYPE_REMINDER = 'ReminderInstance';
+
+/** Mutable live reminder row — one per task (matches one EventBridge schedule). */
+export const REMINDER_CURRENT_SK = 'REM#CURRENT';
 
 export const TRANSACT_INDEX_META = 0;
 

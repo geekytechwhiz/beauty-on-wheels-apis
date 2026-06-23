@@ -1,4 +1,4 @@
-import { TaskService, isInQuietHours } from '@api-hub/task-core';
+import { REMINDER_STATUS, TaskService, isInQuietHours } from '@api-hub/task-core';
 
 import { getNotificationGateway } from '../../reminder/notification.gateway';
 import { getQuietHoursProvider } from '../../reminder/quiet-hours.provider';
@@ -12,18 +12,28 @@ const taskService = new TaskService();
  * 1. Delegates eligibility check to TaskService (repo + domain rules).
  * 2. Checks patient quiet hours (app-service concern).
  * 3. Dispatches notification via NotificationGateway.
- *
- * Throws for retryable errors (task not found in DB).
- * Returns silently for soft-skip cases (reminders disabled, terminal state, quiet hours).
+ * 4. Persists REM#CURRENT status + LOOKUP reminderHistory outcome.
  */
 export async function processReminderCallback(
   payload: ProcessReminderCallbackPayload,
 ): Promise<void> {
+  const outcomeBase = {
+    runtimeTaskInstanceId: payload.runtimeTaskInstanceId,
+    schedulerJobId: payload.schedulerJobId,
+    channel: payload.channel,
+    scheduledAt: payload.scheduledAt,
+  };
+
   const result = await taskService.checkReminderFireEligibility({
     runtimeTaskInstanceId: payload.runtimeTaskInstanceId,
   });
 
   if (result.status === 'skipped') {
+    await taskService.recordReminderOutcome({
+      ...outcomeBase,
+      outcome: REMINDER_STATUS.SUPPRESSED,
+      reason: result.reason,
+    });
     return;
   }
 
@@ -35,17 +45,36 @@ export async function processReminderCallback(
       orgId: payload.orgId,
     });
     if (quietWindow && isInQuietHours(Date.now(), quietWindow)) {
+      await taskService.recordReminderOutcome({
+        ...outcomeBase,
+        outcome: REMINDER_STATUS.SUPPRESSED,
+        reason: 'quietHours',
+      });
       return;
     }
   }
 
-  await getNotificationGateway().sendReminder({
-    runtimeTaskInstanceId: payload.runtimeTaskInstanceId,
-    patientId: payload.patientId,
-    orgId: payload.orgId,
-    channel: payload.channel,
-    scheduledAt: payload.scheduledAt,
-  });
+  try {
+    await getNotificationGateway().sendReminder({
+      runtimeTaskInstanceId: payload.runtimeTaskInstanceId,
+      patientId: payload.patientId,
+      orgId: payload.orgId,
+      channel: payload.channel,
+      scheduledAt: payload.scheduledAt,
+    });
+    await taskService.recordReminderOutcome({
+      ...outcomeBase,
+      outcome: REMINDER_STATUS.SENT,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'notificationFailed';
+    await taskService.recordReminderOutcome({
+      ...outcomeBase,
+      outcome: REMINDER_STATUS.FAILED,
+      reason,
+    });
+    throw error;
+  }
 }
 
 /**

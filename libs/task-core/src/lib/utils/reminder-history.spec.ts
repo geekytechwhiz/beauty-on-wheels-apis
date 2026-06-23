@@ -1,6 +1,7 @@
 import { REMINDER_STATUS } from '../models/types/task-domain.types';
 import {
   appendCancelledReminderHistoryEntries,
+  appendReminderOutcomeHistoryEntry,
   appendScheduledReminderHistoryEntry,
   buildReminderHistoryEntry,
   buildReminderRecordId,
@@ -137,6 +138,45 @@ describe('appendScheduledReminderHistoryEntry', () => {
       reminderStatus: REMINDER_STATUS.SCHEDULED,
       scheduledReminderAt: 1_700_000_360_000,
       schedulerJobId: 'task-reminder-task-1',
+    });
+  });
+});
+
+describe('appendReminderOutcomeHistoryEntry', () => {
+  it('appends sent row with sentAt', () => {
+    const nowMs = 1780581600000;
+    const result = appendReminderOutcomeHistoryEntry(
+      [],
+      {
+        reminderRecordId: 'rem-1',
+        scheduledReminderAt: 1_700_000_360_000,
+        reminderChannel: 'push',
+        schedulerJobId: 'task-reminder-task-1',
+      },
+      REMINDER_STATUS.SENT,
+      nowMs,
+      { sentAt: nowMs },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      reminderStatus: REMINDER_STATUS.SENT,
+      sentAt: nowMs,
+    });
+  });
+
+  it('appends suppressed row with reason', () => {
+    const result = appendReminderOutcomeHistoryEntry(
+      [],
+      { reminderRecordId: 'rem-1' },
+      REMINDER_STATUS.SUPPRESSED,
+      1780581600000,
+      { reason: 'remindersDisabled' },
+    );
+
+    expect(result[0]).toMatchObject({
+      reminderStatus: REMINDER_STATUS.SUPPRESSED,
+      suppressedReason: 'remindersDisabled',
     });
   });
 });

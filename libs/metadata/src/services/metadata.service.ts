@@ -432,7 +432,7 @@ export interface MetadataValuesByTypeApplicability {
 export interface MetadataValuesByTypeValue {
   valueCode: string;
   label: string;
-  description?: string;
+  description: string | null;
   status: Status;
   isGlobal: boolean;
   sortOrder: number;
@@ -467,7 +467,7 @@ function mapMetadataValuesByTypeItem(
     values: sortValuesForSearch(values).map((v) => ({
       valueCode: v.valueCode,
       label: v.label,
-      ...(v.description !== undefined ? { description: v.description } : {}),
+      description: v.description ?? null,
       status: v.status,
       isGlobal: v.isGlobal,
       sortOrder: v.sortOrder,

@@ -105,6 +105,7 @@ describe('getMetadataValuesByTypes', () => {
     });
     // sorted by sortOrder asc: US (1) then IN (3)
     expect(country.values.map((v) => v.valueCode)).toEqual(['US', 'IN']);
+    expect(country.values[0].description).toBeNull();
     expect(country.values[1]).toEqual({
       valueCode: 'IN',
       label: 'India',
@@ -170,14 +171,14 @@ describe('getMetadataValuesByTypes', () => {
     expect(result.items[0].values[0].attributes).toEqual({});
   });
 
-  it('omits description when not stored on the value', async () => {
+  it('returns description null when not stored on the value', async () => {
     mockGetMetadataType.mockResolvedValue(minimalType('Country'));
     mockListMetadataValues.mockResolvedValue([minimalValue('Country', 'US')]);
 
     const { getMetadataValuesByTypes } = await import('./metadata.service.js');
     const result = await getMetadataValuesByTypes(['Country']);
 
-    expect(result.items[0].values[0]).not.toHaveProperty('description');
+    expect(result.items[0].values[0].description).toBeNull();
   });
 
   it('returns 200-style partial success: existing types in items, missing codes collected', async () => {

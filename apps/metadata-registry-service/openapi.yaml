@@ -922,7 +922,7 @@ components:
 
     MetadataValuesByTypeValue:
       type: object
-      required: [valueCode, label, status, isGlobal, sortOrder, attributes, applicability]
+      required: [valueCode, label, description, status, isGlobal, sortOrder, attributes, applicability]
       properties:
         valueCode:
           type: string
@@ -930,8 +930,9 @@ components:
           type: string
         description:
           type: string
+          nullable: true
           maxLength: 2000
-          description: Optional documentation for the value (omitted when not stored).
+          description: Value documentation; `null` when not stored.
         status:
           type: string
           enum: [ACTIVE, INACTIVE, DELETED]

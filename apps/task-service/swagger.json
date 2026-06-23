@@ -3,11 +3,18 @@
   "info": {
     "title": "Task Service API",
     "version": "1.0.0",
-    "description": "Task Service HTTP APIs. Deployed Swagger UI uses this file + serverless-auto-swagger. Request `example` values live on body models; response examples use `SuccessEnvelope*` definitions referenced from serverless `responseData`."
+    "description": "Task Service HTTP APIs. Example request bodies use model `example` / `x-example`; example 200 responses use `SuccessEnvelope*` definitions."
   },
-  "schemes": ["https", "http"],
-  "consumes": ["application/json"],
-  "produces": ["application/json"],
+  "schemes": [
+    "https",
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
   "securityDefinitions": {
     "bearerAuth": {
       "type": "apiKey",
@@ -38,7 +45,10 @@
     },
     "IdempotencyOutcome": {
       "type": "string",
-      "enum": ["created", "skippedDuplicate"]
+      "enum": [
+        "created",
+        "skippedDuplicate"
+      ]
     },
     "CreateMonitoringActionRequest": {
       "type": "object",
@@ -61,10 +71,18 @@
           "type": "string",
           "description": "Patient display name from request body (not from JWT)."
         },
-        "carePlanInstanceId": { "type": "string" },
-        "monitoringInstanceId": { "type": "string" },
-        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
-        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "monitoringInstanceId": {
+          "type": "string"
+        },
+        "taskBehaviorCode": {
+          "$ref": "#/definitions/TaskBehaviorCode"
+        },
+        "assignedToType": {
+          "$ref": "#/definitions/AssignedToType"
+        },
         "assignedToStaffId": {
           "type": "string",
           "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
@@ -73,8 +91,12 @@
           "type": "string",
           "description": "Required when assignedToType is staff."
         },
-        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
-        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
+        "dueWindowStart": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "dueWindowEnd": {
+          "$ref": "#/definitions/EpochMillis"
+        },
         "reminderContext": {
           "type": "object",
           "additionalProperties": true
@@ -90,58 +112,128 @@
         "assignedToType": "patient",
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
-        "reminderContext": { "channels": ["push", "inApp"] }
+        "reminderContext": {
+          "channels": [
+            "push",
+            "inApp"
+          ]
+        }
       }
     },
     "CreateMonitoringActionResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "outcome"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "outcome"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
-        "task": { "type": "object" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/definitions/IdempotencyOutcome"
+        },
+        "task": {
+          "type": "object"
+        }
       }
     },
     "RuntimeTaskSourceCreate": {
       "type": "string",
-      "enum": ["serviceFlowRuntime", "manualSystem"]
+      "enum": [
+        "serviceFlowRuntime",
+        "manualSystem"
+      ]
     },
     "TaskDisplayGroup": {
       "type": "string",
-      "enum": ["action", "learning", "checkIn", "staffTask"]
+      "enum": [
+        "action",
+        "learning",
+        "checkIn",
+        "staffTask"
+      ]
     },
     "AssignedToType": {
       "type": "string",
-      "enum": ["patient", "careTeamRole", "user", "orgStaff", "system"],
+      "enum": [
+        "patient",
+        "careTeamRole",
+        "user",
+        "orgStaff",
+        "system"
+      ],
       "description": "Who completes a runtime task. orgStaff inbox GSI1 is `ORG#<orgId>#STAFF#<assigneeId>`; other non-patient types use `ORG#<orgId>#STAFF#<assignedToType>#<assigneeId>`."
     },
     "WorkflowStage": {
       "type": "string",
-      "enum": ["onboarding", "ongoing", "review", "closure"]
+      "enum": [
+        "onboarding",
+        "ongoing",
+        "review",
+        "closure"
+      ]
     },
     "CurrentState": {
       "type": "string",
-      "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"],
+      "enum": [
+        "open",
+        "scheduled",
+        "active",
+        "completed",
+        "missed",
+        "dismissed",
+        "cancelled"
+      ],
       "description": "API wire uses open for in-progress tasks; active/scheduled are legacy persistence values normalized to open on read."
     },
     "SurfaceSection": {
       "type": "string",
-      "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist"]
+      "enum": [
+        "today",
+        "upcoming",
+        "needsAttention",
+        "history",
+        "carePlanChecklist"
+      ]
     },
     "RuntimeTaskCard": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "currentState"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "currentState"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "patientId": { "type": "string" },
-        "patientDisplayName": { "type": "string" },
-        "displayTitle": { "type": "string" },
-        "currentState": { "$ref": "#/definitions/CurrentState" },
-        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
-        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
-        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
-        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
-        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "patientId": {
+          "type": "string"
+        },
+        "patientDisplayName": {
+          "type": "string"
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "currentState": {
+          "$ref": "#/definitions/CurrentState"
+        },
+        "taskBehaviorCode": {
+          "$ref": "#/definitions/TaskBehaviorCode"
+        },
+        "taskDisplayGroup": {
+          "$ref": "#/definitions/TaskDisplayGroup"
+        },
+        "assignedToType": {
+          "$ref": "#/definitions/AssignedToType"
+        },
+        "dueWindowStart": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "dueWindowEnd": {
+          "$ref": "#/definitions/EpochMillis"
+        }
       },
       "additionalProperties": true
     },
@@ -150,9 +242,13 @@
       "properties": {
         "items": {
           "type": "array",
-          "items": { "$ref": "#/definitions/RuntimeTaskCard" }
+          "items": {
+            "$ref": "#/definitions/RuntimeTaskCard"
+          }
         },
-        "nextToken": { "type": "string" }
+        "nextToken": {
+          "type": "string"
+        }
       }
     },
     "RuntimeTaskCardList": {
@@ -160,76 +256,155 @@
       "properties": {
         "items": {
           "type": "array",
-          "items": { "$ref": "#/definitions/RuntimeTaskCard" }
+          "items": {
+            "$ref": "#/definitions/RuntimeTaskCard"
+          }
         }
       }
     },
     "SurfaceSectionActionCenter": {
       "type": "string",
-      "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"]
+      "enum": [
+        "today",
+        "upcoming",
+        "needsAttention",
+        "history",
+        "carePlanChecklist",
+        "all"
+      ]
     },
     "ActionCenterTaskCard": {
       "allOf": [
-        { "$ref": "#/definitions/RuntimeTaskCard" },
+        {
+          "$ref": "#/definitions/RuntimeTaskCard"
+        },
         {
           "type": "object",
-          "required": ["surfaceSection"],
+          "required": [
+            "surfaceSection"
+          ],
           "properties": {
-            "surfaceSection": { "$ref": "#/definitions/SurfaceSection" }
+            "surfaceSection": {
+              "$ref": "#/definitions/SurfaceSection"
+            }
           }
         }
       ]
     },
     "ActionCenterGroupedSections": {
       "type": "object",
-      "required": ["patientId", "timezone", "sections"],
+      "required": [
+        "patientId",
+        "timezone",
+        "sections"
+      ],
       "properties": {
-        "patientId": { "type": "string" },
-        "carePlanInstanceId": { "type": "string" },
-        "timezone": { "type": "string" },
+        "patientId": {
+          "type": "string"
+        },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
         "sections": {
           "type": "object",
           "properties": {
-            "today": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
-            "upcoming": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
-            "needsAttention": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
-            "history": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
-            "carePlanChecklist": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } }
+            "today": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActionCenterTaskCard"
+              }
+            },
+            "upcoming": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActionCenterTaskCard"
+              }
+            },
+            "needsAttention": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActionCenterTaskCard"
+              }
+            },
+            "history": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActionCenterTaskCard"
+              }
+            },
+            "carePlanChecklist": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ActionCenterTaskCard"
+              }
+            }
           }
         },
-        "nextToken": { "type": "string" }
+        "nextToken": {
+          "type": "string"
+        }
       }
     },
     "ActionCenterSingleSection": {
       "type": "object",
-      "required": ["patientId", "surfaceSection", "timezone", "items"],
+      "required": [
+        "patientId",
+        "surfaceSection",
+        "timezone",
+        "items"
+      ],
       "properties": {
-        "patientId": { "type": "string" },
-        "carePlanInstanceId": { "type": "string" },
-        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
-        "timezone": { "type": "string" },
+        "patientId": {
+          "type": "string"
+        },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "surfaceSection": {
+          "$ref": "#/definitions/SurfaceSection"
+        },
+        "timezone": {
+          "type": "string"
+        },
         "items": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ActionCenterTaskCard" }
+          "items": {
+            "$ref": "#/definitions/ActionCenterTaskCard"
+          }
         },
-        "nextToken": { "type": "string" }
+        "nextToken": {
+          "type": "string"
+        }
       }
     },
     "PatientTaskListResult": {
       "type": "object",
-      "required": ["patientId", "patientTasks", "staffTasks"],
+      "required": [
+        "patientId",
+        "patientTasks",
+        "staffTasks"
+      ],
       "properties": {
-        "patientId": { "type": "string" },
+        "patientId": {
+          "type": "string"
+        },
         "staffUserId": {
           "type": "string",
           "description": "Present when staffUserId query param was provided for in-patient staff bucket filtering."
         },
-        "patientTasks": { "$ref": "#/definitions/RuntimeTaskCardList" },
+        "patientTasks": {
+          "$ref": "#/definitions/RuntimeTaskCardList"
+        },
         "staffTasks": {
           "$ref": "#/definitions/RuntimeTaskCardList",
           "description": "Populated only when staffUserId query param is provided; otherwise items is empty."
         },
-        "nextToken": { "type": "string" }
+        "nextToken": {
+          "type": "string"
+        }
       }
     },
     "CreateRuntimeTaskRequest": {
@@ -253,14 +428,30 @@
           "type": "string",
           "description": "Patient display name from request body (not from JWT)."
         },
-        "carePlanInstanceId": { "type": "string" },
-        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
-        "runtimeTaskSource": { "$ref": "#/definitions/RuntimeTaskSourceCreate" },
-        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
-        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
-        "displayTitle": { "type": "string" },
-        "description": { "type": "string" },
-        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "workflowStage": {
+          "$ref": "#/definitions/WorkflowStage"
+        },
+        "runtimeTaskSource": {
+          "$ref": "#/definitions/RuntimeTaskSourceCreate"
+        },
+        "taskBehaviorCode": {
+          "$ref": "#/definitions/TaskBehaviorCode"
+        },
+        "taskDisplayGroup": {
+          "$ref": "#/definitions/TaskDisplayGroup"
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "assignedToType": {
+          "$ref": "#/definitions/AssignedToType"
+        },
         "assignedToStaffId": {
           "type": "string",
           "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
@@ -269,15 +460,33 @@
           "type": "string",
           "description": "Required when assignedToType is staff."
         },
-        "displayToPatient": { "type": "boolean" },
-        "actionTargetId": { "type": "string" },
-        "completionSourceType": { "type": "string" },
-        "completionSourceReferenceId": { "type": "string" },
-        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
-        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
-        "reminderEnabled": { "type": "boolean" },
-        "requiredForStageCompletion": { "type": "boolean" },
-        "displayAsChecklistItem": { "type": "boolean" }
+        "displayToPatient": {
+          "type": "boolean"
+        },
+        "actionTargetId": {
+          "type": "string"
+        },
+        "completionSourceType": {
+          "type": "string"
+        },
+        "completionSourceReferenceId": {
+          "type": "string"
+        },
+        "dueWindowStart": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "dueWindowEnd": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "reminderEnabled": {
+          "type": "boolean"
+        },
+        "requiredForStageCompletion": {
+          "type": "boolean"
+        },
+        "displayAsChecklistItem": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false,
       "example": {
@@ -301,10 +510,17 @@
     },
     "CreateRuntimeTaskResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "task"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "task"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "task": { "type": "object" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "task": {
+          "type": "object"
+        }
       }
     },
     "CarePlanLinkageMaterialization": {
@@ -320,13 +536,27 @@
         "dueWindowEnd"
       ],
       "properties": {
-        "carePlanTaskLinkageId": { "type": "string" },
-        "sourceTaskTemplateVersionId": { "type": "string" },
-        "taskBehaviorCode": { "$ref": "#/definitions/TaskBehaviorCode" },
-        "taskDisplayGroup": { "$ref": "#/definitions/TaskDisplayGroup" },
-        "displayTitle": { "type": "string" },
-        "description": { "type": "string" },
-        "assignedToType": { "$ref": "#/definitions/AssignedToType" },
+        "carePlanTaskLinkageId": {
+          "type": "string"
+        },
+        "sourceTaskTemplateVersionId": {
+          "type": "string"
+        },
+        "taskBehaviorCode": {
+          "$ref": "#/definitions/TaskBehaviorCode"
+        },
+        "taskDisplayGroup": {
+          "$ref": "#/definitions/TaskDisplayGroup"
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "assignedToType": {
+          "$ref": "#/definitions/AssignedToType"
+        },
         "assignedToStaffId": {
           "type": "string",
           "description": "Staff user id when assignedToType is staff; drives GSI1 staff inbox."
@@ -335,19 +565,37 @@
           "type": "string",
           "description": "Required when assignedToType is staff."
         },
-        "displayToPatient": { "type": "boolean" },
-        "actionTargetId": { "type": "string" },
-        "completionSourceType": { "type": "string" },
-        "completionSourceReferenceId": { "type": "string" },
-        "dueWindowStart": { "$ref": "#/definitions/EpochMillis" },
-        "dueWindowEnd": { "$ref": "#/definitions/EpochMillis" },
-        "reminderEnabled": { "type": "boolean" },
+        "displayToPatient": {
+          "type": "boolean"
+        },
+        "actionTargetId": {
+          "type": "string"
+        },
+        "completionSourceType": {
+          "type": "string"
+        },
+        "completionSourceReferenceId": {
+          "type": "string"
+        },
+        "dueWindowStart": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "dueWindowEnd": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "reminderEnabled": {
+          "type": "boolean"
+        },
         "reminderSettings": {
           "type": "object",
           "additionalProperties": true
         },
-        "requiredForStageCompletion": { "type": "boolean" },
-        "displayAsChecklistItem": { "type": "boolean" }
+        "requiredForStageCompletion": {
+          "type": "boolean"
+        },
+        "displayAsChecklistItem": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     },
@@ -369,23 +617,37 @@
           "type": "string",
           "description": "Patient display name from request body (not from JWT)."
         },
-        "carePlanInstanceId": { "type": "string" },
-        "taskGenerationTrigger": { "type": "string" },
-        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
-        "dryRun": { "type": "boolean" },
-        "actorType": { "type": "string" },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "taskGenerationTrigger": {
+          "type": "string"
+        },
+        "workflowStage": {
+          "$ref": "#/definitions/WorkflowStage"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "actorType": {
+          "type": "string"
+        },
         "actorId": {
           "type": "string",
           "description": "When set, createdBy becomes system:care-plan-runtime:<actorId>."
         },
         "sourceLinkageContext": {
           "type": "object",
-          "required": ["linkages"],
+          "required": [
+            "linkages"
+          ],
           "properties": {
             "linkages": {
               "type": "array",
               "minItems": 1,
-              "items": { "$ref": "#/definitions/CarePlanLinkageMaterialization" }
+              "items": {
+                "$ref": "#/definitions/CarePlanLinkageMaterialization"
+              }
             }
           },
           "additionalProperties": false
@@ -417,7 +679,12 @@
               "requiredForStageCompletion": true,
               "displayAsChecklistItem": true,
               "reminderEnabled": true,
-              "reminderSettings": { "channels": ["push"], "quietHoursRespected": true }
+              "reminderSettings": {
+                "channels": [
+                  "push"
+                ],
+                "quietHoursRespected": true
+              }
             }
           ]
         }
@@ -425,20 +692,34 @@
     },
     "GeneratedCarePlanTaskResultItem": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "outcome", "task"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "outcome",
+        "task"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "outcome": { "$ref": "#/definitions/IdempotencyOutcome" },
-        "task": { "type": "object" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/definitions/IdempotencyOutcome"
+        },
+        "task": {
+          "type": "object"
+        }
       }
     },
     "GenerateCarePlanTasksResult": {
       "type": "object",
-      "required": ["results"],
+      "required": [
+        "results"
+      ],
       "properties": {
         "results": {
           "type": "array",
-          "items": { "$ref": "#/definitions/GeneratedCarePlanTaskResultItem" }
+          "items": {
+            "$ref": "#/definitions/GeneratedCarePlanTaskResultItem"
+          }
         }
       }
     },
@@ -448,15 +729,33 @@
     },
     "CompletionEvidence": {
       "type": "object",
-      "required": ["completionEvidenceId", "completedAt", "completionSource"],
+      "required": [
+        "completionEvidenceId",
+        "completedAt",
+        "completionSource"
+      ],
       "properties": {
-        "completionEvidenceId": { "type": "string" },
-        "completionSource": { "type": "string" },
-        "completionSourceType": { "type": "string" },
-        "completionSourceReferenceId": { "type": "string" },
-        "completionEventId": { "type": "string" },
-        "completedAt": { "$ref": "#/definitions/EpochMillis" },
-        "completedBy": { "type": "string" },
+        "completionEvidenceId": {
+          "type": "string"
+        },
+        "completionSource": {
+          "type": "string"
+        },
+        "completionSourceType": {
+          "type": "string"
+        },
+        "completionSourceReferenceId": {
+          "type": "string"
+        },
+        "completionEventId": {
+          "type": "string"
+        },
+        "completedAt": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "completedBy": {
+          "type": "string"
+        },
         "evidencePayload": {
           "type": "object",
           "additionalProperties": true
@@ -465,28 +764,46 @@
     },
     "TaskEvidenceSummary": {
       "type": "object",
-      "required": ["generatedAt"],
+      "required": [
+        "generatedAt"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "generatedAt": { "$ref": "#/definitions/EpochMillis" },
-        "latestCompletionSummary": { "type": "string" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "generatedAt": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "latestCompletionSummary": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
     "RuntimeTaskDetail": {
       "type": "object",
-      "required": ["task"],
+      "required": [
+        "task"
+      ],
       "properties": {
-        "task": { "type": "object" },
+        "task": {
+          "type": "object"
+        },
         "reminders": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ReminderRecord" }
+          "items": {
+            "$ref": "#/definitions/ReminderRecord"
+          }
         },
         "completionEvidence": {
           "type": "array",
-          "items": { "$ref": "#/definitions/CompletionEvidence" }
+          "items": {
+            "$ref": "#/definitions/CompletionEvidence"
+          }
         },
-        "evidenceSummary": { "$ref": "#/definitions/TaskEvidenceSummary" }
+        "evidenceSummary": {
+          "$ref": "#/definitions/TaskEvidenceSummary"
+        }
       }
     },
     "TaskHistoryEventType": {
@@ -502,51 +819,121 @@
     },
     "TransitionSource": {
       "type": "string",
-      "enum": ["manual", "scheduler", "sourceEvent", "system"]
+      "enum": [
+        "manual",
+        "scheduler",
+        "sourceEvent",
+        "system"
+      ]
     },
     "TaskHistoryEntry": {
       "type": "object",
-      "required": ["taskStateHistoryId", "historyEventType", "transitionAt", "transitionBy", "transitionSource"],
+      "required": [
+        "taskStateHistoryId",
+        "historyEventType",
+        "transitionAt",
+        "transitionBy",
+        "transitionSource"
+      ],
       "properties": {
-        "taskStateHistoryId": { "type": "string" },
-        "historyEventType": { "$ref": "#/definitions/TaskHistoryEventType" },
-        "transitionAt": { "$ref": "#/definitions/EpochMillis" },
-        "fromState": { "type": "string" },
-        "toState": { "type": "string" },
-        "transitionBy": { "type": "string" },
-        "transitionSource": { "$ref": "#/definitions/TransitionSource" },
-        "transitionReason": { "type": "string" },
-        "previousAssignedToStaffId": { "type": "string" },
-        "newAssignedToStaffId": { "type": "string" },
-        "previousAssignedToStaffDisplayName": { "type": "string" },
-        "newAssignedToStaffDisplayName": { "type": "string" },
+        "taskStateHistoryId": {
+          "type": "string"
+        },
+        "historyEventType": {
+          "$ref": "#/definitions/TaskHistoryEventType"
+        },
+        "transitionAt": {
+          "$ref": "#/definitions/EpochMillis"
+        },
+        "fromState": {
+          "type": "string"
+        },
+        "toState": {
+          "type": "string"
+        },
+        "transitionBy": {
+          "type": "string"
+        },
+        "transitionSource": {
+          "$ref": "#/definitions/TransitionSource"
+        },
+        "transitionReason": {
+          "type": "string"
+        },
+        "previousAssignedToStaffId": {
+          "type": "string"
+        },
+        "newAssignedToStaffId": {
+          "type": "string"
+        },
+        "previousAssignedToStaffDisplayName": {
+          "type": "string"
+        },
+        "newAssignedToStaffDisplayName": {
+          "type": "string"
+        },
         "changedFields": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "previousValues": { "type": "object" },
-        "newValues": { "type": "object" }
+        "previousValues": {
+          "type": "object"
+        },
+        "newValues": {
+          "type": "object"
+        }
       }
     },
     "UpdateRuntimeTaskRequest": {
       "type": "object",
-      "required": ["actorId"],
+      "required": [
+        "actorId"
+      ],
       "properties": {
-        "actorId": { "type": "string" },
-        "reason": { "type": "string" },
-        "displayTitle": { "type": "string" },
-        "description": { "type": "string" },
-        "displayToPatient": { "type": "boolean" },
-        "requiredForStageCompletion": { "type": "boolean" },
-        "displayAsChecklistItem": { "type": "boolean" },
+        "actorId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "displayTitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayToPatient": {
+          "type": "boolean"
+        },
+        "requiredForStageCompletion": {
+          "type": "boolean"
+        },
+        "displayAsChecklistItem": {
+          "type": "boolean"
+        },
         "workflowStage": {
           "type": "string",
-          "enum": ["onboarding", "ongoing", "review", "closure"]
+          "enum": [
+            "onboarding",
+            "ongoing",
+            "review",
+            "closure"
+          ]
         },
-        "actionTargetId": { "type": "string" },
-        "completionSourceType": { "type": "string" },
-        "completionSourceReferenceId": { "type": "string" },
-        "patientDisplayName": { "type": "string" }
+        "actionTargetId": {
+          "type": "string"
+        },
+        "completionSourceType": {
+          "type": "string"
+        },
+        "completionSourceReferenceId": {
+          "type": "string"
+        },
+        "patientDisplayName": {
+          "type": "string"
+        }
       },
       "additionalProperties": false,
       "example": {
@@ -560,21 +947,43 @@
     },
     "UpdateRuntimeTaskResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "task", "historyEntry"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "task",
+        "historyEntry"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "task": { "type": "object" },
-        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "task": {
+          "type": "object"
+        },
+        "historyEntry": {
+          "$ref": "#/definitions/TaskHistoryEntry"
+        }
       }
     },
     "UpdateAssignedStaffRequest": {
       "type": "object",
-      "required": ["actorId", "assignedToStaffId", "assignedToStaffDisplayName"],
+      "required": [
+        "actorId",
+        "assignedToStaffId",
+        "assignedToStaffDisplayName"
+      ],
       "properties": {
-        "actorId": { "type": "string" },
-        "assignedToStaffId": { "type": "string" },
-        "assignedToStaffDisplayName": { "type": "string" },
-        "reason": { "type": "string" }
+        "actorId": {
+          "type": "string"
+        },
+        "assignedToStaffId": {
+          "type": "string"
+        },
+        "assignedToStaffDisplayName": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
       },
       "additionalProperties": false,
       "example": {
@@ -586,11 +995,21 @@
     },
     "UpdateAssignedStaffResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "task", "historyEntry"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "task",
+        "historyEntry"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "task": { "type": "object" },
-        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "task": {
+          "type": "object"
+        },
+        "historyEntry": {
+          "$ref": "#/definitions/TaskHistoryEntry"
+        }
       }
     },
     "PaginatedTaskHistory": {
@@ -598,9 +1017,13 @@
       "properties": {
         "items": {
           "type": "array",
-          "items": { "$ref": "#/definitions/TaskHistoryEntry" }
+          "items": {
+            "$ref": "#/definitions/TaskHistoryEntry"
+          }
         },
-        "nextToken": { "type": "string" }
+        "nextToken": {
+          "type": "string"
+        }
       },
       "example": {
         "items": [
@@ -620,22 +1043,48 @@
     },
     "UpdateTaskStateAction": {
       "type": "string",
-      "enum": ["complete", "dismiss", "cancel", "markMissed"]
+      "enum": [
+        "complete",
+        "dismiss",
+        "cancel",
+        "markMissed"
+      ]
     },
     "ActorType": {
       "type": "string",
-      "enum": ["patient", "staff"]
+      "enum": [
+        "patient",
+        "staff"
+      ]
     },
     "UpdateTaskStateRequest": {
       "type": "object",
-      "required": ["action", "actorId", "actorType", "expectedCurrentState"],
+      "required": [
+        "action",
+        "actorId",
+        "actorType",
+        "expectedCurrentState"
+      ],
       "properties": {
-        "action": { "$ref": "#/definitions/UpdateTaskStateAction" },
-        "actorId": { "type": "string" },
-        "actorType": { "$ref": "#/definitions/ActorType" },
-        "expectedCurrentState": { "$ref": "#/definitions/CurrentState" },
-        "reason": { "type": "string" },
-        "evidencePayload": { "type": "object", "additionalProperties": true }
+        "action": {
+          "$ref": "#/definitions/UpdateTaskStateAction"
+        },
+        "actorId": {
+          "type": "string"
+        },
+        "actorType": {
+          "$ref": "#/definitions/ActorType"
+        },
+        "expectedCurrentState": {
+          "$ref": "#/definitions/CurrentState"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "evidencePayload": {
+          "type": "object",
+          "additionalProperties": true
+        }
       },
       "additionalProperties": false,
       "example": {
@@ -648,77 +1097,170 @@
     },
     "UpdateTaskStateResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "currentState", "surfaceSection", "historyEntry"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "currentState",
+        "surfaceSection",
+        "historyEntry"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "currentState": { "$ref": "#/definitions/CurrentState" },
-        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
-        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "currentState": {
+          "$ref": "#/definitions/CurrentState"
+        },
+        "surfaceSection": {
+          "$ref": "#/definitions/SurfaceSection"
+        },
+        "historyEntry": {
+          "$ref": "#/definitions/TaskHistoryEntry"
+        }
       }
     },
     "ReminderChannel": {
       "type": "string",
-      "enum": ["push", "sms", "email", "inApp"]
+      "enum": [
+        "push",
+        "sms",
+        "email",
+        "inApp"
+      ]
     },
     "ReminderSettings": {
       "type": "object",
       "properties": {
         "channels": {
           "type": "array",
-          "items": { "$ref": "#/definitions/ReminderChannel" }
+          "items": {
+            "$ref": "#/definitions/ReminderChannel"
+          }
         },
-        "quietHoursRespected": { "type": "boolean" },
-        "scheduleAnchor": { "type": "string", "enum": ["dueWindowStart", "dueWindowEnd"] },
-        "offsetMs": { "type": "integer" },
-        "quietHoursBufferMs": { "type": "integer", "minimum": 0 }
+        "quietHoursRespected": {
+          "type": "boolean"
+        },
+        "scheduleAnchor": {
+          "type": "string",
+          "enum": [
+            "dueWindowStart",
+            "dueWindowEnd"
+          ]
+        },
+        "offsetMs": {
+          "type": "integer"
+        },
+        "quietHoursBufferMs": {
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
     "UpdateReminderSettingsRequest": {
       "type": "object",
-      "required": ["actorId", "reminderEnabled"],
+      "required": [
+        "actorId",
+        "reminderEnabled"
+      ],
       "properties": {
-        "actorId": { "type": "string" },
-        "reminderEnabled": { "type": "boolean" },
-        "reminderSettings": { "$ref": "#/definitions/ReminderSettings" },
-        "reason": { "type": "string" }
+        "actorId": {
+          "type": "string"
+        },
+        "reminderEnabled": {
+          "type": "boolean"
+        },
+        "reminderSettings": {
+          "$ref": "#/definitions/ReminderSettings"
+        },
+        "reason": {
+          "type": "string"
+        }
       },
       "additionalProperties": false,
       "example": {
         "actorId": "staff-nurse-44721",
         "reminderEnabled": true,
-        "reminderSettings": { "channels": ["push", "inApp"] },
+        "reminderSettings": {
+          "channels": [
+            "push",
+            "inApp"
+          ]
+        },
         "reason": "Patient requested daily reminders"
       }
     },
     "UpdateReminderSettingsResult": {
       "type": "object",
-      "required": ["runtimeTaskInstanceId", "reminderEnabled", "historyEntry"],
+      "required": [
+        "runtimeTaskInstanceId",
+        "reminderEnabled",
+        "historyEntry"
+      ],
       "properties": {
-        "runtimeTaskInstanceId": { "type": "string" },
-        "reminderEnabled": { "type": "boolean" },
-        "reminderSettings": { "$ref": "#/definitions/ReminderSettings" },
-        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+        "runtimeTaskInstanceId": {
+          "type": "string"
+        },
+        "reminderEnabled": {
+          "type": "boolean"
+        },
+        "reminderSettings": {
+          "$ref": "#/definitions/ReminderSettings"
+        },
+        "historyEntry": {
+          "$ref": "#/definitions/TaskHistoryEntry"
+        }
       }
     },
     "TaskStatusSummaryByCarePlan": {
       "type": "object",
-      "required": ["orgId", "patientId", "carePlanInstanceId", "readinessStatus"],
+      "required": [
+        "orgId",
+        "patientId",
+        "carePlanInstanceId",
+        "readinessStatus"
+      ],
       "properties": {
-        "orgId": { "type": "string" },
-        "patientId": { "type": "string" },
-        "carePlanInstanceId": { "type": "string" },
-        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
-        "readinessStatus": { "type": "string", "enum": ["ready", "notReady", "notApplicable"] },
+        "orgId": {
+          "type": "string"
+        },
+        "patientId": {
+          "type": "string"
+        },
+        "carePlanInstanceId": {
+          "type": "string"
+        },
+        "workflowStage": {
+          "$ref": "#/definitions/WorkflowStage"
+        },
+        "readinessStatus": {
+          "type": "string",
+          "enum": [
+            "ready",
+            "notReady",
+            "notApplicable"
+          ]
+        },
         "counts": {
           "type": "object",
           "properties": {
-            "total": { "type": "integer" },
-            "requiredTotal": { "type": "integer" },
-            "completed": { "type": "integer" },
-            "missed": { "type": "integer" },
-            "active": { "type": "integer" },
-            "scheduled": { "type": "integer" }
+            "total": {
+              "type": "integer"
+            },
+            "requiredTotal": {
+              "type": "integer"
+            },
+            "completed": {
+              "type": "integer"
+            },
+            "missed": {
+              "type": "integer"
+            },
+            "active": {
+              "type": "integer"
+            },
+            "scheduled": {
+              "type": "integer"
+            }
           }
         },
         "incompleteRequiredTasks": {
@@ -726,10 +1268,18 @@
           "items": {
             "type": "object",
             "properties": {
-              "runtimeTaskInstanceId": { "type": "string" },
-              "displayTitle": { "type": "string" },
-              "requiredForStageCompletion": { "type": "boolean" },
-              "currentState": { "$ref": "#/definitions/CurrentState" }
+              "runtimeTaskInstanceId": {
+                "type": "string"
+              },
+              "displayTitle": {
+                "type": "string"
+              },
+              "requiredForStageCompletion": {
+                "type": "boolean"
+              },
+              "currentState": {
+                "$ref": "#/definitions/CurrentState"
+              }
             }
           }
         }
@@ -761,20 +1311,47 @@
     "ApiResponseMeta": {
       "type": "object",
       "properties": {
-        "requestId": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "version": { "type": "string", "enum": ["v1"] }
+        "requestId": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "string",
+          "enum": [
+            "v1"
+          ]
+        }
       }
     },
     "HealthData": {
       "type": "object",
       "properties": {
-        "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
-        "service": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "requestId": { "type": "string" },
-        "region": { "type": "string" },
-        "stage": { "type": "string" }
+        "status": {
+          "type": "string",
+          "enum": [
+            "healthy",
+            "unhealthy"
+          ]
+        },
+        "service": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        }
       },
       "example": {
         "status": "healthy",
@@ -791,7 +1368,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "OK", "description": "Task service is healthy", "severity": "INFO" },
+        "message": {
+          "title": "OK",
+          "description": "Task service is healthy",
+          "severity": "INFO"
+        },
         "data": {
           "status": "healthy",
           "service": "task-service",
@@ -801,7 +1382,11 @@
           "stage": "dev"
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeCreateMonitoringAction": {
@@ -810,7 +1395,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "outcome": "created",
@@ -824,7 +1413,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeGenerateCarePlanTasks": {
@@ -833,7 +1426,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "results": [
             {
@@ -850,7 +1447,11 @@
           ]
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeCreateRuntimeTask": {
@@ -859,7 +1460,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "task": {
@@ -873,7 +1478,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopePatientTaskList": {
@@ -882,7 +1491,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "patientId": "pat-101",
           "patientTasks": {
@@ -895,10 +1508,16 @@
               }
             ]
           },
-          "staffTasks": { "items": [] }
+          "staffTasks": {
+            "items": []
+          }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeActionCenterItems": {
@@ -907,7 +1526,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "patientId": "pat-101",
           "timezone": "America/New_York",
@@ -922,7 +1545,11 @@
           ]
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopePaginatedRuntimeTaskCards": {
@@ -931,7 +1558,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "items": [
             {
@@ -944,7 +1575,11 @@
           "nextToken": null
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeRuntimeTaskDetail": {
@@ -953,7 +1588,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "task": {
             "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
@@ -969,7 +1608,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeUpdateRuntimeTask": {
@@ -978,7 +1621,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "task": {
@@ -995,7 +1642,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopePaginatedTaskHistory": {
@@ -1004,7 +1655,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "items": [
             {
@@ -1019,7 +1674,11 @@
           ]
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeUpdateAssignedStaff": {
@@ -1028,7 +1687,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "task": {
@@ -1045,7 +1708,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeUpdateTaskState": {
@@ -1054,7 +1721,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "currentState": "completed",
@@ -1070,7 +1741,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeUpdateReminderSettings": {
@@ -1079,11 +1754,20 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
           "reminderEnabled": true,
-          "reminderSettings": { "channels": ["push", "inApp"] },
+          "reminderSettings": {
+            "channels": [
+              "push",
+              "inApp"
+            ]
+          },
           "historyEntry": {
             "taskStateHistoryId": "hist-reminder-001",
             "historyEventType": "reminderSettingsChange",
@@ -1093,7 +1777,11 @@
           }
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     },
     "SuccessEnvelopeTaskStatusSummary": {
@@ -1102,7 +1790,11 @@
       "example": {
         "success": true,
         "statusCode": 200,
-        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "message": {
+          "title": "SUCCESS",
+          "description": "Request processed successfully",
+          "severity": "SUCCESS"
+        },
         "data": {
           "orgId": "org-acme-001",
           "patientId": "pat-101",
@@ -1120,7 +1812,11 @@
           "incompleteRequiredTasks": []
         },
         "error": null,
-        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+        "meta": {
+          "requestId": "req-example-001",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "version": "v1"
+        }
       }
     }
   },
@@ -1129,7 +1825,37 @@
       "get": {
         "summary": "Health check",
         "responses": {
-          "200": { "description": "OK" }
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeHealth"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "OK",
+                  "description": "Task service is healthy",
+                  "severity": "INFO"
+                },
+                "data": {
+                  "status": "healthy",
+                  "service": "task-service",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "requestId": "req-example-001",
+                  "region": "us-east-1",
+                  "stage": "dev"
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1137,24 +1863,85 @@
       "post": {
         "summary": "Create a monitoring-generated runtime task (idempotent)",
         "description": "Called by Monitoring Runtime. orgId from JWT; patientId and patientDisplayName from request body.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/CreateMonitoringActionRequest" }
+            "schema": {
+              "$ref": "#/definitions/CreateMonitoringActionRequest"
+            },
+            "x-example": {
+              "patientId": "pat-101",
+              "patientDisplayName": "Maria Lopez",
+              "carePlanInstanceId": "cp-2026-001",
+              "monitoringInstanceId": "mon-bp-daily-001",
+              "taskBehaviorCode": "METRIC_CHECKIN",
+              "assignedToType": "patient",
+              "dueWindowStart": 1780581600000,
+              "dueWindowEnd": 1780668000000,
+              "reminderContext": {
+                "channels": [
+                  "push",
+                  "inApp"
+                ]
+              }
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Create result (created or skipped duplicate).",
-            "schema": { "$ref": "#/definitions/CreateMonitoringActionResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeCreateMonitoringAction"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "outcome": "created",
+                  "task": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "patientId": "pat-101",
+                    "displayTitle": "Daily blood pressure check-in",
+                    "currentState": "open",
+                    "taskBehaviorCode": "METRIC_CHECKIN",
+                    "taskDisplayGroup": "checkIn"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "409": { "description": "Conflict (cross-org idempotency)" },
-          "422": { "description": "Validation error" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict (cross-org idempotency)"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1162,24 +1949,107 @@
       "post": {
         "summary": "Generate care-plan linkage runtime tasks (idempotent batch)",
         "description": "Called by Care Plan Runtime. orgId from JWT; patientId and patientDisplayName from request body.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksRequest" }
+            "schema": {
+              "$ref": "#/definitions/GenerateCarePlanTasksRequest"
+            },
+            "x-example": {
+              "patientId": "pat-maria",
+              "patientDisplayName": "Maria Lopez",
+              "carePlanInstanceId": "cp-maria-001",
+              "taskGenerationTrigger": "carePlanStageEntered",
+              "workflowStage": "onboarding",
+              "dryRun": false,
+              "actorType": "system",
+              "actorId": "care-plan-runtime",
+              "sourceLinkageContext": {
+                "linkages": [
+                  {
+                    "carePlanTaskLinkageId": "link-watch-bp-video",
+                    "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
+                    "taskBehaviorCode": "EDUCATION_VIDEO",
+                    "taskDisplayGroup": "learning",
+                    "displayTitle": "Watch: How to measure BP",
+                    "assignedToType": "patient",
+                    "displayToPatient": true,
+                    "actionTargetId": "video-how-to-measure-bp",
+                    "dueWindowStart": 1780567200000,
+                    "dueWindowEnd": 1780610400000,
+                    "requiredForStageCompletion": true,
+                    "displayAsChecklistItem": true,
+                    "reminderEnabled": true,
+                    "reminderSettings": {
+                      "channels": [
+                        "push"
+                      ],
+                      "quietHoursRespected": true
+                    }
+                  }
+                ]
+              }
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Batch generate results (created or skipped duplicate per linkage).",
-            "schema": { "$ref": "#/definitions/GenerateCarePlanTasksResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeGenerateCarePlanTasks"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "results": [
+                    {
+                      "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                      "outcome": "created",
+                      "task": {
+                        "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                        "displayTitle": "Watch: How to measure BP",
+                        "currentState": "open",
+                        "taskBehaviorCode": "EDUCATION_VIDEO",
+                        "taskDisplayGroup": "learning"
+                      }
+                    }
+                  ]
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "409": { "description": "Conflict (cross-org idempotency)" },
-          "422": { "description": "Validation error" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Conflict (cross-org idempotency)"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1187,7 +2057,11 @@
       "get": {
         "summary": "Get one runtime task detail",
         "description": "Full task context for detail views. Organization scope is from JWT; task must belong to the caller's org.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -1201,50 +2075,156 @@
             "name": "includeRelated",
             "required": false,
             "type": "string",
-            "enum": ["true", "false"],
-            "default": "true"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "default": "true",
+            "x-example": "true"
           }
         ],
         "responses": {
           "200": {
             "description": "Task detail.",
-            "schema": { "$ref": "#/definitions/RuntimeTaskDetail" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeRuntimeTaskDetail"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "task": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "patientId": "pat-101",
+                    "displayTitle": "Daily blood pressure check-in",
+                    "currentState": "open"
+                  },
+                  "reminders": [],
+                  "completionEvidence": [],
+                  "evidenceSummary": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "generatedAt": 1780567200000
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       },
       "patch": {
         "summary": "Update runtime task metadata (portal)",
         "description": "Portal partial metadata edit on META (+ LOOKUP when patientDisplayName changes). Appends HIST taskMetadataChange audit.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
             "name": "runtimeTaskInstanceId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
           },
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/UpdateRuntimeTaskRequest" }
+            "schema": {
+              "$ref": "#/definitions/UpdateRuntimeTaskRequest"
+            },
+            "x-example": {
+              "actorId": "staff-nurse-001",
+              "displayTitle": "Complete daily blood pressure check",
+              "description": "Use home cuff before breakfast",
+              "displayToPatient": true,
+              "requiredForStageCompletion": true,
+              "reason": "Care plan template wording updated"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Updated task metadata and audit entry.",
-            "schema": { "$ref": "#/definitions/UpdateRuntimeTaskResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeUpdateRuntimeTask"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "task": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "displayTitle": "Complete daily blood pressure check",
+                    "currentState": "open"
+                  },
+                  "historyEntry": {
+                    "taskStateHistoryId": "hist-metadata-001",
+                    "historyEventType": "taskMetadataChange",
+                    "transitionAt": 1780567200000,
+                    "transitionBy": "staff-nurse-001",
+                    "transitionSource": "manual"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "422": { "description": "Validation or business rule error" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "422": {
+            "description": "Validation or business rule error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1252,31 +2232,88 @@
       "put": {
         "summary": "Assign or reassign staff task to a staff member",
         "description": "Portal assign/reassign for staff tasks. Initial assignment sets assignedToStaffId plus GSI1 (gsi1Pk and gsi1Sk); reassignment updates gsi1Pk only. Appends HIST assignedToStaffChange audit. Organization scope from JWT only.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
             "name": "runtimeTaskInstanceId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
           },
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/UpdateAssignedStaffRequest" }
+            "schema": {
+              "$ref": "#/definitions/UpdateAssignedStaffRequest"
+            },
+            "x-example": {
+              "actorId": "staff-nurse-44721",
+              "assignedToStaffId": "staff-nurse-55210",
+              "assignedToStaffDisplayName": "Nurse Patel",
+              "reason": "Shift handoff"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Updated task and audit entry.",
-            "schema": { "$ref": "#/definitions/UpdateAssignedStaffResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeUpdateAssignedStaff"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "task": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "assignedToStaffId": "staff-nurse-55210",
+                    "assignedToStaffDisplayName": "Nurse Patel"
+                  },
+                  "historyEntry": {
+                    "taskStateHistoryId": "hist-staff-001",
+                    "historyEventType": "assignedToStaffChange",
+                    "transitionAt": 1780567200000,
+                    "transitionBy": "staff-nurse-44721",
+                    "transitionSource": "manual"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "422": { "description": "Not a staff task or already assigned to this staff member" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "422": {
+            "description": "Not a staff task or already assigned to this staff member"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1284,13 +2321,18 @@
       "get": {
         "summary": "Get task audit history",
         "description": "Paged append-only HIST# timeline for one runtime task (newest first). Organization scope is from JWT.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
             "name": "runtimeTaskInstanceId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
           },
           {
             "in": "query",
@@ -1298,7 +2340,8 @@
             "required": false,
             "type": "integer",
             "default": 50,
-            "maximum": 200
+            "maximum": 200,
+            "x-example": 50
           },
           {
             "in": "query",
@@ -1310,12 +2353,52 @@
         "responses": {
           "200": {
             "description": "Paged history entries.",
-            "schema": { "$ref": "#/definitions/PaginatedTaskHistory" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopePaginatedTaskHistory"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "items": [
+                    {
+                      "taskStateHistoryId": "hist-001",
+                      "historyEventType": "stateChange",
+                      "transitionAt": 1780567200000,
+                      "fromState": "open",
+                      "toState": "completed",
+                      "transitionBy": "pat-101",
+                      "transitionSource": "manual"
+                    }
+                  ]
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1323,14 +2406,19 @@
       "get": {
         "summary": "List tasks by patient and (optionally) care plan",
         "description": "Patient-scoped task list for Mobile, Portal, or BFF. Organization scope from JWT only.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
             "name": "patientId",
             "required": true,
             "type": "string",
-            "x-example": "pat-101"
+            "x-example": "pat-101",
+            "default": "pat-101"
           },
           {
             "in": "query",
@@ -1344,21 +2432,36 @@
             "name": "workflowStage",
             "required": false,
             "type": "string",
-            "enum": ["onboarding", "ongoing", "review", "closure"]
+            "enum": [
+              "onboarding",
+              "ongoing",
+              "review",
+              "closure"
+            ],
+            "x-example": "onboarding"
           },
           {
             "in": "query",
             "name": "staffUserId",
             "required": false,
             "type": "string",
-            "description": "When set, staff-assigned tasks for this staff member appear in staffTasks; patientTasks excludes all staff-assigned tasks."
+            "description": "When set, staff-assigned tasks for this staff member appear in staffTasks; patientTasks excludes all staff-assigned tasks.",
+            "x-example": "staff-nurse-44721"
           },
           {
             "in": "query",
             "name": "currentState",
             "required": false,
             "type": "string",
-            "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+            "enum": [
+              "open",
+              "scheduled",
+              "active",
+              "completed",
+              "missed",
+              "dismissed",
+              "cancelled"
+            ]
           },
           {
             "in": "query",
@@ -1366,7 +2469,8 @@
             "required": false,
             "type": "integer",
             "default": 50,
-            "maximum": 200
+            "maximum": 200,
+            "x-example": 50
           },
           {
             "in": "query",
@@ -1378,35 +2482,141 @@
         "responses": {
           "200": {
             "description": "Patient-scoped task list split into patientTasks and staffTasks buckets.",
-            "schema": { "$ref": "#/definitions/PatientTaskListResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopePatientTaskList"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "patientId": "pat-101",
+                  "patientTasks": {
+                    "items": [
+                      {
+                        "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                        "displayTitle": "Daily blood pressure check-in",
+                        "currentState": "open",
+                        "taskBehaviorCode": "METRIC_CHECKIN"
+                      }
+                    ]
+                  },
+                  "staffTasks": {
+                    "items": []
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       },
       "post": {
         "summary": "Create an ad-hoc/service-flow/manual runtime task",
         "description": "Called by Service Flow Runtime or authorized staff/system. orgId from JWT; patientId and patientDisplayName from request body. GSI1 when assignedToStaffId set.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/CreateRuntimeTaskRequest" }
+            "schema": {
+              "$ref": "#/definitions/CreateRuntimeTaskRequest"
+            },
+            "x-example": {
+              "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+              "patientDisplayName": "Maria Lopez",
+              "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
+              "workflowStage": "ongoing",
+              "runtimeTaskSource": "manualSystem",
+              "taskBehaviorCode": "CARE_TEAM_TASK",
+              "taskDisplayGroup": "staffTask",
+              "displayTitle": "Call patient about missed reading",
+              "description": "Follow up on missed BP reading from yesterday",
+              "assignedToType": "orgStaff",
+              "assignedToStaffId": "staff-nurse-44721",
+              "assignedToStaffDisplayName": "Nurse Lee",
+              "displayToPatient": false,
+              "dueWindowStart": 1780581600000,
+              "dueWindowEnd": 1780668000000,
+              "reminderEnabled": false
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Success — new runtime task created.",
-            "schema": { "$ref": "#/definitions/CreateRuntimeTaskResult" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeCreateRuntimeTask"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "task": {
+                    "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                    "displayTitle": "Call patient about missed reading",
+                    "currentState": "open",
+                    "taskBehaviorCode": "CARE_TEAM_TASK",
+                    "taskDisplayGroup": "staffTask",
+                    "assignedToType": "orgStaff",
+                    "assignedToStaffId": "staff-nurse-44721"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "422": { "description": "Validation error" },
-          "500": { "description": "Server error" }
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1414,42 +2624,63 @@
       "get": {
         "summary": "Get Action Center items by surface section",
         "description": "Patient Action Center with server-derived surfaceSection. Mobile/Portal must render the returned section — do not re-bucket Today vs Upcoming client-side.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
             "name": "patientId",
             "required": true,
             "type": "string",
-            "x-example": "pat-101"
+            "x-example": "pat-101",
+            "default": "pat-101"
           },
           {
             "in": "query",
             "name": "surfaceSection",
             "required": true,
             "type": "string",
-            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"],
-            "x-example": "today"
+            "enum": [
+              "today",
+              "upcoming",
+              "needsAttention",
+              "history",
+              "carePlanChecklist",
+              "all"
+            ],
+            "x-example": "today",
+            "default": "today"
           },
           {
             "in": "query",
             "name": "timezone",
             "required": false,
             "type": "string",
-            "description": "IANA timezone for calendar Today (default UTC)."
+            "description": "IANA timezone for calendar Today (default UTC).",
+            "x-example": "America/New_York"
           },
           {
             "in": "query",
             "name": "carePlanInstanceId",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "x-example": "cp-2026-001"
           },
           {
             "in": "query",
             "name": "workflowStage",
             "required": false,
             "type": "string",
-            "enum": ["onboarding", "ongoing", "review", "closure"]
+            "enum": [
+              "onboarding",
+              "ongoing",
+              "review",
+              "closure"
+            ],
+            "x-example": "onboarding"
           },
           {
             "in": "query",
@@ -1457,7 +2688,8 @@
             "required": false,
             "type": "integer",
             "default": 50,
-            "maximum": 200
+            "maximum": 200,
+            "x-example": 50
           },
           {
             "in": "query",
@@ -1470,19 +2702,51 @@
           "200": {
             "description": "Action Center grouped or single-section response.",
             "schema": {
-              "type": "object",
-              "properties": {
-                "patientId": { "type": "string" },
-                "sections": { "$ref": "#/definitions/ActionCenterGroupedSections/properties/sections" },
-                "items": { "type": "array", "items": { "$ref": "#/definitions/ActionCenterTaskCard" } },
-                "nextToken": { "type": "string" }
+              "$ref": "#/definitions/SuccessEnvelopeActionCenterItems"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "patientId": "pat-101",
+                  "timezone": "America/New_York",
+                  "surfaceSection": "today",
+                  "items": [
+                    {
+                      "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                      "displayTitle": "Daily blood pressure check-in",
+                      "currentState": "open",
+                      "surfaceSection": "today"
+                    }
+                  ]
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
               }
             }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1490,14 +2754,19 @@
       "get": {
         "summary": "List tasks assigned to the authenticated staff member",
         "description": "Staff inbox via GSI1. staffUserId must match JWT user id. Defaults to excluding terminal states when currentState is omitted.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
             "name": "staffUserId",
             "required": true,
             "type": "string",
-            "x-example": "staff-nurse-44721"
+            "x-example": "staff-nurse-44721",
+            "default": "staff-nurse-44721"
           },
           {
             "in": "query",
@@ -1518,7 +2787,15 @@
             "name": "currentState",
             "required": false,
             "type": "string",
-            "enum": ["open", "scheduled", "active", "completed", "missed", "dismissed", "cancelled"]
+            "enum": [
+              "open",
+              "scheduled",
+              "active",
+              "completed",
+              "missed",
+              "dismissed",
+              "cancelled"
+            ]
           },
           {
             "in": "query",
@@ -1526,7 +2803,8 @@
             "required": false,
             "type": "integer",
             "default": 50,
-            "maximum": 200
+            "maximum": 200,
+            "x-example": 50
           },
           {
             "in": "query",
@@ -1538,12 +2816,50 @@
         "responses": {
           "200": {
             "description": "Paginated staff task list.",
-            "schema": { "$ref": "#/definitions/PaginatedRuntimeTaskCards" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopePaginatedRuntimeTaskCards"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "items": [
+                    {
+                      "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                      "displayTitle": "Call patient about missed reading",
+                      "currentState": "open",
+                      "assignedToStaffId": "staff-nurse-44721"
+                    }
+                  ],
+                  "nextToken": null
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden — staffUserId must match authenticated user" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — staffUserId must match authenticated user"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
@@ -1551,7 +2867,11 @@
       "post": {
         "summary": "Update task state (optimistic validation + audit)",
         "description": "Requires expectedCurrentState for optimistic concurrency.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -1564,28 +2884,88 @@
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/UpdateTaskStateRequest" }
+            "schema": {
+              "$ref": "#/definitions/UpdateTaskStateRequest"
+            },
+            "x-example": {
+              "action": "complete",
+              "actorId": "pat-101",
+              "actorType": "patient",
+              "expectedCurrentState": "open",
+              "reason": "Submitted reading via mobile app"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Updated state and history entry.",
-            "schema": { "$ref": "#/definitions/SuccessEnvelopeUpdateTaskState" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeUpdateTaskState"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "currentState": "completed",
+                  "surfaceSection": "history",
+                  "historyEntry": {
+                    "taskStateHistoryId": "hist-state-001",
+                    "historyEventType": "stateChange",
+                    "transitionAt": 1780567200000,
+                    "fromState": "open",
+                    "toState": "completed",
+                    "transitionBy": "pat-101",
+                    "transitionSource": "manual"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "409": { "description": "Conflict (expectedCurrentState mismatch)" },
-          "422": { "description": "Validation or business rule error" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "409": {
+            "description": "Conflict (expectedCurrentState mismatch)"
+          },
+          "422": {
+            "description": "Validation or business rule error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
     "/tasks/{runtimeTaskInstanceId}/reminder-settings": {
       "put": {
         "summary": "Update task reminder settings (portal)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -1598,27 +2978,92 @@
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/UpdateReminderSettingsRequest" }
+            "schema": {
+              "$ref": "#/definitions/UpdateReminderSettingsRequest"
+            },
+            "x-example": {
+              "actorId": "staff-nurse-44721",
+              "reminderEnabled": true,
+              "reminderSettings": {
+                "channels": [
+                  "push",
+                  "inApp"
+                ]
+              },
+              "reason": "Patient requested daily reminders"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Updated reminder settings and audit entry.",
-            "schema": { "$ref": "#/definitions/SuccessEnvelopeUpdateReminderSettings" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeUpdateReminderSettings"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                  "reminderEnabled": true,
+                  "reminderSettings": {
+                    "channels": [
+                      "push",
+                      "inApp"
+                    ]
+                  },
+                  "historyEntry": {
+                    "taskStateHistoryId": "hist-reminder-001",
+                    "historyEventType": "reminderSettingsChange",
+                    "transitionAt": 1780567200000,
+                    "transitionBy": "staff-nurse-44721",
+                    "transitionSource": "manual"
+                  }
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "404": { "description": "Runtime task not found" },
-          "422": { "description": "Validation or business rule error" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Runtime task not found"
+          },
+          "422": {
+            "description": "Validation or business rule error"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     },
     "/care-plans/{carePlanInstanceId}/task-status-summary": {
       "get": {
         "summary": "Get care plan task readiness/status summary",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -1632,26 +3077,75 @@
             "name": "patientId",
             "required": true,
             "type": "string",
-            "x-example": "pat-101"
+            "x-example": "pat-101",
+            "default": "pat-101"
           },
           {
             "in": "query",
             "name": "workflowStage",
             "required": false,
             "type": "string",
-            "enum": ["onboarding", "ongoing", "review", "closure"],
+            "enum": [
+              "onboarding",
+              "ongoing",
+              "review",
+              "closure"
+            ],
             "x-example": "onboarding"
           }
         ],
         "responses": {
           "200": {
             "description": "Readiness summary.",
-            "schema": { "$ref": "#/definitions/SuccessEnvelopeTaskStatusSummary" }
+            "schema": {
+              "$ref": "#/definitions/SuccessEnvelopeTaskStatusSummary"
+            },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "orgId": "org-acme-001",
+                  "patientId": "pat-101",
+                  "carePlanInstanceId": "cp-2026-001",
+                  "workflowStage": "onboarding",
+                  "readinessStatus": "ready",
+                  "counts": {
+                    "total": 5,
+                    "requiredTotal": 3,
+                    "completed": 3,
+                    "missed": 0,
+                    "active": 0,
+                    "scheduled": 0
+                  },
+                  "incompleteRequiredTasks": []
+                },
+                "error": null,
+                "meta": {
+                  "requestId": "req-example-001",
+                  "timestamp": "2026-06-23T12:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Forbidden" },
-          "500": { "description": "Server error" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Server error"
+          }
         }
       }
     }

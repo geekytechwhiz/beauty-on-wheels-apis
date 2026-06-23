@@ -3,7 +3,7 @@
   "info": {
     "title": "Task Service API",
     "version": "1.0.0",
-    "description": "Task Service HTTP APIs. Deployed Swagger UI uses this file + serverless-auto-swagger."
+    "description": "Task Service HTTP APIs. Deployed Swagger UI uses this file + serverless-auto-swagger. Request `example` values live on body models; response examples use `SuccessEnvelope*` definitions referenced from serverless `responseData`."
   },
   "schemes": ["https", "http"],
   "consumes": ["application/json"],
@@ -90,7 +90,7 @@
         "assignedToType": "patient",
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
-        "reminderContext": { "channels": ["Push", "InApp"] }
+        "reminderContext": { "channels": ["push", "inApp"] }
       }
     },
     "CreateMonitoringActionResult": {
@@ -601,6 +601,526 @@
           "items": { "$ref": "#/definitions/TaskHistoryEntry" }
         },
         "nextToken": { "type": "string" }
+      },
+      "example": {
+        "items": [
+          {
+            "taskStateHistoryId": "hist-001",
+            "historyEventType": "stateChange",
+            "transitionAt": 1780567200000,
+            "fromState": "open",
+            "toState": "completed",
+            "transitionBy": "pat-101",
+            "transitionSource": "manual",
+            "transitionReason": "Submitted via mobile app"
+          }
+        ],
+        "nextToken": null
+      }
+    },
+    "UpdateTaskStateAction": {
+      "type": "string",
+      "enum": ["complete", "dismiss", "cancel", "markMissed"]
+    },
+    "ActorType": {
+      "type": "string",
+      "enum": ["patient", "staff"]
+    },
+    "UpdateTaskStateRequest": {
+      "type": "object",
+      "required": ["action", "actorId", "actorType", "expectedCurrentState"],
+      "properties": {
+        "action": { "$ref": "#/definitions/UpdateTaskStateAction" },
+        "actorId": { "type": "string" },
+        "actorType": { "$ref": "#/definitions/ActorType" },
+        "expectedCurrentState": { "$ref": "#/definitions/CurrentState" },
+        "reason": { "type": "string" },
+        "evidencePayload": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false,
+      "example": {
+        "action": "complete",
+        "actorId": "pat-101",
+        "actorType": "patient",
+        "expectedCurrentState": "open",
+        "reason": "Submitted reading via mobile app"
+      }
+    },
+    "UpdateTaskStateResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "currentState", "surfaceSection", "historyEntry"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "currentState": { "$ref": "#/definitions/CurrentState" },
+        "surfaceSection": { "$ref": "#/definitions/SurfaceSection" },
+        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+      }
+    },
+    "ReminderChannel": {
+      "type": "string",
+      "enum": ["push", "sms", "email", "inApp"]
+    },
+    "ReminderSettings": {
+      "type": "object",
+      "properties": {
+        "channels": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ReminderChannel" }
+        },
+        "quietHoursRespected": { "type": "boolean" },
+        "scheduleAnchor": { "type": "string", "enum": ["dueWindowStart", "dueWindowEnd"] },
+        "offsetMs": { "type": "integer" },
+        "quietHoursBufferMs": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "UpdateReminderSettingsRequest": {
+      "type": "object",
+      "required": ["actorId", "reminderEnabled"],
+      "properties": {
+        "actorId": { "type": "string" },
+        "reminderEnabled": { "type": "boolean" },
+        "reminderSettings": { "$ref": "#/definitions/ReminderSettings" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "example": {
+        "actorId": "staff-nurse-44721",
+        "reminderEnabled": true,
+        "reminderSettings": { "channels": ["push", "inApp"] },
+        "reason": "Patient requested daily reminders"
+      }
+    },
+    "UpdateReminderSettingsResult": {
+      "type": "object",
+      "required": ["runtimeTaskInstanceId", "reminderEnabled", "historyEntry"],
+      "properties": {
+        "runtimeTaskInstanceId": { "type": "string" },
+        "reminderEnabled": { "type": "boolean" },
+        "reminderSettings": { "$ref": "#/definitions/ReminderSettings" },
+        "historyEntry": { "$ref": "#/definitions/TaskHistoryEntry" }
+      }
+    },
+    "TaskStatusSummaryByCarePlan": {
+      "type": "object",
+      "required": ["orgId", "patientId", "carePlanInstanceId", "readinessStatus"],
+      "properties": {
+        "orgId": { "type": "string" },
+        "patientId": { "type": "string" },
+        "carePlanInstanceId": { "type": "string" },
+        "workflowStage": { "$ref": "#/definitions/WorkflowStage" },
+        "readinessStatus": { "type": "string", "enum": ["ready", "notReady", "notApplicable"] },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "integer" },
+            "requiredTotal": { "type": "integer" },
+            "completed": { "type": "integer" },
+            "missed": { "type": "integer" },
+            "active": { "type": "integer" },
+            "scheduled": { "type": "integer" }
+          }
+        },
+        "incompleteRequiredTasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "runtimeTaskInstanceId": { "type": "string" },
+              "displayTitle": { "type": "string" },
+              "requiredForStageCompletion": { "type": "boolean" },
+              "currentState": { "$ref": "#/definitions/CurrentState" }
+            }
+          }
+        }
+      }
+    },
+    "ExampleRuntimeTaskCard": {
+      "type": "object",
+      "description": "Sample runtime task card used in response examples.",
+      "example": {
+        "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+        "orgId": "org-acme-001",
+        "patientId": "pat-101",
+        "patientDisplayName": "Maria Lopez",
+        "carePlanInstanceId": "cp-2026-001",
+        "workflowStage": "ongoing",
+        "runtimeTaskSource": "monitoringRuntime",
+        "taskBehaviorCode": "METRIC_CHECKIN",
+        "taskDisplayGroup": "checkIn",
+        "displayTitle": "Daily blood pressure check-in",
+        "assignedToType": "patient",
+        "displayToPatient": true,
+        "dueWindowStart": 1780581600000,
+        "dueWindowEnd": 1780668000000,
+        "currentState": "open",
+        "createdAt": 1780567200000,
+        "lastUpdatedAt": 1780567200000
+      }
+    },
+    "ApiResponseMeta": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "version": { "type": "string", "enum": ["v1"] }
+      }
+    },
+    "HealthData": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
+        "service": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "requestId": { "type": "string" },
+        "region": { "type": "string" },
+        "stage": { "type": "string" }
+      },
+      "example": {
+        "status": "healthy",
+        "service": "task-service",
+        "timestamp": "2026-06-23T12:00:00.000Z",
+        "requestId": "req-example-001",
+        "region": "us-east-1",
+        "stage": "dev"
+      }
+    },
+    "SuccessEnvelopeHealth": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /health.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "OK", "description": "Task service is healthy", "severity": "INFO" },
+        "data": {
+          "status": "healthy",
+          "service": "task-service",
+          "timestamp": "2026-06-23T12:00:00.000Z",
+          "requestId": "req-example-001",
+          "region": "us-east-1",
+          "stage": "dev"
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeCreateMonitoringAction": {
+      "type": "object",
+      "description": "ApiResponse.ok body for POST /tasks/monitoring-action.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "outcome": "created",
+          "task": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "patientId": "pat-101",
+            "displayTitle": "Daily blood pressure check-in",
+            "currentState": "open",
+            "taskBehaviorCode": "METRIC_CHECKIN",
+            "taskDisplayGroup": "checkIn"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeGenerateCarePlanTasks": {
+      "type": "object",
+      "description": "ApiResponse.ok body for POST /tasks/generate-care-plan.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "results": [
+            {
+              "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+              "outcome": "created",
+              "task": {
+                "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "displayTitle": "Watch: How to measure BP",
+                "currentState": "open",
+                "taskBehaviorCode": "EDUCATION_VIDEO",
+                "taskDisplayGroup": "learning"
+              }
+            }
+          ]
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeCreateRuntimeTask": {
+      "type": "object",
+      "description": "ApiResponse.ok body for POST /tasks.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "task": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "displayTitle": "Call patient about missed reading",
+            "currentState": "open",
+            "taskBehaviorCode": "CARE_TEAM_TASK",
+            "taskDisplayGroup": "staffTask",
+            "assignedToType": "orgStaff",
+            "assignedToStaffId": "staff-nurse-44721"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopePatientTaskList": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /tasks.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "patientId": "pat-101",
+          "patientTasks": {
+            "items": [
+              {
+                "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+                "displayTitle": "Daily blood pressure check-in",
+                "currentState": "open",
+                "taskBehaviorCode": "METRIC_CHECKIN"
+              }
+            ]
+          },
+          "staffTasks": { "items": [] }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeActionCenterItems": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /action-center/items.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "patientId": "pat-101",
+          "timezone": "America/New_York",
+          "surfaceSection": "today",
+          "items": [
+            {
+              "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+              "displayTitle": "Daily blood pressure check-in",
+              "currentState": "open",
+              "surfaceSection": "today"
+            }
+          ]
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopePaginatedRuntimeTaskCards": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /staff/tasks.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "items": [
+            {
+              "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+              "displayTitle": "Call patient about missed reading",
+              "currentState": "open",
+              "assignedToStaffId": "staff-nurse-44721"
+            }
+          ],
+          "nextToken": null
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeRuntimeTaskDetail": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /tasks/{runtimeTaskInstanceId}.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "task": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "patientId": "pat-101",
+            "displayTitle": "Daily blood pressure check-in",
+            "currentState": "open"
+          },
+          "reminders": [],
+          "completionEvidence": [],
+          "evidenceSummary": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "generatedAt": 1780567200000
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeUpdateRuntimeTask": {
+      "type": "object",
+      "description": "ApiResponse.ok body for PATCH /tasks/{runtimeTaskInstanceId}.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "task": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "displayTitle": "Complete daily blood pressure check",
+            "currentState": "open"
+          },
+          "historyEntry": {
+            "taskStateHistoryId": "hist-metadata-001",
+            "historyEventType": "taskMetadataChange",
+            "transitionAt": 1780567200000,
+            "transitionBy": "staff-nurse-001",
+            "transitionSource": "manual"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopePaginatedTaskHistory": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /tasks/{runtimeTaskInstanceId}/history.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "items": [
+            {
+              "taskStateHistoryId": "hist-001",
+              "historyEventType": "stateChange",
+              "transitionAt": 1780567200000,
+              "fromState": "open",
+              "toState": "completed",
+              "transitionBy": "pat-101",
+              "transitionSource": "manual"
+            }
+          ]
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeUpdateAssignedStaff": {
+      "type": "object",
+      "description": "ApiResponse.ok body for PUT /tasks/{runtimeTaskInstanceId}/assigned-staff.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "task": {
+            "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+            "assignedToStaffId": "staff-nurse-55210",
+            "assignedToStaffDisplayName": "Nurse Patel"
+          },
+          "historyEntry": {
+            "taskStateHistoryId": "hist-staff-001",
+            "historyEventType": "assignedToStaffChange",
+            "transitionAt": 1780567200000,
+            "transitionBy": "staff-nurse-44721",
+            "transitionSource": "manual"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeUpdateTaskState": {
+      "type": "object",
+      "description": "ApiResponse.ok body for POST /tasks/{runtimeTaskInstanceId}/state.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "currentState": "completed",
+          "surfaceSection": "history",
+          "historyEntry": {
+            "taskStateHistoryId": "hist-state-001",
+            "historyEventType": "stateChange",
+            "transitionAt": 1780567200000,
+            "fromState": "open",
+            "toState": "completed",
+            "transitionBy": "pat-101",
+            "transitionSource": "manual"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeUpdateReminderSettings": {
+      "type": "object",
+      "description": "ApiResponse.ok body for PUT /tasks/{runtimeTaskInstanceId}/reminder-settings.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
+          "reminderEnabled": true,
+          "reminderSettings": { "channels": ["push", "inApp"] },
+          "historyEntry": {
+            "taskStateHistoryId": "hist-reminder-001",
+            "historyEventType": "reminderSettingsChange",
+            "transitionAt": 1780567200000,
+            "transitionBy": "staff-nurse-44721",
+            "transitionSource": "manual"
+          }
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
+      }
+    },
+    "SuccessEnvelopeTaskStatusSummary": {
+      "type": "object",
+      "description": "ApiResponse.ok body for GET /care-plans/{carePlanInstanceId}/task-status-summary.",
+      "example": {
+        "success": true,
+        "statusCode": 200,
+        "message": { "title": "SUCCESS", "description": "Request processed successfully", "severity": "SUCCESS" },
+        "data": {
+          "orgId": "org-acme-001",
+          "patientId": "pat-101",
+          "carePlanInstanceId": "cp-2026-001",
+          "workflowStage": "onboarding",
+          "readinessStatus": "ready",
+          "counts": {
+            "total": 5,
+            "requiredTotal": 3,
+            "completed": 3,
+            "missed": 0,
+            "active": 0,
+            "scheduled": 0
+          },
+          "incompleteRequiredTasks": []
+        },
+        "error": null,
+        "meta": { "requestId": "req-example-001", "timestamp": "2026-06-23T12:00:00.000Z", "version": "v1" }
       }
     }
   },
@@ -673,7 +1193,8 @@
             "in": "path",
             "name": "runtimeTaskInstanceId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
           },
           {
             "in": "query",
@@ -808,13 +1329,15 @@
             "in": "query",
             "name": "patientId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "pat-101"
           },
           {
             "in": "query",
             "name": "carePlanInstanceId",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "x-example": "cp-2026-001"
           },
           {
             "in": "query",
@@ -897,14 +1420,16 @@
             "in": "query",
             "name": "patientId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "pat-101"
           },
           {
             "in": "query",
             "name": "surfaceSection",
             "required": true,
             "type": "string",
-            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"]
+            "enum": ["today", "upcoming", "needsAttention", "history", "carePlanChecklist", "all"],
+            "x-example": "today"
           },
           {
             "in": "query",
@@ -971,19 +1496,22 @@
             "in": "query",
             "name": "staffUserId",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "x-example": "staff-nurse-44721"
           },
           {
             "in": "query",
             "name": "patientId",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "x-example": "pat-101"
           },
           {
             "in": "query",
             "name": "carePlanInstanceId",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "x-example": "cp-2026-001"
           },
           {
             "in": "query",
@@ -1015,6 +1543,114 @@
           "400": { "description": "Bad request" },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Forbidden — staffUserId must match authenticated user" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}/state": {
+      "post": {
+        "summary": "Update task state (optimistic validation + audit)",
+        "description": "Requires expectedCurrentState for optimistic concurrency.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/UpdateTaskStateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated state and history entry.",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeUpdateTaskState" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "409": { "description": "Conflict (expectedCurrentState mismatch)" },
+          "422": { "description": "Validation or business rule error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/tasks/{runtimeTaskInstanceId}/reminder-settings": {
+      "put": {
+        "summary": "Update task reminder settings (portal)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "runtimeTaskInstanceId",
+            "required": true,
+            "type": "string",
+            "x-example": "rtask-aa11bb22cc33dd44ee55ff6677889900"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/UpdateReminderSettingsRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated reminder settings and audit entry.",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeUpdateReminderSettings" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Runtime task not found" },
+          "422": { "description": "Validation or business rule error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/care-plans/{carePlanInstanceId}/task-status-summary": {
+      "get": {
+        "summary": "Get care plan task readiness/status summary",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "carePlanInstanceId",
+            "required": true,
+            "type": "string",
+            "x-example": "cp-2026-001"
+          },
+          {
+            "in": "query",
+            "name": "patientId",
+            "required": true,
+            "type": "string",
+            "x-example": "pat-101"
+          },
+          {
+            "in": "query",
+            "name": "workflowStage",
+            "required": false,
+            "type": "string",
+            "enum": ["onboarding", "ongoing", "review", "closure"],
+            "x-example": "onboarding"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Readiness summary.",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTaskStatusSummary" }
+          },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
           "500": { "description": "Server error" }
         }
       }

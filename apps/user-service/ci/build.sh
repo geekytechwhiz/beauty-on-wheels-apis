@@ -16,7 +16,7 @@ pwd
 echo "Cleaning old artifacts..."
 rm -rf .serverless
 
-export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096"
+export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096 --no-experimental-detect-module --no-experimental-require-module"
 
 echo "Packaging Serverless service..."
 

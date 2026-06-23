@@ -94,7 +94,13 @@
       "path": "./libs/task-core"
     },
     {
-      "path": "./libs/fhir-validator"
+      "path": "./tools/mvrx-policy-validator"
+    },
+    {
+      "path": "./tools/eslint-plugin-mvrx"
+    },
+    {
+      "path": "./tools/mvrx-resource-registry"
     }
   ]
 }

@@ -20,9 +20,20 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["apps/metadata-registry-service/src/**/*.{ts,tsx,js,jsx}"]
+        "lintFilePatterns": [
+          "apps/metadata-registry-service/src/**/*.{ts,tsx,js,jsx}"
+        ]
+      }
+    },
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
       }
     }
   },
-  "tags": ["type:app", "scope:metadata-registry-service"]
+  "tags": [
+    "type:app",
+    "scope:metadata-registry-service"
+  ]
 }

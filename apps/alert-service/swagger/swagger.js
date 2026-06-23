@@ -401,28 +401,9 @@
         }
       }
     },
-    "/dev/events/ingest/create-alert": {
-      "post": {
-        "summary": "testPublishCreateAlertIngest",
-        "description": "",
-        "operationId": "testPublishCreateAlertIngest.post.dev/events/ingest/create-alert",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "200 response"
-          }
-        }
-      }
-    },
     "/upload-url": {
       "post": {
-        "summary": "Get upload URL",
+        "summary": "Get upload URL for a file",
         "description": "Get an upload URL for a file",
         "operationId": "getUploadUrl.post.upload-url",
         "consumes": [
@@ -457,6 +438,75 @@
           },
           "500": {
             "description": "Server error"
+          }
+        }
+      }
+    },
+    "/download-url": {
+      "post": {
+        "summary": "Get download URL for a file",
+        "description": "Get a presigned download URL for a single file in a folder",
+        "operationId": "getDownloadUrl.post.download-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/list-files": {
+      "get": {
+        "summary": "List files in a folder",
+        "description": "List S3 objects under a folder prefix",
+        "operationId": "listFiles.get.list-files",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/dev/events/ingest/create-alert": {
+      "post": {
+        "summary": "testPublishCreateAlertIngest",
+        "description": "",
+        "operationId": "testPublishCreateAlertIngest.post.dev/events/ingest/create-alert",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
           }
         }
       }

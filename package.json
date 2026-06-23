@@ -21,8 +21,8 @@
     "aggregator:frontend:build": "pnpm --filter @api-hub/api-aggregator-frontend build",
     "test:all": "nx run-many --target=test --all --parallel=10 --batch",
     "lint:all": "nx run-many --target=lint --all --parallel=25 --batch",
+    "lint:affected": "node tools/lint-changed.js",
     "build:all": "nx run-many --target=build --all --parallel=25 --batch",
-    "lint:affected": "nx affected --target=lint --parallel=10 --batch",
     "build:affected": "nx affected --target=build --parallel=10",
     "test:affected": "nx affected --target=test --parallel=10 --batch",
     "build:no-cache": "nx build --skip-nx-cache",
@@ -58,7 +58,11 @@
     "build:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools",
     "publish:platform-tools": "nx run-many -t build -p observability,event-platform,middleware,platform-tools && cd packages/platform-tools && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
     "build:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper",
-    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc"
+    "validate:serverless": "tsx tools/mvrx-policy-validator/src/index.ts",
+    "validate:policy:staged": "tsx tools/mvrx-policy-validator/src/validate-staged.ts",
+    "validate:policy:affected": "tsx tools/mvrx-policy-validator/src/index.ts --only-changed",
+    "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
+    "publish:resource-registry": "nx build mvrx-resource-registry && cd dist/tools/mvrx-resource-registry && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --userconfig=../../../.npmrc"
   },
   "private": true,
   "engines": {
@@ -80,12 +84,15 @@
     "@aws-sdk/client-secrets-manager": "^3.966.0",
     "@aws-sdk/client-sns": "^3.958.0",
     "@aws-sdk/client-sqs": "^3.1001.0",
+    "@aws-sdk/client-ssm": "^3.1062.0",
     "@aws-sdk/lib-dynamodb": "^3.958.0",
     "@aws-sdk/s3-request-presigner": "3.1054.0",
     "@aws-sdk/util-dynamodb": "^3.958.0",
     "@babel/parser": "^7.29.2",
     "@babel/traverse": "^7.29.0",
     "@middy/http-cors": "^7.0.2",
+    "@myvitalrx/mvrx-policy-validator": "^0.0.1",
+    "@myvitalrx/mvrx-resource-registry": "^0.0.4",
     "@types/fs-extra": "^11.0.4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/object-path": "^0.11.4",
@@ -98,6 +105,10 @@
     "axios-retry": "^4.5.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-promise": "^7.3.0",
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "eslint-plugin-unicorn": "^65.0.1",
     "fhir": "^4.12.0",
     "fhir-package-loader": "^2.2.4",
     "fhirpath": "^4.10.1",
@@ -148,6 +159,9 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "20.19.9",
     "@types/winston": "^2.4.4",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "@typescript-eslint/utils": "^8.61.0",
     "@vitest/coverage-v8": "^4.0.0",
     "@vitest/ui": "^4.0.0",
     "babel-jest": "^30.0.2",
@@ -191,10 +205,22 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "node tools/lint-staged.js"
+    ],
+    "**/serverless.y{a,}ml": [
+      "tsx tools/mvrx-policy-validator/src/index.ts"
     ]
   },
   "nx": {
     "includedScripts": [],
-    "targets": {}
+    "targets": {
+      "local-registry": {
+        "executor": "@nx/js:verdaccio",
+        "options": {
+          "port": 4873,
+          "config": ".verdaccio/config.yml",
+          "storage": "tmp/local-registry/storage"
+        }
+      }
+    }
   }
 }

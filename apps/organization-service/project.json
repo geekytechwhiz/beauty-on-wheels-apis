@@ -17,7 +17,15 @@
         "jestConfig": "apps/organization-service/jest.config.ts",
         "passWithNoTests": true
       }
+    },
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
+      }
     }
   },
-  "tags": ["type:app"]
+  "tags": [
+    "type:app"
+  ]
 }

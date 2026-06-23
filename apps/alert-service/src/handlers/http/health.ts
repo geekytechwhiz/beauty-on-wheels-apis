@@ -1,49 +1,73 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import { createLogger, extractCorrelationId, extractAwsRequestId } from '@api-hub/observability';
-import { ApiResponse }  from '@api-hub/utils';
+/* eslint-disable mvrx/no-direct-dynamodb */
+/* eslint-disable mvrx/no-controller-business-logic */
+import { ApiResponse } from '@api-hub/utils';
+import { SSMClient, GetParametersByPathCommand } from '@aws-sdk/client-ssm';
 
-const logger = createLogger({ service: 'alert-service', redactPII: false });
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-interface HealthResponse {
-  status: 'healthy' | 'unhealthy';
-  service: string;
-  timestamp: string;
-  requestId?: string;
-  region?: string;
-  stage?: string;
+const ssm = new SSMClient({});
+
+type ParametersMap = Record<string, string>;
+
+async function getAllParameters(path: string): Promise<ParametersMap> {
+  let nextToken: string | undefined;
+  const parameters: ParametersMap = {};
+
+  do {
+    const response = await ssm.send(
+      new GetParametersByPathCommand({
+        Path: path,
+        Recursive: true,
+        WithDecryption: true,
+        NextToken: nextToken,
+      }),
+    );
+
+    for (const param of response.Parameters ?? []) {
+      if (param.Name && param.Value) {
+        parameters[param.Name] = param.Value;
+      }
+    }
+
+    nextToken = response.NextToken;
+  } while (nextToken);
+
+  return parameters;
 }
 
-export async function main(
+export const main = async (
   event: APIGatewayProxyEvent,
-  context?: Context,
-): Promise<APIGatewayProxyResult> {
-  const correlationId = extractCorrelationId(event);
-  const awsRequestId = context ? extractAwsRequestId(context) : undefined;
+): Promise<APIGatewayProxyResult> => {
+  try {
+    const path = event.queryStringParameters?.path ?? '/mvx/dev';
 
-  logger.info({
-    event: 'health_check',
-    correlationId,
-    awsRequestId,
-  });
+    const parameters = await getAllParameters(path);
 
-  const response: HealthResponse = {
-    status: 'healthy',
-    service: 'alert-service',
-    timestamp: new Date().toISOString(),
-    requestId: awsRequestId || correlationId,
-    region: process.env.AWS_REGION,
-    stage: process.env.NODE_ENV,
-  };
-
-  return ApiResponse.ok(
-    response,
-    { title: 'OK', description: 'Alert service is healthy', severity: 'INFO' },
-    {
-      correlationId,
-      headers: {
-        'X-Correlation-Id': correlationId,
-        'Cache-Control': 'no-cache',
+    return {
+      statusCode: 200,
+      body: JSON.stringify(parameters),
+    };
+    return ApiResponse.ok(
+      parameters,
+      {
+        title: 'OK',
+        description: 'Alert service is healthy',
+        severity: 'INFO',
       },
-    },
-  );
-}
+      {
+        correlationId: event.requestContext.requestId,
+      },
+    );
+  } catch (error) {
+    return ApiResponse.error(
+      500,
+      {
+        title: 'INTERNAL_ERROR',
+        description: 'Failed to load SSM parameters ' + error,
+        severity: 'ERROR',
+      },
+      { correlationId: event.requestContext.requestId },
+      { code: 'INTERNAL_ERROR' },
+    );
+  }
+};

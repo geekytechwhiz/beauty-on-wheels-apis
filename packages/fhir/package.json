@@ -1,5 +1,5 @@
 {
-  "name": "@api-hub/fhir",
+  "name": "@api-hub/fhir-pkg",
   "version": "0.0.1",
   "scripts": {
     "generate:resources": "ts-node --project scripts/tsconfig.json scripts/generate-resources.ts"

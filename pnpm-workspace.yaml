@@ -20,7 +20,7 @@ allowBuilds:
   core-js-pure: true
   es5-ext: true
   esbuild: true
-  fhirpath: set this to true or false
+  fhirpath: 'set this to true or false'
   nx: true
   serverless: true
   tree-sitter: true

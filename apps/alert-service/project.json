@@ -5,7 +5,9 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "outputPath": "dist/apps/alert-service",
         "main": "apps/alert-service/src/handlers/http/health.ts",
@@ -18,7 +20,16 @@
         "jestConfig": "apps/alert-service/jest.config.cts",
         "passWithNoTests": true
       }
+    },
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
+      }
     }
   },
-  "tags": ["type:app", "scope:alert-service"]
+  "tags": [
+    "type:app",
+    "scope:alert-service"
+  ]
 }

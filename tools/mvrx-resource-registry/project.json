@@ -1,0 +1,18 @@
+{
+  "name": "mvrx-resource-registry",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/mvrx-resource-registry/src",
+  "projectType": "library",
+  "tags": ["type:tool", "scope:mvrx-resource-registry"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{workspaceRoot}/dist/tools/mvrx-resource-registry"],
+      "options": {
+        "outputPath": "dist/tools/mvrx-resource-registry",
+        "main": "tools/mvrx-resource-registry/src/index.ts",
+        "tsConfig": "tools/mvrx-resource-registry/tsconfig.lib.json"
+      }
+    }
+  }
+}

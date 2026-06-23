@@ -3,5 +3,15 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "services/partner-integration/src",
   "projectType": "application",
-  "tags": ["type:service"]
+  "tags": [
+    "type:service"
+  ],
+  "targets": {
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
+      }
+    }
+  }
 }

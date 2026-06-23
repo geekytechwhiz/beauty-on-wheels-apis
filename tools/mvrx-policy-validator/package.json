@@ -1,0 +1,25 @@
+{
+  "name": "@myvitalrx/mvrx-policy-validator",
+  "version": "0.0.1", 
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@myvitalrx/source": "./src/index.ts",
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    }
+  },
+  "nx": {
+    "name": "mvrx-policy-validator"
+  },
+ "peerDependencies": {
+  "serverless": "^3.0.0"
+}
+}

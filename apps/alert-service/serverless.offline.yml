@@ -1,0 +1,23 @@
+# Local development only — do not use for CI package/deploy.
+# Usage: npx serverless offline --config serverless.offline.yml --stage dev
+service: alert-service
+
+frameworkVersion: '3.x'
+
+configValidationMode: warn
+
+# serverless-offline@12 only runs nodejs12–18 handlers in-process; use 18 locally.
+params:
+  default:
+    lambdaRuntime: nodejs18.x
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider: ${file(./serverless.yml):provider}
+package: ${file(./serverless.yml):package}
+custom: ${file(./serverless.yml):custom}
+functions: ${file(./serverless.yml):functions}

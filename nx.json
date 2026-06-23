@@ -78,6 +78,12 @@
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
     },
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
+      }
+    },
     "@nx/vitest:test": {
       "cache": true,
       "inputs": ["default", "^production"]

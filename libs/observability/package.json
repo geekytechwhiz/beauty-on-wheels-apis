@@ -1,6 +1,6 @@
 {
   "name": "@api-hub/observability",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Enterprise observability library for logging, metrics, and context propagation",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -16,6 +16,10 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "sideEffects": false,
   "scripts": {
     "build": "tsup",

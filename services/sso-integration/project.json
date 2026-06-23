@@ -6,7 +6,9 @@
   "targets": {
     "build": {
       "executor": "@nx/esbuild:esbuild",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/services/sso-integration",
         "main": "services/sso-integration/src/handlers/sso/launch.ts",
@@ -15,7 +17,9 @@
         "bundle": true,
         "platform": "node",
         "target": "node20",
-        "format": ["cjs"],
+        "format": [
+          "cjs"
+        ],
         "generatePackageJson": false,
         "esbuildOptions": {
           "sourcemap": true,
@@ -28,12 +32,16 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["services/sso-integration/**/*.ts"]
+        "lintFilePatterns": [
+          "services/sso-integration/**/*.ts"
+        ]
       }
     },
     "test": {
       "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/services/sso-integration"],
+      "outputs": [
+        "{workspaceRoot}/coverage/services/sso-integration"
+      ],
       "options": {
         "jestConfig": "services/sso-integration/jest.config.ts",
         "passWithNoTests": true
@@ -80,7 +88,17 @@
         "command": "npx serverless remove --stage {args.stage}",
         "cwd": "services/sso-integration"
       }
+    },
+    "validate-policy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx tools/mvrx-policy-validator/src/index.ts {projectRoot}/serverless.yml {projectRoot}/serverless.yaml --only-changed"
+      }
     }
   },
-  "tags": ["scope:service", "type:lambda", "domain:sso"]
+  "tags": [
+    "scope:service",
+    "type:lambda",
+    "domain:sso"
+  ]
 }

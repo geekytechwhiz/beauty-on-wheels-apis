@@ -1,0 +1,32 @@
+ 
+{
+  "name": "@myvitalrx/mvrx-eslint-plugin",
+  "version": "1.0.0",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src/index.js",
+    "src/index.d.ts",
+    "package.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@myvitalrx/source": "./src/index.ts",
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    }
+  },
+  "nx": {
+    "name": "mvrx-eslint-plugin"
+  },
+  "peerDependencies": {
+    "serverless": "^3.0.0"
+  }
+}

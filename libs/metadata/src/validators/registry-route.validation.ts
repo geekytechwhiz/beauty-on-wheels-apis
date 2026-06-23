@@ -124,6 +124,25 @@ export function assertChangeRequestIdPresentOnBody(body: Record<string, unknown>
   return id.trim();
 }
 
+/** Crockford Base32 ULID (26 chars) — ids assigned by `action=draft`. */
+export const CHANGE_REQUEST_ID_PATTERN = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+
+/** Non-empty change-request id on GET `/metadata/change-requests/{changeRequestId}`. */
+export function assertChangeRequestIdPathParam(changeRequestIdRaw: string | undefined): string {
+  const trimmed = (changeRequestIdRaw ?? '').trim();
+  if (!trimmed) {
+    throw new ValidationError('changeRequestId is required', [
+      { field: 'changeRequestId', message: 'Required' },
+    ]);
+  }
+  if (!CHANGE_REQUEST_ID_PATTERN.test(trimmed)) {
+    throw new ValidationError('changeRequestId must be a valid ULID', [
+      { field: 'changeRequestId', message: 'Invalid format' },
+    ]);
+  }
+  return trimmed;
+}
+
 export interface MetadataPublishRequestBody {
   changeRequestId: string;
   confirmationAcknowledged: boolean;

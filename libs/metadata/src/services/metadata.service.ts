@@ -11,6 +11,9 @@ import type {
 } from '../models/types';
 import {
   ConflictError,
+  ChangeManagementRequiredError,
+  CHANGE_MANAGEMENT_STATUS_REQUIRED_MESSAGE,
+  CHANGE_MANAGEMENT_DELETE_REQUIRED_MESSAGE,
   NotFoundError,
   ValidationError,
   assertMetadataTypeActiveForValueMutation,
@@ -59,9 +62,20 @@ import {
   syncMetadataValueRelationships,
   validateValueRelationshipsPayload,
 } from './metadata-value-relation.service';
-import type { RegistryPostMetadataInput } from './metadata.service.types';
+import type { RegistryDeleteMetadataValueInput, RegistryPatchMetadataStatusInput, RegistryPostMetadataInput } from './metadata.service.types';
+import {
+  orchestrateRegistryDeleteMetadataValueDraft,
+  orchestrateRegistryDeleteMetadataValueImpactPreview,
+  orchestrateRegistryDeleteMetadataValuePublish,
+} from './metadata-value-retire.service';
+import { orchestrateRegistryPostDraft } from './metadata-change-request.service';
+import { orchestrateRegistryPostImpactPreview } from './metadata-impact-preview.service';
+import { orchestrateRegistryPostPublish } from './metadata-publish.service';
+import type { ChangeRequestDraftResponse } from '../models/change-request.types';
+import type { ImpactPreviewResponse } from '../models/impact-preview.types';
+import type { MetadataPublishResponse } from '../models/publish.types';
 
-export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput, RegistryPostMetadataCancelInput } from './metadata.service.types';
+export type { RegistryPostMetadataInput, RegistryPostMetadataPublishInput, RegistryPostMetadataCancelInput, RegistryDeleteMetadataValueInput, RegistryPatchMetadataStatusInput } from './metadata.service.types';
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
@@ -631,33 +645,10 @@ export type RegistryGetMetadataInput =
   | { entityType: 'type'; metadataTypeCode: string; lifecycleStatuses: Status[] }
   | { entityType: 'value'; metadataTypeCode: string; valueCode: string; lifecycleStatuses: Status[] };
 
-/**
- * Parsed `PATCH .../status` input (host validates via Zod).
- * Status enum validation runs in the schema layer (`parsePatchStatusBody`) before orchestration,
- * so the orchestrator receives the canonical `Status` and does not re-parse.
- */
-export type RegistryPatchMetadataStatusInput =
-  | { entityType: 'type'; userId?: string; metadataTypeCode: string; status: Status }
-  | {
-      entityType: 'value';
-      userId?: string;
-      metadataTypeCode: string;
-      valueCode: string;
-      status: Status;
-    };
-
 /** Parsed `GET .../audit` input (host validates via Zod). */
 export type RegistryListMetadataAuditInput =
   | { entityType: 'type'; metadataTypeCode: string }
   | { entityType: 'value'; metadataTypeCode: string; valueCode: string };
-
-/** Parsed soft-delete request (host validates body via Zod). */
-export type RegistryDeleteMetadataValueInput = {
-  metadataTypeCode: string;
-  valueCode: string;
-  userId?: string;
-  reason?: string;
-};
 
 export async function orchestrateRegistryGet(
   input: RegistryGetMetadataInput,
@@ -785,19 +776,55 @@ export async function orchestrateRegistryPost(
   return enrichMetadataValueForApi(record);
 }
 
+function patchStatusToDraftBody(input: RegistryPatchMetadataStatusInput): Record<string, unknown> {
+  if (input.entityType === 'type') {
+    return {
+      metadataTypeCode: input.metadataTypeCode!,
+      status: input.status!,
+    };
+  }
+  return {
+    metadataTypeCode: input.metadataTypeCode!,
+    metadataValueCode: input.valueCode!,
+    status: input.status!,
+  };
+}
+
+function isPatchStatusDraftPreviewBody(body: Record<string, unknown>): boolean {
+  const id = body.changeRequestId;
+  return typeof id === 'string' && id.trim() !== '';
+}
+
 export async function orchestrateRegistryPatchStatus(
   input: RegistryPatchMetadataStatusInput,
-): Promise<MetadataTypeRecord | MetadataValueApiModel> {
-  if (input.entityType === 'type') {
-    return patchTypeStatus(input.metadataTypeCode, input.status, input.userId);
+): Promise<
+  | ChangeRequestDraftResponse
+  | ImpactPreviewResponse
+  | MetadataPublishResponse
+> {
+  if (!input.action) {
+    throw new ChangeManagementRequiredError(CHANGE_MANAGEMENT_STATUS_REQUIRED_MESSAGE);
   }
-  const record = await patchValueStatus(
-    input.metadataTypeCode,
-    input.valueCode,
-    input.status,
-    input.userId,
-  );
-  return enrichMetadataValueForApi(record);
+
+  const draftBody =
+    input.action === 'publish' || (input.action === 'impact-preview' && isPatchStatusDraftPreviewBody(input.body))
+      ? input.body
+      : patchStatusToDraftBody(input);
+
+  const postInput = {
+    entityType: input.entityType,
+    userId: input.userId,
+    body: draftBody,
+    action: input.action,
+  } as RegistryPostMetadataInput;
+
+  if (input.action === 'draft') {
+    return orchestrateRegistryPostDraft(postInput);
+  }
+  if (input.action === 'impact-preview') {
+    return orchestrateRegistryPostImpactPreview(postInput);
+  }
+  return orchestrateRegistryPostPublish({ ...postInput, action: 'publish' });
 }
 
 export async function orchestrateRegistryListAudit(
@@ -811,12 +838,17 @@ export async function orchestrateRegistryListAudit(
 
 export async function orchestrateRegistryDeleteMetadataValue(
   input: RegistryDeleteMetadataValueInput,
-): Promise<MetadataValueApiModel> {
-  const record = await deleteMetadataValue(input.metadataTypeCode, input.valueCode, {
-    reason: input.reason,
-    userId: input.userId,
-  });
-  return enrichMetadataValueForApi(record);
+): Promise<ChangeRequestDraftResponse | ImpactPreviewResponse | MetadataPublishResponse> {
+  if (!input.action) {
+    throw new ChangeManagementRequiredError(CHANGE_MANAGEMENT_DELETE_REQUIRED_MESSAGE);
+  }
+  if (input.action === 'draft') {
+    return orchestrateRegistryDeleteMetadataValueDraft(input);
+  }
+  if (input.action === 'impact-preview') {
+    return orchestrateRegistryDeleteMetadataValueImpactPreview(input);
+  }
+  return orchestrateRegistryDeleteMetadataValuePublish(input);
 }
 
 export { orchestrateRegistryPostDraft, orchestrateRegistryPostCancelDraft, orchestrateRegistryGetDraftChangeRequest, getDraftChangeRequest } from './metadata-change-request.service';

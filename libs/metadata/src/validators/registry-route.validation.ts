@@ -68,6 +68,47 @@ export function assertRegistryPathCodesForKind(
   }
 }
 
+export const REGISTRY_GOVERNED_WORKFLOW_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
+export type RegistryGovernedWorkflowAction = (typeof REGISTRY_GOVERNED_WORKFLOW_ACTIONS)[number];
+
+/** Requires supported `action` query param for governed draft → impact-preview → publish workflows. */
+export function assertRegistryGovernedWorkflowAction(actionRaw: string): RegistryGovernedWorkflowAction {
+  const trimmed = actionRaw.trim().toLowerCase();
+  if (!trimmed) {
+    throw new ValidationError(
+      'Query parameter action is required. Use action=draft, action=impact-preview, or action=publish.',
+      [{ field: 'action', message: 'Required' }],
+    );
+  }
+  if (!REGISTRY_GOVERNED_WORKFLOW_ACTIONS.includes(trimmed as RegistryGovernedWorkflowAction)) {
+    throw new ValidationError(
+      `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish.`,
+      [{ field: 'action', message: 'Must be draft, impact-preview, or publish' }],
+    );
+  }
+  return trimmed as RegistryGovernedWorkflowAction;
+}
+
+export const REGISTRY_DELETE_METADATA_VALUE_ACTIONS = REGISTRY_GOVERNED_WORKFLOW_ACTIONS;
+export type RegistryDeleteMetadataValueAction = RegistryGovernedWorkflowAction;
+
+/** Requires supported `action` query param on PATCH `/metadata-values/.../delete` (managed retire workflow). */
+export function assertRegistryDeleteMetadataValueAction(
+  actionRaw: string,
+): RegistryDeleteMetadataValueAction {
+  return assertRegistryGovernedWorkflowAction(actionRaw);
+}
+
+export const REGISTRY_PATCH_METADATA_STATUS_ACTIONS = REGISTRY_GOVERNED_WORKFLOW_ACTIONS;
+export type RegistryPatchMetadataStatusAction = RegistryGovernedWorkflowAction;
+
+/** Requires supported `action` query param on PATCH `/metadata/{entityType}/status` (managed status workflow). */
+export function assertRegistryPatchMetadataStatusAction(
+  actionRaw: string,
+): RegistryPatchMetadataStatusAction {
+  return assertRegistryGovernedWorkflowAction(actionRaw);
+}
+
 export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish', 'cancel'] as const;
 export type RegistryPostMetadataAction = (typeof REGISTRY_POST_METADATA_ACTIONS)[number];
 

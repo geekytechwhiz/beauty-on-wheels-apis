@@ -22,10 +22,23 @@ paths:
           description: OK
   /metadata/{entityType}/status:
     patch:
-      summary: Activate / inactivate type or value (new version)
+      summary: Status change (change management required)
       description: |
-        `entityType=type`: body must include `metadataTypeCode` and `status` (`PatchMetadataTypeStatusRequest`).
-        `entityType=value`: body must include `metadataTypeCode`, `status`, and `metadataValueCode` or `valueCode` (`PatchMetadataValueStatusRequest`).
+        **Direct status writes without `action` are not supported.** Use the governed workflow:
+
+        - `PATCH /metadata/{entityType}/status?action=draft`
+        - `PATCH /metadata/{entityType}/status?action=impact-preview`
+        - `PATCH /metadata/{entityType}/status?action=publish`
+
+        Alternatively, the same workflow is available via `POST /metadata/{entityType}?action=...`.
+
+        For `entityType=type`, body must include `metadataTypeCode` and `status` (`ACTIVE` or `INACTIVE`).
+        For `entityType=value`, body must also include `metadataValueCode` or `valueCode`.
+
+        `action=impact-preview` supports stateless preview (status body) or draft mode `{ "changeRequestId": "<id>" }`.
+        `action=publish` body: `{ "changeRequestId", "confirmationAcknowledged", "expectedBaseVersion" }`.
+
+        Calling without `action` returns `409` with code `CHANGE_MANAGEMENT_REQUIRED`.
       parameters:
         - name: entityType
           in: path
@@ -33,6 +46,13 @@ paths:
           schema:
             type: string
             enum: [type, value]
+        - name: action
+          in: query
+          required: false
+          description: Governed status workflow action. Required for status changes.
+          schema:
+            type: string
+            enum: [draft, impact-preview, publish]
       requestBody:
         required: true
         content:
@@ -41,23 +61,48 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/PatchMetadataTypeStatusRequest'
                 - $ref: '#/components/schemas/PatchMetadataValueStatusRequest'
+                - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
+                - $ref: '#/components/schemas/MetadataPublishRequest'
       responses:
+        '409':
+          description: |
+            Change management required (`CHANGE_MANAGEMENT_REQUIRED`) when `action` is omitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                    enum: [CHANGE_MANAGEMENT_REQUIRED]
+                  message:
+                    type: string
         '200':
           description: |
-            When `entityType` is `type`, the full updated metadata type record. When `entityType` is `value`, `MetadataValueResponse`.
+            When `action=draft`, `ChangeRequestDraftResponse`. When `action=impact-preview`, `ImpactPreviewResponse`.
+            When `action=publish`, `MetadataPublishResponse`.
           content:
             application/json:
               schema:
                 oneOf:
-                  - type: object
-                    description: Updated metadata type record
-                    additionalProperties: true
-                  - $ref: '#/components/schemas/MetadataValueResponse'
+                  - $ref: '#/components/schemas/ChangeRequestDraftResponse'
+                  - $ref: '#/components/schemas/ImpactPreviewResponse'
+                  - $ref: '#/components/schemas/MetadataPublishResponse'
   /metadata-values/{metadataTypeCode}/{metadataValueCode}/delete:
     patch:
-      summary: Soft-delete metadata value (new immutable version, status DELETED)
+      summary: Soft-delete metadata value (change management required)
       description: |
-        Does not physically delete DynamoDB items or prior versions. Optional JSON body `reason` (trimmed, max 2000 chars).
+        **Direct soft delete without `action` is no longer supported.** Use the governed retire workflow:
+
+        - `PATCH .../delete?action=draft` — optional body `{ "reason": "..." }` saves a retire change request (`operation=Update`, proposed `status=DELETED`).
+        - `PATCH .../delete?action=impact-preview` — stateless (optional `reason`) or draft mode `{ "changeRequestId": "<id>" }`.
+        - `PATCH .../delete?action=publish` — body `{ "changeRequestId", "confirmationAcknowledged", "expectedBaseVersion" }`.
+
+        Impact preview classifies retire as `operation=Retire` under `AVAILABILITY_STATUS` policy rules.
+        Publish applies soft delete (new immutable version, `status=DELETED`) and inactivates related relations.
+
+        Calling this route without `action` returns `409` with code `CHANGE_MANAGEMENT_REQUIRED`.
       parameters:
         - name: metadataTypeCode
           in: path
@@ -67,27 +112,55 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - name: action
+          in: query
+          required: false
+          description: |
+            Governed retire workflow action. Required for soft delete. Allowed: `draft`, `impact-preview`, `publish`.
+          schema:
+            type: string
+            enum: [draft, impact-preview, publish]
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                reason:
-                  type: string
-                  maxLength: 2000
+              oneOf:
+                - type: object
+                  properties:
+                    reason:
+                      type: string
+                      maxLength: 2000
+                - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
+                - $ref: '#/components/schemas/MetadataPublishRequest'
       responses:
-        '200':
-          description: Flattened metadata value (`MetadataValueResponse`) at latest version (DELETED)
+        '409':
+          description: |
+            Change management required (`CHANGE_MANAGEMENT_REQUIRED`) when `action` is omitted, or conflict
+            (e.g. value already deleted, type inactive).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetadataValueResponse'
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+        '200':
+          description: |
+            When `action=draft`, `ChangeRequestDraftResponse`. When `action=impact-preview`, `ImpactPreviewResponse`.
+            When `action=publish`, `MetadataPublishResponse`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ChangeRequestDraftResponse'
+                  - $ref: '#/components/schemas/ImpactPreviewResponse'
+                  - $ref: '#/components/schemas/MetadataPublishResponse'
         '404':
           description: Type or value not found
-        '409':
-          description: Already deleted or type inactive for mutation
   /metadata/{entityType}/audit:
     get:
       summary: Audit trail for a metadata type or value
@@ -165,6 +238,11 @@ paths:
       description: |
         Managed publish workflow for metadata types and values. The `action` query parameter is **required**;
         immediate publish without a change request is not supported.
+
+        **`action=draft`**, **`action=impact-preview`**, and **`action=publish`** are the only supported write paths.
+        Status changes (`ACTIVE` ↔ `INACTIVE`) and value soft delete must use this workflow — direct
+        `PATCH /metadata/{entityType}/status` and `PATCH /metadata-values/.../delete` without `action`
+        return `409 CHANGE_MANAGEMENT_REQUIRED`.
 
         **`action=impact-preview`:** evaluates change impact against the internal change-policy catalog. Does **not**
         modify published metadata or save a draft unless previewing an existing draft by `changeRequestId`.

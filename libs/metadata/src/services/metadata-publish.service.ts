@@ -1,4 +1,5 @@
 import { ValidationError, ConflictError } from '../domain/errors';
+import { STATUS } from '../constants';
 import { getMetadataRepository, getRelationRepository } from '../dynamodb/dynamodb.client';
 import {
   CHANGE_REQUEST_OPERATION,
@@ -19,6 +20,7 @@ import {
 } from '../publish/publish-version.strategy';
 import {
   assertRelationshipTargetsReferenceValidValues,
+  inactivateAllRelationsInvolvingMetadataValue,
   resolveRelationshipsForApi,
   syncMetadataValueRelationships,
   validateValueRelationshipsPayload,
@@ -50,6 +52,10 @@ function payloadToMetadataValueInput(
 
 function actorFromContext(userId?: string): string | undefined {
   return userId;
+}
+
+function isRetireProposedPayload(payload: Record<string, unknown>): boolean {
+  return String(payload.status ?? '').trim().toUpperCase() === STATUS.DELETED;
 }
 
 function assertPublishConfirmation(
@@ -86,7 +92,7 @@ function assertExpectedBaseVersionForPublish(
   }
 }
 
-async function shapeMetadataPublishResponse(result: MetadataPublishResult): Promise<MetadataPublishResponse> {
+export async function shapeMetadataPublishResponse(result: MetadataPublishResult): Promise<MetadataPublishResponse> {
   if (result.entityType === 'type') {
     return {
       changeRequestId: result.changeRequestId,
@@ -259,22 +265,58 @@ export async function publishChangeRequest(
     await assertRelationshipTargetsReferenceValidValues(repo, type, relationshipTargetCodes);
   }
 
-  const { relationships: _relationships, ...valueBody } = input;
-  let record;
-  if (draft.operation === CHANGE_REQUEST_OPERATION.ADD) {
-    record = await repo.createMetadataValue(draft.metadataTypeCode, valueBody, actor);
-  } else if (!existing) {
-    throw new ValidationError(`Value ${valueCode} not found`, [{ field: 'metadataValueCode', message: 'Not found' }]);
-  } else if (publishStrategy === PUBLISH_VERSION_STRATEGY.IN_PLACE) {
-    record = await repo.updateMetadataValueInPlace(
-      draft.metadataTypeCode,
-      valueBody,
+  let record: MetadataValueRecord;
+
+  if (isRetireProposedPayload(draft.proposedPayload)) {
+    if (draft.operation !== CHANGE_REQUEST_OPERATION.UPDATE || !existing) {
+      throw new ValidationError(`Value ${valueCode} not found`, [{ field: 'metadataValueCode', message: 'Not found' }]);
+    }
+    const deleteReason =
+      typeof draft.proposedPayload.deleteReason === 'string'
+        ? draft.proposedPayload.deleteReason
+        : undefined;
+    record = await repo.softDeleteMetadataValue(draft.metadataTypeCode, valueCode, {
+      reason: deleteReason,
       actor,
-      existing,
-      { syncApplicability },
+    });
+    const relRepo = await getRelationRepository();
+    await inactivateAllRelationsInvolvingMetadataValue(
+      repo,
+      relRepo,
+      draft.metadataTypeCode,
+      valueCode,
+      actor,
     );
   } else {
-    record = await repo.updateMetadataValue(draft.metadataTypeCode, valueBody, actor, existing);
+    const valueBody = { ...input };
+    delete valueBody.relationships;
+
+    if (draft.operation === CHANGE_REQUEST_OPERATION.ADD) {
+      record = await repo.createMetadataValue(draft.metadataTypeCode, valueBody, actor);
+    } else if (!existing) {
+      throw new ValidationError(`Value ${valueCode} not found`, [{ field: 'metadataValueCode', message: 'Not found' }]);
+    } else if (publishStrategy === PUBLISH_VERSION_STRATEGY.IN_PLACE) {
+      record = await repo.updateMetadataValueInPlace(
+        draft.metadataTypeCode,
+        valueBody,
+        actor,
+        existing,
+        { syncApplicability },
+      );
+    } else {
+      record = await repo.updateMetadataValue(draft.metadataTypeCode, valueBody, actor, existing);
+    }
+  }
+
+  if (!isRetireProposedPayload(draft.proposedPayload) && record.status === STATUS.INACTIVE) {
+    const relRepo = await getRelationRepository();
+    await inactivateAllRelationsInvolvingMetadataValue(
+      repo,
+      relRepo,
+      draft.metadataTypeCode,
+      valueCode,
+      actor,
+    );
   }
 
   if (relationshipsSent) {

@@ -1,7 +1,10 @@
 import type {
+  RegistryDeleteMetadataValueAction,
+  RegistryGovernedWorkflowAction,
   RegistryPostMetadataAction,
   RegistryPostMetadataImplementedAction,
 } from '../validators/registry-route.validation';
+import type { Status } from '../models/types';
 
 /** Parsed `POST /metadata/:entityType` input (host validates via Zod). */
 export type RegistryPostMetadataInput =
@@ -32,4 +35,28 @@ export type RegistryPostMetadataCancelInput = {
   userId?: string;
   body: Record<string, unknown>;
   action: Extract<RegistryPostMetadataAction, 'cancel'>;
+};
+
+/** Parsed soft-delete request (host validates body via Zod). */
+export type RegistryDeleteMetadataValueInput = {
+  metadataTypeCode: string;
+  valueCode: string;
+  userId?: string;
+  reason?: string;
+  action?: RegistryDeleteMetadataValueAction;
+  body?: Record<string, unknown>;
+};
+
+/**
+ * Parsed `PATCH .../status` input (host validates via Zod).
+ * Without `action`, orchestration returns `CHANGE_MANAGEMENT_REQUIRED`.
+ */
+export type RegistryPatchMetadataStatusInput = {
+  entityType: 'type' | 'value';
+  userId?: string;
+  action?: RegistryGovernedWorkflowAction;
+  body: Record<string, unknown>;
+  metadataTypeCode?: string;
+  valueCode?: string;
+  status?: Status;
 };

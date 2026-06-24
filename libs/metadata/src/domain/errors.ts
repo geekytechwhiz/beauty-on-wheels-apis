@@ -57,7 +57,7 @@ export class ConflictError extends MetadataRegistryError {
 }
 
 export const CHANGE_MANAGEMENT_STATUS_REQUIRED_MESSAGE =
-  'Status changes must be performed through draft, impact-preview, and publish.';
+  'Status changes must be performed through draft, impact-preview, and publish. Use ?action=draft|impact-preview|publish on PATCH /metadata/{entityType}/status or POST /metadata/{entityType}?action=...';
 
 export const CHANGE_MANAGEMENT_DELETE_REQUIRED_MESSAGE =
   'Soft delete must be performed through draft, impact-preview, and publish.';

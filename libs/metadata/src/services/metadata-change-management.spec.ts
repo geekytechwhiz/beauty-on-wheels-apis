@@ -153,6 +153,7 @@ describe('change management enforcement', () => {
           entityType: 'type',
           metadataTypeCode: 'MetricCode',
           status: STATUS.INACTIVE,
+          body: { metadataTypeCode: 'MetricCode', status: 'INACTIVE' },
         }),
       ).rejects.toMatchObject({
         statusCode: 409,
@@ -168,8 +169,27 @@ describe('change management enforcement', () => {
           metadataTypeCode: 'MetricCode',
           valueCode: 'BP_SYSTOLIC',
           status: STATUS.INACTIVE,
+          body: { metadataTypeCode: 'MetricCode', metadataValueCode: 'BP_SYSTOLIC', status: 'INACTIVE' },
         }),
       ).rejects.toBeInstanceOf(ChangeManagementRequiredError);
+    });
+
+    it('creates draft when action=draft is provided', async () => {
+      mockGetMetadataType.mockResolvedValue(
+        minimalType('StatusLifeCycleTesting', { status: STATUS.INACTIVE }),
+      );
+
+      const result = await orchestrateRegistryPatchStatus({
+        entityType: 'type',
+        metadataTypeCode: 'StatusLifeCycleTesting',
+        status: STATUS.ACTIVE,
+        action: 'draft',
+        body: { metadataTypeCode: 'StatusLifeCycleTesting', status: 'ACTIVE' },
+      });
+
+      expect(result.operation).toBe(CHANGE_REQUEST_OPERATION.UPDATE);
+      const saved = mockSaveChangeRequestDraft.mock.calls[0][0];
+      expect(saved.proposedPayload.status).toBe(STATUS.ACTIVE);
     });
   });
 

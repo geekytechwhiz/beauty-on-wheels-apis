@@ -24,15 +24,21 @@ paths:
     patch:
       summary: Status change (change management required)
       description: |
-        **Direct status writes are no longer supported.** Use the governed workflow instead:
+        **Direct status writes without `action` are not supported.** Use the governed workflow:
 
-        `POST /metadata/{entityType}?action=draft` → `action=impact-preview` → `action=publish`
+        - `PATCH /metadata/{entityType}/status?action=draft`
+        - `PATCH /metadata/{entityType}/status?action=impact-preview`
+        - `PATCH /metadata/{entityType}/status?action=publish`
 
-        For `entityType=type`, include `metadataTypeCode` and `status` in the draft body.
-        For `entityType=value`, include `metadataTypeCode`, `metadataValueCode` (or `valueCode`), and `status`.
+        Alternatively, the same workflow is available via `POST /metadata/{entityType}?action=...`.
 
-        This route is retained for backward compatibility but returns `409` with code
-        `CHANGE_MANAGEMENT_REQUIRED` when called without the managed workflow.
+        For `entityType=type`, body must include `metadataTypeCode` and `status` (`ACTIVE` or `INACTIVE`).
+        For `entityType=value`, body must also include `metadataValueCode` or `valueCode`.
+
+        `action=impact-preview` supports stateless preview (status body) or draft mode `{ "changeRequestId": "<id>" }`.
+        `action=publish` body: `{ "changeRequestId", "confirmationAcknowledged", "expectedBaseVersion" }`.
+
+        Calling without `action` returns `409` with code `CHANGE_MANAGEMENT_REQUIRED`.
       parameters:
         - name: entityType
           in: path
@@ -40,6 +46,13 @@ paths:
           schema:
             type: string
             enum: [type, value]
+        - name: action
+          in: query
+          required: false
+          description: Governed status workflow action. Required for status changes.
+          schema:
+            type: string
+            enum: [draft, impact-preview, publish]
       requestBody:
         required: true
         content:
@@ -48,11 +61,12 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/PatchMetadataTypeStatusRequest'
                 - $ref: '#/components/schemas/PatchMetadataValueStatusRequest'
+                - $ref: '#/components/schemas/ImpactPreviewDraftRequest'
+                - $ref: '#/components/schemas/MetadataPublishRequest'
       responses:
         '409':
           description: |
-            Change management required (`CHANGE_MANAGEMENT_REQUIRED`). Status changes must use
-            draft → impact-preview → publish via `POST /metadata/{entityType}?action=...`.
+            Change management required (`CHANGE_MANAGEMENT_REQUIRED`) when `action` is omitted.
           content:
             application/json:
               schema:
@@ -66,15 +80,15 @@ paths:
                     type: string
         '200':
           description: |
-            Deprecated — direct status writes no longer succeed. See `409` response.
+            When `action=draft`, `ChangeRequestDraftResponse`. When `action=impact-preview`, `ImpactPreviewResponse`.
+            When `action=publish`, `MetadataPublishResponse`.
           content:
             application/json:
               schema:
                 oneOf:
-                  - type: object
-                    description: Updated metadata type record
-                    additionalProperties: true
-                  - $ref: '#/components/schemas/MetadataValueResponse'
+                  - $ref: '#/components/schemas/ChangeRequestDraftResponse'
+                  - $ref: '#/components/schemas/ImpactPreviewResponse'
+                  - $ref: '#/components/schemas/MetadataPublishResponse'
   /metadata-values/{metadataTypeCode}/{metadataValueCode}/delete:
     patch:
       summary: Soft-delete metadata value (change management required)

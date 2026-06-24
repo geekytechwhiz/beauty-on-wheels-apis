@@ -68,6 +68,29 @@ export function assertRegistryPathCodesForKind(
   }
 }
 
+export const REGISTRY_DELETE_METADATA_VALUE_ACTIONS = ['draft', 'impact-preview', 'publish'] as const;
+export type RegistryDeleteMetadataValueAction = (typeof REGISTRY_DELETE_METADATA_VALUE_ACTIONS)[number];
+
+/** Requires supported `action` query param on PATCH `/metadata-values/.../delete` (managed retire workflow). */
+export function assertRegistryDeleteMetadataValueAction(
+  actionRaw: string,
+): RegistryDeleteMetadataValueAction {
+  const trimmed = actionRaw.trim().toLowerCase();
+  if (!trimmed) {
+    throw new ValidationError(
+      'Query parameter action is required. Use action=draft, action=impact-preview, or action=publish.',
+      [{ field: 'action', message: 'Required' }],
+    );
+  }
+  if (!REGISTRY_DELETE_METADATA_VALUE_ACTIONS.includes(trimmed as RegistryDeleteMetadataValueAction)) {
+    throw new ValidationError(
+      `Invalid action "${actionRaw.trim()}". Allowed values: draft, impact-preview, publish.`,
+      [{ field: 'action', message: 'Must be draft, impact-preview, or publish' }],
+    );
+  }
+  return trimmed as RegistryDeleteMetadataValueAction;
+}
+
 export const REGISTRY_POST_METADATA_ACTIONS = ['draft', 'impact-preview', 'publish', 'cancel'] as const;
 export type RegistryPostMetadataAction = (typeof REGISTRY_POST_METADATA_ACTIONS)[number];
 

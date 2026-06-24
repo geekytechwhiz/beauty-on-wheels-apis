@@ -56,6 +56,20 @@ export class ConflictError extends MetadataRegistryError {
   }
 }
 
+export const CHANGE_MANAGEMENT_STATUS_REQUIRED_MESSAGE =
+  'Status changes must be performed through draft, impact-preview, and publish.';
+
+export const CHANGE_MANAGEMENT_DELETE_REQUIRED_MESSAGE =
+  'Soft delete must be performed through draft, impact-preview, and publish.';
+
+/** Thrown when legacy direct-write routes must use the governed draft → impact-preview → publish flow. */
+export class ChangeManagementRequiredError extends ConflictError {
+  constructor(message: string) {
+    super(message, 'CHANGE_MANAGEMENT_REQUIRED');
+    this.name = 'ChangeManagementRequiredError';
+  }
+}
+
 const METADATA_TYPE_INACTIVE_MESSAGE = 'Cannot create value for inactive metadata type';
 
 /** Thrown when creating, updating, or patching a metadata value while the parent type is not ACTIVE (latest version). */

@@ -1,4 +1,5 @@
 import type {
+  RegistryDeleteMetadataValueAction,
   RegistryPostMetadataAction,
   RegistryPostMetadataImplementedAction,
 } from '../validators/registry-route.validation';
@@ -32,4 +33,14 @@ export type RegistryPostMetadataCancelInput = {
   userId?: string;
   body: Record<string, unknown>;
   action: Extract<RegistryPostMetadataAction, 'cancel'>;
+};
+
+/** Parsed soft-delete request (host validates body via Zod). */
+export type RegistryDeleteMetadataValueInput = {
+  metadataTypeCode: string;
+  valueCode: string;
+  userId?: string;
+  reason?: string;
+  action?: RegistryDeleteMetadataValueAction;
+  body?: Record<string, unknown>;
 };

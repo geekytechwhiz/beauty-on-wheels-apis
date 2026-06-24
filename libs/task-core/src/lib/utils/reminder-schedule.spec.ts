@@ -70,7 +70,7 @@ describe('isInQuietHours', () => {
   it('detects overnight quiet window (inside — after quiet start)', () => {
     // 22:30 UTC in IST = 04:00 IST next day → inside 22:00–07:00 IST
     const ms = new Date('2026-06-22T18:30:00.000Z').getTime(); // 00:00 IST June 23
-    expect(isInQuietHours(ms, IST_WINDOW)).toBe(false); // 00:00 IST is inside quiet (00 < 07)
+    expect(isInQuietHours(ms, IST_WINDOW)).toBe(true); // 00:00 IST is inside quiet (00 < 07)
     const msQuiet = new Date('2026-06-22T01:00:00.000Z').getTime(); // 06:30 IST — inside quiet
     expect(isInQuietHours(msQuiet, IST_WINDOW)).toBe(true);
   });

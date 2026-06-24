@@ -89,111 +89,28 @@ import {
 
 import { BaseTaskService } from './base-task.service';
 
-export type TaskRecord = TaskMetaDdbRecord;
+import type {
+  ActionCenterGroupedResult,
+  ActionCenterItemsResult,
+  ActionCenterSingleSectionResult,
+  ActionCenterTaskCard,
+  CreateMonitoringActionResult,
+  CreateRuntimeTaskResult,
+  GetRuntimeTaskDetailInput,
+  GetRuntimeTaskHistoryInput,
+  GetTaskStatusSummaryInput,
+  ListActionCenterItemsInput,
+  ListPatientTasksInput,
+  ListStaffTasksInput,
+  PaginatedRuntimeTaskCards,
+  PaginatedTaskHistory,
+  PatientTaskListResult,
+  RuntimeTaskCard,
+  RuntimeTaskDetail,
+  TaskStatusSummaryResult,
+} from './task.service.types';
 
-export type CreateMonitoringActionResult = {
-  record: TaskMetaDdbRecord;
-  outcome: IdempotencyOutcome;
-};
-
-export type CreateRuntimeTaskResult = {
-  record: TaskMetaDdbRecord;
-};
-
-export type GetRuntimeTaskDetailInput = {
-  organizationId: string;
-  runtimeTaskInstanceId: string;
-  includeRelated?: boolean;
-};
-
-export type RuntimeTaskDetail = {
-  task: ReturnType<typeof toRuntimeTaskCard>;
-  reminders?: unknown[];
-  completionEvidence?: CompletionEvidenceDdbRecord[];
-  evidenceSummary?: TaskEvidenceSummaryDdbRecord;
-};
-
-export type GetRuntimeTaskHistoryInput = {
-  organizationId: string;
-  runtimeTaskInstanceId: string;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PaginatedTaskHistory = {
-  items: ReturnType<typeof toTaskHistoryEntry>[];
-  nextToken?: string;
-};
-
-export type RuntimeTaskCard = ReturnType<typeof toRuntimeTaskCard>;
-
-export type ListPatientTasksInput = {
-  organizationId: string;
-  patientId: string;
-  staffUserId?: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  currentState?: RuntimeTaskState;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PatientTaskListResult = {
-  patientId: string;
-  staffUserId?: string;
-  patientTasks: { items: RuntimeTaskCard[] };
-  staffTasks: { items: RuntimeTaskCard[] };
-  nextToken?: string;
-};
-
-export type ListStaffTasksInput = {
-  organizationId: string;
-  staffUserId: string;
-  patientId?: string;
-  carePlanInstanceId?: string;
-  currentState?: RuntimeTaskState;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PaginatedRuntimeTaskCards = {
-  items: RuntimeTaskCard[];
-  nextToken?: string;
-};
-
-export type ActionCenterTaskCard = ReturnType<typeof toActionCenterTaskCard>;
-
-export type ListActionCenterItemsInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  surfaceSection: ActionCenterSurfaceFilter;
-  timezone?: string;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type ActionCenterGroupedResult = {
-  patientId: string;
-  carePlanInstanceId?: string;
-  timezone: string;
-  sections: Record<SurfaceSection, ActionCenterTaskCard[]>;
-  nextToken?: string;
-};
-
-export type ActionCenterSingleSectionResult = {
-  patientId: string;
-  carePlanInstanceId?: string;
-  timezone: string;
-  surfaceSection: SurfaceSection;
-  items: ActionCenterTaskCard[];
-  nextToken?: string;
-};
-
-export type ActionCenterItemsResult = ActionCenterGroupedResult | ActionCenterSingleSectionResult;
-
-export type { GetTaskStatusSummaryInput, TaskStatusSummaryResult };
+export type * from './task.service.types';
 
 export class TaskService extends BaseTaskService {
   constructor(repo?: TaskRepository, log?: Logger) {

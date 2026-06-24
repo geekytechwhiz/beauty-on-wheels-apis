@@ -37,26 +37,28 @@ export * from './lib/utils/runtime-task-metadata';
 
 export {
   TaskService,
-  type TaskRecord,
-  type CreateMonitoringActionResult,
-  type CreateRuntimeTaskResult,
-  type GetRuntimeTaskDetailInput,
-  type GetRuntimeTaskHistoryInput,
-  type ActionCenterGroupedResult,
-  type ActionCenterItemsResult,
-  type ActionCenterSingleSectionResult,
-  type ActionCenterTaskCard,
-  type ListActionCenterItemsInput,
-  type ListPatientTasksInput,
-  type ListStaffTasksInput,
-  type GetTaskStatusSummaryInput,
-  type TaskStatusSummaryResult,
-  type PaginatedRuntimeTaskCards,
-  type PaginatedTaskHistory,
-  type PatientTaskListResult,
-  type RuntimeTaskCard,
-  type RuntimeTaskDetail,
 } from './lib/service/task.service';
+export type {
+  TaskRecord,
+  CreateMonitoringActionResult,
+  CreateRuntimeTaskResult,
+  GetRuntimeTaskDetailInput,
+  GetRuntimeTaskHistoryInput,
+  ActionCenterGroupedResult,
+  ActionCenterItemsResult,
+  ActionCenterSingleSectionResult,
+  ActionCenterTaskCard,
+  ListActionCenterItemsInput,
+  ListPatientTasksInput,
+  ListStaffTasksInput,
+  GetTaskStatusSummaryInput,
+  TaskStatusSummaryResult,
+  PaginatedRuntimeTaskCards,
+  PaginatedTaskHistory,
+  PatientTaskListResult,
+  RuntimeTaskCard,
+  RuntimeTaskDetail,
+} from './lib/service/task.service.types';
 export type { UpdateAssignedStaffRequest, UpdateAssignedStaffResult } from './lib/models/api/update-assigned-staff.request';
 export { RUNTIME_TASK_METADATA_FIELDS } from './lib/models/api/update-runtime-task.request';
 export type {

@@ -60,86 +60,19 @@ import {
 } from '../utils/monitoring-idempotency';
 import { assertTaskTable, isMetaConditionalFailure } from '../utils/task.utils';
 
-export type QueryPatientTasksPageInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  currentState?: RuntimeTaskState;
-  excludeTerminalStates?: boolean;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
+import type {
+  CompleteLinkedSourceObjectRepoInput,
+  QueryActionCenterTasksPageInput,
+  QueryCarePlanTasksForSummaryInput,
+  QueryPatientMetaByCompletionSourceInput,
+  QueryPatientTasksPageInput,
+  QueryStaffTasksPageInput,
+  RecordReminderCancelledRepoInput,
+  RecordReminderOutcomeRepoInput,
+  RecordReminderRegisteredRepoInput,
+} from './task-repository.types';
 
-export type QueryActionCenterTasksPageInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type QueryStaffTasksPageInput = {
-  organizationId: string;
-  staffUserId: string;
-  patientId?: string;
-  carePlanInstanceId?: string;
-  currentState?: RuntimeTaskState;
-  excludeTerminalStates?: boolean;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type QueryCarePlanTasksForSummaryInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId: string;
-  workflowStage?: WorkflowStage;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type QueryPatientMetaByCompletionSourceInput = {
-  organizationId: string;
-  patientId: string;
-  completionSourceType: string;
-  completionSourceReferenceId: string;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type CompleteLinkedSourceObjectRepoInput = {
-  meta: TaskMetaDdbRecord;
-  lookup: TaskLookupDdbRecord;
-  completionEventId: string;
-  completedAt: number;
-  actorId?: string;
-  nowMs?: number;
-};
-
-export type RecordReminderRegisteredRepoInput = {
-  runtimeTaskInstanceId: string;
-  scheduledAt: number;
-  channel: string;
-  schedulerJobId: string;
-  correlationId?: string;
-};
-
-export type RecordReminderCancelledRepoInput = {
-  runtimeTaskInstanceId: string;
-  reason: string;
-  correlationId?: string;
-};
-
-export type RecordReminderOutcomeRepoInput = {
-  runtimeTaskInstanceId: string;
-  outcome: typeof REMINDER_STATUS.SENT | typeof REMINDER_STATUS.SUPPRESSED | typeof REMINDER_STATUS.FAILED;
-  reason?: string;
-  schedulerJobId?: string;
-  channel?: string;
-  scheduledAt?: number;
-};
+export type * from './task-repository.types';
 
 function buildMetaListFilterExpression(input: {
   workflowStage?: WorkflowStage;

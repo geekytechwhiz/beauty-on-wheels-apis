@@ -26,6 +26,9 @@ const nullQuietHoursProvider: QuietHoursProvider = {
   getForPatient: jest.fn().mockResolvedValue(null),
 };
 
+const FUTURE_DUE_WINDOW_END = new Date('2028-06-22T23:00:00.000Z').getTime();
+const FUTURE_DUE_WINDOW_START = new Date('2028-06-22T08:00:00.000Z').getTime();
+
 describe('processRegisterReminder', () => {
   const register = jest.fn();
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
@@ -37,7 +40,7 @@ describe('processRegisterReminder', () => {
     register.mockResolvedValue({
       outcome: 'created',
       schedulerJobId: 'task-reminder-task-1',
-      scheduledAt: 1_700_000_360_000,
+      scheduledAt: FUTURE_DUE_WINDOW_END,
     });
   });
 
@@ -53,7 +56,7 @@ describe('processRegisterReminder', () => {
     patientId: 'pat-1',
     reminderEnabled: true,
     currentState: 'open',
-    dueWindowEnd: 1_700_000_360_000,
+    dueWindowEnd: FUTURE_DUE_WINDOW_END,
     reminderSettings: { channels: ['push'] },
   };
 
@@ -64,13 +67,13 @@ describe('processRegisterReminder', () => {
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
       orgId: 'org-1',
-      scheduledAt: 1_700_000_360_000,
+      scheduledAt: FUTURE_DUE_WINDOW_END,
       channel: 'push',
       correlationId: 'corr-1',
     });
     expect(mockRecordReminderRegistration).toHaveBeenCalledWith({
       runtimeTaskInstanceId: 'task-1',
-      scheduledAt: 1_700_000_360_000,
+      scheduledAt: FUTURE_DUE_WINDOW_END,
       channel: 'push',
       schedulerJobId: 'task-reminder-task-1',
       correlationId: 'corr-1',
@@ -106,8 +109,8 @@ describe('processRegisterReminder', () => {
   });
 
   it('applies quiet-hours clamp when provider returns a window and target is inside it', async () => {
-    const dueEnd = new Date('2026-06-22T23:00:00.000Z').getTime();
-    const dueStart = new Date('2026-06-22T08:00:00.000Z').getTime();
+    const dueEnd = new Date('2028-06-22T23:00:00.000Z').getTime();
+    const dueStart = new Date('2028-06-22T08:00:00.000Z').getTime();
     const payload = {
       ...basePayload,
       dueWindowStart: dueStart,
@@ -128,7 +131,7 @@ describe('processRegisterReminder', () => {
     };
     setQuietHoursProviderForTests(quietProvider);
 
-    const quietStart = new Date('2026-06-22T22:00:00.000Z').getTime();
+    const quietStart = new Date('2028-06-22T22:00:00.000Z').getTime();
     const expectedScheduledAt = quietStart - 300_000;
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(dueStart);
     register.mockResolvedValueOnce({
@@ -149,7 +152,7 @@ describe('processRegisterReminder', () => {
   });
 
   it('does not adjust when quiet-hours provider returns null', async () => {
-    const dueEnd = new Date('2026-06-22T23:00:00.000Z').getTime();
+    const dueEnd = new Date('2028-06-22T23:00:00.000Z').getTime();
     const payload = {
       ...basePayload,
       dueWindowEnd: dueEnd,

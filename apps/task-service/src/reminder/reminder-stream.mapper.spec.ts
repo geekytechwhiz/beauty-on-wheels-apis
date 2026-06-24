@@ -123,8 +123,8 @@ describe('reminder-stream.mapper', () => {
     });
 
     it('does not adjust when quiet window is null even if quietHoursRespected is true', () => {
-      const dueEnd = new Date('2026-06-22T23:00:00.000Z').getTime();
-      const dueStart = new Date('2026-06-22T08:00:00.000Z').getTime();
+      const dueEnd = new Date('2028-06-22T23:00:00.000Z').getTime();
+      const dueStart = new Date('2028-06-22T08:00:00.000Z').getTime();
       const meta: TaskMetaStreamImage = {
         ...baseMeta,
         dueWindowStart: dueStart,

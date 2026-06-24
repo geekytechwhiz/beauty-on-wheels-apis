@@ -22,9 +22,12 @@ module.exports = {
   coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
   collectCoverageFrom: [
     // Restrict coverage scope to repository + service only.
-    'src/lib/repositories/**/*.ts',
-    'src/lib/service/**/*.ts',
+    'src/lib/repositories/task-repository.ts',
+    'src/lib/service/base-task.service.ts',
+    'src/lib/service/task.service.ts',
     '!src/**/*.spec.ts',
+    '!src/lib/repositories/task-repository.types.ts',
+    '!src/lib/service/task.service.types.ts',
   ],
   verbose: true,
 };

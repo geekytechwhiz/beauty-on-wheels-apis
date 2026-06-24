@@ -141,5 +141,8 @@ export function resolveReminderScheduleAt(
     scheduledAt = Math.max(scheduledAt, dueWindowStart);
   }
 
+  // Due-window clamp may pull the time into the past when the window has already ended.
+  scheduledAt = Math.max(scheduledAt, effectiveNow);
+
   return { scheduledAt, targetAt, adjustedForQuietHours };
 }

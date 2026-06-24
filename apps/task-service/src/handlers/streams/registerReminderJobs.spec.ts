@@ -26,6 +26,8 @@ import {
 } from '../../reminder/quiet-hours.provider';
 import { handler, main } from './registerReminderJobs';
 
+const FUTURE_DUE_WINDOW_END = new Date('2028-06-22T23:00:00.000Z').getTime();
+
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
   return {
@@ -42,7 +44,7 @@ function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
     patientId: { S: 'pat-1' },
     reminderEnabled: { BOOL: true },
     currentState: { S: 'open' },
-    dueWindowEnd: { N: '1700000360000' },
+    dueWindowEnd: { N: String(FUTURE_DUE_WINDOW_END) },
     reminderSettings: {
       M: {
         channels: { L: [{ S: 'push' }] },
@@ -82,7 +84,7 @@ describe('registerReminderJobs', () => {
   const register = jest.fn().mockResolvedValue({
     outcome: 'created',
     schedulerJobId: 'task-reminder-task-1',
-    scheduledAt: 1_700_000_360_000,
+    scheduledAt: FUTURE_DUE_WINDOW_END,
   });
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
 
@@ -112,13 +114,13 @@ describe('registerReminderJobs', () => {
         runtimeTaskInstanceId: 'task-1',
         patientId: 'pat-1',
         orgId: 'org-1',
-        scheduledAt: 1_700_000_360_000,
+        scheduledAt: FUTURE_DUE_WINDOW_END,
         channel: 'push',
       }),
     );
     expect(mockRecordReminderRegistration).toHaveBeenCalledWith({
       runtimeTaskInstanceId: 'task-1',
-      scheduledAt: 1_700_000_360_000,
+      scheduledAt: FUTURE_DUE_WINDOW_END,
       channel: 'push',
       schedulerJobId: 'task-reminder-task-1',
       correlationId: 'eid-register-1',

@@ -533,3 +533,56 @@ export function validateUpdateRuntimeTaskRequest(req: LambdaRequest): void {
     authHeader: req.context.authHeader,
   };
 }
+
+export type ValidatedCreateMonitoringActionRequest = LambdaRequest & {
+  validatedCreateMonitoringAction: ValidatedCreateMonitoringAction;
+};
+
+export type ValidatedCreateRuntimeTaskRequest = LambdaRequest & {
+  validatedCreateRuntimeTask: ValidatedCreateRuntimeTask;
+};
+
+export type ValidatedGetRuntimeTaskRequest = LambdaRequest & {
+  validatedGetRuntimeTask: ValidatedGetRuntimeTask;
+};
+
+export type ValidatedUpdateAssignedStaffRequest = LambdaRequest & {
+  validatedUpdateAssignedStaff: ValidatedUpdateAssignedStaff;
+};
+
+export type ValidatedGetTasksRequest = LambdaRequest & {
+  validatedGetTasks: ValidatedGetTasks;
+};
+
+export type ValidatedGetStaffTasksRequest = LambdaRequest & {
+  validatedGetStaffTasks: ValidatedGetStaffTasks;
+};
+
+export type ValidatedGetActionCenterItemsRequest = LambdaRequest & {
+  validatedGetActionCenterItems: ValidatedGetActionCenterItems;
+};
+
+export type ValidatedGetRuntimeTaskHistoryRequest = LambdaRequest & {
+  validatedGetRuntimeTaskHistory: ValidatedGetRuntimeTaskHistory;
+};
+
+export type ValidatedGenerateCarePlanTasksRequest = LambdaRequest & {
+  validatedGenerateCarePlanTasks: ValidatedGenerateCarePlanTasks;
+};
+
+export type ValidatedUpdateTaskStateRequest = LambdaRequest & {
+  validatedUpdateTaskState: ValidatedUpdateTaskState;
+};
+
+export type ValidatedGetTaskStatusSummaryRequest = LambdaRequest & {
+  validatedGetTaskStatusSummary: ValidatedGetTaskStatusSummary;
+};
+
+export type ValidatedUpdateRuntimeTaskRequest = LambdaRequest & {
+  validatedUpdateRuntimeTask: ValidatedUpdateRuntimeTask;
+};
+
+export type ValidatedUpdateReminderSettingsRequest = LambdaRequest & {
+  validatedUpdateReminderSettings: ValidatedUpdateReminderSettings;
+};
+

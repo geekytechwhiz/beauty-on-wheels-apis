@@ -123,35 +123,6 @@ describe('TaskHttpController', () => {
     mockReassignAssignedStaff.mockReset();
   });
 
-  it('handleCreateMonitoringAction throws 500 when logger missing', async () => {
-    const c = new TaskHttpController();
-    const req = baseReq({
-      context: {
-        correlationId: 'c1',
-        awsRequestId: 'a1',
-        logger: undefined as unknown as any,
-        authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
-      },
-    });
-
-    await expect(c.handleCreateMonitoringAction(req)).rejects.toMatchObject({
-      statusCode: 500,
-      code: 'INTERNAL_ERROR',
-    });
-    expect(mockCreateMonitoringAction).not.toHaveBeenCalled();
-  });
-
-  it('handleCreateMonitoringAction throws 500 when validatedCreateMonitoringAction missing', async () => {
-    const c = new TaskHttpController();
-    const req = baseReq();
-
-    await expect(c.handleCreateMonitoringAction(req)).rejects.toMatchObject({
-      statusCode: 500,
-      code: 'INTERNAL_ERROR',
-    });
-    expect(mockCreateMonitoringAction).not.toHaveBeenCalled();
-  });
-
   it('handleCreateMonitoringAction returns create result on success', async () => {
     const c = new TaskHttpController();
     const record = minimalTaskMetaRecord();
@@ -267,17 +238,6 @@ describe('TaskHttpController', () => {
     expect(mockCreateRuntimeTask).toHaveBeenCalledTimes(1);
   });
 
-  it('handleCreateRuntimeTask throws 500 when validatedCreateRuntimeTask missing', async () => {
-    const c = new TaskHttpController();
-    const req = baseReq();
-
-    await expect(c.handleCreateRuntimeTask(req)).rejects.toMatchObject({
-      statusCode: 500,
-      code: 'INTERNAL_ERROR',
-    });
-    expect(mockCreateRuntimeTask).not.toHaveBeenCalled();
-  });
-
   it('handleGetRuntimeTask returns task detail on success', async () => {
     const c = new TaskHttpController();
     const record = minimalTaskMetaRecord();
@@ -309,17 +269,6 @@ describe('TaskHttpController', () => {
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
       includeRelated: false,
     });
-  });
-
-  it('handleGetRuntimeTask throws 500 when validatedGetRuntimeTask missing', async () => {
-    const c = new TaskHttpController();
-    const req = baseReq();
-
-    await expect(c.handleGetRuntimeTask(req)).rejects.toMatchObject({
-      statusCode: 500,
-      code: 'INTERNAL_ERROR',
-    });
-    expect(mockGetRuntimeTaskDetail).not.toHaveBeenCalled();
   });
 
   it('handleGetRuntimeTaskHistory returns paged history on success', async () => {

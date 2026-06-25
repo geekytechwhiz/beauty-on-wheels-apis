@@ -42,7 +42,7 @@ export class TaskKeyBuilder {
   static buildGsi1Pk(orgId: string, assignedToType: AssignedToType, assigneeId: string): string {
     const org = this.toOrgId(orgId);
     const id = assigneeId.trim();
-    if (assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF) {
+    if (assignedToType?.toLowerCase() === ASSIGNED_TO_TYPE.ORG_STAFF) {
       return `${org}#STAFF#${id}`;
     }
     return `${org}#STAFF#${assignedToType}#${id}`;

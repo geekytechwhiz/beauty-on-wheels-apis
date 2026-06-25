@@ -84,7 +84,7 @@ export default [
       mvrx: mvrxPlugin,
     },
     rules: {
-      'mvrx/no-direct-dynamodb': 'warn',
+      'mvrx/no-direct-dynamodb': 'error',
       'mvrx/no-process-env-outside-config': 'warn',
       'mvrx/no-controller-business-logic': 'error',
       'mvrx/enforce-platform-logger': 'error',

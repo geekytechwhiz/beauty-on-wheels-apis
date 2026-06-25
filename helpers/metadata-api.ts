@@ -29,7 +29,8 @@ interface ApiEnvelope<T> {
 
 /**
  * Configures axios with auth, timeouts, and exponential retry for transient failures.
- * When `config.authToken` is set, sends `Authorization: Bearer <token>` (actor from JWT on server).
+ * When `config.authToken` is set, sends `Authorization: Bearer <token>` (actor from JWT payload on server).
+ * Token may be a real JWT (`AUTH_TOKEN`) or a seed-only unsigned payload (`SEED_ACTOR_USER_ID`).
  * Request bodies must not include `createdBy`; attribution is server-side only.
  */
 export function createMetadataApiClient(config: SeedRuntimeConfig): AxiosInstance {
@@ -307,7 +308,7 @@ async function publishMetadataDraft(
     const statusCode = ax?.response?.status;
     const message = extractErrorMessage(error);
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata publish conflict ÔøΩ?ÔøΩ?ÔøΩ treating as success', {
+      logger.info('Metadata publish conflict ù?ù?ù treating as success', {
         label,
         changeRequestId: draft.changeRequestId,
       });
@@ -344,7 +345,7 @@ async function createMetadataEntity(
     const statusCode = draftOutcome.statusCode;
     const message = draftOutcome.error ?? 'Draft failed';
     if (config.treatConflictAsSuccess && isConflict(statusCode, message)) {
-      logger.info('Metadata draft conflict ÔøΩ?ÔøΩ?ÔøΩ treating as success', { label });
+      logger.info('Metadata draft conflict ù?ù?ù treating as success', { label });
       const p = validationPayload as MetadataTypeCreatePayload & MetadataValueCreatePayload;
       return {
         ok: true,
@@ -412,7 +413,7 @@ export async function createMetadataType(
   );
 }
 
-/** Alias ÔøΩ draft (+ publish) type update uses the same governed workflow as create. */
+/** Alias ù draft (+ publish) type update uses the same governed workflow as create. */
 export const updateMetadataType = createMetadataType;
 
 export interface RegistryMetadataTypeRecord {
@@ -437,7 +438,7 @@ export interface MetadataValuesByTypesResult {
 }
 
 /**
- * POST `/metadata/values/by-types` ÔøΩ batch read published values for prerequisite hydration.
+ * POST `/metadata/values/by-types` ù batch read published values for prerequisite hydration.
  */
 export async function getMetadataValuesByTypes(
   client: AxiosInstance,
@@ -557,7 +558,7 @@ export async function mapWithConcurrency<T, R>(
 /** serverless-offline exposes routes as `http://localhost:3000/{stage}/...` */
 const DEFAULT_LOCAL_BASE_URL = 'http://localhost:3000/dev';
 
-/** Matches `buildRequestContext` in libs/utils ÔøΩ same JWT claim precedence for actor id. */
+/** Matches `buildRequestContext` in libs/utils ù same JWT claim precedence for actor id. */
 export type SeedActorClaimSource = 'custom:userID' | 'userId' | 'sub';
 
 export interface SeedActorResolution {
@@ -565,8 +566,57 @@ export interface SeedActorResolution {
   claimSource: SeedActorClaimSource;
 }
 
+/** How the seed run resolves actor attribution (see resolveSeedAuthSource). */
+export type SeedAuthSource = 'AUTH_TOKEN' | 'SEED_ACTOR_USER_ID' | 'system';
+
 function stripBearerPrefix(token: string): string {
   return token.replace(/^\s*Bearer\s+/i, '').trim();
+}
+
+function base64UrlEncodeJson(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value), 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
+ * Seed-only actor token: unsigned JWT-shaped Bearer value with `custom:userID`.
+ * Metadata registry `buildRequestContext` decodes the payload only (no signature check),
+ * so this attributes createdBy/lastModifiedBy without a Cognito JWT.
+ */
+export function buildSeedActorBearerFromUserId(userId: string): string {
+  const trimmed = userId.trim();
+  if (!trimmed) {
+    throw new Error('SEED_ACTOR_USER_ID must be a non-empty string');
+  }
+  const header = base64UrlEncodeJson({ alg: 'none', typ: 'JWT' });
+  const payload = base64UrlEncodeJson({ 'custom:userID': trimmed });
+  return `${header}.${payload}.`;
+}
+
+/** Precedence: AUTH_TOKEN ? SEED_ACTOR_USER_ID ? system (no Authorization header). */
+export function resolveSeedAuthSource(): SeedAuthSource {
+  if (process.env.AUTH_TOKEN?.trim()) {
+    return 'AUTH_TOKEN';
+  }
+  if (process.env.SEED_ACTOR_USER_ID?.trim()) {
+    return 'SEED_ACTOR_USER_ID';
+  }
+  return 'system';
+}
+
+function resolveSeedAuthToken(): string {
+  const authToken = stripBearerPrefix(process.env.AUTH_TOKEN?.trim() ?? '');
+  if (authToken) {
+    return authToken;
+  }
+  const seedActorUserId = process.env.SEED_ACTOR_USER_ID?.trim();
+  if (seedActorUserId) {
+    return buildSeedActorBearerFromUserId(seedActorUserId);
+  }
+  return '';
 }
 
 /** Decodes JWT payload only (no signature verification) for seed attribution logging. */
@@ -611,21 +661,20 @@ export function resolveSeedActorFromAuthToken(authToken: string): SeedActorResol
 }
 
 /**
- * Logs seed auth context without printing the token.
- * When AUTH_TOKEN is absent, the server stores actor `system` (GET may show "Unknown User").
+ * Logs seed auth context. Never prints JWT values or secrets.
  */
 export function logSeedAuthContext(config: SeedRuntimeConfig): void {
-  const hasAuthToken = Boolean(config.authToken?.trim());
-  if (!hasAuthToken) {
-    logger.info(
-      'Metadata seed auth: AUTH_TOKEN not set ÔøΩ requests omit Authorization; server stores createdBy/lastModifiedBy as system',
-    );
+  const source = resolveSeedAuthSource();
+  logger.info(`Metadata seed auth source: ${source}`);
+
+  if (source === 'system') {
+    logger.info('Requests omit Authorization; server stores createdBy/lastModifiedBy as system');
     return;
   }
 
   const actor = resolveSeedActorFromAuthToken(config.authToken);
   if (actor) {
-    logger.info('Metadata seed auth: AUTH_TOKEN set ÔøΩ Authorization Bearer header will be sent', {
+    logger.info('Authorization Bearer header will be sent for actor attribution', {
       actorUserId: actor.userId,
       actorClaimSource: actor.claimSource,
       note: 'Registry resolves display name from USER_TABLE on GET/list when this userId exists',
@@ -634,7 +683,7 @@ export function logSeedAuthContext(config: SeedRuntimeConfig): void {
   }
 
   logger.warn(
-    'Metadata seed auth: AUTH_TOKEN set but no userId could be decoded (custom:userID, userId, sub) ÔøΩ server may still store system',
+    'Auth header set but no userId could be decoded (custom:userID, userId, sub); server may store system',
   );
 }
 
@@ -642,7 +691,7 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
   const configured = process.env.BASE_URL?.trim();
   const baseUrl = configured || DEFAULT_LOCAL_BASE_URL;
   if (!configured) {
-    logger.info('BASE_URL not set ÔøΩ using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
+    logger.info('BASE_URL not set ù using local default', { baseUrl: DEFAULT_LOCAL_BASE_URL });
   }
 
   const autoPublish = process.env.AUTO_PUBLISH !== 'false' && process.env.AUTO_PUBLISH !== '0';
@@ -651,7 +700,7 @@ export function loadRuntimeConfig(): SeedRuntimeConfig {
     process.env.CONFIRMATION_ACKNOWLEDGED === '1' ||
     process.env.CONFIRMATION_ACKNOWLEDGED === undefined;
 
-  const authToken = stripBearerPrefix(process.env.AUTH_TOKEN?.trim() ?? '');
+  const authToken = resolveSeedAuthToken();
 
   return {
     baseUrl,

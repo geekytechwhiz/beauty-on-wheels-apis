@@ -1,0 +1,53 @@
+# Metadata registry seed — PRD (optional job, separate from deploy).
+#
+# Preview job (before manual approval):
+#   RUN_METADATA_SEED=true, DRY_RUN=true
+#
+# Apply job (after manual approval):
+#   RUN_METADATA_SEED=true, DRY_RUN=false, CONFIRM_METADATA_SEED=true
+#   SEED_ACTOR_USER_ID in env.variables (or AUTH_TOKEN from secrets-manager)
+#   For full catalog: ALLOW_FULL_METADATA_SEED=true
+# Scoped to TestingScript only (change METADATA_TYPE_CODES for other types or full catalog).
+#
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    METADATA_SEED_STAGE: prd
+    RUN_METADATA_SEED: 'false'
+    DRY_RUN: 'true'
+    DEPLOYMENT_BUCKET: nvprd-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_BUCKET: nvprd-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_KEY: metadata/Complete-metadata.xlsx
+    METADATA_EXCEL_PATH: /tmp/Complete-metadata.xlsx
+    BASE_URL: https://jc1l3fgzi2.execute-api.us-east-1.amazonaws.com/prd
+    TREAT_CONFLICT_AS_SUCCESS: 'true'
+    CONFIRMATION_ACKNOWLEDGED: 'true'
+    CONCURRENCY: '5'
+    METADATA_TYPE_CODES: TestingScript
+    NPM_TOKEN: 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
+    # Platform user id for seed actor attribution — update if prd root admin differs from dev
+    SEED_ACTOR_USER_ID: 1b128dc9913b21f3f34eb6b184d64c1f2e40e82ba572a010ff754ba857b59d2f
+  # secrets-manager:
+  #   AUTH_TOKEN: arn:aws:secretsmanager:us-east-1:<account>:secret:metadata-seed/prd-auth-token
+  #   NPM_TOKEN: codebuild/github-packages-npm-token:token
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
+      - echo "Installing dependencies for metadata seed..."
+      - npm install --legacy-peer-deps
+
+  build:
+    commands:
+      - chmod +x scripts/metadata-registry-seed/run-seed-ci.sh
+      - scripts/metadata-registry-seed/run-seed-ci.sh
+
+artifacts:
+  files:
+    - scripts/metadata-registry-seed/reports/**/*
+  discard-paths: no

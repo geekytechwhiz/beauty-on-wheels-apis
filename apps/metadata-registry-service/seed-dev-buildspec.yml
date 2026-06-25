@@ -1,0 +1,50 @@
+# Metadata registry seed — DEV (optional job, separate from deploy).
+#
+# Pipeline: Build → Deploy dev → Seed dev (this buildspec) when RUN_METADATA_SEED=true.
+# Default DRY_RUN=true; set DRY_RUN=false only when you intend a real dev seed.
+# Scoped to TestingScript only (change METADATA_TYPE_CODES for other types or full catalog).
+#
+# Actor for createdBy/lastModifiedBy (script-only; unsigned Bearer from SEED_ACTOR_USER_ID).
+# AUTH_TOKEN in secrets-manager takes precedence when set.
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    METADATA_SEED_STAGE: dev
+    RUN_METADATA_SEED: 'false'
+    DRY_RUN: 'true'
+    DEPLOYMENT_BUCKET: dev-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_BUCKET: dev-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_KEY: metadata/Complete-metadata.xlsx
+    METADATA_EXCEL_PATH: /tmp/Complete-metadata.xlsx
+    BASE_URL: https://244vhkoib0.execute-api.us-east-1.amazonaws.com/dev
+    TREAT_CONFLICT_AS_SUCCESS: 'true'
+    CONFIRMATION_ACKNOWLEDGED: 'true'
+    CONCURRENCY: '5'
+    METADATA_TYPE_CODES: TestingScript
+    NPM_TOKEN: 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
+    # Platform user id for seed actor attribution (dev root admin)
+    SEED_ACTOR_USER_ID: 88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f
+  # secrets-manager:
+  #   AUTH_TOKEN: arn:aws:secretsmanager:us-east-1:<account>:secret:metadata-seed/dev-auth-token
+  #   NPM_TOKEN: codebuild/github-packages-npm-token:token
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
+      - echo "Installing dependencies for metadata seed..."
+      - npm install --legacy-peer-deps
+
+  build:
+    commands:
+      - chmod +x scripts/metadata-registry-seed/run-seed-ci.sh
+      - scripts/metadata-registry-seed/run-seed-ci.sh
+
+artifacts:
+  files:
+    - scripts/metadata-registry-seed/reports/**/*
+  discard-paths: no

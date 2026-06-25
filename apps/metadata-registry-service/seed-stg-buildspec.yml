@@ -1,0 +1,53 @@
+# Metadata registry seed — STG (optional job, separate from deploy).
+#
+# Preview job (before manual approval):
+#   RUN_METADATA_SEED=true, DRY_RUN=true
+#
+# Apply job (after manual approval):
+#   RUN_METADATA_SEED=true, DRY_RUN=false, CONFIRM_METADATA_SEED=true
+#   SEED_ACTOR_USER_ID in env.variables (or AUTH_TOKEN from secrets-manager)
+#   For full catalog: ALLOW_FULL_METADATA_SEED=true
+# Scoped to TestingScript only (change METADATA_TYPE_CODES for other types or full catalog).
+#
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    METADATA_SEED_STAGE: stg
+    RUN_METADATA_SEED: 'false'
+    DRY_RUN: 'true'
+    DEPLOYMENT_BUCKET: nvstg-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_BUCKET: nvstg-mvx-metadata-registry-service-bucket
+    METADATA_CATALOG_S3_KEY: metadata/Complete-metadata.xlsx
+    METADATA_EXCEL_PATH: /tmp/Complete-metadata.xlsx
+    BASE_URL: https://esrmlb4oh6.execute-api.us-east-1.amazonaws.com/stg
+    TREAT_CONFLICT_AS_SUCCESS: 'true'
+    CONFIRMATION_ACKNOWLEDGED: 'true'
+    CONCURRENCY: '5'
+    METADATA_TYPE_CODES: TestingScript
+    NPM_TOKEN: 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
+    # Platform user id for seed actor attribution — update if stg root admin differs from dev
+    SEED_ACTOR_USER_ID: 88a9a6e052092188660a404a303ca34c992caabfccfc184ca2121fcac2d84e7f
+  # secrets-manager:
+  #   AUTH_TOKEN: arn:aws:secretsmanager:us-east-1:<account>:secret:metadata-seed/stg-auth-token
+  #   NPM_TOKEN: codebuild/github-packages-npm-token:token
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
+      - echo "Installing dependencies for metadata seed..."
+      - npm install --legacy-peer-deps
+
+  build:
+    commands:
+      - chmod +x scripts/metadata-registry-seed/run-seed-ci.sh
+      - scripts/metadata-registry-seed/run-seed-ci.sh
+
+artifacts:
+  files:
+    - scripts/metadata-registry-seed/reports/**/*
+  discard-paths: no

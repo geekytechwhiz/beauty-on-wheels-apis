@@ -26,33 +26,8 @@ export interface TemplateConfigMetaResponse {
   missingMetadataTypeCodes: string[];
 }
 
-function mapValue(value: MetadataRegistryValueDto): TemplateConfigMetaValue | null {
-  if (value.status !== METADATA_STATUS.ACTIVE) {
-    return null;
-  }
-
-  return {
-    valueCode: value.valueCode,
-    label: value.label,
-    isGlobal: value.isGlobal,
-    applicability: value.applicability,
-  };
-}
-
-function mapTypeItem(item: MetadataRegistryTypeValuesDto): TemplateConfigMetaTypeItem {
-  return {
-    metadataType: item.metadataType,
-    displayName: item.displayName,
-    multiSelectAllowed: item.multiSelectAllowed,
-    valueDataType: item.valueDataType,
-    values: item.values
-      .map(mapValue)
-      .filter((value): value is TemplateConfigMetaValue => value !== null),
-  };
-}
-
-const validationBuilder = (item:any) => {
-  if(item.required){
+const validationBuilder = (item: MetadataRegistryTypeValuesDto) => {
+  if (item.required) {
     return {
       required: {
         value: item.required,
@@ -63,20 +38,31 @@ const validationBuilder = (item:any) => {
   return {};
 };
 
+function isEnumValueDataType(valueDataType: string | undefined): boolean {
+  return valueDataType?.trim().toUpperCase() === 'ENUM';
+}
+
+function toEnumOptions(values: MetadataRegistryValueDto[]): TemplateField['options'] {
+  return values
+    .filter((value) => value.status === METADATA_STATUS.ACTIVE)
+    .map((value) => ({
+      labelKey: value.label,
+      value: value.valueCode,
+      description: value.description ?? null,
+    }));
+}
+
 function mapTypeValue(item: MetadataRegistryTypeValuesDto): TemplateField {
-  
+  const isEnumType = isEnumValueDataType(item.valueDataType);
+
   return {
     code: item.metadataType,
     displayName: item.displayName,
     isGlobal: item.isGlobal ?? false,
-    type: item.valueDataType === 'Enum' ? 'select' : 'text',
+    type: item.valueDataType,
     labelKey: `${item.metadataType?.toLowerCase()}.label`,
     placeholderKey: `${item.metadataType?.toLowerCase()}.placeholder`,
-    options: item.values
-      .map((value) => ({
-        labelKey: value.label,
-        value: value.valueCode,
-      })),
+    options: isEnumType ? toEnumOptions(item.values) : [],
     validation: validationBuilder(item) as TemplateField['validation'],
   };
 }
@@ -87,8 +73,10 @@ function mapTypeValue(item: MetadataRegistryTypeValuesDto): TemplateField {
 export function mapTemplateConfigMetaResponse(input: {
   items: MetadataRegistryTypeValuesDto[];
   missingMetadataTypeCodes: string[];
-}): TemplateConfigMetaResponse { 
-  const activeItems = input.items.filter((item) => item.status?.toUpperCase()?.trim()!== METADATA_STATUS.INACTIVE);
+}): TemplateConfigMetaResponse {
+  const activeItems = input.items.filter(
+    (item) => item.status?.toUpperCase()?.trim() !== METADATA_STATUS.INACTIVE,
+  );
   return {
     items: activeItems.map(mapTypeValue),
     missingMetadataTypeCodes: input.missingMetadataTypeCodes,

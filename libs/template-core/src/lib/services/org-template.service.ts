@@ -37,7 +37,6 @@ import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   DERIVATION_KIND,
   TEMPLATE_STATUS,
-  VERSION_SK_PREFIX,
 } from '../constants/template.constants';
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { EnablementRepository } from '../repositories/enablement.repository';
@@ -54,7 +53,9 @@ import type {
 import { OrgTemplateSyncService } from './org-template-sync.service';
 import { OrgDerivedService } from './org-derived.service';
 import type {
+  AdoptOrgDerivedParams,
   OrgDerivedCreateParams,
+  GetOrgDerivedVersionStatusParams,
   ListOrgDerivedParams,
   UpdateOrgDerivedParams,
 } from '../models/api/org-derived.types';
@@ -72,6 +73,7 @@ import {
   pickHighestVersionRow,
   templateConflictError,
   templateNotFoundError,
+  templateValidationError,
   compareTemplateDisplayVersions,
   formatTemplateVersionLabel,
   resolveMasterTemplateIsActive,
@@ -1052,6 +1054,18 @@ export class OrgTemplateService {
    */
   async getOrgVersionStatus(params: GetOrgVersionStatusParams): Promise<OrgVersionStatusResult> {
     try {
+      if (params.orgTemplateId?.trim()) {
+        return await this.orgDerived.getOrgDerivedVersionStatus({
+          organizationId: params.organizationId,
+          orgTemplateId: params.orgTemplateId,
+          organizationName: params.organizationName,
+          organizationDescription: params.organizationDescription,
+        } satisfies GetOrgDerivedVersionStatusParams);
+      }
+
+      if (!params.masterTemplateId?.trim()) {
+        templateValidationError('templateId is required for canonical org version status');
+      }
       const masterTemplateId = TemplateEntityBuilder.normalizeTemplateId(params.masterTemplateId);
       const organizationId = params.organizationId.trim();
 
@@ -1165,6 +1179,10 @@ export class OrgTemplateService {
 
   async updateOrgDerived(params: UpdateOrgDerivedParams) {
     return this.orgDerived.updateOrgDerived(params);
+  }
+
+  async adoptOrgDerived(params: AdoptOrgDerivedParams) {
+    return this.orgDerived.adoptOrgDerived(params);
   }
 
   async transitionOrgTemplateStatus(params: TransitionOrgStatusParams) {

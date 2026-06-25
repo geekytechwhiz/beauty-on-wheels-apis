@@ -1,99 +1,141 @@
 import { mapTemplateConfigMetaResponse } from './template-config-meta.mapper';
 
-const emptyApplicability = {
-  module: [],
-  category: [],
-  condition: [],
-  country: [],
-  language: [],
-};
-
 describe('mapTemplateConfigMetaResponse', () => {
-  it('matches upstream shape and omits status, sortOrder, and attributes from values', () => {
+  it('maps Enum metadata with type and option values preserved as-is', () => {
     const result = mapTemplateConfigMetaResponse({
       items: [
         {
-          metadataType: 'Country',
-          displayName: 'Country',
-          multiSelectAllowed: true,
+          metadataType: 'MissedMonitoringAction',
+          displayName: 'Missed Monitoring Action',
+          multiSelectAllowed: false,
+          required: false,
           valueDataType: 'Enum',
+          isGlobal: false,
+          sortOrder: 1,
+          attributes: {},
+          applicability: {
+            module: [],
+            category: [],
+            condition: [],
+            country: [],
+            language: [],
+          },
           values: [
             {
-              valueCode: 'US',
-              label: 'United States',
+              valueCode: 'CREATE_ALERT',
+              label: 'Create Alert',
+              description: 'Create alert when missed monitoring threshold is met',
               status: 'ACTIVE',
-              isGlobal: true,
+              isGlobal: false,
+              sortOrder: 1,
+              attributes: {},
+              applicability: {
+                module: [],
+                category: [],
+                condition: [],
+                country: [],
+                language: [],
+              },
+            },
+            {
+              valueCode: 'NONE',
+              label: 'None',
+              description: 'Do not track missed monitoring for action/alert purposes',
+              status: 'ACTIVE',
+              isGlobal: false,
               sortOrder: 2,
-              attributes: { region: 'NA' },
-              applicability: emptyApplicability,
+              attributes: {},
+              applicability: {
+                module: [],
+                category: [],
+                condition: [],
+                country: [],
+                language: [],
+              },
+            },
+            {
+              valueCode: 'TRACK_ONLY',
+              label: 'Track only',
+              status: 'INACTIVE',
+              isGlobal: false,
+              sortOrder: 3,
+              attributes: {},
+              applicability: {
+                module: [],
+                category: [],
+                condition: [],
+                country: [],
+                language: [],
+              },
             },
           ],
         },
-        {
-          metadataType: 'Language',
-          displayName: 'Language',
-          multiSelectAllowed: true,
-          valueDataType: 'Enum',
-          values: [],
-        },
       ],
-      missingMetadataTypeCodes: ['Conditions', 'SPECIALITY'],
+      missingMetadataTypeCodes: ['SPECIALITY'],
     });
 
     expect(result).toEqual({
       items: [
         {
-          metadataType: 'Country',
-          displayName: 'Country',
-          multiSelectAllowed: true,
-          valueDataType: 'Enum',
-          values: [
+          code: 'MissedMonitoringAction',
+          displayName: 'Missed Monitoring Action',
+          isGlobal: false,
+          type: 'Enum',
+          labelKey: 'missedmonitoringaction.label',
+          placeholderKey: 'missedmonitoringaction.placeholder',
+          options: [
             {
-              valueCode: 'US',
-              label: 'United States',
-              isGlobal: true,
-              applicability: emptyApplicability,
+              labelKey: 'Create Alert',
+              value: 'CREATE_ALERT',
+              description: 'Create alert when missed monitoring threshold is met',
+            },
+            {
+              labelKey: 'None',
+              value: 'NONE',
+              description: 'Do not track missed monitoring for action/alert purposes',
             },
           ],
-        },
-        {
-          metadataType: 'Language',
-          displayName: 'Language',
-          multiSelectAllowed: true,
-          valueDataType: 'Enum',
-          values: [],
+          validation: {},
         },
       ],
-      missingMetadataTypeCodes: ['Conditions', 'SPECIALITY'],
+      missingMetadataTypeCodes: ['SPECIALITY'],
     });
   });
 
-  it('excludes non-ACTIVE metadata values', () => {
+  it('maps non-enum metadata with valueDataType as type and empty options', () => {
     const result = mapTemplateConfigMetaResponse({
       items: [
         {
-          metadataType: 'Country',
-          displayName: 'Country',
-          multiSelectAllowed: true,
-          valueDataType: 'Enum',
+          metadataType: 'FreeTextConfig',
+          displayName: 'Free Text Config',
+          multiSelectAllowed: false,
+          required: true,
+          valueDataType: 'Text',
+          isGlobal: true,
+          sortOrder: 1,
+          attributes: {},
+          applicability: {
+            module: [],
+            category: [],
+            condition: [],
+            country: [],
+            language: [],
+          },
           values: [
             {
-              valueCode: 'US',
-              label: 'United States',
+              valueCode: 'IGNORED_FOR_TEXT',
+              label: 'Ignored for Text',
               status: 'ACTIVE',
               isGlobal: true,
               sortOrder: 1,
               attributes: {},
-              applicability: emptyApplicability,
-            },
-            {
-              valueCode: 'XX',
-              label: 'Inactive Country',
-              status: 'INACTIVE',
-              isGlobal: true,
-              sortOrder: 2,
-              attributes: {},
-              applicability: emptyApplicability,
+              applicability: {
+                module: [],
+                category: [],
+                condition: [],
+                country: [],
+                language: [],
+              },
             },
           ],
         },
@@ -101,13 +143,20 @@ describe('mapTemplateConfigMetaResponse', () => {
       missingMetadataTypeCodes: [],
     });
 
-    expect(result.items[0].values).toEqual([
-      {
-        valueCode: 'US',
-        label: 'United States',
-        isGlobal: true,
-        applicability: emptyApplicability,
+    expect(result.items[0]).toEqual({
+      code: 'FreeTextConfig',
+      displayName: 'Free Text Config',
+      isGlobal: true,
+      type: 'Text',
+      labelKey: 'freetextconfig.label',
+      placeholderKey: 'freetextconfig.placeholder',
+      options: [],
+      validation: {
+        required: {
+          value: true,
+          messageKey: 'FreeTextConfig.validation.required',
+        },
       },
-    ]);
+    });
   });
 });

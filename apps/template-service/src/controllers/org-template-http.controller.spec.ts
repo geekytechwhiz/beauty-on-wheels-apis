@@ -171,6 +171,7 @@ describe('OrgTemplateHttpController', () => {
     expect(mockGetOrgVersionStatus).toHaveBeenCalledWith({
       organizationId: 'org-1',
       masterTemplateId: 'CP-HTN-MASTER',
+      orgTemplateId: undefined,
       organizationName: undefined,
       organizationDescription: undefined,
     });

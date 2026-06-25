@@ -71,18 +71,23 @@ describe('OrgDerivedService.createOrgDerived', () => {
     return { svc, orgRepo, enablementRepo };
   }
 
-  it('rejects org-derived variant as sourceOrgTemplateId', async () => {
+  it('allows org-derived variant as sourceOrgTemplateId', async () => {
     const { svc } = buildService({
-      sourceMeta: { derivationKind: DERIVATION_KIND.ORG_DERIVE },
+      sourceMeta: {
+        derivationKind: DERIVATION_KIND.ORG_DERIVE,
+        derivedFromOrgTemplateId: 'TEST-TEMPLATE-ORG-ROSEWOOD',
+        derivedFromOrgTemplateVersionId: 'TEST-TEMPLATE-ORG-ROSEWOOD-V01',
+        derivedFromOrgTemplateVersion: 1,
+      },
     });
 
-    await expect(
-      svc.createOrgDerived({
-        organizationId: 'ROSEWOOD',
-        sourceOrgTemplateId: 'HTN-VARIANT-A-abc12345',
-        newTemplateName: 'HTN Care Plan — Variant B',
-      }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    const result = await svc.createOrgDerived({
+      organizationId: 'ROSEWOOD',
+      sourceOrgTemplateId: 'HTN-VARIANT-A-abc12345',
+      newTemplateName: 'HTN Care Plan — Variant B',
+    });
+
+    expect(result.orgTemplateId).toMatch(/^HTN-CARE-PLAN-VARIANT-B-/);
   });
 
   it('rejects duplicate newTemplateName among variants', async () => {
@@ -113,6 +118,20 @@ describe('OrgDerivedService.createOrgDerived', () => {
     expect(enablementRepo.putEnablement).toHaveBeenCalled();
     expect(result.sourceOrgTemplateId).toBe('TEST-TEMPLATE-ORG-ROSEWOOD');
     expect(result.orgTemplateId).toMatch(/^HTN-CARE-PLAN-VARIANT-A-/);
+    expect(result.templateEnabled).toBe(true);
+    expect(result.status).toBe('DRAFT');
+    expect(result.active).toBe(true);
+  });
+
+  it('defaults templateEnabled to true when omitted', async () => {
+    const { svc } = buildService();
+
+    const result = await svc.createOrgDerived({
+      organizationId: 'ROSEWOOD',
+      sourceOrgTemplateId: 'TEST-TEMPLATE-ORG-ROSEWOOD',
+      newTemplateName: 'HTN Care Plan — Variant B',
+    });
+
     expect(result.templateEnabled).toBe(true);
   });
 });

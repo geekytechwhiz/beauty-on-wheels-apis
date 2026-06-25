@@ -31,7 +31,7 @@
             { "key": "conditionCode", "value": "HYPERTENSION" }
           ]
         },
-        "description": "Same endpoint as org catalog; use templateLevel=ORG_DERIVED for variants only. Add orgTemplateId query to get one item with full fieldValues + rules."
+        "description": "List includes upgrade and history per variant. Add orgTemplateId query to get one item with fieldValues, rules, and adopt preview."
       }
     },
     {
@@ -94,6 +94,29 @@
           ]
         },
         "description": "Partial rules/fieldValues (version bump) and/or templateEnabled (no version bump)."
+      }
+    },
+    {
+      "name": "4. Adopt canonical upgrade into variant",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"confirm\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/templates/org-derived/{{orgTemplateId}}/adopt?organizationId={{organizationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates", "org-derived", "{{orgTemplateId}}", "adopt"],
+          "query": [
+            { "key": "organizationId", "value": "{{organizationId}}" }
+          ]
+        },
+        "description": "Call after GET single shows upgrade:true and adopt preview. Variant must be DRAFT/SAVED/IN_REVIEW."
       }
     }
   ]

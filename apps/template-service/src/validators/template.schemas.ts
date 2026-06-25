@@ -380,6 +380,16 @@ export const updateOrgTemplateRulesBodySchema = z
 
 export type UpdateOrgTemplateRulesBody = z.infer<typeof updateOrgTemplateRulesBodySchema>;
 
+const orgDerivedStatusZ = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim().toUpperCase();
+    if (normalized === 'PUBLISH') return TEMPLATE_STATUS.PUBLISHED;
+    return normalized;
+  },
+  templateStatusZ,
+);
+
 /** POST /templates/org-derived */
 export const orgDerivedCreateBodySchema = z.object({
   organizationId: z.string().trim().min(1),
@@ -387,6 +397,7 @@ export const orgDerivedCreateBodySchema = z.object({
   sourceOrgTemplateId: z.string().trim().min(1),
   newTemplateName: z.string().trim().min(1).max(150),
   sourceVersionId: z.string().trim().min(1).optional(),
+  /** Optional — defaults to `true` when omitted. */
   templateEnabled: z.boolean().optional(),
 });
 
@@ -402,22 +413,34 @@ export const orgDerivedUpdateBodySchema = z
     rules: z.record(z.string().trim().min(1), partialTemplateFieldRuleSchema).optional(),
     fieldValues: fieldValuesSchema.optional(),
     templateEnabled: z.boolean().optional(),
+    status: orgDerivedStatusZ.optional(),
+    active: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const hasRules = data.rules !== undefined && Object.keys(data.rules).length > 0;
     const hasFieldValues =
       data.fieldValues !== undefined && Object.keys(data.fieldValues).length > 0;
     const hasEnable = data.templateEnabled !== undefined;
-    if (!hasRules && !hasFieldValues && !hasEnable) {
+    const hasStatus = data.status !== undefined;
+    const hasActive = data.active !== undefined;
+    if (!hasRules && !hasFieldValues && !hasEnable && !hasStatus && !hasActive) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'rules, fieldValues, or templateEnabled must be provided',
+        message: 'rules, fieldValues, templateEnabled, status, or active must be provided',
         path: ['rules'],
       });
     }
   });
 
 export type OrgDerivedUpdateBody = z.infer<typeof orgDerivedUpdateBodySchema>;
+
+/** POST /templates/org-derived/{orgTemplateId}/adopt */
+export const orgDerivedAdoptBodySchema = z.object({
+  confirm: z.boolean().optional().default(true),
+  preserveLocalOverrides: z.boolean().optional(),
+});
+
+export type OrgDerivedAdoptBody = z.infer<typeof orgDerivedAdoptBodySchema>;
 
 export const orgClonePathSchema = z.object({
   organizationId: z.string().trim().min(1),
@@ -452,12 +475,25 @@ export const listOrgTemplatesQuerySchema = z.object({
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
 
-export const orgVersionStatusQuerySchema = z.object({
-  organizationId: z.string().trim().min(1).optional(),
-  templateId: z.string().trim().min(1),
-  organizationName: z.string().trim().min(1).optional(),
-  organizationDescription: z.string().trim().optional(),
-});
+export const orgVersionStatusQuerySchema = z
+  .object({
+    organizationId: z.string().trim().min(1).optional(),
+    templateId: z.string().trim().min(1).optional(),
+    orgTemplateId: z.string().trim().min(1).optional(),
+    organizationName: z.string().trim().min(1).optional(),
+    organizationDescription: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasTemplateId = !!data.templateId?.trim();
+    const hasOrgTemplateId = !!data.orgTemplateId?.trim();
+    if (hasTemplateId === hasOrgTemplateId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Exactly one of templateId or orgTemplateId is required',
+        path: ['templateId'],
+      });
+    }
+  });
 
 export type OrgVersionStatusQuery = z.infer<typeof orgVersionStatusQuerySchema>;
 

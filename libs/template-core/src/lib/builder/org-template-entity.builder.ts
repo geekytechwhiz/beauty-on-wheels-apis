@@ -246,6 +246,7 @@ export class OrgTemplateEntityBuilder {
     sourceMetaRow: TemplateDdbRecord,
     ctx: OrgDeriveContext,
     actor?: TemplateActorUser,
+    derivedFromOrgTemplateVersion?: number,
   ): TemplateMeta {
     const sourceMeta = sourceMetaRow.meta;
     const status = TEMPLATE_STATUS.DRAFT as TemplateStatus;
@@ -263,9 +264,12 @@ export class OrgTemplateEntityBuilder {
       derivationKind: DERIVATION_KIND.ORG_DERIVE,
       derivedFromOrgTemplateId: ctx.sourceOrgTemplateId,
       derivedFromOrgTemplateVersionId: ctx.sourceOrgTemplateVersionId,
+      ...(derivedFromOrgTemplateVersion !== undefined
+        ? { derivedFromOrgTemplateVersion }
+        : {}),
       derivedAt: ctx.nowIso,
       status,
-      isActive: false,
+      isActive: true,
       isLatestVersion: true,
       isMaster: false,
       ownerOrgId: ctx.organizationId,

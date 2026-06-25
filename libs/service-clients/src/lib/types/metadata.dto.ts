@@ -2,6 +2,7 @@
 export interface MetadataRegistryValueDto {
   valueCode: string;
   label: string;
+  description?: string | null;
   status: string;
   isGlobal: boolean;
   sortOrder: number;

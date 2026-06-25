@@ -1,7 +1,0 @@
-# Copy to .npmrc and set NPM_TOKEN in repo-root .env (see .env.example).
-# In CodeBuild, NPM_TOKEN is injected from Secrets Manager (see apps/alert-service/buildspec.yml).
-
-@myvitalrx:registry=https://npm.pkg.github.com
-@api-hub:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NPM_TOKEN}
-always-auth=true

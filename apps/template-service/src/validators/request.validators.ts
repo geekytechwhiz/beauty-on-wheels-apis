@@ -573,7 +573,8 @@ export type ValidatedSetOrgTemplateEnable = {
 
 export type ValidatedGetOrgVersionStatus = {
   organizationId: string;
-  masterTemplateId: string;
+  masterTemplateId?: string;
+  orgTemplateId?: string;
   query: OrgVersionStatusQuery;
   actorUser: TemplateActorUser;
 };
@@ -801,12 +802,16 @@ export async function validateOrgVersionStatusRequest(req: LambdaRequest): Promi
     organizationId = tokenOrg;
   }
 
-  const masterTemplateId = normalizePathTemplateId(rawQuery.templateId);
+  const masterTemplateId = rawQuery.templateId
+    ? normalizePathTemplateId(rawQuery.templateId)
+    : undefined;
+  const orgTemplateId = rawQuery.orgTemplateId?.trim();
 
   (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus }).validatedGetOrgVersionStatus =
     {
       organizationId,
       masterTemplateId,
+      orgTemplateId,
       query: rawQuery,
       actorUser,
     };

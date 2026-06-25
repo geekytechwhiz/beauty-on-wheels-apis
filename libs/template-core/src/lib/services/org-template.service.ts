@@ -55,6 +55,7 @@ import { OrgDerivedService } from './org-derived.service';
 import type {
   AdoptOrgDerivedParams,
   OrgDerivedCreateParams,
+  GetOrgDerivedVersionStatusParams,
   ListOrgDerivedParams,
   UpdateOrgDerivedParams,
 } from '../models/api/org-derived.types';
@@ -72,6 +73,7 @@ import {
   pickHighestVersionRow,
   templateConflictError,
   templateNotFoundError,
+  templateValidationError,
   compareTemplateDisplayVersions,
   formatTemplateVersionLabel,
   resolveMasterTemplateIsActive,
@@ -1052,6 +1054,18 @@ export class OrgTemplateService {
    */
   async getOrgVersionStatus(params: GetOrgVersionStatusParams): Promise<OrgVersionStatusResult> {
     try {
+      if (params.orgTemplateId?.trim()) {
+        return await this.orgDerived.getOrgDerivedVersionStatus({
+          organizationId: params.organizationId,
+          orgTemplateId: params.orgTemplateId,
+          organizationName: params.organizationName,
+          organizationDescription: params.organizationDescription,
+        } satisfies GetOrgDerivedVersionStatusParams);
+      }
+
+      if (!params.masterTemplateId?.trim()) {
+        templateValidationError('templateId is required for canonical org version status');
+      }
       const masterTemplateId = TemplateEntityBuilder.normalizeTemplateId(params.masterTemplateId);
       const organizationId = params.organizationId.trim();
 

@@ -475,12 +475,25 @@ export const listOrgTemplatesQuerySchema = z.object({
 
 export type ListOrgTemplatesQuery = z.infer<typeof listOrgTemplatesQuerySchema>;
 
-export const orgVersionStatusQuerySchema = z.object({
-  organizationId: z.string().trim().min(1).optional(),
-  templateId: z.string().trim().min(1),
-  organizationName: z.string().trim().min(1).optional(),
-  organizationDescription: z.string().trim().optional(),
-});
+export const orgVersionStatusQuerySchema = z
+  .object({
+    organizationId: z.string().trim().min(1).optional(),
+    templateId: z.string().trim().min(1).optional(),
+    orgTemplateId: z.string().trim().min(1).optional(),
+    organizationName: z.string().trim().min(1).optional(),
+    organizationDescription: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasTemplateId = !!data.templateId?.trim();
+    const hasOrgTemplateId = !!data.orgTemplateId?.trim();
+    if (hasTemplateId === hasOrgTemplateId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Exactly one of templateId or orgTemplateId is required',
+        path: ['templateId'],
+      });
+    }
+  });
 
 export type OrgVersionStatusQuery = z.infer<typeof orgVersionStatusQuerySchema>;
 

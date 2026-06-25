@@ -1,4 +1,5 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getTemplateAppEnv } from '../config/env';
 
 // UI payloads used by the frontend to render the template authoring form.
 // For now, Template Service injects them based on `meta.templateType`.
@@ -22,15 +23,16 @@ async function streamToString(body: unknown): Promise<string> {
   const stream = body as AsyncIterable<unknown>;
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
-    chunks.push(Buffer.from(chunk as any));
+    chunks.push(Buffer.from(chunk as Uint8Array));
   }
   return Buffer.concat(chunks).toString('utf-8');
 }
 
 function getS3Client(): S3Client {
   if (s3Client) return s3Client;
+  const env = getTemplateAppEnv();
   s3Client = new S3Client({
-    region: process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1',
+    region: env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? 'us-east-1',
   });
   return s3Client;
 }
@@ -48,7 +50,7 @@ export async function getTemplateUiApiResponse(templateType?: string | null): Pr
 
   if (uiResponseCache.has(normalized)) return uiResponseCache.get(normalized) ?? null;
 
-  const bucket = (process.env.TEMPLATE_UI_BUCKET ?? 'templates').trim();
+  const bucket = (getTemplateAppEnv().TEMPLATE_UI_BUCKET ?? 'templates').trim();
   const key = fileName;
 
   try {

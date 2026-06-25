@@ -71,18 +71,23 @@ describe('OrgDerivedService.createOrgDerived', () => {
     return { svc, orgRepo, enablementRepo };
   }
 
-  it('rejects org-derived variant as sourceOrgTemplateId', async () => {
+  it('allows org-derived variant as sourceOrgTemplateId', async () => {
     const { svc } = buildService({
-      sourceMeta: { derivationKind: DERIVATION_KIND.ORG_DERIVE },
+      sourceMeta: {
+        derivationKind: DERIVATION_KIND.ORG_DERIVE,
+        derivedFromOrgTemplateId: 'TEST-TEMPLATE-ORG-ROSEWOOD',
+        derivedFromOrgTemplateVersionId: 'TEST-TEMPLATE-ORG-ROSEWOOD-V01',
+        derivedFromOrgTemplateVersion: 1,
+      },
     });
 
-    await expect(
-      svc.createOrgDerived({
-        organizationId: 'ROSEWOOD',
-        sourceOrgTemplateId: 'HTN-VARIANT-A-abc12345',
-        newTemplateName: 'HTN Care Plan — Variant B',
-      }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    const result = await svc.createOrgDerived({
+      organizationId: 'ROSEWOOD',
+      sourceOrgTemplateId: 'HTN-VARIANT-A-abc12345',
+      newTemplateName: 'HTN Care Plan — Variant B',
+    });
+
+    expect(result.orgTemplateId).toMatch(/^HTN-CARE-PLAN-VARIANT-B-/);
   });
 
   it('rejects duplicate newTemplateName among variants', async () => {

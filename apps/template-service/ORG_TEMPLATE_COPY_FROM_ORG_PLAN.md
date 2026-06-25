@@ -1,6 +1,6 @@
 # Org-derived templates — API plan
 
-**Status:** phase 1 + phase 2 implemented  
+**Status:** phase 1 + phase 2 implemented · **phase 3 planned** (variant copy source + versioning GET)  
 **Depends on:** `CONSOLE_CARE_PLAN_PAYLOAD_BACKEND_PLAN.md`, `LINKED_TEMPLATE_RULES_SEPARATE_STRUCTURE_PLAN.md`, `Template_Hierarchy_and_Structure_Change_Addendum.md` (ChangeSet / adopt)
 
 ---
@@ -18,9 +18,9 @@ Org templates exist at **two levels**:
 
 1. Run **derive** once per org + master → canonical org template.
 2. Optionally edit the canonical copy via existing org rules APIs.
-3. **Copy from that canonical org template** to create one or more named variants.
+3. **Copy from canonical** *or* from an **existing org-derived variant** to create more named variants.
 
-The existing derive flow is **unchanged**. This plan adds **2 write routes** under `/templates/org-derived` and reuses **GET `/templates`** with `templateLevel=ORG_DERIVED` for listing.
+The existing derive flow is **unchanged**. This plan adds **2 write routes** under `/templates/org-derived`, reuses **GET `/templates`** with `templateLevel=ORG_DERIVED` for listing, and extends **GET `/templates/org-version-status`** for the variant **Versioning** tab (phase 3).
 
 ---
 
@@ -58,6 +58,7 @@ The existing derive flow is **unchanged**. This plan adds **2 write routes** und
 │       │                                                                 │
 │       ├── GET  /templates?templateLevel=ORG_DERIVED&organizationId=…  (list + history)
 │       ├── GET  /templates?…&orgTemplateId=…          (single + adopt preview)
+│       ├── GET  /templates/org-version-status?…&orgTemplateId=…  (versioning tab — phase 3)
 │       ├── PUT  /templates/org-derived/{orgTemplateId}
 │       └── POST /templates/org-derived/{orgTemplateId}/adopt   (phase 2)
 │                                                                         │
@@ -71,7 +72,8 @@ The existing derive flow is **unchanged**. This plan adds **2 write routes** und
 | **0** | `POST /templates` (master) | Publish master CARE_PLAN (existing) |
 | **1** | `POST /templates/derive` | Create **canonical** org copy + enablement |
 | **1b** *(optional)* | `GET/PUT /templates/org/{masterTemplateId}/{orgId}` | Tune canonical `fieldValues` / `rules` before branching |
-| **2** | `POST /templates/org-derived` | Copy canonical → **variant** + enable |
+| **2** | `POST /templates/org-derived` | Copy **canonical** or **existing variant** → new variant + enable |
+| **2b** *(phase 3)* | `GET /templates/org-version-status?organizationId=…&orgTemplateId=…` | **Versioning tab** row — derived-from / latest canonical / upgrade / local changes |
 | **3** | `GET /templates?templateLevel=ORG_DERIVED&organizationId=…` | **List** variants — each item includes `history` + `upgrade` |
 | **3b** | `GET /templates?templateLevel=ORG_DERIVED&…&orgTemplateId=…` | **Get one** — full `fieldValues` + `rules` + `adopt` preview when `upgrade: true` |
 | **4** | `PUT /templates/org-derived/{orgTemplateId}` | Patch variant rules / fieldValues / status / active / enable |
@@ -104,9 +106,9 @@ Or from **GET** `/templates/org/{masterTemplateId}/{orgId}`:
 }
 ```
 
-That value is **`sourceOrgTemplateId`** in `POST /templates/org-derived`.
+That value is **`sourceOrgTemplateId`** when copying from the **canonical** org template.
 
-> **Phase 1:** `sourceOrgTemplateId` must be the **canonical** org template from derive (no `derivationKind: orgDerive`). Copying org-derived → org-derived is out of scope unless added later.
+> **Phase 3:** `sourceOrgTemplateId` may also be an **existing org-derived variant** `orgTemplateId`. The service detects the source type from stored meta and copies accordingly (see [API 2 — copy sources](#api-2--post-create-variant-copy-sources) below).
 
 ---
 
@@ -119,18 +121,21 @@ That value is **`sourceOrgTemplateId`** in `POST /templates/org-derived`.
 | `GET` | `/templates/org/{masterTemplateId}/{orgId}` | Read canonical `fieldValues` + `rules` |
 | `PUT` | `/templates/org/{masterTemplateId}/{orgId}` | Update canonical rules (version bump) |
 | `GET` | `/templates?templateLevel=ORG` | Org enable catalog — **canonical copies only** (variants excluded) |
+| `GET` | `/templates/org-version-status` | Canonical versioning row (master → org) — **existing** |
+| `GET` | `/templates/org-version-status?organizationId=…&orgTemplateId=…` | Variant versioning row (canonical → variant) — **phase 3** |
 
 Do **not** route variant list/edit through the canonical org rules URLs. Variants use `templateLevel=ORG_DERIVED` for list and `/templates/org-derived` for write.
 
 ---
 
-## New APIs (2 write + 2 read modes + 1 adopt)
+## New APIs (2 write + 2 read modes + 1 adopt + 1 versioning)
 
 | # | Method | Path | Does |
 |---|--------|------|------|
 | 1a | **GET** | `/templates?templateLevel=ORG_DERIVED&organizationId=…` | **List** variants — `history` + `upgrade` per item |
 | 1b | **GET** | `/templates?templateLevel=ORG_DERIVED&organizationId=…&orgTemplateId=…` | **Get one** — `fieldValues`, `rules`, `adopt` preview |
-| 2 | **POST** | `/templates/org-derived` | Copy canonical → variant |
+| **1c** | **GET** | `/templates/org-version-status?organizationId=…&orgTemplateId=…` | **Versioning tab** — one variant row (phase 3) |
+| 2 | **POST** | `/templates/org-derived` | Copy canonical **or** variant → new variant |
 | 3 | **PUT** | `/templates/org-derived/{orgTemplateId}` | Update variant |
 | 4 | **POST** | `/templates/org-derived/{orgTemplateId}/adopt` | Confirm adopt (phase 2) |
 
@@ -434,11 +439,65 @@ Variant `adopt` compares **canonical org → canonical org**, not master → var
 
 ---
 
-## API 2 — POST create variant from canonical org template
+## API 2 — POST create variant (copy sources)
 
 ### `POST /templates/org-derived`
 
-Copy the **canonical org template** (from derive) into a new variant `orgTemplateId`.
+Create a **new** org-derived variant. The copy source is **`sourceOrgTemplateId`** — one field, two allowed source types:
+
+| Source type | How detected | What is copied |
+|-------------|--------------|----------------|
+| **Canonical org template** | `derivationKind !== orgDerive` (derive row) | Latest canonical `fieldValues` + `rules` (current behaviour) |
+| **Existing org-derived variant** | `derivationKind === orgDerive` | **Full** variant document (`fieldValues`, `rules`, linked sections) from source variant’s current version row |
+
+#### Request — copy from canonical (unchanged)
+
+```json
+{
+  "organizationId": "mqf0agcd0aa65849",
+  "sourceOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+  "newTemplateName": "HTN Care Plan — Variant A",
+  "templateEnabled": true
+}
+```
+
+#### Request — copy from existing variant (phase 3)
+
+Same field name — pass the **variant** `orgTemplateId` as `sourceOrgTemplateId`:
+
+```json
+{
+  "organizationId": "mqf0agcd0aa65849",
+  "sourceOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-NAME-0f2c09df",
+  "newTemplateName": "HTN Care Plan — Variant B",
+  "templateEnabled": true
+}
+```
+
+The new variant receives a **new** `orgTemplateId` (slug + uuid) and starts at **version `1`**, but inherits the source variant’s template body.
+
+#### Lineage when source is a variant
+
+| Field on **new** variant | Value |
+|--------------------------|--------|
+| `derivedFromOrgTemplateId` | Source variant’s `derivedFromOrgTemplateId` (canonical — **unchanged**) |
+| `derivedFromOrgTemplateVersion` | Source variant’s `derivedFromOrgTemplateVersion` (canonical snapshot — **not** bumped) |
+| `derivedFromOrgTemplateVersionId` | Source variant’s `derivedFromOrgTemplateVersionId` |
+| `copiedFromOrgTemplateId` *(new, optional)* | Source variant’s `orgTemplateId` (audit / UI “branched from”) |
+| `masterTemplateId` | Copied from source variant meta |
+
+**Why canonical lineage is preserved:** `upgrade` / `adopt` always compare the variant against the **canonical org template**, not the parent variant. Copying variant → variant must not reset or fake the canonical snapshot.
+
+**Upgrade after variant copy:** If canonical is ahead of the inherited snapshot, the new variant shows `upgrade: true` immediately (same as branching from canonical at that snapshot).
+
+#### Validation
+
+| Check | On failure |
+|-------|------------|
+| `sourceOrgTemplateId` exists for `organizationId` | `404` |
+| Source is canonical **or** org-derived variant | `409` if neither (e.g. wrong org) |
+| `newTemplateName` unique among variants in org | `409` |
+| Optional `sourceVersionId` | Only when source is **canonical**; ignored when source is variant (always latest variant row) |
 
 #### Defaults on create (no need to pass)
 
@@ -449,25 +508,13 @@ Copy the **canonical org template** (from derive) into a new variant `orgTemplat
 | `active` | `true` |
 | `version` | `1` |
 
-#### Preconditions
+#### Preconditions (phase 1 — canonical only; phase 3 extends)
 
 | Check | On failure |
 |-------|------------|
 | `sourceOrgTemplateId` exists for `organizationId` | `404` |
-| Source is canonical (not `derivationKind: orgDerive`) | `409` — must derive from canonical first |
+| ~~Source is canonical (not `derivationKind: orgDerive`)~~ | ~~`409`~~ — **removed in phase 3**; variant sources allowed |
 | `newTemplateName` unique among variants in org | `409` |
-
-#### Request (minimal — defaults apply)
-
-```json
-{
-  "organizationId": "mqf0agcd0aa65849",
-  "sourceOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
-  "newTemplateName": "HTN Care Plan — Variant A"
-}
-```
-
-Optional: `"templateEnabled": false` to create disabled.
 
 #### Response `201`
 
@@ -539,6 +586,90 @@ Response includes `"status": "PUBLISHED"`.
 | `rules` and/or `fieldValues` | **Yes** (`1` → `1.1`) |
 | `status` and/or `active` only | **No** |
 | `templateEnabled` only | **No** |
+
+---
+
+## API 1c — GET variant version status (Versioning tab) — phase 3
+
+### Extend existing `GET /templates/org-version-status`
+
+Reuse the **same route** as canonical org versioning. Query params determine which row is returned:
+
+| Query | Returns |
+|-------|---------|
+| `organizationId` + `templateId` (master) | **Existing** canonical org row (master → org derive) |
+| `organizationId` + `orgTemplateId` (variant) | **New** org-derived variant row (canonical → variant) |
+
+Exactly **one** of `templateId` or `orgTemplateId` is required (`400` if both or neither).
+
+### UI mapping (Versioning tab)
+
+Console table columns map to the variant response as follows:
+
+| UI column | Response field | Meaning |
+|-----------|----------------|---------|
+| **Template Name** | `templateName` | Variant display name |
+| **Derived From** | `derivedFromOrgTemplateVersionLabel` | Canonical version at variant snapshot (e.g. `v5.6`) |
+| **Latest Master** | `latestCanonicalOrgVersionLabel` | Latest **canonical org** version (e.g. `v5.7`) — UI label “Master” means org-level canonical, not platform master |
+| **Upgrade** | `upgradeStatus` | `AVAILABLE` when `upgradeAvailable: true` |
+| **Local Changes** | `localChangesLabel` | `None` / `Present` — variant body differs from canonical at snapshot |
+| **Actions** | — | **Upgrade** → open adopt modal (GET single + `adopt`) then `POST …/adopt`; **Keep Current** → no-op |
+
+### Request — variant row
+
+```http
+GET /templates/org-version-status?organizationId=mqf0agcd0aa65849&orgTemplateId=ROSEWOOD-ORG-MQF0AGCD0AA65849-NAME-0f2c09df
+```
+
+### Response `200` — variant (proposed)
+
+Aligned with existing `OrgVersionStatusResult` naming where possible:
+
+```json
+{
+  "success": true,
+  "data": {
+    "organizationMeta": { "id": "mqf0agcd0aa65849", "name": "…" },
+    "templateId": "ROSEWOOD",
+    "templateName": "HTN Care Plan — Variant A",
+    "orgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-NAME-0f2c09df",
+    "sourceOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+    "copiedFromOrgTemplateId": null,
+    "currentVariantVersion": 1,
+    "currentVariantVersionLabel": "v1",
+    "currentVariantTemplateVersionId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-NAME-0f2c09df-V01",
+    "derivedFromOrgTemplateVersion": 5.6,
+    "derivedFromOrgTemplateVersionLabel": "v5.6",
+    "derivedFromOrgTemplateVersionId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-V01",
+    "latestCanonicalOrgVersion": 5.7,
+    "latestCanonicalOrgVersionLabel": "v5.7",
+    "latestCanonicalOrgTemplateVersionId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-V01",
+    "upgradeAvailable": true,
+    "upgradeStatus": "AVAILABLE",
+    "localChangesPresent": false,
+    "localChangesLabel": "None",
+    "templateEnabled": true,
+    "enablementId": "…"
+  }
+}
+```
+
+### Parity with canonical `GET /templates/org-version-status`
+
+| Canonical (existing) | Variant (phase 3) |
+|----------------------|-------------------|
+| `templateId` = masterTemplateId | `templateId` = `masterTemplateId` from variant meta |
+| `derivedFromMasterVersion` | `derivedFromOrgTemplateVersion` |
+| `latestMasterVersion` | `latestCanonicalOrgVersion` |
+| `upgradeAvailable` | `upgradeAvailable` (same rules as list `upgrade`) |
+| `localChangesPresent` | Variant vs canonical **at snapshot** (reuse `detectVariantLocalChanges`) |
+| `enablementId` | Variant’s own enablement row |
+
+### Implementation notes
+
+- **Handler:** extend `getOrgVersionStatus` — if `orgTemplateId` query present, delegate to `orgDerived.getOrgDerivedVersionStatus()` (new service method); else existing canonical path.
+- **Do not** add a separate `/templates/org-derived-version-status` route unless product later requires it — one versioning endpoint keeps the console integration simple.
+- Variant row does **not** call master publish APIs; “Latest Master” in UI is **latest canonical org** version only.
 
 ---
 
@@ -622,13 +753,42 @@ masterTemplateId: string;
 
 ```typescript
 derivationKind: 'orgDerive';
-derivedFromOrgTemplateId: string;
+derivedFromOrgTemplateId: string;       // canonical org template — upgrade/adopt anchor
 derivedFromOrgTemplateVersionId: string;
-derivedFromOrgTemplateVersion: number; // snapshot at copy time — used for upgrade
+derivedFromOrgTemplateVersion: number;  // snapshot at copy time — used for upgrade
+copiedFromOrgTemplateId?: string;      // phase 3 — immediate parent variant when branched from variant
 orgTemplateId: string; // slug(newTemplateName) + short uuid
 status: 'DRAFT' | 'PUBLISHED' | ...;
 isActive: boolean; // exposed as `active` on API
 versionHistory?: TemplateHistoryEntry[]; // on VERSION row — powers list history
+```
+
+### Variant version status (phase 3)
+
+```typescript
+type OrgDerivedVersionStatusResult = {
+  organizationMeta: OrganizationMeta;
+  templateId: string; // masterTemplateId
+  templateName: string;
+  orgTemplateId: string;
+  sourceOrgTemplateId: string; // canonical derivedFromOrgTemplateId
+  copiedFromOrgTemplateId?: string | null;
+  currentVariantVersion: number;
+  currentVariantVersionLabel: string;
+  currentVariantTemplateVersionId: string;
+  derivedFromOrgTemplateVersion: number;
+  derivedFromOrgTemplateVersionLabel: string;
+  derivedFromOrgTemplateVersionId: string;
+  latestCanonicalOrgVersion: number;
+  latestCanonicalOrgVersionLabel: string;
+  latestCanonicalOrgTemplateVersionId: string;
+  upgradeAvailable: boolean;
+  upgradeStatus: 'AVAILABLE' | 'NONE';
+  localChangesPresent: boolean;
+  localChangesLabel: 'None' | 'Present';
+  templateEnabled: boolean;
+  enablementId: string;
+};
 ```
 
 ### Adopt preview (`adopt` on single GET — phase 2)
@@ -680,7 +840,9 @@ type OrgDerivedAdoptChangeRow = {
 | Canonical org catalog | **GET `/templates?templateLevel=ORG`** excludes variants |
 | Copy when canonical is disabled? | **Yes** |
 | Duplicate `newTemplateName` in same org? | **409** |
-| `sourceOrgTemplateId` for POST | **Canonical only** in phase 1 |
+| `sourceOrgTemplateId` for POST | **Canonical or variant** — resolved by meta (`phase 3`) |
+| Variant versioning GET | **Extend** `GET /templates/org-version-status` with `orgTemplateId` query (`phase 3`) |
+| `copiedFromOrgTemplateId` | Optional audit field when POST source is a variant (`phase 3`) |
 | Enum wire values | camelCase: `orgDerive` |
 | Create defaults | `templateEnabled: true`, `status: DRAFT`, `active: true` |
 | Variant upgrade flag | `upgrade` on list/get — canonical org version > variant snapshot |
@@ -726,3 +888,20 @@ type OrgDerivedAdoptChangeRow = {
 - [x] List GET returns `history[]` per item
 - [x] `POST /templates/org-derived/{orgTemplateId}/adopt` handler + Zod + serverless route
 - [x] Update Postman collection (list, single, adopt)
+
+### Phase 3 — planned
+
+**`libs/template-core`**
+
+- [ ] `createOrgDerived()` — accept variant as `sourceOrgTemplateId`; branch copy path + `copiedFromOrgTemplateId`
+- [ ] Remove / replace `409` when source is `derivationKind: orgDerive`
+- [ ] `getOrgDerivedVersionStatus()` — variant row for Versioning tab
+- [ ] `detectVariantLocalChanges` reuse for `localChangesPresent` on version status
+
+**`apps/template-service`**
+
+- [ ] Extend `orgVersionStatusQuerySchema` — `orgTemplateId` optional; XOR with `templateId`
+- [ ] `getOrgVersionStatus` handler/controller — route to variant path when `orgTemplateId` set
+- [ ] Zod + OpenAPI update for extended org-version-status
+- [ ] Postman: variant copy POST example + version status GET
+- [ ] Update `org-derived.postman_collection.json`

@@ -9,6 +9,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import type { TemplateActorUser } from '@api-hub/template-core';
 import { ddbDocClient } from '@api-hub/utils';
+import { getTemplateAppEnv } from '../config/env';
 
 const USER_PK_PREFIX = 'USER#';
 const ORG_SK_ROOT = 'ORG#ROOT';
@@ -122,7 +123,7 @@ async function loadUserProfileRow(
 /** Load one user profile row from USER_TABLE (ORG#ROOT, then ORG#* fallback). */
 export async function getUserProfileById(userId: string): Promise<Record<string, unknown> | null> {
   const id = userId?.trim();
-  const tableName = process.env.USER_TABLE?.trim();
+  const tableName = getTemplateAppEnv().USER_TABLE?.trim();
   if (!id || !tableName) return null;
   return loadUserProfileRow(tableName, id);
 }
@@ -193,7 +194,7 @@ export async function getUserProfilesByIds(
   userIds: ReadonlyArray<string | undefined>,
 ): Promise<Map<string, { email?: string; displayName?: string }>> {
   const unique = [...new Set(userIds.map((id) => id?.trim()).filter((id): id is string => Boolean(id)))];
-  const tableName = process.env.USER_TABLE?.trim();
+  const tableName = getTemplateAppEnv().USER_TABLE?.trim();
   const map = new Map<string, { email?: string; displayName?: string }>();
 
   if (unique.length === 0 || !tableName) return map;

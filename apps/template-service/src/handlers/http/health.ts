@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { createLogger, extractAwsRequestId, extractCorrelationId } from '@api-hub/observability';
 import { ApiResponse } from '@api-hub/utils';
+import { getTemplateAppEnv } from '../../config/env';
 
 const logger = createLogger({ service: 'template-service', redactPII: false });
 
@@ -31,8 +32,8 @@ export async function main(
     service: 'template-service',
     timestamp: new Date().toISOString(),
     requestId: awsRequestId || correlationId,
-    region: process.env.AWS_REGION_TEMPLATE_SERVICE ,
-    stage: process.env.NODE_ENV,
+    region: getTemplateAppEnv().AWS_REGION_TEMPLATE_SERVICE,
+    stage: getTemplateAppEnv().NODE_ENV,
   };
 
   return ApiResponse.ok(

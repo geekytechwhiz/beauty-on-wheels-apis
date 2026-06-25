@@ -47,6 +47,37 @@ export type OrgDerivedCreateParams = {
   actorUser?: TemplateActorUser;
 };
 
+export type GetOrgDerivedVersionStatusParams = {
+  organizationId: string;
+  orgTemplateId: string;
+  organizationName?: string;
+  organizationDescription?: string;
+};
+
+export type OrgDerivedVersionStatusResult = {
+  organizationMeta: OrganizationMeta;
+  templateId: string;
+  templateName: string;
+  orgTemplateId: string;
+  sourceOrgTemplateId: string;
+  copiedFromOrgTemplateId?: string | null;
+  currentVariantVersion: number;
+  currentVariantVersionLabel: string;
+  currentVariantTemplateVersionId: string;
+  derivedFromOrgTemplateVersion: number;
+  derivedFromOrgTemplateVersionLabel: string;
+  derivedFromOrgTemplateVersionId: string;
+  latestCanonicalOrgVersion: number;
+  latestCanonicalOrgVersionLabel: string;
+  latestCanonicalOrgTemplateVersionId: string;
+  upgradeAvailable: boolean;
+  upgradeStatus: 'AVAILABLE' | 'NONE';
+  localChangesPresent: boolean;
+  localChangesLabel: 'None' | 'Present';
+  templateEnabled: boolean;
+  enablementId: string;
+};
+
 export type OrgDerivedCreateResult = {
   organizationId: string;
   sourceOrgTemplateId: string;

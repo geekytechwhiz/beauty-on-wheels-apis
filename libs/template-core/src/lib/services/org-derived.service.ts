@@ -23,6 +23,8 @@ import type {
   OrgDerivedCreateResult,
   AdoptOrgDerivedParams,
   AdoptOrgDerivedResult,
+  GetOrgDerivedVersionStatusParams,
+  OrgDerivedVersionStatusResult,
   GetOrgDerivedResult,
   ListOrgDerivedParams,
   ListOrgDerivedResult,
@@ -49,12 +51,15 @@ import {
 import {
   applyAdoptHistoryOverride,
   buildOrgDerivedAdoptPreview,
+  detectVariantLocalChanges,
   mergeVariantAdoptDocument,
   resolveCanonicalSnapshotRow,
 } from '../utils/org-derived-adopt.utils';
 import {
+  compareTemplateDisplayVersions,
   decodeListCursor,
   encodeListCursor,
+  formatTemplateVersionLabel,
   normalizeVersionToSk,
   resolveTemplateDisplayVersion,
   templateConflictError,
@@ -125,6 +130,15 @@ function isOrgDerivedVariant(meta: TemplateDdbRecord['meta']): boolean {
   return meta.derivationKind === DERIVATION_KIND.ORG_DERIVE;
 }
 
+function firstNonEmptyString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
 type OrgDerivedRow = {
   metaRow: TemplateDdbRecord;
   versionRow: TemplateDdbRecord;
@@ -156,14 +170,10 @@ export class OrgDerivedService {
         templateNotFoundError('Source org template not found');
       }
 
-      if (isOrgDerivedVariant(sourceMetaRow.meta)) {
-        templateConflictError(
-          'sourceOrgTemplateId must be the canonical org template from derive, not an org-derived variant',
-        );
-      }
+      const sourceIsVariant = isOrgDerivedVariant(sourceMetaRow.meta);
 
       let sourceVersionRow: TemplateDdbRecord | null = null;
-      if (params.sourceVersionId?.trim()) {
+      if (!sourceIsVariant && params.sourceVersionId?.trim()) {
         const versionSk = normalizeVersionToSk(params.sourceVersionId.trim());
         sourceVersionRow = await this.orgRepo.getOrgVersion(
           organizationId,
@@ -186,20 +196,34 @@ export class OrgDerivedService {
 
       await this.assertUniqueVariantName(organizationId, newTemplateName);
 
-      const sourceOrgTemplateVersionId =
-        sourceVersionRow.meta.templateVersionId ??
-        sourceMetaRow.meta.templateVersionId ??
-        params.sourceVersionId?.trim() ??
-        '';
-
-      const derivedFromOrgTemplateVersion = resolveTemplateDisplayVersion(
-        sourceVersionRow.meta ?? sourceMetaRow.meta,
-      );
+      const lineageSourceOrgTemplateId = sourceIsVariant
+        ? firstNonEmptyString(sourceMetaRow.meta.derivedFromOrgTemplateId)
+        : sourceOrgTemplateId;
+      if (!lineageSourceOrgTemplateId) {
+        templateValidationError('Source org-derived template is missing canonical lineage');
+      }
+      const lineageSourceOrgTemplateVersionId = sourceIsVariant
+        ? firstNonEmptyString(
+            sourceMetaRow.meta.derivedFromOrgTemplateVersionId,
+            sourceMetaRow.meta.templateVersionId,
+          )
+        : firstNonEmptyString(
+            sourceVersionRow.meta.templateVersionId,
+            sourceMetaRow.meta.templateVersionId,
+            params.sourceVersionId,
+          );
+      if (!lineageSourceOrgTemplateVersionId) {
+        templateValidationError('Source org template version not found');
+      }
+      const derivedFromOrgTemplateVersion =
+        typeof sourceMetaRow.meta.derivedFromOrgTemplateVersion === 'number'
+          ? sourceMetaRow.meta.derivedFromOrgTemplateVersion
+          : resolveTemplateDisplayVersion(sourceVersionRow.meta ?? sourceMetaRow.meta);
 
       const ctx = OrgTemplateEntityBuilder.buildOrgDeriveContext(
         organizationId,
-        sourceOrgTemplateId,
-        sourceOrgTemplateVersionId,
+        lineageSourceOrgTemplateId,
+        lineageSourceOrgTemplateVersionId,
         newTemplateName,
       );
 
@@ -209,6 +233,9 @@ export class OrgDerivedService {
         params.actorUser,
         derivedFromOrgTemplateVersion,
       );
+      if (sourceIsVariant) {
+        meta.copiedFromOrgTemplateId = sourceOrgTemplateId;
+      }
       const metaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(meta, organizationId, ctx.newTemplateId);
       const versionRow = OrgTemplateEntityBuilder.buildOrgVersionRowFromOrgSource(
         meta,
@@ -232,7 +259,7 @@ export class OrgDerivedService {
       const masterTemplateVersionId =
         typeof sourceMetaRow.meta.masterTemplateVersionId === 'string'
           ? sourceMetaRow.meta.masterTemplateVersionId
-          : sourceOrgTemplateVersionId;
+          : lineageSourceOrgTemplateVersionId;
 
       const enablementId = EnablementEntityBuilder.buildEnablementId(organizationId);
       const enablementMeta = EnablementEntityBuilder.buildMetaForOrgDerived(
@@ -490,10 +517,11 @@ export class OrgDerivedService {
           actorUser: params.actorUser,
           bumpVersion: true,
         });
-        metaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
-        if (!metaRow) {
+        const refreshedMeta = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
+        if (!refreshedMeta) {
           templateNotFoundError('Org-derived template not found');
         }
+        metaRow = refreshedMeta;
       } else if (hasMetaPatch) {
         versionRow = await this.orgOps.saveOrgTemplateInPlace({
           organizationId,
@@ -505,10 +533,11 @@ export class OrgDerivedService {
           actorUser: params.actorUser,
           bumpVersion: false,
         });
-        metaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
-        if (!metaRow) {
+        const refreshedMeta = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
+        if (!refreshedMeta) {
           templateNotFoundError('Org-derived template not found');
         }
+        metaRow = refreshedMeta;
       }
 
       return toUpdateOrgDerivedResult(metaRow, versionRow, templateEnabled);
@@ -516,6 +545,99 @@ export class OrgDerivedService {
       if (e instanceof OrgRulesValidationError) {
         templateValidationError(e.message);
       }
+      normalizeTemplateServiceError(e);
+    }
+  }
+
+  async getOrgDerivedVersionStatus(
+    params: GetOrgDerivedVersionStatusParams,
+  ): Promise<OrgDerivedVersionStatusResult> {
+    try {
+      const organizationId = params.organizationId.trim();
+      const orgTemplateId = params.orgTemplateId.trim();
+      const resolved = await this.resolveOrgDerivedVariant(organizationId, orgTemplateId);
+      const sourceOrgTemplateId =
+        typeof resolved.metaRow.meta.derivedFromOrgTemplateId === 'string'
+          ? resolved.metaRow.meta.derivedFromOrgTemplateId.trim()
+          : '';
+      if (!sourceOrgTemplateId) {
+        templateNotFoundError('Canonical org template not found for org-derived variant');
+      }
+      const canonicalRows = await this.loadCanonicalVersionRows(organizationId, sourceOrgTemplateId);
+      if (!canonicalRows.latestRow) {
+        templateNotFoundError('Canonical org template not found');
+      }
+      const canonicalSnapshotRow = await this.resolveCanonicalAdoptFromRow(
+        organizationId,
+        sourceOrgTemplateId,
+        resolved.metaRow.meta,
+        resolved.versionRow,
+        canonicalRows.latestRow,
+      );
+      if (!canonicalSnapshotRow) {
+        templateConflictError('No canonical org template snapshot found for this variant');
+      }
+
+      const currentVariantVersion = resolveTemplateDisplayVersion(resolved.versionRow.meta);
+      const derivedFromOrgTemplateVersion =
+        typeof resolved.metaRow.meta.derivedFromOrgTemplateVersion === 'number'
+          ? resolved.metaRow.meta.derivedFromOrgTemplateVersion
+          : resolveTemplateDisplayVersion(canonicalSnapshotRow.meta);
+      const latestCanonicalOrgVersion = resolveTemplateDisplayVersion(canonicalRows.latestRow.meta);
+      const upgradeAvailable =
+        compareTemplateDisplayVersions(latestCanonicalOrgVersion, derivedFromOrgTemplateVersion) > 0;
+      const localChangesPresent = detectVariantLocalChanges(
+        resolved.versionRow,
+        canonicalSnapshotRow,
+      );
+
+      const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId);
+      if (params.organizationName?.trim()) {
+        organizationMeta.name = params.organizationName.trim();
+      }
+      if (params.organizationDescription !== undefined) {
+        organizationMeta.description = params.organizationDescription?.trim() || null;
+      }
+
+      const templateEnabled = resolved.enablement ? isActiveEnablement(resolved.enablement) : false;
+      const masterTemplateId =
+        typeof resolved.metaRow.meta.masterTemplateId === 'string'
+          ? resolved.metaRow.meta.masterTemplateId
+          : sourceOrgTemplateId;
+      const templateName = resolved.metaRow.meta.templateName?.trim() || orgTemplateId;
+      const copiedFromOrgTemplateId =
+        typeof resolved.metaRow.meta.copiedFromOrgTemplateId === 'string'
+          ? resolved.metaRow.meta.copiedFromOrgTemplateId
+          : null;
+
+      return {
+        organizationMeta,
+        templateId: masterTemplateId,
+        templateName,
+        orgTemplateId,
+        sourceOrgTemplateId,
+        copiedFromOrgTemplateId,
+        currentVariantVersion,
+        currentVariantVersionLabel: formatTemplateVersionLabel(currentVariantVersion),
+        currentVariantTemplateVersionId: resolved.versionRow.meta.templateVersionId ?? '',
+        derivedFromOrgTemplateVersion,
+        derivedFromOrgTemplateVersionLabel: formatTemplateVersionLabel(derivedFromOrgTemplateVersion),
+        derivedFromOrgTemplateVersionId:
+          firstNonEmptyString(
+            resolved.metaRow.meta.derivedFromOrgTemplateVersionId,
+            canonicalSnapshotRow.meta.templateVersionId,
+          ) ?? '',
+        latestCanonicalOrgVersion,
+        latestCanonicalOrgVersionLabel: formatTemplateVersionLabel(latestCanonicalOrgVersion),
+        latestCanonicalOrgTemplateVersionId: canonicalRows.latestRow.meta.templateVersionId ?? '',
+        upgradeAvailable,
+        upgradeStatus: upgradeAvailable ? 'AVAILABLE' : 'NONE',
+        localChangesPresent,
+        localChangesLabel: localChangesPresent ? 'Present' : 'None',
+        templateEnabled,
+        enablementId: resolved.enablement?.meta.enablementId ?? '',
+      };
+    } catch (e: unknown) {
       normalizeTemplateServiceError(e);
     }
   }
@@ -741,19 +863,6 @@ export class OrgDerivedService {
     );
 
     return map;
-  }
-
-  private async loadCanonicalMetaForVariant(
-    organizationId: string,
-    variantMeta: TemplateDdbRecord['meta'],
-  ): Promise<TemplateDdbRecord['meta'] | undefined> {
-    const sourceId =
-      typeof variantMeta.derivedFromOrgTemplateId === 'string'
-        ? variantMeta.derivedFromOrgTemplateId.trim()
-        : '';
-    if (!sourceId) return undefined;
-    const row = await this.orgRepo.getOrgMeta(organizationId, sourceId);
-    return row?.meta;
   }
 
   private async loadCanonicalMetaMap(

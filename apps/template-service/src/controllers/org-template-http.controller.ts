@@ -32,18 +32,21 @@ export function getOrgTemplateHttpController(): OrgTemplateHttpController {
 export class OrgTemplateHttpController {
   private readonly svc = getOrgTemplateService();
 
-  async handleCloneToOrg(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate })
-      .validatedCloneOrgTemplate;
+  private requireValidated<T>(value: T | undefined): T {
+    if (value) return value;
+    throw new BaseError(
+      'Request was not validated before controller',
+      500,
+      'INTERNAL_ERROR',
+      [{ message: 'Request was not validated before controller' }],
+    );
+  }
 
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+  async handleCloneToOrg(req: LambdaRequest) {
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate })
+        .validatedCloneOrgTemplate,
+    );
 
     try {
       const result = await this.svc.cloneTemplateVersion({
@@ -79,17 +82,10 @@ export class OrgTemplateHttpController {
   }
 
   async handleSetOrgTemplateEnable(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedSetOrgTemplateEnable?: ValidatedSetOrgTemplateEnable })
-      .validatedSetOrgTemplateEnable;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedSetOrgTemplateEnable?: ValidatedSetOrgTemplateEnable })
+        .validatedSetOrgTemplateEnable,
+    );
 
     try {
       return await this.svc.setOrgTemplateEnablement({
@@ -118,22 +114,16 @@ export class OrgTemplateHttpController {
   }
 
   async handleGetOrgVersionStatus(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus })
-      .validatedGetOrgVersionStatus;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedGetOrgVersionStatus?: ValidatedGetOrgVersionStatus })
+        .validatedGetOrgVersionStatus,
+    );
 
     try {
       return await this.svc.getOrgVersionStatus({
         organizationId: v.organizationId,
         masterTemplateId: v.masterTemplateId,
+        orgTemplateId: v.orgTemplateId,
         organizationName: v.query.organizationName,
         organizationDescription: v.query.organizationDescription,
       });
@@ -146,17 +136,10 @@ export class OrgTemplateHttpController {
   }
 
   async handleGetOrgTemplateRules(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
-      .validatedGetOrgTemplateRules;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedGetOrgTemplateRules?: ValidatedGetOrgTemplateRules })
+        .validatedGetOrgTemplateRules,
+    );
 
     try {
       return await this.svc.getOrgTemplateRules({
@@ -172,18 +155,11 @@ export class OrgTemplateHttpController {
   }
 
   async handleUpdateOrgTemplateRules(req: LambdaRequest) {
-    const v = (
-      req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules }
-    ).validatedUpdateOrgTemplateRules;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (
+        req as LambdaRequest & { validatedUpdateOrgTemplateRules?: ValidatedUpdateOrgTemplateRules }
+      ).validatedUpdateOrgTemplateRules,
+    );
 
     try {
       return await this.svc.updateOrgTemplateRules({
@@ -202,16 +178,9 @@ export class OrgTemplateHttpController {
   }
 
   async handleListOrg(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg,
+    );
 
     try {
       if (resolveTemplateLevelFromQuery(req) === 'ORG_DERIVED') {
@@ -271,17 +240,10 @@ export class OrgTemplateHttpController {
   }
 
   async handleCreateOrgDerived(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedCreateOrgDerived?: ValidatedCreateOrgDerived })
-      .validatedCreateOrgDerived;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedCreateOrgDerived?: ValidatedCreateOrgDerived })
+        .validatedCreateOrgDerived,
+    );
 
     try {
       return await this.svc.createOrgDerived({
@@ -308,17 +270,10 @@ export class OrgTemplateHttpController {
   }
 
   async handleUpdateOrgDerived(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedUpdateOrgDerived?: ValidatedUpdateOrgDerived })
-      .validatedUpdateOrgDerived;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedUpdateOrgDerived?: ValidatedUpdateOrgDerived })
+        .validatedUpdateOrgDerived,
+    );
 
     try {
       return await this.svc.updateOrgDerived({
@@ -340,17 +295,10 @@ export class OrgTemplateHttpController {
   }
 
   async handleAdoptOrgDerived(req: LambdaRequest) {
-    const v = (req as LambdaRequest & { validatedAdoptOrgDerived?: ValidatedAdoptOrgDerived })
-      .validatedAdoptOrgDerived;
-
-    if (!v) {
-      throw new BaseError(
-        'Request was not validated before controller',
-        500,
-        'INTERNAL_ERROR',
-        [{ message: 'Request was not validated before controller' }],
-      );
-    }
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedAdoptOrgDerived?: ValidatedAdoptOrgDerived })
+        .validatedAdoptOrgDerived,
+    );
 
     try {
       return await this.svc.adoptOrgDerived({

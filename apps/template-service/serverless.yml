@@ -25,9 +25,6 @@ provider:
 
   logRetentionInDays: ${self:custom.logRetentionByStage.${self:provider.stage}, '14'}
 
-  logs:
-    restApi: ${file(../../infra/serverless/config/rest-api-logs.yml)}
-
   environment: ${file(./infra/environments/environment.yml)}
 
   tags:

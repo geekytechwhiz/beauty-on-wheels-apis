@@ -1,0 +1,5 @@
+default: Default response
+"400": Bad request
+"401": Unauthorized
+"403": Forbidden
+"500": Server error

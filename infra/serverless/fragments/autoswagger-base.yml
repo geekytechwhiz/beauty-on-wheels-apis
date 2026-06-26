@@ -1,0 +1,18 @@
+title: ${self:custom.apiTitle}
+apiType: http
+basePath: /${self:provider.stage}
+schemes:
+  - https
+  - http
+host: ${self:custom.apiHost, ''}
+generateSwaggerOnDeploy: true
+swaggerFiles:
+  - swagger.json
+useStage: true
+swaggerPath: swagger
+# CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
+excludeStages:
+  - production
+  - dev
+  - stg
+  - prd

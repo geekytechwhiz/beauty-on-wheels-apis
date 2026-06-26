@@ -1,0 +1,26 @@
+bundle: true
+minify: false
+sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+target: node22
+platform: node
+format: cjs
+tsconfig: ../../tsconfig.base.json
+external:
+  - aws-sdk
+# keepNames off in CI stages — lowers esbuild peak memory on SMALL CodeBuild (~3.6 GiB).
+keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
+# Avoid esbuild context reuse across many functions — prevents memory growth/OOM on SMALL CodeBuild.
+skipRebuild: true
+disposeContext: true
+# Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
+# service instances exhaust the CodeBuild container and crash with "The service was stopped".
+concurrency: 1
+zipConcurrency: 1
+plugins: esbuild-plugins.js
+resolveExtensions:
+  - '.ts'
+  - '.tsx'
+  - '.js'
+  - '.jsx'
+  - '.mjs'
+  - '.json'

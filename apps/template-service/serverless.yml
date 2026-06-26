@@ -14,11 +14,10 @@ provider:
   stage: ${opt:stage, 'dev'}
   versionFunctions: false
   defaults:
-    
     http:
-      cors: ${self:custom.common.httpApiCors}
-      authorizer: ${self:custom.common.httpApiAuthorizer}
-      responses: ${self:custom.common.httpApiResponsesSecured}
+      cors: ${self:custom.httpApiCors}
+      authorizer: ${self:custom.httpApiAuthorizer}
+      responses: ${self:custom.httpApiResponsesSecured}
   
 
   deploymentBucket:
@@ -48,6 +47,9 @@ provider:
 
  
 custom:
+  bundle: ${file(./infra/config/infra-custom.yml)}
+  apiTitle: Template Service API
+
   resourceRegistry:
     enabled: true
     platformOwner: template-service
@@ -59,9 +61,16 @@ custom:
       - AWS::Events::EventBus
       - AWS::SQS::Queue
       - AWS::SNS::Topic
-  common: ${file(../../infra/serverless/custom.yml)}
-  
-  
+
+  sourcemapsByStage: ${file(../../infra/serverless/fragments/sourcemaps-by-stage.yml)}
+  keepNamesByStage: ${file(../../infra/serverless/fragments/keep-names-by-stage.yml)}
+  httpApiCors: ${file(../../infra/serverless/fragments/http-api-cors.yml)}
+  httpApiAuthorizer: ${file(../../infra/serverless/fragments/http-api-authorizer.yml)}
+  httpApiResponsesSecured: ${file(../../infra/serverless/fragments/http-api-responses-secured.yml)}
+  esbuild: ${file(../../infra/serverless/fragments/esbuild.yml)}
+  autoswagger: ${file(../../infra/serverless/fragments/autoswagger-base.yml)}
+  serverless-offline: ${file(../../infra/serverless/fragments/serverless-offline.yml)}
+
 
 functions:
   health:

@@ -2,5 +2,4 @@
 - serverless-dotenv-plugin
 - serverless-plugin-warmup
 - serverless-auto-swagger
-  
-- '@myvitalrx/serverless-ssm-registry'
+- '@myvitalrx/mvrx-resource-registry'

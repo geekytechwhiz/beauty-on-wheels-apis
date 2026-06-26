@@ -1,0 +1,12 @@
+origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+headers:
+  - Content-Type
+  - X-Amz-Date
+  - Authorization
+  - X-Api-Key
+  - X-Correlation-Id
+  - X-Request-Id
+  - X-Requested-With
+  - Sec-Ch-Ua
+  - Sec-Ch-Ua-Mobile
+  - Sec-Ch-Ua-Platform

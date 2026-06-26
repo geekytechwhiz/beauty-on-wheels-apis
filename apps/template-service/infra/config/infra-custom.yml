@@ -10,7 +10,7 @@ templateEventsDlqName: template-events-dlq-${self:provider.stage}
 corsOrigin:
   dev: '*'
   stg: '*'
-  prd: ${ssm:/firminiq/prd/platform/cors-allowed-origin, '*'}
+  prd:  "*" #${ssm:/firminiq/prd/platform/cors-allowed-origin, '*'}
 
 logLevel:
   dev: debug

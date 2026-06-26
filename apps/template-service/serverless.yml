@@ -13,9 +13,9 @@ plugins:
 
 provider:
   name: aws
-  runtime: ${param:lambdaRuntime, 'nodejs22.x'}
+  runtime: ${ssm:/dev/mvrx/NODEJS_RUNTIME}
   versionFunctions: false
-  region: us-east-1
+  region: ${ssm:/dev/mvrx/DEFAULT_AWS_REGION}
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
     name: ${self:provider.stage}-mvx-template-service-bucket

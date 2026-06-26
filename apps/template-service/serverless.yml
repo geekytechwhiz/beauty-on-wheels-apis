@@ -57,6 +57,7 @@ custom:
         value: nodejs22.x
       DEFAULT_AWS_REGION:
         value: ${self:provider.region}
+      
     include:
       - AWS::DynamoDB::Table
       - AWS::Events::EventBus

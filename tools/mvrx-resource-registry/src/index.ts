@@ -29,7 +29,7 @@ class ResourceRegistryPlugin {
       defaults: registry.defaults ?? {},
       tags: registry.tags ?? {},
       parameters: registry.parameters ?? {},
-      platformOwner: registry.platformOwner ?? "",
+      platformOwner:  "mvrx",
       serviceName: service.service,
       stage: this.options.stage || service.provider?.stage || 'dev',
     };
@@ -44,8 +44,18 @@ class ResourceRegistryPlugin {
     }
     const included = new Set(config.include);
     const excluded = new Set(config.exclude);
+    const parameters = config.parameters;
+    Object.entries(parameters).forEach(
+      ([key, definition]: [string, any]) => {
+        if (!definition || definition.value === undefined) {
+          throw new Error(
+            `resourceRegistry.parameters.${key}.value is required`,
+          );
+        }
+      },
+    );
 
-    const resources = this.serverless.service.resources?.Resources || {};
+    const resources = {...this.serverless.service.resources?.Resources || {}, ...parameters};
 
     const generated: Record<string, CFResource> = {};
 
@@ -123,34 +133,21 @@ class ResourceRegistryPlugin {
               config.tags,
             );
             break;
+          default:
+            this.addParameter(
+              generated,
+              `${logicalId}Parameter`,
+              `/${config.stage}/${config.platformOwner}/${logicalId}/name`,
+              { Ref: logicalId },
+              config.tags,
+            );
+            break;
         }
       },
     );
-    if (Object.keys(config.parameters).length > 0 && !config.platformOwner) {
-      throw new Error('Platform parameters require platformOwner=true');
-    }
-    Object.entries(config.parameters).forEach(
-      ([key, definition]: [string, any]) => {
-        if (!definition || definition.value === undefined) {
-          throw new Error(
-            `resourceRegistry.parameters.${key}.value is required`,
-          );
-        }
-      },
-    );
-    Object.entries(config.parameters).forEach(
-      ([key, definition]: [string, any]) => {
-       generated[`Platform${key}Parameter`] = {
-         Type: 'AWS::SSM::Parameter',
-         Properties: {
-           Name: `/${config.stage}/platform/${key}`,
-           Type: 'String',
-           Value: definition.value,
-           Tags: config.tags,
-         },
-       };
-      },
-    );
+   
+    
+     
     const hasApiGateway = Object.values(
       this.serverless.service.functions || {},
     ).some(

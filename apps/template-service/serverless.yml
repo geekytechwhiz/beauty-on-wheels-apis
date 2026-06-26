@@ -8,6 +8,7 @@ frameworkVersion: '3.x'
 plugins:
   - serverless-esbuild
   - serverless-auto-swagger
+  - '@myvitalrx/mvrx-resource-registry'
   # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
@@ -48,6 +49,21 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  resourceRegistry:
+    enabled: true
+    platformOwner: platform-config
+    parameters:
+      NODEJS_RUNTIME:
+        value: nodejs22.x
+      DEFAULT_AWS_REGION:
+        value: ${self:provider.region}
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic
+     
+
   bundle: ${file(./infra/config/infra-custom.yml)} 
   cors: &httpApiCors
     origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}

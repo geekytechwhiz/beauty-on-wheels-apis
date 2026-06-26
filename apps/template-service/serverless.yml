@@ -58,6 +58,8 @@ custom:
     parameters:
       TEMPLATE_TABLE:
         value: ${self:custom.bundle.templateDynamoTableName}
+      LAMBDA_LOG_RETENTION_DAYS:
+        value: 5
     include:
       - AWS::DynamoDB::Table
       - AWS::Events::EventBus

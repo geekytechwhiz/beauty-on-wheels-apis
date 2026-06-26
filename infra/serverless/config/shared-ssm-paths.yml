@@ -1,19 +1,11 @@
-# SSM parameter paths per stage (account layout: dev|stg use /{stage}/*, prd uses /firminiq/prd/*).
+# SSM parameter paths per stage (account layout: dev|stg use /{stage}/*, prd uses //prd/*).
 dev:
   userServiceBaseUrl: /dev/user-service/USER_SERVICE_URL
   organizationServiceBaseUrl: /dev/organization-service/ORGANIZATION_SERVICE_URL
-  metadataRegistryServiceBaseUrl: /dev/metadata-registry-service/METADATA_REGISTRY_SERVICE_URL
-  corsAllowedOrigin: /dev/platform/cors-allowed-origin
-  lambdaLogRetentionDays: /dev/platform/lambda-log-retention-days
+  
 stg:
-  userServiceBaseUrl: /stg/USER_SERVICE_URL
-  organizationServiceBaseUrl: /stg/ORG_SERVICE_URL
-  metadataRegistryServiceBaseUrl: /stg/METADATA_REGISTRY_SERVICE_URL
-  corsAllowedOrigin: /stg/platform/cors-allowed-origin
-  lambdaLogRetentionDays: /stg/platform/lambda-log-retention-days
+ 
+  
 prd:
-  userServiceBaseUrl: /firminiq/prd/USER_SERVICE_URL
-  organizationServiceBaseUrl: /firminiq/prd/ORGANIZATION_SERVICE_URL
-  metadataRegistryServiceBaseUrl: /firminiq/prd/METADATA_REGISTRY_SERVICE_URL
-  corsAllowedOrigin: /firminiq/prd/platform/cors-allowed-origin
-  lambdaLogRetentionDays: /firminiq/prd/platform/lambda-log-retention-days
+  
+  

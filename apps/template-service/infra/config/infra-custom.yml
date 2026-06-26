@@ -4,6 +4,7 @@ templateDynamoTableName: template-service-${self:provider.stage}
 templateConfigBucketName: ${self:provider.stage}-mvx-template-service-bucket
 templateConfigS3Prefix: template-configs
 eventBusName: template-service-bus-${self:provider.stage}
+USER_SSM_PATH: ${ssm:/dev/user-service/USER_SERVICE_URL}
 templateEventsDlqName: template-events-dlq-${self:provider.stage}
 corsOrigin:
   dev: '*'

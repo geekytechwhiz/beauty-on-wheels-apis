@@ -10,8 +10,8 @@ env:
   # settings below are tuned to fit SMALL. To get more memory, change the project to
   # BUILD_GENERAL1_MEDIUM and you can then raise NODE_OPTIONS to ~6144.
   shell: bash
-  secrets-manager:
-    NPM_TOKEN: dev-github-packages-npm-token
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-template-service-bucket'

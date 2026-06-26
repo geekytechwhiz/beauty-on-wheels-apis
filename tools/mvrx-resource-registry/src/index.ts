@@ -1,5 +1,19 @@
 type CFResource = Record<string, any>;
 
+type ParameterDefinition = {
+  value: string | Record<string, unknown>;
+};
+
+type ResourceRegistryConfig = {
+  enabled?: boolean;
+  include?: string[];
+  exclude?: string[];
+  tags?: Record<string, string>;
+  platformOwner?: string;
+  parameters?: Record<string, ParameterDefinition>;
+  defaults?: Record<string, unknown>;
+};
+
 class ResourceRegistryPlugin {
   serverless: any;
   options: any;
@@ -18,9 +32,14 @@ class ResourceRegistryPlugin {
     this.serverless.cli.log(`[resource-registry] ${message}`);
   }
 
+  private sanitizeLogicalId(key: string): string {
+    return key.replace(/[^a-zA-Z0-9]/g, '');
+  }
+
   private getConfig() {
     const service = this.serverless.service;
-    const registry = service.custom?.resourceRegistry ?? {};
+    const registry: ResourceRegistryConfig =
+      service.custom?.resourceRegistry ?? {};
 
     return {
       enabled: registry.enabled ?? true,
@@ -29,7 +48,7 @@ class ResourceRegistryPlugin {
       defaults: registry.defaults ?? {},
       tags: registry.tags ?? {},
       parameters: registry.parameters ?? {},
-      platformOwner:  "mvrx",
+      platformOwner: registry.platformOwner ?? 'mvrx',
       serviceName: service.service,
       stage: this.options.stage || service.provider?.stage || 'dev',
     };
@@ -44,18 +63,8 @@ class ResourceRegistryPlugin {
     }
     const included = new Set(config.include);
     const excluded = new Set(config.exclude);
-    const parameters = config.parameters;
-    Object.entries(parameters).forEach(
-      ([key, definition]: [string, any]) => {
-        if (!definition || definition.value === undefined) {
-          throw new Error(
-            `resourceRegistry.parameters.${key}.value is required`,
-          );
-        }
-      },
-    );
 
-    const resources = {...this.serverless.service.resources?.Resources || {}, ...parameters};
+    const resources = this.serverless.service.resources?.Resources || {};
 
     const generated: Record<string, CFResource> = {};
 
@@ -133,21 +142,32 @@ class ResourceRegistryPlugin {
               config.tags,
             );
             break;
-          default:
-            this.addParameter(
-              generated,
-              `${logicalId}Parameter`,
-              `/${config.stage}/${config.platformOwner}/${logicalId}/name`,
-              { Ref: logicalId },
-              config.tags,
-            );
-            break;
         }
       },
     );
-   
-    
-     
+
+    Object.entries(config.parameters).forEach(
+      ([key, definition]: [string, ParameterDefinition]) => {
+        if (!definition || definition.value === undefined) {
+          throw new Error(
+            `resourceRegistry.parameters.${key}.value is required`,
+          );
+        }
+      },
+    );
+
+    Object.entries(config.parameters).forEach(
+      ([key, definition]: [string, ParameterDefinition]) => {
+        this.addParameter(
+          generated,
+          `Custom${this.sanitizeLogicalId(key)}Parameter`,
+          `/${config.stage}/${config.platformOwner}/${key}`,
+          definition.value,
+          config.tags,
+        );
+      },
+    );
+
     const hasApiGateway = Object.values(
       this.serverless.service.functions || {},
     ).some(

@@ -9,9 +9,9 @@ package: ${file(../../infra/serverless/package.yml)}
 
 provider:
   name: aws
-  runtime: ${ssm:/dev/mvrx/NODEJS_RUNTIME}
+  runtime: nodejs22.x
   versionFunctions: false
-  region: ${ssm:/dev/mvrx/DEFAULT_AWS_REGION}
+  region: us-east-1
   stage: ${opt:stage, 'dev'}
   deploymentBucket:
     name: ${self:provider.stage}-mvx-template-service-bucket

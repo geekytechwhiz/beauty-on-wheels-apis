@@ -1,4 +1,6 @@
 export * from './lib/task-core.js';
+export * from './lib/constants/task-key.constants';
+export * from './lib/builder/task-id.builder';
 export * from './lib/builder/task-entity.builder';
 export * from './lib/builder/task-key.builder';
 export * from './lib/constants/task.constants';
@@ -20,6 +22,7 @@ export * from './lib/repositories/task-repository';
 export * from './lib/utils/assigned-to-type.validation';
 export * from './lib/utils/monitoring-defaults';
 export * from './lib/utils/monitoring-idempotency';
+export * from './lib/utils/omit-undefined';
 export * from './lib/utils/organization-ids-match';
 export * from './lib/utils/surface-section';
 export * from './lib/utils/task-time';

@@ -10,6 +10,7 @@ import {
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
 import { READINESS_STATUS, type ReadinessStatus, type WorkflowStage } from '../models/types/task-domain.types';
+import { omitUndefined } from './omit-undefined';
 
 export type AggregateTaskStatusSummaryContext = {
   orgId: string;
@@ -87,13 +88,13 @@ export function aggregateTaskStatusSummary(
       incompleteRequiredTasks.length === 0 ? READINESS_STATUS.READY : READINESS_STATUS.NOT_READY;
   }
 
-  return {
+  return omitUndefined({
     orgId: context.orgId,
     patientId: context.patientId,
     carePlanInstanceId: context.carePlanInstanceId,
-    ...(context.workflowStage ? { workflowStage: context.workflowStage } : {}),
+    workflowStage: context.workflowStage,
     readinessStatus,
     counts,
-    ...(incompleteRequiredTasks.length > 0 ? { incompleteRequiredTasks } : {}),
-  };
+    incompleteRequiredTasks: incompleteRequiredTasks.length > 0 ? incompleteRequiredTasks : undefined,
+  }) as TaskStatusSummaryResult;
 }

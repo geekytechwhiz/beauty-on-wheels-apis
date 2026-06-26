@@ -1,4 +1,4 @@
-import { REMINDER_STATUS, TaskService, isInQuietHours } from '@api-hub/task-core';
+import { REMINDER_STATUS, TaskService, isInQuietHours, nowEpochMs } from '@api-hub/task-core';
 
 import { getNotificationGateway } from '../../reminder/notification.gateway';
 import { getQuietHoursProvider } from '../../reminder/quiet-hours.provider';
@@ -44,7 +44,7 @@ export async function processReminderCallback(
       patientId: payload.patientId,
       orgId: payload.orgId,
     });
-    if (quietWindow && isInQuietHours(Date.now(), quietWindow)) {
+    if (quietWindow && isInQuietHours(nowEpochMs(), quietWindow)) {
       await taskService.recordReminderOutcome({
         ...outcomeBase,
         outcome: REMINDER_STATUS.SUPPRESSED,

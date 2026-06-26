@@ -7,6 +7,8 @@ import {
   UpdateScheduleCommand,
 } from '@aws-sdk/client-scheduler';
 
+import { nowEpochMs } from '@api-hub/task-core';
+
 import { EventBridgeSchedulerGateway } from './reminder-scheduler.gateway';
 import type { ReminderSchedulerGatewayConfig } from './reminder-scheduler.gateway';
 
@@ -18,7 +20,7 @@ const config: ReminderSchedulerGatewayConfig = {
 };
 
 function futureMs(minutesAhead = 10): number {
-  return Date.now() + minutesAhead * 60_000;
+  return nowEpochMs() + minutesAhead * 60_000;
 }
 
 describe('EventBridgeSchedulerGateway', () => {
@@ -98,7 +100,7 @@ describe('EventBridgeSchedulerGateway', () => {
       runtimeTaskInstanceId: 'task-1',
       patientId: 'pat-1',
       orgId: 'org-1',
-      scheduledAt: Date.now() + 1_000,
+      scheduledAt: nowEpochMs() + 1_000,
       channel: 'push',
     });
 

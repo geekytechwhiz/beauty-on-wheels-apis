@@ -1,5 +1,6 @@
 import type { ReminderSettings } from '../models/types/task-domain.types';
 import { REMINDER_SCHEDULE_ANCHOR } from '../models/types/task-domain.types';
+import { nowEpochMs } from './task-time';
 
 /** Patient-specific quiet hours window. Resolved by the calling service (not stored here). */
 export interface PatientQuietWindow {
@@ -130,7 +131,7 @@ export function resolveReminderScheduleAt(
   }
 
   // Clamp: must not be in the past (allow at least 60s from now)
-  const effectiveNow = (nowMs != null && Number.isFinite(nowMs) ? nowMs : Date.now()) + 60_000;
+  const effectiveNow = (nowMs != null && Number.isFinite(nowMs) ? nowMs : nowEpochMs()) + 60_000;
   scheduledAt = Math.max(scheduledAt, effectiveNow);
 
   // Clamp to due window boundaries

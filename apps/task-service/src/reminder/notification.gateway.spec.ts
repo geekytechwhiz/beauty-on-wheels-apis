@@ -1,3 +1,5 @@
+import { nowEpochMs } from '@api-hub/task-core';
+
 import {
   getNotificationGateway,
   LogNotificationGateway,
@@ -17,7 +19,7 @@ describe('notification.gateway', () => {
         patientId: 'pat-1',
         orgId: 'org-1',
         channel: 'push',
-        scheduledAt: Date.now() + 60_000,
+        scheduledAt: nowEpochMs() + 60_000,
         correlationId: 'corr-1',
       }),
     ).resolves.toBeUndefined();

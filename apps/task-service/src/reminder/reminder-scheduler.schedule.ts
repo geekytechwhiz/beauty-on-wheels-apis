@@ -1,3 +1,4 @@
+import { nowEpochMs } from '@api-hub/task-core';
 import type { ProcessReminderCallbackPayload } from './process-reminder.contract';
 import type {
   CancelReminderJobRequest,
@@ -22,7 +23,7 @@ export function toSchedulerAtExpression(epochMs: number): string {
   return `at(${new Date(epochMs).toISOString().slice(0, 19)})`;
 }
 
-export function isSchedulerEligibleFireTime(epochMs: number, nowMs = Date.now()): boolean {
+export function isSchedulerEligibleFireTime(epochMs: number, nowMs = nowEpochMs()): boolean {
   return epochMs >= nowMs + MIN_FUTURE_SCHEDULE_MS;
 }
 

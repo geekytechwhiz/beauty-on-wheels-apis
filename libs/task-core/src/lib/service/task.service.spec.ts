@@ -6,10 +6,8 @@ import type {
   CreateCarePlanTaskRequest,
   GenerateCarePlanTasksRequest,
 } from '../models/api/generate-care-plan.request';
-import {
-  buildCarePlanTaskIdempotencyKey,
-  buildCarePlanTaskKeys,
-} from '../utils/monitoring-idempotency';
+import { buildCarePlanTaskIdempotencyKey, buildCarePlanTaskKeys } from '../utils/monitoring-idempotency';
+import { nowEpochMs } from '../utils/task-time';
 import { RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskLookupDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { TaskRepository } from '../repositories/task-repository';
@@ -2213,8 +2211,8 @@ describe('TaskService additional branch coverage', () => {
       ...sampleRecord(),
       currentState: 'open' as const,
       displayAsChecklistItem: true,
-      dueWindowStart: Date.now() + 3_600_000,
-      dueWindowEnd: Date.now() + 7_200_000,
+      dueWindowStart: nowEpochMs() + 3_600_000,
+      dueWindowEnd: nowEpochMs() + 7_200_000,
     };
     const repo = {
       queryActionCenterTasksPage: jest.fn().mockResolvedValue({
@@ -2326,8 +2324,8 @@ describe('TaskService additional branch coverage', () => {
       ...sampleRecord(),
       currentState: 'open' as const,
       displayAsChecklistItem: true,
-      dueWindowStart: Date.now() + 3_600_000,
-      dueWindowEnd: Date.now() + 7_200_000,
+      dueWindowStart: nowEpochMs() + 3_600_000,
+      dueWindowEnd: nowEpochMs() + 7_200_000,
     };
     const repo = {
       queryActionCenterTasksPage: jest.fn().mockResolvedValue({

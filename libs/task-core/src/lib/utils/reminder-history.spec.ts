@@ -4,7 +4,6 @@ import {
   appendReminderOutcomeHistoryEntry,
   appendScheduledReminderHistoryEntry,
   buildReminderHistoryEntry,
-  buildReminderRecordId,
   hasMatchingOpenScheduledEntry,
 } from './reminder-history';
 
@@ -73,14 +72,6 @@ describe('appendCancelledReminderHistoryEntries', () => {
 
     expect(result).toEqual(history);
     expect(result).not.toBe(history);
-  });
-});
-
-describe('buildReminderRecordId', () => {
-  it('builds stable id from task, time, and channel', () => {
-    expect(buildReminderRecordId('task-1', 1_700_000_360_000, 'push')).toBe(
-      'rem-task-1-1700000360000-push',
-    );
   });
 });
 

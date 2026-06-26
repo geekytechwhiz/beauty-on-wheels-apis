@@ -2,8 +2,9 @@ import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence
 import { normalizeAssignedToTypeForWire, type SurfaceSection } from '../models/types/task-domain.types';
 import { normalizeCurrentStateForWire } from '../models/types/runtime-task-state.type';
 import { deriveActionCenterSurfaceSection } from '../utils/surface-section';
+import { nowEpochMs } from '../utils/task-time';
 
-export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
+export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = nowEpochMs()) {
   const {
     pk: _pk,
     sk: _sk,
@@ -29,7 +30,7 @@ export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
 export function toActionCenterTaskCard(
   r: TaskMetaDdbRecord,
   timeZone: string,
-  nowMs = Date.now(),
+  nowMs = nowEpochMs(),
   surfaceSection?: SurfaceSection,
 ) {
   const card = toRuntimeTaskCard(r, nowMs);

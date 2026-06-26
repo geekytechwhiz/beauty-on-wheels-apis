@@ -5,6 +5,7 @@ import {
   resolveReminderScheduleAt,
   type PatientQuietWindow,
 } from './reminder-schedule';
+import { nowEpochMs } from './task-time';
 
 // Fixed epoch ms: 2026-06-22 14:00:00 UTC
 const BASE_MS = 1750600800000;
@@ -288,7 +289,7 @@ describe('resolveReminderScheduleAt', () => {
       const pastDue = new Date('2020-01-01T00:00:00.000Z').getTime();
       const result = resolveReminderScheduleAt(pastDue, pastDue, undefined, null);
       // scheduledAt should be at least nowMs + 60s (real clock)
-      expect(result?.scheduledAt).toBeGreaterThan(Date.now());
+      expect(result?.scheduledAt).toBeGreaterThan(nowEpochMs());
     });
   });
 });

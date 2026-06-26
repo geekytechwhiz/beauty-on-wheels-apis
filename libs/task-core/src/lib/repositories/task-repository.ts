@@ -2,6 +2,7 @@ import { BaseRepository } from '@api-hub/utils';
 import { isConditionalWriteConflictAtIndex } from '@api-hub/utils';
 
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
+import { TaskIdBuilder } from '../builder/task-id.builder';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import {
   CARE_PLAN_LSI_INDEX,
@@ -11,6 +12,7 @@ import {
   STAFF_TASKS_GSI_INDEX,
   TASK_LOOKUP_SK,
 } from '../constants/task.constants';
+import { TASK_DDB_KEY_PREFIX } from '../constants/task-key.constants';
 import {
   RUNTIME_TASK_STATE,
   type RuntimeTaskState,
@@ -47,7 +49,6 @@ import {
   appendCancelledReminderHistoryEntries,
   appendReminderOutcomeHistoryEntry,
   appendScheduledReminderHistoryEntry,
-  buildReminderRecordId,
   findOpenScheduledReminderEntries,
   hasMatchingOpenScheduledEntry,
 } from '../utils/reminder-history';
@@ -55,10 +56,10 @@ import { organizationIdsMatch } from '../utils/organization-ids-match';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import {
   buildCarePlanTaskKeys,
-  buildDeterministicRuntimeTaskInstanceId,
   buildMonitoringIdempotencyKey,
 } from '../utils/monitoring-idempotency';
 import { assertTaskTable, isMetaConditionalFailure } from '../utils/task.utils';
+import { nowEpochMs } from '../utils/task-time';
 
 import type {
   CompleteLinkedSourceObjectRepoInput,
@@ -108,7 +109,7 @@ export class TaskRepository extends BaseRepository {
     runtimeTaskInstanceId: string;
   } {
     const idempotencyKey = buildMonitoringIdempotencyKey(input);
-    const runtimeTaskInstanceId = buildDeterministicRuntimeTaskInstanceId(idempotencyKey);
+    const runtimeTaskInstanceId = TaskIdBuilder.deterministicRuntimeTaskInstanceId(idempotencyKey);
     return { idempotencyKey, runtimeTaskInstanceId };
   }
 
@@ -160,7 +161,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'HIST#',
+        ':prefix': TASK_DDB_KEY_PREFIX.HIST,
       },
       ScanIndexForward: false,
     });
@@ -177,7 +178,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'HIST#',
+        ':prefix': TASK_DDB_KEY_PREFIX.HIST,
       },
       ScanIndexForward: false,
       Limit: pageSize,
@@ -217,7 +218,7 @@ export class TaskRepository extends BaseRepository {
       });
     }
 
-    expressionValues[':duePrefix'] = 'DUE#';
+    expressionValues[':duePrefix'] = TASK_DDB_KEY_PREFIX.DUE;
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
@@ -266,7 +267,7 @@ export class TaskRepository extends BaseRepository {
       });
     }
 
-    expressionValues[':duePrefix'] = 'DUE#';
+    expressionValues[':duePrefix'] = TASK_DDB_KEY_PREFIX.DUE;
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
@@ -319,7 +320,7 @@ export class TaskRepository extends BaseRepository {
 
     const expressionValues: Record<string, unknown> = {
       ':gsi1pk': gsi1pk,
-      ':duePrefix': 'DUE#',
+      ':duePrefix': TASK_DDB_KEY_PREFIX.DUE,
       ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
     };
 
@@ -363,7 +364,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'EVID#',
+        ':prefix': TASK_DDB_KEY_PREFIX.EVID,
       },
       ScanIndexForward: false,
     });
@@ -532,7 +533,7 @@ export class TaskRepository extends BaseRepository {
   async reassignStaffTask(input: ReassignStaffTaskRepoInput): Promise<ReassignStaffTaskRepoResult> {
     const table = assertTaskTable();
     const { meta, lookup, actorId, assignedToStaffId, assignedToStaffDisplayName, reason } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
       meta.orgId,
       ASSIGNED_TO_TYPE.ORG_STAFF,
@@ -631,7 +632,7 @@ export class TaskRepository extends BaseRepository {
       reason,
       evidencePayload,
     } = input;
-    const nowMs = input.nowMs ?? Date.now();
+    const nowMs = input.nowMs ?? nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const stateHistPut = TaskEntityBuilder.buildStateChangeHistRecord({
@@ -722,7 +723,7 @@ export class TaskRepository extends BaseRepository {
   ): Promise<UpdateReminderSettingsRepoResult> {
     const table = assertTaskTable();
     const { meta, actorId, reminderEnabled, reminderSettings, reason } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const settingsChangeHist = TaskEntityBuilder.buildReminderSettingsChangeHistRecord({
@@ -787,7 +788,7 @@ export class TaskRepository extends BaseRepository {
   async updateRuntimeTask(input: UpdateRuntimeTaskRepoInput): Promise<UpdateRuntimeTaskRepoResult> {
     const table = assertTaskTable();
     const { meta, lookup, actorId, reason, diff } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const expressionParts: string[] = [
@@ -882,7 +883,7 @@ export class TaskRepository extends BaseRepository {
         'entityType = :metaEntity AND completionSourceType = :completionSourceType AND completionSourceReferenceId = :completionSourceReferenceId',
       ExpressionAttributeValues: {
         ':pk': pk,
-        ':duePrefix': 'DUE#',
+        ':duePrefix': TASK_DDB_KEY_PREFIX.DUE,
         ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
         ':completionSourceType': input.completionSourceType,
         ':completionSourceReferenceId': input.completionSourceReferenceId,
@@ -1030,8 +1031,8 @@ export class TaskRepository extends BaseRepository {
       return { written: false };
     }
 
-    const nowMs = Date.now();
-    const reminderRecordId = buildReminderRecordId(
+    const nowMs = nowEpochMs();
+    const reminderRecordId = TaskIdBuilder.buildReminderRecordId(
       input.runtimeTaskInstanceId,
       input.scheduledAt,
       input.channel,
@@ -1099,7 +1100,7 @@ export class TaskRepository extends BaseRepository {
       return { written: false };
     }
 
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [];
 
     if (openScheduled.length > 0) {
@@ -1155,12 +1156,12 @@ export class TaskRepository extends BaseRepository {
     }
 
     const existingReminder = await this.getReminderCurrent(input.runtimeTaskInstanceId);
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const sentAt = input.outcome === REMINDER_STATUS.SENT ? nowMs : undefined;
 
     const reminderRecordId =
       existingReminder?.reminderRecordId ??
-      buildReminderRecordId(
+      TaskIdBuilder.buildReminderRecordId(
         input.runtimeTaskInstanceId,
         input.scheduledAt ?? existingReminder?.scheduledReminderAt ?? nowMs,
         input.channel ?? existingReminder?.reminderChannel ?? 'push',

@@ -1,7 +1,7 @@
 import { SURFACE_SECTION, type SurfaceSection } from '../models/types/task-domain.types';
 import type { RuntimeTaskState } from '../models/types/runtime-task-state.type';
 import { RUNTIME_TASK_STATE } from '../models/types/runtime-task-state.type';
-import { calendarDateKey, resolveDueWindowEndMs } from './task-time';
+import { calendarDateKey, resolveDueWindowEndMs, nowEpochMs } from './task-time';
 
 export type ActionCenterSurfaceFilter = SurfaceSection | 'all';
 
@@ -30,7 +30,7 @@ export type ActionCenterClassificationInput = {
 export function deriveActionCenterSurfaceSection(
   record: ActionCenterClassificationInput,
   timeZone: string,
-  nowMs = Date.now(),
+  nowMs = nowEpochMs(),
 ): SurfaceSection {
   if (HISTORY_STATES.includes(record.currentState)) {
     return SURFACE_SECTION.HISTORY;
@@ -105,7 +105,7 @@ export function deriveSurfaceSection(
     displayAsChecklistItem?: boolean;
   },
   timeZone = 'UTC',
-  nowMs = Date.now(),
+  nowMs = nowEpochMs(),
 ): SurfaceSection {
   return deriveActionCenterSurfaceSection(
     {

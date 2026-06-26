@@ -1,6 +1,8 @@
 import type { ReminderChannel, ReminderHistoryEntry } from '../models/types/task-domain.types';
 import { REMINDER_STATUS } from '../models/types/task-domain.types';
 
+import { omitUndefined } from './omit-undefined';
+
 export const REMINDER_HISTORY_MAX_LENGTH = 50;
 
 /** Creates a new append-only reminderHistory row (createdAt only — no updatedAt). */
@@ -12,16 +14,6 @@ export function buildReminderHistoryEntry(
     ...entry,
     createdAt: entry.createdAt ?? nowMs,
   };
-}
-
-/** Stable business id for one scheduled reminder attempt. */
-export function buildReminderRecordId(
-  runtimeTaskInstanceId: string,
-  scheduledAt: number,
-  channel: string,
-): string {
-  const sanitizedChannel = channel.replace(/[^0-9a-zA-Z-_.]/g, '-');
-  return `rem-${runtimeTaskInstanceId}-${scheduledAt}-${sanitizedChannel}`;
 }
 
 export function capReminderHistory(
@@ -139,23 +131,20 @@ export function appendReminderOutcomeHistoryEntry(
   nowMs: number,
   options?: { sentAt?: number; reason?: string },
 ): ReminderHistoryEntry[] {
-  const entry: Omit<ReminderHistoryEntry, 'createdAt'> = {
+  const entry = omitUndefined({
     reminderRecordId: base.reminderRecordId,
     reminderStatus: outcome,
-    ...(base.runtimeTaskInstanceId ? { runtimeTaskInstanceId: base.runtimeTaskInstanceId } : {}),
-    ...(base.scheduledReminderAt != null ? { scheduledReminderAt: base.scheduledReminderAt } : {}),
-    ...(base.reminderChannel ? { reminderChannel: base.reminderChannel } : {}),
-    ...(base.schedulerJobId ? { schedulerJobId: base.schedulerJobId } : {}),
-    ...(outcome === REMINDER_STATUS.SENT && options?.sentAt != null
-      ? { sentAt: options.sentAt }
-      : {}),
-    ...(outcome === REMINDER_STATUS.SUPPRESSED && options?.reason
-      ? { suppressedReason: options.reason }
-      : {}),
-    ...(outcome === REMINDER_STATUS.FAILED && options?.reason
-      ? { failureReason: options.reason }
-      : {}),
-  };
+    runtimeTaskInstanceId: base.runtimeTaskInstanceId,
+    scheduledReminderAt: base.scheduledReminderAt ?? undefined,
+    reminderChannel: base.reminderChannel ?? undefined,
+    schedulerJobId: base.schedulerJobId,
+    sentAt:
+      outcome === REMINDER_STATUS.SENT && options?.sentAt != null ? options.sentAt : undefined,
+    suppressedReason:
+      outcome === REMINDER_STATUS.SUPPRESSED && options?.reason ? options.reason : undefined,
+    failureReason:
+      outcome === REMINDER_STATUS.FAILED && options?.reason ? options.reason : undefined,
+  }) as Omit<ReminderHistoryEntry, 'createdAt'>;
 
   return capReminderHistory([
     ...((reminderHistory ?? []) as ReminderHistoryEntry[]),

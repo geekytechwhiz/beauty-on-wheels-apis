@@ -33,10 +33,6 @@ import type {
   UpdateTaskStateRequest,
   UpdateTaskStateResult,
 } from '../models/api/update-task-state.request';
-import type {
-  GetTaskStatusSummaryInput,
-  TaskStatusSummaryResult,
-} from '../models/api/get-task-status-summary.types';
 import { ASSIGNED_TO_TYPE, isPatientAssignedToType } from '../models/types/task-domain.types';
 import type {
   CompletionEvidenceDdbRecord,
@@ -73,7 +69,7 @@ import {
   isCarePlanChecklistEligible,
   matchesActionCenterFilter,
 } from '../utils/surface-section';
-import { DEFAULT_ACTION_CENTER_TIMEZONE } from '../utils/task-time';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from '../utils/task-time';
 import { aggregateTaskStatusSummary } from '../utils/task-status-summary';
 import {
   assertRequiredForStageCompletionAllowed,
@@ -599,7 +595,7 @@ export class TaskService extends BaseTaskService {
         }
         const sectionOnCard =
           filter === SURFACE_SECTION.CARE_PLAN_CHECKLIST ? SURFACE_SECTION.CARE_PLAN_CHECKLIST : primary;
-        collected.push(toActionCenterTaskCard(record, timeZone, Date.now(), sectionOnCard));
+        collected.push(toActionCenterTaskCard(record, timeZone, nowEpochMs(), sectionOnCard));
       }
     } while (
       collected.length < input.pageSize &&
@@ -676,10 +672,10 @@ export class TaskService extends BaseTaskService {
   ): void {
     const classification = classificationInputFromMeta(record);
     const primary = deriveActionCenterSurfaceSection(classification, timeZone);
-    sections[primary].push(toActionCenterTaskCard(record, timeZone, Date.now(), primary));
+    sections[primary].push(toActionCenterTaskCard(record, timeZone, nowEpochMs(), primary));
     if (isCarePlanChecklistEligible(classification, primary)) {
       sections[SURFACE_SECTION.CARE_PLAN_CHECKLIST].push(
-        toActionCenterTaskCard(record, timeZone, Date.now(), SURFACE_SECTION.CARE_PLAN_CHECKLIST),
+        toActionCenterTaskCard(record, timeZone, nowEpochMs(), SURFACE_SECTION.CARE_PLAN_CHECKLIST),
       );
     }
   }

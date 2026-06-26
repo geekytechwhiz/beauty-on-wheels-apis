@@ -1,16 +1,17 @@
 import { REMINDER_CURRENT_SK } from '../constants/task.constants';
+import { TASK_DDB_KEY_PREFIX } from '../constants/task-key.constants';
 import { ASSIGNED_TO_TYPE, type AssignedToType } from '../models/types/task-domain.types';
 import { padEpochMs13, dueWindowStartOrMaxMs } from '../utils/task-time';
 
 export class TaskKeyBuilder {
   static toOrgId(orgId: string): string {
     const id = orgId.trim();
-    return id.startsWith('ORG#') ? id : `ORG#${id}`;
+    return id.startsWith(TASK_DDB_KEY_PREFIX.ORG) ? id : `${TASK_DDB_KEY_PREFIX.ORG}${id}`;
   }
 
   static toPatientId(patientId: string): string {
     const id = patientId.trim();
-    return id.startsWith('PAT#') ? id : `PAT#${id}`;
+    return id.startsWith(TASK_DDB_KEY_PREFIX.PAT) ? id : `${TASK_DDB_KEY_PREFIX.PAT}${id}`;
   }
 
   static buildPatientPartitionKey(orgId: string, patientId: string): string {
@@ -18,7 +19,7 @@ export class TaskKeyBuilder {
   }
 
   static toTaskPk(runtimeTaskInstanceId: string): string {
-    return `TASK#${runtimeTaskInstanceId.trim()}`;
+    return `${TASK_DDB_KEY_PREFIX.TASK}${runtimeTaskInstanceId.trim()}`;
   }
 
   static buildMetaSk(
@@ -27,12 +28,12 @@ export class TaskKeyBuilder {
     runtimeTaskInstanceId: string,
   ): string {
     const dueMs = dueWindowStartOrMaxMs(dueWindowStart, dueWindowEnd);
-    return `DUE#${padEpochMs13(dueMs)}#TASK#${runtimeTaskInstanceId.trim()}`;
+    return `${TASK_DDB_KEY_PREFIX.DUE}${padEpochMs13(dueMs)}#${TASK_DDB_KEY_PREFIX.TASK}${runtimeTaskInstanceId.trim()}`;
   }
 
   static buildLsi1Sk(carePlanInstanceId: string | undefined, runtimeTaskInstanceId: string): string {
     const cp = carePlanInstanceId?.trim() || 'NONE';
-    return `CP#${cp}#TASK#${runtimeTaskInstanceId.trim()}`;
+    return `${TASK_DDB_KEY_PREFIX.CP}${cp}#${TASK_DDB_KEY_PREFIX.TASK}${runtimeTaskInstanceId.trim()}`;
   }
 
   /**
@@ -42,10 +43,10 @@ export class TaskKeyBuilder {
   static buildGsi1Pk(orgId: string, assignedToType: AssignedToType, assigneeId: string): string {
     const org = this.toOrgId(orgId);
     const id = assigneeId.trim();
-    if (assignedToType?.toLowerCase() === ASSIGNED_TO_TYPE.ORG_STAFF) {
-      return `${org}#STAFF#${id}`;
+    if (assignedToType?.toLowerCase() === ASSIGNED_TO_TYPE.ORG_STAFF.toLowerCase()) {
+      return `${org}#${TASK_DDB_KEY_PREFIX.STAFF}${id}`;
     }
-    return `${org}#STAFF#${assignedToType}#${id}`;
+    return `${org}#${TASK_DDB_KEY_PREFIX.STAFF}${assignedToType}#${id}`;
   }
 
   static buildGsi1Sk(
@@ -55,11 +56,11 @@ export class TaskKeyBuilder {
     runtimeTaskInstanceId: string,
   ): string {
     const dueMs = dueWindowStartOrMaxMs(dueWindowStart, dueWindowEnd);
-    return `DUE#${padEpochMs13(dueMs)}#PAT#${patientId.trim()}#TASK#${runtimeTaskInstanceId.trim()}`;
+    return `${TASK_DDB_KEY_PREFIX.DUE}${padEpochMs13(dueMs)}#${TASK_DDB_KEY_PREFIX.PAT}${patientId.trim()}#${TASK_DDB_KEY_PREFIX.TASK}${runtimeTaskInstanceId.trim()}`;
   }
 
   static buildHistSk(transitionAtMs: number, taskStateHistoryId: string): string {
-    return `HIST#${padEpochMs13(transitionAtMs)}#${taskStateHistoryId}`;
+    return `${TASK_DDB_KEY_PREFIX.HIST}${padEpochMs13(transitionAtMs)}#${taskStateHistoryId}`;
   }
 
   static buildReminderCurrentSk(): typeof REMINDER_CURRENT_SK {

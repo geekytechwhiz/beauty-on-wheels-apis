@@ -55,6 +55,21 @@ describe('task.schemas', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects empty optional strings on createRuntimeTask body', () => {
+    const result = createRuntimeTaskHttpBodySchema.safeParse({
+      patientId: 'pat-1',
+      patientDisplayName: 'Maria Lopez',
+      runtimeTaskSource: 'manualSystem',
+      taskBehaviorCode: 'INSTRUCTION',
+      taskDisplayGroup: 'action',
+      displayTitle: 'Task',
+      assignedToType: 'patient',
+      displayToPatient: true,
+      description: '   ',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts valid createRuntimeTask body', () => {
     const result = createRuntimeTaskHttpBodySchema.safeParse({
       patientId: 'pat-1',

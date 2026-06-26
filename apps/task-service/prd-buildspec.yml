@@ -7,6 +7,8 @@ version: 0.2
 
 env:
   shell: bash
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
   variables:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-task-service-bucket'
@@ -17,6 +19,16 @@ phases:
     runtime-versions:
       nodejs: 20
     commands:
+      - echo "=== npm registry debug (pre-install) ==="
+      - pwd
+      - ls -la
+      - ls -la .npmrc || echo "WARN no .npmrc in $(pwd)"
+      - cat .npmrc || true
+      - cat ~/.npmrc 2>/dev/null || echo "no ~/.npmrc"
+      - npm config list
+      - npm config get registry
+      - npm config get @myvitalrx:registry || true
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
 

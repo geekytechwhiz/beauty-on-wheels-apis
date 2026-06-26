@@ -2,6 +2,8 @@ version: 0.2
 
 env:
   shell: bash
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
   variables:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-device-service-bucket'
@@ -14,6 +16,12 @@ phases:
     runtime-versions:
       nodejs: 22
     commands:
+      - echo "=== npm registry debug (pre-install) ==="
+      - pwd
+      - ls -la .npmrc || echo "WARN no .npmrc in $(pwd)"
+      - cat .npmrc || true
+      - npm config get @myvitalrx:registry || true
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install -g serverless@3 --force
       - npm install --legacy-peer-deps

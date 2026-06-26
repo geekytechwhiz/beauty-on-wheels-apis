@@ -10,9 +10,10 @@ package: ${file(../../infra/serverless/package.yml)}
 provider:
   name: aws
   runtime: nodejs22.x
-  versionFunctions: false
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+
   deploymentBucket:
     name: ${self:provider.stage}-mvx-template-service-bucket
     serverSideEncryption: AES256

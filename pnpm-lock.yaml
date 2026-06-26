@@ -81,8 +81,8 @@ importers:
         specifier: ^0.0.1
         version: 0.0.1(serverless@3.40.0(@types/node@20.19.9))
       '@myvitalrx/mvrx-resource-registry':
-        specifier: ^0.0.6
-        version: 0.0.6(serverless@3.40.0(@types/node@20.19.9))
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
@@ -556,7 +556,23 @@ importers:
         specifier: ^13.9.0
         version: 13.10.0(serverless@3.40.0(@types/node@20.19.9))
 
-  apps/template-service: {}
+  apps/template-service:
+    devDependencies:
+      '@myvitalrx/mvrx-resource-registry':
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
+      esbuild:
+        specifier: ^0.19.2
+        version: 0.19.12
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-auto-swagger:
+        specifier: ^3.1.0
+        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.19.12)
 
   apps/user-service:
     dependencies:
@@ -823,7 +839,7 @@ importers:
         version: 1.0.7
       jest:
         specifier: ^30.0.2
-        version: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3))
+        version: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
       libphonenumber-js:
         specifier: ^1.12.39
         version: 1.13.5
@@ -3530,8 +3546,8 @@ packages:
     peerDependencies:
       serverless: ^3.0.0
 
-  '@myvitalrx/mvrx-resource-registry@0.0.6':
-    resolution: {integrity: sha512-8sOhEzhesFjmUhtvE4HtHU2JMbHT0BIaoG8yPUYxyVHdLCKtldBRI015gGK50tHtkukQCLPKq+HsXIqh2HTTFA==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.6/8b0c41183c0df965e8bb2d7ba700c35dc871deda}
+  '@myvitalrx/mvrx-resource-registry@0.0.8':
+    resolution: {integrity: sha512-+uxxAuuAneb5OlRpgZjrP8m0WZr1FwnH3SZeSF5FIvEcD/brSPsQoOMRfO8Wsh0ofrtOJx/gMf+kt7klaRCvUQ==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.8/2c2a73377a67e14aab0815a99eb64bdc054c29c8}
     peerDependencies:
       serverless: ^3.0.0
 
@@ -15305,6 +15321,42 @@ snapshots:
       - supports-color
       - ts-node
 
+  '@jest/core@30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))':
+    dependencies:
+      '@jest/console': 30.4.1
+      '@jest/pattern': 30.4.0
+      '@jest/reporters': 30.4.1
+      '@jest/test-result': 30.4.1
+      '@jest/transform': 30.4.1
+      '@jest/types': 30.4.1
+      '@types/node': 20.19.9
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      ci-info: 4.4.0
+      exit-x: 0.2.2
+      fast-json-stable-stringify: 2.1.0
+      graceful-fs: 4.2.11
+      jest-changed-files: 30.4.1
+      jest-config: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      jest-haste-map: 30.4.1
+      jest-message-util: 30.4.1
+      jest-regex-util: 30.4.0
+      jest-resolve: 30.4.1
+      jest-resolve-dependencies: 30.4.2
+      jest-runner: 30.4.2
+      jest-runtime: 30.4.2
+      jest-snapshot: 30.4.1
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      jest-watcher: 30.4.1
+      pretty-format: 30.4.1
+      slash: 3.0.0
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
   '@jest/create-cache-key-function@30.4.1':
     dependencies:
       '@jest/types': 30.4.1
@@ -15896,7 +15948,7 @@ snapshots:
     dependencies:
       serverless: 3.40.0(@types/node@20.19.9)
 
-  '@myvitalrx/mvrx-resource-registry@0.0.6(serverless@3.40.0(@types/node@20.19.9))':
+  '@myvitalrx/mvrx-resource-registry@0.0.8(serverless@3.40.0(@types/node@20.19.9))':
     dependencies:
       serverless: 3.40.0(@types/node@20.19.9)
 
@@ -22212,6 +22264,25 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest-cli@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      '@jest/test-result': 30.4.1
+      '@jest/types': 30.4.1
+      chalk: 4.1.2
+      exit-x: 0.2.2
+      import-local: 3.2.0
+      jest-config: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      yargs: 17.7.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
   jest-config@29.7.0(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
     dependencies:
       '@babel/core': 7.29.7
@@ -22271,6 +22342,38 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.9
       ts-node: 10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@babel/core': 7.29.7
+      '@jest/get-type': 30.1.0
+      '@jest/pattern': 30.4.0
+      '@jest/test-sequencer': 30.4.1
+      '@jest/types': 30.4.1
+      babel-jest: 30.4.1(@babel/core@7.29.7)
+      chalk: 4.1.2
+      ci-info: 4.4.0
+      deepmerge: 4.3.1
+      glob: 10.5.0
+      graceful-fs: 4.2.11
+      jest-circus: 30.4.2(babel-plugin-macros@3.1.0)
+      jest-docblock: 30.4.0
+      jest-environment-node: 30.4.1
+      jest-regex-util: 30.4.0
+      jest-resolve: 30.4.1
+      jest-runner: 30.4.2
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      parse-json: 5.2.0
+      pretty-format: 30.4.1
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 20.19.9
+      ts-node: 10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -22730,6 +22833,19 @@ snapshots:
       '@jest/types': 30.4.1
       import-local: 3.2.0
       jest-cli: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3))
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
+  jest@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      '@jest/types': 30.4.1
+      import-local: 3.2.0
+      jest-cli: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros

@@ -51,11 +51,14 @@ package:
 custom:
   resourceRegistry:
     enabled: true
-    platformOwner: template-service
+    platformOwner: mvrx
     parameters:
-       
-      TEMPLATE_TABLE:
-        value: ${self:custom.bundle.templateDynamoTableName} 
+      DEFAULT_AWS_REGION:
+        value: ${self:provider.region}
+      NODEJS_RUNTIME:
+        value: nodejs22.x
+      # TEMPLATE_TABLE:
+      #   value: ${self:custom.bundle.templateDynamoTableName} 
       
     include:
       - AWS::DynamoDB::Table

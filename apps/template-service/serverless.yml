@@ -51,16 +51,11 @@ package:
 custom:
   resourceRegistry:
     enabled: true
-    platformOwner: platform-config
+    platformOwner: template-service
     parameters:
-      NODEJS_RUNTIME:
-        value: nodejs22.x
-      DEFAULT_AWS_REGION:
-        value: ${self:provider.region}
+       
       TEMPLATE_TABLE:
-        value: ${self:custom.bundle.templateDynamoTableName}
-      TEMPLATE_CONFIG_S3_BUCKET:
-        value: ${self:custom.bundle.templateConfigBucketName}
+        value: ${self:custom.bundle.templateDynamoTableName} 
       
     include:
       - AWS::DynamoDB::Table

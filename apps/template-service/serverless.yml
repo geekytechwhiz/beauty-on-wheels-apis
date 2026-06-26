@@ -4,11 +4,13 @@ service: template-service
 configValidationMode: warn
 
 frameworkVersion: '3.x'
+plugins: ${file(../../infra/serverless/plugins.yml)}
+package: ${file(../../infra/serverless/package.yml)}
 
-plugins:
-  - serverless-esbuild
-  - serverless-auto-swagger
-  - '@myvitalrx/mvrx-resource-registry'
+# plugins:
+#   - serverless-esbuild
+#   - serverless-auto-swagger
+#   - '@myvitalrx/mvrx-resource-registry'
   # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
@@ -42,114 +44,22 @@ provider:
     - ${file(./infra/permissions/s3.yml)}
     - ${file(./infra/permissions/xray.yml)}
 
-package:
-  individually: true
-  patterns:
-    - '!**/*.test.ts'
-    - '!**/*.spec.ts'
-
+ 
 custom:
   resourceRegistry:
     enabled: true
-    platformOwner: mvrx
+    platformOwner: template-service
     parameters:
-      DEFAULT_AWS_REGION:
-        value: ${self:provider.region}
-      NODEJS_RUNTIME:
-        value: nodejs22.x
-      # TEMPLATE_TABLE:
-      #   value: ${self:custom.bundle.templateDynamoTableName} 
-      
+      TEMPLATE_TABLE:
+        value: ${self:custom.bundle.templateDynamoTableName}
     include:
       - AWS::DynamoDB::Table
       - AWS::Events::EventBus
       - AWS::SQS::Queue
       - AWS::SNS::Topic
-     
-
-  bundle: ${file(./infra/config/infra-custom.yml)} 
-  cors: &httpApiCors
-    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
-    headers:
-      - Content-Type
-      - X-Amz-Date
-      - Authorization
-      - X-Api-Key
-      - X-Correlation-Id
-      - X-Request-Id
-      - X-Requested-With
-      - Sec-Ch-Ua
-      - Sec-Ch-Ua-Mobile
-      - Sec-Ch-Ua-Platform
-
-  # Disable sourcemaps everywhere in CI to reduce memory (avoids esbuild "The service was stopped: write EPIPE").
-  # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
-  sourcemapsByStage:
-    dev: false
-    stg: false
-    prd: false
-  keepNamesByStage:
-    dev: false
-    stg: false
-    prd: false
-
-  esbuild:
-    bundle: true
-    # Minify is esbuild's most memory-hungry pass and is unnecessary for Lambda. On the
-    # SMALL (~3.6 GiB) CodeBuild container it pushes the esbuild subprocess over the limit
-    # and the kernel kills it ("Error: The service was stopped"). Disabling it is the
-    # single biggest peak-memory reduction for the 22 individually-packaged functions.
-    minify: false
-    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node22
-    platform: node
-    format: cjs
-    tsconfig: ../../tsconfig.base.json
-    external:
-      - aws-sdk
-    # keepNames off in CI stages — lowers esbuild peak memory on SMALL CodeBuild (~3.6 GiB).
-    keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
-    # Avoid esbuild context reuse across ~24 functions — prevents memory growth/OOM on SMALL CodeBuild.
-    skipRebuild: true
-    disposeContext: true
-    # Serialize bundling/zipping. With package.individually + 24 functions, parallel esbuild
-    # service instances exhaust the CodeBuild container and crash with "The service was stopped".
-    concurrency: 1
-    zipConcurrency: 1
-    # Resolve NX workspace dependencies (@api-hub/* packages)
-    plugins: esbuild-plugins.js
-    # Ensure proper module resolution
-    resolveExtensions:
-      - '.ts'
-      - '.tsx'
-      - '.js'
-      - '.jsx'
-      - '.mjs'
-      - '.json'
-
-  autoswagger:
-    title: Template Service API
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    host: ${self:custom.apiHost, ''}
-    generateSwaggerOnDeploy: true
-    swaggerFiles:
-      - swagger.json
-    useStage: true
-    swaggerPath: swagger
-    # CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
-    excludeStages:
-      - production
-      - dev
-      - stg
-      - prd
-
-  serverless-offline:
-    httpPort: 3000
-    noPrependStageInUrl: true
+  common: ${file(../../infra/serverless/custom.yml)}
+  
+  
 
 functions:
   health:
@@ -170,20 +80,11 @@ functions:
           description: |
             Create master template (no templateId in path). Same body for POST /templates/{templateId} to update or run lifecycleAction.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
           responses:
-            default: Default response
+            <<: *httpApiResponsesSecured
             "201": Created — TemplateSummaryData
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
             "409": Conflict
-            "500": Server error
       - http:
           path: templates/{templateId}
           method: post
@@ -191,12 +92,7 @@ functions:
           description: |
             Update master content or lifecycle (PUBLISH, SUBMIT_REVIEW, …). templateId in path (e.g. TASK-CODE from create).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   listTemplates:
     handler: src/handlers/http/listTemplates.main
@@ -246,12 +142,7 @@ functions:
               required: false
               type: string
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   listTemplateConfigs:
     handler: src/handlers/http/listTemplateConfigs.main
@@ -264,12 +155,7 @@ functions:
             List configs. Query configType=TEMPLATE|ORG and/or templateType=MONITORING.
             templateType returns the form JSON for that type (replaces legacy GET by type).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   createTemplateConfig:
     handler: src/handlers/http/createTemplateConfig.main
@@ -280,12 +166,7 @@ functions:
           summary: Create UI template config
           description: Creates TEMPLATE (form) or ORG (drawer/enablement) config. Body requires configType.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   postTemplateConfigMeta:
     handler: src/handlers/http/postTemplateConfigMeta.main
@@ -299,12 +180,7 @@ functions:
             dropdown options for template-config forms. Body requires `metadataTypeCodes` array
             (e.g. Country, Language, Conditions, SPECIALITY).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   getTemplateConfig:
     handler: src/handlers/http/getTemplateConfig.main
@@ -315,12 +191,7 @@ functions:
           summary: Get UI template config by id
           description: configId is document id (MONITORING-MASTER-001) or org key (ENABLE_SCOPE).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   updateTemplateConfig:
     handler: src/handlers/http/updateTemplateConfig.main
@@ -331,12 +202,7 @@ functions:
           summary: Update UI template config
           description: Updates existing config by configId. 404 if not found.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   getOrgVersionStatus:
     handler: src/handlers/http/getOrgVersionStatus.main
@@ -363,12 +229,7 @@ functions:
               required: false
               type: string
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   deriveTemplate:
     handler: src/handlers/http/deriveTemplate.main
@@ -381,12 +242,7 @@ functions:
             Copy the latest PUBLISHED master (from JSON body) into the org partition and create enablement.
             Requires organizationMeta, categoryCode, conditionCode, templateType, and templateId in the body.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   updateOrgTemplateEnable:
     handler: src/handlers/http/updateOrgTemplateEnable.main
@@ -400,12 +256,7 @@ functions:
             Set templateEnabled false to disable (sets effectiveTo); true to re-enable.
             Requires organizationMeta.id or organizationId and master templateId.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   getOrgTemplateRules:
     handler: src/handlers/http/getOrgTemplateRules.main
@@ -416,12 +267,7 @@ functions:
           summary: Get org template rules
           description: Org template content (fieldValues and document fields) plus full field rules for an enabled org copy.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   updateOrgTemplateRules:
     handler: src/handlers/http/updateOrgTemplateRules.main
@@ -432,12 +278,7 @@ functions:
           summary: Update org template rules
           description: Partial merge of field rules on the enabled org copy; bumps minor version.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   createOrgDerived:
     handler: src/handlers/http/createOrgDerived.main
@@ -450,12 +291,7 @@ functions:
             Copy the canonical org template (from POST /templates/derive) to a new variant orgTemplateId.
             sourceOrgTemplateId must be the canonical id, not another variant.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   updateOrgDerived:
     handler: src/handlers/http/updateOrgDerived.main
@@ -467,12 +303,7 @@ functions:
           description: |
             Partial rules or fieldValues update (version bump) and/or templateEnabled toggle (no version bump).
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
   adoptOrgDerived:
     handler: src/handlers/http/adoptOrgDerived.main
@@ -485,12 +316,7 @@ functions:
             Applies canonical org template changes to a variant after upgrade review.
             Requires variant in editable status and upgrade available.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *httpApiAuthorizer
 
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}

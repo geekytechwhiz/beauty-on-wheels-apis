@@ -1,0 +1,22 @@
+name: aws
+runtime: nodejs22.x
+versionFunctions: false
+region: us-east-1
+stage: ${opt:stage, 'dev'}
+memorySize: 512
+timeout: 30
+
+tracing:
+  lambda: true
+  apiGateway: true
+
+logRetentionInDays: 14
+
+tags:
+  Service: ${self:service}
+  Stage: ${self:provider.stage}
+  ManagedBy: serverless
+
+deploymentBucket:
+  name: ${self:provider.stage}-mvx-${self:service}-bucket
+  serverSideEncryption: AES256

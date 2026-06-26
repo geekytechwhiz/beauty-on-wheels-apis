@@ -1,0 +1,90 @@
+# Shared HTTP event shapes for REST APIs (use via ${self:custom.httpApiCors}, etc.).
+httpApiCors:
+  origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+  headers:
+    - Content-Type
+    - X-Amz-Date
+    - Authorization
+    - X-Api-Key
+    - X-Correlation-Id
+    - X-Request-Id
+    - X-Requested-With
+    - Sec-Ch-Ua
+    - Sec-Ch-Ua-Mobile
+    - Sec-Ch-Ua-Platform
+
+httpApiAuthorizer:
+  name: common_authorizer
+  type: token
+  identitySource: method.request.header.Authorization
+  arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  resultTtlInSeconds: 0
+
+httpApiResponsesSecured:
+  default: Default response
+  "400": Bad request
+  "401": Unauthorized
+  "403": Forbidden
+  "500": Server error
+
+sourcemapsByStage:
+  dev: false
+  stg: false
+  prd: false
+
+keepNamesByStage:
+  dev: false
+  stg: false
+  prd: false
+
+esbuild:
+  bundle: true
+  minify: false
+  sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+  target: node22
+  platform: node
+  format: cjs
+  tsconfig: ../../tsconfig.base.json
+  external:
+    - aws-sdk
+  # keepNames off in CI stages — lowers esbuild peak memory on SMALL CodeBuild (~3.6 GiB).
+  keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
+  # Avoid esbuild context reuse across many functions — prevents memory growth/OOM on SMALL CodeBuild.
+  skipRebuild: true
+  disposeContext: true
+  # Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
+  # service instances exhaust the CodeBuild container and crash with "The service was stopped".
+  concurrency: 1
+  zipConcurrency: 1
+  plugins: esbuild-plugins.js
+  resolveExtensions:
+    - '.ts'
+    - '.tsx'
+    - '.js'
+    - '.jsx'
+    - '.mjs'
+    - '.json'
+
+autoswagger:
+  title: ${self:custom.apiTitle}
+  apiType: http
+  basePath: /${self:provider.stage}
+  schemes:
+    - https
+    - http
+  host: ${self:custom.apiHost, ''}
+  generateSwaggerOnDeploy: true
+  swaggerFiles:
+    - swagger.json
+  useStage: true
+  swaggerPath: swagger
+  # CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
+  excludeStages:
+    - production
+    - dev
+    - stg
+    - prd
+
+serverless-offline:
+  httpPort: 3000
+  noPrependStageInUrl: true

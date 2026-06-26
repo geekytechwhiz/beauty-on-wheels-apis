@@ -470,8 +470,8 @@ importers:
   apps/alert-service:
     devDependencies:
       '@myvitalrx/mvrx-resource-registry':
-        specifier: ^0.0.4
-        version: 0.0.4(serverless@3.40.0(@types/node@20.19.9))
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
       esbuild:
         specifier: ^0.19.2
         version: 0.19.12
@@ -491,7 +491,26 @@ importers:
         specifier: 12.0.4
         version: 12.0.4(@types/node@20.19.9)(serverless@3.40.0(@types/node@20.19.9))
 
-  apps/device-service: {}
+  apps/device-service:
+    devDependencies:
+      '@myvitalrx/mvrx-resource-registry':
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
+      esbuild:
+        specifier: ^0.19.2
+        version: 0.19.12
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-auto-swagger:
+        specifier: ^3.1.0
+        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-dotenv-plugin:
+        specifier: ^6.0.0
+        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.19.12)
 
   apps/metadata-registry-service:
     dependencies:
@@ -504,6 +523,22 @@ importers:
       es-abstract:
         specifier: ^1.24.1
         version: 1.24.2
+    devDependencies:
+      '@myvitalrx/mvrx-resource-registry':
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
+      esbuild:
+        specifier: ^0.19.2
+        version: 0.19.12
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-dotenv-plugin:
+        specifier: ^6.0.0
+        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.19.12)
 
   apps/organization-service:
     devDependencies:
@@ -513,6 +548,9 @@ importers:
       '@aws-sdk/client-ssm':
         specifier: ^3.958.0
         version: 3.1062.0
+      '@myvitalrx/mvrx-resource-registry':
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
       esbuild-plugin-tsconfig-paths:
         specifier: ^1.0.1
         version: 1.0.2
@@ -575,10 +613,28 @@ importers:
         version: 1.57.2(esbuild@0.19.12)
 
   apps/user-service:
-    dependencies:
+    devDependencies:
       '@myvitalrx/mvrx-resource-registry':
-        specifier: ^0.0.4
-        version: 0.0.4(serverless@3.40.0(@types/node@20.19.9))
+        specifier: ^0.0.8
+        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
+      esbuild:
+        specifier: ^0.19.2
+        version: 0.19.12
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-auto-swagger:
+        specifier: ^3.1.0
+        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-dotenv-plugin:
+        specifier: ^6.0.0
+        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.19.12)
+      serverless-offline:
+        specifier: 12.0.4
+        version: 12.0.4(@types/node@20.19.9)(serverless@3.40.0(@types/node@20.19.9))
 
   libs/alert-core:
     dependencies:
@@ -3538,11 +3594,6 @@ packages:
 
   '@myvitalrx/mvrx-policy-validator@0.0.1':
     resolution: {integrity: sha512-ww+I5hjvzUzjlTukKZZDHkYkJv+BPcNSvd942CTDD5jxK2ZLP5tAPV4lBYwn/zp8OJTfrMXTIPq8Rji8vFdvvA==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-policy-validator/0.0.1/4489a8d17c5cce6b4b6acc980c29891f0b185298}
-    peerDependencies:
-      serverless: ^3.0.0
-
-  '@myvitalrx/mvrx-resource-registry@0.0.4':
-    resolution: {integrity: sha512-qX377OgOj78WDp8c2JggpuN+KiJIL5TybnI70/7dv9VIs+7kgKzZ6EyOHmmFr3u8IQt/oi0PLXNQidDE4U0I4A==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.4/26af2e618a4f1c2f5d1e384e488b665a9084d775}
     peerDependencies:
       serverless: ^3.0.0
 
@@ -15941,10 +15992,6 @@ snapshots:
       '@types/react': 18.3.30
 
   '@myvitalrx/mvrx-policy-validator@0.0.1(serverless@3.40.0(@types/node@20.19.9))':
-    dependencies:
-      serverless: 3.40.0(@types/node@20.19.9)
-
-  '@myvitalrx/mvrx-resource-registry@0.0.4(serverless@3.40.0(@types/node@20.19.9))':
     dependencies:
       serverless: 3.40.0(@types/node@20.19.9)
 

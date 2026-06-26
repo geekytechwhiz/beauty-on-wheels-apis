@@ -1,17 +1,11 @@
 service: template-service
 
-# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
 configValidationMode: warn
 
 frameworkVersion: '3.x'
 plugins: ${file(../../infra/serverless/plugins.yml)}
 package: ${file(../../infra/serverless/package.yml)}
-
-# plugins:
-#   - serverless-esbuild
-#   - serverless-auto-swagger
-#   - '@myvitalrx/mvrx-resource-registry'
-  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
+ 
 
 provider:
   name: aws

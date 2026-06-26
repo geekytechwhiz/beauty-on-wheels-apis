@@ -81,8 +81,8 @@ importers:
         specifier: ^0.0.1
         version: 0.0.1(serverless@3.40.0(@types/node@20.19.9))
       '@myvitalrx/mvrx-resource-registry':
-        specifier: ^0.0.4
-        version: 0.0.4(serverless@3.40.0(@types/node@20.19.9))
+        specifier: ^0.0.6
+        version: 0.0.6(serverless@3.40.0(@types/node@20.19.9))
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
@@ -558,7 +558,11 @@ importers:
 
   apps/template-service: {}
 
-  apps/user-service: {}
+  apps/user-service:
+    dependencies:
+      '@myvitalrx/mvrx-resource-registry':
+        specifier: ^0.0.4
+        version: 0.0.4(serverless@3.40.0(@types/node@20.19.9))
 
   libs/alert-core:
     dependencies:
@@ -3523,6 +3527,11 @@ packages:
 
   '@myvitalrx/mvrx-resource-registry@0.0.4':
     resolution: {integrity: sha512-qX377OgOj78WDp8c2JggpuN+KiJIL5TybnI70/7dv9VIs+7kgKzZ6EyOHmmFr3u8IQt/oi0PLXNQidDE4U0I4A==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.4/26af2e618a4f1c2f5d1e384e488b665a9084d775}
+    peerDependencies:
+      serverless: ^3.0.0
+
+  '@myvitalrx/mvrx-resource-registry@0.0.6':
+    resolution: {integrity: sha512-8sOhEzhesFjmUhtvE4HtHU2JMbHT0BIaoG8yPUYxyVHdLCKtldBRI015gGK50tHtkukQCLPKq+HsXIqh2HTTFA==, tarball: https://npm.pkg.github.com/download/@myvitalrx/mvrx-resource-registry/0.0.6/8b0c41183c0df965e8bb2d7ba700c35dc871deda}
     peerDependencies:
       serverless: ^3.0.0
 
@@ -15884,6 +15893,10 @@ snapshots:
       serverless: 3.40.0(@types/node@20.19.9)
 
   '@myvitalrx/mvrx-resource-registry@0.0.4(serverless@3.40.0(@types/node@20.19.9))':
+    dependencies:
+      serverless: 3.40.0(@types/node@20.19.9)
+
+  '@myvitalrx/mvrx-resource-registry@0.0.6(serverless@3.40.0(@types/node@20.19.9))':
     dependencies:
       serverless: 3.40.0(@types/node@20.19.9)
 

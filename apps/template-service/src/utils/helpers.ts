@@ -2,11 +2,6 @@ import type { APIGatewayProxyEvent } from 'aws-lambda';
 import type { TemplateActorUser } from '@api-hub/template-core';
 import { decodeJwtPayload } from '@api-hub/utils';
 
-function readAuthorizer(event: APIGatewayProxyEvent): Record<string, unknown> | undefined {
-  const authorizer = (event.requestContext as { authorizer?: Record<string, unknown> } | undefined)
-    ?.authorizer;
-  return authorizer && typeof authorizer === 'object' ? authorizer : undefined;
-}
 
 export function getActorUserIdForRequest(
   event: APIGatewayProxyEvent,
@@ -26,6 +21,16 @@ export function getActorUserIdForRequest(
     (decoded.userId as string | undefined) ??
     (decoded.sub as string | undefined);
   return userId?.trim() || undefined;
+}
+
+
+function readAuthorizer(
+  event: APIGatewayProxyEvent,
+): Record<string, unknown> | undefined {
+  const authorizer = (
+    event.requestContext as { authorizer?: Record<string, unknown> } | undefined
+  )?.authorizer;
+  return authorizer && typeof authorizer === 'object' ? authorizer : undefined;
 }
 
 function firstClaim(

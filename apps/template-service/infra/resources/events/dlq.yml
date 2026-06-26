@@ -3,3 +3,13 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: ${self:custom.bundle.templateEventsDlqName}
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: Service
+          Value: ${self:service}
+        - Key: Stage
+          Value: ${self:provider.stage}
+        - Key: Purpose
+          Value: DLQ
+        - Key: ManagedBy
+          Value: serverless

@@ -10,7 +10,8 @@ tracing:
   lambda: true
   apiGateway: true
 
-logRetentionInDays: 14
+# Requires custom.logRetentionByStage (infra/serverless/config/log-retention-by-stage.yml).
+logRetentionInDays: ${self:custom.logRetentionByStage.${self:provider.stage}, '14'}
 
 tags:
   Service: ${self:service}
@@ -20,3 +21,6 @@ tags:
 deploymentBucket:
   name: ${self:provider.stage}-mvx-${self:service}-bucket
   serverSideEncryption: AES256
+
+logs:
+  restApi: ${file(./config/rest-api-logs.yml)}

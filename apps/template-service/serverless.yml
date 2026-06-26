@@ -5,7 +5,6 @@ configValidationMode: warn
 frameworkVersion: '3.x'
 plugins: ${file(../../infra/serverless/plugins.yml)}
 package: ${file(../../infra/serverless/package.yml)}
- 
 
 provider:
   name: aws
@@ -13,12 +12,6 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   versionFunctions: false
-  defaults:
-    http:
-      cors: ${self:custom.httpApiCors}
-      authorizer: ${self:custom.httpApiAuthorizer}
-      responses: ${self:custom.httpApiResponsesSecured}
-  
 
   deploymentBucket:
     name: ${self:provider.stage}-mvx-template-service-bucket
@@ -30,7 +23,10 @@ provider:
     lambda: true
     apiGateway: true
 
-  logRetentionInDays: 14
+  logRetentionInDays: ${self:custom.logRetentionByStage.${self:provider.stage}, '14'}
+
+  logs:
+    restApi: ${file(../../infra/serverless/config/rest-api-logs.yml)}
 
   environment: ${file(./infra/environments/environment.yml)}
 
@@ -43,12 +39,18 @@ provider:
     - ${file(./infra/permissions/dynamodb.yml)}
     - ${file(./infra/permissions/eventbridge.yml)}
     - ${file(./infra/permissions/s3.yml)}
-    - ${file(./infra/permissions/xray.yml)}
+    - ${file(../../infra/serverless/permissions/ssm-read.yml)}
+    - ${file(../../infra/serverless/permissions/xray.yml)}
 
- 
 custom:
+  sharedSsmPaths: ${file(../../infra/serverless/config/shared-ssm-paths.yml)}
+  logRetentionByStage: ${file(../../infra/serverless/config/log-retention-by-stage.yml)}
   bundle: ${file(./infra/config/infra-custom.yml)}
   apiTitle: Template Service API
+
+  dlqAlarm:
+    alarmName: ${self:provider.stage}-${self:service}-events-dlq-depth
+    queueName: ${self:custom.bundle.templateEventsDlqName}
 
   resourceRegistry:
     enabled: true
@@ -62,16 +64,42 @@ custom:
       - AWS::SQS::Queue
       - AWS::SNS::Topic
 
-  sourcemapsByStage: ${file(../../infra/serverless/fragments/sourcemaps-by-stage.yml)}
-  keepNamesByStage: ${file(../../infra/serverless/fragments/keep-names-by-stage.yml)}
-  httpApiCors: ${file(../../infra/serverless/fragments/http-api-cors.yml)}
-  httpApiAuthorizer: ${file(../../infra/serverless/fragments/http-api-authorizer.yml)}
-  httpApiResponsesSecured: ${file(../../infra/serverless/fragments/http-api-responses-secured.yml)}
-  esbuild: ${file(../../infra/serverless/fragments/esbuild.yml)}
-  autoswagger: ${file(../../infra/serverless/fragments/autoswagger-base.yml)}
-  serverless-offline: ${file(../../infra/serverless/fragments/serverless-offline.yml)}
+  # REST API secured routes: YAML anchors (Serverless requires real objects on http events).
+  cors: &httpApiCors
+    origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Request-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
 
+  securedAuthorizer: &securedAuthorizer
+    name: common_authorizer
+    type: token
+    identitySource: method.request.header.Authorization
+    arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+    resultTtlInSeconds: 0
 
+  securedResponses: &securedResponses
+    default: Default response
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "500": Server error
+
+  sourcemapsByStage: ${file(../../infra/serverless/config/sourcemaps-by-stage.yml)}
+  keepNamesByStage: ${file(../../infra/serverless/config/keep-names-by-stage.yml)}
+  esbuild: ${file(../../infra/serverless/config/esbuild.yml)}
+  autoswagger: ${file(../../infra/serverless/config/autoswagger-base.yml)}
+  serverless-offline: ${file(../../infra/serverless/config/serverless-offline.yml)}
+
+# REST + CORS; secured routes use cors/authorizer/responses anchors (same as task-service).
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -90,14 +118,18 @@ functions:
           summary: Create master template
           description: |
             Create master template (no templateId in path). Same body for POST /templates/{templateId} to update or run lifecycleAction.
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
       - http:
           path: templates/{templateId}
           method: post
           summary: Update master template (canonical)
           description: |
             Update master content or lifecycle (PUBLISH, SUBMIT_REVIEW, …). templateId in path (e.g. TASK-CODE from create).
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   listTemplates:
     handler: src/handlers/http/listTemplates.main
@@ -146,7 +178,9 @@ functions:
             nextToken:
               required: false
               type: string
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   listTemplateConfigs:
     handler: src/handlers/http/listTemplateConfigs.main
@@ -158,7 +192,9 @@ functions:
           description: |
             List configs. Query configType=TEMPLATE|ORG and/or templateType=MONITORING.
             templateType returns the form JSON for that type (replaces legacy GET by type).
-           
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   createTemplateConfig:
     handler: src/handlers/http/createTemplateConfig.main
@@ -168,7 +204,9 @@ functions:
           method: post
           summary: Create UI template config
           description: Creates TEMPLATE (form) or ORG (drawer/enablement) config. Body requires configType.
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   postTemplateConfigMeta:
     handler: src/handlers/http/postTemplateConfigMeta.main
@@ -181,7 +219,9 @@ functions:
             Proxies metadata-registry POST `/metadata/values/by-types` and returns UI-friendly
             dropdown options for template-config forms. Body requires `metadataTypeCodes` array
             (e.g. Country, Language, Conditions, SPECIALITY).
-           
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   getTemplateConfig:
     handler: src/handlers/http/getTemplateConfig.main
@@ -191,7 +231,9 @@ functions:
           method: get
           summary: Get UI template config by id
           description: configId is document id (MONITORING-MASTER-001) or org key (ENABLE_SCOPE).
-         
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   updateTemplateConfig:
     handler: src/handlers/http/updateTemplateConfig.main
@@ -201,7 +243,10 @@ functions:
           method: put
           summary: Update UI template config
           description: Updates existing config by configId. 404 if not found.
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
+
   getOrgVersionStatus:
     handler: src/handlers/http/getOrgVersionStatus.main
     events:
@@ -226,7 +271,9 @@ functions:
             organizationDescription:
               required: false
               type: string
-         
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   deriveTemplate:
     handler: src/handlers/http/deriveTemplate.main
@@ -238,7 +285,9 @@ functions:
           description: |
             Copy the latest PUBLISHED master (from JSON body) into the org partition and create enablement.
             Requires organizationMeta, categoryCode, conditionCode, templateType, and templateId in the body.
-       
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   updateOrgTemplateEnable:
     handler: src/handlers/http/updateOrgTemplateEnable.main
@@ -251,7 +300,9 @@ functions:
             Updates enablement for an existing org + master templateId.
             Set templateEnabled false to disable (sets effectiveTo); true to re-enable.
             Requires organizationMeta.id or organizationId and master templateId.
-          
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   getOrgTemplateRules:
     handler: src/handlers/http/getOrgTemplateRules.main
@@ -261,7 +312,9 @@ functions:
           method: get
           summary: Get org template rules
           description: Org template content (fieldValues and document fields) plus full field rules for an enabled org copy.
-           
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   updateOrgTemplateRules:
     handler: src/handlers/http/updateOrgTemplateRules.main
@@ -271,7 +324,9 @@ functions:
           method: put
           summary: Update org template rules
           description: Partial merge of field rules on the enabled org copy; bumps minor version.
-        
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   createOrgDerived:
     handler: src/handlers/http/createOrgDerived.main
@@ -283,7 +338,9 @@ functions:
           description: |
             Copy the canonical org template (from POST /templates/derive) to a new variant orgTemplateId.
             sourceOrgTemplateId must be the canonical id, not another variant.
-         
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   updateOrgDerived:
     handler: src/handlers/http/updateOrgDerived.main
@@ -294,7 +351,10 @@ functions:
           summary: Update org-derived template variant
           description: |
             Partial rules or fieldValues update (version bump) and/or templateEnabled toggle (no version bump).
-        
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
+
   adoptOrgDerived:
     handler: src/handlers/http/adoptOrgDerived.main
     events:
@@ -305,10 +365,13 @@ functions:
           description: |
             Applies canonical org template changes to a variant after upgrade review.
             Requires variant in editable status and upgrade available.
-         
+          cors: *httpApiCors
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
   - ${file(./infra/resources/events/event-bus.yml)}
   - ${file(./infra/resources/events/dlq.yml)}
+  - ${file(../../infra/serverless/resources/alarms/dlq-depth.yml)}
   - ${file(./infra/resources/outputs.yml)}

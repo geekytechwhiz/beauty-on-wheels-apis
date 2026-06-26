@@ -1,7 +1,9 @@
-# Deprecated monolith — prefer loading fragments from infra/serverless/fragments/ at custom root.
+# Deprecated monolith — prefer loading fragments from infra/serverless/config/ at custom root.
 # See apps/template-service/serverless.yml for the reference wiring pattern.
 #
-# Shared HTTP event shapes for REST APIs (use via ${self:custom.httpApiCors}, etc.).
+# REST API (http:) events require per-endpoint cors + authorizer — there is no provider.defaults.http.
+# Use YAML anchors in serverless.yml: &httpApiCors, &securedAuthorizer, &securedResponses.
+# See infra/serverless/config/http-event-secured.yml for the documented shape.
 httpApiCors:
   origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
   headers:

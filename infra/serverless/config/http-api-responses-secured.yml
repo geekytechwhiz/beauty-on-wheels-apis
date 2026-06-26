@@ -1,0 +1,24 @@
+default: Default response
+"400": Bad request
+"401": Unauthorized
+"403": Forbidden
+"500": Server error
+"409": Conflict
+"422": Unprocessable Entity
+"429": Too Many Requests 
+"502": Bad Gateway
+"503": Service Unavailable
+"504": Gateway Timeout
+"201": Created
+"204": No Content
+"202": Accepted
+"200": OK
+"206": Partial Content
+"207": Multi-Status
+"208": Already Reported
+"226": IM Used
+"300": Multiple Choices
+"301": Moved Permanently
+"302": Found
+"303": See Other
+"304": Not Modified

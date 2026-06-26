@@ -9,8 +9,7 @@ generateSwaggerOnDeploy: true
 swaggerFiles:
   - swagger.json
 useStage: true
-swaggerPath: swagger
-# CI package stages skip swagger generation to reduce build time/memory in CodeBuild.
+swaggerPath: swagger 
 excludeStages:
   - production
   - dev

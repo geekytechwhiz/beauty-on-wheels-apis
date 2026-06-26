@@ -1,0 +1,18 @@
+# Reusable DLQ depth alarm. Set custom.dlqAlarm.alarmName and custom.dlqAlarm.queueName in serverless.yml.
+Resources:
+  DlqDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:custom.dlqAlarm.alarmName}
+      AlarmDescription: DLQ has one or more visible messages
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Dimensions:
+        - Name: QueueName
+          Value: ${self:custom.dlqAlarm.queueName}
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching

@@ -26,7 +26,7 @@ module.exports = {
     '^@api-hub/event-platform$': '<rootDir>/src/__tests__/mocks/event-platform.mock.ts',
   },
   coverageDirectory: '../../coverage/apps/alert-service',
-  coverageReporters: ['text', 'text-summary', 'html', 'lcov'],
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
   coverageThreshold,
   collectCoverageFrom,
   verbose: true,

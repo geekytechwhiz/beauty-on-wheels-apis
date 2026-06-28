@@ -1,6 +1,6 @@
 
- 
 const { readFileSync } = require('fs');
+const { coverageThreshold, collectCoverageFrom } = require('./jest.coverage.cjs');
 
 // Reading the SWC compilation config for the spec files
 const swcJestConfig = JSON.parse(
@@ -26,5 +26,8 @@ module.exports = {
     '^@api-hub/event-platform$': '<rootDir>/../../libs/event-platform/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/task-service',
+  coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
+  coverageThreshold,
+  collectCoverageFrom,
   verbose: true,
 };

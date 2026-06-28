@@ -232,7 +232,7 @@ export interface ReminderRecord {
   reminderChannel: ReminderChannel;
   reminderStatus: ReminderStatus;
   sentAt?: EpochMillis;
-  updatedAt?: EpochMillis;
+  createdAt: EpochMillis;
   failureReason?: string;
   suppressedReason?: string;
   schedulerJobId?: Id;

@@ -2,22 +2,25 @@ import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence
 import { normalizeAssignedToTypeForWire, type SurfaceSection } from '../models/types/task-domain.types';
 import { normalizeCurrentStateForWire } from '../models/types/runtime-task-state.type';
 import { deriveActionCenterSurfaceSection } from '../utils/surface-section';
+import { nowEpochMs } from '../utils/task-time';
 
-export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
+export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = nowEpochMs()) {
+  /* eslint-disable @typescript-eslint/no-unused-vars -- Dynamo envelope keys omitted via rest */
   const {
-    pk: _pk,
-    sk: _sk,
-    entityType: _entityType,
-    sk1: _sk1,
-    gsi1pk: _gsi1pk,
-    gsi1sk: _gsi1sk,
-    idempotencyKey: _idempotencyKey,
-    generationHash: _generationHash,
-    version: _version,
+    pk,
+    sk,
+    entityType,
+    sk1,
+    gsi1pk,
+    gsi1sk,
+    idempotencyKey,
+    generationHash,
+    version,
     currentState,
     assignedToType,
     ...rest
   } = r;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   return {
     ...rest,
@@ -29,7 +32,7 @@ export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
 export function toActionCenterTaskCard(
   r: TaskMetaDdbRecord,
   timeZone: string,
-  nowMs = Date.now(),
+  nowMs = nowEpochMs(),
   surfaceSection?: SurfaceSection,
 ) {
   const card = toRuntimeTaskCard(r, nowMs);
@@ -52,14 +55,16 @@ export function toActionCenterTaskCard(
 }
 
 export function toTaskHistoryEntry(r: TaskHistDdbRecord) {
+  /* eslint-disable @typescript-eslint/no-unused-vars -- Dynamo envelope and scope keys omitted via rest */
   const {
-    pk: _pk,
-    sk: _sk,
-    entityType: _entityType,
-    orgId: _orgId,
-    patientId: _patientId,
-    runtimeTaskInstanceId: _runtimeTaskInstanceId,
+    pk,
+    sk,
+    entityType,
+    orgId,
+    patientId,
+    runtimeTaskInstanceId,
     ...rest
   } = r;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
   return rest;
 }

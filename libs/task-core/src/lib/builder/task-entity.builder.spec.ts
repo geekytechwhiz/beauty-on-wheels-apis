@@ -331,4 +331,29 @@ describe('TaskEntityBuilder', () => {
       transitionReason: 'Patient prefers SMS',
     });
   });
+
+  it('buildReminderCurrentRecord uses REM#CURRENT and scheduled status', () => {
+    const record = TaskEntityBuilder.buildReminderCurrentRecord({
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      reminderRecordId: 'rem-rtask-abc-1700000360000-push',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      nowMs: 1780573600000,
+    });
+
+    expect(record).toMatchObject({
+      pk: 'TASK#rtask-abc',
+      sk: 'REM#CURRENT',
+      entityType: 'ReminderInstance',
+      reminderStatus: 'scheduled',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      scheduledReminderAt: 1_700_000_360_000,
+      reminderChannel: 'push',
+      createdAt: 1780573600000,
+      updatedAt: 1780573600000,
+    });
+  });
 });

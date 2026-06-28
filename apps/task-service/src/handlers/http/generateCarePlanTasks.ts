@@ -1,13 +1,19 @@
 import { withApiHandler } from '@api-hub/middleware';
 import type { LambdaRequest } from '@api-hub/utils';
 
-import { getTaskHttpController } from '../../controllers/task-http.controller';
+import {
+  getTaskHttpController, 
+} from '../../controllers/task-http.controller';
 import { generateCarePlanTasksHttpBodySchema } from '../../validators/task.schemas';
-import { validateGenerateCarePlanTasksRequest } from '../../validators/request.validators';
+import {
+  validateGenerateCarePlanTasksRequest,
+  ValidatedGenerateCarePlanTasksRequest,
+} from '../../validators/request.validators';
 
 const c = getTaskHttpController();
 
-const handler = async (req: LambdaRequest) => c.handleGenerateCarePlanTasks(req);
+const handler = async (req: LambdaRequest) =>
+  c.handleGenerateCarePlanTasks(req as ValidatedGenerateCarePlanTasksRequest);
 
 export const main = withApiHandler(
   {

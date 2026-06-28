@@ -6,16 +6,19 @@ version: 0.2
 # Optional: PACKAGED_TEMPLATE (default apps/task-service/packaged.yaml, relative to CODEBUILD_SRC_DIR).
 
 env:
+  # NOTE: compute type is set on the CodeBuild project, not in this file. SMALL (~3.6 GiB)
+  # needs a capped Node heap or esbuild is OOM-killed ("Error: The service was stopped").
   shell: bash
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-task-service-bucket'
     STACK_NAME: 'dev-task-service'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps

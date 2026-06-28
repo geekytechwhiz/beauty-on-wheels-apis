@@ -1,13 +1,40 @@
-import type { AttributeValue } from '@aws-sdk/client-dynamodb';
+// eslint-disable-next-line no-var
+var mockRecordReminderRegistration: jest.Mock;
+
+jest.mock('@api-hub/task-core', () => {
+  mockRecordReminderRegistration = jest.fn().mockResolvedValue({ written: true });
+  const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
+  return {
+    ...actual,
+    TaskService: jest.fn().mockImplementation(() => ({
+      recordReminderRegistration: mockRecordReminderRegistration,
+    })),
+  };
+});
+
+/** Minimal DynamoDB stream attribute shape for stream handler tests. */
+type StreamAttributeValue = {
+  S?: string;
+  N?: string;
+  BOOL?: boolean;
+  M?: Record<string, StreamAttributeValue>;
+  L?: StreamAttributeValue[];
+};
+
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
 
 import {
-  getReminderSchedulerGateway,
   setReminderSchedulerGatewayForTests,
 } from '../../reminder/reminder-scheduler.gateway';
 import type { ReminderSchedulerGateway } from '../../reminder/reminder-scheduler.types';
-import { main as registerReminderJobs } from './registerReminderJobs';
+import {
+  setQuietHoursProviderForTests,
+  type QuietHoursProvider,
+} from '../../reminder/quiet-hours.provider';
+import { handler, main } from './registerReminderJobs';
+
+const FUTURE_DUE_WINDOW_END = new Date('2028-06-22T23:00:00.000Z').getTime();
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
@@ -18,14 +45,14 @@ jest.mock('@api-hub/observability', () => {
 });
 
 function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
-  const newImage: Record<string, AttributeValue> = {
+  const newImage: Record<string, StreamAttributeValue> = {
     entityType: { S: 'RuntimeTaskInstance' },
     runtimeTaskInstanceId: { S: 'task-1' },
     orgId: { S: 'org-1' },
     patientId: { S: 'pat-1' },
     reminderEnabled: { BOOL: true },
     currentState: { S: 'open' },
-    dueWindowEnd: { N: '1700000360000' },
+    dueWindowEnd: { N: String(FUTURE_DUE_WINDOW_END) },
     reminderSettings: {
       M: {
         channels: { L: [{ S: 'push' }] },
@@ -57,23 +84,37 @@ const lambdaContext = {
   getRemainingTimeInMillis: () => 300_000,
 } satisfies LambdaInvocationContext;
 
+const nullQuietHoursProvider: QuietHoursProvider = {
+  getForPatient: jest.fn().mockResolvedValue(null),
+};
+
 describe('registerReminderJobs', () => {
-  const register = jest.fn().mockResolvedValue(undefined);
+  const register = jest.fn().mockResolvedValue({
+    outcome: 'created',
+    schedulerJobId: 'task-reminder-task-1',
+    scheduledAt: FUTURE_DUE_WINDOW_END,
+  });
   const gateway: ReminderSchedulerGateway = { register, cancel: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
     setReminderSchedulerGatewayForTests(gateway);
+    setQuietHoursProviderForTests(nullQuietHoursProvider);
   });
 
   afterAll(() => {
     setReminderSchedulerGatewayForTests(undefined);
+    setQuietHoursProviderForTests(undefined);
+  });
+
+  it('exports main as handler', () => {
+    expect(main).toBe(handler);
   });
 
   it('registers reminder schedule for eligible INSERT', async () => {
     const event: DynamoDBStreamEvent = { Records: [streamRecord()] };
 
-    const out = await registerReminderJobs(event, lambdaContext);
+    const out = await handler(event, lambdaContext);
 
     expect(out.batchItemFailures).toEqual([]);
     expect(register).toHaveBeenCalledWith(
@@ -81,10 +122,16 @@ describe('registerReminderJobs', () => {
         runtimeTaskInstanceId: 'task-1',
         patientId: 'pat-1',
         orgId: 'org-1',
-        scheduledAt: 1_700_000_360_000,
+        scheduledAt: FUTURE_DUE_WINDOW_END,
         channel: 'push',
       }),
     );
-    expect(getReminderSchedulerGateway()).toBe(gateway);
+    expect(mockRecordReminderRegistration).toHaveBeenCalledWith({
+      runtimeTaskInstanceId: 'task-1',
+      scheduledAt: FUTURE_DUE_WINDOW_END,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-task-1',
+      correlationId: 'eid-register-1',
+    });
   });
 });

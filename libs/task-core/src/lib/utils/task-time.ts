@@ -1,5 +1,10 @@
 import { DUE_SORT_SENTINEL_MS } from '../constants/task.constants';
 
+/** Current instant as epoch milliseconds (platform wire format for task timestamps). */
+export function nowEpochMs(): number {
+  return Date.now();
+}
+
 /** Fixed-width decimal string so lexical order matches chronological order in DUE# sort keys. */
 export function padEpochMs13(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) {

@@ -1,21 +1,25 @@
 import { BaseRepository } from '@api-hub/utils';
+import { isConditionalWriteConflictAtIndex } from '@api-hub/utils';
 
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
+import { TaskIdBuilder } from '../builder/task-id.builder';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import {
   CARE_PLAN_LSI_INDEX,
   ENTITY_TYPE_RUNTIME_TASK,
+  LINKED_SOURCE_SYSTEM_ACTOR,
+  REMINDER_CURRENT_SK,
   STAFF_TASKS_GSI_INDEX,
   TASK_LOOKUP_SK,
 } from '../constants/task.constants';
+import { TASK_DDB_KEY_PREFIX } from '../constants/task-key.constants';
 import {
   RUNTIME_TASK_STATE,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
-import type { WorkflowStage } from '../models/types/task-domain.types';
-import { ASSIGNED_TO_TYPE } from '../models/types/task-domain.types';
+import type { ReminderChannel, WorkflowStage } from '../models/types/task-domain.types';
+import { ASSIGNED_TO_TYPE, REMINDER_STATUS, TRANSITION_SOURCE } from '../models/types/task-domain.types';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
-import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type {
@@ -36,57 +40,40 @@ import type {
 } from '../models/api/update-runtime-task.request';
 import type {
   CompletionEvidenceDdbRecord,
+  ReminderDdbRecord,
   TaskHistDdbRecord,
   TaskLookupDdbRecord,
   TaskMetaDdbRecord,
 } from '../models/persistence/task-ddb.model';
-import { organizationIdsMatch } from '../utils/organization-ids-match';
-import { buildCarePlanTaskKeys } from '../utils/monitoring-idempotency';
 import {
-  buildDeterministicRuntimeTaskInstanceId,
+  appendCancelledReminderHistoryEntries,
+  appendReminderOutcomeHistoryEntry,
+  appendScheduledReminderHistoryEntry,
+  findOpenScheduledReminderEntries,
+  hasMatchingOpenScheduledEntry,
+} from '../utils/reminder-history';
+import { organizationIdsMatch } from '../utils/organization-ids-match';
+import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
+import {
+  buildCarePlanTaskKeys,
   buildMonitoringIdempotencyKey,
 } from '../utils/monitoring-idempotency';
 import { assertTaskTable, isMetaConditionalFailure } from '../utils/task.utils';
+import { nowEpochMs } from '../utils/task-time';
 
-export type QueryPatientTasksPageInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  currentState?: RuntimeTaskState;
-  excludeTerminalStates?: boolean;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
+import type {
+  CompleteLinkedSourceObjectRepoInput,
+  QueryActionCenterTasksPageInput,
+  QueryCarePlanTasksForSummaryInput,
+  QueryPatientMetaByCompletionSourceInput,
+  QueryPatientTasksPageInput,
+  QueryStaffTasksPageInput,
+  RecordReminderCancelledRepoInput,
+  RecordReminderOutcomeRepoInput,
+  RecordReminderRegisteredRepoInput,
+} from './task-repository.types';
 
-export type QueryActionCenterTasksPageInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type QueryStaffTasksPageInput = {
-  organizationId: string;
-  staffUserId: string;
-  patientId?: string;
-  carePlanInstanceId?: string;
-  currentState?: RuntimeTaskState;
-  excludeTerminalStates?: boolean;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
-
-export type QueryCarePlanTasksForSummaryInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId: string;
-  workflowStage?: WorkflowStage;
-  pageSize: number;
-  exclusiveStartKey?: Record<string, unknown>;
-};
+export type * from './task-repository.types';
 
 function buildMetaListFilterExpression(input: {
   workflowStage?: WorkflowStage;
@@ -122,7 +109,7 @@ export class TaskRepository extends BaseRepository {
     runtimeTaskInstanceId: string;
   } {
     const idempotencyKey = buildMonitoringIdempotencyKey(input);
-    const runtimeTaskInstanceId = buildDeterministicRuntimeTaskInstanceId(idempotencyKey);
+    const runtimeTaskInstanceId = TaskIdBuilder.deterministicRuntimeTaskInstanceId(idempotencyKey);
     return { idempotencyKey, runtimeTaskInstanceId };
   }
 
@@ -159,6 +146,14 @@ export class TaskRepository extends BaseRepository {
     });
   }
 
+  async getReminderCurrent(runtimeTaskInstanceId: string): Promise<ReminderDdbRecord | null> {
+    const table = assertTaskTable();
+    return this.get<ReminderDdbRecord>(table, {
+      pk: TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
+      sk: REMINDER_CURRENT_SK,
+    });
+  }
+
   async queryTaskHistory(runtimeTaskInstanceId: string): Promise<TaskHistDdbRecord[]> {
     const table = assertTaskTable();
     return this.query<TaskHistDdbRecord>({
@@ -166,7 +161,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'HIST#',
+        ':prefix': TASK_DDB_KEY_PREFIX.HIST,
       },
       ScanIndexForward: false,
     });
@@ -183,7 +178,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'HIST#',
+        ':prefix': TASK_DDB_KEY_PREFIX.HIST,
       },
       ScanIndexForward: false,
       Limit: pageSize,
@@ -223,7 +218,7 @@ export class TaskRepository extends BaseRepository {
       });
     }
 
-    expressionValues[':duePrefix'] = 'DUE#';
+    expressionValues[':duePrefix'] = TASK_DDB_KEY_PREFIX.DUE;
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
@@ -272,7 +267,7 @@ export class TaskRepository extends BaseRepository {
       });
     }
 
-    expressionValues[':duePrefix'] = 'DUE#';
+    expressionValues[':duePrefix'] = TASK_DDB_KEY_PREFIX.DUE;
     return this.queryPage<TaskMetaDdbRecord>({
       TableName: table,
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
@@ -325,7 +320,7 @@ export class TaskRepository extends BaseRepository {
 
     const expressionValues: Record<string, unknown> = {
       ':gsi1pk': gsi1pk,
-      ':duePrefix': 'DUE#',
+      ':duePrefix': TASK_DDB_KEY_PREFIX.DUE,
       ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
     };
 
@@ -369,7 +364,7 @@ export class TaskRepository extends BaseRepository {
       KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
       ExpressionAttributeValues: {
         ':pk': TaskKeyBuilder.toTaskPk(runtimeTaskInstanceId),
-        ':prefix': 'EVID#',
+        ':prefix': TASK_DDB_KEY_PREFIX.EVID,
       },
       ScanIndexForward: false,
     });
@@ -538,7 +533,7 @@ export class TaskRepository extends BaseRepository {
   async reassignStaffTask(input: ReassignStaffTaskRepoInput): Promise<ReassignStaffTaskRepoResult> {
     const table = assertTaskTable();
     const { meta, lookup, actorId, assignedToStaffId, assignedToStaffDisplayName, reason } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
       meta.orgId,
       ASSIGNED_TO_TYPE.ORG_STAFF,
@@ -637,7 +632,7 @@ export class TaskRepository extends BaseRepository {
       reason,
       evidencePayload,
     } = input;
-    const nowMs = input.nowMs ?? Date.now();
+    const nowMs = input.nowMs ?? nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const stateHistPut = TaskEntityBuilder.buildStateChangeHistRecord({
@@ -728,7 +723,7 @@ export class TaskRepository extends BaseRepository {
   ): Promise<UpdateReminderSettingsRepoResult> {
     const table = assertTaskTable();
     const { meta, actorId, reminderEnabled, reminderSettings, reason } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const settingsChangeHist = TaskEntityBuilder.buildReminderSettingsChangeHistRecord({
@@ -793,7 +788,7 @@ export class TaskRepository extends BaseRepository {
   async updateRuntimeTask(input: UpdateRuntimeTaskRepoInput): Promise<UpdateRuntimeTaskRepoResult> {
     const table = assertTaskTable();
     const { meta, lookup, actorId, reason, diff } = input;
-    const nowMs = Date.now();
+    const nowMs = nowEpochMs();
     const nextVersion = (meta.version ?? 1) + 1;
 
     const expressionParts: string[] = [
@@ -873,5 +868,365 @@ export class TaskRepository extends BaseRepository {
       },
       historyEntry: histPut,
     };
+  }
+
+  async queryPatientMetaByCompletionSource(
+    input: QueryPatientMetaByCompletionSourceInput,
+  ): Promise<{ items: TaskMetaDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const table = assertTaskTable();
+    const pk = TaskKeyBuilder.buildPatientPartitionKey(input.organizationId, input.patientId);
+
+    return this.queryPage<TaskMetaDdbRecord>({
+      TableName: table,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :duePrefix)',
+      FilterExpression:
+        'entityType = :metaEntity AND completionSourceType = :completionSourceType AND completionSourceReferenceId = :completionSourceReferenceId',
+      ExpressionAttributeValues: {
+        ':pk': pk,
+        ':duePrefix': TASK_DDB_KEY_PREFIX.DUE,
+        ':metaEntity': ENTITY_TYPE_RUNTIME_TASK,
+        ':completionSourceType': input.completionSourceType,
+        ':completionSourceReferenceId': input.completionSourceReferenceId,
+      },
+      Limit: input.pageSize,
+      ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+    });
+  }
+
+  async completeLinkedSourceObjectTask(
+    input: CompleteLinkedSourceObjectRepoInput,
+  ): Promise<{ outcome: 'completed' | 'skippedDuplicate' }> {
+    const table = assertTaskTable();
+    const { meta, lookup, completionEventId, completedAt } = input;
+    const actorId = input.actorId ?? LINKED_SOURCE_SYSTEM_ACTOR;
+    const nowMs = input.nowMs ?? completedAt;
+    const fromState = meta.currentState;
+    const toState = RUNTIME_TASK_STATE.COMPLETED;
+    const nextVersion = (meta.version ?? 1) + 1;
+
+    const stateHistPut = TaskEntityBuilder.buildStateChangeHistRecord({
+      meta,
+      fromState,
+      toState,
+      actorId,
+      reason: 'Linked source object completed',
+      nowMs,
+      transitionSource: TRANSITION_SOURCE.SOURCE_EVENT,
+    });
+
+    const evidenceSummary = TaskEntityBuilder.buildEvidenceSummaryForTransition(
+      meta,
+      toState,
+      nowMs,
+    );
+    const reminderHistory = appendCancelledReminderHistoryEntries(lookup.reminderHistory, nowMs);
+    const existingReminder = await this.getReminderCurrent(meta.runtimeTaskInstanceId);
+    const evidPut = TaskEntityBuilder.buildLinkedSourceCompletionEvidenceRecord({
+      meta,
+      completionEventId,
+      completedAt,
+      completedBy: actorId,
+    });
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: meta.pk, sk: meta.sk },
+          UpdateExpression:
+            'SET currentState = :toState, lastUpdatedAt = :now, lastUpdatedBy = :by, #ver = :nextVer',
+          ExpressionAttributeNames: { '#ver': 'version' },
+          ExpressionAttributeValues: {
+            ':toState': toState,
+            ':now': nowMs,
+            ':by': actorId,
+            ':nextVer': nextVersion,
+            ':expected': fromState,
+          },
+          ConditionExpression: 'currentState = :expected',
+        },
+      },
+      {
+        Put: {
+          TableName: table,
+          Item: stateHistPut as unknown as Record<string, unknown>,
+          ConditionExpression: 'attribute_not_exists(sk)',
+        },
+      },
+      {
+        Put: {
+          TableName: table,
+          Item: evidPut as unknown as Record<string, unknown>,
+          ConditionExpression: 'attribute_not_exists(sk)',
+        },
+      },
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression:
+            'SET evidenceSummary = :evidenceSummary, reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: {
+            ':evidenceSummary': evidenceSummary,
+            ':reminderHistory': reminderHistory,
+          },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    if (
+      existingReminder &&
+      existingReminder.reminderStatus === REMINDER_STATUS.SCHEDULED
+    ) {
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: {
+            pk: TaskKeyBuilder.toTaskPk(meta.runtimeTaskInstanceId),
+            sk: REMINDER_CURRENT_SK,
+          },
+          UpdateExpression:
+            'SET reminderStatus = :cancelled, updatedAt = :now REMOVE sentAt, failureReason, suppressedReason',
+          ExpressionAttributeValues: {
+            ':cancelled': REMINDER_STATUS.CANCELLED,
+            ':now': nowMs,
+          },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      });
+    }
+
+    try {
+      await this.transactWrite({ TransactItems: transactItems });
+      return { outcome: 'completed' };
+    } catch (e: unknown) {
+      if (isConditionalWriteConflictAtIndex(e, 2)) {
+        return { outcome: 'skippedDuplicate' };
+      }
+      if (isMetaConditionalFailure(e)) {
+        throw e;
+      }
+      throw e;
+    }
+  }
+
+  async recordReminderRegistered(
+    input: RecordReminderRegisteredRepoInput,
+  ): Promise<{ written: boolean }> {
+    const table = assertTaskTable();
+    const lookup = await this.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw new Error(`LOOKUP not found for task ${input.runtimeTaskInstanceId}`);
+    }
+
+    if (
+      hasMatchingOpenScheduledEntry(
+        lookup.reminderHistory,
+        input.scheduledAt,
+        input.channel,
+        input.schedulerJobId,
+      )
+    ) {
+      return { written: false };
+    }
+
+    const nowMs = nowEpochMs();
+    const reminderRecordId = TaskIdBuilder.buildReminderRecordId(
+      input.runtimeTaskInstanceId,
+      input.scheduledAt,
+      input.channel,
+    );
+    const reminderHistory = appendScheduledReminderHistoryEntry(
+      lookup.reminderHistory,
+      {
+        reminderRecordId,
+        runtimeTaskInstanceId: input.runtimeTaskInstanceId,
+        scheduledAt: input.scheduledAt,
+        channel: input.channel,
+        schedulerJobId: input.schedulerJobId,
+      },
+      nowMs,
+    );
+
+    const existingReminder = await this.getReminderCurrent(input.runtimeTaskInstanceId);
+    const remPut = TaskEntityBuilder.buildReminderCurrentRecord({
+      runtimeTaskInstanceId: input.runtimeTaskInstanceId,
+      orgId: lookup.orgId,
+      patientId: lookup.patientId,
+      reminderRecordId,
+      scheduledAt: input.scheduledAt,
+      channel: input.channel,
+      schedulerJobId: input.schedulerJobId,
+      reminderStatus: REMINDER_STATUS.SCHEDULED,
+      nowMs,
+      createdAt: existingReminder?.createdAt,
+    });
+
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: table,
+            Item: remPut as unknown as Record<string, unknown>,
+          },
+        },
+        {
+          Update: {
+            TableName: table,
+            Key: { pk: lookup.pk, sk: lookup.sk },
+            UpdateExpression: 'SET reminderHistory = :reminderHistory',
+            ExpressionAttributeValues: { ':reminderHistory': reminderHistory },
+            ConditionExpression: 'attribute_exists(sk)',
+          },
+        },
+      ],
+    });
+    return { written: true };
+  }
+
+  async recordReminderCancelled(
+    input: RecordReminderCancelledRepoInput,
+  ): Promise<{ written: boolean }> {
+    const table = assertTaskTable();
+    const lookup = await this.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw new Error(`LOOKUP not found for task ${input.runtimeTaskInstanceId}`);
+    }
+
+    const openScheduled = findOpenScheduledReminderEntries(lookup.reminderHistory);
+    const existingReminder = await this.getReminderCurrent(input.runtimeTaskInstanceId);
+    if (openScheduled.length === 0 && !existingReminder) {
+      return { written: false };
+    }
+
+    const nowMs = nowEpochMs();
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [];
+
+    if (openScheduled.length > 0) {
+      const reminderHistory = appendCancelledReminderHistoryEntries(lookup.reminderHistory, nowMs);
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression: 'SET reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: { ':reminderHistory': reminderHistory },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      });
+    }
+
+    if (
+      existingReminder &&
+      existingReminder.reminderStatus === REMINDER_STATUS.SCHEDULED
+    ) {
+      transactItems.push({
+        Update: {
+          TableName: table,
+          Key: {
+            pk: TaskKeyBuilder.toTaskPk(input.runtimeTaskInstanceId),
+            sk: REMINDER_CURRENT_SK,
+          },
+          UpdateExpression:
+            'SET reminderStatus = :cancelled, updatedAt = :now REMOVE sentAt, failureReason, suppressedReason',
+          ExpressionAttributeValues: {
+            ':cancelled': REMINDER_STATUS.CANCELLED,
+            ':now': nowMs,
+          },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      });
+    }
+
+    if (transactItems.length === 0) {
+      return { written: false };
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
+    return { written: true };
+  }
+
+  async recordReminderOutcome(
+    input: RecordReminderOutcomeRepoInput,
+  ): Promise<{ written: boolean }> {
+    const table = assertTaskTable();
+    const lookup = await this.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw new Error(`LOOKUP not found for task ${input.runtimeTaskInstanceId}`);
+    }
+
+    const existingReminder = await this.getReminderCurrent(input.runtimeTaskInstanceId);
+    const nowMs = nowEpochMs();
+    const sentAt = input.outcome === REMINDER_STATUS.SENT ? nowMs : undefined;
+
+    const reminderRecordId =
+      existingReminder?.reminderRecordId ??
+      TaskIdBuilder.buildReminderRecordId(
+        input.runtimeTaskInstanceId,
+        input.scheduledAt ?? existingReminder?.scheduledReminderAt ?? nowMs,
+        input.channel ?? existingReminder?.reminderChannel ?? 'push',
+      );
+    const scheduledAt =
+      input.scheduledAt ?? existingReminder?.scheduledReminderAt ?? nowMs;
+    const channel = input.channel ?? existingReminder?.reminderChannel ?? 'push';
+    const schedulerJobId =
+      input.schedulerJobId ?? existingReminder?.schedulerJobId ?? '';
+
+    const reminderHistory = appendReminderOutcomeHistoryEntry(
+      lookup.reminderHistory,
+      {
+        reminderRecordId,
+        runtimeTaskInstanceId: input.runtimeTaskInstanceId,
+        scheduledReminderAt: scheduledAt,
+        reminderChannel: channel as ReminderChannel,
+        schedulerJobId: schedulerJobId || undefined,
+      },
+      input.outcome,
+      nowMs,
+      {
+        sentAt,
+        reason: input.reason,
+      },
+    );
+
+    const remRecord = TaskEntityBuilder.buildReminderCurrentRecord({
+      runtimeTaskInstanceId: input.runtimeTaskInstanceId,
+      orgId: lookup.orgId,
+      patientId: lookup.patientId,
+      reminderRecordId,
+      scheduledAt,
+      channel,
+      schedulerJobId: schedulerJobId || existingReminder?.schedulerJobId || '',
+      reminderStatus: input.outcome,
+      nowMs,
+      createdAt: existingReminder?.createdAt,
+      sentAt,
+      failureReason: input.outcome === REMINDER_STATUS.FAILED ? input.reason : undefined,
+      suppressedReason: input.outcome === REMINDER_STATUS.SUPPRESSED ? input.reason : undefined,
+    });
+
+    const transactItems: Parameters<typeof this.transactWrite>[0]['TransactItems'] = [
+      {
+        Update: {
+          TableName: table,
+          Key: { pk: lookup.pk, sk: lookup.sk },
+          UpdateExpression: 'SET reminderHistory = :reminderHistory',
+          ExpressionAttributeValues: { ':reminderHistory': reminderHistory },
+          ConditionExpression: 'attribute_exists(sk)',
+        },
+      },
+    ];
+
+    if (existingReminder) {
+      transactItems.unshift({
+        Put: {
+          TableName: table,
+          Item: remRecord as unknown as Record<string, unknown>,
+        },
+      });
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
+    return { written: true };
   }
 }

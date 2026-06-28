@@ -1,6 +1,8 @@
 # Naming for externally provisioned DynamoDB + in-stack EventBridge/SQS, and per-stage service URLs.
 taskDynamoTableName: task-service-${self:provider.stage}
 eventBusName: task-service-bus-${self:provider.stage}
+# EventBridge Scheduler group for task reminder one-shot schedules (dev / stg / prd isolated).
+reminderSchedulerGroupName: task-service-${self:provider.stage}-reminders
 # taskEventsDlqName: task-events-dlq-${self:provider.stage}
 corsOrigin:
   dev: '*'

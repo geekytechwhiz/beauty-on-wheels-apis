@@ -114,9 +114,23 @@ export const WORKFLOW_STAGE = {
 
 export type WorkflowStage = (typeof WORKFLOW_STAGE)[keyof typeof WORKFLOW_STAGE];
 
+export const REMINDER_SCHEDULE_ANCHOR = {
+  DUE_WINDOW_START: 'dueWindowStart',
+  DUE_WINDOW_END: 'dueWindowEnd',
+} as const;
+
+export type ReminderScheduleAnchor =
+  (typeof REMINDER_SCHEDULE_ANCHOR)[keyof typeof REMINDER_SCHEDULE_ANCHOR];
+
 export interface ReminderSettings {
   channels?: string[];
   quietHoursRespected?: boolean;
+  /** Which due-window boundary to anchor the reminder to. Defaults to `dueWindowEnd`. */
+  scheduleAnchor?: ReminderScheduleAnchor;
+  /** Milliseconds added to the anchor (negative = before anchor). Defaults to `0`. */
+  offsetMs?: number;
+  /** How many ms before the quiet-hours start to fire when the target falls inside quiet hours. Defaults to `300000` (5 min). */
+  quietHoursBufferMs?: number;
   [key: string]: unknown;
 }
 
@@ -165,6 +179,20 @@ export const REMINDER_CHANNEL = {
 } as const;
 
 export type ReminderChannel = (typeof REMINDER_CHANNEL)[keyof typeof REMINDER_CHANNEL];
+
+/** Append-only LOOKUP reminderHistory row — each status change is a new entry with createdAt only. */
+export type ReminderHistoryEntry = {
+  reminderRecordId: string;
+  runtimeTaskInstanceId?: string;
+  scheduledReminderAt?: number;
+  reminderChannel?: ReminderChannel;
+  reminderStatus: ReminderStatus;
+  sentAt?: number;
+  createdAt: number;
+  failureReason?: string;
+  suppressedReason?: string;
+  schedulerJobId?: string;
+};
 
 /** Care-plan stage readiness rollup (GET .../task-status-summary). */
 export const READINESS_STATUS = {

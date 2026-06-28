@@ -11,11 +11,12 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-task-service-bucket'
     STACK_NAME: 'stg-task-service'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps

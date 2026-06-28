@@ -11,11 +11,12 @@ env:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-task-service-bucket'
     STACK_NAME: 'prd-task-service'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps

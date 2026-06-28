@@ -8,6 +8,7 @@ import {
   type TaskDisplayGroup,
 } from '../models/types/task-domain.types';
 import { RUNTIME_TASK_STATE, type RuntimeTaskState } from '../models/types/runtime-task-state.type';
+import { nowEpochMs } from './task-time';
 
 const DISPLAY_TITLES: Partial<Record<TaskBehaviorCode, string>> = {
   METRIC_CHECKIN: 'Record your health metrics',
@@ -45,7 +46,7 @@ export function displayTitleForMonitoringTask(code: TaskBehaviorCode): string {
 
 export function initialStateForMonitoringCreate(
   _dueWindowStart: number,
-  _nowMs = Date.now(),
+  _nowMs = nowEpochMs(),
 ): RuntimeTaskState {
   return RUNTIME_TASK_STATE.OPEN;
 }

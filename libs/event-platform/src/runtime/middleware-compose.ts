@@ -15,7 +15,7 @@ import {
 import { RealtimeEventService } from '../core/realtime/services/realtime-event.service';
 
 export type OperationName =
-  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
+  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed' | 'register' | 'cancel'}`;
 
 const logger = createLogger();
 

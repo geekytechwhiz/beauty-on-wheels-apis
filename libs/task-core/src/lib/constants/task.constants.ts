@@ -1,14 +1,22 @@
-export const TASK_LOOKUP_SK = 'LOOKUP';
+import { TASK_DDB_SK } from './task-key.constants';
+
+export const TASK_LOOKUP_SK = TASK_DDB_SK.LOOKUP;
 
 export const ENTITY_TYPE_RUNTIME_TASK = 'RuntimeTaskInstance';
 export const ENTITY_TYPE_TASK_LOOKUP = 'TaskLookup';
 export const ENTITY_TYPE_TASK_HISTORY = 'TaskStateHistory';
+export const ENTITY_TYPE_REMINDER = 'ReminderInstance';
+
+/** Mutable live reminder row — one per task (matches one EventBridge schedule). */
+export const REMINDER_CURRENT_SK = TASK_DDB_SK.REMINDER_CURRENT;
 
 export const TRANSACT_INDEX_META = 0;
 
 export const MONITORING_SYSTEM_ACTOR = 'system:monitoring-runtime';
 export const SERVICE_FLOW_SYSTEM_ACTOR = 'system:service-flow-runtime';
 export const CARE_PLAN_SYSTEM_ACTOR = 'system:care-plan-runtime';
+export const LINKED_SOURCE_SYSTEM_ACTOR = 'system:linked-source';
+export const REMINDER_STREAM_SYSTEM_ACTOR = 'system:runtime-task';
 
 export function manualSystemActor(userId: string): string {
   return `user:${userId.trim()}`;

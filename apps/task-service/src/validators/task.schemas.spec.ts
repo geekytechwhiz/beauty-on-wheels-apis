@@ -1,4 +1,5 @@
 import {
+  assignedToTypeSchema,
   createMonitoringActionHttpBodySchema,
   createRuntimeTaskHttpBodySchema,
   generateCarePlanTasksHttpBodySchema,
@@ -12,6 +13,11 @@ const CP_DUE_START = 1780567200000;
 const CP_DUE_END = 1780610400000;
 
 describe('task.schemas', () => {
+  it('assignedToTypeSchema accepts orgStaff', () => {
+    expect(assignedToTypeSchema.safeParse('orgStaff').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('invalid').success).toBe(false);
+  });
+
   it('rejects wrong types on createMonitoringAction', () => {
     const result = createMonitoringActionHttpBodySchema.safeParse({
       patientId: 'pat-1',
@@ -45,6 +51,21 @@ describe('task.schemas', () => {
           },
         ],
       },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects empty optional strings on createRuntimeTask body', () => {
+    const result = createRuntimeTaskHttpBodySchema.safeParse({
+      patientId: 'pat-1',
+      patientDisplayName: 'Maria Lopez',
+      runtimeTaskSource: 'manualSystem',
+      taskBehaviorCode: 'INSTRUCTION',
+      taskDisplayGroup: 'action',
+      displayTitle: 'Task',
+      assignedToType: 'patient',
+      displayToPatient: true,
+      description: '   ',
     });
     expect(result.success).toBe(false);
   });

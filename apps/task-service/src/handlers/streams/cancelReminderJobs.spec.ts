@@ -1,4 +1,26 @@
-import type { AttributeValue } from '@aws-sdk/client-dynamodb';
+// eslint-disable-next-line no-var
+var mockRecordReminderCancellation: jest.Mock;
+
+jest.mock('@api-hub/task-core', () => {
+  mockRecordReminderCancellation = jest.fn().mockResolvedValue({ written: true });
+  const actual = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
+  return {
+    ...actual,
+    TaskService: jest.fn().mockImplementation(() => ({
+      recordReminderCancellation: mockRecordReminderCancellation,
+    })),
+  };
+});
+
+/** Minimal DynamoDB stream attribute shape for stream handler tests. */
+type StreamAttributeValue = {
+  S?: string;
+  N?: string;
+  BOOL?: boolean;
+  M?: Record<string, StreamAttributeValue>;
+  L?: StreamAttributeValue[];
+};
+
 import type { LambdaInvocationContext } from '@api-hub/observability';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
 
@@ -6,7 +28,7 @@ import {
   setReminderSchedulerGatewayForTests,
 } from '../../reminder/reminder-scheduler.gateway';
 import type { ReminderSchedulerGateway } from '../../reminder/reminder-scheduler.types';
-import { main as cancelReminderJobs } from './cancelReminderJobs';
+import { handler, main } from './cancelReminderJobs';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
@@ -17,7 +39,7 @@ jest.mock('@api-hub/observability', () => {
 });
 
 function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
-  const newImage: Record<string, AttributeValue> = {
+  const newImage: Record<string, StreamAttributeValue> = {
     entityType: { S: 'RuntimeTaskInstance' },
     runtimeTaskInstanceId: { S: 'task-1' },
     orgId: { S: 'org-1' },
@@ -26,7 +48,7 @@ function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
     currentState: { S: 'open' },
   };
 
-  const oldImage: Record<string, AttributeValue> = {
+  const oldImage: Record<string, StreamAttributeValue> = {
     entityType: { S: 'RuntimeTaskInstance' },
     runtimeTaskInstanceId: { S: 'task-1' },
     reminderEnabled: { BOOL: true },
@@ -71,10 +93,14 @@ describe('cancelReminderJobs', () => {
     setReminderSchedulerGatewayForTests(undefined);
   });
 
+  it('exports main as handler', () => {
+    expect(main).toBe(handler);
+  });
+
   it('cancels reminder schedule when reminders disabled', async () => {
     const event: DynamoDBStreamEvent = { Records: [streamRecord()] };
 
-    const out = await cancelReminderJobs(event, lambdaContext);
+    const out = await handler(event, lambdaContext);
 
     expect(out.batchItemFailures).toEqual([]);
     expect(cancel).toHaveBeenCalledWith(

@@ -65,6 +65,9 @@ rm -f packaged.yaml
 # SMALL CodeBuild (~3.6 GiB): cap Node heap so esbuild subprocess has headroom (see serverless.yml).
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
+echo "Verifying @myvitalrx/mvrx-resource-registry is loadable..."
+node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+
 echo "Packaging Serverless service (NODE_OPTIONS=$NODE_OPTIONS)..."
 echo "Node heap limit: $NODE_OPTIONS"
 if command -v free >/dev/null 2>&1; then

@@ -1,9 +1,12 @@
 version: 0.2
 # PRODUCTION pipeline — CodeBuild project must use THIS file (not buildspec.yml).
 # Build uploads Lambda zips to DEPLOYMENT_BUCKET and emits packaged.yaml for deploy.
+# GitHub Packages auth: see CODEBUILD-NPM.md
 
 env:
   shell: bash
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
   variables:
     STAGE: 'prd'
     DEPLOYMENT_BUCKET: 'prd-mvx-template-service-bucket'
@@ -15,8 +18,20 @@ phases:
     runtime-versions:
       nodejs: 22
     commands:
+      - echo "=== npm registry debug (pre-install) ==="
+      - pwd
+      - ls -la
+      - ls -la .npmrc || echo "WARN no .npmrc in $(pwd)"
+      - cat .npmrc || true
+      - cat ~/.npmrc 2>/dev/null || echo "no ~/.npmrc"
+      - npm config list
+      - npm config get registry
+      - npm config get @myvitalrx:registry || true
+      - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
+      - node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+      - npm ls @myvitalrx/mvrx-resource-registry
 
   pre_build:
     commands:

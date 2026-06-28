@@ -18,3 +18,17 @@ Outputs:
         - Arn
     Export:
       Name: ${self:provider.stage}-${self:service}-EventBusArn
+  TemplateEventsDlqUrl:
+    Description: URL of the Template Service events DLQ (for future async consumers)
+    Value:
+      Ref: TemplateEventsDLQ
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventsDlqUrl
+  TemplateEventsDlqArn:
+    Description: ARN of the Template Service events DLQ
+    Value:
+      Fn::GetAtt:
+        - TemplateEventsDLQ
+        - Arn
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventsDlqArn

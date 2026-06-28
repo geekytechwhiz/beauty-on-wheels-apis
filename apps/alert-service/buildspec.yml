@@ -7,11 +7,12 @@ version: 0.2
 
 env:
   shell: bash
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
   variables:
     STAGE: 'dev'
     DEPLOYMENT_BUCKET: 'dev-mvx-alert-service-bucket'
     STACK_NAME: 'dev-alert-service'
-    NPM_TOKEN: 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
 
 phases:
   install:

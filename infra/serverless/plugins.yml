@@ -1,0 +1,4 @@
+- serverless-esbuild
+- serverless-dotenv-plugin
+- serverless-auto-swagger
+- '@myvitalrx/mvrx-resource-registry'

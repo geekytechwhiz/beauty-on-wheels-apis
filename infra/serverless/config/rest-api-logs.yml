@@ -1,0 +1,6 @@
+accessLogging: true
+executionLogging: true
+level: INFO
+fullExecutionData: false
+format: >-
+  {"requestId":"$context.requestId","correlationId":"$input.params().header.get('X-Correlation-Id')","ip":"$context.identity.sourceIp","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency"}

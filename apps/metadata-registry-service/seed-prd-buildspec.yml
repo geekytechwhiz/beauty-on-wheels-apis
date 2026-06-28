@@ -26,18 +26,23 @@ env:
     CONFIRMATION_ACKNOWLEDGED: 'true'
     CONCURRENCY: '5'
     METADATA_TYPE_CODES: TestingScript
-    NPM_TOKEN: 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
     # Platform user id for seed actor attribution — update if prd root admin differs from dev
     SEED_ACTOR_USER_ID: 1b128dc9913b21f3f34eb6b184d64c1f2e40e82ba572a010ff754ba857b59d2f
-  # secrets-manager:
+  parameter-store:
+    NPM_TOKEN: /codebuild/github-packages-npm-token
+  # secrets-manager (optional seed auth — uncomment when configured):
   #   AUTH_TOKEN: arn:aws:secretsmanager:us-east-1:<account>:secret:metadata-seed/prd-auth-token
-  #   NPM_TOKEN: codebuild/github-packages-npm-token:token
 
 phases:
   install:
     runtime-versions:
       nodejs: 22
     commands:
+      - echo "=== npm registry debug (pre-install) ==="
+      - pwd
+      - ls -la .npmrc || echo "WARN no .npmrc in $(pwd)"
+      - cat .npmrc || true
+      - npm config get @myvitalrx:registry || true
       - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies for metadata seed..."
       - npm install --legacy-peer-deps

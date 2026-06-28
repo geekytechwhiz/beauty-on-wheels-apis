@@ -7,11 +7,12 @@ version: 0.2
 
 env:
   shell: bash
+  secrets-manager:
+    NPM_TOKEN: dev-github-packages-npm-token
   variables:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-alert-service-bucket'
     STACK_NAME: 'stg-alert-service'
-    NPM_TOKEN: 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
 
 phases:
   install:

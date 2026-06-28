@@ -1,0 +1,8 @@
+# Reference shape for REST API (http:) secured routes — NOT loadable as a single file.
+# REST API events require per-endpoint cors + authorizer (YAML anchors in serverless.yml).
+# See apps/template-service/serverless.yml: custom.cors (&httpApiCors), securedAuthorizer, securedResponses.
+#
+# Per route (except /health):
+#   cors: *httpApiCors
+#   authorizer: *securedAuthorizer
+#   responses: *securedResponses

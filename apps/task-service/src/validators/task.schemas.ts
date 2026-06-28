@@ -13,30 +13,38 @@ export const optionalNullableNonEmptyStringSchema = z
   .union([z.string().trim().min(1), z.null()])
   .optional();
 
-/** Who completes a task — `patient` | `careTeamRole` | `user` | `orgStaff` | `system`. */
-export const assignedToTypeSchema = z.enum([
-  'patient',
-  'careTeamRole',
-  'user',
-  'orgStaff',
-  'system',
+/**
+ * Registry-backed metadata value codes — Zod enforces non-empty string shape only.
+ * Labels are resolved from the metadata registry on read responses.
+ */
+export const metadataValueCodeSchema = nonEmptyStringSchema;
+
+/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
+export const assignedToTypeSchema = metadataValueCodeSchema;
+
+/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
+export const taskBehaviorCodeSchema = metadataValueCodeSchema;
+
+/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
+export const taskDisplayGroupSchema = metadataValueCodeSchema;
+
+/** Domain enum — not registry-backed. */
+const actorTypeSchema = z.enum(['patient', 'staff']);
+
+/** Domain enums — not registry-backed. */
+const taskRuntimeActionSchema = z.enum(['complete', 'dismiss', 'cancel', 'markMissed']);
+
+const runtimeTaskStateSchema = z.enum([
+  'open',
+  'scheduled',
+  'active',
+  'completed',
+  'missed',
+  'dismissed',
+  'cancelled',
 ]);
 
-export const taskBehaviorCodeSchema = z.enum([
-  'INSTRUCTION',
-  'DOCUMENT_FORM',
-  'UPLOAD_DOCUMENT',
-  'DEVICE_SETUP',
-  'EDUCATION_VIDEO',
-  'EDUCATION_ARTICLE',
-  'CARE_TEAM_TASK',
-  'METRIC_CHECKIN',
-  'SYMPTOM_CHECKIN',
-]);
-
-export const taskDisplayGroupSchema = z.enum(['action', 'learning', 'checkIn', 'staffTask']);
-
-const workflowStageSchema = z.enum(['onboarding', 'ongoing', 'review', 'closure']);
+const reminderScheduleAnchorSchema = z.enum(['dueWindowStart', 'dueWindowEnd']);
 
 export const createMonitoringActionHttpBodySchema = z
   .object({
@@ -44,8 +52,8 @@ export const createMonitoringActionHttpBodySchema = z
     patientDisplayName: nonEmptyStringSchema,
     carePlanInstanceId: nonEmptyStringSchema,
     monitoringInstanceId: nonEmptyStringSchema,
-    taskBehaviorCode: taskBehaviorCodeSchema,
-    assignedToType: assignedToTypeSchema,
+    taskBehaviorCode: metadataValueCodeSchema,
+    assignedToType: metadataValueCodeSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
     assignedToStaffDisplayName: optionalNonEmptyStringSchema,
     dueWindowStart: z.number(),
@@ -58,14 +66,14 @@ export const createRuntimeTaskHttpBodySchema = z
   .object({
     patientId: nonEmptyStringSchema,
     patientDisplayName: nonEmptyStringSchema,
-    runtimeTaskSource: nonEmptyStringSchema,
-    taskBehaviorCode: taskBehaviorCodeSchema,
-    taskDisplayGroup: taskDisplayGroupSchema,
+    runtimeTaskSource: metadataValueCodeSchema,
+    taskBehaviorCode: metadataValueCodeSchema,
+    taskDisplayGroup: metadataValueCodeSchema,
     displayTitle: nonEmptyStringSchema,
-    assignedToType: assignedToTypeSchema,
+    assignedToType: metadataValueCodeSchema,
     displayToPatient: z.boolean(),
     carePlanInstanceId: optionalNonEmptyStringSchema,
-    workflowStage: workflowStageSchema.optional(),
+    workflowStage: metadataValueCodeSchema.optional(),
     description: optionalNonEmptyStringSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
     assignedToStaffDisplayName: optionalNonEmptyStringSchema,
@@ -84,10 +92,10 @@ export const carePlanLinkageMaterializationSchema = z
   .object({
     carePlanTaskLinkageId: nonEmptyStringSchema,
     sourceTaskTemplateVersionId: optionalNonEmptyStringSchema,
-    taskBehaviorCode: taskBehaviorCodeSchema,
-    taskDisplayGroup: taskDisplayGroupSchema,
+    taskBehaviorCode: metadataValueCodeSchema,
+    taskDisplayGroup: metadataValueCodeSchema,
     displayTitle: nonEmptyStringSchema,
-    assignedToType: assignedToTypeSchema,
+    assignedToType: metadataValueCodeSchema,
     displayToPatient: z.boolean(),
     description: optionalNonEmptyStringSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
@@ -111,8 +119,8 @@ export const generateCarePlanTasksHttpBodySchema = z
     patientId: nonEmptyStringSchema,
     patientDisplayName: nonEmptyStringSchema,
     carePlanInstanceId: nonEmptyStringSchema,
-    taskGenerationTrigger: nonEmptyStringSchema,
-    workflowStage: workflowStageSchema.optional(),
+    taskGenerationTrigger: metadataValueCodeSchema,
+    workflowStage: metadataValueCodeSchema.optional(),
     dryRun: z.boolean().optional(),
     actorType: optionalNonEmptyStringSchema,
     actorId: optionalNonEmptyStringSchema,
@@ -137,18 +145,10 @@ export type UpdateAssignedStaffHttpBody = z.infer<typeof updateAssignedStaffHttp
 
 export const updateTaskStateHttpBodySchema = z
   .object({
-    action: z.enum(['complete', 'dismiss', 'cancel', 'markMissed']),
+    action: taskRuntimeActionSchema,
     actorId: nonEmptyStringSchema,
-    actorType: assignedToTypeSchema,
-    expectedCurrentState: z.enum([
-      'open',
-      'scheduled',
-      'active',
-      'completed',
-      'missed',
-      'dismissed',
-      'cancelled',
-    ]),
+    actorType: actorTypeSchema,
+    expectedCurrentState: runtimeTaskStateSchema,
     reason: optionalNonEmptyStringSchema,
     evidencePayload: z.record(z.string(), z.unknown()).optional(),
   })
@@ -156,17 +156,15 @@ export const updateTaskStateHttpBodySchema = z
 
 export type UpdateTaskStateHttpBody = z.infer<typeof updateTaskStateHttpBodySchema>;
 
-const reminderChannelSchema = z.enum(['push', 'sms', 'email', 'inApp']);
-
 export const updateReminderSettingsHttpBodySchema = z
   .object({
     actorId: nonEmptyStringSchema,
     reminderEnabled: z.boolean(),
     reminderSettings: z
       .object({
-        channels: z.array(reminderChannelSchema).optional(),
+        channels: z.array(metadataValueCodeSchema).optional(),
         quietHoursRespected: z.boolean().optional(),
-        scheduleAnchor: z.enum(['dueWindowStart', 'dueWindowEnd']).optional(),
+        scheduleAnchor: reminderScheduleAnchorSchema.optional(),
         offsetMs: z.number().int().optional(),
         quietHoursBufferMs: z.number().int().nonnegative().optional(),
       })
@@ -200,7 +198,7 @@ export const updateRuntimeTaskHttpBodySchema = z
     displayToPatient: z.boolean().optional(),
     requiredForStageCompletion: z.boolean().optional(),
     displayAsChecklistItem: z.boolean().optional(),
-    workflowStage: workflowStageSchema.optional(),
+    workflowStage: metadataValueCodeSchema.optional(),
     actionTargetId: optionalNullableNonEmptyStringSchema,
     completionSourceType: optionalNullableNonEmptyStringSchema,
     completionSourceReferenceId: optionalNullableNonEmptyStringSchema,
@@ -219,4 +217,3 @@ export const updateRuntimeTaskHttpBodySchema = z
   });
 
 export type UpdateRuntimeTaskHttpBody = z.infer<typeof updateRuntimeTaskHttpBodySchema>;
-

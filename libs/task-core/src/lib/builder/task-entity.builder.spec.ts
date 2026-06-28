@@ -60,6 +60,26 @@ describe('TaskEntityBuilder', () => {
     expect(meta.gsi1sk).toContain('PAT#pat-1');
   });
 
+  it('builds monitoring META for careTeamRole assignment with typed GSI1 pk', () => {
+    const roleInput: CreateMonitoringActionRequest = {
+      ...input,
+      assignedToType: 'careTeamRole',
+      assignedToStaffId: 'role-triage',
+      assignedToStaffDisplayName: 'Triage Nurse',
+    };
+    const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
+      runtimeTaskInstanceId: 'rtask-role',
+      idempotencyKey:
+        'org-1|pat-1|mon-1|METRIC_CHECKIN|1780581600000|1780668000000|careTeamRole|role-triage',
+      input: roleInput,
+      nowMs: 1780581600000,
+    });
+
+    const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
+    expect(meta.assignedToType).toBe('careTeamRole');
+    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#careTeamRole#role-triage');
+  });
+
   it('uses open state when dueWindowStart is in the future', () => {
     const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
       runtimeTaskInstanceId: 'rtask-future',

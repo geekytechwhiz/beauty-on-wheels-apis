@@ -43,7 +43,7 @@ import type {
   UpdateTaskStateRequest,
   UpdateTaskStateResult,
 } from '../models/api/update-task-state.request';
-import { ASSIGNED_TO_TYPE, isPatientAssignedToType, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
+import { isPatientAssignedToType, isOrgStaffAssignedToType, requiresAssigneeGsi, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import {
   normalizeCurrentStateForWire,
@@ -221,7 +221,7 @@ export class TaskService extends BaseTaskService {
       throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
     }
 
-    if (meta.assignedToType !== ASSIGNED_TO_TYPE.ORG_STAFF) {
+    if (!isOrgStaffAssignedToType(meta.assignedToType)) {
       throw taskHttpError('Staff assignment is only allowed for orgStaff tasks', 422, 'NOT_STAFF_TASK');
     }
 
@@ -518,7 +518,7 @@ export class TaskService extends BaseTaskService {
       if (isPatientAssignedToType(card.assignedToType)) {
         patientTasks.push(card);
       } else if (
-        card.assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF &&
+        requiresAssigneeGsi(card.assignedToType) &&
         staffUserId &&
         card.assignedToStaffId === staffUserId
       ) {

@@ -52,4 +52,4 @@ artifacts:
   files:
     - apps/task-service/packaged.yaml
     - apps/task-service/.serverless/**/*
-  discard-paths: no 
+  discard-paths: no

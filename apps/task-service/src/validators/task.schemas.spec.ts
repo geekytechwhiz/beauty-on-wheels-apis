@@ -3,6 +3,7 @@ import {
   createMonitoringActionHttpBodySchema,
   createRuntimeTaskHttpBodySchema,
   generateCarePlanTasksHttpBodySchema,
+  metadataValueCodeSchema,
   updateAssignedStaffHttpBodySchema,
   updateReminderSettingsHttpBodySchema,
   updateRuntimeTaskHttpBodySchema,
@@ -13,9 +14,11 @@ const CP_DUE_START = 1780567200000;
 const CP_DUE_END = 1780610400000;
 
 describe('task.schemas', () => {
-  it('assignedToTypeSchema accepts orgStaff', () => {
+  it('metadataValueCodeSchema accepts non-empty strings', () => {
+    expect(metadataValueCodeSchema.safeParse('orgStaff').success).toBe(true);
+    expect(metadataValueCodeSchema.safeParse('METRIC_CHECKIN').success).toBe(true);
+    expect(metadataValueCodeSchema.safeParse('').success).toBe(false);
     expect(assignedToTypeSchema.safeParse('orgStaff').success).toBe(true);
-    expect(assignedToTypeSchema.safeParse('invalid').success).toBe(false);
   });
 
   it('rejects wrong types on createMonitoringAction', () => {
@@ -116,7 +119,7 @@ describe('task.schemas', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts valid updateReminderSettings body with camelCase channels', () => {
+  it('accepts valid updateReminderSettings body with reminder channel strings', () => {
     const result = updateReminderSettingsHttpBodySchema.safeParse({
       actorId: 'staff-1',
       reminderEnabled: true,
@@ -126,13 +129,13 @@ describe('task.schemas', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects PascalCase reminder channels', () => {
+  it('accepts reminder channel strings structurally', () => {
     const result = updateReminderSettingsHttpBodySchema.safeParse({
       actorId: 'staff-1',
       reminderEnabled: true,
       reminderSettings: { channels: ['Push'] },
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('accepts valid updateRuntimeTask body with at least one mutable field', () => {

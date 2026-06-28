@@ -1112,6 +1112,35 @@ describe('TaskService.listPatientTasks', () => {
     expect(result.nextToken).toBeUndefined();
   });
 
+  it('includes non-patient assignee tasks in staffTasks when staffUserId matches assignee id', async () => {
+    const careTeamTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-role',
+      assignedToType: 'careTeamRole' as const,
+      assignedToStaffId: 'role-1',
+      assignedToStaffDisplayName: 'Triage Nurse',
+      displayToPatient: false,
+    };
+
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [careTeamTask],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'role-1',
+      pageSize: 50,
+    });
+
+    expect(result.staffTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items[0].assignedToType).toBe('careTeamRole');
+  });
+
   it('returns empty staffTasks when staffUserId is omitted', async () => {
     const staffTask = {
       ...sampleRecord(),

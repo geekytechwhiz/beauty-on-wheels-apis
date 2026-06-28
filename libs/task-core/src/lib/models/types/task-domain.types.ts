@@ -59,10 +59,30 @@ export function requiresAssigneeGsi(assignedToType: AssignedToType): boolean {
   return !isPatientAssignedToType(assignedToType);
 }
 
-/** Legacy wire value `staff` → `orgStaff` when reading older rows. */
+export function isOrgStaffAssignedToType(assignedToType: AssignedToType): boolean {
+  return assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF;
+}
+
+/** Legacy wire values → canonical camelCase assignee types when reading older rows. */
 export function normalizeAssignedToTypeForWire(value: string): AssignedToType {
   if (value === 'staff') {
     return ASSIGNED_TO_TYPE.ORG_STAFF;
+  }
+  const upper = value.toUpperCase();
+  if (upper === 'PATIENT') {
+    return ASSIGNED_TO_TYPE.PATIENT;
+  }
+  if (upper === 'ORG_STAFF' || upper === 'ORGSTAFF') {
+    return ASSIGNED_TO_TYPE.ORG_STAFF;
+  }
+  if (upper === 'CARE_TEAM_ROLE' || upper === 'CARETEAMROLE') {
+    return ASSIGNED_TO_TYPE.CARE_TEAM_ROLE;
+  }
+  if (upper === 'USER') {
+    return ASSIGNED_TO_TYPE.USER;
+  }
+  if (upper === 'SYSTEM') {
+    return ASSIGNED_TO_TYPE.SYSTEM;
   }
   return value as AssignedToType;
 }

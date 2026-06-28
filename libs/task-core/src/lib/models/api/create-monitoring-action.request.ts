@@ -15,11 +15,11 @@ export interface CreateMonitoringActionRequest {
   carePlanInstanceId: string;
   monitoringInstanceId: string;
   taskBehaviorCode: TaskBehaviorCode;
-  /** Who completes the task: `patient` or `staff` only. */
+  /** Who completes the task — `patient`, `careTeamRole`, `user`, `orgStaff`, or `system`. */
   assignedToType: AssignedToType;
-  /** Required when `assignedToType` is `staff`; drives GSI1 staff inbox. */
+  /** Required when `assignedToType` is not `patient`; assignee id for GSI1 inbox indexing. */
   assignedToStaffId?: string;
-  /** Required when `assignedToType` is `staff`. */
+  /** Required when `assignedToType` is not `patient`. */
   assignedToStaffDisplayName?: string;
   dueWindowStart: number;
   dueWindowEnd: number;

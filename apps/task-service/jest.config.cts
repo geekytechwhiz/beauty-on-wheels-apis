@@ -24,6 +24,7 @@ module.exports = {
     '^@api-hub/middleware$': '<rootDir>/../../libs/middleware/src/index.ts',
     '^@api-hub/task-core$': '<rootDir>/../../libs/task-core/src/index.ts',
     '^@api-hub/event-platform$': '<rootDir>/../../libs/event-platform/src/index.ts',
+    '^@api-hub/service-clients$': '<rootDir>/../../libs/service-clients/src/index.ts',
   },
   coverageDirectory: '../../coverage/apps/task-service',
   coverageReporters: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],

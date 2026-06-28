@@ -17,9 +17,12 @@ stageUrls:
   dev:
     USER_SERVICE_BASE_URL: 'https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev'
     ORGANIZATION_SERVICE_BASE_URL: 'https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://244vhkoib0.execute-api.us-east-1.amazonaws.com/dev'
   stg:
     USER_SERVICE_BASE_URL: 'https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg'
     ORGANIZATION_SERVICE_BASE_URL: 'https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://esrmlb4oh6.execute-api.us-east-1.amazonaws.com/stg'
   prd:
     USER_SERVICE_BASE_URL: 'https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd'
     ORGANIZATION_SERVICE_BASE_URL: 'https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd'
+    METADATA_REGISTRY_SERVICE_BASE_URL: 'https://jc1l3fgzi2.execute-api.us-east-1.amazonaws.com/prd'

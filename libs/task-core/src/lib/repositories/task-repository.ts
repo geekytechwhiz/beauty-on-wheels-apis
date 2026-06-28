@@ -536,7 +536,7 @@ export class TaskRepository extends BaseRepository {
     const nowMs = nowEpochMs();
     const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
       meta.orgId,
-      ASSIGNED_TO_TYPE.ORG_STAFF,
+      meta.assignedToType,
       assignedToStaffId,
     );
     const isFirstAssignment = !meta.assignedToStaffId;

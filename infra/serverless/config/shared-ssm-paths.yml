@@ -2,10 +2,7 @@
 dev:
   userServiceBaseUrl: /dev/user-service/USER_SERVICE_URL
   organizationServiceBaseUrl: /dev/organization-service/ORGANIZATION_SERVICE_URL
-  
+
 stg:
- 
-  
+
 prd:
-  
-  

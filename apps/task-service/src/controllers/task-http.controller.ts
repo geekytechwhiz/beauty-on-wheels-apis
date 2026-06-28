@@ -2,9 +2,9 @@ import {
   ActorType,
   normalizeTaskServiceError,
   TaskService,
-  toRuntimeTaskCard,
 } from '@api-hub/task-core';
 
+import { getTaskMetadataService } from '../services/task-metadata.service';
 import type {
   ValidatedCreateMonitoringActionRequest,
   ValidatedCreateRuntimeTaskRequest,
@@ -31,22 +31,21 @@ let ctrl: TaskHttpController | undefined;
 
 export class TaskHttpController {
   private readonly svc = getTaskService();
+  private readonly metaSvc = getTaskMetadataService();
 
   async handleCreateMonitoringAction(req: ValidatedCreateMonitoringActionRequest) {
     const { validatedCreateMonitoringAction: validated } = req;
 
     try {
-      const { record, outcome } = await this.svc.createMonitoringAction({
-        organizationId: validated.orgId,
-        ...validated.body,
-      });
-      const task = toRuntimeTaskCard(record);
-
-      return {
-        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-        outcome,
-        task,
-      };
+      return await this.metaSvc.enrichCreateMonitoringActionAfterWrite(
+        validated.authHeader,
+        validated.body,
+        () =>
+          this.svc.createMonitoringAction({
+            organizationId: validated.orgId,
+            ...validated.body,
+          }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -61,18 +60,17 @@ export class TaskHttpController {
     const { validatedCreateRuntimeTask: validated } = req;
 
     try {
-      const { record } = await this.svc.createRuntimeTask({
-        kind: 'http',
-        organizationId: validated.orgId,
-        body: validated.body,
-        createdBy: validated.createdBy,
-      });
-      const task = toRuntimeTaskCard(record);
-
-      return {
-        runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-        task,
-      };
+      return await this.metaSvc.enrichCreateRuntimeTaskAfterWrite(
+        validated.authHeader,
+        validated.body,
+        () =>
+          this.svc.createRuntimeTask({
+            kind: 'http',
+            organizationId: validated.orgId,
+            body: validated.body,
+            createdBy: validated.createdBy,
+          }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -87,11 +85,13 @@ export class TaskHttpController {
     const { validatedGetRuntimeTask: validated } = req;
 
     try {
-      return await this.svc.getRuntimeTaskDetail({
-        organizationId: validated.orgId,
-        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
-        includeRelated: validated.includeRelated,
-      });
+      return await this.metaSvc.enrichTaskInResultAfterRead(validated.authHeader, () =>
+        this.svc.getRuntimeTaskDetail({
+          organizationId: validated.orgId,
+          runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+          includeRelated: validated.includeRelated,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -106,14 +106,16 @@ export class TaskHttpController {
     const { validatedUpdateAssignedStaff: validated } = req;
 
     try {
-      return await this.svc.reassignAssignedStaff({
-        organizationId: validated.orgId,
-        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
-        actorId: validated.body.actorId,
-        assignedToStaffId: validated.body.assignedToStaffId,
-        assignedToStaffDisplayName: validated.body.assignedToStaffDisplayName,
-        reason: validated.body.reason,
-      });
+      return await this.metaSvc.enrichTaskInResultAfterRead(validated.authHeader, () =>
+        this.svc.reassignAssignedStaff({
+          organizationId: validated.orgId,
+          runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+          actorId: validated.body.actorId,
+          assignedToStaffId: validated.body.assignedToStaffId,
+          assignedToStaffDisplayName: validated.body.assignedToStaffDisplayName,
+          reason: validated.body.reason,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -128,16 +130,18 @@ export class TaskHttpController {
     const { validatedGetTasks: validated } = req;
 
     try {
-      return await this.svc.listPatientTasks({
-        organizationId: validated.orgId,
-        patientId: validated.patientId,
-        staffUserId: validated.staffUserId,
-        carePlanInstanceId: validated.carePlanInstanceId,
-        workflowStage: validated.workflowStage,
-        currentState: validated.currentState,
-        pageSize: validated.pageSize,
-        nextToken: validated.nextToken,
-      });
+      return await this.metaSvc.enrichPatientTasksResultAfterRead(validated.authHeader, () =>
+        this.svc.listPatientTasks({
+          organizationId: validated.orgId,
+          patientId: validated.patientId,
+          staffUserId: validated.staffUserId,
+          carePlanInstanceId: validated.carePlanInstanceId,
+          workflowStage: validated.workflowStage,
+          currentState: validated.currentState,
+          pageSize: validated.pageSize,
+          nextToken: validated.nextToken,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -152,15 +156,17 @@ export class TaskHttpController {
     const { validatedGetStaffTasks: validated } = req;
 
     try {
-      return await this.svc.listStaffTasks({
-        organizationId: validated.orgId,
-        staffUserId: validated.staffUserId,
-        patientId: validated.patientId,
-        carePlanInstanceId: validated.carePlanInstanceId,
-        currentState: validated.currentState,
-        pageSize: validated.pageSize,
-        nextToken: validated.nextToken,
-      });
+      return await this.metaSvc.enrichTaskListResultAfterRead(validated.authHeader, () =>
+        this.svc.listStaffTasks({
+          organizationId: validated.orgId,
+          staffUserId: validated.staffUserId,
+          patientId: validated.patientId,
+          carePlanInstanceId: validated.carePlanInstanceId,
+          currentState: validated.currentState,
+          pageSize: validated.pageSize,
+          nextToken: validated.nextToken,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -175,16 +181,18 @@ export class TaskHttpController {
     const { validatedGetActionCenterItems: validated } = req;
 
     try {
-      return await this.svc.listActionCenterItems({
-        organizationId: validated.orgId,
-        patientId: validated.patientId,
-        carePlanInstanceId: validated.carePlanInstanceId,
-        workflowStage: validated.workflowStage,
-        surfaceSection: validated.surfaceSection,
-        timezone: validated.timezone,
-        pageSize: validated.pageSize,
-        nextToken: validated.nextToken,
-      });
+      return await this.metaSvc.enrichActionCenterResultAfterRead(validated.authHeader, () =>
+        this.svc.listActionCenterItems({
+          organizationId: validated.orgId,
+          patientId: validated.patientId,
+          carePlanInstanceId: validated.carePlanInstanceId,
+          workflowStage: validated.workflowStage,
+          surfaceSection: validated.surfaceSection,
+          timezone: validated.timezone,
+          pageSize: validated.pageSize,
+          nextToken: validated.nextToken,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -219,10 +227,15 @@ export class TaskHttpController {
     const { validatedGenerateCarePlanTasks: validated } = req;
 
     try {
-      return await this.svc.generateCarePlanTasks({
-        organizationId: validated.orgId,
-        ...validated.body,
-      });
+      return await this.metaSvc.enrichGenerateCarePlanResults(
+        validated.body,
+        validated.authHeader,
+        () =>
+          this.svc.generateCarePlanTasks({
+            organizationId: validated.orgId,
+            ...validated.body,
+          }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,
@@ -284,13 +297,19 @@ export class TaskHttpController {
     const { validatedUpdateRuntimeTask: validated } = req;
 
     try {
-      return await this.svc.updateRuntimeTask({
-        organizationId: validated.orgId,
-        runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
-        actorId: validated.body.actorId,
-        reason: validated.body.reason,
-        patch: validated.patch,
-      });
+      return await this.metaSvc.enrichTaskInResultAfterWrite(
+        'patchRuntimeTask',
+        validated.patch,
+        validated.authHeader,
+        () =>
+          this.svc.updateRuntimeTask({
+            organizationId: validated.orgId,
+            runtimeTaskInstanceId: validated.runtimeTaskInstanceId,
+            actorId: validated.body.actorId,
+            reason: validated.body.reason,
+            patch: validated.patch,
+          }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,

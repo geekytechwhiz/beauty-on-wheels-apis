@@ -1,5 +1,6 @@
 import {
   ASSIGNED_TO_TYPE,
+  isOrgStaffAssignedToType,
   isPatientAssignedToType,
   normalizeAssignedToTypeForWire,
   requiresAssigneeGsi,
@@ -28,8 +29,10 @@ function validationError(message: string): Error & { statusCode: number; code: s
 export function normalizeAssignedToTypeInput<T extends AssignedToTypeInput>(input: T): T {
   const assignedToType = normalizeAssignedToTypeForWire(input.assignedToType);
   if (isPatientAssignedToType(assignedToType)) {
-    const { assignedToStaffId: _id, assignedToStaffDisplayName: _name, ...rest } = input;
-    return { ...rest, assignedToType } as T;
+    const normalized = { ...input, assignedToType };
+    delete normalized.assignedToStaffId;
+    delete normalized.assignedToStaffDisplayName;
+    return normalized;
   }
   return { ...input, assignedToType };
 }
@@ -57,7 +60,7 @@ export function prepareAssignedToTypeInput<T extends AssignedToTypeInput>(input:
   return normalized;
 }
 
-/** @deprecated Use `requiresAssigneeGsi` */
+/** @deprecated Use {@link isOrgStaffAssignedToType} */
 export function isStaffAssignedToType(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF;
+  return isOrgStaffAssignedToType(assignedToType);
 }

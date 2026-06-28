@@ -52,6 +52,16 @@ describe('assigned-to-type.validation', () => {
     );
   });
 
+  it('accepts careTeamRole when assignee fields are present', () => {
+    expect(() =>
+      validateAssignedToTypeInput({
+        assignedToType: 'careTeamRole',
+        assignedToStaffId: 'role-1',
+        assignedToStaffDisplayName: 'Triage Nurse',
+      }),
+    ).not.toThrow();
+  });
+
   it('prepareAssignedToTypeInput normalizes patient tasks then validates', () => {
     const result = prepareAssignedToTypeInput({
       assignedToType: 'patient',

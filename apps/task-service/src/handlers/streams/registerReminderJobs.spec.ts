@@ -51,7 +51,7 @@ function streamRecord(overrides: Partial<DynamoDBRecord> = {}): DynamoDBRecord {
     orgId: { S: 'org-1' },
     patientId: { S: 'pat-1' },
     reminderEnabled: { BOOL: true },
-    currentState: { S: 'open' },
+    currentState: { S: 'scheduled' },
     dueWindowEnd: { N: String(FUTURE_DUE_WINDOW_END) },
     reminderSettings: {
       M: {

@@ -55,7 +55,7 @@ const eligibleMeta = {
   runtimeTaskInstanceId: 'rtask-abc',
   orgId: 'org-e2e-001',
   patientId: 'pat-e2e-001',
-  currentState: 'open',
+  currentState: 'scheduled',
   reminderEnabled: true,
   reminderSettings: { channels: ['push'] },
 } as any;

@@ -9,7 +9,6 @@ import {
   RUNTIME_TASK_STATE,
   SERVICE_FLOW_SYSTEM_ACTOR,
   SURFACE_SECTION,
-  WORKFLOW_STAGE,
   type ActionCenterSurfaceFilter,
   type CreateMonitoringActionHttpBody,
   type CreateRuntimeTaskHttpBody,
@@ -21,7 +20,7 @@ import {
 } from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
-import { parseOptionalEnum, parsePageSize } from './request-parser';
+import { parseOptionalEnum, parseOptionalNonEmptyString, parsePageSize } from './request-parser';
 import type {
   UpdateAssignedStaffHttpBody,
   UpdateReminderSettingsHttpBody,
@@ -167,7 +166,6 @@ export type ValidatedGetRuntimeTaskHistory = {
   authHeader: string | undefined;
 };
 
-const WORKFLOW_STAGE_VALUES = Object.values(WORKFLOW_STAGE) as WorkflowStage[];
 const RUNTIME_TASK_STATE_VALUES = Object.values(RUNTIME_TASK_STATE) as RuntimeTaskState[];
 const SURFACE_SECTION_VALUES = Object.values(SURFACE_SECTION) as SurfaceSection[];
 const ACTION_CENTER_SURFACE_VALUES: ActionCenterSurfaceFilter[] = [
@@ -234,11 +232,7 @@ export function validateGetTasksRequest(req: LambdaRequest): void {
   }
 
   const carePlanInstanceId = req.params?.carePlanInstanceId?.trim() || undefined;
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
   const currentState = parseOptionalEnum(
     req.params?.currentState,
     RUNTIME_TASK_STATE_VALUES,
@@ -343,11 +337,7 @@ export function validateGetActionCenterItemsRequest(req: LambdaRequest): void {
   }
 
   const carePlanInstanceId = req.params?.carePlanInstanceId?.trim() || undefined;
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
   const pageSize = parsePageSize(req.params?.pageSize);
   const nextToken = req.params?.nextToken?.trim() || undefined;
 
@@ -451,11 +441,7 @@ export function validateGetTaskStatusSummaryRequest(req: LambdaRequest): void {
     throwVal('patientId query parameter is required', 400, 'VALIDATION_ERROR');
   }
 
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
 
   (req as LambdaRequest & { validatedGetTaskStatusSummary: ValidatedGetTaskStatusSummary })
     .validatedGetTaskStatusSummary = {

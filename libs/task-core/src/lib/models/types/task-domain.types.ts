@@ -1,5 +1,12 @@
 /** Canonical enum values — camelCase for API JSON and DynamoDB attributes. */
 
+/**
+ * Hardcode `as const` objects only for value codes used in backend logic (transitions,
+ * derivation, GSI keys, actor checks, reminder processing). Catalog fields such as
+ * `taskBehaviorCode`, `workflowStage`, and `completionSourceType` are plain strings
+ * from the UI — stored and returned without a full backend enum list.
+ */
+
 export const RUNTIME_TASK_SOURCE = {
   CARE_PLAN_TASK_LINKAGE: 'carePlanTaskLinkage',
   MONITORING_RUNTIME: 'monitoringRuntime',
@@ -9,16 +16,8 @@ export const RUNTIME_TASK_SOURCE = {
 
 export type RuntimeTaskSource = (typeof RUNTIME_TASK_SOURCE)[keyof typeof RUNTIME_TASK_SOURCE];
 
-export type TaskBehaviorCode =
-  | 'INSTRUCTION'
-  | 'DOCUMENT_FORM'
-  | 'UPLOAD_DOCUMENT'
-  | 'DEVICE_SETUP'
-  | 'EDUCATION_VIDEO'
-  | 'EDUCATION_ARTICLE'
-  | 'CARE_TEAM_TASK'
-  | 'METRIC_CHECKIN'
-  | 'SYMPTOM_CHECKIN';
+/** Metadata catalog value — stored and returned as-is; UI resolves labels. */
+export type TaskBehaviorCode = string;
 
 export const TASK_DISPLAY_GROUP = {
   ACTION: 'action',
@@ -125,14 +124,8 @@ export const TRANSITION_SOURCE = {
 
 export type TransitionSource = (typeof TRANSITION_SOURCE)[keyof typeof TRANSITION_SOURCE];
 
-export const WORKFLOW_STAGE = {
-  ONBOARDING: 'onboarding',
-  ONGOING: 'ongoing',
-  REVIEW: 'review',
-  CLOSURE: 'closure',
-} as const;
-
-export type WorkflowStage = (typeof WORKFLOW_STAGE)[keyof typeof WORKFLOW_STAGE];
+/** Metadata catalog value — filter/query passthrough; not compared in service logic. */
+export type WorkflowStage = string;
 
 export const REMINDER_SCHEDULE_ANCHOR = {
   DUE_WINDOW_START: 'dueWindowStart',
@@ -159,7 +152,6 @@ export const TASK_RUNTIME_ACTION = {
   COMPLETE: 'complete',
   DISMISS: 'dismiss',
   CANCEL: 'cancel',
-  MARK_MISSED: 'markMissed',
 } as const;
 
 export type TaskRuntimeAction = (typeof TASK_RUNTIME_ACTION)[keyof typeof TASK_RUNTIME_ACTION];
@@ -172,6 +164,7 @@ export const ACTOR_TYPE = {
 
 export type ActorType = (typeof ACTOR_TYPE)[keyof typeof ACTOR_TYPE];
 
+/** History attribution — how the state transition was initiated. */
 export const COMPLETION_SOURCE = {
   MANUAL: 'manual',
   LINKED_OBJECT: 'linkedObject',
@@ -179,6 +172,9 @@ export const COMPLETION_SOURCE = {
 } as const;
 
 export type CompletionSource = (typeof COMPLETION_SOURCE)[keyof typeof COMPLETION_SOURCE];
+
+/** Metadata catalog value — stored on META / used in linked-completion queries. */
+export type CompletionSourceType = string;
 
 export const REMINDER_STATUS = {
   SCHEDULED: 'scheduled',

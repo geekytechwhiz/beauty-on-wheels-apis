@@ -1,64 +1,68 @@
 import { SURFACE_SECTION, type SurfaceSection } from '../models/types/task-domain.types';
 import type { RuntimeTaskState } from '../models/types/runtime-task-state.type';
-import { RUNTIME_TASK_STATE } from '../models/types/runtime-task-state.type';
-import { calendarDateKey, resolveDueWindowEndMs, nowEpochMs } from './task-time';
+import {
+  LEGACY_RUNTIME_TASK_STATE_OPEN,
+  resolveCurrentStateForWire,
+  RUNTIME_TASK_STATE,
+} from '../models/types/runtime-task-state.type';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from './task-time';
 
 export type ActionCenterSurfaceFilter = SurfaceSection | 'all';
 
-const HISTORY_STATES: RuntimeTaskState[] = [
+const HISTORY_WIRE_STATES: RuntimeTaskState[] = [
   RUNTIME_TASK_STATE.COMPLETED,
   RUNTIME_TASK_STATE.DISMISSED,
   RUNTIME_TASK_STATE.CANCELLED,
 ];
 
-export function isInProgressState(state: RuntimeTaskState): boolean {
+export function isInProgressState(state: RuntimeTaskState | string): boolean {
   return (
-    state === RUNTIME_TASK_STATE.OPEN ||
+    state === RUNTIME_TASK_STATE.SCHEDULED ||
     state === RUNTIME_TASK_STATE.ACTIVE ||
-    state === RUNTIME_TASK_STATE.SCHEDULED
+    state === LEGACY_RUNTIME_TASK_STATE_OPEN
   );
 }
 
 export type ActionCenterClassificationInput = {
-  currentState: RuntimeTaskState;
+  /** Persisted META currentState. */
+  currentState: RuntimeTaskState | string;
   dueWindowStart?: number;
   dueWindowEnd?: number;
   displayAsChecklistItem?: boolean;
 };
 
-/** Primary Action Center section from state + StartDate/DueDate calendar rules. */
+function wireStateForClassification(
+  record: ActionCenterClassificationInput,
+  timeZone: string,
+  nowMs: number,
+): RuntimeTaskState {
+  return resolveCurrentStateForWire({
+    persistedState: record.currentState,
+    dueWindowStart: record.dueWindowStart,
+    dueWindowEnd: record.dueWindowEnd,
+    timeZone,
+    nowMs,
+  });
+}
+
+/** Primary Action Center section from wire state + schedule context. */
 export function deriveActionCenterSurfaceSection(
   record: ActionCenterClassificationInput,
   timeZone: string,
   nowMs = nowEpochMs(),
 ): SurfaceSection {
-  if (HISTORY_STATES.includes(record.currentState)) {
+  const wireState = wireStateForClassification(record, timeZone, nowMs);
+
+  if (HISTORY_WIRE_STATES.includes(wireState)) {
     return SURFACE_SECTION.HISTORY;
   }
-  if (record.currentState === RUNTIME_TASK_STATE.MISSED) {
+  if (wireState === RUNTIME_TASK_STATE.MISSED) {
     return SURFACE_SECTION.NEEDS_ATTENTION;
   }
-  if (!isInProgressState(record.currentState)) {
-    return SURFACE_SECTION.NEEDS_ATTENTION;
-  }
-
-  const todayKey = calendarDateKey(nowMs, timeZone);
-  const endMs = resolveDueWindowEndMs(record.dueWindowStart, record.dueWindowEnd);
-
-  if (record.dueWindowStart == null && endMs == null) {
-    return SURFACE_SECTION.TODAY;
-  }
-
-  const startDateKey =
-    record.dueWindowStart != null
-      ? calendarDateKey(record.dueWindowStart, timeZone)
-      : todayKey;
-  const dueDateKey = calendarDateKey(endMs ?? record.dueWindowStart!, timeZone);
-
-  if (todayKey < startDateKey) {
+  if (wireState === RUNTIME_TASK_STATE.SCHEDULED) {
     return SURFACE_SECTION.UPCOMING;
   }
-  if (todayKey >= startDateKey && todayKey <= dueDateKey) {
+  if (wireState === RUNTIME_TASK_STATE.ACTIVE) {
     return SURFACE_SECTION.TODAY;
   }
   return SURFACE_SECTION.NEEDS_ATTENTION;
@@ -98,13 +102,13 @@ export function emptyActionCenterSections(): Record<SurfaceSection, never[]> {
 /** @deprecated Use deriveActionCenterSurfaceSection for Action Center; kept for internal legacy callers. */
 export function deriveSurfaceSection(
   record: {
-    currentState: RuntimeTaskState;
+    currentState: RuntimeTaskState | string;
     dueWindowStart?: number;
     dueWindowEnd?: number;
     displayToPatient: boolean;
     displayAsChecklistItem?: boolean;
   },
-  timeZone = 'UTC',
+  timeZone = DEFAULT_ACTION_CENTER_TIMEZONE,
   nowMs = nowEpochMs(),
 ): SurfaceSection {
   return deriveActionCenterSurfaceSection(

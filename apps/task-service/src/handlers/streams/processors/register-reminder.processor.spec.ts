@@ -54,7 +54,7 @@ describe('runRegisterReminder', () => {
     orgId: 'org-1',
     patientId: 'pat-1',
     reminderEnabled: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     dueWindowEnd: FUTURE_DUE_WINDOW_END,
     reminderSettings: { channels: ['push'] },
   };

@@ -39,7 +39,7 @@ describe('runCancelReminder', () => {
         orgId: 'org-1',
         patientId: 'pat-1',
         reminderEnabled: false,
-        currentState: 'open',
+        currentState: 'scheduled',
       },
       'corr-1',
     );

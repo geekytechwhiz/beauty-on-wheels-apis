@@ -92,10 +92,9 @@ function buildMetaListFilterExpression(input: {
     filterValues[':currentState'] = input.currentState;
   } else if (input.excludeTerminalStates) {
     filterParts.push(
-      'currentState <> :terminalCompleted AND currentState <> :terminalMissed AND currentState <> :terminalDismissed AND currentState <> :terminalCancelled',
+      'currentState <> :terminalCompleted AND currentState <> :terminalDismissed AND currentState <> :terminalCancelled',
     );
     filterValues[':terminalCompleted'] = RUNTIME_TASK_STATE.COMPLETED;
-    filterValues[':terminalMissed'] = RUNTIME_TASK_STATE.MISSED;
     filterValues[':terminalDismissed'] = RUNTIME_TASK_STATE.DISMISSED;
     filterValues[':terminalCancelled'] = RUNTIME_TASK_STATE.CANCELLED;
   }
@@ -338,10 +337,9 @@ export class TaskRepository extends BaseRepository {
       expressionValues[':currentState'] = input.currentState;
     } else if (input.excludeTerminalStates) {
       filterParts.push(
-        'currentState <> :terminalCompleted AND currentState <> :terminalMissed AND currentState <> :terminalDismissed AND currentState <> :terminalCancelled',
+        'currentState <> :terminalCompleted AND currentState <> :terminalDismissed AND currentState <> :terminalCancelled',
       );
       expressionValues[':terminalCompleted'] = RUNTIME_TASK_STATE.COMPLETED;
-      expressionValues[':terminalMissed'] = RUNTIME_TASK_STATE.MISSED;
       expressionValues[':terminalDismissed'] = RUNTIME_TASK_STATE.DISMISSED;
       expressionValues[':terminalCancelled'] = RUNTIME_TASK_STATE.CANCELLED;
     }

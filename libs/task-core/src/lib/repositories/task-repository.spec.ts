@@ -95,7 +95,6 @@ describe('TaskRepository.queryPatientTasksPage', () => {
     expect(callArg.FilterExpression).toContain('currentState <> :terminalCompleted');
     expect(callArg.ExpressionAttributeValues).toMatchObject({
       ':terminalCompleted': 'completed',
-      ':terminalMissed': 'missed',
       ':terminalDismissed': 'dismissed',
       ':terminalCancelled': 'cancelled',
     });
@@ -245,7 +244,7 @@ describe('TaskRepository.transitionTaskState', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient' as const,
       displayToPatient: true,
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       createdAt: 1,
       createdBy: 'system',
       lastUpdatedAt: 1,
@@ -271,9 +270,9 @@ describe('TaskRepository.transitionTaskState', () => {
     await repo.transitionTaskState({
       meta,
       lookup,
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'completed',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'pat-1',
       reason: 'Done',
     });
@@ -590,7 +589,7 @@ describe('TaskRepository.updateReminderSettings', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     reminderEnabled: true,
     reminderSettings: { channels: ['push'] },
     version: 2,
@@ -656,7 +655,7 @@ describe('TaskRepository.updateRuntimeTask', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     version: 2,
     createdAt: 1780581600000,
     createdBy: 'system',
@@ -816,7 +815,7 @@ describe('TaskRepository.resolveMonitoringNaturalKey', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient' as const,
       displayToPatient: true,
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       createdAt: 1,
       createdBy: 'system',
       lastUpdatedAt: 1,
@@ -858,7 +857,7 @@ describe('TaskRepository lookups and history queries', () => {
     get.mockResolvedValueOnce({ sk: 'REM#CURRENT' });
     await expect(repo.getReminderCurrent('rtask-abc')).resolves.toEqual({ sk: 'REM#CURRENT' });
 
-    get.mockResolvedValueOnce({ currentState: 'open' });
+    get.mockResolvedValueOnce({ currentState: 'scheduled' });
     await expect(
       repo.getMetaByLookup({
         pk: 'TASK#rtask-abc',
@@ -869,7 +868,7 @@ describe('TaskRepository lookups and history queries', () => {
         patientId: 'pat-1',
         taskSk: 'DUE#1#TASK#rtask-abc',
       }),
-    ).resolves.toEqual({ currentState: 'open' });
+    ).resolves.toEqual({ currentState: 'scheduled' });
 
     query.mockResolvedValueOnce([{ sk: 'HIST#1' }]);
     await expect(repo.queryTaskHistory('rtask-abc')).resolves.toEqual([{ sk: 'HIST#1' }]);
@@ -967,7 +966,7 @@ describe('TaskRepository.queryStaffTasksPage filters', () => {
       organizationId: 'org-1',
       staffUserId: 'staff-1',
       carePlanInstanceId: 'cp-1',
-      currentState: 'open',
+      currentState: 'scheduled',
       pageSize: 10,
     });
 
@@ -976,7 +975,7 @@ describe('TaskRepository.queryStaffTasksPage filters', () => {
     expect(callArg.FilterExpression).toContain('currentState = :currentState');
     expect(callArg.ExpressionAttributeValues).toMatchObject({
       ':carePlanInstanceId': 'cp-1',
-      ':currentState': 'open',
+      ':currentState': 'scheduled',
     });
   });
 });
@@ -1125,7 +1124,7 @@ describe('TaskRepository.reassignStaffTask', () => {
     assignedToStaffId: 'staff-old',
     assignedToStaffDisplayName: 'Old Nurse',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     dueWindowStart: 1780581600000,
     dueWindowEnd: 1780668000000,
     gsi1pk: 'ORG#org-1#STAFF#staff-old',
@@ -1240,7 +1239,7 @@ describe('TaskRepository.transitionTaskState branches', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     version: 1,
     createdAt: 1780581600000,
     createdBy: 'system',
@@ -1275,9 +1274,9 @@ describe('TaskRepository.transitionTaskState branches', () => {
     await repo.transitionTaskState({
       meta: baseMeta,
       lookup: baseLookup,
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'missed',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'system',
       reason: 'Due window elapsed',
       nowMs: 1780700000000,
@@ -1298,9 +1297,9 @@ describe('TaskRepository.transitionTaskState branches', () => {
     await repo.transitionTaskState({
       meta: baseMeta,
       lookup: baseLookup,
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'completed',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'pat-1',
       reason: 'Done',
       evidencePayload: { note: 'completed manually' },
@@ -1322,9 +1321,9 @@ describe('TaskRepository.transitionTaskState branches', () => {
     await repo.transitionTaskState({
       meta: baseMeta,
       lookup: baseLookup,
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'completed',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'pat-1',
       reason: 'Done',
       nowMs: 1780700000000,
@@ -1351,7 +1350,7 @@ describe('TaskRepository.updateReminderSettings branches', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     reminderEnabled: true,
     version: 1,
     createdAt: 1780581600000,
@@ -1426,7 +1425,7 @@ describe('TaskRepository.updateRuntimeTask branches', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     version: 1,
     createdAt: 1780581600000,
     createdBy: 'system',
@@ -1493,7 +1492,7 @@ describe('TaskRepository.completeLinkedSourceObjectTask', () => {
     displayTitle: 'Complete form',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'open',
+    currentState: 'scheduled',
     version: 1,
     createdAt: 1780581600000,
     createdBy: 'system',
@@ -1852,7 +1851,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -1908,7 +1907,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -1947,7 +1946,7 @@ describe('TaskRepository pagination and filter branches', () => {
       organizationId: 'org-1',
       patientId: 'pat-1',
       carePlanInstanceId: '   ',
-      currentState: 'open',
+      currentState: 'scheduled',
       pageSize: 10,
     });
 
@@ -1991,7 +1990,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2039,7 +2038,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2125,7 +2124,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2144,9 +2143,9 @@ describe('TaskRepository pagination and filter branches', () => {
         patientId: 'pat-1',
         taskSk: meta.sk,
       },
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'scheduled',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'system',
       reason: 'Scheduled',
     });
@@ -2258,7 +2257,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2308,7 +2307,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2378,7 +2377,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2455,7 +2454,7 @@ describe('TaskRepository pagination and filter branches', () => {
     await repo.queryPatientTasksPage({
       organizationId: 'org-1',
       patientId: 'pat-1',
-      currentState: 'open',
+      currentState: 'scheduled',
       excludeTerminalStates: true,
       pageSize: 10,
     });
@@ -2486,7 +2485,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2593,7 +2592,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient' as const,
       displayToPatient: true,
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       createdAt: 1780581600000,
       createdBy: 'system',
       lastUpdatedAt: 1780581600000,
@@ -2646,7 +2645,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',
@@ -2665,9 +2664,9 @@ describe('TaskRepository pagination and filter branches', () => {
         patientId: 'pat-1',
         taskSk: meta.sk,
       },
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'scheduled',
-      expectedPersistedState: 'open',
+      expectedPersistedState: 'scheduled',
       actorId: 'system',
       reason: 'Scheduled',
     });
@@ -2696,7 +2695,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       reminderEnabled: true,
       reminderSettings: { channels: ['push'] },
       version: 1,
@@ -2840,7 +2839,7 @@ describe('TaskRepository pagination and filter branches', () => {
       displayTitle: 'Complete form',
       assignedToType: 'patient',
       displayToPatient: true,
-      currentState: 'open',
+      currentState: 'scheduled',
       version: 1,
       createdAt: 1780581600000,
       createdBy: 'system',

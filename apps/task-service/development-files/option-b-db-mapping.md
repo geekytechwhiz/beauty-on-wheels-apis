@@ -262,7 +262,7 @@ No DynamoDB.
 | `carePlanInstanceId`, `taskGenerationTrigger` | request input |
 | `carePlanTaskLinkageId` | linkage |
 | `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient` | linkage |
-| `currentState` | `open` |
+| `currentState` | `scheduled` (in-progress); terminal: `completed`, `dismissed`, `cancelled`; legacy `open`/`active` normalize to `scheduled` on read |
 | `dueWindowStart` | resolved from linkage (`dueWindowStart` else `dueWindowEnd`) |
 | `dueWindowEnd` | linkage |
 | `idempotencyKey`, `generationHash` | hash(`orgId\|patientId\|carePlanInstanceId\|carePlanTaskLinkageId\|resolvedStart\|dueWindowEnd`) |
@@ -305,7 +305,7 @@ One **`TransactWriteItems`** per request (multiple items). **Always:**
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | `UpdateItem` META | `currentState`, audit fields; condition `currentState = expectedCurrentState` |
+| 1 | `UpdateItem` META | `currentState`, audit fields; condition matches **persisted** state (`scheduled` for in-progress); client sends **wire** `expectedCurrentState` |
 | 2 | `PutItem` `HIST#<transitionAtMs13>#<taskStateHistoryId>` | `historyEventType = StateChange` |
 
 **Conditional by target state** (service maps `action` → `toState`):
@@ -377,13 +377,25 @@ Cap LOOKUP list length (e.g. 50). Append-only audit — each row has `createdAt`
 
 ---
 
-## 6) Enum quick reference
+## 6) Enum quick reference (value codes — camelCase on wire + DynamoDB)
 
-- **runtimeTaskSource:** `CarePlanTaskLinkage` · `MonitoringRuntime` · `ServiceFlowRuntime` · `ManualSystem`
-- **currentState:** `Scheduled` · `Active` · `Completed` · `Missed` · `Dismissed` · `Cancelled`
-- **surfaceSection** (API only, derived): `Today` · `Upcoming` · `NeedsAttention` · `History` · `CarePlanChecklist`
-- **transitionSource:** `Manual` · `Scheduler` · `SourceEvent` · `System`
-- **ReadinessStatus:** `Ready` · `NotReady` · `NotApplicable`
+Metadata type codes map to these **value codes** (UI may send any catalog value; service persists and compares using these literals).
+
+| Type code | Value codes |
+|-----------|-------------|
+| **CurrentState** (wire) | `scheduled`, `active`, `completed`, `missed`, `dismissed`, `cancelled` |
+| **CurrentState** (persisted META) | `scheduled` while in-progress; terminals `completed`, `missed` (legacy only), `dismissed`, `cancelled` — `active`/`missed` derived on read from schedule |
+| **TaskBehaviorCode** | `INSTRUCTION`, `DOCUMENT_FORM`, `UPLOAD_DOCUMENT`, `DEVICE_SETUP`, `EDUCATION_VIDEO`, `EDUCATION_ARTICLE`, `CARE_TEAM_TASK`, `METRIC_CHECKIN`, `SYMPTOM_CHECKIN` |
+| **TaskDisplayGroup** | `action`, `learning`, `checkIn`, `staffTask` |
+| **SurfaceSection** (derived, not stored) | `today`, `upcoming`, `needsAttention`, `history`, `carePlanChecklist` |
+| **WorkflowStage** | `onboarding`, `ongoingCare`, `formalReview`, `closure` |
+| **AssignedToType** | `patient`, `careTeamRole`, `user`, `orgStaff`, `system` |
+| **CompletionSourceType** | `manual`, `document`, `education`, `deviceSetup`, `monitoring`, `symptom`, `otherApprovedSource` |
+| **TransitionSource** | `manual`, `scheduler`, `sourceEvent`, `system` |
+| **ReminderChannel** | `push`, `sms`, `email`, `inApp` |
+| **ReminderStatus** | `scheduled`, `sent`, `cancelled`, `failed`, `suppressed` |
+| **ReadinessStatus** | `ready`, `notReady`, `notApplicable` |
+| **runtimeTaskSource** | `carePlanTaskLinkage`, `monitoringRuntime`, `serviceFlowRuntime`, `manualSystem` |
 
 ---
 

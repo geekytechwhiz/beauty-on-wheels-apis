@@ -32,113 +32,6 @@ var mockGetTaskStatusSummaryByCarePlan: jest.Mock;
 var mockUpdateReminderSettings: jest.Mock;
 // eslint-disable-next-line no-var
 var mockUpdateRuntimeTask: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichCreateMonitoringActionAfterWrite: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichCreateRuntimeTaskAfterWrite: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichTaskInResultAfterRead: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichTaskInResultAfterWrite: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichPatientTasksResultAfterRead: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichTaskListResultAfterRead: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichActionCenterResultAfterRead: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichGenerateCarePlanResults: jest.Mock;
-// eslint-disable-next-line no-var
-var mockEnrichTaskStatusSummaryAfterRead: jest.Mock;
-
-jest.mock('../services/task-metadata.service', () => {
-  const { toRuntimeTaskCard } = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
-  const withLabels = <T extends Record<string, unknown>>(task: T) => ({ ...task, metadataLabels: {} });
-  mockEnrichCreateMonitoringActionAfterWrite = jest.fn(async (_auth, _body, load) => {
-    const { record, outcome } = await load();
-    return {
-      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      outcome,
-      task: withLabels(toRuntimeTaskCard(record)),
-    };
-  });
-  mockEnrichCreateRuntimeTaskAfterWrite = jest.fn(async (_auth, _body, load) => {
-    const { record } = await load();
-    return {
-      runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      task: withLabels(toRuntimeTaskCard(record)),
-    };
-  });
-  mockEnrichTaskInResultAfterRead = jest.fn(async (_auth, load) => {
-    const result = await load();
-    return { ...result, task: withLabels(result.task) };
-  });
-  mockEnrichTaskInResultAfterWrite = jest.fn(async (_op, _payload, _auth, load) => {
-    const result = await load();
-    return { ...result, task: withLabels(result.task) };
-  });
-  mockEnrichPatientTasksResultAfterRead = jest.fn(async (_auth, load) => {
-    const result = await load();
-    return {
-      ...result,
-      patientTasks: {
-        items: result.patientTasks.items.map((task: Record<string, unknown>) => withLabels(task)),
-      },
-      staffTasks: {
-        items: result.staffTasks.items.map((task: Record<string, unknown>) => withLabels(task)),
-      },
-    };
-  });
-  mockEnrichTaskListResultAfterRead = jest.fn(async (_auth, load) => {
-    const result = await load();
-    return {
-      ...result,
-      items: result.items.map((task: Record<string, unknown>) => withLabels(task)),
-    };
-  });
-  mockEnrichActionCenterResultAfterRead = jest.fn(async (_auth, load) => {
-    const result = await load();
-    if ('sections' in result) {
-      const sections = Object.fromEntries(
-        Object.entries(result.sections).map(([key, items]) => [
-          key,
-          (items ?? []).map((task: Record<string, unknown>) => withLabels(task)),
-        ]),
-      );
-      return { ...result, sections };
-    }
-    return {
-      ...result,
-      items: result.items.map((task: Record<string, unknown>) => withLabels(task)),
-    };
-  });
-  mockEnrichGenerateCarePlanResults = jest.fn(async (_body, _auth, load) => {
-    const response = await load();
-    return {
-      ...response,
-      results: (response.results ?? []).map((entry: { task?: Record<string, unknown> }) =>
-        entry.task ? { ...entry, task: withLabels(entry.task) } : entry,
-      ),
-    };
-  });
-  mockEnrichTaskStatusSummaryAfterRead = jest.fn(async (_auth, load) => {
-    const result = await load();
-    return { ...result, metadataLabels: {} };
-  });
-  return {
-    getTaskMetadataService: () => ({
-      enrichCreateMonitoringActionAfterWrite: mockEnrichCreateMonitoringActionAfterWrite,
-      enrichCreateRuntimeTaskAfterWrite: mockEnrichCreateRuntimeTaskAfterWrite,
-      enrichTaskInResultAfterRead: mockEnrichTaskInResultAfterRead,
-      enrichTaskInResultAfterWrite: mockEnrichTaskInResultAfterWrite,
-      enrichPatientTasksResultAfterRead: mockEnrichPatientTasksResultAfterRead,
-      enrichTaskListResultAfterRead: mockEnrichTaskListResultAfterRead,
-      enrichActionCenterResultAfterRead: mockEnrichActionCenterResultAfterRead,
-      enrichGenerateCarePlanResults: mockEnrichGenerateCarePlanResults,
-      enrichTaskStatusSummaryAfterRead: mockEnrichTaskStatusSummaryAfterRead,
-    }),
-  };
-});
 
 jest.mock('@api-hub/task-core', () => {
   mockCreateMonitoringAction = jest.fn();
@@ -212,10 +105,6 @@ function baseReq(overrides: Partial<LambdaRequest> = {}): LambdaRequest {
   } as unknown as LambdaRequest;
 }
 
-function withMetadataLabels<T extends Record<string, unknown>>(task: T) {
-  return { ...task, metadataLabels: {} };
-}
-
 describe('TaskHttpController', () => {
   let envCleanup: () => void;
 
@@ -232,15 +121,6 @@ describe('TaskHttpController', () => {
     mockGetRuntimeTaskHistory.mockReset();
     mockListPatientTasks.mockReset();
     mockReassignAssignedStaff.mockReset();
-    mockEnrichCreateMonitoringActionAfterWrite.mockClear();
-    mockEnrichCreateRuntimeTaskAfterWrite.mockClear();
-    mockEnrichTaskInResultAfterRead.mockClear();
-    mockEnrichTaskInResultAfterWrite.mockClear();
-    mockEnrichPatientTasksResultAfterRead.mockClear();
-    mockEnrichTaskListResultAfterRead.mockClear();
-    mockEnrichActionCenterResultAfterRead.mockClear();
-    mockEnrichGenerateCarePlanResults.mockClear();
-    mockEnrichTaskStatusSummaryAfterRead.mockClear();
   });
 
   it('handleCreateMonitoringAction returns create result on success', async () => {
@@ -273,7 +153,7 @@ describe('TaskHttpController', () => {
         orgId: 'org-1',
         patientId: 'pat-1',
         patientDisplayName: 'Test Patient',
-        currentState: 'open',
+        currentState: 'active',
       }),
     });
     expect(mockCreateMonitoringAction).toHaveBeenCalledTimes(1);
@@ -351,7 +231,7 @@ describe('TaskHttpController', () => {
       task: expect.objectContaining({
         runtimeTaskSource: 'manualSystem',
         taskDisplayGroup: 'staffTask',
-        currentState: 'open',
+        currentState: 'active',
       }),
     });
     expect(out).not.toHaveProperty('outcome');
@@ -383,7 +263,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGetRuntimeTask(req);
-    expect(out).toEqual({ ...serviceResult, task: withMetadataLabels(serviceResult.task) });
+    expect(out).toEqual(serviceResult);
     expect(mockGetRuntimeTaskDetail).toHaveBeenCalledWith({
       organizationId: 'org-1',
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
@@ -474,13 +354,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGenerateCarePlanTasks(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      results: serviceResult.results.map((entry) => ({
-        ...entry,
-        task: withMetadataLabels(entry.task),
-      })),
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockGenerateCarePlanTasks).toHaveBeenCalledTimes(1);
   });
 
@@ -489,7 +363,7 @@ describe('TaskHttpController', () => {
     const serviceResult = {
       patientId: 'pat-1',
       staffUserId: 'staff-1',
-      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }] },
+      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'active' }] },
       staffTasks: { items: [] },
       nextToken: 'cursor-1',
     };
@@ -502,25 +376,21 @@ describe('TaskHttpController', () => {
         staffUserId: 'staff-1',
         carePlanInstanceId: 'cp-1',
         workflowStage: 'ongoing',
-        currentState: 'open',
+        currentState: 'active',
         pageSize: 25,
         authHeader: bearerToken({ 'custom:organizationID': 'org-1' }),
       },
     } as any);
 
     const out = await c.handleGetTasks(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      patientTasks: { items: serviceResult.patientTasks.items.map(withMetadataLabels) },
-      staffTasks: { items: serviceResult.staffTasks.items.map(withMetadataLabels) },
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockListPatientTasks).toHaveBeenCalledWith({
       organizationId: 'org-1',
       patientId: 'pat-1',
       staffUserId: 'staff-1',
       carePlanInstanceId: 'cp-1',
       workflowStage: 'ongoing',
-      currentState: 'open',
+      currentState: 'active',
       pageSize: 25,
       nextToken: undefined,
     });
@@ -554,13 +424,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGetActionCenterItems(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      sections: {
-        ...serviceResult.sections,
-        today: serviceResult.sections.today.map(withMetadataLabels),
-      },
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockListActionCenterItems).toHaveBeenCalledWith({
       organizationId: 'org-1',
       patientId: 'pat-1',
@@ -576,7 +440,7 @@ describe('TaskHttpController', () => {
   it('handleGetStaffTasks returns paginated staff inbox on success', async () => {
     const c = new TaskHttpController();
     const serviceResult = {
-      items: [{ runtimeTaskInstanceId: 'rtask-staff-1', currentState: 'open' }],
+      items: [{ runtimeTaskInstanceId: 'rtask-staff-1', currentState: 'active' }],
       nextToken: 'cursor-1',
     };
     mockListStaffTasks.mockResolvedValue(serviceResult);
@@ -591,10 +455,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGetStaffTasks(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      items: serviceResult.items.map(withMetadataLabels),
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockListStaffTasks).toHaveBeenCalledWith({
       organizationId: 'org-1',
       staffUserId: 'staff-1',
@@ -630,10 +491,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleUpdateAssignedStaff(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      task: withMetadataLabels(serviceResult.task),
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockReassignAssignedStaff).toHaveBeenCalledWith({
       organizationId: 'org-1',
       runtimeTaskInstanceId: 'rtask-staff-1',
@@ -652,7 +510,7 @@ describe('TaskHttpController', () => {
       surfaceSection: 'history',
       historyEntry: {
         historyEventType: 'stateChange',
-        fromState: 'open',
+        fromState: 'active',
         toState: 'completed',
       },
     };
@@ -667,7 +525,7 @@ describe('TaskHttpController', () => {
           action: 'complete',
           actorId: 'pat-1',
           actorType: 'patient',
-          expectedCurrentState: 'open',
+          expectedCurrentState: 'active',
           reason: 'Done',
         },
       },
@@ -682,7 +540,7 @@ describe('TaskHttpController', () => {
         action: 'complete',
         actorId: 'pat-1',
         actorType: 'patient',
-        expectedCurrentState: 'open',
+        expectedCurrentState: 'active',
         reason: 'Done',
         evidencePayload: undefined,
       },
@@ -759,7 +617,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGetTaskStatusSummary(req);
-    expect(out).toEqual({ ...serviceResult, metadataLabels: {} });
+    expect(out).toEqual(serviceResult);
     expect(mockGetTaskStatusSummaryByCarePlan).toHaveBeenCalledWith({
       organizationId: 'org-1',
       patientId: 'pat-1',
@@ -792,10 +650,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleUpdateRuntimeTask(req);
-    expect(out).toEqual({
-      ...serviceResult,
-      task: withMetadataLabels(serviceResult.task),
-    });
+    expect(out).toEqual(serviceResult);
     expect(mockUpdateRuntimeTask).toHaveBeenCalledWith({
       organizationId: 'org-1',
       runtimeTaskInstanceId: 'rtask-abc',

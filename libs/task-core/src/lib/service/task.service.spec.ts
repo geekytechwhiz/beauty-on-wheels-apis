@@ -29,6 +29,7 @@ function basePayload(): CreateMonitoringActionPayload {
 }
 
 function sampleRecord(): TaskMetaDdbRecord {
+  const now = Date.now();
   return {
     pk: 'ORG#org-1#PAT#pat-1',
     sk: 'DUE#1780581600000#TASK#rtask-abc',
@@ -42,12 +43,12 @@ function sampleRecord(): TaskMetaDdbRecord {
     displayTitle: 'Record your health metrics',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'active',
-    dueWindowStart: 1780581600000,
-    dueWindowEnd: 1780668000000,
-    createdAt: 1780581600000,
+    currentState: 'scheduled',
+    dueWindowStart: now,
+    dueWindowEnd: now + 24 * 60 * 60 * 1000,
+    createdAt: now,
     createdBy: 'system:monitoring-runtime',
-    lastUpdatedAt: 1780581600000,
+    lastUpdatedAt: now,
     lastUpdatedBy: 'system:monitoring-runtime',
   };
 }
@@ -833,7 +834,7 @@ describe('TaskService.reassignAssignedStaff', () => {
 
 describe('TaskService.updateTaskState', () => {
   it('completes task and returns state change history', async () => {
-    const meta = sampleRecord({ currentState: 'open' });
+    const meta = sampleRecord({ currentState: 'scheduled' });
     const lookup = sampleLookup({
       reminderHistory: [{ reminderRecordId: 'rem-1', reminderStatus: 'scheduled' }],
     });
@@ -846,7 +847,7 @@ describe('TaskService.updateTaskState', () => {
       orgId: 'org-1',
       patientId: 'pat-1',
       historyEventType: 'stateChange' as const,
-      fromState: 'open' as const,
+      fromState: 'scheduled' as const,
       toState: 'completed' as const,
       transitionAt: 1780573500000,
       transitionBy: 'pat-1',
@@ -869,7 +870,7 @@ describe('TaskService.updateTaskState', () => {
       action: TASK_RUNTIME_ACTION.COMPLETE,
       actorId: 'pat-1',
       actorType: 'patient',
-      expectedCurrentState: 'open',
+      expectedCurrentState: 'active',
       reason: 'Done',
     });
 
@@ -880,7 +881,7 @@ describe('TaskService.updateTaskState', () => {
 
 describe('TaskService.updateReminderSettings', () => {
   it('enables reminders and returns settings change history', async () => {
-    const meta = { ...sampleRecord(), reminderEnabled: false, currentState: 'open' as const };
+    const meta = { ...sampleRecord(), reminderEnabled: false, currentState: 'scheduled' as const };
     const lookup = sampleLookup();
     const settingsChangeHist = {
       pk: 'TASK#rtask-abc',
@@ -972,7 +973,7 @@ describe('TaskService.updateReminderSettings', () => {
 
 describe('TaskService.updateRuntimeTask', () => {
   it('updates metadata and returns task card with history', async () => {
-    const meta = { ...sampleRecord(), displayTitle: 'Old title', currentState: 'open' as const };
+    const meta = { ...sampleRecord(), displayTitle: 'Old title', currentState: 'scheduled' as const };
     const lookup = {
       pk: 'TASK#rtask-abc',
       sk: 'LOOKUP' as const,
@@ -1008,7 +1009,7 @@ describe('TaskService.updateRuntimeTask', () => {
   });
 
   it('rejects unchanged metadata', async () => {
-    const meta = { ...sampleRecord(), displayTitle: 'Same', currentState: 'open' as const };
+    const meta = { ...sampleRecord(), displayTitle: 'Same', currentState: 'scheduled' as const };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({
         orgId: 'org-1',
@@ -1041,7 +1042,7 @@ describe('TaskService.getTaskStatusSummaryByCarePlan', () => {
     const requiredOpen = {
       ...sampleRecord(),
       runtimeTaskInstanceId: 't-open',
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       requiredForStageCompletion: true,
       displayTitle: 'Still open',
     };
@@ -1106,7 +1107,7 @@ describe('TaskService.listPatientTasks', () => {
     expect(result.staffUserId).toBe('staff-1');
     expect(result.patientTasks.items).toHaveLength(1);
     expect(result.patientTasks.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
-    expect(result.patientTasks.items[0].currentState).toBe('open');
+    expect(result.patientTasks.items[0].currentState).toBe('active');
     expect(result.staffTasks.items).toHaveLength(1);
     expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
     expect(result.nextToken).toBeUndefined();
@@ -1301,7 +1302,7 @@ describe('TaskService.listStaffTasks', () => {
     );
     expect(result.items).toHaveLength(2);
     expect(result.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
-    expect(result.items[0].currentState).toBe('open');
+    expect(result.items[0].currentState).toBe('active');
   });
 });
 
@@ -1334,7 +1335,7 @@ describe('TaskService.checkReminderFireEligibility', () => {
   const log = { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any;
 
   it('returns eligible when reminders are enabled and task is open', async () => {
-    const meta = { ...sampleRecord(), currentState: 'open' as const, reminderEnabled: true };
+    const meta = { ...sampleRecord(), currentState: 'scheduled' as const, reminderEnabled: true };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({ orgId: 'org-1', patientId: 'pat-1', taskSk: meta.sk }),
       getMetaByLookup: jest.fn().mockResolvedValue(meta),
@@ -1463,7 +1464,7 @@ describe('TaskService.getRuntimeTaskDetail evidenceSummary', () => {
 
 describe('TaskService.updateTaskState conditional failure', () => {
   it('throws 409 when repository reports expected-state mismatch', async () => {
-    const record = { ...sampleRecord(), currentState: 'open' as const };
+    const record = { ...sampleRecord(), currentState: 'scheduled' as const };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({
         orgId: 'org-1',
@@ -1484,7 +1485,7 @@ describe('TaskService.updateTaskState conditional failure', () => {
         organizationId: 'org-1',
         runtimeTaskInstanceId: 'rtask-abc',
         action: TASK_RUNTIME_ACTION.COMPLETE,
-        expectedCurrentState: 'open',
+        expectedCurrentState: 'active',
         actorId: 'pat-1',
         actorType: 'patient',
         reason: 'Done',
@@ -1499,7 +1500,7 @@ describe('TaskService.completeLinkedSourceObject', () => {
   it('completes open tasks and skips terminal tasks', async () => {
     const openMeta = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       runtimeTaskInstanceId: 'rtask-open',
     };
     const completedMeta = {
@@ -1539,7 +1540,7 @@ describe('TaskService.completeLinkedSourceObject', () => {
   it('logs warning and skips task when lookup is missing', async () => {
     const openMeta = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       runtimeTaskInstanceId: 'rtask-open',
     };
     const repo = {
@@ -1678,7 +1679,7 @@ describe('TaskService.listPatientTasks pagination and staff bucket', () => {
 
 describe('TaskService.updateReminderSettings response shape', () => {
   it('omits reminderSettings from response when record has none', async () => {
-    const record = { ...sampleRecord(), reminderEnabled: false, currentState: 'open' as const };
+    const record = { ...sampleRecord(), reminderEnabled: false, currentState: 'scheduled' as const };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({
         orgId: 'org-1',
@@ -1718,7 +1719,7 @@ describe('TaskService.updateReminderSettings response shape', () => {
   it('includes reminderSettings in response when record has settings', async () => {
     const record = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       reminderEnabled: true,
       reminderSettings: { channels: ['push'] },
     };
@@ -1771,7 +1772,7 @@ describe('TaskService.completeLinkedSourceObject skippedDuplicate', () => {
   it('maps skippedDuplicate repository outcome', async () => {
     const openMeta = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       runtimeTaskInstanceId: 'rtask-open',
     };
     const repo = {
@@ -1856,7 +1857,7 @@ describe('TaskService authorization and error paths', () => {
   });
 
   it('updateTaskState rethrows non-http workflow errors', async () => {
-    const record = { ...sampleRecord(), currentState: 'open' as const };
+    const record = { ...sampleRecord(), currentState: 'scheduled' as const };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({
         orgId: 'org-1',
@@ -2110,7 +2111,7 @@ describe('TaskService additional branch coverage', () => {
   it('completeLinkedSourceObject paginates through query results', async () => {
     const openMeta = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       runtimeTaskInstanceId: 'rtask-open',
     };
     const repo = {
@@ -2159,7 +2160,7 @@ describe('TaskService additional branch coverage', () => {
   });
 
   it('updateTaskState propagates non-conditional repository errors', async () => {
-    const record = { ...sampleRecord(), currentState: 'open' as const };
+    const record = { ...sampleRecord(), currentState: 'scheduled' as const };
     const repo = {
       getLookupByTaskId: jest.fn().mockResolvedValue({
         orgId: 'org-1',
@@ -2176,7 +2177,7 @@ describe('TaskService additional branch coverage', () => {
         organizationId: 'org-1',
         runtimeTaskInstanceId: 'rtask-abc',
         action: TASK_RUNTIME_ACTION.COMPLETE,
-        expectedCurrentState: 'open',
+        expectedCurrentState: 'active',
         actorId: 'pat-1',
         actorType: 'patient',
         reason: 'Done',
@@ -2270,7 +2271,7 @@ describe('TaskService additional branch coverage', () => {
   it('listActionCenterItems duplicates checklist-eligible tasks into carePlanChecklist section', async () => {
     const openTask = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       displayAsChecklistItem: true,
       dueWindowStart: nowEpochMs() + 3_600_000,
       dueWindowEnd: nowEpochMs() + 7_200_000,
@@ -2384,7 +2385,7 @@ describe('TaskService additional branch coverage', () => {
   it('listActionCenterItems filters carePlanChecklist section', async () => {
     const openTask = {
       ...sampleRecord(),
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       displayAsChecklistItem: true,
       dueWindowStart: nowEpochMs() + 3_600_000,
       dueWindowEnd: nowEpochMs() + 7_200_000,

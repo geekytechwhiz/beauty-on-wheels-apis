@@ -177,7 +177,6 @@
     "CurrentState": {
       "type": "string",
       "enum": [
-        "open",
         "scheduled",
         "active",
         "completed",
@@ -1031,7 +1030,7 @@
             "taskStateHistoryId": "hist-001",
             "historyEventType": "stateChange",
             "transitionAt": 1780567200000,
-            "fromState": "open",
+            "fromState": "active",
             "toState": "completed",
             "transitionBy": "pat-101",
             "transitionSource": "manual",
@@ -1091,7 +1090,7 @@
         "action": "complete",
         "actorId": "pat-101",
         "actorType": "patient",
-        "expectedCurrentState": "open",
+        "expectedCurrentState": "active",
         "reason": "Submitted reading via mobile app"
       }
     },
@@ -1303,7 +1302,7 @@
         "displayToPatient": true,
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
-        "currentState": "open",
+        "currentState": "active",
         "createdAt": 1780567200000,
         "lastUpdatedAt": 1780567200000
       }
@@ -1407,7 +1406,7 @@
             "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
             "patientId": "pat-101",
             "displayTitle": "Daily blood pressure check-in",
-            "currentState": "open",
+            "currentState": "active",
             "taskBehaviorCode": "METRIC_CHECKIN",
             "taskDisplayGroup": "checkIn"
           }
@@ -1439,7 +1438,7 @@
               "task": {
                 "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                 "displayTitle": "Watch: How to measure BP",
-                "currentState": "open",
+                "currentState": "active",
                 "taskBehaviorCode": "EDUCATION_VIDEO",
                 "taskDisplayGroup": "learning"
               }
@@ -1470,7 +1469,7 @@
           "task": {
             "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
             "displayTitle": "Call patient about missed reading",
-            "currentState": "open",
+            "currentState": "active",
             "taskBehaviorCode": "CARE_TEAM_TASK",
             "taskDisplayGroup": "staffTask",
             "assignedToType": "orgStaff",
@@ -1503,7 +1502,7 @@
               {
                 "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                 "displayTitle": "Daily blood pressure check-in",
-                "currentState": "open",
+                "currentState": "active",
                 "taskBehaviorCode": "METRIC_CHECKIN"
               }
             ]
@@ -1539,7 +1538,7 @@
             {
               "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
               "displayTitle": "Daily blood pressure check-in",
-              "currentState": "open",
+              "currentState": "active",
               "surfaceSection": "today"
             }
           ]
@@ -1568,7 +1567,7 @@
             {
               "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
               "displayTitle": "Call patient about missed reading",
-              "currentState": "open",
+              "currentState": "active",
               "assignedToStaffId": "staff-nurse-44721"
             }
           ],
@@ -1598,7 +1597,7 @@
             "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
             "patientId": "pat-101",
             "displayTitle": "Daily blood pressure check-in",
-            "currentState": "open"
+            "currentState": "active"
           },
           "reminders": [],
           "completionEvidence": [],
@@ -1631,7 +1630,7 @@
           "task": {
             "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
             "displayTitle": "Complete daily blood pressure check",
-            "currentState": "open"
+            "currentState": "active"
           },
           "historyEntry": {
             "taskStateHistoryId": "hist-metadata-001",
@@ -1666,7 +1665,7 @@
               "taskStateHistoryId": "hist-001",
               "historyEventType": "stateChange",
               "transitionAt": 1780567200000,
-              "fromState": "open",
+              "fromState": "active",
               "toState": "completed",
               "transitionBy": "pat-101",
               "transitionSource": "manual"
@@ -1734,7 +1733,7 @@
             "taskStateHistoryId": "hist-state-001",
             "historyEventType": "stateChange",
             "transitionAt": 1780567200000,
-            "fromState": "open",
+            "fromState": "active",
             "toState": "completed",
             "transitionBy": "pat-101",
             "transitionSource": "manual"
@@ -1916,7 +1915,7 @@
                     "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                     "patientId": "pat-101",
                     "displayTitle": "Daily blood pressure check-in",
-                    "currentState": "open",
+                    "currentState": "active",
                     "taskBehaviorCode": "METRIC_CHECKIN",
                     "taskDisplayGroup": "checkIn"
                   }
@@ -2022,7 +2021,7 @@
                       "task": {
                         "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                         "displayTitle": "Watch: How to measure BP",
-                        "currentState": "open",
+                        "currentState": "active",
                         "taskBehaviorCode": "EDUCATION_VIDEO",
                         "taskDisplayGroup": "learning"
                       }
@@ -2103,7 +2102,7 @@
                     "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                     "patientId": "pat-101",
                     "displayTitle": "Daily blood pressure check-in",
-                    "currentState": "open"
+                    "currentState": "active"
                   },
                   "reminders": [],
                   "completionEvidence": [],
@@ -2188,7 +2187,7 @@
                   "task": {
                     "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                     "displayTitle": "Complete daily blood pressure check",
-                    "currentState": "open"
+                    "currentState": "active"
                   },
                   "historyEntry": {
                     "taskStateHistoryId": "hist-metadata-001",
@@ -2371,7 +2370,7 @@
                       "taskStateHistoryId": "hist-001",
                       "historyEventType": "stateChange",
                       "transitionAt": 1780567200000,
-                      "fromState": "open",
+                      "fromState": "active",
                       "toState": "completed",
                       "transitionBy": "pat-101",
                       "transitionSource": "manual"
@@ -2454,7 +2453,6 @@
             "required": false,
             "type": "string",
             "enum": [
-              "open",
               "scheduled",
               "active",
               "completed",
@@ -2501,7 +2499,7 @@
                       {
                         "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                         "displayTitle": "Daily blood pressure check-in",
-                        "currentState": "open",
+                        "currentState": "active",
                         "taskBehaviorCode": "METRIC_CHECKIN"
                       }
                     ]
@@ -2589,7 +2587,7 @@
                   "task": {
                     "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                     "displayTitle": "Call patient about missed reading",
-                    "currentState": "open",
+                    "currentState": "active",
                     "taskBehaviorCode": "CARE_TEAM_TASK",
                     "taskDisplayGroup": "staffTask",
                     "assignedToType": "orgStaff",
@@ -2721,7 +2719,7 @@
                     {
                       "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                       "displayTitle": "Daily blood pressure check-in",
-                      "currentState": "open",
+                      "currentState": "active",
                       "surfaceSection": "today"
                     }
                   ]
@@ -2788,7 +2786,6 @@
             "required": false,
             "type": "string",
             "enum": [
-              "open",
               "scheduled",
               "active",
               "completed",
@@ -2833,7 +2830,7 @@
                     {
                       "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                       "displayTitle": "Call patient about missed reading",
-                      "currentState": "open",
+                      "currentState": "active",
                       "assignedToStaffId": "staff-nurse-44721"
                     }
                   ],
@@ -2891,7 +2888,7 @@
               "action": "complete",
               "actorId": "pat-101",
               "actorType": "patient",
-              "expectedCurrentState": "open",
+              "expectedCurrentState": "active",
               "reason": "Submitted reading via mobile app"
             }
           }
@@ -2919,7 +2916,7 @@
                     "taskStateHistoryId": "hist-state-001",
                     "historyEventType": "stateChange",
                     "transitionAt": 1780567200000,
-                    "fromState": "open",
+                    "fromState": "active",
                     "toState": "completed",
                     "transitionBy": "pat-101",
                     "transitionSource": "manual"

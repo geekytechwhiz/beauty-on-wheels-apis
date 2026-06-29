@@ -46,8 +46,8 @@ import type {
 import { isPatientAssignedToType, isOrgStaffAssignedToType, requiresAssigneeGsi, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import {
-  normalizeCurrentStateForWire,
-  TERMINAL_RUNTIME_TASK_STATES,
+  resolveCurrentStateForWire,
+  isTerminalPersistedState,
 } from '../models/types/runtime-task-state.type';
 import {
   IDEMPOTENCY_OUTCOME,
@@ -72,6 +72,11 @@ import {
   matchesActionCenterFilter,
 } from '../utils/surface-section';
 import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from '../utils/task-time';
+import {
+  isWireDerivedCurrentStateFilter,
+  matchesWireCurrentStateFilter,
+  repositoryCurrentStateFilter,
+} from '../utils/wire-current-state-filter';
 import { CARE_PLAN_SYSTEM_ACTOR, SERVICE_FLOW_SYSTEM_ACTOR } from '../constants/task.constants';
 import { aggregateTaskStatusSummary } from '../utils/task-status-summary';
 import {
@@ -192,7 +197,7 @@ export class TaskService extends BaseTaskService {
     }
 
     const detail: RuntimeTaskDetail = {
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
     };
 
     if (input.includeRelated !== false) {
@@ -244,7 +249,7 @@ export class TaskService extends BaseTaskService {
 
     return {
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       historyEntry: toTaskHistoryEntry(historyEntry),
     };
   }
@@ -289,7 +294,7 @@ export class TaskService extends BaseTaskService {
 
     return {
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       historyEntry: toTaskHistoryEntry(historyEntry),
     };
   }
@@ -443,6 +448,7 @@ export class TaskService extends BaseTaskService {
         input.action,
         input.expectedCurrentState,
         input.actorType,
+        DEFAULT_ACTION_CENTER_TIMEZONE,
       );
     } catch (e: unknown) {
       const err = e as Error & { statusCode?: number; code?: string };
@@ -485,15 +491,32 @@ export class TaskService extends BaseTaskService {
       DEFAULT_ACTION_CENTER_TIMEZONE,
     );
 
+    const historyContext = {
+      dueWindowStart: meta.dueWindowStart,
+      dueWindowEnd: meta.dueWindowEnd,
+      timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+    };
+
     return {
       runtimeTaskInstanceId: result.record.runtimeTaskInstanceId,
-      currentState: normalizeCurrentStateForWire(result.record.currentState),
+      currentState: resolveCurrentStateForWire({
+        persistedState: result.record.currentState,
+        dueWindowStart: result.record.dueWindowStart,
+        dueWindowEnd: result.record.dueWindowEnd,
+        timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+      }),
       surfaceSection,
-      historyEntry: toTaskHistoryEntry(result.historyEntry),
+      historyEntry: toTaskHistoryEntry(result.historyEntry, historyContext),
     };
   }
 
   async listPatientTasks(input: ListPatientTasksInput): Promise<PatientTaskListResult> {
+    const timeZone = DEFAULT_ACTION_CENTER_TIMEZONE;
+    const wireFilter = isWireDerivedCurrentStateFilter(input.currentState)
+      ? input.currentState
+      : undefined;
+    const repoStateFilter = repositoryCurrentStateFilter(input.currentState);
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -503,8 +526,8 @@ export class TaskService extends BaseTaskService {
       patientId: input.patientId,
       carePlanInstanceId: input.carePlanInstanceId,
       workflowStage: input.workflowStage,
-      currentState: input.currentState,
-      excludeTerminalStates: input.currentState == null,
+      currentState: repoStateFilter,
+      excludeTerminalStates: input.currentState == null || wireFilter != null,
       pageSize: input.pageSize,
       exclusiveStartKey,
     });
@@ -514,7 +537,10 @@ export class TaskService extends BaseTaskService {
     const staffUserId = input.staffUserId?.trim();
 
     for (const record of page.items) {
-      const card = toRuntimeTaskCard(record);
+      if (wireFilter && !matchesWireCurrentStateFilter(record, wireFilter, timeZone)) {
+        continue;
+      }
+      const card = toRuntimeTaskCard(record, { timeZone });
       if (isPatientAssignedToType(card.assignedToType)) {
         patientTasks.push(card);
       } else if (
@@ -683,6 +709,12 @@ export class TaskService extends BaseTaskService {
   }
 
   async listStaffTasks(input: ListStaffTasksInput): Promise<PaginatedRuntimeTaskCards> {
+    const timeZone = DEFAULT_ACTION_CENTER_TIMEZONE;
+    const wireFilter = isWireDerivedCurrentStateFilter(input.currentState)
+      ? input.currentState
+      : undefined;
+    const repoStateFilter = repositoryCurrentStateFilter(input.currentState);
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -692,14 +724,21 @@ export class TaskService extends BaseTaskService {
       staffUserId: input.staffUserId,
       patientId: input.patientId,
       carePlanInstanceId: input.carePlanInstanceId,
-      currentState: input.currentState,
-      excludeTerminalStates: input.currentState == null,
+      currentState: repoStateFilter,
+      excludeTerminalStates: input.currentState == null || wireFilter != null,
       pageSize: input.pageSize,
       exclusiveStartKey,
     });
 
+    const items = page.items
+      .filter(
+        (record) =>
+          !wireFilter || matchesWireCurrentStateFilter(record, wireFilter, timeZone),
+      )
+      .map((r) => toRuntimeTaskCard(r, { timeZone }));
+
     return {
-      items: sortRuntimeTaskCardsByDue(page.items.map((r) => toRuntimeTaskCard(r))),
+      items: sortRuntimeTaskCardsByDue(items),
       nextToken: encodeTaskHistoryCursor(page.lastEvaluatedKey),
     };
   }
@@ -714,6 +753,15 @@ export class TaskService extends BaseTaskService {
       throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
     }
 
+    const meta = await this.repo.getMetaByLookup(lookup);
+    const historyContext = meta
+      ? {
+          dueWindowStart: meta.dueWindowStart,
+          dueWindowEnd: meta.dueWindowEnd,
+          timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+        }
+      : undefined;
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -725,7 +773,7 @@ export class TaskService extends BaseTaskService {
     );
 
     return {
-      items: items.map(toTaskHistoryEntry),
+      items: items.map((entry) => toTaskHistoryEntry(entry, historyContext)),
       nextToken: encodeTaskHistoryCursor(lastEvaluatedKey),
     };
   }
@@ -767,7 +815,7 @@ export class TaskService extends BaseTaskService {
         results.push({
           runtimeTaskInstanceId,
           outcome: IDEMPOTENCY_OUTCOME.CREATED,
-          task: toRuntimeTaskCard(record, ctx.nowMs),
+          task: toRuntimeTaskCard(record, { nowMs: ctx.nowMs, timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
         });
         continue;
       }
@@ -776,7 +824,7 @@ export class TaskService extends BaseTaskService {
       results.push({
         runtimeTaskInstanceId: record.runtimeTaskInstanceId,
         outcome,
-        task: toRuntimeTaskCard(record),
+        task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       });
     }
 
@@ -856,7 +904,7 @@ export class TaskService extends BaseTaskService {
       });
 
       for (const meta of page.items) {
-        if (TERMINAL_RUNTIME_TASK_STATES.includes(meta.currentState)) {
+        if (isTerminalPersistedState(meta.currentState)) {
           results.push({
             runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
             outcome: 'skippedTerminal',

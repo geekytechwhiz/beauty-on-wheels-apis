@@ -202,15 +202,15 @@ components:
 
     TaskDisplayGroup:
       type: string
-      enum: [Action, Learning, CheckIn, StaffTask]
+      enum: [action, learning, checkIn, staffTask]
 
     CurrentState:
       type: string
-      enum: [open, scheduled, active, completed, missed, dismissed, cancelled]
+      enum: [scheduled, active, completed, missed, dismissed, cancelled]
       description: >
-        Runtime task state on the wire (camelCase). In-progress rows may persist legacy `active` or
-        `scheduled`; reads normalize to `open`. Clients may send `open`, `active`, or `scheduled` for
-        `expectedCurrentState` when locking in-progress tasks.
+        Runtime task state on the wire (camelCase value codes). In-progress rows persist `scheduled`;
+        `active` and `missed` are derived on read from `dueWindowStart`/`dueWindowEnd` and timezone.
+        Clients send the derived wire state as `expectedCurrentState` on POST .../state.
 
     SurfaceSection:
       type: string
@@ -222,7 +222,7 @@ components:
 
     ReminderStatus:
       type: string
-      enum: [Scheduled, Sent, Cancelled, Failed, Suppressed]
+      enum: [scheduled, sent, cancelled, failed, suppressed]
 
     ReminderChannel:
       type: string
@@ -234,7 +234,7 @@ components:
 
     WorkflowStage:
       type: string
-      enum: [Onboarding, Ongoing, Review, Closure]
+      enum: [onboarding, ongoingCare, formalReview, closure]
 
     AssignedToType:
       type: string
@@ -1681,7 +1681,7 @@ paths:
                   action: complete
                   actorId: pat-101
                   actorType: patient
-                  expectedCurrentState: open
+                  expectedCurrentState: active
                   reason: Submitted reading via mobile app
               dismiss:
                 summary: Dismiss task
@@ -1689,7 +1689,7 @@ paths:
                   action: dismiss
                   actorId: pat-101
                   actorType: patient
-                  expectedCurrentState: open
+                  expectedCurrentState: active
                   reason: Not applicable today
       responses:
         '200':

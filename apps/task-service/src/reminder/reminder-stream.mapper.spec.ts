@@ -18,7 +18,7 @@ describe('reminder-stream.mapper', () => {
     patientId: 'pat-1',
     reminderEnabled: true,
     reminderSettings: { channels: ['push'] },
-    currentState: 'open',
+    currentState: 'scheduled',
     dueWindowStart,
     dueWindowEnd,
   };

@@ -13,29 +13,20 @@ export const optionalNullableNonEmptyStringSchema = z
   .union([z.string().trim().min(1), z.null()])
   .optional();
 
-/**
- * Registry-backed metadata value codes — Zod enforces non-empty string shape only.
- * Labels are resolved from the metadata registry on read responses.
- */
-export const metadataValueCodeSchema = nonEmptyStringSchema;
+/** Who completes a task — `patient` | `careTeamRole` | `user` | `orgStaff` | `system`. */
+export const assignedToTypeSchema = z.enum([
+  'patient',
+  'careTeamRole',
+  'user',
+  'orgStaff',
+  'system',
+]);
 
-/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
-export const assignedToTypeSchema = metadataValueCodeSchema;
-
-/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
-export const taskBehaviorCodeSchema = metadataValueCodeSchema;
-
-/** @deprecated Use metadataValueCodeSchema — kept for existing imports. */
-export const taskDisplayGroupSchema = metadataValueCodeSchema;
-
-/** Domain enum — not registry-backed. */
 const actorTypeSchema = z.enum(['patient', 'staff']);
 
-/** Domain enums — not registry-backed. */
-const taskRuntimeActionSchema = z.enum(['complete', 'dismiss', 'cancel', 'markMissed']);
+const taskRuntimeActionSchema = z.enum(['complete', 'dismiss', 'cancel']);
 
 const runtimeTaskStateSchema = z.enum([
-  'open',
   'scheduled',
   'active',
   'completed',
@@ -52,8 +43,8 @@ export const createMonitoringActionHttpBodySchema = z
     patientDisplayName: nonEmptyStringSchema,
     carePlanInstanceId: nonEmptyStringSchema,
     monitoringInstanceId: nonEmptyStringSchema,
-    taskBehaviorCode: metadataValueCodeSchema,
-    assignedToType: metadataValueCodeSchema,
+    taskBehaviorCode: z.string(),
+    assignedToType: assignedToTypeSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
     assignedToStaffDisplayName: optionalNonEmptyStringSchema,
     dueWindowStart: z.number(),
@@ -66,14 +57,14 @@ export const createRuntimeTaskHttpBodySchema = z
   .object({
     patientId: nonEmptyStringSchema,
     patientDisplayName: nonEmptyStringSchema,
-    runtimeTaskSource: metadataValueCodeSchema,
-    taskBehaviorCode: metadataValueCodeSchema,
-    taskDisplayGroup: metadataValueCodeSchema,
+    runtimeTaskSource: z.string(),
+    taskBehaviorCode: z.string().trim(),
+    taskDisplayGroup: z.string().trim(),
     displayTitle: nonEmptyStringSchema,
-    assignedToType: metadataValueCodeSchema,
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     carePlanInstanceId: optionalNonEmptyStringSchema,
-    workflowStage: metadataValueCodeSchema.optional(),
+    workflowStage: z.string().trim().optional(),
     description: optionalNonEmptyStringSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
     assignedToStaffDisplayName: optionalNonEmptyStringSchema,
@@ -92,10 +83,10 @@ export const carePlanLinkageMaterializationSchema = z
   .object({
     carePlanTaskLinkageId: nonEmptyStringSchema,
     sourceTaskTemplateVersionId: optionalNonEmptyStringSchema,
-    taskBehaviorCode: metadataValueCodeSchema,
-    taskDisplayGroup: metadataValueCodeSchema,
+    taskBehaviorCode: z.string(),
+    taskDisplayGroup: z.string(),
     displayTitle: nonEmptyStringSchema,
-    assignedToType: metadataValueCodeSchema,
+    assignedToType: assignedToTypeSchema,
     displayToPatient: z.boolean(),
     description: optionalNonEmptyStringSchema,
     assignedToStaffId: optionalNonEmptyStringSchema,
@@ -119,8 +110,8 @@ export const generateCarePlanTasksHttpBodySchema = z
     patientId: nonEmptyStringSchema,
     patientDisplayName: nonEmptyStringSchema,
     carePlanInstanceId: nonEmptyStringSchema,
-    taskGenerationTrigger: metadataValueCodeSchema,
-    workflowStage: metadataValueCodeSchema.optional(),
+    taskGenerationTrigger: z.string(),
+    workflowStage: z.string().optional(),
     dryRun: z.boolean().optional(),
     actorType: optionalNonEmptyStringSchema,
     actorId: optionalNonEmptyStringSchema,
@@ -162,7 +153,7 @@ export const updateReminderSettingsHttpBodySchema = z
     reminderEnabled: z.boolean(),
     reminderSettings: z
       .object({
-        channels: z.array(metadataValueCodeSchema).optional(),
+        channels: z.array(z.string()).optional(),
         quietHoursRespected: z.boolean().optional(),
         scheduleAnchor: reminderScheduleAnchorSchema.optional(),
         offsetMs: z.number().int().optional(),
@@ -198,7 +189,7 @@ export const updateRuntimeTaskHttpBodySchema = z
     displayToPatient: z.boolean().optional(),
     requiredForStageCompletion: z.boolean().optional(),
     displayAsChecklistItem: z.boolean().optional(),
-    workflowStage: metadataValueCodeSchema.optional(),
+    workflowStage: z.string().trim().optional(),
     actionTargetId: optionalNullableNonEmptyStringSchema,
     completionSourceType: optionalNullableNonEmptyStringSchema,
     completionSourceReferenceId: optionalNullableNonEmptyStringSchema,

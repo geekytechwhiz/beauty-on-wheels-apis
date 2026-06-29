@@ -65,7 +65,7 @@ export type TaskDisplayGroup = 'action' | 'learning' | 'checkIn' | 'staffTask';
 
 export type AssignedToType = 'patient' | 'careTeamRole' | 'user' | 'orgStaff' | 'system';
 
-export type WorkflowStage = 'onboarding' | 'ongoing' | 'review' | 'closure';
+export type WorkflowStage = 'onboarding' | 'ongoingCare' | 'formalReview' | 'closure';
 
 export type RuntimeTaskState =
   | 'scheduled'

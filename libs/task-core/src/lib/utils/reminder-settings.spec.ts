@@ -72,7 +72,7 @@ describe('reminder-settings utils', () => {
 
   it('rejects enable on terminal task state', () => {
     expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.COMPLETED)).toBe(false);
-    expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.OPEN)).toBe(true);
+    expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.SCHEDULED)).toBe(true);
   });
 
   it('merges settings when request omits reminderSettings', () => {

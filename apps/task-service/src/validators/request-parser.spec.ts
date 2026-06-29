@@ -36,7 +36,7 @@ describe('request-parser', () => {
   });
 
   describe('parseOptionalEnum', () => {
-    const allowed = ['open', 'completed'] as const;
+    const allowed = ['active', 'completed'] as const;
 
     it('returns undefined for blank input', () => {
       expect(parseOptionalEnum(undefined, allowed, 'currentState')).toBeUndefined();
@@ -44,12 +44,12 @@ describe('request-parser', () => {
     });
 
     it('returns value when allowed', () => {
-      expect(parseOptionalEnum('open', allowed, 'currentState')).toBe('open');
+      expect(parseOptionalEnum('active', allowed, 'currentState')).toBe('active');
     });
 
     it('throws when value is not allowed', () => {
       expect(() => parseOptionalEnum('bogus', allowed, 'currentState')).toThrow(
-        'currentState must be one of: open, completed',
+        'currentState must be one of: active, completed',
       );
     });
   });

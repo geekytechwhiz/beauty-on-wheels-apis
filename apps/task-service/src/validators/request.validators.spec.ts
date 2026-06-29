@@ -311,13 +311,13 @@ describe('request.validators', () => {
       const req = baseReq({
         params: {
           patientId: 'pat-1',
-          workflowStage: 'ongoing',
-          currentState: 'open',
+          workflowStage: 'ongoingCare',
+          currentState: 'active',
         },
       });
       validateGetTasksRequest(req);
       expect((req as { validatedGetTasks?: { workflowStage?: string; currentState?: string } }).validatedGetTasks)
-        .toMatchObject({ patientId: 'pat-1', workflowStage: 'ongoing', currentState: 'open' });
+        .toMatchObject({ patientId: 'pat-1', workflowStage: 'ongoingCare', currentState: 'active' });
     });
 
     it('throws when patientId missing', () => {
@@ -337,9 +337,12 @@ describe('request.validators', () => {
       expectValidationError(() => validateGetTasksRequest(req), 401, 'UNAUTHORIZED');
     });
 
-    it('rejects invalid workflowStage', () => {
-      const req = baseReq({ params: { patientId: 'pat-1', workflowStage: 'invalid' } });
-      expectValidationError(() => validateGetTasksRequest(req), 400, 'VALIDATION_ERROR');
+    it('accepts workflowStage value codes from UI without enum validation', () => {
+      const req = baseReq({ params: { patientId: 'pat-1', workflowStage: 'ongoingCare' } });
+      validateGetTasksRequest(req);
+      expect(
+        (req as { validatedGetTasks?: { workflowStage?: string } }).validatedGetTasks?.workflowStage,
+      ).toBe('ongoingCare');
     });
 
     it('uses default pageSize when omitted', () => {
@@ -523,7 +526,7 @@ describe('request.validators', () => {
           action: 'complete',
           actorId: 'pat-1',
           actorType: 'patient',
-          expectedCurrentState: 'open',
+          expectedCurrentState: 'active',
         },
       });
       validateUpdateTaskStateRequest(req);
@@ -537,7 +540,7 @@ describe('request.validators', () => {
           headers: { Authorization: bearerToken({}) },
           pathParameters: { runtimeTaskInstanceId: 'rtask-1' },
         }),
-        body: { action: 'complete', actorId: 'pat-1', actorType: 'patient', expectedCurrentState: 'open' },
+        body: { action: 'complete', actorId: 'pat-1', actorType: 'patient', expectedCurrentState: 'active' },
       });
       expectValidationError(() => validateUpdateTaskStateRequest(req), 401, 'UNAUTHORIZED');
     });
@@ -589,12 +592,16 @@ describe('request.validators', () => {
       });
       expectValidationError(() => validateGetTaskStatusSummaryRequest(req), 401, 'UNAUTHORIZED');
     });
-    it('rejects invalid workflowStage on status summary', () => {
+    it('accepts workflowStage value codes on status summary', () => {
       const req = baseReq({
         event: baseEvent({ pathParameters: { carePlanInstanceId: 'cp-1' } }),
-        params: { patientId: 'pat-1', workflowStage: 'invalid-stage' },
+        params: { patientId: 'pat-1', workflowStage: 'formalReview' },
       });
-      expectValidationError(() => validateGetTaskStatusSummaryRequest(req), 400, 'VALIDATION_ERROR');
+      validateGetTaskStatusSummaryRequest(req);
+      expect(
+        (req as { validatedGetTaskStatusSummary?: { workflowStage?: string } })
+          .validatedGetTaskStatusSummary?.workflowStage,
+      ).toBe('formalReview');
     });
   });
 
@@ -646,7 +653,7 @@ describe('request.validators', () => {
           actorId: 'staff-1',
           displayTitle: 'New title',
           displayToPatient: true,
-          workflowStage: 'ongoing',
+          workflowStage: 'ongoingCare',
         },
       });
       validateUpdateRuntimeTaskRequest(req);
@@ -655,7 +662,7 @@ describe('request.validators', () => {
       expect(patch).toMatchObject({
         displayTitle: 'New title',
         displayToPatient: true,
-        workflowStage: 'ongoing',
+        workflowStage: 'ongoingCare',
       });
     });
 

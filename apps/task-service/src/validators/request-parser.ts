@@ -35,3 +35,9 @@ export function parseOptionalEnum<T extends string>(
   }
   return value as T;
 }
+
+/** Optional trimmed non-empty string (metadata value codes from UI). */
+export function parseOptionalNonEmptyString(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  return value || undefined;
+}

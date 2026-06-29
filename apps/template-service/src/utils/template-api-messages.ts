@@ -4,7 +4,7 @@ function msg(title: string, description: string, severity: Message['severity'] =
   return { title, description, severity };
 }
 
-/** Success messages keyed by handler `operation` (see withTemplateApiHandler). */
+/** Success messages keyed by handler `operation` (see HTTP handlers using withApiHandler). */
 export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
   'template.master.upsert': msg(
     'MASTER_TEMPLATE_SAVED',
@@ -41,6 +41,14 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
   'template.org.version-status': msg(
     'ORG_TEMPLATE_VERSION_STATUS',
     'Org template version status retrieved successfully.',
+  ),
+  'template.org.rules.get': msg(
+    'ORG_TEMPLATE_RULES_RETRIEVED',
+    'Org template rules retrieved successfully.',
+  ),
+  'template.org.rules.update': msg(
+    'ORG_TEMPLATE_RULES_UPDATED',
+    'Org template rules updated successfully.',
   ),
   'template.org.version.update': msg(
     'ORG_TEMPLATE_UPDATED',

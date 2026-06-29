@@ -1,3 +1,4 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
@@ -8,7 +9,7 @@ import {
   ORG_CARE_PLAN_TEMPLATE_CREATED,
   ORG_CARE_PLAN_TEMPLATE_UPDATED,
 } from '../../utils/template-api-messages';
-import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
+import { templateCreated, templateOk } from '../../utils/template-handler.util';
 import { validateUpsertMasterTemplateRequest } from '../../validators/request.validators';
 import { upsertMasterTemplateBodySchema } from '../../validators/template.schemas';
 import {
@@ -31,28 +32,36 @@ function isOrgCarePlanUpsert(req: LambdaRequest): boolean {
   return resolveTemplateLevelFromBody(req.body) === 'ORG_CARE_PLAN';
 }
 
-export const main = withTemplateApiHandler(
+const handler = async (req: LambdaRequest) => {
+  if (isOrgCarePlanUpsert(req)) {
+    const data = hasPathTemplateId(req)
+      ? await orgCtrl.handleUpdateOrgCarePlan(req)
+      : await orgCtrl.handleCreateOrgCarePlan(req);
+    const message = hasPathTemplateId(req)
+      ? ORG_CARE_PLAN_TEMPLATE_UPDATED
+      : ORG_CARE_PLAN_TEMPLATE_CREATED;
+    return hasPathTemplateId(req)
+      ? templateOk(req, data, message)
+      : templateCreated(req, data, message);
+  }
+
+  const data = hasPathTemplateId(req)
+    ? await masterCtrl.handleSaveMaster(req)
+    : await masterCtrl.handleCreateMaster(req);
+  const message = hasPathTemplateId(req) ? MASTER_TEMPLATE_UPDATED : MASTER_TEMPLATE_CREATED;
+  return hasPathTemplateId(req)
+    ? templateOk(req, data, message)
+    : templateCreated(req, data, message);
+};
+
+export const main = withApiHandler(
   {
     operation: 'template.master.upsert',
     bodySchema: upsertMasterTemplateBodySchema,
     validator: validateUpsertMasterTemplateRequest,
-    resolveSuccessMessage: (req) => {
-      if (isOrgCarePlanUpsert(req)) {
-        return hasPathTemplateId(req)
-          ? ORG_CARE_PLAN_TEMPLATE_UPDATED
-          : ORG_CARE_PLAN_TEMPLATE_CREATED;
-      }
-      return hasPathTemplateId(req) ? MASTER_TEMPLATE_UPDATED : MASTER_TEMPLATE_CREATED;
-    },
+    useLegacyResponseFormat: true,
   },
-  (req: LambdaRequest) => {
-    if (isOrgCarePlanUpsert(req)) {
-      return hasPathTemplateId(req)
-        ? orgCtrl.handleUpdateOrgCarePlan(req)
-        : orgCtrl.handleCreateOrgCarePlan(req);
-    }
-    return hasPathTemplateId(req) ? masterCtrl.handleSaveMaster(req) : masterCtrl.handleCreateMaster(req);
-  },
+  handler,
 );
 
 export default main;

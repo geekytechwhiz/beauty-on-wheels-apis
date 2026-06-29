@@ -1,3 +1,4 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
@@ -8,7 +9,7 @@ import {
   ORG_DERIVED_TEMPLATES_LISTED,
   ORG_ENABLE_CATALOG,
 } from '../../utils/template-api-messages';
-import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
+import { templateOk } from '../../utils/template-handler.util';
 import {
   validateListMasterRequest,
   validateListOrgTemplatesRequest,
@@ -21,16 +22,26 @@ import {
 const masterCtrl = getTemplateHttpController();
 const orgCtrl = getOrgTemplateHttpController();
 
-export const main = withTemplateApiHandler(
+const handler = async (req: LambdaRequest) => {
+  const level = resolveTemplateLevelFromQuery(req);
+  if (isOrgDerivedListLevel(level) || level === 'ORG') {
+    const data = await orgCtrl.handleListOrg(req);
+    const message =
+      level === 'ORG_CARE_PLAN'
+        ? ORG_CARE_PLAN_TEMPLATES_LISTED
+        : level === 'ORG_DERIVED'
+          ? ORG_DERIVED_TEMPLATES_LISTED
+          : ORG_ENABLE_CATALOG;
+    return templateOk(req, data, message);
+  }
+
+  const data = await masterCtrl.handleListMaster(req);
+  return templateOk(req, data, MASTER_TEMPLATES_LISTED);
+};
+
+export const main = withApiHandler(
   {
     operation: 'template.list',
-    resolveSuccessMessage: (req) => {
-      const level = resolveTemplateLevelFromQuery(req);
-      if (level === 'ORG_CARE_PLAN') return ORG_CARE_PLAN_TEMPLATES_LISTED;
-      if (level === 'ORG_DERIVED') return ORG_DERIVED_TEMPLATES_LISTED;
-      if (level === 'ORG') return ORG_ENABLE_CATALOG;
-      return MASTER_TEMPLATES_LISTED;
-    },
     validator: async (req: LambdaRequest) => {
       const level = resolveTemplateLevelFromQuery(req);
       if (isOrgDerivedListLevel(level) || level === 'ORG') {
@@ -39,14 +50,9 @@ export const main = withTemplateApiHandler(
         await validateListMasterRequest(req);
       }
     },
+    useLegacyResponseFormat: true,
   },
-  async (req: LambdaRequest) => {
-    const level = resolveTemplateLevelFromQuery(req);
-    if (isOrgDerivedListLevel(level) || level === 'ORG') {
-      return orgCtrl.handleListOrg(req);
-    }
-    return masterCtrl.handleListMaster(req);
-  },
+  handler,
 );
 
 export default main;

@@ -1,18 +1,24 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
-import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
+import { templateCreated, templateOperationMessage } from '../../utils/template-handler.util';
 import { validateDeriveTemplateRequest } from '../../validators/request.validators';
 
 const c = getOrgTemplateHttpController();
 
-export const main = withTemplateApiHandler(
+const handler = async (req: LambdaRequest) => {
+  const data = await c.handleCloneToOrg(req);
+  return templateCreated(req, data, templateOperationMessage('template.derive'));
+};
+
+export const main = withApiHandler(
   {
     operation: 'template.derive',
-    useCreated: true,
     validator: validateDeriveTemplateRequest,
+    useLegacyResponseFormat: true,
   },
-  (req: LambdaRequest) => c.handleCloneToOrg(req),
+  handler,
 );
 
 export default main;

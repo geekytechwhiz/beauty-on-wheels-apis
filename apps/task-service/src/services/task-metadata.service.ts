@@ -2,11 +2,13 @@ import { MetadataRegistryClientError } from '@api-hub/service-clients';
 import { BaseError } from '@api-hub/utils';
 import { toRuntimeTaskCard } from '@api-hub/task-core';
 
-import { getMetadataRegistryClient } from '../clients/metadataRegistry.client';import {
+import { getMetadataRegistryClient } from '../clients/metadataRegistry.client';
+import {
   buildMetadataLabelLookup,
   collectMetadataTypesFromTasks,
   enrichRuntimeTaskCard,
   enrichRuntimeTaskCards,
+  enrichTaskStatusSummaryLabels,
   TASK_CARD_METADATA_TYPE_CODES,
   TaskMetadataReader,
   TaskMetadataRegistryUnavailableError,
@@ -292,6 +294,16 @@ export class TaskMetadataService {
 
     const items = await this.enrichTasksWithLookup(result.items, lookupPromise);
     return { ...result, items };
+  }
+
+  /** Read API: task-status-summary readiness + workflow stage labels. */
+  async enrichTaskStatusSummaryAfterRead<
+    TResult extends { readinessStatus?: string; workflowStage?: string },
+  >(authHeader: string | undefined, load: () => Promise<TResult>) {
+    const lookupPromise = this.beginLabelLookupForTaskCard(authHeader);
+    const result = await load();
+    const lookup = await lookupPromise;
+    return enrichTaskStatusSummaryLabels(result, lookup);
   }
 
   private async loadLabelLookup(

@@ -48,6 +48,8 @@ var mockEnrichTaskListResultAfterRead: jest.Mock;
 var mockEnrichActionCenterResultAfterRead: jest.Mock;
 // eslint-disable-next-line no-var
 var mockEnrichGenerateCarePlanResults: jest.Mock;
+// eslint-disable-next-line no-var
+var mockEnrichTaskStatusSummaryAfterRead: jest.Mock;
 
 jest.mock('../services/task-metadata.service', () => {
   const { toRuntimeTaskCard } = jest.requireActual<typeof import('@api-hub/task-core')>('@api-hub/task-core');
@@ -119,6 +121,10 @@ jest.mock('../services/task-metadata.service', () => {
       ),
     };
   });
+  mockEnrichTaskStatusSummaryAfterRead = jest.fn(async (_auth, load) => {
+    const result = await load();
+    return { ...result, metadataLabels: {} };
+  });
   return {
     getTaskMetadataService: () => ({
       enrichCreateMonitoringActionAfterWrite: mockEnrichCreateMonitoringActionAfterWrite,
@@ -129,6 +135,7 @@ jest.mock('../services/task-metadata.service', () => {
       enrichTaskListResultAfterRead: mockEnrichTaskListResultAfterRead,
       enrichActionCenterResultAfterRead: mockEnrichActionCenterResultAfterRead,
       enrichGenerateCarePlanResults: mockEnrichGenerateCarePlanResults,
+      enrichTaskStatusSummaryAfterRead: mockEnrichTaskStatusSummaryAfterRead,
     }),
   };
 });
@@ -233,6 +240,7 @@ describe('TaskHttpController', () => {
     mockEnrichTaskListResultAfterRead.mockClear();
     mockEnrichActionCenterResultAfterRead.mockClear();
     mockEnrichGenerateCarePlanResults.mockClear();
+    mockEnrichTaskStatusSummaryAfterRead.mockClear();
   });
 
   it('handleCreateMonitoringAction returns create result on success', async () => {
@@ -751,7 +759,7 @@ describe('TaskHttpController', () => {
     } as any);
 
     const out = await c.handleGetTaskStatusSummary(req);
-    expect(out).toEqual(serviceResult);
+    expect(out).toEqual({ ...serviceResult, metadataLabels: {} });
     expect(mockGetTaskStatusSummaryByCarePlan).toHaveBeenCalledWith({
       organizationId: 'org-1',
       patientId: 'pat-1',

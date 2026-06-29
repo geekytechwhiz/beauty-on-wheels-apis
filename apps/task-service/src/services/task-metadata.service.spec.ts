@@ -6,7 +6,7 @@ describe('TaskMetadataService', () => {
   const registry = {
     items: [
       {
-        metadataType: TASK_METADATA_TYPE.TASK_BEHAVIOR,
+        metadataType: TASK_METADATA_TYPE.TASK_BEHAVIOR_CODE,
         values: [{ valueCode: 'METRIC_CHECKIN', label: 'Metric check-in', status: 'active' }],
       },
       {
@@ -52,7 +52,7 @@ describe('TaskMetadataService', () => {
     });
     expect(reader.getValuesByTypes).toHaveBeenCalledWith(
       {
-        metadataTypeCodes: [TASK_METADATA_TYPE.TASK_BEHAVIOR, TASK_METADATA_TYPE.ASSIGNED_TO_TYPE],
+        metadataTypeCodes: [TASK_METADATA_TYPE.TASK_BEHAVIOR_CODE, TASK_METADATA_TYPE.ASSIGNED_TO_TYPE],
       },
       'Bearer token',
     );

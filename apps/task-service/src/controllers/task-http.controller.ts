@@ -277,12 +277,14 @@ export class TaskHttpController {
     const { validatedGetTaskStatusSummary: validated } = req;
 
     try {
-      return await this.svc.getTaskStatusSummaryByCarePlan({
-        organizationId: validated.orgId,
-        patientId: validated.patientId,
-        carePlanInstanceId: validated.carePlanInstanceId,
-        workflowStage: validated.workflowStage,
-      });
+      return await this.metaSvc.enrichTaskStatusSummaryAfterRead(validated.authHeader, () =>
+        this.svc.getTaskStatusSummaryByCarePlan({
+          organizationId: validated.orgId,
+          patientId: validated.patientId,
+          carePlanInstanceId: validated.carePlanInstanceId,
+          workflowStage: validated.workflowStage,
+        }),
+      );
     } catch (err: unknown) {
       normalizeTaskServiceError(err, {
         logger: req.context.logger,

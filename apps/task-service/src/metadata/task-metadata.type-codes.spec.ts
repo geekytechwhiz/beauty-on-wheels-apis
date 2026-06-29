@@ -8,7 +8,7 @@ describe('task-metadata.type-codes', () => {
         taskBehaviorCode: 'METRIC_CHECKIN',
         assignedToType: 'patient',
       }),
-    ).toEqual([TASK_METADATA_TYPE.TASK_BEHAVIOR, TASK_METADATA_TYPE.ASSIGNED_TO_TYPE]);
+    ).toEqual([TASK_METADATA_TYPE.TASK_BEHAVIOR_CODE, TASK_METADATA_TYPE.ASSIGNED_TO_TYPE]);
   });
 
   it('includes ReminderChannel when reminder channels are on the request', () => {
@@ -20,7 +20,7 @@ describe('task-metadata.type-codes', () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        TASK_METADATA_TYPE.TASK_BEHAVIOR,
+        TASK_METADATA_TYPE.TASK_BEHAVIOR_CODE,
         TASK_METADATA_TYPE.ASSIGNED_TO_TYPE,
         TASK_METADATA_TYPE.REMINDER_CHANNEL,
       ]),
@@ -32,6 +32,6 @@ describe('task-metadata.type-codes', () => {
       collectMetadataTypeCodesFromWritePayload('patchRuntimeTask', {
         workflowStage: 'onboarding',
       }),
-    ).toEqual([TASK_METADATA_TYPE.TASK_WORKFLOW_STAGE]);
+    ).toEqual([TASK_METADATA_TYPE.WORKFLOW_STAGE]);
   });
 });

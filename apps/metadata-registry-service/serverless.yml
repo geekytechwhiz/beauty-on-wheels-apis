@@ -7,6 +7,7 @@ frameworkVersion: '3'
 plugins:
   - serverless-dotenv-plugin
   - serverless-esbuild
+  - '@myvitalrx/mvrx-resource-registry'
   # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
 
 provider:
@@ -72,6 +73,19 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  resourceRegistry:
+    enabled: true
+    platformOwner: metadata-registry-service
+    parameters:
+      METADATA_REGISTRY_TABLE:
+        value: MetadataRegistry-${self:provider.stage}
+       
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic
+
   logLevel:
     dev: debug
     stg: info

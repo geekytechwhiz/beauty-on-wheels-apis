@@ -15,9 +15,19 @@ const shareScopeInputZ = z
 
 const templateStatusZ = z.enum([TEMPLATE_STATUS.DRAFT, TEMPLATE_STATUS.PUBLISHED]);
 
+const orgTemplateLifecycleStatusZ = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim().toUpperCase();
+    if (normalized === 'PUBLISH') return TEMPLATE_STATUS.PUBLISHED;
+    return normalized;
+  },
+  templateStatusZ,
+);
+
 export const templateLevelZ = z.preprocess(
   (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-  z.enum(['MASTER', 'ORG', 'ORG_DERIVED']),
+  z.enum(['MASTER', 'ORG', 'ORG_DERIVED', 'ORG_CARE_PLAN']),
 );
 
 export const fieldValuesSchema = z.record(z.string(), z.unknown());
@@ -364,15 +374,21 @@ export const updateOrgTemplateRulesBodySchema = z
   .object({
     rules: z.record(z.string().trim().min(1), partialTemplateFieldRuleSchema).optional(),
     fieldValues: fieldValuesSchema.optional(),
+    status: orgTemplateLifecycleStatusZ.optional(),
+    active: z.boolean().optional(),
+    adopt: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const hasRules = data.rules !== undefined && Object.keys(data.rules).length > 0;
     const hasFieldValues =
       data.fieldValues !== undefined && Object.keys(data.fieldValues).length > 0;
-    if (!hasRules && !hasFieldValues) {
+    const hasStatus = data.status !== undefined;
+    const hasActive = data.active !== undefined;
+    const hasAdopt = data.adopt === true;
+    if (!hasRules && !hasFieldValues && !hasStatus && !hasActive && !hasAdopt) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'rules or fieldValues must contain at least one field',
+        message: 'rules, fieldValues, status, active, or adopt must be provided',
         path: ['rules'],
       });
     }
@@ -380,15 +396,7 @@ export const updateOrgTemplateRulesBodySchema = z
 
 export type UpdateOrgTemplateRulesBody = z.infer<typeof updateOrgTemplateRulesBodySchema>;
 
-const orgDerivedStatusZ = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') return value;
-    const normalized = value.trim().toUpperCase();
-    if (normalized === 'PUBLISH') return TEMPLATE_STATUS.PUBLISHED;
-    return normalized;
-  },
-  templateStatusZ,
-);
+const orgDerivedStatusZ = orgTemplateLifecycleStatusZ;
 
 /** POST /templates/org-derived */
 export const orgDerivedCreateBodySchema = z.object({
@@ -442,6 +450,46 @@ export const orgDerivedAdoptBodySchema = z.object({
 
 export type OrgDerivedAdoptBody = z.infer<typeof orgDerivedAdoptBodySchema>;
 
+/** POST /templates with templateLevel=ORG_CARE_PLAN */
+export const orgCarePlanCreateBodySchema = z
+  .object({
+    templateLevel: z.preprocess(
+      (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+      z.literal('ORG_CARE_PLAN'),
+    ),
+    templateType: z.string().trim().min(1),
+    organizationId: z.string().trim().min(1),
+    orgDerivedTemplateId: z.string().trim().min(1),
+    organizationMeta: organizationMetaSchema.optional(),
+    templateName: z.string().trim().min(1).max(150).optional(),
+    TEMPLATE_NAME: z.string().trim().min(1).max(150).optional(),
+    status: orgDerivedStatusZ.optional(),
+    active: z.boolean().optional(),
+    templateEnabled: z.boolean().optional(),
+    fieldValues: fieldValuesSchema.optional(),
+  })
+  .passthrough()
+  .superRefine((data, ctx) => {
+    const templateType = data.templateType.trim().toUpperCase().replace(/\s+/g, '_');
+    if (templateType !== 'CARE_PLAN') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'templateType must be CARE_PLAN when templateLevel is ORG_CARE_PLAN',
+        path: ['templateType'],
+      });
+    }
+    const name = data.templateName?.trim() || data.TEMPLATE_NAME?.trim();
+    if (!name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'templateName or TEMPLATE_NAME is required',
+        path: ['templateName'],
+      });
+    }
+  });
+
+export type OrgCarePlanCreateBody = z.infer<typeof orgCarePlanCreateBodySchema>;
+
 export const orgClonePathSchema = z.object({
   organizationId: z.string().trim().min(1),
   templateId: z.string().trim().min(1),
@@ -453,7 +501,7 @@ export const listOrgTemplatesQuerySchema = z.object({
   organizationId: z.string().trim().min(1).optional(),
   /** Same as organizationId — id from organizationMeta returned by this endpoint. */
   organizationMetaId: z.string().trim().min(1).optional(),
-  /** When templateLevel=ORG_DERIVED — return one variant with full fieldValues + rules. */
+  /** When templateLevel=ORG_DERIVED or ORG_CARE_PLAN — return one variant with full fieldValues + rules. */
   orgTemplateId: z.string().trim().min(1).optional(),
   organizationName: z.string().trim().min(1).optional(),
   organizationDescription: z.string().trim().optional(),

@@ -227,21 +227,51 @@ export class OrgDerivedService {
         newTemplateName,
       );
 
-      const meta = OrgTemplateEntityBuilder.buildOrgMetaFromOrgSource(
+      let meta = OrgTemplateEntityBuilder.buildOrgMetaFromOrgSource(
         sourceMetaRow,
         ctx,
         params.actorUser,
         derivedFromOrgTemplateVersion,
       );
+      const metaOverrides = buildOrgDerivedMetaOverrides({
+        status: params.status,
+        active: params.active,
+        currentMeta: meta,
+        nowIso,
+      });
+      meta = { ...meta, ...metaOverrides };
       if (sourceIsVariant) {
         meta.copiedFromOrgTemplateId = sourceOrgTemplateId;
       }
       const metaRow = OrgTemplateEntityBuilder.buildOrgMetaRow(meta, organizationId, ctx.newTemplateId);
-      const versionRow = OrgTemplateEntityBuilder.buildOrgVersionRowFromOrgSource(
+      let versionRow = OrgTemplateEntityBuilder.buildOrgVersionRowFromOrgSource(
         meta,
         ctx,
         sourceVersionRow,
       );
+
+      if (hasFieldValuesPatch(params.fieldValues)) {
+        const previousFieldValues = asRecord(versionRow.fieldValues);
+        const mergedFieldValues = {
+          ...previousFieldValues,
+          ...params.fieldValues,
+        };
+        const templateType = meta.templateType;
+        versionRow = {
+          ...versionRow,
+          fieldValues: mergedFieldValues,
+          rules: mergeRulesAfterFieldValuesChange(
+            asRecord(versionRow.rules),
+            buildRulesFromFieldValues(mergedFieldValues, { templateType }),
+            {
+              templateType,
+              fieldValues: mergedFieldValues,
+              previousFieldValues,
+            },
+          ),
+          meta,
+        };
+      }
       appendVersionHistoryToRecord(versionRow, { isCreate: true });
 
       await this.orgRepo.createOrgTemplate(metaRow, versionRow);
@@ -468,10 +498,6 @@ export class OrgDerivedService {
       const contentPatch = ruleKeys.length > 0 || hasFieldValues;
 
       if (contentPatch) {
-        const statusForEdit =
-          params.status === TEMPLATE_STATUS.DRAFT ? TEMPLATE_STATUS.DRAFT : currentStatus;
-        assertEditableStatus(statusForEdit, 'update org-derived template');
-
         const mergedDocument = {
           ...this.orgOps.extractDocumentFields(versionRow),
         };

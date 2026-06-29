@@ -1,3 +1,4 @@
+import type { OrgDerivedAdoptPreview } from '../models/api/org-derived.types';
 import type { TemplateRulesMap } from '../utils/template-rules.utils';
 import { asTemplateRulesMap } from '../utils/template-rules.utils';
 import { resolveTemplateDisplayVersion } from '../utils/template.utils';
@@ -30,12 +31,17 @@ export type OrgTemplateRulesResponse = {
   templateName?: string;
   templateType?: string;
   status?: string;
+  active: boolean;
   templateEnabled: boolean;
   derivedFromMasterVersion?: number;
   derivedFromTemplateVersionId?: string;
   lastModifiedAt?: string;
   fieldValues?: Record<string, unknown>;
   rules: TemplateRulesMap;
+  /** True when org template version is ahead of the stored baseline. */
+  upgrade: boolean;
+  /** Populated when upgrade is true; otherwise null. */
+  adopt: OrgDerivedAdoptPreview | null;
 } & Record<string, unknown>;
 
 function extractOrgVersionContent(record: TemplateDdbRecord): Record<string, unknown> {
@@ -55,6 +61,8 @@ export function toOrgTemplateRulesResponse(
     organizationId: string;
     masterTemplateId: string;
     templateEnabled: boolean;
+    upgrade?: boolean;
+    adopt?: OrgDerivedAdoptPreview | null;
   },
 ): OrgTemplateRulesResponse {
   const meta = versionRow.meta ?? metaRow.meta;
@@ -69,11 +77,14 @@ export function toOrgTemplateRulesResponse(
     templateName: meta.templateName,
     templateType: meta.templateType,
     status: meta.status,
+    active: meta.isActive !== false,
     templateEnabled: opts.templateEnabled,
     derivedFromMasterVersion: meta.derivedFromMasterVersion,
     derivedFromTemplateVersionId: meta.derivedFromTemplateVersionId,
     lastModifiedAt: meta.lastModifiedAt,
     ...content,
     rules: asTemplateRulesMap(versionRow.rules),
+    upgrade: opts.upgrade ?? false,
+    adopt: opts.adopt ?? null,
   };
 }

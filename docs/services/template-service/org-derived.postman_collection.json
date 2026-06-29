@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Template Service — Org-derived variants",
-    "description": "Flow: derive canonical (existing) → POST variant → list via GET /templates?templateLevel=ORG_DERIVED → PUT variant.",
+    "description": "Flow: derive canonical (existing) → POST variant → list via GET /templates?templateLevel=ORG_DERIVED or ORG_CARE_PLAN → PUT variant.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -9,6 +9,7 @@
     { "key": "token", "value": "{{your_bearer_token}}" },
     { "key": "organizationId", "value": "ROSEWOOD" },
     { "key": "sourceOrgTemplateId", "value": "TEST-TEMPLATE-ORG-ROSEWOOD" },
+    { "key": "orgDerivedTemplateId", "value": "HTN-VARIANT-A-a1b2c3d4" },
     { "key": "orgTemplateId", "value": "HTN-VARIANT-A-a1b2c3d4" }
   ],
   "item": [
@@ -54,6 +55,48 @@
       }
     },
     {
+      "name": "1c. List ORG_CARE_PLAN variants",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/templates?templateLevel=ORG_CARE_PLAN&organizationId={{organizationId}}&country=all&categoryCode=CHRONIC_DISEASE&conditionCode=HYPERTENSION",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates"],
+          "query": [
+            { "key": "templateLevel", "value": "ORG_CARE_PLAN" },
+            { "key": "organizationId", "value": "{{organizationId}}" },
+            { "key": "country", "value": "all" },
+            { "key": "categoryCode", "value": "CHRONIC_DISEASE" },
+            { "key": "conditionCode", "value": "HYPERTENSION" }
+          ]
+        },
+        "description": "Care-plan scoped list. Each item includes upgrade and history."
+      }
+    },
+    {
+      "name": "1d. Get one ORG_CARE_PLAN variant",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/templates?templateLevel=ORG_CARE_PLAN&organizationId={{organizationId}}&orgTemplateId={{orgTemplateId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates"],
+          "query": [
+            { "key": "templateLevel", "value": "ORG_CARE_PLAN" },
+            { "key": "organizationId", "value": "{{organizationId}}" },
+            { "key": "orgTemplateId", "value": "{{orgTemplateId}}" }
+          ]
+        },
+        "description": "Returns fieldValues, rules, upgrade, and adopt preview when upgrade is true."
+      }
+    },
+    {
       "name": "2. Create org-derived variant",
       "request": {
         "method": "POST",
@@ -71,6 +114,26 @@
           "path": ["templates", "org-derived"]
         },
         "description": "sourceOrgTemplateId must be the canonical org template from POST /templates/derive (not another variant)."
+      }
+    },
+    {
+      "name": "2b. Create ORG_CARE_PLAN via POST /templates",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"templateLevel\": \"ORG_CARE_PLAN\",\n  \"templateType\": \"CARE_PLAN\",\n  \"organizationId\": \"{{organizationId}}\",\n  \"orgDerivedTemplateId\": \"{{orgDerivedTemplateId}}\",\n  \"TEMPLATE_NAME\": \"test template 2\",\n  \"status\": \"DRAFT\",\n  \"templateEnabled\": true,\n  \"fieldValues\": {\n    \"Category\": { \"labelKey\": \"Chronic Disease\", \"value\": \"CHRONIC_DISEASE\" },\n    \"Condition\": { \"labelKey\": \"Hypertension\", \"value\": \"HYPERTENSION\" },\n    \"Country\": { \"labelKey\": \"India\", \"value\": \"IN\" },\n    \"Language\": { \"labelKey\": \"English\", \"value\": \"ENGLISH\" },\n    \"Specialty\": { \"labelKey\": \"Cardiology\", \"value\": \"CARDIOLOGY\" },\n    \"SelectScope\": { \"labelKey\": \"Private\", \"value\": \"PRIVATE\" },\n    \"GoalsEnabled\": true,\n    \"MaxGoalsAllowed\": \"10\",\n    \"LinkedGoalTemplate\": {\n      \"id\": \"TEST-GOAL-45\",\n      \"title\": \"TEST goal 45\",\n      \"version\": \"1\"\n    },\n    \"LinkedMonitoringTemplate\": {\n      \"id\": \"OXYGEN\",\n      \"title\": \"OXY\",\n      \"version\": \"1.2\"\n    },\n    \"BillingRuntimeAllowed\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/templates",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates"]
+        },
+        "description": "Console create path. Copies from orgDerivedTemplateId (canonical or existing variant) and merges fieldValues."
       }
     },
     {
@@ -94,6 +157,30 @@
           ]
         },
         "description": "Partial rules/fieldValues (version bump) and/or templateEnabled (no version bump)."
+      }
+    },
+    {
+      "name": "3b. Update ORG_CARE_PLAN via PUT /templates/{orgTemplateId}",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rules\": {\n    \"Category\": { \"orgedit\": false }\n  },\n  \"fieldValues\": {\n    \"MaxGoalsAllowed\": \"15\"\n  },\n  \"status\": \"DRAFT\",\n  \"active\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/templates/{{orgTemplateId}}?templateLevel=ORG_CARE_PLAN&organizationId={{organizationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["templates", "{{orgTemplateId}}"],
+          "query": [
+            { "key": "templateLevel", "value": "ORG_CARE_PLAN" },
+            { "key": "organizationId", "value": "{{organizationId}}" }
+          ]
+        },
+        "description": "Unified console update path. POST /templates/{orgTemplateId} with the same query params also works."
       }
     },
     {

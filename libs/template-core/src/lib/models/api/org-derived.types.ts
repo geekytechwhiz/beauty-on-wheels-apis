@@ -1,3 +1,4 @@
+import type { TemplateStatus } from '../../constants/template.constants';
 import type { OrganizationMeta } from './list-org-catalog.types';
 import type { ListPagination } from './list-master.types';
 import type { TemplateHistoryEntry } from '../../mappers/template-http.dto';
@@ -43,6 +44,9 @@ export type OrgDerivedCreateParams = {
   newTemplateName: string;
   sourceVersionId?: string;
   templateEnabled?: boolean;
+  fieldValues?: Record<string, unknown>;
+  status?: TemplateStatus;
+  active?: boolean;
   organizationMeta?: OrganizationMeta;
   actorUser?: TemplateActorUser;
 };
@@ -88,7 +92,7 @@ export type OrgDerivedCreateResult = {
   templateType?: string;
   categoryCode?: string;
   conditionCode?: string;
-  /** Always `DRAFT` on create. */
+  /** `DRAFT` by default; may be `PUBLISHED` when requested on create. */
   status: string;
   /** Defaults to `true` on create. */
   active: boolean;

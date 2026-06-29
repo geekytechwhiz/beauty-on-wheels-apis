@@ -1,7 +1,7 @@
 # Org-derived templates — API plan
 
-**Status:** phase 1 + phase 2 implemented · **phase 3 planned** (variant copy source + versioning GET)  
-**Depends on:** `CONSOLE_CARE_PLAN_PAYLOAD_BACKEND_PLAN.md`, `LINKED_TEMPLATE_RULES_SEPARATE_STRUCTURE_PLAN.md`, `Template_Hierarchy_and_Structure_Change_Addendum.md` (ChangeSet / adopt)
+**Status:** phase 1 + phase 2 implemented · phase 3 planned · **phase 4 planned** (`ORG_CARE_PLAN` unified `/templates` API)  
+**Depends on:** `CONSOLE_CARE_PLAN_PAYLOAD_BACKEND_PLAN.md`, `LINKED_TEMPLATE_RULES_SEPARATE_STRUCTURE_PLAN.md`, `CARE_PLAN_LINKED_TEMPLATE_RULES_PLAN.md`, `Template_Hierarchy_and_Structure_Change_Addendum.md` (ChangeSet / adopt)
 
 ---
 
@@ -9,10 +9,10 @@
 
 Org templates exist at **two levels**:
 
-| Level | How it is created | `orgTemplateId` pattern | Managed by |
-|-------|-------------------|-------------------------|------------|
-| **Canonical org template** | `POST /templates/derive` (master → org) | `{masterTemplateId}-ORG-{orgSlug}` | **Existing** derive + org rules APIs |
-| **Org-derived variant** | `POST /templates/org-derived` (canonical → variant) | `{slug(newTemplateName)}-{shortUuid}` | **New** org-derived APIs (this plan) |
+| Level | How it is created | `templateLevel` (API) | `orgTemplateId` pattern | Managed by |
+|-------|-------------------|----------------------|-------------------------|------------|
+| **Canonical org template** | `POST /templates/derive` (master → org) | `ORG` (catalog GET) | `{masterTemplateId}-ORG-{orgSlug}` | **Existing** derive + org rules APIs |
+| **Org-derived variant** | `POST /templates/org-derived` **or** `POST /templates` with `templateLevel=ORG_CARE_PLAN` | `ORG_DERIVED` / **`ORG_CARE_PLAN`** | `{slug(newTemplateName)}-{shortUuid}` | Org-derived APIs + **phase 4** unified `/templates` |
 
 **Rule:** You never copy from master directly for variants. Always:
 
@@ -73,10 +73,14 @@ The existing derive flow is **unchanged**. This plan adds **2 write routes** und
 | **1** | `POST /templates/derive` | Create **canonical** org copy + enablement |
 | **1b** *(optional)* | `GET/PUT /templates/org/{masterTemplateId}/{orgId}` | Tune canonical `fieldValues` / `rules` before branching |
 | **2** | `POST /templates/org-derived` | Copy **canonical** or **existing variant** → new variant + enable |
+| **2c** *(phase 4)* | `POST /templates` with `templateLevel=ORG_CARE_PLAN` + `orgDerivedTemplateId` | Console create care plan variant (same copy engine as step 2) |
 | **2b** *(phase 3)* | `GET /templates/org-version-status?organizationId=…&orgTemplateId=…` | **Versioning tab** row — derived-from / latest canonical / upgrade / local changes |
 | **3** | `GET /templates?templateLevel=ORG_DERIVED&organizationId=…` | **List** variants — each item includes `history` + `upgrade` |
+| **3c** *(phase 4)* | `GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=…` | **List** care plan variants only — `upgrade` + `history` |
 | **3b** | `GET /templates?templateLevel=ORG_DERIVED&…&orgTemplateId=…` | **Get one** — full `fieldValues` + `rules` + `adopt` preview when `upgrade: true` |
+| **3d** *(phase 4)* | `GET /templates?templateLevel=ORG_CARE_PLAN&…&orgTemplateId=…` | **Get one** care plan variant — same as 3b |
 | **4** | `PUT /templates/org-derived/{orgTemplateId}` | Patch variant rules / fieldValues / status / active / enable |
+| **4c** *(phase 4)* | `PUT /templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN` | Console update care plan variant (same engine as step 4) |
 | **5** | `POST /templates/org-derived/{orgTemplateId}/adopt` | Apply canonical upgrade to variant (phase 2 — after user confirms modal) |
 
 ---
@@ -108,6 +112,8 @@ Or from **GET** `/templates/org/{masterTemplateId}/{orgId}`:
 
 That value is **`sourceOrgTemplateId`** when copying from the **canonical** org template.
 
+> **Phase 4:** On `POST /templates` with `templateLevel=ORG_CARE_PLAN`, the same id is passed as **`orgDerivedTemplateId`** (canonical or existing variant).
+
 > **Phase 3:** `sourceOrgTemplateId` may also be an **existing org-derived variant** `orgTemplateId`. The service detects the source type from stored meta and copies accordingly (see [API 2 — copy sources](#api-2--post-create-variant-copy-sources) below).
 
 ---
@@ -128,15 +134,19 @@ Do **not** route variant list/edit through the canonical org rules URLs. Variant
 
 ---
 
-## New APIs (2 write + 2 read modes + 1 adopt + 1 versioning)
+## New APIs (2 write + 2 read modes + 1 adopt + 1 versioning + phase 4 unified)
 
 | # | Method | Path | Does |
 |---|--------|------|------|
 | 1a | **GET** | `/templates?templateLevel=ORG_DERIVED&organizationId=…` | **List** variants — `history` + `upgrade` per item |
 | 1b | **GET** | `/templates?templateLevel=ORG_DERIVED&organizationId=…&orgTemplateId=…` | **Get one** — `fieldValues`, `rules`, `adopt` preview |
+| **1a′** | **GET** | `/templates?templateLevel=ORG_CARE_PLAN&organizationId=…` | **List** care plan variants only — **phase 4** |
+| **1b′** | **GET** | `/templates?templateLevel=ORG_CARE_PLAN&…&orgTemplateId=…` | **Get one** care plan variant — **phase 4** |
 | **1c** | **GET** | `/templates/org-version-status?organizationId=…&orgTemplateId=…` | **Versioning tab** — one variant row (phase 3) |
 | 2 | **POST** | `/templates/org-derived` | Copy canonical **or** variant → new variant |
+| **5** | **POST** | `/templates` (`templateLevel=ORG_CARE_PLAN`) | Console create care plan variant — **phase 4** |
 | 3 | **PUT** | `/templates/org-derived/{orgTemplateId}` | Update variant |
+| **7** | **PUT** | `/templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN` | Console update care plan variant — **phase 4** |
 | 4 | **POST** | `/templates/org-derived/{orgTemplateId}/adopt` | Confirm adopt (phase 2) |
 
 ### `templateLevel` values on GET `/templates`
@@ -145,7 +155,10 @@ Do **not** route variant list/edit through the canonical org rules URLs. Variant
 |-------|---------|
 | `MASTER` (default) | Published master catalog |
 | `ORG` | Canonical org enablement catalog (excludes `derivationKind: orgDerive`) |
-| `ORG_DERIVED` | Org-derived variants only (`derivationKind === orgDerive`) |
+| `ORG_DERIVED` | All org-derived variants (`derivationKind === orgDerive`) |
+| **`ORG_CARE_PLAN`** *(phase 4)* | Org-derived variants where `templateType === CARE_PLAN` only — **same rows** as `ORG_DERIVED`, console-facing filter |
+
+> **Phase 4 rule:** `ORG_CARE_PLAN` is a **CARE_PLAN-scoped alias** on the unified `/templates` route. Storage, versioning, `upgrade`, and `adopt` behaviour are **identical** to `ORG_DERIVED`; only the API surface and create entry point differ for the console.
 
 ---
 
@@ -733,6 +746,492 @@ Optional future: `"preserveLocalOverrides": true` (default `true`).
 
 ---
 
+## Phase 4 — `ORG_CARE_PLAN` unified `/templates` API (planned)
+
+Console today creates **master** care plans via `POST /templates` with `templateLevel: MASTER` and a large `fieldValues` payload (linked goal/monitoring, baseline sections, billing, etc.). Phase 4 adds the **same route** for org-level care plan variants:
+
+| Console action | Route | `templateLevel` |
+|----------------|-------|-----------------|
+| Create master care plan | `POST /templates` | `MASTER` *(existing)* |
+| Create org care plan variant (copy from org-derived) | `POST /templates` | **`ORG_CARE_PLAN`** *(new)* |
+| List / get org care plan variants | `GET /templates` | **`ORG_CARE_PLAN`** |
+| Update org care plan variant | `PUT /templates/{orgTemplateId}` | **`ORG_CARE_PLAN`** |
+
+Low-level routes (`POST /templates/org-derived`, `PUT /templates/org-derived/{id}`, `POST …/adopt`) **remain** for backward compatibility. Phase 4 **delegates** to the same `libs/template-core` service methods.
+
+### Phase 4 flow (simple)
+
+```
+1. POST /templates/derive          → canonical org template (existing)
+2. POST /templates/org-derived       → first variant (optional; or copy canonical directly in step 3)
+3. POST /templates                   → new ORG_CARE_PLAN variant
+       templateLevel: ORG_CARE_PLAN
+       orgDerivedTemplateId: <canonical or existing variant id>
+       fieldValues: { … console payload … }
+4. GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=…
+       → list with upgrade + history per row
+5. GET /templates?…&orgTemplateId=…  → single + adopt when upgrade: true
+6. PUT /templates/{orgTemplateId}    → patch rules / fieldValues / status / active
+7. POST /templates/org-derived/{orgTemplateId}/adopt  → adopt canonical upgrade (unchanged)
+```
+
+### Relationship to existing APIs
+
+| Concern | Phase 1–3 route | Phase 4 route | Same service? |
+|---------|-----------------|---------------|---------------|
+| Create variant | `POST /templates/org-derived` | `POST /templates` + `ORG_CARE_PLAN` | Yes — `createOrgDerived()` |
+| List variants | `GET /templates?templateLevel=ORG_DERIVED` | `GET /templates?templateLevel=ORG_CARE_PLAN` | Yes — filter `templateType=CARE_PLAN` |
+| Get one | `GET …&orgTemplateId=…` | Same query params | Yes |
+| Update variant | `PUT /templates/org-derived/{id}` | `PUT /templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN` | Yes — `updateOrgDerived()` |
+| Adopt upgrade | `POST /templates/org-derived/{id}/adopt` | **Unchanged** | Yes |
+
+---
+
+## API 5 — POST create `ORG_CARE_PLAN` (phase 4)
+
+### `POST /templates`
+
+Extends the **existing** master create handler. When `templateLevel === ORG_CARE_PLAN`, the service runs the org-derived copy path instead of master publish.
+
+#### Required body fields
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `templateLevel` | **Yes** | Must be `ORG_CARE_PLAN` |
+| `templateType` | **Yes** | Must be `CARE_PLAN` |
+| `organizationId` | **Yes** | Org scope (JWT `custom:organizationID` must match unless `ROOT_ADMIN`) |
+| `orgDerivedTemplateId` | **Yes** | Source to copy from — canonical `orgTemplateId` **or** existing variant `orgTemplateId` (same semantics as `sourceOrgTemplateId` in API 2) |
+| `TEMPLATE_NAME` | **Yes** | Display name for the **new** variant |
+| `status` | No | `DRAFT` (default) or `PUBLISHED` |
+| `fieldValues` | No | Console payload — merged over copied source (see merge rules) |
+| `templateEnabled` | No | Default `true` |
+
+#### Copy + merge behaviour
+
+1. Resolve `orgDerivedTemplateId` for `organizationId` → load source (canonical or variant).
+2. Copy **full** `fieldValues` + `rules` + lineage from source (same as API 2 phase 3).
+3. **Merge** request `fieldValues` on top (shallow key merge; nested objects deep-merge per key).
+4. Assign **new** `orgTemplateId` = `slug(TEMPLATE_NAME) + shortUuid`.
+5. Set `derivationKind: orgDerive`, canonical lineage fields, optional `copiedFromOrgTemplateId`.
+6. `version` starts at `1`; append `versionHistory` CREATED entry.
+7. `upgrade: false` at create (snapshot matches source canonical version).
+
+#### Example — create from existing org-derived variant (console payload)
+
+Based on the console `POST /templates` master shape; only **added/changed** fields called out:
+
+```http
+POST /templates
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "templateLevel": "ORG_CARE_PLAN",
+  "templateType": "CARE_PLAN",
+  "organizationId": "mqf0agcd0aa65849",
+  "orgDerivedTemplateId": "HTN-CARE-PLAN-VARIANT-A-546d8483",
+  "TEMPLATE_NAME": "test template 2",
+  "status": "PUBLISHED",
+  "templateEnabled": true,
+  "fieldValues": {
+    "Category": { "labelKey": "Chronic Disease", "value": "CHRONIC_DISEASE" },
+    "Condition": { "labelKey": "Hypertension", "value": "HYPERTENSION" },
+    "Country": { "labelKey": "India", "value": "IN" },
+    "Language": { "labelKey": "English", "value": "ENGLISH" },
+    "Specialty": { "labelKey": "Cardiology", "value": "CARDIOLOGY" },
+    "SelectScope": { "labelKey": "Private", "value": "PRIVATE" },
+    "DurationType": [
+      { "labelKey": "30 Days", "value": "30D" },
+      { "labelKey": "90 Days", "value": "90D" },
+      { "labelKey": "6 Months", "value": "6M" }
+    ],
+    "DefaultDurationType": { "labelKey": "30 Days", "value": "30D" },
+    "CustomDurationAllowed": true,
+    "GoalsEnabled": true,
+    "MaxGoalsAllowed": "10",
+    "BillingProgramTypes": [{ "labelKey": "None", "value": "NONE" }],
+    "TaskTemplateIntro": "",
+    "LinkedTaskTemplate": [],
+    "baselineSections": [
+      {
+        "sectionName": "test baseline",
+        "parameters": [
+          {
+            "parameterName": "test parameter",
+            "dataType": { "labelKey": "Multi-Select", "value": "MULTI_SELECT" },
+            "mandatory": false,
+            "dataSourceTypes": [
+              { "labelKey": "Manual", "value": "MANUAL" },
+              { "labelKey": "Device", "value": "DEVICE" },
+              { "labelKey": "HMS", "value": "HMS" }
+            ],
+            "allowedValues": "1",
+            "defaultValue": "test default"
+          }
+        ]
+      }
+    ],
+    "GoalTemplateIntro": "",
+    "LinkedGoalTemplate": {
+      "id": "TEST-GOAL-45",
+      "title": "TEST goal 45",
+      "version": "1",
+      "subtitle": "v1 - Diabetes - 1 goals",
+      "conditionBadge": { "label": "Diabetes", "color": "#B54708", "bg": "#FFF6ED" },
+      "entriesLabel": "Entries: 1",
+      "summaryTags": [{ "label": "Key results: 1" }],
+      "detailItems": [
+        {
+          "id": "goal-1",
+          "title": "Drink more Water",
+          "description": "drink water to regulate",
+          "badge": { "label": "Engagement", "color": "#667085", "bg": "#F2F4F7" }
+        }
+      ]
+    },
+    "MonitoringTemplateIntro": "",
+    "LinkedMonitoringTemplate": {
+      "id": "OXYGEN",
+      "title": "OXY",
+      "version": "1.2",
+      "description": "Oxygen Reading",
+      "subtitle": "v1.2 - HYPERTENSION",
+      "conditionBadge": { "label": "HYPERTENSION", "color": "#B54708", "bg": "#FFF6ED" }
+    },
+    "ReviewCadence": [
+      { "labelKey": "15 Days", "value": "15_DAYS" },
+      { "labelKey": "30 Days", "value": "30_DAYS" }
+    ],
+    "ReviewOwnerType": { "labelKey": "CareTeam", "value": "CARE_TEAM" },
+    "ProviderReviewRequired": true,
+    "ReviewNotesRequired": true,
+    "BillingRuleProfile": {
+      "labelKey": "RPM STANDARD (CPT 99453 - 99458)",
+      "value": "RPM_STANDARD"
+    },
+    "IcdCode": [
+      { "labelKey": "I10 - Essential Hypertension", "value": "I10" },
+      { "labelKey": "E11 - Type 2 Diabetes Mellitus", "value": "E11" },
+      { "labelKey": "J44 - COPD", "value": "J44" }
+    ],
+    "BillingRuntimeAllowed": true
+  }
+}
+```
+
+#### Example — create from **canonical** org template (first variant)
+
+```json
+{
+  "templateLevel": "ORG_CARE_PLAN",
+  "templateType": "CARE_PLAN",
+  "organizationId": "mqf0agcd0aa65849",
+  "orgDerivedTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+  "TEMPLATE_NAME": "HTN Care Plan — Variant A",
+  "status": "DRAFT",
+  "fieldValues": {}
+}
+```
+
+Empty `fieldValues` → copy canonical body as-is.
+
+#### Response `201`
+
+Same shape as API 2 create + `templateLevel` echo:
+
+```json
+{
+  "success": true,
+  "statusCode": 201,
+  "data": {
+    "templateLevel": "ORG_CARE_PLAN",
+    "organizationId": "mqf0agcd0aa65849",
+    "orgDerivedTemplateId": "HTN-CARE-PLAN-VARIANT-A-546d8483",
+    "orgTemplateId": "TEST-TEMPLATE-2-a1b2c3d4",
+    "templateVersionId": "TEST-TEMPLATE-2-a1b2c3d4-V01",
+    "templateName": "test template 2",
+    "templateType": "CARE_PLAN",
+    "masterTemplateId": "HTN-CARE-PLAN-MASTER",
+    "derivedFromOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+    "derivedFromOrgTemplateVersion": 5.6,
+    "derivedFromOrgTemplateVersionId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-V01",
+    "copiedFromOrgTemplateId": "HTN-CARE-PLAN-VARIANT-A-546d8483",
+    "status": "PUBLISHED",
+    "active": true,
+    "templateEnabled": true,
+    "version": 1,
+    "upgrade": false
+  }
+}
+```
+
+#### Validation
+
+| Check | On failure |
+|-------|------------|
+| `templateLevel` not `ORG_CARE_PLAN` | Normal master path (unchanged) |
+| `templateType` not `CARE_PLAN` | `400` |
+| `orgDerivedTemplateId` missing | `400` |
+| Source not found for org | `404` |
+| `TEMPLATE_NAME` duplicate in org variants | `409` |
+| `organizationId` mismatch JWT | `403` |
+
+#### Rules on create
+
+- **Do not** regenerate rules from scratch when copying — inherit source `rules`, then apply rule patches if console sends `rules` in body *(optional future; phase 4 v1: rules come from copy only)*.
+- Linked-template nested rules (`LinkedGoalTemplate`, `LinkedMonitoringTemplate`, `LinkedTaskTemplate`) follow `CARE_PLAN_LINKED_TEMPLATE_RULES_PLAN.md` when rules are rebuilt on update.
+
+---
+
+## API 6 — GET list + single `ORG_CARE_PLAN` (phase 4)
+
+Reuse **GET `/templates`** — same handler as API 1a / 1b with `templateLevel=ORG_CARE_PLAN`.
+
+Internally: `listOrgDerived({ templateType: 'CARE_PLAN', … })` — equivalent to `ORG_DERIVED` + `templateType=CARE_PLAN` filter.
+
+### List — `GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=…`
+
+#### Query parameters
+
+| Param | Required | Notes |
+|-------|----------|-------|
+| `templateLevel` | **Yes** | `ORG_CARE_PLAN` |
+| `organizationId` | **Yes** | Org scope |
+| `orgTemplateId` | No | Omit = **list**; set = **single** (below) |
+| `categoryCode` | No | Filter |
+| `conditionCode` | No | Filter |
+| `specialty` | No | Filter |
+| `templateName` | No | Substring |
+| `templateEnabled` | No | `true` / `false` |
+| `status` | No | `DRAFT` / `PUBLISHED` |
+| `active` | No | `true` / `false` |
+| `country` | No | Pass-through |
+| `nextPaginationKey` | No | Pagination (list only) |
+
+#### List request
+
+```http
+GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=mqf0agcd0aa65849&categoryCode=CHRONIC_DISEASE&conditionCode=HYPERTENSION&country=all
+```
+
+#### List response — `upgrade` per row
+
+Each item includes **`upgrade: true | false`** — computed the same as `ORG_DERIVED`:
+
+| `upgrade` | Meaning |
+|-----------|---------|
+| `true` | Latest **canonical** org version on `derivedFromOrgTemplateId` is **greater than** variant snapshot `derivedFromOrgTemplateVersion` |
+| `false` | Variant is current with canonical snapshot |
+
+```json
+{
+  "success": true,
+  "data": {
+    "organizationMeta": { "id": "mqf0agcd0aa65849", "name": "Rosewood" },
+    "templateLevel": "ORG_CARE_PLAN",
+    "items": [
+      {
+        "orgTemplateId": "TEST-TEMPLATE-2-a1b2c3d4",
+        "templateName": "test template 2",
+        "templateType": "CARE_PLAN",
+        "masterTemplateId": "HTN-CARE-PLAN-MASTER",
+        "categoryCode": "CHRONIC_DISEASE",
+        "conditionCode": "HYPERTENSION",
+        "version": 1,
+        "templateVersionId": "TEST-TEMPLATE-2-a1b2c3d4-V01",
+        "derivedFromOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+        "derivedFromOrgTemplateVersion": 5.6,
+        "derivedFromOrgTemplateVersionId": "ROSEWOOD-ORG-MQF0AGCD0AA65849-V01",
+        "copiedFromOrgTemplateId": "HTN-CARE-PLAN-VARIANT-A-546d8483",
+        "status": "PUBLISHED",
+        "active": true,
+        "templateEnabled": true,
+        "upgrade": true,
+        "lastModifiedAt": "2026-06-25T12:00:00.000Z",
+        "history": [
+          {
+            "version": 1,
+            "templateVersionId": "TEST-TEMPLATE-2-a1b2c3d4-V01",
+            "status": "PUBLISHED",
+            "action": "CREATED",
+            "title": "Template Created",
+            "isActive": true,
+            "isLatestVersion": true,
+            "updatedAt": "2026-06-25T12:00:00.000Z",
+            "updatedBy": { "userId": "…", "email": "rootadmin@yopmail.com", "name": "Root Admin" },
+            "changes": []
+          }
+        ]
+      }
+    ],
+    "filterOptions": { "categoryCode": [], "conditionCode": [], "specialty": [] },
+    "pagination": { "limit": 20, "count": 1, "total": 1, "hasMore": false }
+  }
+}
+```
+
+### Single — `GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=…&orgTemplateId=…`
+
+Returns full `fieldValues` + `rules` + `upgrade` + `adopt` (when `upgrade: true`).
+
+```http
+GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=mqf0agcd0aa65849&orgTemplateId=TEST-TEMPLATE-2-a1b2c3d4
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "templateLevel": "ORG_CARE_PLAN",
+    "organizationId": "mqf0agcd0aa65849",
+    "orgTemplateId": "TEST-TEMPLATE-2-a1b2c3d4",
+    "templateName": "test template 2",
+    "templateType": "CARE_PLAN",
+    "templateVersionId": "TEST-TEMPLATE-2-a1b2c3d4-V01",
+    "version": 1,
+    "derivedFromOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+    "derivedFromOrgTemplateVersion": 5.6,
+    "upgrade": true,
+    "status": "PUBLISHED",
+    "active": true,
+    "templateEnabled": true,
+    "fieldValues": {
+      "Category": { "labelKey": "Chronic Disease", "value": "CHRONIC_DISEASE" },
+      "LinkedGoalTemplate": { "id": "TEST-GOAL-45", "title": "TEST goal 45" },
+      "LinkedMonitoringTemplate": { "id": "OXYGEN", "title": "OXY" }
+    },
+    "rules": {
+      "Category": { "enable": true, "orgedit": true },
+      "LinkedGoalTemplate": { "enable": true, "orgedit": false, "id": { "enable": true, "orgedit": false } }
+    },
+    "adopt": {
+      "available": true,
+      "title": "What's new in HTN Care Plan",
+      "fromVersionLabel": "v5.6",
+      "toVersionLabel": "v5.7",
+      "sourceOrgTemplateId": "ROSEWOOD-ORG-MQF0AGCD0AA65849",
+      "localChangesPresent": true,
+      "changes": { "added": [], "changed": [], "removed": [] }
+    }
+  }
+}
+```
+
+When `upgrade: false` → `adopt: null` (same as API 1b).
+
+---
+
+## API 7 — PUT update `ORG_CARE_PLAN` (phase 4)
+
+### `PUT /templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN&organizationId=…`
+
+Unified update on the **same** route family as master updates. Delegates to `updateOrgDerived()` — identical rules to API 3.
+
+#### Query
+
+| Param | Required |
+|-------|----------|
+| `templateLevel` | **Yes** — `ORG_CARE_PLAN` |
+| `organizationId` | **Yes** |
+
+#### Body (all optional — send only what changes)
+
+```json
+{
+  "rules": {
+    "Category": { "orgedit": false },
+    "LinkedGoalTemplate": { "orgedit": true }
+  },
+  "fieldValues": {
+    "MaxGoalsAllowed": "15",
+    "LinkedGoalTemplate": {
+      "id": "TEST-GOAL-45",
+      "title": "TEST goal 45 — updated"
+    }
+  },
+  "status": "DRAFT",
+  "active": true,
+  "templateEnabled": true
+}
+```
+
+#### Status + active flow
+
+| Body | Behaviour |
+|------|-----------|
+| `"status": "DRAFT"` | Move to draft (editable) |
+| `"status": "PUBLISHED"` or `"PUBLISH"` | Publish variant |
+| `"active": true` | Template active (`isActive`) |
+| `"active": false` | Soft-inactive; does **not** auto-disable `templateEnabled` |
+| `"templateEnabled": false` | Disable org enablement row for this variant |
+
+To edit `rules` / `fieldValues` while currently `PUBLISHED`, include `"status": "DRAFT"` in the same request.
+
+#### Versioning (unchanged from API 3)
+
+| Change | Version bump? | `history` |
+|--------|---------------|-----------|
+| `rules` and/or `fieldValues` | **Yes** (`1` → `1.1`) | Append UPDATED entry with `changes[]` diff strings |
+| `status` and/or `active` only | **No** | Append metadata-only entry |
+| `templateEnabled` only | **No** | No version bump |
+
+#### Example — publish
+
+```http
+PUT /templates/TEST-TEMPLATE-2-a1b2c3d4?templateLevel=ORG_CARE_PLAN&organizationId=mqf0agcd0aa65849
+```
+
+```json
+{
+  "status": "PUBLISH"
+}
+```
+
+#### Response `200`
+
+```json
+{
+  "success": true,
+  "data": {
+    "templateLevel": "ORG_CARE_PLAN",
+    "orgTemplateId": "TEST-TEMPLATE-2-a1b2c3d4",
+    "templateVersionId": "TEST-TEMPLATE-2-a1b2c3d4-V01",
+    "version": 1.1,
+    "status": "PUBLISHED",
+    "active": true,
+    "templateEnabled": true,
+    "upgrade": true,
+    "fieldValues": { "MaxGoalsAllowed": "15" },
+    "rules": { "Category": { "orgedit": false } }
+  }
+}
+```
+
+#### Upgrade after canonical edit
+
+```
+1. PUT /templates/org/{master}/{org}     → canonical 5.6 → 5.7
+2. GET /templates?templateLevel=ORG_CARE_PLAN&…&orgTemplateId=…
+       upgrade: true, adopt: { … }
+3. POST /templates/org-derived/{orgTemplateId}/adopt   (unchanged adopt route)
+4. GET again → upgrade: false, adopt: null
+```
+
+---
+
+## Phase 4 — numbered console sequence (adds to table above)
+
+| Step | API | Purpose |
+|------|-----|---------|
+| **2c** | `POST /templates` with `ORG_CARE_PLAN` + `orgDerivedTemplateId` | Console create care plan variant (copy from canonical or variant) |
+| **3c** | `GET /templates?templateLevel=ORG_CARE_PLAN&organizationId=…` | List org care plans — `upgrade` + `history` |
+| **3d** | `GET /templates?templateLevel=ORG_CARE_PLAN&…&orgTemplateId=…` | Get one — `fieldValues`, `rules`, `adopt` |
+| **4c** | `PUT /templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN` | Update rules / fieldValues / status / active |
+
+---
+
 ## Postman
 
 Import `apps/template-service/org-derived.postman_collection.json` for the three API calls (list, create, update).
@@ -849,6 +1348,10 @@ type OrgDerivedAdoptChangeRow = {
 | List `history` | Same `TemplateHistoryEntry` shape as master list — **phase 2** |
 | Single `adopt` preview | Populated when `upgrade: true`; `null` otherwise — **phase 2** |
 | Adopt action | `POST …/adopt` after modal confirm — **phase 2** |
+| `ORG_CARE_PLAN` create | `POST /templates` + `orgDerivedTemplateId` — delegates to `createOrgDerived()` — **phase 4** |
+| `ORG_CARE_PLAN` list/get | `GET /templates?templateLevel=ORG_CARE_PLAN` — `templateType=CARE_PLAN` filter on org-derived rows — **phase 4** |
+| `ORG_CARE_PLAN` update | `PUT /templates/{orgTemplateId}?templateLevel=ORG_CARE_PLAN` — delegates to `updateOrgDerived()` — **phase 4** |
+| `orgDerivedTemplateId` vs `sourceOrgTemplateId` | Same semantics; `orgDerivedTemplateId` is the console name on `POST /templates`; `sourceOrgTemplateId` remains on `POST /templates/org-derived` |
 
 ---
 
@@ -905,3 +1408,23 @@ type OrgDerivedAdoptChangeRow = {
 - [ ] Zod + OpenAPI update for extended org-version-status
 - [ ] Postman: variant copy POST example + version status GET
 - [ ] Update `org-derived.postman_collection.json`
+
+### Phase 4 — planned (`ORG_CARE_PLAN` unified `/templates`)
+
+**`libs/template-core`**
+
+- [ ] `createOrgDerived()` — accept `orgDerivedTemplateId` alias (same as `sourceOrgTemplateId`)
+- [ ] `listOrgDerived()` — when `templateLevel=ORG_CARE_PLAN`, force `templateType=CARE_PLAN` filter
+- [ ] `getOrgDerived()` — single get for `ORG_CARE_PLAN` (reuse existing)
+- [ ] `updateOrgDerived()` — no change; called from unified PUT handler
+
+**`apps/template-service`**
+
+- [ ] Extend `templateLevelZ` — add `ORG_CARE_PLAN`
+- [ ] `POST /templates` — branch on `templateLevel=ORG_CARE_PLAN`: validate `templateType=CARE_PLAN`, require `organizationId` + `orgDerivedTemplateId`, delegate to `createOrgDerived()`
+- [ ] `GET /templates` — map `ORG_CARE_PLAN` → org-derived list/single with `CARE_PLAN` filter; return `upgrade` + `history` + `adopt`
+- [ ] `PUT /templates/{orgTemplateId}` — when `templateLevel=ORG_CARE_PLAN`, delegate to `updateOrgDerived()` (rules, fieldValues, status, active, templateEnabled)
+- [ ] Zod: `orgCarePlanCreateBody` fields on create schema; query `templateLevel` enum update
+- [ ] `serverless.yml` — document new query/body params in OpenAPI comments (no new routes)
+- [ ] Postman: ORG_CARE_PLAN create (full console payload), list, single, update, adopt flow
+- [ ] Unit tests: create from variant, create from canonical, GET upgrade flag, PUT version bump vs status-only

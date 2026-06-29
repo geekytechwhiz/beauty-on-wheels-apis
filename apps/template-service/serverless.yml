@@ -117,6 +117,7 @@ functions:
           summary: Create master template
           description: |
             Create master template (no templateId in path). Same body for POST /templates/{templateId} to update or run lifecycleAction.
+            For org care plan variants use templateLevel=ORG_CARE_PLAN with orgDerivedTemplateId in the body.
           cors: *httpApiCors
           authorizer: *securedAuthorizer
           responses: *securedResponses
@@ -126,6 +127,20 @@ functions:
           summary: Update master template (canonical)
           description: |
             Update master content or lifecycle (PUBLISH, SUBMIT_REVIEW, …). templateId in path (e.g. TASK-CODE from create).
+            For org care plan variants use PUT or POST with templateLevel=ORG_CARE_PLAN and organizationId query param.
+          cors: *httpApiCors
+          authorizer:
+            name: common_authorizer
+            type: token
+            identitySource: method.request.header.Authorization
+            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            resultTtlInSeconds: 0
+      - http:
+          path: templates/{templateId}
+          method: put
+          summary: Update org care plan variant (ORG_CARE_PLAN)
+          description: |
+            Update org care plan variant when templateLevel=ORG_CARE_PLAN and organizationId are set as query params.
           cors: *httpApiCors
           authorizer: *securedAuthorizer
           responses: *securedResponses
@@ -138,8 +153,8 @@ functions:
           method: get
           summary: List templates (canonical)
           description: |
-            List templates. Query templateLevel=MASTER|ORG|ORG_DERIVED (default MASTER).
-            ORG lists canonical org enablement catalog; ORG_DERIVED lists org-derived variants (requires organizationId).
+            List templates. Query templateLevel=MASTER|ORG|ORG_DERIVED|ORG_CARE_PLAN (default MASTER).
+            ORG lists canonical org enablement catalog; ORG_DERIVED and ORG_CARE_PLAN list org-derived variants (requires organizationId).
           queryStringParameters:
             templateLevel:
               required: false
@@ -321,8 +336,10 @@ functions:
       - http:
           path: templates/org/{templateId}/{orgId}
           method: put
-          summary: Update org template rules
-          description: Partial merge of field rules on the enabled org copy; bumps minor version.
+          summary: Update canonical org template rules, fieldValues, status, and active
+          description: |
+            Partial merge of rules and fieldValues on the enabled canonical org copy; bumps minor version on content changes.
+            Optional status (DRAFT, PUBLISHED, or PUBLISH alias) and active flag without a version bump when sent alone.
           cors: *httpApiCors
           authorizer: *securedAuthorizer
           responses: *securedResponses

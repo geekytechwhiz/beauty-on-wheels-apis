@@ -107,6 +107,8 @@ describe('OrgTemplateRulesService', () => {
       max: 1,
     });
     expect(result.rules.goalName.metadataMode).toBe('Fixed');
+    expect(result.upgrade).toBe(false);
+    expect(result.adopt).toBeNull();
   });
 
   it('merges rules and bumps minor version on put', async () => {
@@ -168,5 +170,150 @@ describe('OrgTemplateRulesService', () => {
     expect(result.fieldValues.GOALS).toEqual([{ goalName: 'Reduce BP', goalType: 'CLINICAL' }]);
     expect(result.rules.CATEGORY).toBeDefined();
     expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalled();
+  });
+
+  it('merges rules, fieldValues, status, and active in one put', async () => {
+    const { enablement, meta, version } = enabledOrgRows();
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockResolvedValue(undefined),
+    };
+    const enablementRepo = {
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(enablement),
+    };
+    const orgOps = new OrgTemplateOpsService(orgRepo as never);
+
+    const svc = new OrgTemplateRulesService(orgRepo as never, enablementRepo as never, orgOps);
+    const result = await svc.updateOrgTemplateRules({
+      masterTemplateId: 'CARE-PLAN-7',
+      organizationId: 'org-1',
+      rules: { CATEGORY: { enable: false } },
+      fieldValues: { CATEGORY: 'ACUTE_CARE' },
+      status: TEMPLATE_STATUS.PUBLISHED,
+      active: true,
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.version).toBe(1.1);
+    expect(result.status).toBe(TEMPLATE_STATUS.PUBLISHED);
+    expect(result.active).toBe(true);
+    expect(result.fieldValues.CATEGORY).toBe('ACUTE_CARE');
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates status and active without bumping version when content is unchanged', async () => {
+    const { enablement, meta, version } = enabledOrgRows();
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockImplementation(async (m: TemplateDdbRecord, v: TemplateDdbRecord) => {
+        meta.meta = m.meta;
+        version.meta = v.meta;
+      }),
+    };
+    const enablementRepo = {
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(enablement),
+    };
+    const orgOps = new OrgTemplateOpsService(orgRepo as never);
+
+    const svc = new OrgTemplateRulesService(orgRepo as never, enablementRepo as never, orgOps);
+    const result = await svc.updateOrgTemplateRules({
+      masterTemplateId: 'CARE-PLAN-7',
+      organizationId: 'org-1',
+      status: TEMPLATE_STATUS.PUBLISHED,
+      active: false,
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.version).toBe(1);
+    expect(result.status).toBe(TEMPLATE_STATUS.PUBLISHED);
+    expect(result.active).toBe(false);
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows rules and fieldValues updates when canonical org template is already published', async () => {
+    const { enablement, meta, version } = enabledOrgRows();
+    meta.meta.status = TEMPLATE_STATUS.PUBLISHED;
+    version.meta.status = TEMPLATE_STATUS.PUBLISHED;
+
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockResolvedValue(undefined),
+    };
+    const enablementRepo = {
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(enablement),
+    };
+    const orgOps = new OrgTemplateOpsService(orgRepo as never);
+
+    const svc = new OrgTemplateRulesService(orgRepo as never, enablementRepo as never, orgOps);
+    const result = await svc.updateOrgTemplateRules({
+      masterTemplateId: 'CARE-PLAN-7',
+      organizationId: 'org-1',
+      rules: { CATEGORY: { enable: false } },
+      fieldValues: { CATEGORY: 'ACUTE_CARE' },
+      status: TEMPLATE_STATUS.PUBLISHED,
+      active: true,
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.status).toBe(TEMPLATE_STATUS.PUBLISHED);
+    expect(result.version).toBe(1.1);
+    expect(result.fieldValues.CATEGORY).toBe('ACUTE_CARE');
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('adopts baseline when adopt is true on put', async () => {
+    const { enablement, meta, version } = enabledOrgRows();
+    version.meta.version = 1.6;
+    version.meta.derivedFromMasterVersion = 1;
+    meta.meta.version = 1.6;
+    meta.meta.derivedFromMasterVersion = 1;
+    version.versionHistory = [
+      {
+        version: 1.6,
+        templateVersionId: 'CARE-PLAN-7-ORG-ORG1-V01',
+        status: TEMPLATE_STATUS.PUBLISHED,
+        action: 'PUBLISHED',
+        fieldValues: version.fieldValues,
+        rules: version.rules,
+      },
+      {
+        version: 1,
+        templateVersionId: 'CARE-PLAN-7-ORG-ORG1-V01',
+        status: TEMPLATE_STATUS.SAVED,
+        action: 'CREATED',
+        fieldValues: version.fieldValues,
+        rules: version.rules,
+      },
+    ];
+
+    const orgRepo = {
+      getOrgMeta: jest.fn().mockResolvedValue(meta),
+      getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
+      saveOrgMetaAndVersion: jest.fn().mockImplementation(async (m: TemplateDdbRecord, v: TemplateDdbRecord) => {
+        meta.meta = m.meta;
+        version.meta = v.meta;
+      }),
+    };
+    const enablementRepo = {
+      findByOrgAndMasterTemplateId: jest.fn().mockResolvedValue(enablement),
+    };
+    const orgOps = new OrgTemplateOpsService(orgRepo as never);
+
+    const svc = new OrgTemplateRulesService(orgRepo as never, enablementRepo as never, orgOps);
+    const result = await svc.updateOrgTemplateRules({
+      masterTemplateId: 'CARE-PLAN-7',
+      organizationId: 'org-1',
+      adopt: true,
+      actorUser: { userId: 'user-1' },
+    });
+
+    expect(result.version).toBe(1.6);
+    expect(result.upgrade).toBe(false);
+    expect(result.adopt).toBeNull();
+    expect(result.derivedFromMasterVersion).toBe(1.6);
+    expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledTimes(1);
   });
 });

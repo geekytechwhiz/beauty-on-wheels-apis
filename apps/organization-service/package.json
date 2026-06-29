@@ -105,6 +105,7 @@
   "dependencies": { 
   },
   "devDependencies": {
+    "@myvitalrx/mvrx-resource-registry": "^0.0.8",
     "@aws-sdk/client-secrets-manager": "^3.958.0",
     "@aws-sdk/client-ssm": "^3.958.0",
     "esbuild-plugin-tsconfig-paths": "^1.0.1",

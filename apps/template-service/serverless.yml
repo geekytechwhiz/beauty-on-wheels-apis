@@ -98,7 +98,6 @@ custom:
   autoswagger: ${file(../../infra/serverless/config/autoswagger-base.yml)}
   serverless-offline: ${file(../../infra/serverless/config/serverless-offline.yml)}
 
-# REST + CORS; secured routes use cors/authorizer/responses anchors (same as task-service).
 functions:
   health:
     handler: src/handlers/http/health.main

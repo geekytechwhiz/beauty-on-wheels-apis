@@ -10,6 +10,7 @@ plugins:
   - serverless-plugin-warmup
   - serverless-esbuild
   - serverless-dotenv-plugin
+  - '@myvitalrx/mvrx-resource-registry'
   # serverless-offline is only loaded via serverless.offline.yml for local dev
 
 provider:
@@ -123,6 +124,23 @@ package:
   individually: true
 
 custom:
+  resourceRegistry:
+    enabled: true
+    platformOwner: organization-service
+    parameters:
+      ORGANIZATION_TABLE:
+        value: organization-table-${self:provider.stage}
+      ORGANIZATION_FILES_BUCKET:
+        value: organization-files-bucket-${self:provider.stage}
+      EVENT_BUS:
+        value: organization-service-bus-${self:provider.stage}
+      
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic
+
   userServiceUrl:
     dev: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev/user
     stg: https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg/user

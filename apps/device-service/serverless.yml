@@ -11,6 +11,7 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
+  - '@myvitalrx/mvrx-resource-registry'
 
 provider:
   name: aws
@@ -113,6 +114,21 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  resourceRegistry:
+    enabled: true
+    platformOwner: device-service
+    parameters:
+      DEVICE_TABLE:
+        value: device-table-${self:provider.stage}
+      EVENT_BUS:
+        value: device-service-bus-${self:provider.stage}
+       
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic
+
   # Disable sourcemaps everywhere in CI to reduce memory (avoids esbuild "The service was stopped").
   # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
   sourcemapsByStage:

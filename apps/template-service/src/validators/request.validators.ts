@@ -6,6 +6,7 @@ import {
   TEMPLATE_STATUS,
   TemplateEntityBuilder,
   TemplateService,
+  type CloneTemplateBody,
   type TemplateActorUser,
 } from '@api-hub/template-core';
 
@@ -32,7 +33,6 @@ import {
   orgEnablementOrgPathSchema,
   parseSearchOrgEnablementsQuery,
   updateOrgEnablementBodySchema,
-  type CloneTemplateBody,
   type CreateMasterTemplateBody,
   type CreateOrgEnablementBody,
   type SearchOrgEnablementsQuery,

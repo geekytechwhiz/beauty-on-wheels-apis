@@ -1,4 +1,4 @@
-import { SHARE_SCOPE, TEMPLATE_STATUS } from '@api-hub/template-core';
+import { SHARE_SCOPE, TEMPLATE_STATUS, type PartialTemplateFieldRule } from '@api-hub/template-core';
 import { z } from 'zod';
 
 const shareScopeInputZ = z
@@ -334,17 +334,7 @@ export const orgTemplateRulesPathSchema = z.object({
   orgId: z.string().trim().min(1),
 });
 
-type PartialTemplateFieldRuleInput = {
-  enable?: boolean;
-  orgedit?: boolean;
-  add?: boolean;
-  defaultedit?: boolean;
-  delete?: boolean;
-  metadataMode?: string;
-  min?: number;
-  max?: number;
-  rules?: Record<string, PartialTemplateFieldRuleInput>;
-};
+type PartialTemplateFieldRuleInput = PartialTemplateFieldRule;
 
 const partialTemplateFieldRuleSchema: z.ZodType<PartialTemplateFieldRuleInput> = z.lazy(() =>
   z

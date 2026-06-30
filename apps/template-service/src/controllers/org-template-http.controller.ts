@@ -1,4 +1,4 @@
-import { normalizeTemplateServiceError, OrgTemplateService } from '@api-hub/template-core';
+import { normalizeTemplateServiceError, OrgTemplateService, type CloneTemplateBody } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
@@ -49,6 +49,31 @@ export class OrgTemplateHttpController {
     );
   }
 
+  private mapCloneOrganizationMeta(
+    organizationId: string,
+    body?: CloneTemplateBody,
+  ): {
+    id: string;
+    name: string;
+    active?: boolean;
+    country?: string;
+    updated?: string;
+    description: string | null;
+  } {
+    const meta = body?.organizationMeta;
+    if (!meta) {
+      return { id: organizationId, name: organizationId, description: null };
+    }
+    return {
+      id: meta.id,
+      name: meta.name.trim(),
+      active: meta.active,
+      country: meta.country,
+      updated: meta.updated !== undefined ? String(meta.updated) : undefined,
+      description: meta.description ?? null,
+    };
+  }
+
   async handleCloneToOrg(req: LambdaRequest) {
     const v = this.requireValidated(
       (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate })
@@ -63,20 +88,7 @@ export class OrgTemplateHttpController {
         body: v.body,
         actorUser: v.actorUser,
       });
-      const organizationMeta = v.body?.organizationMeta
-        ? {
-            id: v.body.organizationMeta.id,
-            name: v.body.organizationMeta.name.trim(),
-            active: v.body.organizationMeta.active,
-            country: v.body.organizationMeta.country,
-            updated: v.body.organizationMeta.updated,
-            description: v.body.organizationMeta.description ?? null,
-          }
-        : {
-            id: v.organizationId,
-            name: v.organizationId,
-            description: null,
-          };
+      const organizationMeta = this.mapCloneOrganizationMeta(v.organizationId, v.body);
       return this.svc.toDeriveEnableResponse(result, {
         organizationMeta,
       });
@@ -169,14 +181,15 @@ export class OrgTemplateHttpController {
     );
 
     try {
+      const { rules, fieldValues, status, active, adopt } = v.body;
       return await this.svc.updateOrgTemplateRules({
         masterTemplateId: v.masterTemplateId,
         organizationId: v.organizationId,
-        rules: v.body.rules,
-        fieldValues: v.body.fieldValues,
-        status: v.body.status,
-        active: v.body.active,
-        adopt: v.body.adopt,
+        rules,
+        fieldValues,
+        status,
+        active,
+        adopt,
         actorUser: v.actorUser,
       });
     } catch (e: unknown) {

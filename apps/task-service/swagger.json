@@ -3,7 +3,7 @@
   "info": {
     "title": "Task Service API",
     "version": "1.0.0",
-    "description": "Task Service HTTP APIs. Example request bodies use model `example` / `x-example`; example 200 responses use `SuccessEnvelope*` definitions."
+    "description": "Task Service HTTP APIs. Request body examples use Metadata Registry value codes (see open-api.yaml). Operational fields (currentState, surfaceSection, runtimeTaskSource) use camelCase."
   },
   "schemes": [
     "https",
@@ -31,6 +31,7 @@
     },
     "TaskBehaviorCode": {
       "type": "string",
+      "description": "Metadata Registry TaskBehaviorCode value code. Authoritative list from registry; persisted verbatim.",
       "enum": [
         "INSTRUCTION",
         "DOCUMENT_FORM",
@@ -39,9 +40,11 @@
         "EDUCATION_VIDEO",
         "EDUCATION_ARTICLE",
         "CARE_TEAM_TASK",
-        "METRIC_CHECKIN",
-        "SYMPTOM_CHECKIN"
-      ]
+        "METRIC_CHECK_IN",
+        "SYMPTOM_CHECK_IN"
+      ],
+      "x-metadataRegistryType": "TaskBehaviorCode",
+      "example": "METRIC_CHECK_IN"
     },
     "IdempotencyOutcome": {
       "type": "string",
@@ -108,14 +111,14 @@
         "patientDisplayName": "Maria Lopez",
         "carePlanInstanceId": "cp-2026-001",
         "monitoringInstanceId": "mon-bp-daily-001",
-        "taskBehaviorCode": "METRIC_CHECKIN",
-        "assignedToType": "patient",
+        "taskBehaviorCode": "METRIC_CHECK_IN",
+        "assignedToType": "PATIENT",
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
         "reminderContext": {
           "channels": [
-            "push",
-            "inApp"
+            "PUSH",
+            "IN_APP"
           ]
         }
       }
@@ -147,32 +150,40 @@
     },
     "TaskDisplayGroup": {
       "type": "string",
+      "description": "Metadata Registry TaskDisplayGroup value code.",
       "enum": [
-        "action",
-        "learning",
-        "checkIn",
-        "staffTask"
-      ]
+        "ACTION",
+        "LEARNING",
+        "CHECK_IN",
+        "STAFF_TASK"
+      ],
+      "x-metadataRegistryType": "TaskDisplayGroup",
+      "example": "CHECK_IN"
     },
     "AssignedToType": {
       "type": "string",
+      "description": "Metadata Registry AssignedToType value code. Non-patient assignee GSI1 is ORG#<orgId>#STAFF#<assigneeId>; assignedToType is stored on META only.",
       "enum": [
-        "patient",
-        "careTeamRole",
-        "user",
-        "orgStaff",
-        "system"
+        "PATIENT",
+        "CARE_TEAM_ROLE",
+        "USER",
+        "ORG_STAFF",
+        "SYSTEM"
       ],
-      "description": "Who completes a runtime task. orgStaff inbox GSI1 is `ORG#<orgId>#STAFF#<assigneeId>`; other non-patient types use `ORG#<orgId>#STAFF#<assignedToType>#<assigneeId>`."
+      "x-metadataRegistryType": "AssignedToType",
+      "example": "PATIENT"
     },
     "WorkflowStage": {
       "type": "string",
+      "description": "Metadata Registry TaskWorkflowStage value code.",
       "enum": [
-        "onboarding",
-        "ongoing",
-        "review",
-        "closure"
-      ]
+        "ONBOARDING",
+        "ONGOING_CARE",
+        "FORMAL_REVIEW",
+        "CLOSURE"
+      ],
+      "x-metadataRegistryType": "TaskWorkflowStage",
+      "example": "ONBOARDING"
     },
     "CurrentState": {
       "type": "string",
@@ -489,22 +500,27 @@
       },
       "additionalProperties": false,
       "example": {
-        "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+        "patientId": "pat-101",
         "patientDisplayName": "Maria Lopez",
-        "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
-        "workflowStage": "ongoing",
+        "carePlanInstanceId": "cp-2026-001",
+        "workflowStage": "ONGOING_CARE",
         "runtimeTaskSource": "manualSystem",
         "taskBehaviorCode": "CARE_TEAM_TASK",
-        "taskDisplayGroup": "staffTask",
+        "taskDisplayGroup": "STAFF_TASK",
         "displayTitle": "Call patient about missed reading",
         "description": "Follow up on missed BP reading from yesterday",
-        "assignedToType": "orgStaff",
+        "assignedToType": "ORG_STAFF",
         "assignedToStaffId": "staff-nurse-44721",
         "assignedToStaffDisplayName": "Nurse Lee",
         "displayToPatient": false,
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
-        "reminderEnabled": false
+        "reminderEnabled": false,
+        "reminderSettings": {
+          "channels": [
+            "PUSH"
+          ]
+        }
       }
     },
     "CreateRuntimeTaskResult": {
@@ -620,7 +636,7 @@
           "type": "string"
         },
         "taskGenerationTrigger": {
-          "type": "string"
+          "$ref": "#/definitions/TaskGenerationTrigger"
         },
         "workflowStage": {
           "$ref": "#/definitions/WorkflowStage"
@@ -654,11 +670,11 @@
       },
       "additionalProperties": false,
       "example": {
-        "patientId": "pat-maria",
+        "patientId": "pat-101",
         "patientDisplayName": "Maria Lopez",
-        "carePlanInstanceId": "cp-maria-001",
-        "taskGenerationTrigger": "carePlanStageEntered",
-        "workflowStage": "onboarding",
+        "carePlanInstanceId": "cp-2026-001",
+        "taskGenerationTrigger": "AT_CARE_PLAN_ACTIVATED",
+        "workflowStage": "ONBOARDING",
         "dryRun": false,
         "actorType": "system",
         "actorId": "care-plan-runtime",
@@ -668,9 +684,9 @@
               "carePlanTaskLinkageId": "link-watch-bp-video",
               "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
               "taskBehaviorCode": "EDUCATION_VIDEO",
-              "taskDisplayGroup": "learning",
+              "taskDisplayGroup": "LEARNING",
               "displayTitle": "Watch: How to measure BP",
-              "assignedToType": "patient",
+              "assignedToType": "PATIENT",
               "displayToPatient": true,
               "actionTargetId": "video-how-to-measure-bp",
               "dueWindowStart": 1780567200000,
@@ -680,7 +696,8 @@
               "reminderEnabled": true,
               "reminderSettings": {
                 "channels": [
-                  "push"
+                  "PUSH",
+                  "IN_APP"
                 ],
                 "quietHoursRespected": true
               }
@@ -913,13 +930,7 @@
           "type": "boolean"
         },
         "workflowStage": {
-          "type": "string",
-          "enum": [
-            "onboarding",
-            "ongoing",
-            "review",
-            "closure"
-          ]
+          "$ref": "#/definitions/WorkflowStage"
         },
         "actionTargetId": {
           "type": "string"
@@ -941,6 +952,7 @@
         "description": "Use home cuff before breakfast",
         "displayToPatient": true,
         "requiredForStageCompletion": true,
+        "workflowStage": "FORMAL_REVIEW",
         "reason": "Care plan template wording updated"
       }
     },
@@ -986,10 +998,10 @@
       },
       "additionalProperties": false,
       "example": {
-        "actorId": "staff-nurse-44721",
-        "assignedToStaffId": "staff-nurse-55210",
-        "assignedToStaffDisplayName": "Nurse Patel",
-        "reason": "Shift handoff"
+        "actorId": "staff-manager-1",
+        "assignedToStaffId": "staff-nurse-44721",
+        "assignedToStaffDisplayName": "Nurse Lee",
+        "reason": "Care team reassignment"
       }
     },
     "UpdateAssignedStaffResult": {
@@ -1119,12 +1131,15 @@
     },
     "ReminderChannel": {
       "type": "string",
+      "description": "Metadata Registry ReminderChannel value code.",
       "enum": [
-        "push",
-        "sms",
-        "email",
-        "inApp"
-      ]
+        "PUSH",
+        "SMS",
+        "EMAIL",
+        "IN_APP"
+      ],
+      "x-metadataRegistryType": "ReminderChannel",
+      "example": "PUSH"
     },
     "ReminderSettings": {
       "type": "object",
@@ -1181,8 +1196,8 @@
         "reminderEnabled": true,
         "reminderSettings": {
           "channels": [
-            "push",
-            "inApp"
+            "PUSH",
+            "IN_APP"
           ]
         },
         "reason": "Patient requested daily reminders"
@@ -1293,12 +1308,12 @@
         "patientId": "pat-101",
         "patientDisplayName": "Maria Lopez",
         "carePlanInstanceId": "cp-2026-001",
-        "workflowStage": "ongoing",
+        "workflowStage": "ONGOING_CARE",
         "runtimeTaskSource": "monitoringRuntime",
-        "taskBehaviorCode": "METRIC_CHECKIN",
-        "taskDisplayGroup": "checkIn",
+        "taskBehaviorCode": "METRIC_CHECK_IN",
+        "taskDisplayGroup": "CHECK_IN",
         "displayTitle": "Daily blood pressure check-in",
-        "assignedToType": "patient",
+        "assignedToType": "PATIENT",
         "displayToPatient": true,
         "dueWindowStart": 1780581600000,
         "dueWindowEnd": 1780668000000,
@@ -1407,8 +1422,8 @@
             "patientId": "pat-101",
             "displayTitle": "Daily blood pressure check-in",
             "currentState": "active",
-            "taskBehaviorCode": "METRIC_CHECKIN",
-            "taskDisplayGroup": "checkIn"
+            "taskBehaviorCode": "METRIC_CHECK_IN",
+            "taskDisplayGroup": "CHECK_IN"
           }
         },
         "error": null,
@@ -1440,7 +1455,7 @@
                 "displayTitle": "Watch: How to measure BP",
                 "currentState": "active",
                 "taskBehaviorCode": "EDUCATION_VIDEO",
-                "taskDisplayGroup": "learning"
+                "taskDisplayGroup": "LEARNING"
               }
             }
           ]
@@ -1471,8 +1486,8 @@
             "displayTitle": "Call patient about missed reading",
             "currentState": "active",
             "taskBehaviorCode": "CARE_TEAM_TASK",
-            "taskDisplayGroup": "staffTask",
-            "assignedToType": "orgStaff",
+            "taskDisplayGroup": "STAFF_TASK",
+            "assignedToType": "ORG_STAFF",
             "assignedToStaffId": "staff-nurse-44721"
           }
         },
@@ -1503,7 +1518,7 @@
                 "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                 "displayTitle": "Daily blood pressure check-in",
                 "currentState": "active",
-                "taskBehaviorCode": "METRIC_CHECKIN"
+                "taskBehaviorCode": "METRIC_CHECK_IN"
               }
             ]
           },
@@ -1763,8 +1778,8 @@
           "reminderEnabled": true,
           "reminderSettings": {
             "channels": [
-              "push",
-              "inApp"
+              "PUSH",
+              "IN_APP"
             ]
           },
           "historyEntry": {
@@ -1798,7 +1813,7 @@
           "orgId": "org-acme-001",
           "patientId": "pat-101",
           "carePlanInstanceId": "cp-2026-001",
-          "workflowStage": "onboarding",
+          "workflowStage": "ONBOARDING",
           "readinessStatus": "ready",
           "counts": {
             "total": 5,
@@ -1817,6 +1832,19 @@
           "version": "v1"
         }
       }
+    },
+    "TaskGenerationTrigger": {
+      "type": "string",
+      "description": "Metadata Registry TaskGenerationTrigger value code.",
+      "enum": [
+        "AT_CARE_PLAN_ACTIVATED",
+        "AT_CARE_PLAN_FULLY_ACTIVE",
+        "AT_REVIEW_DUE",
+        "AT_CARE_PLAN_CLOSURE",
+        "MANUAL"
+      ],
+      "x-metadataRegistryType": "TaskGenerationTrigger",
+      "example": "AT_CARE_PLAN_ACTIVATED"
     }
   },
   "paths": {
@@ -1880,14 +1908,14 @@
               "patientDisplayName": "Maria Lopez",
               "carePlanInstanceId": "cp-2026-001",
               "monitoringInstanceId": "mon-bp-daily-001",
-              "taskBehaviorCode": "METRIC_CHECKIN",
-              "assignedToType": "patient",
+              "taskBehaviorCode": "METRIC_CHECK_IN",
+              "assignedToType": "PATIENT",
               "dueWindowStart": 1780581600000,
               "dueWindowEnd": 1780668000000,
               "reminderContext": {
                 "channels": [
-                  "push",
-                  "inApp"
+                  "PUSH",
+                  "IN_APP"
                 ]
               }
             }
@@ -1916,8 +1944,8 @@
                     "patientId": "pat-101",
                     "displayTitle": "Daily blood pressure check-in",
                     "currentState": "active",
-                    "taskBehaviorCode": "METRIC_CHECKIN",
-                    "taskDisplayGroup": "checkIn"
+                    "taskBehaviorCode": "METRIC_CHECK_IN",
+                    "taskDisplayGroup": "CHECK_IN"
                   }
                 },
                 "error": null,
@@ -1962,11 +1990,11 @@
               "$ref": "#/definitions/GenerateCarePlanTasksRequest"
             },
             "x-example": {
-              "patientId": "pat-maria",
+              "patientId": "pat-101",
               "patientDisplayName": "Maria Lopez",
-              "carePlanInstanceId": "cp-maria-001",
-              "taskGenerationTrigger": "carePlanStageEntered",
-              "workflowStage": "onboarding",
+              "carePlanInstanceId": "cp-2026-001",
+              "taskGenerationTrigger": "AT_CARE_PLAN_ACTIVATED",
+              "workflowStage": "ONBOARDING",
               "dryRun": false,
               "actorType": "system",
               "actorId": "care-plan-runtime",
@@ -1976,9 +2004,9 @@
                     "carePlanTaskLinkageId": "link-watch-bp-video",
                     "sourceTaskTemplateVersionId": "task-tpl-education-video-v3",
                     "taskBehaviorCode": "EDUCATION_VIDEO",
-                    "taskDisplayGroup": "learning",
+                    "taskDisplayGroup": "LEARNING",
                     "displayTitle": "Watch: How to measure BP",
-                    "assignedToType": "patient",
+                    "assignedToType": "PATIENT",
                     "displayToPatient": true,
                     "actionTargetId": "video-how-to-measure-bp",
                     "dueWindowStart": 1780567200000,
@@ -1988,7 +2016,8 @@
                     "reminderEnabled": true,
                     "reminderSettings": {
                       "channels": [
-                        "push"
+                        "PUSH",
+                        "IN_APP"
                       ],
                       "quietHoursRespected": true
                     }
@@ -2023,7 +2052,7 @@
                         "displayTitle": "Watch: How to measure BP",
                         "currentState": "active",
                         "taskBehaviorCode": "EDUCATION_VIDEO",
-                        "taskDisplayGroup": "learning"
+                        "taskDisplayGroup": "LEARNING"
                       }
                     }
                   ]
@@ -2163,6 +2192,7 @@
               "description": "Use home cuff before breakfast",
               "displayToPatient": true,
               "requiredForStageCompletion": true,
+              "workflowStage": "FORMAL_REVIEW",
               "reason": "Care plan template wording updated"
             }
           }
@@ -2252,10 +2282,10 @@
               "$ref": "#/definitions/UpdateAssignedStaffRequest"
             },
             "x-example": {
-              "actorId": "staff-nurse-44721",
-              "assignedToStaffId": "staff-nurse-55210",
-              "assignedToStaffDisplayName": "Nurse Patel",
-              "reason": "Shift handoff"
+              "actorId": "staff-manager-1",
+              "assignedToStaffId": "staff-nurse-44721",
+              "assignedToStaffDisplayName": "Nurse Lee",
+              "reason": "Care team reassignment"
             }
           }
         ],
@@ -2432,12 +2462,12 @@
             "required": false,
             "type": "string",
             "enum": [
-              "onboarding",
-              "ongoing",
-              "review",
-              "closure"
+              "ONBOARDING",
+              "ONGOING_CARE",
+              "FORMAL_REVIEW",
+              "CLOSURE"
             ],
-            "x-example": "onboarding"
+            "x-example": "ONBOARDING"
           },
           {
             "in": "query",
@@ -2500,7 +2530,7 @@
                         "runtimeTaskInstanceId": "rtask-aa11bb22cc33dd44ee55ff6677889900",
                         "displayTitle": "Daily blood pressure check-in",
                         "currentState": "active",
-                        "taskBehaviorCode": "METRIC_CHECKIN"
+                        "taskBehaviorCode": "METRIC_CHECK_IN"
                       }
                     ]
                   },
@@ -2548,22 +2578,27 @@
               "$ref": "#/definitions/CreateRuntimeTaskRequest"
             },
             "x-example": {
-              "patientId": "pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201",
+              "patientId": "pat-101",
               "patientDisplayName": "Maria Lopez",
-              "carePlanInstanceId": "cp-inst-onboard-2026-04-001",
-              "workflowStage": "ongoing",
+              "carePlanInstanceId": "cp-2026-001",
+              "workflowStage": "ONGOING_CARE",
               "runtimeTaskSource": "manualSystem",
               "taskBehaviorCode": "CARE_TEAM_TASK",
-              "taskDisplayGroup": "staffTask",
+              "taskDisplayGroup": "STAFF_TASK",
               "displayTitle": "Call patient about missed reading",
               "description": "Follow up on missed BP reading from yesterday",
-              "assignedToType": "orgStaff",
+              "assignedToType": "ORG_STAFF",
               "assignedToStaffId": "staff-nurse-44721",
               "assignedToStaffDisplayName": "Nurse Lee",
               "displayToPatient": false,
               "dueWindowStart": 1780581600000,
               "dueWindowEnd": 1780668000000,
-              "reminderEnabled": false
+              "reminderEnabled": false,
+              "reminderSettings": {
+                "channels": [
+                  "PUSH"
+                ]
+              }
             }
           }
         ],
@@ -2589,8 +2624,8 @@
                     "displayTitle": "Call patient about missed reading",
                     "currentState": "active",
                     "taskBehaviorCode": "CARE_TEAM_TASK",
-                    "taskDisplayGroup": "staffTask",
-                    "assignedToType": "orgStaff",
+                    "taskDisplayGroup": "STAFF_TASK",
+                    "assignedToType": "ORG_STAFF",
                     "assignedToStaffId": "staff-nurse-44721"
                   }
                 },
@@ -2673,12 +2708,12 @@
             "required": false,
             "type": "string",
             "enum": [
-              "onboarding",
-              "ongoing",
-              "review",
-              "closure"
+              "ONBOARDING",
+              "ONGOING_CARE",
+              "FORMAL_REVIEW",
+              "CLOSURE"
             ],
-            "x-example": "onboarding"
+            "x-example": "ONGOING_CARE"
           },
           {
             "in": "query",
@@ -2983,8 +3018,8 @@
               "reminderEnabled": true,
               "reminderSettings": {
                 "channels": [
-                  "push",
-                  "inApp"
+                  "PUSH",
+                  "IN_APP"
                 ]
               },
               "reason": "Patient requested daily reminders"
@@ -3011,8 +3046,8 @@
                   "reminderEnabled": true,
                   "reminderSettings": {
                     "channels": [
-                      "push",
-                      "inApp"
+                      "PUSH",
+                      "IN_APP"
                     ]
                   },
                   "historyEntry": {
@@ -3083,12 +3118,12 @@
             "required": false,
             "type": "string",
             "enum": [
-              "onboarding",
-              "ongoing",
-              "review",
-              "closure"
+              "ONBOARDING",
+              "ONGOING_CARE",
+              "FORMAL_REVIEW",
+              "CLOSURE"
             ],
-            "x-example": "onboarding"
+            "x-example": "ONBOARDING"
           }
         ],
         "responses": {
@@ -3110,7 +3145,7 @@
                   "orgId": "org-acme-001",
                   "patientId": "pat-101",
                   "carePlanInstanceId": "cp-2026-001",
-                  "workflowStage": "onboarding",
+                  "workflowStage": "ONBOARDING",
                   "readinessStatus": "ready",
                   "counts": {
                     "total": 5,

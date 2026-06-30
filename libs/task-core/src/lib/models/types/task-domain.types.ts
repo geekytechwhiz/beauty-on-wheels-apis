@@ -29,20 +29,29 @@ export const TASK_DISPLAY_GROUP = {
 export type TaskDisplayGroup = (typeof TASK_DISPLAY_GROUP)[keyof typeof TASK_DISPLAY_GROUP];
 
 /**
- * Who completes or owns a runtime task — camelCase on API wire and DynamoDB.
+ * Metadata Registry AssignedToType value codes — stored and returned as-is on API + DynamoDB.
  * Shared with TASK, ALERT, ROLES_PERMISSIONS domains.
  */
 export const ASSIGNED_TO_TYPE = {
+  PATIENT: 'PATIENT',
+  CARE_TEAM_ROLE: 'CARE_TEAM_ROLE',
+  USER: 'USER',
+  ORG_STAFF: 'ORG_STAFF',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export type AssignedToType = (typeof ASSIGNED_TO_TYPE)[keyof typeof ASSIGNED_TO_TYPE];
+
+/** Legacy camelCase wire values accepted on input / read from older rows — not rewritten on write. */
+const LEGACY_ASSIGNED_TO_TYPE = {
   PATIENT: 'patient',
   CARE_TEAM_ROLE: 'careTeamRole',
   USER: 'user',
   ORG_STAFF: 'orgStaff',
   SYSTEM: 'system',
+  STAFF: 'staff',
 } as const;
 
-export type AssignedToType = (typeof ASSIGNED_TO_TYPE)[keyof typeof ASSIGNED_TO_TYPE];
-
-/** Non-patient assignees are indexed on GSI1. orgStaff uses `ORG#<org>#STAFF#<id>`; others use `STAFF#<assignedToType>#<id>`. */
 export const GSI_ASSIGNEE_ASSIGNED_TO_TYPES = [
   ASSIGNED_TO_TYPE.CARE_TEAM_ROLE,
   ASSIGNED_TO_TYPE.USER,
@@ -50,40 +59,31 @@ export const GSI_ASSIGNEE_ASSIGNED_TO_TYPES = [
   ASSIGNED_TO_TYPE.SYSTEM,
 ] as const satisfies readonly AssignedToType[];
 
-export function isPatientAssignedToType(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+export function isPatientAssignedToType(assignedToType: string): boolean {
+  return (
+    assignedToType === ASSIGNED_TO_TYPE.PATIENT ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.PATIENT
+  );
 }
 
-export function requiresAssigneeGsi(assignedToType: AssignedToType): boolean {
+export function requiresAssigneeGsi(assignedToType: string): boolean {
   return !isPatientAssignedToType(assignedToType);
 }
 
-export function isOrgStaffAssignedToType(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF;
+export function isOrgStaffAssignedToType(assignedToType: string): boolean {
+  return (
+    assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.ORG_STAFF ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.STAFF
+  );
 }
 
-/** Legacy wire values → canonical camelCase assignee types when reading older rows. */
-export function normalizeAssignedToTypeForWire(value: string): AssignedToType {
-  if (value === 'staff') {
-    return ASSIGNED_TO_TYPE.ORG_STAFF;
-  }
-  const upper = value.toUpperCase();
-  if (upper === 'PATIENT') {
-    return ASSIGNED_TO_TYPE.PATIENT;
-  }
-  if (upper === 'ORG_STAFF' || upper === 'ORGSTAFF') {
-    return ASSIGNED_TO_TYPE.ORG_STAFF;
-  }
-  if (upper === 'CARE_TEAM_ROLE' || upper === 'CARETEAMROLE') {
-    return ASSIGNED_TO_TYPE.CARE_TEAM_ROLE;
-  }
-  if (upper === 'USER') {
-    return ASSIGNED_TO_TYPE.USER;
-  }
-  if (upper === 'SYSTEM') {
-    return ASSIGNED_TO_TYPE.SYSTEM;
-  }
-  return value as AssignedToType;
+/** Known registry + legacy assignee types — validation only; values are persisted verbatim. */
+export function isKnownAssignedToType(value: string): value is AssignedToType {
+  return (
+    (Object.values(ASSIGNED_TO_TYPE) as readonly string[]).includes(value) ||
+    (Object.values(LEGACY_ASSIGNED_TO_TYPE) as readonly string[]).includes(value)
+  );
 }
 
 export const SURFACE_SECTION = {

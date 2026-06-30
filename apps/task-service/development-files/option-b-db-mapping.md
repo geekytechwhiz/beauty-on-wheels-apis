@@ -377,22 +377,25 @@ Cap LOOKUP list length (e.g. 50). Append-only audit — each row has `createdAt`
 
 ---
 
-## 6) Enum quick reference (value codes — camelCase on wire + DynamoDB)
+## 6) Enum quick reference (Metadata Registry + operational wire codes)
 
-Metadata type codes map to these **value codes** (UI may send any catalog value; service persists and compares using these literals).
+Registry-backed fields use **Metadata Registry value codes** (SCREAMING_SNAKE) in request examples — see `docs/services/task-service/api/open-api.yaml`. Operational enums (`currentState`, `surfaceSection`, `runtimeTaskSource`) use camelCase.
 
-| Type code | Value codes |
+Metadata type codes map to these **value codes** (authoritative list is Metadata Registry; service persists codes verbatim).
+
+| Type code | Value codes (Metadata Registry — use in API request examples) |
 |-----------|-------------|
 | **CurrentState** (wire) | `scheduled`, `active`, `completed`, `missed`, `dismissed`, `cancelled` |
 | **CurrentState** (persisted META) | `scheduled` while in-progress; terminals `completed`, `missed` (legacy only), `dismissed`, `cancelled` — `active`/`missed` derived on read from schedule |
-| **TaskBehaviorCode** | `INSTRUCTION`, `DOCUMENT_FORM`, `UPLOAD_DOCUMENT`, `DEVICE_SETUP`, `EDUCATION_VIDEO`, `EDUCATION_ARTICLE`, `CARE_TEAM_TASK`, `METRIC_CHECKIN`, `SYMPTOM_CHECKIN` |
-| **TaskDisplayGroup** | `action`, `learning`, `checkIn`, `staffTask` |
+| **TaskBehaviorCode** | `INSTRUCTION`, `DOCUMENT_FORM`, `UPLOAD_DOCUMENT`, `DEVICE_SETUP`, `EDUCATION_VIDEO`, `EDUCATION_ARTICLE`, `CARE_TEAM_TASK`, `METRIC_CHECK_IN`, `SYMPTOM_CHECK_IN` |
+| **TaskDisplayGroup** | `ACTION`, `LEARNING`, `CHECK_IN`, `STAFF_TASK` |
 | **SurfaceSection** (derived, not stored) | `today`, `upcoming`, `needsAttention`, `history`, `carePlanChecklist` |
-| **WorkflowStage** | `onboarding`, `ongoingCare`, `formalReview`, `closure` |
-| **AssignedToType** | `patient`, `careTeamRole`, `user`, `orgStaff`, `system` |
+| **TaskWorkflowStage** | `ONBOARDING`, `ONGOING_CARE`, `FORMAL_REVIEW`, `CLOSURE` |
+| **TaskGenerationTrigger** | `AT_CARE_PLAN_ACTIVATED`, `AT_CARE_PLAN_FULLY_ACTIVE`, `AT_REVIEW_DUE`, `AT_CARE_PLAN_CLOSURE`, `MANUAL` |
+| **AssignedToType** | `PATIENT`, `CARE_TEAM_ROLE`, `USER`, `ORG_STAFF`, `SYSTEM` |
+| **ReminderChannel** | `PUSH`, `SMS`, `EMAIL`, `IN_APP` |
 | **CompletionSourceType** | `manual`, `document`, `education`, `deviceSetup`, `monitoring`, `symptom`, `otherApprovedSource` |
 | **TransitionSource** | `manual`, `scheduler`, `sourceEvent`, `system` |
-| **ReminderChannel** | `push`, `sms`, `email`, `inApp` |
 | **ReminderStatus** | `scheduled`, `sent`, `cancelled`, `failed`, `suppressed` |
 | **ReadinessStatus** | `ready`, `notReady`, `notApplicable` |
 | **runtimeTaskSource** | `carePlanTaskLinkage`, `monitoringRuntime`, `serviceFlowRuntime`, `manualSystem` |

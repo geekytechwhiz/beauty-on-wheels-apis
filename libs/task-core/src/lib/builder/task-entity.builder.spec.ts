@@ -60,7 +60,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.gsi1sk).toContain('PAT#pat-1');
   });
 
-  it('builds monitoring META for careTeamRole assignment with typed GSI1 pk', () => {
+  it('builds monitoring META for careTeamRole assignment with STAFF# assignee GSI1 pk', () => {
     const roleInput: CreateMonitoringActionRequest = {
       ...input,
       assignedToType: 'careTeamRole',
@@ -77,7 +77,7 @@ describe('TaskEntityBuilder', () => {
 
     const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
     expect(meta.assignedToType).toBe('careTeamRole');
-    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#careTeamRole#role-triage');
+    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#role-triage');
   });
 
   it('uses open state when dueWindowStart is in the future', () => {

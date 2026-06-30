@@ -1,6 +1,5 @@
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import {
-  ASSIGNED_TO_TYPE,
   isPatientAssignedToType,
   TASK_DISPLAY_GROUP,
   type AssignedToType,
@@ -45,7 +44,7 @@ export function taskDisplayGroupForMonitoring(
 }
 
 export function displayToPatientForMonitoring(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+  return isPatientAssignedToType(assignedToType);
 }
 
 export function displayTitleForMonitoringTask(code: string): string {

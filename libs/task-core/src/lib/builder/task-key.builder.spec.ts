@@ -1,4 +1,3 @@
-import { ASSIGNED_TO_TYPE } from '../models/types/task-domain.types';
 import { TaskKeyBuilder } from './task-key.builder';
 
 describe('TaskKeyBuilder', () => {
@@ -15,21 +14,9 @@ describe('TaskKeyBuilder', () => {
     expect(TaskKeyBuilder.buildHistSk(1780554600000, 'hist-1')).toBe('HIST#1780554600000#hist-1');
   });
 
-  it('builds orgStaff GSI1 pk without assignedToType segment', () => {
-    expect(TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.ORG_STAFF, 'staff-1')).toBe(
-      'ORG#org-1#STAFF#staff-1',
-    );
-  });
-
-  it('builds non-orgStaff assignee GSI1 pk with assignedToType segment', () => {
-    expect(TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.CARE_TEAM_ROLE, 'role-42')).toBe(
-      'ORG#org-1#STAFF#careTeamRole#role-42',
-    );
-    expect(TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.USER, 'user-9')).toBe(
-      'ORG#org-1#STAFF#user#user-9',
-    );
-    expect(TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.SYSTEM, 'automation-1')).toBe(
-      'ORG#org-1#STAFF#system#automation-1',
-    );
+  it('builds GSI1 pk with STAFF# assignee id only (assignedToType is on META, not in GSI)', () => {
+    expect(TaskKeyBuilder.buildGsi1Pk('org-1', 'staff-1')).toBe('ORG#org-1#STAFF#staff-1');
+    expect(TaskKeyBuilder.buildGsi1Pk('org-1', 'role-42')).toBe('ORG#org-1#STAFF#role-42');
+    expect(TaskKeyBuilder.buildGsi1Pk('org-1', 'user-9')).toBe('ORG#org-1#STAFF#user-9');
   });
 });

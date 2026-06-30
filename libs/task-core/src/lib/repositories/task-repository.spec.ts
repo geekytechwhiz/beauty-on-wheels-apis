@@ -3,7 +3,7 @@ import { DuplicateTaskError } from '../errors/duplicate-task.error';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import type { CreateRuntimeTaskRequest } from '../models/api/create-runtime-task.request';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
-import { ASSIGNED_TO_TYPE, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
+import { RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import { TaskKeyBuilder } from '../builder/task-key.builder';
 import { TaskRepository } from './task-repository';
@@ -135,7 +135,7 @@ describe('TaskRepository.queryStaffTasksPage', () => {
         KeyConditionExpression: 'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :duePrefix)',
         FilterExpression: expect.stringContaining('patientId = :patientId'),
         ExpressionAttributeValues: expect.objectContaining({
-          ':gsi1pk': TaskKeyBuilder.buildGsi1Pk('org-1', ASSIGNED_TO_TYPE.ORG_STAFF, 'staff-1'),
+          ':gsi1pk': TaskKeyBuilder.buildGsi1Pk('org-1', 'staff-1'),
           ':duePrefix': 'DUE#',
           ':patientId': 'pat-1',
         }),
@@ -174,6 +174,7 @@ describe('TaskRepository.queryActionCenterTasksPage', () => {
     expect(callArg.KeyConditionExpression).toBe('pk = :pk AND begins_with(sk, :duePrefix)');
     expect(callArg.FilterExpression).toContain('displayToPatient = :displayToPatient');
     expect(callArg.FilterExpression).toContain('assignedToType = :patientAssignedToType');
+    expect(callArg.FilterExpression).not.toContain('legacyPatientAssignedToType');
     expect(callArg.ExpressionAttributeValues).toMatchObject({
       ':pk': TaskKeyBuilder.buildPatientPartitionKey('org-1', 'pat-1'),
       ':displayToPatient': true,

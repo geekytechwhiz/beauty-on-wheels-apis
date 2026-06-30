@@ -13,14 +13,8 @@ export const optionalNullableNonEmptyStringSchema = z
   .union([z.string().trim().min(1), z.null()])
   .optional();
 
-/** Who completes a task — `patient` | `careTeamRole` | `user` | `orgStaff` | `system`. */
-export const assignedToTypeSchema = z.enum([
-  'patient',
-  'careTeamRole',
-  'user',
-  'orgStaff',
-  'system',
-]);
+/** Metadata Registry AssignedToType value code (structural string check only; business rules in task-core). */
+export const assignedToTypeSchema = nonEmptyStringSchema;
 
 const actorTypeSchema = z.enum(['patient', 'staff']);
 

@@ -311,11 +311,7 @@ export class TaskRepository extends BaseRepository {
     input: QueryStaffTasksPageInput,
   ): Promise<{ items: TaskMetaDdbRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const table = assertTaskTable();
-    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
-      input.organizationId,
-      ASSIGNED_TO_TYPE.ORG_STAFF,
-      input.staffUserId,
-    );
+    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(input.organizationId, input.staffUserId);
 
     const expressionValues: Record<string, unknown> = {
       ':gsi1pk': gsi1pk,
@@ -532,11 +528,7 @@ export class TaskRepository extends BaseRepository {
     const table = assertTaskTable();
     const { meta, lookup, actorId, assignedToStaffId, assignedToStaffDisplayName, reason } = input;
     const nowMs = nowEpochMs();
-    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(
-      meta.orgId,
-      meta.assignedToType,
-      assignedToStaffId,
-    );
+    const gsi1pk = TaskKeyBuilder.buildGsi1Pk(meta.orgId, assignedToStaffId);
     const isFirstAssignment = !meta.assignedToStaffId;
     const gsi1sk =
       meta.gsi1sk ??

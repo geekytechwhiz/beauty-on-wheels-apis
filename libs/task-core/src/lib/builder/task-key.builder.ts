@@ -1,8 +1,6 @@
 import { REMINDER_CURRENT_SK } from '../constants/task.constants';
 import { TASK_DDB_KEY_PREFIX } from '../constants/task-key.constants';
-import { ASSIGNED_TO_TYPE, type AssignedToType } from '../models/types/task-domain.types';
 import { padEpochMs13, dueWindowStartOrMaxMs } from '../utils/task-time';
-
 export class TaskKeyBuilder {
   static toOrgId(orgId: string): string {
     const id = orgId.trim();
@@ -37,18 +35,13 @@ export class TaskKeyBuilder {
   }
 
   /**
-   * Staff inbox (orgStaff): `ORG#<org>#STAFF#<staffUserId>`.
-   * Other assignee types: `ORG#<org>#STAFF#<assignedToType>#<assigneeId>`.
+   * Staff inbox: `ORG#<org>#STAFF#<assigneeId>`.
+   * `assignedToType` (patient, doctor, careTeam, orgStaff, etc.) is stored on META only — not in the GSI key.
    */
-  static buildGsi1Pk(orgId: string, assignedToType: AssignedToType, assigneeId: string): string {
+  static buildGsi1Pk(orgId: string, assigneeId: string): string {
     const org = this.toOrgId(orgId);
-    const id = assigneeId.trim();
-    if (assignedToType?.toLowerCase() === ASSIGNED_TO_TYPE.ORG_STAFF.toLowerCase()) {
-      return `${org}#${TASK_DDB_KEY_PREFIX.STAFF}${id}`;
-    }
-    return `${org}#${TASK_DDB_KEY_PREFIX.STAFF}${assignedToType}#${id}`;
+    return `${org}#${TASK_DDB_KEY_PREFIX.STAFF}${assigneeId.trim()}`;
   }
-
   static buildGsi1Sk(
     dueWindowStart: number | undefined,
     dueWindowEnd: number | undefined,

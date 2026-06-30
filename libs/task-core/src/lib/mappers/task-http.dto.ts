@@ -1,5 +1,5 @@
 import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
-import { TASK_HISTORY_EVENT_TYPE, normalizeAssignedToTypeForWire, type SurfaceSection } from '../models/types/task-domain.types';
+import { TASK_HISTORY_EVENT_TYPE, type SurfaceSection } from '../models/types/task-domain.types';
 import {
   resolveCurrentStateForWire,
   type RuntimeTaskState,
@@ -38,14 +38,12 @@ export function toRuntimeTaskCard(
     generationHash,
     version,
     currentState,
-    assignedToType,
     ...rest
   } = r;
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
   return {
     ...rest,
-    assignedToType: normalizeAssignedToTypeForWire(assignedToType),
     currentState: resolveCurrentStateForWire({
       persistedState: currentState,
       dueWindowStart: r.dueWindowStart,

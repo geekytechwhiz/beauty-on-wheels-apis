@@ -13,11 +13,12 @@ const CP_DUE_START = 1780567200000;
 const CP_DUE_END = 1780610400000;
 
 describe('task.schemas', () => {
-  it('assignedToTypeSchema accepts known assignee types', () => {
-    expect(assignedToTypeSchema.safeParse('orgStaff').success).toBe(true);
-    expect(assignedToTypeSchema.safeParse('patient').success).toBe(true);
+  it('assignedToTypeSchema accepts any non-empty metadata value code', () => {
+    expect(assignedToTypeSchema.safeParse('PATIENT').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('ORG_STAFF').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('CUSTOM_ASSIGNEE_TYPE').success).toBe(true);
     expect(assignedToTypeSchema.safeParse('').success).toBe(false);
-    expect(assignedToTypeSchema.safeParse('unknown').success).toBe(false);
+    expect(assignedToTypeSchema.safeParse('   ').success).toBe(false);
   });
 
   it('rejects wrong types on createMonitoringAction', () => {

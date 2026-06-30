@@ -67,7 +67,7 @@ function assigneeGsiFields(params: {
   }
 
   return {
-    gsi1pk: TaskKeyBuilder.buildGsi1Pk(params.organizationId, params.assignedToType, staffId),
+    gsi1pk: TaskKeyBuilder.buildGsi1Pk(params.organizationId, staffId),
     gsi1sk: TaskKeyBuilder.buildGsi1Sk(
       params.dueWindowStart,
       params.dueWindowEnd,

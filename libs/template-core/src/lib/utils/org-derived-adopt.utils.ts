@@ -17,6 +17,25 @@ const COMPARE_DOC_KEYS = ['fieldValues', 'rules', 'links', 'steps', 'carePlanAtt
 const ADOPT_FOOTER_NOTE =
   'Your existing Org Templates and Care Plans are unchanged — adoption only updates this variant record.';
 
+/** Console-facing labels for common care-plan field keys. */
+const CARE_PLAN_FIELD_LABELS: Record<string, string> = {
+  LinkedTaskTemplate: 'Linked Task Templates',
+  LinkedGoalTemplate: 'Linked Goal Template',
+  LinkedMonitoringTemplate: 'Linked Monitoring Template',
+  ReviewCadence: 'Review cadence',
+  DefaultDurationType: 'Default duration',
+  DurationType: 'Duration options',
+  MaxGoalsAllowed: 'Max goals allowed',
+  GoalsEnabled: 'Goals',
+  BillingProgramTypes: 'Billing program types',
+  baselineSections: 'Baseline sections',
+  EducationHub: 'Education Hub',
+  TaskTemplateIntro: 'Task template intro',
+  CustomDurationAllowed: 'Custom duration',
+  Category: 'Category',
+  Condition: 'Condition',
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -72,16 +91,92 @@ function humanizeKey(key: string): string {
 
 function formatBrief(value: unknown): string {
   if (value === undefined || value === null) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'string') return value.trim() || '—';
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
   if (typeof value === 'number') return String(value);
-  if (Array.isArray(value)) return value.join(', ');
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'none';
+    return value
+      .map((item) => formatBrief(item))
+      .filter((part) => part !== '—')
+      .join(', ');
+  }
   const obj = value as Record<string, unknown>;
   if (typeof obj.value === 'string' || typeof obj.value === 'number') {
     return String(obj.value);
   }
-  if (typeof obj.labelKey === 'string') return obj.labelKey;
-  return JSON.stringify(value);
+  if (typeof obj.labelKey === 'string' && obj.labelKey.trim()) {
+    return obj.labelKey.trim();
+  }
+  if (typeof obj.sectionName === 'string' && obj.sectionName.trim()) {
+    return obj.sectionName.trim();
+  }
+  if (typeof obj.title === 'string' && obj.title.trim()) {
+    return obj.title.trim();
+  }
+  return 'updated';
+}
+
+function isComplexFieldValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'object') return false;
+  if (Array.isArray(value)) {
+    return value.some((item) => item !== null && typeof item === 'object');
+  }
+  const obj = value as Record<string, unknown>;
+  return !(
+    typeof obj.value === 'string' ||
+    typeof obj.value === 'number' ||
+    typeof obj.value === 'boolean'
+  );
+}
+
+function formatOverrideBrief(value: unknown): string {
+  const brief = formatBrief(value);
+  return brief === 'updated' ? 'your value' : brief;
+}
+
+function buildAddedMessage(label: string, preserved: boolean): string {
+  if (preserved) {
+    return `A new optional '${label}' section has been added. Your existing configuration is preserved.`;
+  }
+  return `New '${label}' section with updated configuration.`;
+}
+
+function buildRemovedMessage(label: string, customized: boolean): string {
+  if (customized) {
+    return `The legacy '${label}' section was removed. You have customisations here.`;
+  }
+  return `The '${label}' section was removed.`;
+}
+
+function buildChangedMessage(
+  label: string,
+  before: string,
+  after: string,
+  preserved: boolean,
+  overrideBrief: string,
+): string {
+  const beforeNum = Number(before);
+  const afterNum = Number(after);
+  const isNumeric =
+    !Number.isNaN(beforeNum) &&
+    !Number.isNaN(afterNum) &&
+    before !== '—' &&
+    after !== '—';
+
+  if (isNumeric && afterNum > beforeNum) {
+    const base = `${label} increased from ${before} to ${after}.`;
+    return preserved ? `${base} Your org override (${overrideBrief}) will be preserved.` : base;
+  }
+
+  if (label.toLowerCase().includes('review cadence') || label.toLowerCase().includes('cadence')) {
+    const base = `Default review cadence changed from ${before} to ${after}.`;
+    return preserved ? `${base} Your org override (${overrideBrief}) will be preserved.` : base;
+  }
+
+  const base = `'${label}' changed from ${before} to ${after}.`;
+  return preserved ? `${base} Your org override (${overrideBrief}) will be preserved.` : base;
 }
 
 function fieldLabel(fieldValues: Record<string, unknown>, key: string): string {
@@ -93,6 +188,10 @@ function fieldLabel(fieldValues: Record<string, unknown>, key: string): string {
     }
   }
   return humanizeKey(key);
+}
+
+function carePlanFieldLabel(fieldValues: Record<string, unknown>, key: string): string {
+  return CARE_PLAN_FIELD_LABELS[key] ?? fieldLabel(fieldValues, key);
 }
 
 function variantHasLocalOverride(
@@ -124,12 +223,11 @@ function diffFieldValueChanges(
   for (const key of toKeys) {
     if (!fromKeys.has(key)) {
       const preserved = variantHasLocalOverride(key, variantFv, snapshotFv);
+      const label = carePlanFieldLabel(toFv, key);
       added.push({
         key,
-        label: fieldLabel(toFv, key),
-        message: preserved
-          ? `A new '${fieldLabel(toFv, key)}' section has been added. Your existing configuration is preserved.`
-          : `A new '${fieldLabel(toFv, key)}' section has been added.`,
+        label,
+        message: buildAddedMessage(label, preserved),
         preserved,
       });
     }
@@ -138,12 +236,11 @@ function diffFieldValueChanges(
   for (const key of fromKeys) {
     if (!toKeys.has(key)) {
       const customized = variantHasLocalOverride(key, variantFv, snapshotFv);
+      const label = carePlanFieldLabel(fromFv, key);
       removed.push({
         key,
-        label: fieldLabel(fromFv, key),
-        message: customized
-          ? `The '${fieldLabel(fromFv, key)}' section was removed. You have customisations here.`
-          : `The '${fieldLabel(fromFv, key)}' section was removed.`,
+        label,
+        message: buildRemovedMessage(label, customized),
         severity: customized ? 'warning' : 'info',
         requiresReview: customized,
         preserved: false,
@@ -156,16 +253,21 @@ function diffFieldValueChanges(
     if (stableJson(fromFv[key]) === stableJson(toFv[key])) continue;
 
     const preserved = variantHasLocalOverride(key, variantFv, snapshotFv);
+    const label = carePlanFieldLabel(toFv, key);
     const before = formatBrief(fromFv[key]);
     const after = formatBrief(toFv[key]);
+    const complex = isComplexFieldValue(fromFv[key]) || isComplexFieldValue(toFv[key]);
+    const message = complex
+      ? preserved
+        ? `'${label}' was updated. Your org override will be preserved.`
+        : `'${label}' was updated.`
+      : buildChangedMessage(label, before, after, preserved, formatOverrideBrief(variantFv[key]));
+
     changed.push({
       key,
-      label: fieldLabel(toFv, key),
-      message: preserved
-        ? `'${fieldLabel(toFv, key)}' changed from ${before} to ${after}. Your org override (${formatBrief(variantFv[key])}) will be preserved.`
-        : `'${fieldLabel(toFv, key)}' changed from ${before} to ${after}.`,
-      before,
-      after,
+      label,
+      message,
+      ...(complex ? {} : { before, after }),
       preserved,
     });
   }
@@ -173,35 +275,95 @@ function diffFieldValueChanges(
   return { added, changed, removed };
 }
 
+const RULE_FLAG_LABELS: Record<string, string> = {
+  enable: 'enabled',
+  orgedit: 'org edit',
+  defaultedit: 'default edit',
+  add: 'add permission',
+  delete: 'delete permission',
+};
+
+function summarizeRuleNodeDelta(before: unknown, after: unknown, label: string): string {
+  const b = asRecord(before);
+  const a = asRecord(after);
+  const parts: string[] = [];
+
+  for (const [flag, human] of Object.entries(RULE_FLAG_LABELS)) {
+    if ((flag in b || flag in a) && b[flag] !== a[flag]) {
+      parts.push(`${human} changed from ${formatBrief(b[flag])} to ${formatBrief(a[flag])}`);
+    }
+  }
+
+  if (parts.length > 0) {
+    return `'${label}' rules updated (${parts.join('; ')}).`;
+  }
+  return `'${label}' rules were updated.`;
+}
+
 function diffRulesChanges(
   fromRules: Record<string, unknown>,
   toRules: Record<string, unknown>,
   variantRules: Record<string, unknown>,
   snapshotRules: Record<string, unknown>,
-): OrgDerivedAdoptChangeRow[] {
+  fieldValues: Record<string, unknown>,
+): {
+  added: OrgDerivedAdoptChangeRow[];
+  changed: OrgDerivedAdoptChangeRow[];
+  removed: OrgDerivedAdoptChangeRow[];
+} {
+  const added: OrgDerivedAdoptChangeRow[] = [];
   const changed: OrgDerivedAdoptChangeRow[] = [];
-  const keys = new Set([...Object.keys(fromRules), ...Object.keys(toRules)]);
+  const removed: OrgDerivedAdoptChangeRow[] = [];
 
-  for (const key of keys) {
+  const fromKeys = new Set(Object.keys(fromRules));
+  const toKeys = new Set(Object.keys(toRules));
+
+  for (const key of toKeys) {
+    if (!fromKeys.has(key)) {
+      const label = carePlanFieldLabel(fieldValues, key);
+      added.push({
+        key: `rules.${key}`,
+        label,
+        message: `New '${label}' rules were added.`,
+      });
+    }
+  }
+
+  for (const key of fromKeys) {
+    if (!toKeys.has(key)) {
+      const label = carePlanFieldLabel(fieldValues, key);
+      const customized =
+        key in variantRules && stableJson(variantRules[key]) !== stableJson(snapshotRules[key]);
+      removed.push({
+        key: `rules.${key}`,
+        label,
+        message: customized
+          ? `The '${label}' rules were removed. You have customisations here.`
+          : `The '${label}' rules were removed.`,
+        severity: customized ? 'warning' : 'info',
+        requiresReview: customized,
+        preserved: false,
+      });
+    }
+  }
+
+  for (const key of toKeys) {
+    if (!fromKeys.has(key)) continue;
     if (stableJson(fromRules[key]) === stableJson(toRules[key])) continue;
+
     const preserved =
       key in variantRules && stableJson(variantRules[key]) !== stableJson(snapshotRules[key]);
-    const label = humanizeKey(key);
-    const before = formatBrief(fromRules[key]);
-    const after = formatBrief(toRules[key]);
+    const label = carePlanFieldLabel(fieldValues, key);
+    const detail = summarizeRuleNodeDelta(fromRules[key], toRules[key], label);
     changed.push({
       key: `rules.${key}`,
       label,
-      message: preserved
-        ? `Rule '${label}' changed from ${before} to ${after}. Your org override will be preserved.`
-        : `Rule '${label}' changed from ${before} to ${after}.`,
-      before,
-      after,
+      message: preserved ? `${detail} Your org customisations will be preserved.` : detail,
       preserved,
     });
   }
 
-  return changed;
+  return { added, changed, removed };
 }
 
 function resolveRulesForHistorySnapshot(
@@ -336,25 +498,35 @@ export function buildOrgDerivedAdoptPreview(params: {
   const snapshotRules = fromRules;
 
   const fvChanges = diffFieldValueChanges(fromFv, toFv, variantFv, snapshotFv);
-  const ruleChanges = diffRulesChanges(fromRules, toRules, variantRules, snapshotRules);
-  const changes = {
-    ...fvChanges,
-    changed: [...fvChanges.changed, ...ruleChanges],
-  };
+  const ruleChanges = diffRulesChanges(
+    fromRules,
+    toRules,
+    variantRules,
+    snapshotRules,
+    { ...fromFv, ...toFv },
+  );
   const localChangesPresent = detectVariantLocalChanges(
     params.variantVersionRow,
     params.canonicalFromRow,
   );
 
+  const changes = {
+    added: [...fvChanges.added, ...ruleChanges.added],
+    changed: [...fvChanges.changed, ...ruleChanges.changed],
+    removed: [...fvChanges.removed, ...ruleChanges.removed],
+  };
+
   const templateName = params.variantMeta.templateName?.trim() || 'template';
+  const fromVersionLabel = formatTemplateVersionLabel(fromVersion);
+  const toVersionLabel = formatTemplateVersionLabel(toVersion);
 
   return {
     available: true,
-    title: `What's new in ${templateName}`,
+    title: `What's new in ${templateName} ${fromVersionLabel} → ${toVersionLabel}`,
     fromVersion,
-    fromVersionLabel: formatTemplateVersionLabel(fromVersion),
+    fromVersionLabel,
     toVersion,
-    toVersionLabel: formatTemplateVersionLabel(toVersion),
+    toVersionLabel,
     sourceOrgTemplateId: params.sourceOrgTemplateId,
     fromOrgTemplateVersionId:
       params.canonicalFromRow.meta.templateVersionId ??

@@ -4,20 +4,52 @@ import { getOrganizationIdForRequest } from '../utils/helpers';
 
 export type TemplateLevel = 'MASTER' | 'ORG' | 'ORG_DERIVED' | 'ORG_CARE_PLAN';
 
-function firstQuery(
-  req: LambdaRequest,
-  key: string,
-): string | undefined {
-  const fromParams = req.params?.[key];
-  if (typeof fromParams === 'string' && fromParams.trim()) {
-    return fromParams.trim();
+/** API Gateway / serverless-offline may lowercase query keys — map to canonical camelCase. */
+const QUERY_PARAM_KEY_MAP: Record<string, string> = {
+  templatelevel: 'templateLevel',
+  organizationid: 'organizationId',
+  organizationmetaid: 'organizationMetaId',
+  orgtemplateid: 'orgTemplateId',
+  organizationname: 'organizationName',
+  organizationdescription: 'organizationDescription',
+  categorycode: 'categoryCode',
+  conditioncode: 'conditionCode',
+  templatetype: 'templateType',
+  templatename: 'templateName',
+  templateid: 'templateId',
+  templateenabled: 'templateEnabled',
+  nextpaginationkey: 'nextPaginationKey',
+  nexttoken: 'nextToken',
+};
+
+function canonicalQueryKey(key: string): string {
+  return QUERY_PARAM_KEY_MAP[key.toLowerCase()] ?? key;
+}
+
+/** Merge path + query params with case-insensitive keys (later sources override earlier). */
+export function collectTemplateQueryParams(
+  sources: Array<Record<string, string | string[] | undefined> | null | undefined>,
+): Record<string, string | undefined> {
+  const merged: Record<string, string | undefined> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (value === undefined || value === null) continue;
+      const single = Array.isArray(value) ? value[0] : value;
+      if (typeof single !== 'string' || !single.trim()) continue;
+      merged[canonicalQueryKey(key)] = single.trim();
+    }
   }
-  const qs = req.event.queryStringParameters as Record<string, string | undefined> | null;
-  const raw = qs?.[key];
-  if (typeof raw === 'string' && raw.trim()) {
-    return raw.trim().toUpperCase();
-  }
-  return undefined;
+  return merged;
+}
+
+function firstQuery(req: LambdaRequest, key: string): string | undefined {
+  const canonical = canonicalQueryKey(key);
+  const collected = collectTemplateQueryParams([
+    req.params as Record<string, string | string[] | undefined>,
+    req.event.queryStringParameters as Record<string, string | string[] | undefined>,
+  ]);
+  return collected[canonical];
 }
 
 function normalizeTemplateLevel(value: string | undefined): TemplateLevel | undefined {

@@ -1,11 +1,10 @@
 import { SURFACE_SECTION, type SurfaceSection } from '../models/types/task-domain.types';
 import type { RuntimeTaskState } from '../models/types/runtime-task-state.type';
 import {
-  LEGACY_RUNTIME_TASK_STATE_OPEN,
   resolveCurrentStateForWire,
   RUNTIME_TASK_STATE,
 } from '../models/types/runtime-task-state.type';
-import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from './task-time';
+import { nowEpochMs } from './task-time';
 
 export type ActionCenterSurfaceFilter = SurfaceSection | 'all';
 
@@ -14,14 +13,6 @@ const HISTORY_WIRE_STATES: RuntimeTaskState[] = [
   RUNTIME_TASK_STATE.DISMISSED,
   RUNTIME_TASK_STATE.CANCELLED,
 ];
-
-export function isInProgressState(state: RuntimeTaskState | string): boolean {
-  return (
-    state === RUNTIME_TASK_STATE.SCHEDULED ||
-    state === RUNTIME_TASK_STATE.ACTIVE ||
-    state === LEGACY_RUNTIME_TASK_STATE_OPEN
-  );
-}
 
 export type ActionCenterClassificationInput = {
   /** Persisted META currentState. */
@@ -97,28 +88,4 @@ export function emptyActionCenterSections(): Record<SurfaceSection, never[]> {
     [SURFACE_SECTION.HISTORY]: [],
     [SURFACE_SECTION.CARE_PLAN_CHECKLIST]: [],
   };
-}
-
-/** @deprecated Use deriveActionCenterSurfaceSection for Action Center; kept for internal legacy callers. */
-export function deriveSurfaceSection(
-  record: {
-    currentState: RuntimeTaskState | string;
-    dueWindowStart?: number;
-    dueWindowEnd?: number;
-    displayToPatient: boolean;
-    displayAsChecklistItem?: boolean;
-  },
-  timeZone = DEFAULT_ACTION_CENTER_TIMEZONE,
-  nowMs = nowEpochMs(),
-): SurfaceSection {
-  return deriveActionCenterSurfaceSection(
-    {
-      currentState: record.currentState,
-      dueWindowStart: record.dueWindowStart,
-      dueWindowEnd: record.dueWindowEnd,
-      displayAsChecklistItem: record.displayAsChecklistItem,
-    },
-    timeZone,
-    nowMs,
-  );
 }

@@ -1,6 +1,5 @@
 import {
   ASSIGNED_TO_TYPE,
-  isOrgStaffAssignedToType,
   isPatientAssignedToType,
   normalizeAssignedToTypeForWire,
   requiresAssigneeGsi,
@@ -58,9 +57,4 @@ export function prepareAssignedToTypeInput<T extends AssignedToTypeInput>(input:
   const normalized = normalizeAssignedToTypeInput(input);
   validateAssignedToTypeInput(normalized);
   return normalized;
-}
-
-/** @deprecated Use {@link isOrgStaffAssignedToType} */
-export function isStaffAssignedToType(assignedToType: AssignedToType): boolean {
-  return isOrgStaffAssignedToType(assignedToType);
 }

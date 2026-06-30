@@ -12,20 +12,3 @@ logLevel:
   dev: debug
   stg: info
   prd: warn
-
-errorMessagesCdnUrl:
-  dev: https://d2p9v61861q1ox.cloudfront.net
-  stg: https://d2p9v61861q1ox.cloudfront.net
-  prd: https://d2p9v61861q1ox.cloudfront.net
-
-# Bootstrap cross-service URLs — replace with SSM in environment.yml after first deploy.
-serviceUrlFallbacks:
-  dev:
-    USER_SERVICE_BASE_URL: https://e5gv0qum80.execute-api.us-east-1.amazonaws.com/dev
-    ORGANIZATION_SERVICE_BASE_URL: https://9qe3rgipg3.execute-api.us-east-1.amazonaws.com/dev
-  stg:
-    USER_SERVICE_BASE_URL: https://z79yqfg5n5.execute-api.us-east-1.amazonaws.com/stg
-    ORGANIZATION_SERVICE_BASE_URL: https://sqxxye6yl4.execute-api.us-east-1.amazonaws.com/stg
-  prd:
-    USER_SERVICE_BASE_URL: https://jtoofsw556.execute-api.us-east-1.amazonaws.com/prd
-    ORGANIZATION_SERVICE_BASE_URL: https://3i3mbzftx9.execute-api.us-east-1.amazonaws.com/prd

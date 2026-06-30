@@ -11,9 +11,14 @@ import type {
   ValidatedCreateOrgDerived,
   ValidatedUpdateOrgDerived,
   ValidatedAdoptOrgDerived,
+  ValidatedCreateOrgCarePlan,
+  ValidatedUpdateOrgCarePlan,
 } from '../validators/request.validators';
 import { withNextPaginationKey } from '../utils/list-response.mapper';
-import { resolveTemplateLevelFromQuery } from '../validators/template-level.util';
+import {
+  isOrgDerivedListLevel,
+  resolveTemplateLevelFromQuery,
+} from '../validators/template-level.util';
 
 let orgTemplateService: OrgTemplateService | undefined;
 
@@ -167,6 +172,9 @@ export class OrgTemplateHttpController {
         organizationId: v.organizationId,
         rules: v.body.rules,
         fieldValues: v.body.fieldValues,
+        status: v.body.status,
+        active: v.body.active,
+        adopt: v.body.adopt,
         actorUser: v.actorUser,
       });
     } catch (e: unknown) {
@@ -177,41 +185,68 @@ export class OrgTemplateHttpController {
     }
   }
 
+  private withOrgCarePlanLevel<T extends Record<string, unknown>>(
+    level: ReturnType<typeof resolveTemplateLevelFromQuery>,
+    payload: T,
+  ): T & { templateLevel?: 'ORG_CARE_PLAN' } {
+    if (level !== 'ORG_CARE_PLAN') return payload;
+    return { ...payload, templateLevel: 'ORG_CARE_PLAN' };
+  }
+
+  private resolveOrgDerivedListParams(
+    level: ReturnType<typeof resolveTemplateLevelFromQuery>,
+    organizationId: string,
+    query: ValidatedListOrg['query'],
+    templateEnabledFilter?: boolean,
+  ) {
+    return {
+      organizationId,
+      orgTemplateId: query.orgTemplateId,
+      categoryCode: query.categoryCode ?? query.category,
+      conditionCode: query.conditionCode,
+      condition: query.condition,
+      specialty: query.specialty,
+      templateType:
+        level === 'ORG_CARE_PLAN'
+          ? (query.templateType?.trim() || 'CARE_PLAN')
+          : query.templateType,
+      templateName: query.templateName,
+      templateEnabled: templateEnabledFilter,
+      nextToken: query.nextToken ?? query.nextPaginationKey,
+    };
+  }
+
   async handleListOrg(req: LambdaRequest) {
     const v = this.requireValidated(
       (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg,
     );
 
     try {
-      if (resolveTemplateLevelFromQuery(req) === 'ORG_DERIVED') {
+      const level = resolveTemplateLevelFromQuery(req);
+      if (isOrgDerivedListLevel(level)) {
         if (!v.organizationId) {
           throw new BaseError(
-            'organizationId is required when templateLevel=ORG_DERIVED',
+            'organizationId is required when templateLevel=ORG_DERIVED or ORG_CARE_PLAN',
             400,
             'VALIDATION_ERROR',
-            [{ message: 'organizationId is required when templateLevel=ORG_DERIVED' }],
+            [{ message: 'organizationId is required when templateLevel=ORG_DERIVED or ORG_CARE_PLAN' }],
           );
         }
 
-        const result = await this.svc.getOrgDerived({
-          organizationId: v.organizationId,
-          orgTemplateId: v.query.orgTemplateId,
-          categoryCode: v.query.categoryCode ?? v.query.category,
-          conditionCode: v.query.conditionCode,
-          condition: v.query.condition,
-          specialty: v.query.specialty,
-          templateType: v.query.templateType,
-          templateName: v.query.templateName,
-          templateEnabled: v.templateEnabledFilter,
-          nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
-        });
+        const result = await this.svc.getOrgDerived(
+          this.resolveOrgDerivedListParams(level, v.organizationId, v.query, v.templateEnabledFilter),
+        );
 
         if (v.query.orgTemplateId?.trim()) {
-          return result;
+          return this.withOrgCarePlanLevel(level, result as Record<string, unknown>);
         }
 
-        return withNextPaginationKey(
-          result as Parameters<typeof withNextPaginationKey>[0],
+        return this.withOrgCarePlanLevel(
+          level,
+          withNextPaginationKey(result as Parameters<typeof withNextPaginationKey>[0]) as Record<
+            string,
+            unknown
+          >,
         );
       }
 
@@ -234,6 +269,74 @@ export class OrgTemplateHttpController {
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {
         logEvent: 'list_org_templates_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleCreateOrgCarePlan(req: LambdaRequest) {
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedCreateOrgCarePlan?: ValidatedCreateOrgCarePlan })
+        .validatedCreateOrgCarePlan,
+    );
+
+    try {
+      const result = await this.svc.createOrgDerived({
+        organizationId: v.organizationId,
+        sourceOrgTemplateId: v.body.orgDerivedTemplateId,
+        newTemplateName: v.body.newTemplateName,
+        fieldValues: v.body.fieldValues,
+        status: v.body.status,
+        active: v.body.active,
+        templateEnabled: v.body.templateEnabled,
+        organizationMeta: v.body.organizationMeta
+          ? {
+              id: v.body.organizationMeta.id,
+              name: v.body.organizationMeta.name?.trim() || v.body.organizationMeta.id,
+              description: v.body.organizationMeta.description ?? null,
+            }
+          : undefined,
+        actorUser: v.actorUser,
+      });
+
+      return {
+        templateLevel: 'ORG_CARE_PLAN',
+        orgDerivedTemplateId: v.body.orgDerivedTemplateId,
+        ...result,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'create_org_care_plan_error',
+        correlationId: req.context.correlationId as string,
+      });
+    }
+  }
+
+  async handleUpdateOrgCarePlan(req: LambdaRequest) {
+    const v = this.requireValidated(
+      (req as LambdaRequest & { validatedUpdateOrgCarePlan?: ValidatedUpdateOrgCarePlan })
+        .validatedUpdateOrgCarePlan,
+    );
+
+    try {
+      const result = await this.svc.updateOrgDerived({
+        organizationId: v.organizationId,
+        orgTemplateId: v.orgTemplateId,
+        rules: v.body.rules,
+        fieldValues: v.body.fieldValues,
+        templateEnabled: v.body.templateEnabled,
+        status: v.body.status,
+        active: v.body.active,
+        actorUser: v.actorUser,
+      });
+
+      return {
+        templateLevel: 'ORG_CARE_PLAN',
+        ...result,
+      };
+    } catch (e: unknown) {
+      normalizeTemplateServiceError(e, {
+        logEvent: 'update_org_care_plan_error',
         correlationId: req.context.correlationId as string,
       });
     }

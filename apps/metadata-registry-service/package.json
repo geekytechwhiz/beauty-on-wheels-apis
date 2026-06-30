@@ -16,6 +16,10 @@
     }
   },
   "devDependencies": {
-   
+    "@myvitalrx/mvrx-resource-registry": "^0.0.8",
+    "esbuild": "^0.19.2",
+    "serverless": "^3.40.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-esbuild": "^1.57.0"
   }
 }

@@ -18,6 +18,9 @@ test -f src/utils/devices.json || find "$CODEBUILD_SRC_DIR" -path '*/src/utils/d
 echo "Cleaning old artifacts..."
 rm -rf .serverless
 
+echo "Verifying @myvitalrx/mvrx-resource-registry is loadable..."
+node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+
 echo "Packaging Serverless service..."
 
 npx serverless package \

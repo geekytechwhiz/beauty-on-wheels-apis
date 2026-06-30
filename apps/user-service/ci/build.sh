@@ -18,6 +18,9 @@ rm -rf .serverless
 
 export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096 --no-experimental-detect-module --no-experimental-require-module"
 
+echo "Verifying @myvitalrx/mvrx-resource-registry is loadable..."
+node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+
 echo "Packaging Serverless service..."
 
 npx serverless package \

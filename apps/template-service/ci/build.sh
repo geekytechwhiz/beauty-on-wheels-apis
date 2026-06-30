@@ -6,8 +6,22 @@ echo "======================================="
 echo "BUILD STARTED"
 echo "======================================="
 
-: "${STAGE:?STAGE must be set (dev, stg, or prd)}"
-: "${DEPLOYMENT_BUCKET:?DEPLOYMENT_BUCKET must be set}"
+for arg in "$@"; do
+  if [[ "$arg" == *=* ]]; then
+    export "$arg"
+  fi
+done
+
+STAGE="${STAGE:-dev}"
+DEPLOYMENT_BUCKET="${DEPLOYMENT_BUCKET:-${STAGE}-mvx-template-service-bucket}"
+
+case "$STAGE" in
+  dev|stg|prd) ;;
+  *)
+    echo "ERROR: STAGE must be dev, stg, or prd (got: $STAGE)"
+    exit 1
+    ;;
+esac
 
 EXPECTED_BUCKET="${STAGE}-mvx-template-service-bucket"
 if [ "$DEPLOYMENT_BUCKET" != "$EXPECTED_BUCKET" ]; then

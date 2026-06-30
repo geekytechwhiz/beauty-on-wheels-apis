@@ -9,7 +9,7 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
-  # serverless-offline is only loaded via serverless.offline.yml for local dev (not CI package/deploy)
+  # serverless-offline  
   - '@myvitalrx/mvrx-resource-registry'
 
 provider:
@@ -157,8 +157,7 @@ package:
     - '!**/*.spec.ts'
 
 custom:
-  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
-  # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
+
   cors: &httpApiCors
     origin: ${env:CORS_ORIGIN, '*'}
     headers:
@@ -175,19 +174,17 @@ custom:
 
   resourceRegistry:
     enabled: true
-    platformOwner: platform-config
-    # parameters:
-    #   NODEJS_RUNTIME:
-    #     value: nodejs22.x 
-    #   DEFAULT_AWS_REGION:
-    #     value: ${self:provider.region}
-    # include:
-    #   - AWS::DynamoDB::Table
-    #   - AWS::Events::EventBus
-    #   - AWS::SQS::Queue
-    #   - AWS::SNS::Topic
-    # exclude:
-    #   - AWS::SNS::Topic
+    platformOwner: ${self:service}
+    parameters:
+      ALERT_TABLE:
+        value: ${self:custom.alertDynamoTableName}
+       
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+      - AWS::SNS::Topic
+     
   alertDynamoTableName: alert-service-${self:provider.stage}
 
   # Shared SSM parameter paths per stage (account layout differs: dev uses /dev/*, prd uses /firminiq/prd/*).
@@ -782,66 +779,66 @@ resources:
 
           maxReceiveCount: 3
 
-    # OnThresholdBreachInvokePermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     Action: lambda:InvokeFunction
-    #     FunctionName: !GetAtt OnThresholdBreachLambdaFunction.Arn
-    #     Principal: events.amazonaws.com
-    #     SourceAccount: ${aws:accountId}
-    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onThresholdBreach-rule-1
+    OnThresholdBreachInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnThresholdBreachLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onThresholdBreach-rule-1
 
-    # OnMissedReadingInvokePermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     Action: lambda:InvokeFunction
-    #     FunctionName: !GetAtt OnMissedReadingLambdaFunction.Arn
-    #     Principal: events.amazonaws.com
-    #     SourceAccount: ${aws:accountId}
-    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissedReading-rule-1
+    OnMissedReadingInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnMissedReadingLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissedReading-rule-1
 
-    # OnMissingDeviceInvokePermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     Action: lambda:InvokeFunction
-    #     FunctionName: !GetAtt OnMissingDeviceLambdaFunction.Arn
-    #     Principal: events.amazonaws.com
-    #     SourceAccount: ${aws:accountId}
-    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissingDevice-rule-1
+    OnMissingDeviceInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnMissingDeviceLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onMissingDevice-rule-1
 
-    # OnSymptomRiskTriggerInvokePermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     Action: lambda:InvokeFunction
-    #     FunctionName: !GetAtt OnSymptomRiskTriggerLambdaFunction.Arn
-    #     Principal: events.amazonaws.com
-    #     SourceAccount: ${aws:accountId}
-    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onSymptomRiskTrigger-rule-1
+    OnSymptomRiskTriggerInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnSymptomRiskTriggerLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onSymptomRiskTrigger-rule-1
 
-    # OnEngagementTriggerInvokePermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     Action: lambda:InvokeFunction
-    #     FunctionName: !GetAtt OnEngagementTriggerLambdaFunction.Arn
-    #     Principal: events.amazonaws.com
-    #     SourceAccount: ${aws:accountId}
-    #     SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
+    OnEngagementTriggerInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt OnEngagementTriggerLambdaFunction.Arn
+        Principal: events.amazonaws.com
+        SourceAccount: ${aws:accountId}
+        SourceArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.eventBusName}/${self:service}-${self:provider.stage}-onEngagementTrigger-rule-1
 
-  # Exports unblock the TODOs in apps/user-service/serverless.yml:
-  #   ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
-  #   ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
-  # AlertServiceBusName:
-  #   Description: Name of the Alert Service Event Bus
-  #   Value:
-  #     Ref: AlertServiceBus
-  #   Export:
-  #     Name: ${self:provider.stage}-${self:service}-EventBusName
+  Exports unblock the TODOs in apps/user-service/serverless.yml:
+    ALERT_EVENT_BUS_NAME: Fn::ImportValue ${stage}-alert-service-EventBusName
+    ALERT_EVENT_BUS_ARN:  Fn::ImportValue ${stage}-alert-service-EventBusArn
+  AlertServiceBusName:
+    Description: Name of the Alert Service Event Bus
+    Value:
+      Ref: AlertServiceBus
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventBusName
 
-  # AlertServiceBusArn:
-  #   Description: ARN of the Alert Service Event Bus
-  #   Value:
-  #     Fn::GetAtt:
-  #       - AlertServiceBus
-  #       - Arn
-  #   Export:
-  #     Name: ${self:provider.stage}-${self:service}-EventBusArn
+  AlertServiceBusArn:
+    Description: ARN of the Alert Service Event Bus
+    Value:
+      Fn::GetAtt:
+        - AlertServiceBus
+        - Arn
+    Export:
+      Name: ${self:provider.stage}-${self:service}-EventBusArn

@@ -4,7 +4,7 @@ function msg(title: string, description: string, severity: Message['severity'] =
   return { title, description, severity };
 }
 
-/** Success messages keyed by handler `operation` (see withTemplateApiHandler). */
+/** Success messages keyed by handler `operation` (see HTTP handlers using withApiHandler). */
 export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
   'template.master.upsert': msg(
     'MASTER_TEMPLATE_SAVED',
@@ -41,6 +41,14 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
   'template.org.version-status': msg(
     'ORG_TEMPLATE_VERSION_STATUS',
     'Org template version status retrieved successfully.',
+  ),
+  'template.org.rules.get': msg(
+    'ORG_TEMPLATE_RULES_RETRIEVED',
+    'Org template rules retrieved successfully.',
+  ),
+  'template.org.rules.update': msg(
+    'ORG_TEMPLATE_RULES_UPDATED',
+    'Org template rules updated successfully.',
   ),
   'template.org.version.update': msg(
     'ORG_TEMPLATE_UPDATED',
@@ -102,6 +110,18 @@ export const TEMPLATE_API_MESSAGES: Record<string, Message> = {
     'ORG_DERIVED_TEMPLATE_ADOPTED',
     'Canonical org template upgrade adopted into variant successfully.',
   ),
+  'template.org-care-plan.create': msg(
+    'ORG_CARE_PLAN_TEMPLATE_CREATED',
+    'Org care plan template created successfully.',
+  ),
+  'template.org-care-plan.update': msg(
+    'ORG_CARE_PLAN_TEMPLATE_UPDATED',
+    'Org care plan template updated successfully.',
+  ),
+  'template.org-care-plan.list': msg(
+    'ORG_CARE_PLAN_TEMPLATES_LISTED',
+    'Org care plan templates retrieved successfully.',
+  ),
   'template-config.list': msg(
     'TEMPLATE_CONFIGS_LISTED',
     'Template UI configs retrieved successfully.',
@@ -135,6 +155,12 @@ export const MASTER_TEMPLATE_UPDATED = msg(
 );
 
 export const ORG_DERIVED_TEMPLATES_LISTED = TEMPLATE_API_MESSAGES['template.org-derived.list'];
+
+export const ORG_CARE_PLAN_TEMPLATES_LISTED = TEMPLATE_API_MESSAGES['template.org-care-plan.list'];
+
+export const ORG_CARE_PLAN_TEMPLATE_CREATED = TEMPLATE_API_MESSAGES['template.org-care-plan.create'];
+
+export const ORG_CARE_PLAN_TEMPLATE_UPDATED = TEMPLATE_API_MESSAGES['template.org-care-plan.update'];
 
 export const ORG_ENABLE_CATALOG = msg(
   'ORG_ENABLED_TEMPLATES_LISTED',

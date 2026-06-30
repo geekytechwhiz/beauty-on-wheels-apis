@@ -1,17 +1,24 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOrgTemplateHttpController } from '../../controllers/org-template-http.controller';
-import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
+import { templateOk, templateOperationMessage } from '../../utils/template-handler.util';
 import { validateGetOrgTemplateRulesRequest } from '../../validators/request.validators';
 
 const c = getOrgTemplateHttpController();
 
-export const main = withTemplateApiHandler(
+const handler = async (req: LambdaRequest) => {
+  const data = await c.handleGetOrgTemplateRules(req);
+  return templateOk(req, data, templateOperationMessage('template.org.rules.get'));
+};
+
+export const main = withApiHandler(
   {
     operation: 'template.org.rules.get',
     validator: validateGetOrgTemplateRulesRequest,
+    useLegacyResponseFormat: true,
   },
-  (req: LambdaRequest) => c.handleGetOrgTemplateRules(req),
+  handler,
 );
 
 export default main;

@@ -80,6 +80,10 @@ import {
   resolveTemplateDisplayVersion,
   templateVersionIdToSk,
 } from '../utils/template.utils';
+import {
+  resolveCanonicalOrgBaselineVersion,
+  resolveCanonicalOrgUpgradeContext,
+} from '../utils/org-canonical-org-upgrade.utils';
 
 const VERSION_COMPARE_DOC_KEYS = ['fieldValues', 'links', 'steps', 'carePlanAttributes', 'overrides'] as const;
 
@@ -121,23 +125,11 @@ function detectLocalChanges(
 }
 
 function resolveDerivedFromMasterVersion(
-  orgMeta: TemplateMeta,
-  enablementMeta: EnablementDdbRecord['meta'],
-  derivedMasterMeta: TemplateMeta,
+  orgVersionMeta: TemplateMeta,
+  _enablementMeta: EnablementDdbRecord['meta'],
+  metaRow?: TemplateMeta,
 ): number {
-  if (
-    typeof orgMeta.derivedFromMasterVersion === 'number' &&
-    orgMeta.derivedFromMasterVersion > 0
-  ) {
-    return orgMeta.derivedFromMasterVersion;
-  }
-  if (
-    typeof enablementMeta.masterTemplateVersion === 'number' &&
-    enablementMeta.masterTemplateVersion > 0
-  ) {
-    return enablementMeta.masterTemplateVersion;
-  }
-  return resolveTemplateDisplayVersion(derivedMasterMeta);
+  return resolveCanonicalOrgBaselineVersion(metaRow ?? orgVersionMeta);
 }
 
 function fieldValuesOf(record: { fieldValues?: unknown }): Record<string, unknown> {
@@ -756,41 +748,11 @@ export class OrgTemplateService {
       }
     }
 
-    const derivedFromMasterVersionId =
-      orgVersion.meta.derivedFromTemplateVersionId?.trim() ||
-      enablement.meta.masterTemplateVersionId?.trim();
-
-    let derivedMasterMeta: TemplateMeta = orgVersion.meta;
-    if (derivedFromMasterVersionId) {
-      const derivedSk = normalizeVersionToSk(derivedFromMasterVersionId);
-      const derivedRow = await this.masterRepo.getMasterVersion(masterTemplateId, derivedSk);
-      if (derivedRow?.meta) derivedMasterMeta = derivedRow.meta;
-    }
-
     const derivedFromMasterVersion = resolveDerivedFromMasterVersion(
       orgVersion.meta,
       enablement.meta,
-      derivedMasterMeta,
     );
 
-    return compareTemplateDisplayVersions(latestMasterVersion, derivedFromMasterVersion) > 0;
-  }
-
-  private resolveUpgradeAvailableForList(
-    enablement: EnablementDdbRecord,
-    catalogMaster: MasterTemplateListItem | undefined,
-    orgMeta: TemplateMeta,
-  ): boolean {
-    if (!catalogMaster) return false;
-    const latestMasterVersion = resolveTemplateDisplayVersion({
-      version: catalogMaster.version,
-      templateVersionId: catalogMaster.templateVersionId,
-    });
-    const derivedFromMasterVersion = resolveDerivedFromMasterVersion(
-      orgMeta,
-      enablement.meta,
-      orgMeta,
-    );
     return compareTemplateDisplayVersions(latestMasterVersion, derivedFromMasterVersion) > 0;
   }
 
@@ -823,6 +785,12 @@ export class OrgTemplateService {
       metaRow.meta.templateVersionId?.trim() ||
       `${orgTemplateId}-V01`;
 
+    const versionRow = await this.orgRepo.getOrgVersionForMeta(
+      organizationId,
+      orgTemplateId,
+      metaRow.meta,
+    );
+
     const templateEnabled = isActiveEnablement(enablement);
     const enabledAt =
       enablement.meta.effectiveFrom?.trim() ||
@@ -832,11 +800,14 @@ export class OrgTemplateService {
       ? null
       : enablement.meta.effectiveTo?.trim() || enablement.meta.updatedAt?.trim() || null;
 
-    const upgrade = this.resolveUpgradeAvailableForList(
-      enablement,
-      masterMeta,
-      metaRow.meta,
-    );
+    const upgradeCtx = versionRow
+      ? resolveCanonicalOrgUpgradeContext(metaRow, versionRow)
+      : { upgrade: false, adopt: null };
+    const upgrade = upgradeCtx.upgrade;
+    const adopt = upgradeCtx.adopt;
+    const derivedFromMasterVersion = versionRow
+      ? resolveCanonicalOrgBaselineVersion(versionRow.meta ?? metaRow.meta)
+      : undefined;
 
     return {
       masterTemplate: {
@@ -848,11 +819,16 @@ export class OrgTemplateService {
         conditionCode: enablement.meta.conditionCode ?? codes.conditionCode,
         status: masterMeta?.status ?? TEMPLATE_STATUS.PUBLISHED,
         isActive: masterMeta?.isActive ?? true,
+        version: masterMeta?.version,
       },
       orgTemplate: {
         templateId: orgTemplateId,
         templateVersionId: orgTemplateVersionId,
         status: metaRow.meta.status ?? TEMPLATE_STATUS.DRAFT,
+        version: versionRow ? resolveTemplateDisplayVersion(versionRow.meta) : undefined,
+        derivedFromMasterVersion,
+        upgrade,
+        adopt,
       },
       enablementId: enablement.meta.enablementId,
       enabledAt,
@@ -1102,12 +1078,13 @@ export class OrgTemplateService {
 
       const latestMasterVersionRow = await this.resolvePublishedMasterVersion(masterTemplateId);
 
+      const orgMetaRow = await this.orgRepo.getOrgMeta(organizationId, orgTemplateId);
       const currentOrgVersion = resolveTemplateDisplayVersion(orgVersion.meta);
 
       const derivedFromMasterVersion = resolveDerivedFromMasterVersion(
         orgVersion.meta,
         enablement.meta,
-        derivedMasterVersion.meta,
+        orgMetaRow?.meta,
       );
       const latestMasterVersion = resolveTemplateDisplayVersion(latestMasterVersionRow.meta);
 

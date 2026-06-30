@@ -1,17 +1,24 @@
+import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getTemplateConfigHttpController } from '../../controllers/template-config-http.controller';
-import { withTemplateApiHandler } from '../../utils/template-api-handler.util';
+import { templateOk, templateOperationMessage } from '../../utils/template-handler.util';
 import { validatePostTemplateConfigMetaRequest } from '../../validators/request.validators';
 
 const c = getTemplateConfigHttpController();
 
-export const main = withTemplateApiHandler(
+const handler = async (req: LambdaRequest) => {
+  const data = await c.handlePostMeta(req);
+  return templateOk(req, data, templateOperationMessage('template-config.meta'));
+};
+
+export const main = withApiHandler(
   {
     operation: 'template-config.meta',
     validator: validatePostTemplateConfigMetaRequest,
+    useLegacyResponseFormat: true,
   },
-  (req: LambdaRequest) => c.handlePostMeta(req),
+  handler,
 );
 
 export default main;

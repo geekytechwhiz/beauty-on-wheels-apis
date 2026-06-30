@@ -15,7 +15,7 @@ import {
   getOrganizationIdForRequest,
 } from '../utils/helpers';
 import { enrichTemplateActorUser } from '../services/user-lookup.service';
-import { resolveTemplateLevelFromQuery } from './template-level.util';
+import { resolveTemplateLevelFromQuery, resolveTemplateLevelFromBody, isOrgDerivedListLevel } from './template-level.util';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
@@ -47,9 +47,11 @@ import {
   orgDerivedPathSchema,
   orgDerivedUpdateBodySchema,
   orgDerivedAdoptBodySchema,
+  orgCarePlanCreateBodySchema,
   type OrgDerivedCreateBody,
   type OrgDerivedUpdateBody,
   type OrgDerivedAdoptBody,
+  type OrgCarePlanCreateBody,
   type UpdateOrgTemplateRulesBody,
   type GetMasterVersionsQuery,
   type ListMasterTemplatesQuery,
@@ -404,10 +406,21 @@ function hasUpsertPathTemplateId(req: LambdaRequest): boolean {
 
 export async function validateUpsertMasterTemplateRequest(req: LambdaRequest): Promise<void> {
   if (hasUpsertPathTemplateId(req)) {
+    const level = resolveTemplateLevelFromQuery(req);
+    if (level === 'ORG_CARE_PLAN') {
+      await validateUpdateOrgCarePlanRequest(req);
+      return;
+    }
     await validateSaveMasterTemplateRequest(req);
-  } else {
-    await validateCreateMasterRequest(req);
+    return;
   }
+
+  if (resolveTemplateLevelFromBody(req.body) === 'ORG_CARE_PLAN') {
+    await validateCreateOrgCarePlanRequest(req);
+    return;
+  }
+
+  await validateCreateMasterRequest(req);
 }
 
 export async function validateCreateMasterRequest(req: LambdaRequest): Promise<void> {
@@ -757,9 +770,9 @@ export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promi
     query.organizationId ?? query.organizationMetaId,
   );
 
-  if (level === 'ORG_DERIVED' && !scope.organizationId) {
+  if (isOrgDerivedListLevel(level) && !scope.organizationId) {
     throwVal(
-      'organizationId query parameter is required when templateLevel=ORG_DERIVED',
+      'organizationId query parameter is required when templateLevel=ORG_DERIVED or ORG_CARE_PLAN',
       400,
       'VALIDATION_ERROR',
     );
@@ -1186,6 +1199,65 @@ export type ValidatedAdoptOrgDerived = {
   body: OrgDerivedAdoptBody;
   actorUser: TemplateActorUser;
 };
+
+export type ValidatedCreateOrgCarePlan = {
+  organizationId: string;
+  body: OrgCarePlanCreateBody & { newTemplateName: string };
+  actorUser: TemplateActorUser;
+};
+
+export type ValidatedUpdateOrgCarePlan = {
+  organizationId: string;
+  orgTemplateId: string;
+  body: OrgDerivedUpdateBody;
+  actorUser: TemplateActorUser;
+};
+
+export async function validateCreateOrgCarePlanRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+  const parsed = orgCarePlanCreateBodySchema.parse(req.body ?? {});
+  const organizationId = resolveOrganizationId(req, parsed.organizationId);
+  const fieldValues = asRecord(parsed.fieldValues);
+  const newTemplateName =
+    resolveTemplateDisplayName(parsed, fieldValues) ??
+    parsed.templateName?.trim() ??
+    parsed.TEMPLATE_NAME?.trim();
+
+  if (!newTemplateName) {
+    throwVal('templateName or TEMPLATE_NAME is required', 400, 'VALIDATION_ERROR');
+  }
+
+  (req as LambdaRequest & { validatedCreateOrgCarePlan?: ValidatedCreateOrgCarePlan })
+    .validatedCreateOrgCarePlan = {
+    organizationId,
+    body: {
+      ...parsed,
+      newTemplateName,
+    },
+    actorUser,
+  };
+}
+
+export async function validateUpdateOrgCarePlanRequest(req: LambdaRequest): Promise<void> {
+  const actorUser = await requireActorUser(req);
+
+  const path = templateIdPathSchema.safeParse(req.pathParameters ?? {});
+  if (!path.success) {
+    throwVal('orgTemplateId is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const qs = req.event.queryStringParameters as Record<string, string | undefined> | null;
+  const organizationId = resolveOrganizationId(req, qs?.organizationId);
+  const body = orgDerivedUpdateBodySchema.parse(req.body ?? {});
+
+  (req as LambdaRequest & { validatedUpdateOrgCarePlan?: ValidatedUpdateOrgCarePlan })
+    .validatedUpdateOrgCarePlan = {
+    organizationId,
+    orgTemplateId: path.data.templateId.trim(),
+    body,
+    actorUser,
+  };
+}
 
 export async function validateCreateOrgDerivedRequest(req: LambdaRequest): Promise<void> {
   const actorUser = await requireActorUser(req);

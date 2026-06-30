@@ -27,6 +27,8 @@ phases:
       - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
+      - node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+      - npm ls @myvitalrx/mvrx-resource-registry
 
   pre_build:
     commands:

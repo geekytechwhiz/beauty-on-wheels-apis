@@ -6,11 +6,6 @@ frameworkVersion: '3.x'
 
 configValidationMode: warn
 
-# serverless-offline@12 only runs nodejs12–18 handlers in-process; use 18 locally.
-params:
-  default:
-    lambdaRuntime: nodejs18.x
-
 plugins:
   - serverless-esbuild
   - serverless-auto-swagger

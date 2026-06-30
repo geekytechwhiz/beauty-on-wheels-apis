@@ -1,11 +1,13 @@
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { OrgTemplateEntityBuilder } from '../builder/org-template-entity.builder';
+import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   DERIVATION_KIND,
   ORG_EDITABLE_STATUSES,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
+  TEMPLATE_TYPE_CARE_PLAN,
   type TemplateStatus,
 } from '../constants/template.constants';
 import {
@@ -71,6 +73,23 @@ import { OrgTemplateOpsService } from './org-template-ops.service';
 function eqCi(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) return false;
   return a.trim().toUpperCase() === b.trim().toUpperCase();
+}
+
+function matchesOrgDerivedTemplateType(
+  rowType: string | undefined,
+  filterType: string,
+): boolean {
+  if (!rowType?.trim() || !filterType?.trim()) return false;
+  const normalizedRow = TemplateEntityBuilder.normalizeTemplateType(rowType);
+  const normalizedFilter = TemplateEntityBuilder.normalizeTemplateType(filterType);
+  if (normalizedRow === normalizedFilter) return true;
+  if (normalizedFilter === TEMPLATE_TYPE_CARE_PLAN) {
+    return (
+      normalizedRow === TEMPLATE_TYPE_CARE_PLAN ||
+      normalizedRow.startsWith(`${TEMPLATE_TYPE_CARE_PLAN}_`)
+    );
+  }
+  return false;
 }
 
 function decodeOffsetToken(token: string | undefined): number {
@@ -933,7 +952,9 @@ export class OrgDerivedService {
 
       if (params.categoryCode && !eqCi(catalog.categoryCode, params.categoryCode)) continue;
       if (conditionFilter && !eqCi(catalog.conditionCode, conditionFilter)) continue;
-      if (params.templateType && !eqCi(row.metaRow.meta.templateType, params.templateType)) continue;
+      if (params.templateType && !matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, params.templateType)) {
+        continue;
+      }
 
       if (params.specialty?.trim()) {
         const specs = Array.isArray(row.metaRow.meta.specialty)

@@ -15,7 +15,7 @@ import {
   getOrganizationIdForRequest,
 } from '../utils/helpers';
 import { enrichTemplateActorUser } from '../services/user-lookup.service';
-import { resolveTemplateLevelFromQuery, resolveTemplateLevelFromBody, isOrgDerivedListLevel } from './template-level.util';
+import { resolveTemplateLevelFromQuery, resolveTemplateLevelFromBody, isOrgDerivedListLevel, collectTemplateQueryParams } from './template-level.util';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
@@ -434,7 +434,10 @@ export async function validateListMasterRequest(req: LambdaRequest): Promise<voi
   const actorUser = requireAuthenticatedActor(req);
 
   const rawQuery = parseListMasterTemplatesQuery(
-    req.params as Record<string, string | string[] | undefined>,
+    collectTemplateQueryParams([
+      req.event.queryStringParameters as Record<string, string | string[] | undefined> | null,
+      req.params as Record<string, string | string[] | undefined>,
+    ]),
   );
   const query: ListMasterTemplatesQuery = {
     ...rawQuery,
@@ -754,10 +757,12 @@ function resolveListOrgOrganizationScope(
 export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promise<void> {
   const actorUser = requireAuthenticatedActor(req);
 
-  const rawQuery = parseListOrgTemplatesQuery({
-    ...(req.event.queryStringParameters as Record<string, string | string[] | undefined> | null),
-    ...(req.params as Record<string, string | string[] | undefined>),
-  });
+  const rawQuery = parseListOrgTemplatesQuery(
+    collectTemplateQueryParams([
+      req.event.queryStringParameters as Record<string, string | string[] | undefined> | null,
+      req.params as Record<string, string | string[] | undefined>,
+    ]),
+  );
   const templateEnabledFilter = parseTemplateEnabledQuery(rawQuery.templateEnabled);
   const query: ListOrgTemplatesQuery = {
     ...rawQuery,

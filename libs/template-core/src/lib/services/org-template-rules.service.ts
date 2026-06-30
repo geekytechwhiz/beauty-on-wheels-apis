@@ -24,13 +24,22 @@ import {
   OrgRulesValidationError,
 } from '../utils/template-rules.utils';
 import {
+  applyAdoptHistoryOverride,
+  mergeVariantAdoptDocument,
+  resolveCanonicalSnapshotRow,
+} from '../utils/org-derived-adopt.utils';
+import {
+  resolveCanonicalOrgBaselineVersion,
+  resolveCanonicalOrgUpgradeContext,
+} from '../utils/org-canonical-org-upgrade.utils';
+import {
+  bumpMinorVersion,
   resolveTemplateDisplayVersion,
   templateConflictError,
   templateNotFoundError,
   templateValidationError,
 } from '../utils/template.utils';
 import { OrgTemplateOpsService } from './org-template-ops.service';
-import { resolveCanonicalOrgUpgradeContext } from '../utils/org-canonical-org-upgrade.utils';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -153,19 +162,45 @@ export class OrgTemplateRulesService {
         if (!upgradeCtx.upgrade) {
           templateConflictError('No org template upgrade is available to adopt');
         }
-        const currentVersion = resolveTemplateDisplayVersion(versionRow.meta);
+
+        const baselineVersion = resolveCanonicalOrgBaselineVersion(versionRow.meta ?? metaRow.meta);
+        const adoptContentVersion = resolveTemplateDisplayVersion(versionRow.meta);
+        const adoptedDisplayVersion = bumpMinorVersion(adoptContentVersion);
+
+        const baselineRow =
+          resolveCanonicalSnapshotRow({
+            latestRow: versionRow,
+            snapshotVersion: baselineVersion,
+            snapshotVersionId: versionRow.meta.templateVersionId,
+            rowAtVersionId: versionRow,
+          }) ?? versionRow;
+
+        const mergedDocument = mergeVariantAdoptDocument(
+          versionRow,
+          versionRow,
+          baselineRow,
+        );
+
         versionRow = await this.orgOps.saveOrgTemplateInPlace({
           organizationId: params.organizationId,
           templateId: resolved.orgTemplateId,
           metaRow,
           sourceVersion: versionRow,
-          mergedDocument: this.orgOps.extractDocumentFields(versionRow),
+          mergedDocument,
           metaOverrides: {
             ...preserveMasterLineageOverrides(metaRow, versionRow),
-            derivedFromMasterVersion: currentVersion,
+            derivedFromMasterVersion: adoptedDisplayVersion,
           },
           actorUser: params.actorUser,
-          bumpVersion: false,
+          bumpVersion: true,
+          afterHistoryAppend: (record) => {
+            applyAdoptHistoryOverride(record, {
+              fromVersion: baselineVersion,
+              toVersion: adoptContentVersion,
+              sourceOrgTemplateId: resolved.orgTemplateId,
+              actor: params.actorUser,
+            });
+          },
         });
         const refreshedMeta = await this.orgRepo.getOrgMeta(
           params.organizationId,

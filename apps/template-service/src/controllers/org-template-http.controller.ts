@@ -1,4 +1,4 @@
-import { normalizeTemplateServiceError, OrgTemplateService } from '@api-hub/template-core';
+import { normalizeTemplateServiceError, OrgTemplateService, TEMPLATE_TYPE_CARE_PLAN } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
@@ -208,7 +208,7 @@ export class OrgTemplateHttpController {
       specialty: query.specialty,
       templateType:
         level === 'ORG_CARE_PLAN'
-          ? (query.templateType?.trim() || 'CARE_PLAN')
+          ? (query.templateType?.trim() || TEMPLATE_TYPE_CARE_PLAN)
           : query.templateType,
       templateName: query.templateName,
       templateEnabled: templateEnabledFilter,
@@ -222,7 +222,7 @@ export class OrgTemplateHttpController {
     );
 
     try {
-      const level = resolveTemplateLevelFromQuery(req);
+      const level = v.query.templateLevel ?? resolveTemplateLevelFromQuery(req);
       if (isOrgDerivedListLevel(level)) {
         if (!v.organizationId) {
           throw new BaseError(

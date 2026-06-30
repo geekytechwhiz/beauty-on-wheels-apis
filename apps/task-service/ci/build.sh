@@ -28,6 +28,9 @@ rm -f packaged.yaml
 # A 4096 cap on a 3.6 GiB box OOM-kills esbuild ("Error: The service was stopped").
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
+echo "Verifying @myvitalrx/mvrx-resource-registry is loadable..."
+node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+
 echo "Packaging Serverless service (NODE_OPTIONS=$NODE_OPTIONS)..."
 if command -v free >/dev/null 2>&1; then
   echo "Container memory:"

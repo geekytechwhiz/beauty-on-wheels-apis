@@ -1,18 +1,13 @@
 import { EnablementEntityBuilder } from '../builder/enablement-entity.builder';
 import { OrgTemplateEntityBuilder } from '../builder/org-template-entity.builder';
-import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
-  DERIVATION_KIND,
-  ORG_EDITABLE_STATUSES,
   TEMPLATE_META_SK,
-  TEMPLATE_STATUS,
   TEMPLATE_TYPE_CARE_PLAN,
   type TemplateStatus,
 } from '../constants/template.constants';
 import {
   buildOrgDerivedFilterOptions,
-  resolveOrgDerivedItemHistory,
   toAdoptOrgDerivedResult,
   toOrgDerivedCreateResult,
   toOrgDerivedDetail,
@@ -58,8 +53,19 @@ import {
   resolveCanonicalSnapshotRow,
 } from '../utils/org-derived-adopt.utils';
 import {
+  assertOrgDerivedEditableStatus,
+  asOrgDerivedRecord,
+  buildOrgDerivedMetaOverrides,
+  decodeOrgDerivedListOffset,
+  eqCi,
+  firstNonEmptyString,
+  hasFieldValuesPatch,
+  isOrgDerivedVariant,
+  matchesOrgDerivedTemplateType,
+  resolveOrgDerivedMetaStatus,
+} from '../utils/org-derived.service.utils';
+import {
   compareTemplateDisplayVersions,
-  decodeListCursor,
   encodeListCursor,
   formatTemplateVersionLabel,
   normalizeVersionToSk,
@@ -69,94 +75,6 @@ import {
   templateValidationError,
 } from '../utils/template.utils';
 import { OrgTemplateOpsService } from './org-template-ops.service';
-
-function eqCi(a: string | undefined, b: string | undefined): boolean {
-  if (!a || !b) return false;
-  return a.trim().toUpperCase() === b.trim().toUpperCase();
-}
-
-function matchesOrgDerivedTemplateType(
-  rowType: string | undefined,
-  filterType: string,
-): boolean {
-  if (!rowType?.trim() || !filterType?.trim()) return false;
-  const normalizedRow = TemplateEntityBuilder.normalizeTemplateType(rowType);
-  const normalizedFilter = TemplateEntityBuilder.normalizeTemplateType(filterType);
-  if (normalizedRow === normalizedFilter) return true;
-  if (normalizedFilter === TEMPLATE_TYPE_CARE_PLAN) {
-    return (
-      normalizedRow === TEMPLATE_TYPE_CARE_PLAN ||
-      normalizedRow.startsWith(`${TEMPLATE_TYPE_CARE_PLAN}_`)
-    );
-  }
-  return false;
-}
-
-function decodeOffsetToken(token: string | undefined): number {
-  const decoded = decodeListCursor(token);
-  const offset = decoded?.o;
-  return typeof offset === 'number' && Number.isInteger(offset) && offset >= 0 ? offset : 0;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function hasFieldValuesPatch(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
-}
-
-function assertEditableStatus(status: TemplateStatus | undefined, action: string): void {
-  if (!status || !ORG_EDITABLE_STATUSES.includes(status)) {
-    templateConflictError(
-      `Cannot ${action} org template in status ${status ?? 'UNKNOWN'}; only DRAFT, SAVED, or IN_REVIEW are editable`,
-    );
-  }
-}
-
-function buildOrgDerivedMetaOverrides(params: {
-  status?: TemplateStatus;
-  active?: boolean;
-  currentMeta: TemplateDdbRecord['meta'];
-  nowIso: string;
-}): Partial<TemplateDdbRecord['meta']> {
-  const overrides: Partial<TemplateDdbRecord['meta']> = {};
-
-  if (params.status !== undefined) {
-    overrides.status = params.status;
-    if (params.status === TEMPLATE_STATUS.PUBLISHED) {
-      overrides.publishedAt = params.currentMeta.publishedAt ?? params.nowIso;
-    }
-    if (params.status === TEMPLATE_STATUS.DRAFT) {
-      overrides.publishedAt = null;
-    }
-  }
-
-  if (params.active !== undefined) {
-    overrides.isActive = params.active;
-  }
-
-  return overrides;
-}
-
-function resolveMetaStatus(meta: TemplateDdbRecord['meta']): TemplateStatus {
-  return (meta.status ?? TEMPLATE_STATUS.DRAFT) as TemplateStatus;
-}
-
-function isOrgDerivedVariant(meta: TemplateDdbRecord['meta']): boolean {
-  return meta.derivationKind === DERIVATION_KIND.ORG_DERIVE;
-}
-
-function firstNonEmptyString(...values: unknown[]): string | undefined {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-  }
-  return undefined;
-}
 
 type OrgDerivedRow = {
   metaRow: TemplateDdbRecord;
@@ -270,7 +188,7 @@ export class OrgDerivedService {
       );
 
       if (hasFieldValuesPatch(params.fieldValues)) {
-        const previousFieldValues = asRecord(versionRow.fieldValues);
+        const previousFieldValues = asOrgDerivedRecord(versionRow.fieldValues);
         const mergedFieldValues = {
           ...previousFieldValues,
           ...params.fieldValues,
@@ -280,7 +198,7 @@ export class OrgDerivedService {
           ...versionRow,
           fieldValues: mergedFieldValues,
           rules: mergeRulesAfterFieldValuesChange(
-            asRecord(versionRow.rules),
+            asOrgDerivedRecord(versionRow.rules),
             buildRulesFromFieldValues(mergedFieldValues, { templateType }),
             {
               templateType,
@@ -303,7 +221,7 @@ export class OrgDerivedService {
         templateValidationError('Source org template is missing masterTemplateId');
       }
 
-      const fv = asRecord(sourceVersionRow.fieldValues);
+      const fv = asOrgDerivedRecord(sourceVersionRow.fieldValues);
       const catalog = extractCatalogCodes(fv);
       const masterTemplateVersionId =
         typeof sourceMetaRow.meta.masterTemplateVersionId === 'string'
@@ -369,8 +287,8 @@ export class OrgDerivedService {
       const organizationId = params.organizationId.trim();
       const orgTemplateId = params.orgTemplateId.trim();
       const resolved = await this.resolveOrgDerivedVariant(organizationId, orgTemplateId);
-      const currentStatus = resolveMetaStatus(resolved.versionRow.meta ?? resolved.metaRow.meta);
-      assertEditableStatus(currentStatus, 'adopt org-derived template');
+      const currentStatus = resolveOrgDerivedMetaStatus(resolved.versionRow.meta ?? resolved.metaRow.meta);
+      assertOrgDerivedEditableStatus(currentStatus, 'adopt org-derived template');
 
       const sourceOrgTemplateId =
         typeof resolved.metaRow.meta.derivedFromOrgTemplateId === 'string'
@@ -506,7 +424,7 @@ export class OrgDerivedService {
         );
       }
 
-      const currentStatus = resolveMetaStatus(versionRow.meta ?? metaRow.meta);
+      const currentStatus = resolveOrgDerivedMetaStatus(versionRow.meta ?? metaRow.meta);
       const metaOverrides = buildOrgDerivedMetaOverrides({
         status: params.status,
         active: params.active,
@@ -523,7 +441,7 @@ export class OrgDerivedService {
 
         if (hasFieldValues) {
           mergedDocument.fieldValues = {
-            ...asRecord(versionRow.fieldValues),
+            ...asOrgDerivedRecord(versionRow.fieldValues),
             ...params.fieldValues,
           };
         }
@@ -533,12 +451,12 @@ export class OrgDerivedService {
         let nextRules = asTemplateRulesMap(versionRow.rules);
         if (hasFieldValues) {
           nextRules = mergeRulesAfterFieldValuesChange(
-            asRecord(versionRow.rules),
-            buildRulesFromFieldValues(asRecord(mergedDocument.fieldValues), { templateType }),
+            asOrgDerivedRecord(versionRow.rules),
+            buildRulesFromFieldValues(asOrgDerivedRecord(mergedDocument.fieldValues), { templateType }),
             {
               templateType,
-              fieldValues: asRecord(mergedDocument.fieldValues),
-              previousFieldValues: asRecord(versionRow.fieldValues),
+              fieldValues: asOrgDerivedRecord(mergedDocument.fieldValues),
+              previousFieldValues: asOrgDerivedRecord(versionRow.fieldValues),
             },
           );
         }
@@ -737,13 +655,12 @@ export class OrgDerivedService {
   private async listOrgDerived(params: ListOrgDerivedParams): Promise<ListOrgDerivedResult> {
     const organizationId = params.organizationId.trim();
     const limit = DEFAULT_TEMPLATE_LIST_PAGE_SIZE;
-    const offset = decodeOffsetToken(params.nextToken);
+    const offset = decodeOrgDerivedListOffset(params.nextToken);
 
     const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId);
     const allRows = await this.loadOrgDerivedRows(organizationId);
-    const filterOptions = buildOrgDerivedFilterOptions(allRows);
-
     const filtered = await this.filterOrgDerivedRows(allRows, params);
+    const filterOptions = buildOrgDerivedFilterOptions(filtered);
     const pageItems = filtered.slice(offset, offset + limit);
     const hasMore = offset + limit < filtered.length;
     const nextToken = hasMore ? encodeListCursor({ o: offset + limit }) : undefined;
@@ -753,24 +670,16 @@ export class OrgDerivedService {
       pageItems.map((row) => row.metaRow),
     );
 
-    const versionRowsByTemplateId = await this.loadVersionRowsByTemplateId(
-      organizationId,
-      pageItems.map((row) => row.metaRow.meta.templateId),
-    );
-
     const items = pageItems.map((row) => {
       const sourceId =
         typeof row.metaRow.meta.derivedFromOrgTemplateId === 'string'
           ? row.metaRow.meta.derivedFromOrgTemplateId
           : undefined;
-      const allVersions = versionRowsByTemplateId.get(row.metaRow.meta.templateId) ?? [];
-      const history = resolveOrgDerivedItemHistory(row.versionRow, allVersions);
       return toOrgDerivedListItem(
         row.metaRow,
         row.versionRow,
         row.enablement,
         sourceId ? canonicalMetaById.get(sourceId) : undefined,
-        history,
       );
     });
 
@@ -890,26 +799,6 @@ export class OrgDerivedService {
     });
   }
 
-  private async loadVersionRowsByTemplateId(
-    organizationId: string,
-    templateIds: string[],
-  ): Promise<Map<string, TemplateDdbRecord[]>> {
-    const uniqueIds = [...new Set(templateIds.filter(Boolean))];
-    const map = new Map<string, TemplateDdbRecord[]>();
-
-    await Promise.all(
-      uniqueIds.map(async (templateId) => {
-        const { items } = await this.orgRepo.listOrgVersions({
-          organizationId,
-          templateId,
-        });
-        map.set(templateId, items);
-      }),
-    );
-
-    return map;
-  }
-
   private async loadCanonicalMetaMap(
     organizationId: string,
     variantMetaRows: TemplateDdbRecord[],
@@ -947,12 +836,19 @@ export class OrgDerivedService {
 
     const filtered: OrgDerivedRow[] = [];
     for (const row of rows) {
-      const fv = asRecord(row.versionRow.fieldValues);
+      const fv = asOrgDerivedRecord(row.versionRow.fieldValues);
       const catalog = extractCatalogCodes(fv);
 
       if (params.categoryCode && !eqCi(catalog.categoryCode, params.categoryCode)) continue;
       if (conditionFilter && !eqCi(catalog.conditionCode, conditionFilter)) continue;
-      if (params.templateType && !matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, params.templateType)) {
+      if (params.carePlanOnly) {
+        if (!matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, TEMPLATE_TYPE_CARE_PLAN)) {
+          continue;
+        }
+      } else if (
+        params.templateType &&
+        !matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, params.templateType)
+      ) {
         continue;
       }
 
@@ -1042,7 +938,7 @@ export class OrgDerivedService {
         templateValidationError('Org-derived template is missing masterTemplateId');
       }
 
-      const fv = asRecord(versionRow.fieldValues);
+      const fv = asOrgDerivedRecord(versionRow.fieldValues);
       const catalog = extractCatalogCodes(fv);
       const enablementId = EnablementEntityBuilder.buildEnablementId(organizationId);
       const enablementMeta = EnablementEntityBuilder.buildMetaForOrgDerived(

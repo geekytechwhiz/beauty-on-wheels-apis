@@ -6,6 +6,7 @@ import {
   TEMPLATE_STATUS,
   TemplateEntityBuilder,
   TemplateService,
+  type CloneTemplateBody,
   type TemplateActorUser,
 } from '@api-hub/template-core';
 
@@ -15,7 +16,7 @@ import {
   getOrganizationIdForRequest,
 } from '../utils/helpers';
 import { enrichTemplateActorUser } from '../services/user-lookup.service';
-import { resolveTemplateLevelFromQuery, resolveTemplateLevelFromBody, isOrgDerivedListLevel, collectTemplateQueryParams } from './template-level.util';
+import { resolveTemplateLevelFromQuery, resolveTemplateLevelFromBody, isOrgDerivedListLevel, collectTemplateQueryParams, collectTemplateQueryParamsFromRequest } from './template-level.util';
 import {
   cloneTemplateBodySchema,
   deriveTemplateBodySchema,
@@ -32,7 +33,6 @@ import {
   orgEnablementOrgPathSchema,
   parseSearchOrgEnablementsQuery,
   updateOrgEnablementBodySchema,
-  type CloneTemplateBody,
   type CreateMasterTemplateBody,
   type CreateOrgEnablementBody,
   type SearchOrgEnablementsQuery,
@@ -757,19 +757,18 @@ function resolveListOrgOrganizationScope(
 export async function validateListOrgTemplatesRequest(req: LambdaRequest): Promise<void> {
   const actorUser = requireAuthenticatedActor(req);
 
-  const rawQuery = parseListOrgTemplatesQuery(
-    collectTemplateQueryParams([
-      req.event.queryStringParameters as Record<string, string | string[] | undefined> | null,
-      req.params as Record<string, string | string[] | undefined>,
-    ]),
-  );
+  const rawQuery = parseListOrgTemplatesQuery(collectTemplateQueryParamsFromRequest(req));
   const templateEnabledFilter = parseTemplateEnabledQuery(rawQuery.templateEnabled);
+  const resolvedLevel = rawQuery.templateLevel ?? resolveTemplateLevelFromQuery(req);
   const query: ListOrgTemplatesQuery = {
     ...rawQuery,
     status: rawQuery.status ? normalizeStatusOrThrow(rawQuery.status, 'status') : undefined,
     templateEnabled: undefined,
+    ...(resolvedLevel === 'ORG' || isOrgDerivedListLevel(resolvedLevel)
+      ? { templateLevel: resolvedLevel }
+      : {}),
   };
-  const level = query.templateLevel ?? resolveTemplateLevelFromQuery(req);
+  const level = query.templateLevel ?? resolvedLevel;
   const scope = resolveListOrgOrganizationScope(
     req,
     query.organizationId ?? query.organizationMetaId,

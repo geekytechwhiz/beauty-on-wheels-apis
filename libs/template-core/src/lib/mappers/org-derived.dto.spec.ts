@@ -1,4 +1,8 @@
 import { TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  filterHistoryForTemplate,
+  toListHistorySummary,
+} from '../mappers/template-http.dto';
 import { resolveOrgDerivedItemHistory, toOrgDerivedDetail, toOrgDerivedListItem } from './org-derived.dto';
 
 describe('toOrgDerivedListItem upgrade', () => {
@@ -63,11 +67,12 @@ describe('toOrgDerivedListItem upgrade', () => {
 
   it('includes history on list items when versionHistory is stored', () => {
     const versionRow = {
+      meta: { templateId: 'HTN-VARIANT-A-abc12345' },
       ...baseVariant.versionRow,
       versionHistory: [
         {
           version: 1,
-          templateVersionId: 'HTN-CARE-PLAN-VARIANT-A-abc12345-V01',
+          templateVersionId: 'HTN-VARIANT-A-abc12345-V01',
           status: TEMPLATE_STATUS.DRAFT,
           action: 'CREATED',
           title: 'Template Created',
@@ -93,6 +98,78 @@ describe('toOrgDerivedListItem upgrade', () => {
 
     expect(item.history).toHaveLength(1);
     expect(item.history?.[0].title).toBe('Template Created');
+  });
+
+  it('scopes list history to the variant template id when versionHistory is polluted', () => {
+    const templateId = 'HTN-VARIANT-A-abc12345';
+    const versionRow = {
+      meta: { templateId },
+      versionHistory: [
+        {
+          version: 1,
+          templateVersionId: `${templateId}-V01`,
+          status: TEMPLATE_STATUS.PUBLISHED,
+          action: 'PUBLISHED',
+          title: 'Template Published',
+          isActive: true,
+          isLatestVersion: true,
+          changes: [],
+          rules: { BillingProgramTypes: { enable: true } },
+        },
+        {
+          version: 1,
+          templateVersionId: 'OTHER-VARIANT-V01',
+          status: TEMPLATE_STATUS.DRAFT,
+          action: 'CREATED',
+          title: 'Other Variant',
+          isActive: true,
+          isLatestVersion: false,
+          changes: [],
+        },
+        {
+          version: 1,
+          templateVersionId: 'SATURN-V01',
+          status: TEMPLATE_STATUS.PUBLISHED,
+          action: 'CREATED',
+          title: 'Canonical',
+          isActive: true,
+          isLatestVersion: false,
+          changes: [],
+        },
+      ],
+    };
+
+    const history = toListHistorySummary(resolveOrgDerivedItemHistory(versionRow as never));
+    expect(history).toHaveLength(1);
+    expect(history[0].templateVersionId).toBe(`${templateId}-V01`);
+    expect(history[0].rules).toBeUndefined();
+  });
+
+  it('filterHistoryForTemplate keeps only matching templateVersionId prefixes', () => {
+    const scoped = filterHistoryForTemplate('SAT-CT-02-CP-01-CAPL-5e243e53', [
+      {
+        version: 1,
+        templateVersionId: 'SAT-CT-02-CP-01-CAPL-5e243e53-V01',
+        status: TEMPLATE_STATUS.PUBLISHED,
+        action: 'PUBLISHED',
+        title: 'Mine',
+        isActive: true,
+        isLatestVersion: true,
+        changes: [],
+      },
+      {
+        version: 1,
+        templateVersionId: 'SAT-CT-02-CP-01-6cd206fd-V01',
+        status: TEMPLATE_STATUS.DRAFT,
+        action: 'CREATED',
+        title: 'Other',
+        isActive: true,
+        isLatestVersion: false,
+        changes: [],
+      },
+    ]);
+    expect(scoped).toHaveLength(1);
+    expect(scoped[0].templateVersionId).toBe('SAT-CT-02-CP-01-CAPL-5e243e53-V01');
   });
 
   it('returns adopt preview on single get when upgrade is available', () => {

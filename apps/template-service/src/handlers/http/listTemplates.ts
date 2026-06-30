@@ -16,14 +16,17 @@ import {
 } from '../../validators/request.validators';
 import {
   isOrgDerivedListLevel,
+  resolveListTemplateLevel,
   resolveTemplateLevelFromQuery,
 } from '../../validators/template-level.util';
+import type { ValidatedListOrg } from '../../validators/request.validators';
 
 const masterCtrl = getTemplateHttpController();
 const orgCtrl = getOrgTemplateHttpController();
 
 const handler = async (req: LambdaRequest) => {
-  const level = resolveTemplateLevelFromQuery(req);
+  const validatedOrg = (req as LambdaRequest & { validatedListOrg?: ValidatedListOrg }).validatedListOrg;
+  const level = resolveListTemplateLevel(req, validatedOrg?.query?.templateLevel);
   if (isOrgDerivedListLevel(level) || level === 'ORG') {
     const data = await orgCtrl.handleListOrg(req);
     const message =

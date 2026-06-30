@@ -1,4 +1,4 @@
-import { normalizeTemplateServiceError, OrgTemplateService, TEMPLATE_TYPE_CARE_PLAN } from '@api-hub/template-core';
+import { normalizeTemplateServiceError, OrgTemplateService, type CloneTemplateBody } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
@@ -17,7 +17,9 @@ import type {
 import { withNextPaginationKey } from '../utils/list-response.mapper';
 import {
   isOrgDerivedListLevel,
+  resolveListTemplateLevel,
   resolveTemplateLevelFromQuery,
+  type TemplateLevel,
 } from '../validators/template-level.util';
 
 let orgTemplateService: OrgTemplateService | undefined;
@@ -47,6 +49,31 @@ export class OrgTemplateHttpController {
     );
   }
 
+  private mapCloneOrganizationMeta(
+    organizationId: string,
+    body?: CloneTemplateBody,
+  ): {
+    id: string;
+    name: string;
+    active?: boolean;
+    country?: string;
+    updated?: string;
+    description: string | null;
+  } {
+    const meta = body?.organizationMeta;
+    if (!meta) {
+      return { id: organizationId, name: organizationId, description: null };
+    }
+    return {
+      id: meta.id,
+      name: meta.name.trim(),
+      active: meta.active,
+      country: meta.country,
+      updated: meta.updated !== undefined ? String(meta.updated) : undefined,
+      description: meta.description ?? null,
+    };
+  }
+
   async handleCloneToOrg(req: LambdaRequest) {
     const v = this.requireValidated(
       (req as LambdaRequest & { validatedCloneOrgTemplate?: ValidatedCloneOrgTemplate })
@@ -61,20 +88,7 @@ export class OrgTemplateHttpController {
         body: v.body,
         actorUser: v.actorUser,
       });
-      const organizationMeta = v.body?.organizationMeta
-        ? {
-            id: v.body.organizationMeta.id,
-            name: v.body.organizationMeta.name.trim(),
-            active: v.body.organizationMeta.active,
-            country: v.body.organizationMeta.country,
-            updated: v.body.organizationMeta.updated,
-            description: v.body.organizationMeta.description ?? null,
-          }
-        : {
-            id: v.organizationId,
-            name: v.organizationId,
-            description: null,
-          };
+      const organizationMeta = this.mapCloneOrganizationMeta(v.organizationId, v.body);
       return this.svc.toDeriveEnableResponse(result, {
         organizationMeta,
       });
@@ -167,14 +181,15 @@ export class OrgTemplateHttpController {
     );
 
     try {
+      const { rules, fieldValues, status, active, adopt } = v.body;
       return await this.svc.updateOrgTemplateRules({
         masterTemplateId: v.masterTemplateId,
         organizationId: v.organizationId,
-        rules: v.body.rules,
-        fieldValues: v.body.fieldValues,
-        status: v.body.status,
-        active: v.body.active,
-        adopt: v.body.adopt,
+        rules,
+        fieldValues,
+        status,
+        active,
+        adopt,
         actorUser: v.actorUser,
       });
     } catch (e: unknown) {
@@ -185,12 +200,12 @@ export class OrgTemplateHttpController {
     }
   }
 
-  private withOrgCarePlanLevel<T extends Record<string, unknown>>(
+  private withListTemplateLevel<T extends Record<string, unknown>>(
     level: ReturnType<typeof resolveTemplateLevelFromQuery>,
     payload: T,
-  ): T & { templateLevel?: 'ORG_CARE_PLAN' } {
-    if (level !== 'ORG_CARE_PLAN') return payload;
-    return { ...payload, templateLevel: 'ORG_CARE_PLAN' };
+  ): T & { templateLevel?: TemplateLevel } {
+    if (level === 'MASTER') return payload;
+    return { ...payload, templateLevel: level };
   }
 
   private resolveOrgDerivedListParams(
@@ -206,10 +221,8 @@ export class OrgTemplateHttpController {
       conditionCode: query.conditionCode,
       condition: query.condition,
       specialty: query.specialty,
-      templateType:
-        level === 'ORG_CARE_PLAN'
-          ? (query.templateType?.trim() || TEMPLATE_TYPE_CARE_PLAN)
-          : query.templateType,
+      carePlanOnly: level === 'ORG_CARE_PLAN',
+      templateType: query.templateType,
       templateName: query.templateName,
       templateEnabled: templateEnabledFilter,
       nextToken: query.nextToken ?? query.nextPaginationKey,
@@ -222,7 +235,7 @@ export class OrgTemplateHttpController {
     );
 
     try {
-      const level = v.query.templateLevel ?? resolveTemplateLevelFromQuery(req);
+      const level = resolveListTemplateLevel(req, v.query.templateLevel);
       if (isOrgDerivedListLevel(level)) {
         if (!v.organizationId) {
           throw new BaseError(
@@ -238,10 +251,10 @@ export class OrgTemplateHttpController {
         );
 
         if (v.query.orgTemplateId?.trim()) {
-          return this.withOrgCarePlanLevel(level, result as Record<string, unknown>);
+          return this.withListTemplateLevel(level, result as Record<string, unknown>);
         }
 
-        return this.withOrgCarePlanLevel(
+        return this.withListTemplateLevel(
           level,
           withNextPaginationKey(result as Parameters<typeof withNextPaginationKey>[0]) as Record<
             string,
@@ -250,8 +263,10 @@ export class OrgTemplateHttpController {
         );
       }
 
-      return withNextPaginationKey(
-        await this.svc.listOrgEnabled({
+      return this.withListTemplateLevel(
+        'ORG',
+        withNextPaginationKey(
+          await this.svc.listOrgEnabled({
           organizationId: v.organizationId,
           organizationName: v.query.organizationName,
           organizationDescription: v.query.organizationDescription,
@@ -265,6 +280,7 @@ export class OrgTemplateHttpController {
           templateEnabled: v.templateEnabledFilter,
           nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
         }),
+        ),
       );
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {

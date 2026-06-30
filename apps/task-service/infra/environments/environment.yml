@@ -1,19 +1,36 @@
-# All values resolved from SSM at package/deploy time (no inline literals or fallbacks).
-# Task-service params are published by mvrx-resource-registry; cross-service paths are in shared-ssm-paths.yml.
-# First deploy: seed SSM params manually or deploy once with registry before packaging with strict SSM resolution.
-REGION: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.region}}
-STAGE: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.stage}}
-NODE_ENV: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.nodeEnv}}
-SERVICE_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.serviceName}}
-TASK_TABLE: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.taskTable}}
-CARE_PLAN_LSI_INDEX: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.carePlanLsiIndex}}
-STAFF_TASKS_GSI_INDEX: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.staffTasksGsiIndex}}
-LOG_LEVEL: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.logLevel}}
-AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.awsNodejsConnectionReuseEnabled}}
-ERROR_MESSAGES_CDN_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.errorMessagesCdnUrl}}
-USER_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.userServiceBaseUrl}}
-ORGANIZATION_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.organizationServiceBaseUrl}}
-USER_SERVICE_TIMEOUT_MS: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.userServiceTimeoutMs}}
-ORGANIZATION_SERVICE_TIMEOUT_MS: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.organizationServiceTimeoutMs}}
-TASK_EVENT_BUS_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.taskEventBusName}}
-EVENT_DLQ_QUEUE_URL: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.eventDlqQueueUrl}}
+# Bootstrap (first deploy): bundle/provider/CF refs — no SSM at package time.
+# After mvrx-resource-registry publishes params, swap active lines for the commented SSM block below.
+REGION: ${self:provider.region}
+STAGE: ${self:provider.stage}
+NODE_ENV: ${self:provider.stage}
+SERVICE_NAME: ${self:service}
+TASK_TABLE: ${self:custom.bundle.taskDynamoTableName}
+CARE_PLAN_LSI_INDEX: pk-sk1
+STAFF_TASKS_GSI_INDEX: GSI1
+LOG_LEVEL: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
+AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+ERROR_MESSAGES_CDN_URL: ${self:custom.bundle.errorMessagesCdnUrl.${self:provider.stage}}
+USER_SERVICE_BASE_URL: ${self:custom.bundle.serviceUrlFallbacks.${self:provider.stage}.USER_SERVICE_BASE_URL}
+ORGANIZATION_SERVICE_BASE_URL: ${self:custom.bundle.serviceUrlFallbacks.${self:provider.stage}.ORGANIZATION_SERVICE_BASE_URL}
+USER_SERVICE_TIMEOUT_MS: '8000'
+ORGANIZATION_SERVICE_TIMEOUT_MS: '8000'
+TASK_EVENT_BUS_NAME: ${self:custom.bundle.eventBusName}
+EVENT_DLQ_QUEUE_URL: !Ref TaskEventsConsumerDLQ
+
+# --- SSM (enable after first deploy / params exist in Parameter Store) ---
+# REGION: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.region}}
+# STAGE: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.stage}}
+# NODE_ENV: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.nodeEnv}}
+# SERVICE_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.serviceName}}
+# TASK_TABLE: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.taskTable}}
+# CARE_PLAN_LSI_INDEX: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.carePlanLsiIndex}}
+# STAFF_TASKS_GSI_INDEX: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.staffTasksGsiIndex}}
+# LOG_LEVEL: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.logLevel}}
+# AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.awsNodejsConnectionReuseEnabled}}
+# ERROR_MESSAGES_CDN_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.errorMessagesCdnUrl}}
+# USER_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.userServiceBaseUrl}}
+# ORGANIZATION_SERVICE_BASE_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.organizationServiceBaseUrl}}
+# USER_SERVICE_TIMEOUT_MS: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.userServiceTimeoutMs}}
+# ORGANIZATION_SERVICE_TIMEOUT_MS: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.organizationServiceTimeoutMs}}
+# TASK_EVENT_BUS_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.taskEventBusName}}
+# EVENT_DLQ_QUEUE_URL: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.eventDlqQueueUrl}}

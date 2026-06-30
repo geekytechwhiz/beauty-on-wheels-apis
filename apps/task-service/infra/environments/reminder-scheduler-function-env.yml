@@ -1,3 +1,9 @@
-REMINDER_SCHEDULER_GROUP_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.reminderSchedulerGroupName}}
-REMINDER_SCHEDULER_TARGET_ROLE_ARN: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.reminderSchedulerTargetRoleArn}}
-PROCESS_REMINDER_LAMBDA_ARN: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.processReminderLambdaArn}}
+# Bootstrap (first deploy) — swap for SSM block after registry publish.
+REMINDER_SCHEDULER_GROUP_NAME: ${self:custom.bundle.reminderSchedulerGroupName}
+REMINDER_SCHEDULER_TARGET_ROLE_ARN: !GetAtt ReminderSchedulerInvokeRole.Arn
+PROCESS_REMINDER_LAMBDA_ARN: !GetAtt ProcessReminderLambdaFunction.Arn
+
+# --- SSM (enable after first deploy) ---
+# REMINDER_SCHEDULER_GROUP_NAME: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.reminderSchedulerGroupName}}
+# REMINDER_SCHEDULER_TARGET_ROLE_ARN: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.reminderSchedulerTargetRoleArn}}
+# PROCESS_REMINDER_LAMBDA_ARN: ${ssm:${self:custom.taskSsmPaths.${self:provider.stage}.processReminderLambdaArn}}

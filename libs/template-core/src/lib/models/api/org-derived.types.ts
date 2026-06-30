@@ -108,6 +108,8 @@ export type ListOrgDerivedParams = {
   conditionCode?: string;
   condition?: string;
   specialty?: string;
+  /** When true (ORG_CARE_PLAN list), only care-plan org-derived variants — set from templateLevel, not query. */
+  carePlanOnly?: boolean;
   templateType?: string;
   templateName?: string;
   templateEnabled?: boolean;

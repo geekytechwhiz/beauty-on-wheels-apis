@@ -292,6 +292,32 @@ export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): Template
   }));
 }
 
+/** True when a history entry belongs to the given org/master template id (not another variant). */
+export function templateVersionBelongsToTemplate(
+  templateId: string,
+  templateVersionId: string | undefined,
+): boolean {
+  if (!templateId.trim() || !templateVersionId?.trim()) return false;
+  return templateVersionId.trim().startsWith(`${templateId.trim()}-`);
+}
+
+export function filterHistoryForTemplate(
+  templateId: string,
+  entries: TemplateHistoryEntry[],
+): TemplateHistoryEntry[] {
+  return entries.filter((entry) =>
+    templateVersionBelongsToTemplate(templateId, entry.templateVersionId),
+  );
+}
+
+/** List endpoints: timeline metadata only — omit heavy rules/fieldValues snapshots. */
+export function toListHistorySummary(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return entries.map(({ rules: _r, fieldValues: _fv, ...entry }) => ({
+    ...entry,
+    changes: entry.changes ?? [],
+  }));
+}
+
 /** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */
 export function appendVersionHistoryToRecord(
   record: TemplateDdbRecord,
@@ -324,7 +350,14 @@ export function appendVersionHistoryToRecord(
     }
   }
   entry.isLatestVersion = true;
-  const prior = existing.map((h) => ({ ...h, isLatestVersion: false }));
+  const templateId = record.meta?.templateId?.trim();
+  const prior = existing
+    .filter((h) =>
+      templateId
+        ? templateVersionBelongsToTemplate(templateId, h.templateVersionId)
+        : true,
+    )
+    .map((h) => ({ ...h, isLatestVersion: false }));
   record.versionHistory = [entry, ...prior].sort((a, b) => b.version - a.version);
 }
 
@@ -333,8 +366,13 @@ export function resolveTemplateHistory(
   rep: TemplateDdbRecord,
   allVersionsForTemplate: TemplateDdbRecord[],
 ): TemplateHistoryEntry[] {
+  const templateId = rep.meta?.templateId?.trim();
   if (Array.isArray(rep.versionHistory) && rep.versionHistory.length > 0) {
-    return sanitizeHistoryForApi(rep.versionHistory as TemplateHistoryEntry[]);
+    const sanitized = sanitizeHistoryForApi(rep.versionHistory as TemplateHistoryEntry[]);
+    const scoped = templateId ? filterHistoryForTemplate(templateId, sanitized) : sanitized;
+    if (scoped.length > 0) {
+      return scoped;
+    }
   }
   if (allVersionsForTemplate.length > 0) {
     return sanitizeHistoryForApi(buildVersionHistory(allVersionsForTemplate));

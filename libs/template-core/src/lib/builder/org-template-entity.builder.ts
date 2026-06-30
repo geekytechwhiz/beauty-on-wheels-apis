@@ -289,6 +289,8 @@ export class OrgTemplateEntityBuilder {
     sourceVersion: TemplateDdbRecord,
   ): TemplateDdbRecord {
     const documentFields = extractDocumentFields(sourceVersion);
+    // New org-derived variants start a fresh timeline — never inherit source versionHistory.
+    delete documentFields.versionHistory;
     const record: TemplateDdbRecord = {
       pk: TemplateKeyBuilder.toOrgPk(ctx.organizationId, ctx.newTemplateId),
       sk: ctx.versionSk,

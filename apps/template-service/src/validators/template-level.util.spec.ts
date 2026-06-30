@@ -3,6 +3,7 @@ import type { LambdaRequest } from '@api-hub/utils';
 import { bearerToken } from '../__tests__/handler-test-utils';
 import {
   collectTemplateQueryParams,
+  resolveListTemplateLevel,
   resolveTemplateLevelFromQuery,
 } from './template-level.util';
 
@@ -75,5 +76,13 @@ describe('template-level.util', () => {
       context: { correlationId: 'c1', awsRequestId: 'a1', logger: {} },
     } as LambdaRequest);
     expect(level).toBe('MASTER');
+  });
+
+  it('resolveListTemplateLevel prefers validated query level', () => {
+    const level = resolveListTemplateLevel(
+      listReq({ organizationId: 'org-1' }),
+      'ORG_CARE_PLAN',
+    );
+    expect(level).toBe('ORG_CARE_PLAN');
   });
 });

@@ -4,6 +4,7 @@ import { TemplateEntityBuilder } from '../builder/template-entity.builder';
 import {
   DEFAULT_TEMPLATE_LIST_PAGE_SIZE,
   DERIVATION_KIND,
+  MASTER_CATALOG_TEMPLATE_TYPES,
   ORG_EDITABLE_STATUSES,
   TEMPLATE_META_SK,
   TEMPLATE_STATUS,
@@ -12,7 +13,6 @@ import {
 } from '../constants/template.constants';
 import {
   buildOrgDerivedFilterOptions,
-  resolveOrgDerivedItemHistory,
   toAdoptOrgDerivedResult,
   toOrgDerivedCreateResult,
   toOrgDerivedDetail,
@@ -75,6 +75,10 @@ function eqCi(a: string | undefined, b: string | undefined): boolean {
   return a.trim().toUpperCase() === b.trim().toUpperCase();
 }
 
+const NON_CARE_PLAN_TEMPLATE_TYPES = new Set<string>(
+  MASTER_CATALOG_TEMPLATE_TYPES.filter((type) => type !== TEMPLATE_TYPE_CARE_PLAN),
+);
+
 function matchesOrgDerivedTemplateType(
   rowType: string | undefined,
   filterType: string,
@@ -84,6 +88,9 @@ function matchesOrgDerivedTemplateType(
   const normalizedFilter = TemplateEntityBuilder.normalizeTemplateType(filterType);
   if (normalizedRow === normalizedFilter) return true;
   if (normalizedFilter === TEMPLATE_TYPE_CARE_PLAN) {
+    if (NON_CARE_PLAN_TEMPLATE_TYPES.has(normalizedRow)) {
+      return false;
+    }
     return (
       normalizedRow === TEMPLATE_TYPE_CARE_PLAN ||
       normalizedRow.startsWith(`${TEMPLATE_TYPE_CARE_PLAN}_`)
@@ -741,9 +748,8 @@ export class OrgDerivedService {
 
     const organizationMeta = await this.resolveStoredOrganizationMeta(organizationId);
     const allRows = await this.loadOrgDerivedRows(organizationId);
-    const filterOptions = buildOrgDerivedFilterOptions(allRows);
-
     const filtered = await this.filterOrgDerivedRows(allRows, params);
+    const filterOptions = buildOrgDerivedFilterOptions(filtered);
     const pageItems = filtered.slice(offset, offset + limit);
     const hasMore = offset + limit < filtered.length;
     const nextToken = hasMore ? encodeListCursor({ o: offset + limit }) : undefined;
@@ -753,24 +759,16 @@ export class OrgDerivedService {
       pageItems.map((row) => row.metaRow),
     );
 
-    const versionRowsByTemplateId = await this.loadVersionRowsByTemplateId(
-      organizationId,
-      pageItems.map((row) => row.metaRow.meta.templateId),
-    );
-
     const items = pageItems.map((row) => {
       const sourceId =
         typeof row.metaRow.meta.derivedFromOrgTemplateId === 'string'
           ? row.metaRow.meta.derivedFromOrgTemplateId
           : undefined;
-      const allVersions = versionRowsByTemplateId.get(row.metaRow.meta.templateId) ?? [];
-      const history = resolveOrgDerivedItemHistory(row.versionRow, allVersions);
       return toOrgDerivedListItem(
         row.metaRow,
         row.versionRow,
         row.enablement,
         sourceId ? canonicalMetaById.get(sourceId) : undefined,
-        history,
       );
     });
 
@@ -952,7 +950,14 @@ export class OrgDerivedService {
 
       if (params.categoryCode && !eqCi(catalog.categoryCode, params.categoryCode)) continue;
       if (conditionFilter && !eqCi(catalog.conditionCode, conditionFilter)) continue;
-      if (params.templateType && !matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, params.templateType)) {
+      if (params.carePlanOnly) {
+        if (!matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, TEMPLATE_TYPE_CARE_PLAN)) {
+          continue;
+        }
+      } else if (
+        params.templateType &&
+        !matchesOrgDerivedTemplateType(row.metaRow.meta.templateType, params.templateType)
+      ) {
         continue;
       }
 

@@ -1,4 +1,4 @@
-import { normalizeTemplateServiceError, OrgTemplateService, TEMPLATE_TYPE_CARE_PLAN } from '@api-hub/template-core';
+import { normalizeTemplateServiceError, OrgTemplateService } from '@api-hub/template-core';
 import { BaseError, type LambdaRequest } from '@api-hub/utils';
 
 import type {
@@ -17,7 +17,9 @@ import type {
 import { withNextPaginationKey } from '../utils/list-response.mapper';
 import {
   isOrgDerivedListLevel,
+  resolveListTemplateLevel,
   resolveTemplateLevelFromQuery,
+  type TemplateLevel,
 } from '../validators/template-level.util';
 
 let orgTemplateService: OrgTemplateService | undefined;
@@ -185,12 +187,12 @@ export class OrgTemplateHttpController {
     }
   }
 
-  private withOrgCarePlanLevel<T extends Record<string, unknown>>(
+  private withListTemplateLevel<T extends Record<string, unknown>>(
     level: ReturnType<typeof resolveTemplateLevelFromQuery>,
     payload: T,
-  ): T & { templateLevel?: 'ORG_CARE_PLAN' } {
-    if (level !== 'ORG_CARE_PLAN') return payload;
-    return { ...payload, templateLevel: 'ORG_CARE_PLAN' };
+  ): T & { templateLevel?: TemplateLevel } {
+    if (level === 'MASTER') return payload;
+    return { ...payload, templateLevel: level };
   }
 
   private resolveOrgDerivedListParams(
@@ -206,10 +208,8 @@ export class OrgTemplateHttpController {
       conditionCode: query.conditionCode,
       condition: query.condition,
       specialty: query.specialty,
-      templateType:
-        level === 'ORG_CARE_PLAN'
-          ? (query.templateType?.trim() || TEMPLATE_TYPE_CARE_PLAN)
-          : query.templateType,
+      carePlanOnly: level === 'ORG_CARE_PLAN',
+      templateType: query.templateType,
       templateName: query.templateName,
       templateEnabled: templateEnabledFilter,
       nextToken: query.nextToken ?? query.nextPaginationKey,
@@ -222,7 +222,7 @@ export class OrgTemplateHttpController {
     );
 
     try {
-      const level = v.query.templateLevel ?? resolveTemplateLevelFromQuery(req);
+      const level = resolveListTemplateLevel(req, v.query.templateLevel);
       if (isOrgDerivedListLevel(level)) {
         if (!v.organizationId) {
           throw new BaseError(
@@ -238,10 +238,10 @@ export class OrgTemplateHttpController {
         );
 
         if (v.query.orgTemplateId?.trim()) {
-          return this.withOrgCarePlanLevel(level, result as Record<string, unknown>);
+          return this.withListTemplateLevel(level, result as Record<string, unknown>);
         }
 
-        return this.withOrgCarePlanLevel(
+        return this.withListTemplateLevel(
           level,
           withNextPaginationKey(result as Parameters<typeof withNextPaginationKey>[0]) as Record<
             string,
@@ -250,8 +250,10 @@ export class OrgTemplateHttpController {
         );
       }
 
-      return withNextPaginationKey(
-        await this.svc.listOrgEnabled({
+      return this.withListTemplateLevel(
+        'ORG',
+        withNextPaginationKey(
+          await this.svc.listOrgEnabled({
           organizationId: v.organizationId,
           organizationName: v.query.organizationName,
           organizationDescription: v.query.organizationDescription,
@@ -265,6 +267,7 @@ export class OrgTemplateHttpController {
           templateEnabled: v.templateEnabledFilter,
           nextToken: v.query.nextToken ?? v.query.nextPaginationKey,
         }),
+        ),
       );
     } catch (e: unknown) {
       normalizeTemplateServiceError(e, {

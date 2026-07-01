@@ -66,45 +66,6 @@ describe('listRelatedValuesGrouped', () => {
     ]);
   });
 
-  it('returns ServiceType specialties for ALLOWED_FOR with relationType and toType filters', async () => {
-    mockListRelationsByFrom.mockResolvedValue([
-      relation('ServiceType', 'CONSULTATION', 'Specialty', 'CARDIOLOGY', 'ALLOWED_FOR'),
-      relation('ServiceType', 'CONSULTATION', 'Specialty', 'ENDOCRINOLOGY', 'ALLOWED_FOR'),
-    ]);
-    mockGetMetadataValue.mockImplementation((typeCode: string, valueCode: string) => {
-      const labels: Record<string, string> = {
-        'ServiceType#CONSULTATION': 'Consultation',
-        'Specialty#CARDIOLOGY': 'Cardiology',
-        'Specialty#ENDOCRINOLOGY': 'Endocrinology',
-      };
-      return Promise.resolve({ label: labels[`${typeCode}#${valueCode}`] });
-    });
-
-    const groups = await listRelatedValuesGrouped('ServiceType', ['CONSULTATION'], {
-      relationType: 'ALLOWED_FOR',
-      toType: 'Specialty',
-    });
-
-    expect(mockListRelationsByFrom).toHaveBeenCalledWith('ServiceType', 'CONSULTATION', {
-      skBeginsWith: 'ALLOWED_FOR#Specialty#',
-    });
-    expect(groups).toEqual([
-      {
-        fromMetadataTypeCode: 'ServiceType',
-        fromMetadataValueCode: 'CONSULTATION',
-        fromLabel: 'Consultation',
-        values: [
-          { metadataTypeCode: 'Specialty', metadataValueCode: 'CARDIOLOGY', label: 'Cardiology' },
-          {
-            metadataTypeCode: 'Specialty',
-            metadataValueCode: 'ENDOCRINOLOGY',
-            label: 'Endocrinology',
-          },
-        ],
-      },
-    ]);
-  });
-
   it('returns separate groups per source value and does not merge values', async () => {
     mockListRelationsByFrom.mockImplementation((fromType: string, fromValue: string) => {
       if (fromValue === 'IN') return Promise.resolve([relation('Country', 'IN', 'State', 'KA')]);

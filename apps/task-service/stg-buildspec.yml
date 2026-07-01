@@ -13,11 +13,12 @@ env:
     STAGE: 'stg'
     DEPLOYMENT_BUCKET: 'stg-mvx-task-service-bucket'
     STACK_NAME: 'stg-task-service'
+    NODE_OPTIONS: '--max-old-space-size=2048'
 
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "=== npm registry debug (pre-install) ==="
       - pwd
@@ -31,6 +32,8 @@ phases:
       - echo "NPM_TOKEN set=${NPM_TOKEN:+yes}"
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
+      - node -e "require('@myvitalrx/mvrx-resource-registry'); console.log('mvrx-resource-registry OK')"
+      - npm ls @myvitalrx/mvrx-resource-registry
 
   pre_build:
     commands:
@@ -51,4 +54,4 @@ artifacts:
   files:
     - apps/task-service/packaged.yaml
     - apps/task-service/.serverless/**/*
-  discard-paths: no 
+  discard-paths: no

@@ -3,6 +3,7 @@ import { sha256Hex } from '@api-hub/utils';
 import type { CreateCarePlanTaskRequest } from '../models/api/generate-care-plan.request';
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 
+import { TaskIdBuilder } from '../builder/task-id.builder';
 import { resolveDueWindowStartAtCreate } from './task-time';
 
 export function buildMonitoringIdempotencyKey(input: CreateMonitoringActionRequest): string {
@@ -16,11 +17,6 @@ export function buildMonitoringIdempotencyKey(input: CreateMonitoringActionReque
     input.assignedToType,
     input.assignedToStaffId?.trim() ?? '',
   ].join('|');
-}
-
-export function buildDeterministicRuntimeTaskInstanceId(idempotencyKey: string): string {
-  const hash = sha256Hex(idempotencyKey);
-  return `rtask-${hash.slice(0, 32)}`;
 }
 
 export function buildGenerationHash(idempotencyKey: string): string {
@@ -47,7 +43,7 @@ export function buildCarePlanTaskKeys(input: CreateCarePlanTaskRequest): {
   const idempotencyKey = buildCarePlanTaskIdempotencyKey(input);
   return {
     idempotencyKey,
-    runtimeTaskInstanceId: buildDeterministicRuntimeTaskInstanceId(idempotencyKey),
+    runtimeTaskInstanceId: TaskIdBuilder.deterministicRuntimeTaskInstanceId(idempotencyKey),
     generationHash: buildGenerationHash(idempotencyKey),
   };
 }

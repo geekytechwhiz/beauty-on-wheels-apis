@@ -7,11 +7,14 @@ import {
   type TaskRuntimeAction,
 } from '../models/types/task-domain.types';
 import {
+  isPersistedInProgress,
+  isTerminalPersistedState,
+  normalizePersistedState,
+  resolveCurrentStateForWire,
   RUNTIME_TASK_STATE,
-  TERMINAL_RUNTIME_TASK_STATES,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
-import { isInProgressState } from './surface-section';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from './task-time';
 
 function workflowError(message: string, statusCode: number, code: string): never {
   const e = new Error(message) as Error & { statusCode: number; code: string };
@@ -20,42 +23,25 @@ function workflowError(message: string, statusCode: number, code: string): never
   throw e;
 }
 
-/** Normalize client expected state to persisted comparison value. */
-export function normalizeExpectedStateForPersistedCompare(
-  expected: RuntimeTaskState,
-): RuntimeTaskState {
-  if (expected === RUNTIME_TASK_STATE.ACTIVE || expected === RUNTIME_TASK_STATE.SCHEDULED) {
-    return RUNTIME_TASK_STATE.OPEN;
-  }
-  return expected;
-}
-
-/** Whether persisted `currentState` matches client `expectedCurrentState` (legacy-aware). */
-export function persistedStateMatchesExpected(
-  persisted: RuntimeTaskState,
-  expected: RuntimeTaskState,
+export function wireStateMatchesExpected(
+  meta: TaskMetaDdbRecord,
+  expectedWireState: RuntimeTaskState,
+  timeZone = DEFAULT_ACTION_CENTER_TIMEZONE,
+  nowMs = nowEpochMs(),
 ): boolean {
-  if (persisted === expected) {
-    return true;
-  }
-  const inProgress = new Set<RuntimeTaskState>([
-    RUNTIME_TASK_STATE.OPEN,
-    RUNTIME_TASK_STATE.ACTIVE,
-    RUNTIME_TASK_STATE.SCHEDULED,
-  ]);
-  const normalizedExpected = normalizeExpectedStateForPersistedCompare(expected);
-  if (normalizedExpected === RUNTIME_TASK_STATE.OPEN && inProgress.has(persisted)) {
-    return true;
-  }
-  return false;
+  const derived = resolveCurrentStateForWire({
+    persistedState: meta.currentState,
+    dueWindowStart: meta.dueWindowStart,
+    dueWindowEnd: meta.dueWindowEnd,
+    timeZone,
+    nowMs,
+  });
+  return derived === expectedWireState;
 }
 
 /** Map persisted state to the value used in META conditional updates. */
-export function persistedStateForCondition(persisted: RuntimeTaskState): RuntimeTaskState {
-  if (persisted === RUNTIME_TASK_STATE.ACTIVE || persisted === RUNTIME_TASK_STATE.SCHEDULED) {
-    return persisted;
-  }
-  return persisted;
+export function persistedStateForCondition(persisted: RuntimeTaskState | string): RuntimeTaskState {
+  return normalizePersistedState(persisted);
 }
 
 export function actionToTargetState(action: TaskRuntimeAction): RuntimeTaskState {
@@ -66,8 +52,6 @@ export function actionToTargetState(action: TaskRuntimeAction): RuntimeTaskState
       return RUNTIME_TASK_STATE.DISMISSED;
     case TASK_RUNTIME_ACTION.CANCEL:
       return RUNTIME_TASK_STATE.CANCELLED;
-    case TASK_RUNTIME_ACTION.MARK_MISSED:
-      return RUNTIME_TASK_STATE.MISSED;
     default: {
       const _exhaustive: never = action;
       workflowError(`Unsupported action: ${String(_exhaustive)}`, 422, 'INVALID_STATE_TRANSITION');
@@ -96,10 +80,12 @@ export function resolveTaskStateTransition(
   action: TaskRuntimeAction,
   expectedCurrentState: RuntimeTaskState,
   actorType: ActorType,
+  timeZone = DEFAULT_ACTION_CENTER_TIMEZONE,
+  nowMs = nowEpochMs(),
 ): ResolvedTaskStateTransition {
   const fromState = meta.currentState;
 
-  if (TERMINAL_RUNTIME_TASK_STATES.includes(fromState)) {
+  if (isTerminalPersistedState(fromState)) {
     workflowError(
       `Task is already in terminal state (${fromState})`,
       422,
@@ -107,9 +93,16 @@ export function resolveTaskStateTransition(
     );
   }
 
-  if (!persistedStateMatchesExpected(fromState, expectedCurrentState)) {
+  if (!wireStateMatchesExpected(meta, expectedCurrentState, timeZone, nowMs)) {
+    const derived = resolveCurrentStateForWire({
+      persistedState: meta.currentState,
+      dueWindowStart: meta.dueWindowStart,
+      dueWindowEnd: meta.dueWindowEnd,
+      timeZone,
+      nowMs,
+    });
     workflowError(
-      `Expected current state ${expectedCurrentState} but task is ${fromState}`,
+      `Expected current state ${expectedCurrentState} but task is ${derived}`,
       409,
       'EXPECTED_STATE_MISMATCH',
     );
@@ -119,7 +112,7 @@ export function resolveTaskStateTransition(
 
   const toState = actionToTargetState(action);
 
-  if (!isInProgressState(fromState)) {
+  if (!isPersistedInProgress(fromState)) {
     workflowError(
       `Action ${action} is not valid from state ${fromState}`,
       422,

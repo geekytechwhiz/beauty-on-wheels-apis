@@ -1,4 +1,5 @@
 import {
+  assignedToTypeSchema,
   createMonitoringActionHttpBodySchema,
   createRuntimeTaskHttpBodySchema,
   generateCarePlanTasksHttpBodySchema,
@@ -12,6 +13,14 @@ const CP_DUE_START = 1780567200000;
 const CP_DUE_END = 1780610400000;
 
 describe('task.schemas', () => {
+  it('assignedToTypeSchema accepts any non-empty metadata value code', () => {
+    expect(assignedToTypeSchema.safeParse('PATIENT').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('ORG_STAFF').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('CUSTOM_ASSIGNEE_TYPE').success).toBe(true);
+    expect(assignedToTypeSchema.safeParse('').success).toBe(false);
+    expect(assignedToTypeSchema.safeParse('   ').success).toBe(false);
+  });
+
   it('rejects wrong types on createMonitoringAction', () => {
     const result = createMonitoringActionHttpBodySchema.safeParse({
       patientId: 'pat-1',
@@ -49,6 +58,21 @@ describe('task.schemas', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects empty optional strings on createRuntimeTask body', () => {
+    const result = createRuntimeTaskHttpBodySchema.safeParse({
+      patientId: 'pat-1',
+      patientDisplayName: 'Maria Lopez',
+      runtimeTaskSource: 'manualSystem',
+      taskBehaviorCode: 'INSTRUCTION',
+      taskDisplayGroup: 'action',
+      displayTitle: 'Task',
+      assignedToType: 'patient',
+      displayToPatient: true,
+      description: '   ',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts valid createRuntimeTask body', () => {
     const result = createRuntimeTaskHttpBodySchema.safeParse({
       patientId: 'pat-1',
@@ -78,7 +102,7 @@ describe('task.schemas', () => {
       action: 'complete',
       actorId: 'pat-1',
       actorType: 'patient',
-      expectedCurrentState: 'open',
+      expectedCurrentState: 'active',
       reason: 'Done',
       evidencePayload: { readingId: 'r-1' },
     });
@@ -90,12 +114,12 @@ describe('task.schemas', () => {
       action: 'archive',
       actorId: 'pat-1',
       actorType: 'patient',
-      expectedCurrentState: 'open',
+      expectedCurrentState: 'active',
     });
     expect(result.success).toBe(false);
   });
 
-  it('accepts valid updateReminderSettings body with camelCase channels', () => {
+  it('accepts valid updateReminderSettings body with reminder channel strings', () => {
     const result = updateReminderSettingsHttpBodySchema.safeParse({
       actorId: 'staff-1',
       reminderEnabled: true,
@@ -105,20 +129,20 @@ describe('task.schemas', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects PascalCase reminder channels', () => {
+  it('accepts reminder channel strings structurally', () => {
     const result = updateReminderSettingsHttpBodySchema.safeParse({
       actorId: 'staff-1',
       reminderEnabled: true,
       reminderSettings: { channels: ['Push'] },
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('accepts valid updateRuntimeTask body with at least one mutable field', () => {
     const result = updateRuntimeTaskHttpBodySchema.safeParse({
       actorId: 'staff-1',
       displayTitle: 'Updated title',
-      workflowStage: 'ongoing',
+      workflowStage: 'ongoingCare',
     });
     expect(result.success).toBe(true);
   });

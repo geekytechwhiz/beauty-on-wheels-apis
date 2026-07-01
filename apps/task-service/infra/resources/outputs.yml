@@ -1,16 +1,1 @@
-# Disabled until TaskServiceBus is provisioned and reminder scheduler is integrated.
-# Outputs:
-#   TaskServiceBusName:
-#     Description: Name of the Task Service Event Bus
-#     Value:
-#       Ref: TaskServiceBus
-#     Export:
-#       Name: ${self:provider.stage}-${self:service}-EventBusName
-#   TaskServiceBusArn:
-#     Description: ARN of the Task Service Event Bus
-#     Value:
-#       Fn::GetAtt:
-#         - TaskServiceBus
-#         - Arn
-#     Export:
-#       Name: ${self:provider.stage}-${self:service}-EventBusArn
+# Event bus exports — see infra/resources/eventbridge-resources.yml (TaskServiceBus + Outputs).

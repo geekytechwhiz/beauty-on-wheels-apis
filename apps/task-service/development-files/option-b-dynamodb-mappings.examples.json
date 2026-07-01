@@ -130,7 +130,7 @@
           "scheduledReminderAt": 1780578000000,
           "reminderChannel": "Push",
           "reminderStatus": "Scheduled",
-          "updatedAt": 1780554600000,
+          "createdAt": 1780554600000,
           "schedulerJobId": "sch-job-99102"
         }
       ]
@@ -145,7 +145,7 @@
           "reminderChannel": "Push",
           "reminderStatus": "Sent",
           "sentAt": 1780578005000,
-          "updatedAt": 1780578005000,
+          "createdAt": 1780578005000,
           "schedulerJobId": "sch-job-99102"
         }
       ]
@@ -160,7 +160,7 @@
         {
           "reminderRecordId": "rem-rtask-7k9m2p4q8x1n6w3e-1780578000000-Push",
           "reminderStatus": "Cancelled",
-          "updatedAt": 1780573500000
+          "createdAt": 1780573500000
         }
       ],
       "evidenceSummary": {
@@ -304,7 +304,7 @@
         {
           "reminderRecordId": "rem-rtask-7k9m2p4q8x1n6w3e-1780578000000-Push",
           "reminderStatus": "Cancelled",
-          "updatedAt": 1780571000000
+          "createdAt": 1780571000000
         }
       ],
       "note": "No evidenceSummary on Dismissed/Cancelled unless product requires it"
@@ -359,7 +359,7 @@
         "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> historyEventType=StateChange",
         "PutItem LOOKUP (taskSk, dueWindowStart, dueWindowEnd, reminderHistory=[] optional)"
       ],
-      "outboundOptional": ["RegisterReminderJobs → HIST#<ms13>#<histId> ReminderRegisterRequest + LOOKUP reminderHistory append"],
+      "outboundOptional": ["RegisterReminderJobs → Put REM#CURRENT + LOOKUP reminderHistory append scheduled"],
       "metaAtCreate": {
         "orgId": "JWT",
         "patientId": "requestBody",
@@ -438,7 +438,7 @@
         },
         "Dismissed": {
           "writes": [
-            "UpdateItem LOOKUP — cancel reminderHistory (mark Scheduled entries Cancelled)",
+            "UpdateItem LOOKUP — cancel reminderHistory (append Cancelled audit rows)",
             "PutItem HIST#<transitionAtMs13>#<taskStateHistoryId> ReminderCancelRequest — optional",
             "outbound CancelReminderJobs"
           ],

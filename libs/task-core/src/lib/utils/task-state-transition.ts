@@ -1,8 +1,7 @@
-import { randomUUID } from 'crypto';
-
 import type { TaskEvidenceSummaryDdbRecord } from '../models/persistence/task-ddb.model';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
-import { RUNTIME_TASK_STATE, type RuntimeTaskState } from '../models/types/runtime-task-state.type';
+import { TaskIdBuilder } from '../builder/task-id.builder';import { RUNTIME_TASK_STATE, type RuntimeTaskState } from '../models/types/runtime-task-state.type';
+import { omitUndefined } from './omit-undefined';
 
 export function buildEvidenceSummaryRollup(
   meta: TaskMetaDdbRecord,
@@ -10,38 +9,28 @@ export function buildEvidenceSummaryRollup(
   nowMs: number,
   latestCompletionSummary?: string,
 ): TaskEvidenceSummaryDdbRecord {
-  const summary: TaskEvidenceSummaryDdbRecord = {
-    taskEvidenceSummaryId: `sum-${meta.runtimeTaskInstanceId}-latest`,
+  const completed = toState === RUNTIME_TASK_STATE.COMPLETED;
+  const missed = toState === RUNTIME_TASK_STATE.MISSED;
+
+  return omitUndefined({
+    taskEvidenceSummaryId: TaskIdBuilder.buildEvidenceSummaryId(meta.runtimeTaskInstanceId),
     runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
     generatedAt: nowMs,
     currentState: toState,
     runtimeTaskSource: meta.runtimeTaskSource,
     taskBehaviorCode: meta.taskBehaviorCode,
     taskDisplayGroup: meta.taskDisplayGroup,
-    ...(meta.carePlanInstanceId ? { carePlanInstanceId: meta.carePlanInstanceId } : {}),
-    ...(meta.workflowStage ? { workflowStage: meta.workflowStage } : {}),
-    ...(meta.requiredForStageCompletion != null
-      ? { requiredForStageCompletion: meta.requiredForStageCompletion }
-      : {}),
-    ...(meta.completionSourceType ? { completionSourceType: meta.completionSourceType } : {}),
-    ...(meta.completionSourceReferenceId
-      ? { completionSourceReferenceId: meta.completionSourceReferenceId }
-      : {}),
-  };
-
-  if (toState === RUNTIME_TASK_STATE.COMPLETED) {
-    summary.completedAt = nowMs;
-    summary.latestCompletionSummary =
-      latestCompletionSummary ?? meta.displayTitle ?? 'Task completed';
-  }
-  if (toState === RUNTIME_TASK_STATE.MISSED) {
-    summary.missedAt = nowMs;
-    summary.latestCompletionSummary = latestCompletionSummary ?? 'Task missed';
-  }
-
-  return summary;
-}
-
-export function newCompletionEvidenceId(): string {
-  return `evid-${randomUUID()}`;
+    carePlanInstanceId: meta.carePlanInstanceId,
+    workflowStage: meta.workflowStage,
+    requiredForStageCompletion: meta.requiredForStageCompletion ?? undefined,
+    completionSourceType: meta.completionSourceType,
+    completionSourceReferenceId: meta.completionSourceReferenceId,
+    completedAt: completed ? nowMs : undefined,
+    missedAt: missed ? nowMs : undefined,
+    latestCompletionSummary: completed
+      ? (latestCompletionSummary ?? meta.displayTitle ?? 'Task completed')
+      : missed
+        ? (latestCompletionSummary ?? 'Task missed')
+        : undefined,
+  }) as TaskEvidenceSummaryDdbRecord;
 }

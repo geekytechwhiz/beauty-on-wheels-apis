@@ -1,0 +1,54 @@
+# Task-service SSM parameter paths per stage (published by mvrx-resource-registry on deploy).
+dev:
+  region: /dev/task-service/REGION
+  stage: /dev/task-service/STAGE
+  nodeEnv: /dev/task-service/NODE_ENV
+  serviceName: /dev/task-service/SERVICE_NAME
+  taskTable: /dev/task-service/TASK_TABLE
+  carePlanLsiIndex: /dev/task-service/CARE_PLAN_LSI_INDEX
+  staffTasksGsiIndex: /dev/task-service/STAFF_TASKS_GSI_INDEX
+  logLevel: /dev/task-service/LOG_LEVEL
+  awsNodejsConnectionReuseEnabled: /dev/task-service/AWS_NODEJS_CONNECTION_REUSE_ENABLED
+  userServiceTimeoutMs: /dev/task-service/USER_SERVICE_TIMEOUT_MS
+  organizationServiceTimeoutMs: /dev/task-service/ORGANIZATION_SERVICE_TIMEOUT_MS
+  taskEventBusName: /dev/task-service/eventbridge/TaskServiceBus/name
+  eventDlqQueueUrl: /dev/task-service/sqs/TaskEventsConsumerDLQ/url
+  reminderSchedulerGroupName: /dev/task-service/REMINDER_SCHEDULER_GROUP_NAME
+  reminderSchedulerTargetRoleArn: /dev/task-service/REMINDER_SCHEDULER_TARGET_ROLE_ARN
+  processReminderLambdaArn: /dev/task-service/PROCESS_REMINDER_LAMBDA_ARN
+
+stg:
+  region: /stg/task-service/REGION
+  stage: /stg/task-service/STAGE
+  nodeEnv: /stg/task-service/NODE_ENV
+  serviceName: /stg/task-service/SERVICE_NAME
+  taskTable: /stg/task-service/TASK_TABLE
+  carePlanLsiIndex: /stg/task-service/CARE_PLAN_LSI_INDEX
+  staffTasksGsiIndex: /stg/task-service/STAFF_TASKS_GSI_INDEX
+  logLevel: /stg/task-service/LOG_LEVEL
+  awsNodejsConnectionReuseEnabled: /stg/task-service/AWS_NODEJS_CONNECTION_REUSE_ENABLED
+  userServiceTimeoutMs: /stg/task-service/USER_SERVICE_TIMEOUT_MS
+  organizationServiceTimeoutMs: /stg/task-service/ORGANIZATION_SERVICE_TIMEOUT_MS
+  taskEventBusName: /stg/task-service/eventbridge/TaskServiceBus/name
+  eventDlqQueueUrl: /stg/task-service/sqs/TaskEventsConsumerDLQ/url
+  reminderSchedulerGroupName: /stg/task-service/REMINDER_SCHEDULER_GROUP_NAME
+  reminderSchedulerTargetRoleArn: /stg/task-service/REMINDER_SCHEDULER_TARGET_ROLE_ARN
+  processReminderLambdaArn: /stg/task-service/PROCESS_REMINDER_LAMBDA_ARN
+
+prd:
+  region: /prd/task-service/REGION
+  stage: /prd/task-service/STAGE
+  nodeEnv: /prd/task-service/NODE_ENV
+  serviceName: /prd/task-service/SERVICE_NAME
+  taskTable: /prd/task-service/TASK_TABLE
+  carePlanLsiIndex: /prd/task-service/CARE_PLAN_LSI_INDEX
+  staffTasksGsiIndex: /prd/task-service/STAFF_TASKS_GSI_INDEX
+  logLevel: /prd/task-service/LOG_LEVEL
+  awsNodejsConnectionReuseEnabled: /prd/task-service/AWS_NODEJS_CONNECTION_REUSE_ENABLED
+  userServiceTimeoutMs: /prd/task-service/USER_SERVICE_TIMEOUT_MS
+  organizationServiceTimeoutMs: /prd/task-service/ORGANIZATION_SERVICE_TIMEOUT_MS
+  taskEventBusName: /prd/task-service/eventbridge/TaskServiceBus/name
+  eventDlqQueueUrl: /prd/task-service/sqs/TaskEventsConsumerDLQ/url
+  reminderSchedulerGroupName: /prd/task-service/REMINDER_SCHEDULER_GROUP_NAME
+  reminderSchedulerTargetRoleArn: /prd/task-service/REMINDER_SCHEDULER_TARGET_ROLE_ARN
+  processReminderLambdaArn: /prd/task-service/PROCESS_REMINDER_LAMBDA_ARN

@@ -63,9 +63,9 @@ export type TaskBehaviorCode =
 
 export type TaskDisplayGroup = 'action' | 'learning' | 'checkIn' | 'staffTask';
 
-export type AssignedToType = 'patient' | 'staff';
+export type AssignedToType = 'patient' | 'careTeamRole' | 'user' | 'orgStaff' | 'system';
 
-export type WorkflowStage = 'onboarding' | 'ongoing' | 'review' | 'closure';
+export type WorkflowStage = 'onboarding' | 'ongoingCare' | 'formalReview' | 'closure';
 
 export type RuntimeTaskState =
   | 'scheduled'
@@ -153,9 +153,9 @@ export interface RuntimeTaskInstanceRecord {
   displayTitle: string;
   description?: string;
   assignedToType: AssignedToType;
-  /** When assignedToType is staff; drives GSI1 staff inbox. */
+  /** When assignedToType is not patient; assignee id drives GSI1 inbox indexing. */
   assignedToStaffId?: Id;
-  /** Required with assignedToStaffId for staff tasks and assign/reassign API. */
+  /** Required with assignedToStaffId for non-patient tasks and orgStaff assign/reassign API. */
   assignedToStaffDisplayName?: string;
   displayToPatient: boolean;
   workflowStage?: WorkflowStage;
@@ -232,7 +232,7 @@ export interface ReminderRecord {
   reminderChannel: ReminderChannel;
   reminderStatus: ReminderStatus;
   sentAt?: EpochMillis;
-  updatedAt?: EpochMillis;
+  createdAt: EpochMillis;
   failureReason?: string;
   suppressedReason?: string;
   schedulerJobId?: Id;
@@ -341,7 +341,7 @@ export interface GenerateCarePlanTaskLinkage {
   description?: string;
   assignedToType: AssignedToType;
   displayToPatient: boolean;
-  /** Required when assignedToType is staff; drives GSI1 at create. */
+  /** Required when assignedToType is not patient; drives GSI1 at create. */
   assignedToStaffId?: Id;
   assignedToStaffDisplayName?: string;
   actionTargetId?: Id;

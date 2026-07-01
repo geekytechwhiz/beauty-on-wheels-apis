@@ -17,7 +17,7 @@ function sampleMeta(): TaskMetaDdbRecord {
     displayTitle: 'Check in',
     assignedToType: ASSIGNED_TO_TYPE.PATIENT,
     displayToPatient: true,
-    currentState: RUNTIME_TASK_STATE.OPEN,
+    currentState: RUNTIME_TASK_STATE.SCHEDULED,
     createdAt: 1,
     createdBy: 'system',
     lastUpdatedAt: 1,

@@ -9,10 +9,10 @@ import {
   RUNTIME_TASK_STATE,
   SERVICE_FLOW_SYSTEM_ACTOR,
   SURFACE_SECTION,
-  TASK_LIST_DEFAULT_PAGE_SIZE,
-  TASK_LIST_MAX_PAGE_SIZE,
-  WORKFLOW_STAGE,
   type ActionCenterSurfaceFilter,
+  type CreateMonitoringActionHttpBody,
+  type CreateRuntimeTaskHttpBody,
+  type GenerateCarePlanTasksHttpBody,
   type RuntimeTaskState,
   type SurfaceSection,
   type TaskRuntimeAction,
@@ -20,10 +20,8 @@ import {
 } from '@api-hub/task-core';
 
 import { getActorUserIdForRequest, getOrganizationIdForRequest } from '../utils/helpers';
+import { parseOptionalEnum, parseOptionalNonEmptyString, parsePageSize } from './request-parser';
 import type {
-  CreateMonitoringActionHttpBody,
-  CreateRuntimeTaskHttpBody,
-  GenerateCarePlanTasksHttpBody,
   UpdateAssignedStaffHttpBody,
   UpdateReminderSettingsHttpBody,
   UpdateRuntimeTaskHttpBody,
@@ -168,38 +166,12 @@ export type ValidatedGetRuntimeTaskHistory = {
   authHeader: string | undefined;
 };
 
-const WORKFLOW_STAGE_VALUES = Object.values(WORKFLOW_STAGE) as WorkflowStage[];
 const RUNTIME_TASK_STATE_VALUES = Object.values(RUNTIME_TASK_STATE) as RuntimeTaskState[];
 const SURFACE_SECTION_VALUES = Object.values(SURFACE_SECTION) as SurfaceSection[];
 const ACTION_CENTER_SURFACE_VALUES: ActionCenterSurfaceFilter[] = [
   ...SURFACE_SECTION_VALUES,
   'all',
 ];
-
-function parsePageSize(raw: string | undefined): number {
-  if (!raw?.trim()) return TASK_LIST_DEFAULT_PAGE_SIZE;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1) {
-    throwVal('pageSize must be a positive integer', 400, 'VALIDATION_ERROR');
-  }
-  if (n > TASK_LIST_MAX_PAGE_SIZE) {
-    throwVal(`pageSize must not exceed ${TASK_LIST_MAX_PAGE_SIZE}`, 400, 'VALIDATION_ERROR');
-  }
-  return n;
-}
-
-function parseOptionalEnum<T extends string>(
-  raw: string | undefined,
-  allowed: readonly T[],
-  fieldName: string,
-): T | undefined {
-  const value = raw?.trim();
-  if (!value) return undefined;
-  if (!(allowed as readonly string[]).includes(value)) {
-    throwVal(`${fieldName} must be one of: ${allowed.join(', ')}`, 400, 'VALIDATION_ERROR');
-  }
-  return value as T;
-}
 
 export function validateGetRuntimeTaskHistoryRequest(req: LambdaRequest): void {
   const orgId = getOrganizationIdForRequest(req.event, req.context.authHeader);
@@ -260,11 +232,7 @@ export function validateGetTasksRequest(req: LambdaRequest): void {
   }
 
   const carePlanInstanceId = req.params?.carePlanInstanceId?.trim() || undefined;
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
   const currentState = parseOptionalEnum(
     req.params?.currentState,
     RUNTIME_TASK_STATE_VALUES,
@@ -369,11 +337,7 @@ export function validateGetActionCenterItemsRequest(req: LambdaRequest): void {
   }
 
   const carePlanInstanceId = req.params?.carePlanInstanceId?.trim() || undefined;
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
   const pageSize = parsePageSize(req.params?.pageSize);
   const nextToken = req.params?.nextToken?.trim() || undefined;
 
@@ -477,11 +441,7 @@ export function validateGetTaskStatusSummaryRequest(req: LambdaRequest): void {
     throwVal('patientId query parameter is required', 400, 'VALIDATION_ERROR');
   }
 
-  const workflowStage = parseOptionalEnum(
-    req.params?.workflowStage,
-    WORKFLOW_STAGE_VALUES,
-    'workflowStage',
-  );
+  const workflowStage = parseOptionalNonEmptyString(req.params?.workflowStage);
 
   (req as LambdaRequest & { validatedGetTaskStatusSummary: ValidatedGetTaskStatusSummary })
     .validatedGetTaskStatusSummary = {
@@ -559,3 +519,56 @@ export function validateUpdateRuntimeTaskRequest(req: LambdaRequest): void {
     authHeader: req.context.authHeader,
   };
 }
+
+export type ValidatedCreateMonitoringActionRequest = LambdaRequest & {
+  validatedCreateMonitoringAction: ValidatedCreateMonitoringAction;
+};
+
+export type ValidatedCreateRuntimeTaskRequest = LambdaRequest & {
+  validatedCreateRuntimeTask: ValidatedCreateRuntimeTask;
+};
+
+export type ValidatedGetRuntimeTaskRequest = LambdaRequest & {
+  validatedGetRuntimeTask: ValidatedGetRuntimeTask;
+};
+
+export type ValidatedUpdateAssignedStaffRequest = LambdaRequest & {
+  validatedUpdateAssignedStaff: ValidatedUpdateAssignedStaff;
+};
+
+export type ValidatedGetTasksRequest = LambdaRequest & {
+  validatedGetTasks: ValidatedGetTasks;
+};
+
+export type ValidatedGetStaffTasksRequest = LambdaRequest & {
+  validatedGetStaffTasks: ValidatedGetStaffTasks;
+};
+
+export type ValidatedGetActionCenterItemsRequest = LambdaRequest & {
+  validatedGetActionCenterItems: ValidatedGetActionCenterItems;
+};
+
+export type ValidatedGetRuntimeTaskHistoryRequest = LambdaRequest & {
+  validatedGetRuntimeTaskHistory: ValidatedGetRuntimeTaskHistory;
+};
+
+export type ValidatedGenerateCarePlanTasksRequest = LambdaRequest & {
+  validatedGenerateCarePlanTasks: ValidatedGenerateCarePlanTasks;
+};
+
+export type ValidatedUpdateTaskStateRequest = LambdaRequest & {
+  validatedUpdateTaskState: ValidatedUpdateTaskState;
+};
+
+export type ValidatedGetTaskStatusSummaryRequest = LambdaRequest & {
+  validatedGetTaskStatusSummary: ValidatedGetTaskStatusSummary;
+};
+
+export type ValidatedUpdateRuntimeTaskRequest = LambdaRequest & {
+  validatedUpdateRuntimeTask: ValidatedUpdateRuntimeTask;
+};
+
+export type ValidatedUpdateReminderSettingsRequest = LambdaRequest & {
+  validatedUpdateReminderSettings: ValidatedUpdateReminderSettings;
+};
+

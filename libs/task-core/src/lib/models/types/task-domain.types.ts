@@ -1,5 +1,12 @@
 /** Canonical enum values — camelCase for API JSON and DynamoDB attributes. */
 
+/**
+ * Hardcode `as const` objects only for value codes used in backend logic (transitions,
+ * derivation, GSI keys, actor checks, reminder processing). Catalog fields such as
+ * `taskBehaviorCode`, `workflowStage`, and `completionSourceType` are plain strings
+ * from the UI — stored and returned without a full backend enum list.
+ */
+
 export const RUNTIME_TASK_SOURCE = {
   CARE_PLAN_TASK_LINKAGE: 'carePlanTaskLinkage',
   MONITORING_RUNTIME: 'monitoringRuntime',
@@ -9,16 +16,8 @@ export const RUNTIME_TASK_SOURCE = {
 
 export type RuntimeTaskSource = (typeof RUNTIME_TASK_SOURCE)[keyof typeof RUNTIME_TASK_SOURCE];
 
-export type TaskBehaviorCode =
-  | 'INSTRUCTION'
-  | 'DOCUMENT_FORM'
-  | 'UPLOAD_DOCUMENT'
-  | 'DEVICE_SETUP'
-  | 'EDUCATION_VIDEO'
-  | 'EDUCATION_ARTICLE'
-  | 'CARE_TEAM_TASK'
-  | 'METRIC_CHECKIN'
-  | 'SYMPTOM_CHECKIN';
+/** Metadata catalog value — stored and returned as-is; UI resolves labels. */
+export type TaskBehaviorCode = string;
 
 export const TASK_DISPLAY_GROUP = {
   ACTION: 'action',
@@ -30,20 +29,29 @@ export const TASK_DISPLAY_GROUP = {
 export type TaskDisplayGroup = (typeof TASK_DISPLAY_GROUP)[keyof typeof TASK_DISPLAY_GROUP];
 
 /**
- * Who completes or owns a runtime task — camelCase on API wire and DynamoDB.
+ * Metadata Registry AssignedToType value codes — stored and returned as-is on API + DynamoDB.
  * Shared with TASK, ALERT, ROLES_PERMISSIONS domains.
  */
 export const ASSIGNED_TO_TYPE = {
+  PATIENT: 'PATIENT',
+  CARE_TEAM_ROLE: 'CARE_TEAM_ROLE',
+  USER: 'USER',
+  ORG_STAFF: 'ORG_STAFF',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export type AssignedToType = (typeof ASSIGNED_TO_TYPE)[keyof typeof ASSIGNED_TO_TYPE];
+
+/** Legacy camelCase wire values accepted on input / read from older rows — not rewritten on write. */
+const LEGACY_ASSIGNED_TO_TYPE = {
   PATIENT: 'patient',
   CARE_TEAM_ROLE: 'careTeamRole',
   USER: 'user',
   ORG_STAFF: 'orgStaff',
   SYSTEM: 'system',
+  STAFF: 'staff',
 } as const;
 
-export type AssignedToType = (typeof ASSIGNED_TO_TYPE)[keyof typeof ASSIGNED_TO_TYPE];
-
-/** Non-patient assignees are indexed on GSI1. orgStaff uses `ORG#<org>#STAFF#<id>`; others use `STAFF#<assignedToType>#<id>`. */
 export const GSI_ASSIGNEE_ASSIGNED_TO_TYPES = [
   ASSIGNED_TO_TYPE.CARE_TEAM_ROLE,
   ASSIGNED_TO_TYPE.USER,
@@ -51,20 +59,31 @@ export const GSI_ASSIGNEE_ASSIGNED_TO_TYPES = [
   ASSIGNED_TO_TYPE.SYSTEM,
 ] as const satisfies readonly AssignedToType[];
 
-export function isPatientAssignedToType(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+export function isPatientAssignedToType(assignedToType: string): boolean {
+  return (
+    assignedToType === ASSIGNED_TO_TYPE.PATIENT ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.PATIENT
+  );
 }
 
-export function requiresAssigneeGsi(assignedToType: AssignedToType): boolean {
+export function requiresAssigneeGsi(assignedToType: string): boolean {
   return !isPatientAssignedToType(assignedToType);
 }
 
-/** Legacy wire value `staff` → `orgStaff` when reading older rows. */
-export function normalizeAssignedToTypeForWire(value: string): AssignedToType {
-  if (value === 'staff') {
-    return ASSIGNED_TO_TYPE.ORG_STAFF;
-  }
-  return value as AssignedToType;
+export function isOrgStaffAssignedToType(assignedToType: string): boolean {
+  return (
+    assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.ORG_STAFF ||
+    assignedToType === LEGACY_ASSIGNED_TO_TYPE.STAFF
+  );
+}
+
+/** Known registry + legacy assignee types — validation only; values are persisted verbatim. */
+export function isKnownAssignedToType(value: string): value is AssignedToType {
+  return (
+    (Object.values(ASSIGNED_TO_TYPE) as readonly string[]).includes(value) ||
+    (Object.values(LEGACY_ASSIGNED_TO_TYPE) as readonly string[]).includes(value)
+  );
 }
 
 export const SURFACE_SECTION = {
@@ -105,18 +124,26 @@ export const TRANSITION_SOURCE = {
 
 export type TransitionSource = (typeof TRANSITION_SOURCE)[keyof typeof TRANSITION_SOURCE];
 
-export const WORKFLOW_STAGE = {
-  ONBOARDING: 'onboarding',
-  ONGOING: 'ongoing',
-  REVIEW: 'review',
-  CLOSURE: 'closure',
+/** Metadata catalog value — filter/query passthrough; not compared in service logic. */
+export type WorkflowStage = string;
+
+export const REMINDER_SCHEDULE_ANCHOR = {
+  DUE_WINDOW_START: 'dueWindowStart',
+  DUE_WINDOW_END: 'dueWindowEnd',
 } as const;
 
-export type WorkflowStage = (typeof WORKFLOW_STAGE)[keyof typeof WORKFLOW_STAGE];
+export type ReminderScheduleAnchor =
+  (typeof REMINDER_SCHEDULE_ANCHOR)[keyof typeof REMINDER_SCHEDULE_ANCHOR];
 
 export interface ReminderSettings {
   channels?: string[];
   quietHoursRespected?: boolean;
+  /** Which due-window boundary to anchor the reminder to. Defaults to `dueWindowEnd`. */
+  scheduleAnchor?: ReminderScheduleAnchor;
+  /** Milliseconds added to the anchor (negative = before anchor). Defaults to `0`. */
+  offsetMs?: number;
+  /** How many ms before the quiet-hours start to fire when the target falls inside quiet hours. Defaults to `300000` (5 min). */
+  quietHoursBufferMs?: number;
   [key: string]: unknown;
 }
 
@@ -125,7 +152,6 @@ export const TASK_RUNTIME_ACTION = {
   COMPLETE: 'complete',
   DISMISS: 'dismiss',
   CANCEL: 'cancel',
-  MARK_MISSED: 'markMissed',
 } as const;
 
 export type TaskRuntimeAction = (typeof TASK_RUNTIME_ACTION)[keyof typeof TASK_RUNTIME_ACTION];
@@ -138,6 +164,7 @@ export const ACTOR_TYPE = {
 
 export type ActorType = (typeof ACTOR_TYPE)[keyof typeof ACTOR_TYPE];
 
+/** History attribution — how the state transition was initiated. */
 export const COMPLETION_SOURCE = {
   MANUAL: 'manual',
   LINKED_OBJECT: 'linkedObject',
@@ -145,6 +172,9 @@ export const COMPLETION_SOURCE = {
 } as const;
 
 export type CompletionSource = (typeof COMPLETION_SOURCE)[keyof typeof COMPLETION_SOURCE];
+
+/** Metadata catalog value — stored on META / used in linked-completion queries. */
+export type CompletionSourceType = string;
 
 export const REMINDER_STATUS = {
   SCHEDULED: 'scheduled',
@@ -165,6 +195,20 @@ export const REMINDER_CHANNEL = {
 } as const;
 
 export type ReminderChannel = (typeof REMINDER_CHANNEL)[keyof typeof REMINDER_CHANNEL];
+
+/** Append-only LOOKUP reminderHistory row — each status change is a new entry with createdAt only. */
+export type ReminderHistoryEntry = {
+  reminderRecordId: string;
+  runtimeTaskInstanceId?: string;
+  scheduledReminderAt?: number;
+  reminderChannel?: ReminderChannel;
+  reminderStatus: ReminderStatus;
+  sentAt?: number;
+  createdAt: number;
+  failureReason?: string;
+  suppressedReason?: string;
+  schedulerJobId?: string;
+};
 
 /** Care-plan stage readiness rollup (GET .../task-status-summary). */
 export const READINESS_STATUS = {

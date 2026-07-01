@@ -99,7 +99,7 @@ describe('getTasks HTTP handler', () => {
   it('returns 200 with split patient/staff task buckets on success', async () => {
     mockListPatientTasks.mockResolvedValue({
       patientId: 'pat-1',
-      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }] },
+      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'active' }] },
       staffTasks: { items: [] },
     });
 
@@ -155,8 +155,8 @@ describe('getTasks HTTP handler', () => {
           patientId: 'pat-1',
           staffUserId: 'staff-1',
           carePlanInstanceId: 'cp-1',
-          workflowStage: 'ongoing',
-          currentState: 'open',
+          workflowStage: 'ongoingCare',
+          currentState: 'active',
           pageSize: '10',
         },
       }),
@@ -167,8 +167,8 @@ describe('getTasks HTTP handler', () => {
       expect.objectContaining({
         staffUserId: 'staff-1',
         carePlanInstanceId: 'cp-1',
-        workflowStage: 'ongoing',
-        currentState: 'open',
+        workflowStage: 'ongoingCare',
+        currentState: 'active',
         pageSize: 10,
       }),
     );

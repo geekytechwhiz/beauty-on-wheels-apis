@@ -25,6 +25,35 @@ info:
     **Idempotency:** care-plan and monitoring creates use deterministic `runtimeTaskInstanceId` + conditional writes;
     API `data` includes `outcome` of `Created` or `SkippedDuplicate` where applicable.
 
+    **Metadata Registry value codes:** five fields use dynamic catalog value codes from the Metadata Registry
+    (labels via registry API, e.g. `POST /metadata/values/by-types`). Registry-backed properties use `type: string`
+    with no fixed `enum` — the service persists and returns codes **exactly as sent** by the client.
+
+    | Registry type code | API / META field |
+    |--------------------|------------------|
+    | `TaskBehaviorCode` | `taskBehaviorCode` |
+    | `TaskDisplayGroup` | `taskDisplayGroup` |
+    | `TaskWorkflowStage` | `workflowStage` |
+    | `TaskGenerationTrigger` | `taskGenerationTrigger` |
+    | `AssignedToType` | `assignedToType` |
+    | `ReminderChannel` | `reminderSettings.channels[]`, `reminderChannel` (reminder history) |
+
+    **Sample registry value codes** (use these in request examples — authoritative list is Metadata Registry; not an API `enum`):
+
+    | Registry type | Sample value codes |
+    |---------------|-------------------|
+    | `TaskBehaviorCode` | `INSTRUCTION`, `DOCUMENT_FORM`, `UPLOAD_DOCUMENT`, `DEVICE_SETUP`, `EDUCATION_VIDEO`, `EDUCATION_ARTICLE`, `CARE_TEAM_TASK`, `METRIC_CHECK_IN`, `SYMPTOM_CHECK_IN` |
+    | `TaskDisplayGroup` | `ACTION`, `CHECK_IN`, `LEARNING`, `STAFF_TASK` |
+    | `TaskWorkflowStage` | `ONBOARDING`, `ONGOING_CARE`, `FORMAL_REVIEW`, `CLOSURE` |
+    | `TaskGenerationTrigger` | `AT_CARE_PLAN_ACTIVATED`, `AT_CARE_PLAN_FULLY_ACTIVE`, `AT_REVIEW_DUE`, `AT_CARE_PLAN_CLOSURE`, `MANUAL` |
+    | `AssignedToType` | `PATIENT`, `ORG_STAFF`, `CARE_TEAM_ROLE`, `USER`, `SYSTEM` |
+    | `ReminderChannel` | `PUSH`, `SMS`, `EMAIL`, `IN_APP` |
+
+    Operational fields (not Metadata Registry) keep camelCase in examples: `runtimeTaskSource` (`manualSystem`),
+    `currentState` (`active`), `surfaceSection` (`today`), `action` (`complete`), `actorType` (`patient`).
+
+    Fields such as `completionSourceType`, `displayTitle`, and `runtimeTaskSource` are **not** Metadata Registry types.
+
     **Deployed Swagger UI** uses `apps/task-service/swagger.json` (merged by `serverless-auto-swagger`), not this OpenAPI
     file. Keep both files in sync when changing public contracts.
 
@@ -187,9 +216,61 @@ components:
       type: string
       enum: [CarePlanTaskLinkage, MonitoringRuntime, ServiceFlowRuntime, ManualSystem]
 
-    TaskBehaviorCode:
+    MetadataRegistryValue:
       type: string
-      enum:
+      minLength: 1
+      description: >
+        Opaque Metadata Registry **value code**. Allowed codes are dynamic per registry type — resolve display labels
+        via the Metadata Registry batch read API (`POST /metadata/values/by-types`). Task Service stores and returns
+        the code verbatim. See `MetadataRegistryTypeSamples` and per-type `x-metadataRegistrySampleValues` for
+        illustrative codes only.
+
+    MetadataRegistryTypeSamples:
+      type: object
+      description: >
+        Illustrative sample value codes per Metadata Registry type (not exhaustive; not enforced by Task Service).
+        Labels and the full catalog are owned by Metadata Registry.
+      additionalProperties: false
+      properties:
+        TaskBehaviorCode:
+          type: array
+          items: { type: string }
+          example:
+            - INSTRUCTION
+            - DOCUMENT_FORM
+            - UPLOAD_DOCUMENT
+            - DEVICE_SETUP
+            - EDUCATION_VIDEO
+            - EDUCATION_ARTICLE
+            - CARE_TEAM_TASK
+            - METRIC_CHECK_IN
+            - SYMPTOM_CHECK_IN
+        TaskDisplayGroup:
+          type: array
+          items: { type: string }
+          example: [ACTION, CHECK_IN, LEARNING, STAFF_TASK]
+        TaskWorkflowStage:
+          type: array
+          items: { type: string }
+          example: [ONBOARDING, ONGOING_CARE, FORMAL_REVIEW, CLOSURE]
+        TaskGenerationTrigger:
+          type: array
+          items: { type: string }
+          example: [AT_CARE_PLAN_ACTIVATED, AT_CARE_PLAN_FULLY_ACTIVE, AT_REVIEW_DUE, AT_CARE_PLAN_CLOSURE, MANUAL]
+        AssignedToType:
+          type: array
+          items: { type: string }
+          example: [PATIENT, ORG_STAFF, CARE_TEAM_ROLE, USER, SYSTEM]
+        ReminderChannel:
+          type: array
+          items: { type: string }
+          example: [PUSH, SMS, EMAIL, IN_APP]
+
+    TaskBehaviorCode:
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: TaskBehaviorCode
+      x-metadataRegistrySampleValues:
         - INSTRUCTION
         - DOCUMENT_FORM
         - UPLOAD_DOCUMENT
@@ -197,20 +278,26 @@ components:
         - EDUCATION_VIDEO
         - EDUCATION_ARTICLE
         - CARE_TEAM_TASK
-        - METRIC_CHECKIN
-        - SYMPTOM_CHECKIN
+        - METRIC_CHECK_IN
+        - SYMPTOM_CHECK_IN
+      description: Registry type **TaskBehaviorCode** — API field `taskBehaviorCode`.
+      example: METRIC_CHECK_IN
 
     TaskDisplayGroup:
-      type: string
-      enum: [Action, Learning, CheckIn, StaffTask]
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: TaskDisplayGroup
+      x-metadataRegistrySampleValues: [ACTION, CHECK_IN, LEARNING, STAFF_TASK]
+      description: Registry type **TaskDisplayGroup** — API field `taskDisplayGroup`.
+      example: CHECK_IN
 
     CurrentState:
       type: string
-      enum: [open, scheduled, active, completed, missed, dismissed, cancelled]
+      enum: [scheduled, active, completed, missed, dismissed, cancelled]
       description: >
-        Runtime task state on the wire (camelCase). In-progress rows may persist legacy `active` or
-        `scheduled`; reads normalize to `open`. Clients may send `open`, `active`, or `scheduled` for
-        `expectedCurrentState` when locking in-progress tasks.
+        Runtime task state on the wire (camelCase value codes). In-progress rows persist `scheduled`;
+        `active` and `missed` are derived on read from `dueWindowStart`/`dueWindowEnd` and timezone.
+        Clients send the derived wire state as `expectedCurrentState` on POST .../state.
 
     SurfaceSection:
       type: string
@@ -222,32 +309,56 @@ components:
 
     ReminderStatus:
       type: string
-      enum: [Scheduled, Sent, Cancelled, Failed, Suppressed]
+      enum: [scheduled, sent, cancelled, failed, suppressed]
 
     ReminderChannel:
-      type: string
-      enum: [push, sms, email, inApp]
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: ReminderChannel
+      x-metadataRegistrySampleValues: [PUSH, SMS, EMAIL, IN_APP]
+      description: >
+        Registry type **ReminderChannel** — `reminderSettings.channels[]` and `reminderChannel` on reminder history.
+      example: PUSH
 
     TransitionSource:
       type: string
       enum: [manual, scheduler, sourceEvent, system]
 
-    WorkflowStage:
-      type: string
-      enum: [Onboarding, Ongoing, Review, Closure]
+    TaskWorkflowStage:
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: TaskWorkflowStage
+      x-metadataRegistrySampleValues: [ONBOARDING, ONGOING_CARE, FORMAL_REVIEW, CLOSURE]
+      description: Registry type **TaskWorkflowStage** — API field `workflowStage`.
+      example: ONBOARDING
+
+    TaskGenerationTrigger:
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: TaskGenerationTrigger
+      x-metadataRegistrySampleValues:
+        - AT_CARE_PLAN_ACTIVATED
+        - AT_CARE_PLAN_FULLY_ACTIVE
+        - AT_REVIEW_DUE
+        - AT_CARE_PLAN_CLOSURE
+        - MANUAL
+      description: Registry type **TaskGenerationTrigger** — API field `taskGenerationTrigger` on generate-care-plan.
+      example: AT_CARE_PLAN_ACTIVATED
 
     AssignedToType:
-      type: string
-      enum: [patient, careTeamRole, user, orgStaff, system]
+      allOf:
+        - $ref: '#/components/schemas/MetadataRegistryValue'
+      x-metadataRegistryType: AssignedToType
+      x-metadataRegistrySampleValues: [PATIENT, ORG_STAFF, CARE_TEAM_ROLE, USER, SYSTEM]
       description: >
-        Who completes a runtime task. orgStaff inbox GSI1 is `ORG#<orgId>#STAFF#<assigneeId>`;
-        other non-patient types use `ORG#<orgId>#STAFF#<assignedToType>#<assigneeId>`
-        (`assigneeId` = `assignedToStaffId` on wire).
+        Registry type **AssignedToType** — API field `assignedToType` (patient, doctor, careTeam, orgStaff, etc.).
+        Non-patient assignee inbox GSI1 is always `ORG#<orgId>#STAFF#<assigneeId>`; assignee type is stored on META only.
+      example: PATIENT
 
     ActorType:
       type: string
       enum: [patient, staff]
-      description: Who performed an action (e.g. state update); same values as AssignedToType.
+      description: Who performed an action (e.g. state update). Operational enum — not a Metadata Registry type.
 
     RuntimeTaskCard:
       type: object
@@ -279,16 +390,40 @@ components:
           nullable: true
           description: Patient display name from the create request body; denormalized on META at create.
         carePlanInstanceId: { type: string, nullable: true }
-        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
-        runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
-        taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
-        taskDisplayGroup: { $ref: '#/components/schemas/TaskDisplayGroup' }
-        actionTargetId: { type: string, nullable: true }
-        completionSourceType: { type: string, nullable: true }
-        completionSourceReferenceId: { type: string, nullable: true }
-        displayTitle: { type: string }
-        description: { type: string, nullable: true }
-        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        workflowStage:
+          $ref: '#/components/schemas/TaskWorkflowStage'
+          x-metadataRegistry: true
+        runtimeTaskSource:
+          $ref: '#/components/schemas/RuntimeTaskSource'
+          description: Backend task lineage — **not** a Metadata Registry type.
+        taskBehaviorCode:
+          $ref: '#/components/schemas/TaskBehaviorCode'
+          x-metadataRegistry: true
+        taskDisplayGroup:
+          $ref: '#/components/schemas/TaskDisplayGroup'
+          x-metadataRegistry: true
+        actionTargetId:
+          type: string
+          nullable: true
+          description: Opaque reference id — **not** a Metadata Registry type.
+        completionSourceType:
+          type: string
+          nullable: true
+          description: Linkage type for auto-completion — **not** a Metadata Registry type.
+        completionSourceReferenceId:
+          type: string
+          nullable: true
+          description: Reference id for linked completion — **not** a Metadata Registry type.
+        displayTitle:
+          type: string
+          description: Display text — **not** a Metadata Registry type.
+        description:
+          type: string
+          nullable: true
+          description: Display text — **not** a Metadata Registry type.
+        assignedToType:
+          $ref: '#/components/schemas/AssignedToType'
+          x-metadataRegistry: true
         assignedToStaffId:
           type: string
           nullable: true
@@ -325,7 +460,9 @@ components:
         reminderSettings:
           $ref: '#/components/schemas/ReminderSettings'
           nullable: true
-          description: Latest reminder configuration on META (Requirements v2 REM-007).
+          description: >
+            Latest reminder configuration on META. `channels[]` entries are Metadata Registry **ReminderChannel**
+            value codes; other keys are operational.
         createdAt:
           $ref: '#/components/schemas/EpochMillis'
         createdBy:
@@ -344,7 +481,9 @@ components:
         reminderRecordId: { type: string }
         scheduledReminderAt:
           $ref: '#/components/schemas/EpochMillis'
-        reminderChannel: { $ref: '#/components/schemas/ReminderChannel' }
+        reminderChannel:
+          $ref: '#/components/schemas/ReminderChannel'
+          x-metadataRegistry: true
         reminderStatus: { $ref: '#/components/schemas/ReminderStatus' }
         sentAt:
           $ref: '#/components/schemas/EpochMillis'
@@ -365,8 +504,14 @@ components:
         completionSource:
           type: string
           enum: [Manual, LinkedObject, System]
-        completionSourceType: { type: string, nullable: true }
-        completionSourceReferenceId: { type: string, nullable: true }
+        completionSourceType:
+          type: string
+          nullable: true
+          description: Linkage type for auto-completion — **not** a Metadata Registry type.
+        completionSourceReferenceId:
+          type: string
+          nullable: true
+          description: Reference id for linked completion — **not** a Metadata Registry type.
         completionEventId: { type: string, nullable: true }
         completedAt:
           $ref: '#/components/schemas/EpochMillis'
@@ -399,12 +544,13 @@ components:
     ReminderSettings:
       type: object
       description: >
-        Latest reminder configuration on the runtime task (META.ReminderSettings). Schema is product-defined;
-        channels are the minimum documented shape.
+        Latest reminder configuration on the runtime task (META.reminderSettings). Operational shape; only
+        `channels[]` entries use Metadata Registry **ReminderChannel** value codes.
       additionalProperties: true
       properties:
         channels:
           type: array
+          description: Delivery channels — each item is a Metadata Registry **ReminderChannel** value code.
           items:
             $ref: '#/components/schemas/ReminderChannel'
 
@@ -445,6 +591,7 @@ components:
         reminderChannel:
           $ref: '#/components/schemas/ReminderChannel'
           nullable: true
+          x-metadataRegistry: true
         schedulerJobId: { type: string, nullable: true }
         changedFields:
           type: array
@@ -514,6 +661,12 @@ components:
           type: object
           additionalProperties: true
           description: Optional manual completion proof; when present on `complete`, writes conditional EVID#.
+      example:
+        action: complete
+        actorId: pat-101
+        actorType: patient
+        expectedCurrentState: active
+        reason: Submitted reading via mobile app
 
     UpdateTaskStateResult:
       type: object
@@ -527,8 +680,9 @@ components:
     UpdateReminderSettingsRequest:
       type: object
       description: >
-        Portal-authorized reminder settings change (Requirements v2 FR-TASK-REM-006–008). Writes META latest
-        settings and HIST# ReminderSettingsChange audit; may trigger RegisterReminderJobs / CancelReminderJobs.
+        Portal-authorized reminder settings change. Writes META latest settings and HIST# ReminderSettingsChange
+        audit. When `reminderSettings.channels` is sent, each entry is a Metadata Registry **ReminderChannel**
+        value code.
       required: [actorId, reminderEnabled]
       properties:
         actorId: { type: string }
@@ -539,6 +693,12 @@ components:
         reason:
           type: string
           nullable: true
+      example:
+        actorId: staff-nurse-44721
+        reminderEnabled: true
+        reminderSettings:
+          channels: [PUSH, IN_APP]
+        reason: Patient requested daily reminders
 
     UpdateReminderSettingsResult:
       type: object
@@ -569,6 +729,11 @@ components:
         reason:
           type: string
           nullable: true
+      example:
+        actorId: staff-manager-1
+        assignedToStaffId: staff-nurse-44721
+        assignedToStaffDisplayName: Nurse Lee
+        reason: Care team reassignment
 
     UpdateAssignedStaffResult:
       type: object
@@ -583,30 +748,49 @@ components:
       description: >
         Portal-authorized partial metadata edit. Send only fields to change. Does not modify due windows,
         identity keys, staff assignment, reminders, or task state — use dedicated APIs for those.
+        Only `workflowStage` is a Metadata Registry value code; other mutable fields are plain task attributes.
       required: [actorId]
       properties:
         actorId: { type: string }
         reason:
           type: string
           nullable: true
-        displayTitle: { type: string }
+        displayTitle:
+          type: string
+          description: Display text — **not** a Metadata Registry type.
         description:
           type: string
           nullable: true
+          description: Display text — **not** a Metadata Registry type.
         displayToPatient: { type: boolean }
         requiredForStageCompletion: { type: boolean }
         displayAsChecklistItem: { type: boolean }
-        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
+        workflowStage:
+          $ref: '#/components/schemas/TaskWorkflowStage'
+          x-metadataRegistry: true
         actionTargetId:
           type: string
           nullable: true
+          description: Opaque reference id — **not** a Metadata Registry type.
         completionSourceType:
           type: string
           nullable: true
+          description: Linkage type for auto-completion — **not** a Metadata Registry type.
         completionSourceReferenceId:
           type: string
           nullable: true
-        patientDisplayName: { type: string }
+          description: Reference id for linked completion — **not** a Metadata Registry type.
+        patientDisplayName:
+          type: string
+          description: Display string — **not** a Metadata Registry type.
+      example:
+        actorId: staff-nurse-001
+        displayTitle: Complete daily blood pressure check
+        description: Use home cuff before breakfast
+        displayToPatient: true
+        requiredForStageCompletion: true
+        workflowStage: FORMAL_REVIEW
+        reason: Care plan template wording updated
 
     UpdateRuntimeTaskResult:
       type: object
@@ -631,11 +815,17 @@ components:
       properties:
         carePlanTaskLinkageId: { type: string }
         sourceTaskTemplateVersionId: { type: string }
-        taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
-        taskDisplayGroup: { $ref: '#/components/schemas/TaskDisplayGroup' }
+        taskBehaviorCode:
+          $ref: '#/components/schemas/TaskBehaviorCode'
+          x-metadataRegistry: true
+        taskDisplayGroup:
+          $ref: '#/components/schemas/TaskDisplayGroup'
+          x-metadataRegistry: true
         displayTitle: { type: string }
         description: { type: string }
-        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        assignedToType:
+          $ref: '#/components/schemas/AssignedToType'
+          x-metadataRegistry: true
         displayToPatient: { type: boolean }
         assignedToStaffId:
           type: string
@@ -644,14 +834,16 @@ components:
           type: string
           description: Required when assignedToType is not patient.
         actionTargetId: { type: string }
-        completionSourceType: { type: string }
+        completionSourceType:
+          type: string
+          description: Linkage type for auto-completion — **not** a Metadata Registry type.
         completionSourceReferenceId: { type: string }
         dueWindowStart: { $ref: '#/components/schemas/EpochMillis' }
         dueWindowEnd: { $ref: '#/components/schemas/EpochMillis' }
         reminderEnabled: { type: boolean }
         reminderSettings:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/ReminderSettings'
+          description: When present, `channels[]` uses Metadata Registry **ReminderChannel** value codes.
         requiredForStageCompletion: { type: boolean }
         displayAsChecklistItem: { type: boolean }
       additionalProperties: false
@@ -675,7 +867,9 @@ components:
           type: string
           description: Patient display name from request body (not from JWT).
         carePlanInstanceId: { type: string }
-        taskGenerationTrigger: { type: string }
+        taskGenerationTrigger:
+          $ref: '#/components/schemas/TaskGenerationTrigger'
+          x-metadataRegistry: true
         actorType: { type: string }
         actorId:
           type: string
@@ -691,11 +885,36 @@ components:
                 $ref: '#/components/schemas/CarePlanLinkageMaterialization'
           additionalProperties: false
         workflowStage:
-          $ref: '#/components/schemas/WorkflowStage'
+          $ref: '#/components/schemas/TaskWorkflowStage'
+          x-metadataRegistry: true
+          description: Optional Metadata Registry **TaskWorkflowStage** applied to all created linkages.
         dryRun:
           type: boolean
           default: false
       additionalProperties: false
+      example:
+        patientId: pat-101
+        patientDisplayName: Maria Lopez
+        carePlanInstanceId: cp-2026-001
+        taskGenerationTrigger: AT_CARE_PLAN_ACTIVATED
+        workflowStage: ONBOARDING
+        actorType: system
+        actorId: care-plan-runtime
+        dryRun: false
+        sourceLinkageContext:
+          linkages:
+            - carePlanTaskLinkageId: link-watch-bp-video
+              taskBehaviorCode: EDUCATION_VIDEO
+              taskDisplayGroup: LEARNING
+              displayTitle: "Watch: How to measure BP"
+              assignedToType: PATIENT
+              displayToPatient: true
+              dueWindowStart: 1780567200000
+              dueWindowEnd: 1780610400000
+              requiredForStageCompletion: true
+              displayAsChecklistItem: true
+              reminderSettings:
+                channels: [PUSH, IN_APP]
 
     GenerateCarePlanTasksResult:
       type: object
@@ -719,7 +938,10 @@ components:
       type: object
       description: >
         `orgId` is from the JWT (not in body). `patientId` and `patientDisplayName` are from the request body.
-        Requested by Monitoring Runtime for metric/symptom/setup check-ins; assignedToType selects patient vs staff completion.
+        Requested by Monitoring Runtime for metric/symptom/setup check-ins.
+        Registry inputs: `taskBehaviorCode`, `assignedToType`; optional **ReminderChannel** codes in
+        `reminderContext.channels`. Response `task.taskDisplayGroup` may be service-derived today when not
+        supplied on this path.
       required:
         - patientId
         - patientDisplayName
@@ -740,8 +962,12 @@ components:
           type: string
           description: Required per requirements §5.2 minimum input for CreateMonitoringAction.
         monitoringInstanceId: { type: string }
-        taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
-        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        taskBehaviorCode:
+          $ref: '#/components/schemas/TaskBehaviorCode'
+          x-metadataRegistry: true
+        assignedToType:
+          $ref: '#/components/schemas/AssignedToType'
+          x-metadataRegistry: true
         assignedToStaffId:
           type: string
           nullable: true
@@ -758,7 +984,20 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-          description: Reminder context payload (schema not defined in requirements).
+          description: >
+            Optional reminder bootstrap payload. When `channels` is present, each entry is a Metadata Registry
+            **ReminderChannel** value code.
+      example:
+        patientId: pat-101
+        patientDisplayName: Maria Lopez
+        carePlanInstanceId: cp-2026-001
+        monitoringInstanceId: mon-bp-daily-001
+        taskBehaviorCode: METRIC_CHECK_IN
+        assignedToType: PATIENT
+        dueWindowStart: 1780581600000
+        dueWindowEnd: 1780668000000
+        reminderContext:
+          channels: [PUSH, IN_APP]
 
     CreateMonitoringActionResult:
       type: object
@@ -791,13 +1030,28 @@ components:
           type: string
           description: Patient display name from request body (not from JWT).
         carePlanInstanceId: { type: string, nullable: true }
-        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
-        runtimeTaskSource: { $ref: '#/components/schemas/RuntimeTaskSource' }
-        taskBehaviorCode: { $ref: '#/components/schemas/TaskBehaviorCode' }
-        taskDisplayGroup: { $ref: '#/components/schemas/TaskDisplayGroup' }
-        displayTitle: { type: string }
-        description: { type: string, nullable: true }
-        assignedToType: { $ref: '#/components/schemas/AssignedToType' }
+        workflowStage:
+          $ref: '#/components/schemas/TaskWorkflowStage'
+          x-metadataRegistry: true
+        runtimeTaskSource:
+          $ref: '#/components/schemas/RuntimeTaskSource'
+          description: Backend task lineage — **not** a Metadata Registry type.
+        taskBehaviorCode:
+          $ref: '#/components/schemas/TaskBehaviorCode'
+          x-metadataRegistry: true
+        taskDisplayGroup:
+          $ref: '#/components/schemas/TaskDisplayGroup'
+          x-metadataRegistry: true
+        displayTitle:
+          type: string
+          description: Display text — **not** a Metadata Registry type.
+        description:
+          type: string
+          nullable: true
+          description: Display text — **not** a Metadata Registry type.
+        assignedToType:
+          $ref: '#/components/schemas/AssignedToType'
+          x-metadataRegistry: true
         assignedToStaffId:
           type: string
           nullable: true
@@ -808,8 +1062,14 @@ components:
           description: Required when assignedToType is not patient.
         displayToPatient: { type: boolean }
         actionTargetId: { type: string, nullable: true }
-        completionSourceType: { type: string, nullable: true }
-        completionSourceReferenceId: { type: string, nullable: true }
+        completionSourceType:
+          type: string
+          nullable: true
+          description: Linkage type for auto-completion — **not** a Metadata Registry type.
+        completionSourceReferenceId:
+          type: string
+          nullable: true
+          description: Reference id for linked completion — **not** a Metadata Registry type.
         dueWindowStart:
           $ref: '#/components/schemas/EpochMillis'
           nullable: true
@@ -825,6 +1085,25 @@ components:
         displayAsChecklistItem:
           type: boolean
           nullable: true
+      example:
+        patientId: pat-101
+        patientDisplayName: Maria Lopez
+        carePlanInstanceId: cp-2026-001
+        workflowStage: ONGOING_CARE
+        runtimeTaskSource: ManualSystem
+        taskBehaviorCode: CARE_TEAM_TASK
+        taskDisplayGroup: STAFF_TASK
+        displayTitle: Call patient about missed reading
+        description: Follow up on missed BP reading from yesterday
+        assignedToType: ORG_STAFF
+        assignedToStaffId: staff-nurse-44721
+        assignedToStaffDisplayName: Nurse Lee
+        displayToPatient: false
+        dueWindowStart: 1780581600000
+        dueWindowEnd: 1780668000000
+        reminderEnabled: false
+        reminderSettings:
+          channels: [PUSH]
 
     CreateRuntimeTaskResult:
       type: object
@@ -899,7 +1178,10 @@ components:
           description: Organization from JWT scope (echoed in response).
         patientId: { type: string }
         carePlanInstanceId: { type: string }
-        workflowStage: { $ref: '#/components/schemas/WorkflowStage' }
+        workflowStage:
+          $ref: '#/components/schemas/TaskWorkflowStage'
+          x-metadataRegistry: true
+          description: Metadata Registry **TaskWorkflowStage** filter echo (when provided on request).
         readinessStatus:
           type: string
           enum: [ready, notReady, notApplicable]
@@ -1154,11 +1436,11 @@ paths:
               onboardingBatch:
                 summary: Care plan task generation
                 value:
-                  patientId: pat-maria
+                  patientId: pat-101
                   patientDisplayName: Maria Lopez
-                  carePlanInstanceId: cp-maria-001
-                  taskGenerationTrigger: carePlanStageEntered
-                  workflowStage: onboarding
+                  carePlanInstanceId: cp-2026-001
+                  taskGenerationTrigger: AT_CARE_PLAN_ACTIVATED
+                  workflowStage: ONBOARDING
                   actorType: system
                   actorId: care-plan-runtime
                   dryRun: false
@@ -1166,14 +1448,16 @@ paths:
                     linkages:
                       - carePlanTaskLinkageId: link-watch-bp-video
                         taskBehaviorCode: EDUCATION_VIDEO
-                        taskDisplayGroup: learning
+                        taskDisplayGroup: LEARNING
                         displayTitle: "Watch: How to measure BP"
-                        assignedToType: patient
+                        assignedToType: PATIENT
                         displayToPatient: true
                         dueWindowStart: 1780567200000
                         dueWindowEnd: 1780610400000
                         requiredForStageCompletion: true
                         displayAsChecklistItem: true
+                        reminderSettings:
+                          channels: [PUSH, IN_APP]
       responses:
         '200':
           description: Generation result (created and/or skipped duplicates).
@@ -1212,13 +1496,15 @@ paths:
                 summary: Metric check-in due
                 value:
                   patientId: pat-101
+                  patientDisplayName: Maria Lopez
                   carePlanInstanceId: cp-2026-001
                   monitoringInstanceId: mon-bp-daily-001
-                  taskBehaviorCode: METRIC_CHECKIN
+                  taskBehaviorCode: METRIC_CHECK_IN
+                  assignedToType: PATIENT
                   dueWindowStart: 1780581600000
                   dueWindowEnd: 1780668000000
                   reminderContext:
-                    channels: [push, inApp]
+                    channels: [PUSH, IN_APP]
       responses:
         '200':
           description: Create result (created or skipped duplicate).
@@ -1265,19 +1551,23 @@ paths:
                 summary: Care team follow-up task
                 value:
                   patientId: pat-101
+                  patientDisplayName: Maria Lopez
                   carePlanInstanceId: cp-2026-001
-                  workflowStage: Ongoing
+                  workflowStage: ONGOING_CARE
                   runtimeTaskSource: ManualSystem
                   taskBehaviorCode: CARE_TEAM_TASK
-                  taskDisplayGroup: StaffTask
+                  taskDisplayGroup: STAFF_TASK
                   displayTitle: Call patient about missed reading
                   description: Follow up on missed BP reading from yesterday
-                  assignedToType: staff
+                  assignedToType: ORG_STAFF
                   assignedToStaffId: staff-nurse-44721
+                  assignedToStaffDisplayName: Nurse Lee
                   displayToPatient: false
                   dueWindowStart: 1780581600000
                   dueWindowEnd: 1780668000000
                   reminderEnabled: false
+                  reminderSettings:
+                    channels: [PUSH]
       responses:
         '200':
           description: Success — new runtime task created.
@@ -1319,12 +1609,14 @@ paths:
           description: Filter by a specific care plan instance.
           schema:
             type: string
+          example: cp-2026-001
         - name: workflowStage
           in: query
           required: false
-          description: Filter by care plan workflow stage.
+          description: Filter by Metadata Registry **TaskWorkflowStage** value code.
           schema:
-            $ref: '#/components/schemas/WorkflowStage'
+            $ref: '#/components/schemas/TaskWorkflowStage'
+          example: ONBOARDING
         - name: currentState
           in: query
           required: false
@@ -1443,12 +1735,20 @@ paths:
           schema:
             type: string
           example: pat-101
+        - name: workflowStage
+          in: query
+          required: false
+          description: Filter by Metadata Registry **TaskWorkflowStage** value code.
+          schema:
+            $ref: '#/components/schemas/TaskWorkflowStage'
+          example: ONGOING_CARE
         - name: carePlanInstanceId
           in: query
           required: false
           description: Filter by a specific care plan instance.
           schema:
             type: string
+          example: cp-2026-001
         - name: surfaceSection
           in: query
           required: true
@@ -1547,6 +1847,12 @@ paths:
                   displayToPatient: true
                   requiredForStageCompletion: true
                   reason: Care plan template wording updated
+              updateWorkflowStage:
+                summary: Update workflow stage (registry value code)
+                value:
+                  actorId: staff-nurse-001
+                  workflowStage: FORMAL_REVIEW
+                  reason: Stage advanced after onboarding tasks completed
       responses:
         '200':
           description: Updated task metadata and audit entry.
@@ -1589,7 +1895,7 @@ paths:
                   actorId: staff-nurse-44721
                   reminderEnabled: true
                   reminderSettings:
-                    channels: [push, inApp]
+                    channels: [PUSH, IN_APP]
                   reason: Patient requested daily reminders
       responses:
         '200':
@@ -1681,7 +1987,7 @@ paths:
                   action: complete
                   actorId: pat-101
                   actorType: patient
-                  expectedCurrentState: open
+                  expectedCurrentState: active
                   reason: Submitted reading via mobile app
               dismiss:
                 summary: Dismiss task
@@ -1689,7 +1995,7 @@ paths:
                   action: dismiss
                   actorId: pat-101
                   actorType: patient
-                  expectedCurrentState: open
+                  expectedCurrentState: active
                   reason: Not applicable today
       responses:
         '200':
@@ -1769,9 +2075,10 @@ paths:
         - name: workflowStage
           in: query
           required: false
-          description: Filter summary to a specific workflow stage.
+          description: Filter summary to a Metadata Registry **TaskWorkflowStage** value code.
           schema:
-            $ref: '#/components/schemas/WorkflowStage'
+            $ref: '#/components/schemas/TaskWorkflowStage'
+          example: ONBOARDING
       responses:
         '200':
           description: Readiness summary.

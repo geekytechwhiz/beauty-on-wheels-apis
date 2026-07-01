@@ -2,13 +2,31 @@ import type { Logger } from '@api-hub/observability';
 
 import { TaskEntityBuilder } from '../builder/task-entity.builder';
 import { DuplicateTaskError } from '../errors/duplicate-task.error';
+import type {
+  CheckReminderFireEligibilityInput,
+  CheckReminderFireEligibilityResult,
+} from '../models/api/check-reminder-fire-eligibility.types';
+import type {
+  CompleteLinkedSourceObjectRequest,
+  CompleteLinkedSourceObjectResult,
+} from '../models/api/complete-linked-source-object.request';
 import type { CreateMonitoringActionPayload } from '../models/api/create-monitoring-action.types';
-import type { CreateRuntimeTaskPayload } from '../models/api/create-runtime-task.types';
+import {
+  createRuntimeTaskPayloadFromHttpBody,
+  type CreateRuntimeTaskHttpBody,
+  type CreateRuntimeTaskPayload,
+} from '../models/api/create-runtime-task.types';
 import type {
   CreateCarePlanTaskRequest,
-  GenerateCarePlanTasksRequest,
   GenerateCarePlanTasksResult,
 } from '../models/api/generate-care-plan.request';
+import {
+  generateCarePlanTasksPayloadFromHttpBody,
+} from '../models/api/generate-care-plan.request';
+import type {
+  CarePlanTaskGenerationIngressInput,
+  RuntimeTaskIngressInput,
+} from '../models/api/task-event-ingest.types';
 import type {
   UpdateAssignedStaffRequest,
   UpdateAssignedStaffResult,
@@ -25,26 +43,16 @@ import type {
   UpdateTaskStateRequest,
   UpdateTaskStateResult,
 } from '../models/api/update-task-state.request';
-import type {
-  GetTaskStatusSummaryInput,
-  TaskStatusSummaryResult,
-} from '../models/api/get-task-status-summary.types';
-import { ASSIGNED_TO_TYPE, isPatientAssignedToType } from '../models/types/task-domain.types';
-import type {
-  CompletionEvidenceDdbRecord,
-  TaskEvidenceSummaryDdbRecord,
-  TaskMetaDdbRecord,
-} from '../models/persistence/task-ddb.model';
+import { isPatientAssignedToType, isOrgStaffAssignedToType, requiresAssigneeGsi, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
+import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import {
-  normalizeCurrentStateForWire,
-  type RuntimeTaskState,
+  resolveCurrentStateForWire,
+  isTerminalPersistedState,
 } from '../models/types/runtime-task-state.type';
 import {
   IDEMPOTENCY_OUTCOME,
   SURFACE_SECTION,
-  type IdempotencyOutcome,
   type SurfaceSection,
-  type WorkflowStage,
 } from '../models/types/task-domain.types';
 import { toActionCenterTaskCard, toRuntimeTaskCard, toTaskHistoryEntry } from '../mappers/task-http.dto';
 import { TaskRepository } from '../repositories/task-repository';
@@ -58,13 +66,18 @@ import { organizationIdsMatch } from '../utils/organization-ids-match';
 import { resolveTaskStateTransition } from '../utils/task-workflow';
 import { isMetaConditionalFailure } from '../utils/task.utils';
 import {
-  type ActionCenterSurfaceFilter,
   deriveActionCenterSurfaceSection,
   emptyActionCenterSections,
   isCarePlanChecklistEligible,
   matchesActionCenterFilter,
 } from '../utils/surface-section';
-import { DEFAULT_ACTION_CENTER_TIMEZONE } from '../utils/task-time';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from '../utils/task-time';
+import {
+  isWireDerivedCurrentStateFilter,
+  matchesWireCurrentStateFilter,
+  repositoryCurrentStateFilter,
+} from '../utils/wire-current-state-filter';
+import { CARE_PLAN_SYSTEM_ACTOR, SERVICE_FLOW_SYSTEM_ACTOR } from '../constants/task.constants';
 import { aggregateTaskStatusSummary } from '../utils/task-status-summary';
 import {
   assertRequiredForStageCompletionAllowed,
@@ -80,111 +93,26 @@ import {
 
 import { BaseTaskService } from './base-task.service';
 
-export type TaskRecord = TaskMetaDdbRecord;
+import type {
+  ActionCenterItemsResult,
+  ActionCenterTaskCard,
+  CreateMonitoringActionResult,
+  CreateRuntimeTaskResult,
+  GetRuntimeTaskDetailInput,
+  GetRuntimeTaskHistoryInput,
+  GetTaskStatusSummaryInput,
+  ListActionCenterItemsInput,
+  ListPatientTasksInput,
+  ListStaffTasksInput,
+  PaginatedRuntimeTaskCards,
+  PaginatedTaskHistory,
+  PatientTaskListResult,
+  RuntimeTaskCard,
+  RuntimeTaskDetail,
+  TaskStatusSummaryResult,
+} from './task.service.types';
 
-export type CreateMonitoringActionResult = {
-  record: TaskMetaDdbRecord;
-  outcome: IdempotencyOutcome;
-};
-
-export type CreateRuntimeTaskResult = {
-  record: TaskMetaDdbRecord;
-};
-
-export type GetRuntimeTaskDetailInput = {
-  organizationId: string;
-  runtimeTaskInstanceId: string;
-  includeRelated?: boolean;
-};
-
-export type RuntimeTaskDetail = {
-  task: ReturnType<typeof toRuntimeTaskCard>;
-  reminders?: unknown[];
-  completionEvidence?: CompletionEvidenceDdbRecord[];
-  evidenceSummary?: TaskEvidenceSummaryDdbRecord;
-};
-
-export type GetRuntimeTaskHistoryInput = {
-  organizationId: string;
-  runtimeTaskInstanceId: string;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PaginatedTaskHistory = {
-  items: ReturnType<typeof toTaskHistoryEntry>[];
-  nextToken?: string;
-};
-
-export type RuntimeTaskCard = ReturnType<typeof toRuntimeTaskCard>;
-
-export type ListPatientTasksInput = {
-  organizationId: string;
-  patientId: string;
-  staffUserId?: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  currentState?: RuntimeTaskState;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PatientTaskListResult = {
-  patientId: string;
-  staffUserId?: string;
-  patientTasks: { items: RuntimeTaskCard[] };
-  staffTasks: { items: RuntimeTaskCard[] };
-  nextToken?: string;
-};
-
-export type ListStaffTasksInput = {
-  organizationId: string;
-  staffUserId: string;
-  patientId?: string;
-  carePlanInstanceId?: string;
-  currentState?: RuntimeTaskState;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type PaginatedRuntimeTaskCards = {
-  items: RuntimeTaskCard[];
-  nextToken?: string;
-};
-
-export type ActionCenterTaskCard = ReturnType<typeof toActionCenterTaskCard>;
-
-export type ListActionCenterItemsInput = {
-  organizationId: string;
-  patientId: string;
-  carePlanInstanceId?: string;
-  workflowStage?: WorkflowStage;
-  surfaceSection: ActionCenterSurfaceFilter;
-  timezone?: string;
-  pageSize: number;
-  nextToken?: string;
-};
-
-export type ActionCenterGroupedResult = {
-  patientId: string;
-  carePlanInstanceId?: string;
-  timezone: string;
-  sections: Record<SurfaceSection, ActionCenterTaskCard[]>;
-  nextToken?: string;
-};
-
-export type ActionCenterSingleSectionResult = {
-  patientId: string;
-  carePlanInstanceId?: string;
-  timezone: string;
-  surfaceSection: SurfaceSection;
-  items: ActionCenterTaskCard[];
-  nextToken?: string;
-};
-
-export type ActionCenterItemsResult = ActionCenterGroupedResult | ActionCenterSingleSectionResult;
-
-export type { GetTaskStatusSummaryInput, TaskStatusSummaryResult };
+export type * from './task.service.types';
 
 export class TaskService extends BaseTaskService {
   constructor(repo?: TaskRepository, log?: Logger) {
@@ -246,9 +174,10 @@ export class TaskService extends BaseTaskService {
     }
   }
 
-  async createRuntimeTask(payload: CreateRuntimeTaskPayload): Promise<CreateRuntimeTaskResult> {
-    const input = prepareAssignedToTypeInput({ ...payload });
-    const record = await this.repo.createRuntimeTask(input);
+  async createRuntimeTask(input: RuntimeTaskIngressInput): Promise<CreateRuntimeTaskResult> {
+    const payload = resolveRuntimeTaskPayload(input);
+    const prepared = prepareAssignedToTypeInput({ ...payload });
+    const record = await this.repo.createRuntimeTask(prepared);
     return { record };
   }
 
@@ -268,7 +197,7 @@ export class TaskService extends BaseTaskService {
     }
 
     const detail: RuntimeTaskDetail = {
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
     };
 
     if (input.includeRelated !== false) {
@@ -297,7 +226,7 @@ export class TaskService extends BaseTaskService {
       throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
     }
 
-    if (meta.assignedToType !== ASSIGNED_TO_TYPE.ORG_STAFF) {
+    if (!isOrgStaffAssignedToType(meta.assignedToType)) {
       throw taskHttpError('Staff assignment is only allowed for orgStaff tasks', 422, 'NOT_STAFF_TASK');
     }
 
@@ -320,7 +249,7 @@ export class TaskService extends BaseTaskService {
 
     return {
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       historyEntry: toTaskHistoryEntry(historyEntry),
     };
   }
@@ -365,7 +294,7 @@ export class TaskService extends BaseTaskService {
 
     return {
       runtimeTaskInstanceId: record.runtimeTaskInstanceId,
-      task: toRuntimeTaskCard(record),
+      task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       historyEntry: toTaskHistoryEntry(historyEntry),
     };
   }
@@ -427,6 +356,73 @@ export class TaskService extends BaseTaskService {
     };
   }
 
+  /**
+   * Checks whether a scheduled reminder should be sent at fire time.
+   * Used by the EventBridge Scheduler callback Lambda.
+   *
+   * Throws when the task record is not found (retryable error for the scheduler).
+   * Returns `{ status: 'skipped', reason }` for soft-skip cases (reminders disabled,
+   * task in terminal state) so the caller can log and return without retrying.
+   */
+  async checkReminderFireEligibility(
+    input: CheckReminderFireEligibilityInput,
+  ): Promise<CheckReminderFireEligibilityResult> {
+    const lookup = await this.repo.getLookupByTaskId(input.runtimeTaskInstanceId);
+    if (!lookup) {
+      throw taskHttpError('Runtime task not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    const meta = await this.repo.getMetaByLookup(lookup);
+    if (!meta) {
+      throw taskHttpError('Runtime task META not found', 404, 'TASK_NOT_FOUND');
+    }
+
+    if (meta.reminderEnabled !== true) {
+      return { status: 'skipped', reason: 'remindersDisabled' };
+    }
+
+    if (!isReminderRegistrationEligible(meta.currentState)) {
+      return { status: 'skipped', reason: `taskTerminalState:${meta.currentState}` };
+    }
+
+    return { status: 'eligible', meta };
+  }
+
+  async recordReminderRegistration(
+    input: {
+      runtimeTaskInstanceId: string;
+      scheduledAt: number;
+      channel: string;
+      schedulerJobId: string;
+      correlationId?: string;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderRegistered(input);
+  }
+
+  async recordReminderCancellation(
+    input: {
+      runtimeTaskInstanceId: string;
+      reason: string;
+      correlationId?: string;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderCancelled(input);
+  }
+
+  async recordReminderOutcome(
+    input: {
+      runtimeTaskInstanceId: string;
+      outcome: 'sent' | 'suppressed' | 'failed';
+      reason?: string;
+      schedulerJobId?: string;
+      channel?: string;
+      scheduledAt?: number;
+    },
+  ): Promise<{ written: boolean }> {
+    return this.repo.recordReminderOutcome(input);
+  }
+
   async updateTaskState(
     input: UpdateTaskStateRequest,
     _options?: { correlationId?: string },
@@ -452,6 +448,7 @@ export class TaskService extends BaseTaskService {
         input.action,
         input.expectedCurrentState,
         input.actorType,
+        DEFAULT_ACTION_CENTER_TIMEZONE,
       );
     } catch (e: unknown) {
       const err = e as Error & { statusCode?: number; code?: string };
@@ -494,15 +491,32 @@ export class TaskService extends BaseTaskService {
       DEFAULT_ACTION_CENTER_TIMEZONE,
     );
 
+    const historyContext = {
+      dueWindowStart: meta.dueWindowStart,
+      dueWindowEnd: meta.dueWindowEnd,
+      timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+    };
+
     return {
       runtimeTaskInstanceId: result.record.runtimeTaskInstanceId,
-      currentState: normalizeCurrentStateForWire(result.record.currentState),
+      currentState: resolveCurrentStateForWire({
+        persistedState: result.record.currentState,
+        dueWindowStart: result.record.dueWindowStart,
+        dueWindowEnd: result.record.dueWindowEnd,
+        timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+      }),
       surfaceSection,
-      historyEntry: toTaskHistoryEntry(result.historyEntry),
+      historyEntry: toTaskHistoryEntry(result.historyEntry, historyContext),
     };
   }
 
   async listPatientTasks(input: ListPatientTasksInput): Promise<PatientTaskListResult> {
+    const timeZone = DEFAULT_ACTION_CENTER_TIMEZONE;
+    const wireFilter = isWireDerivedCurrentStateFilter(input.currentState)
+      ? input.currentState
+      : undefined;
+    const repoStateFilter = repositoryCurrentStateFilter(input.currentState);
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -512,8 +526,8 @@ export class TaskService extends BaseTaskService {
       patientId: input.patientId,
       carePlanInstanceId: input.carePlanInstanceId,
       workflowStage: input.workflowStage,
-      currentState: input.currentState,
-      excludeTerminalStates: input.currentState == null,
+      currentState: repoStateFilter,
+      excludeTerminalStates: input.currentState == null || wireFilter != null,
       pageSize: input.pageSize,
       exclusiveStartKey,
     });
@@ -523,11 +537,14 @@ export class TaskService extends BaseTaskService {
     const staffUserId = input.staffUserId?.trim();
 
     for (const record of page.items) {
-      const card = toRuntimeTaskCard(record);
+      if (wireFilter && !matchesWireCurrentStateFilter(record, wireFilter, timeZone)) {
+        continue;
+      }
+      const card = toRuntimeTaskCard(record, { timeZone });
       if (isPatientAssignedToType(card.assignedToType)) {
         patientTasks.push(card);
       } else if (
-        card.assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF &&
+        requiresAssigneeGsi(card.assignedToType) &&
         staffUserId &&
         card.assignedToStaffId === staffUserId
       ) {
@@ -606,7 +623,7 @@ export class TaskService extends BaseTaskService {
         }
         const sectionOnCard =
           filter === SURFACE_SECTION.CARE_PLAN_CHECKLIST ? SURFACE_SECTION.CARE_PLAN_CHECKLIST : primary;
-        collected.push(toActionCenterTaskCard(record, timeZone, Date.now(), sectionOnCard));
+        collected.push(toActionCenterTaskCard(record, timeZone, nowEpochMs(), sectionOnCard));
       }
     } while (
       collected.length < input.pageSize &&
@@ -683,15 +700,21 @@ export class TaskService extends BaseTaskService {
   ): void {
     const classification = classificationInputFromMeta(record);
     const primary = deriveActionCenterSurfaceSection(classification, timeZone);
-    sections[primary].push(toActionCenterTaskCard(record, timeZone, Date.now(), primary));
+    sections[primary].push(toActionCenterTaskCard(record, timeZone, nowEpochMs(), primary));
     if (isCarePlanChecklistEligible(classification, primary)) {
       sections[SURFACE_SECTION.CARE_PLAN_CHECKLIST].push(
-        toActionCenterTaskCard(record, timeZone, Date.now(), SURFACE_SECTION.CARE_PLAN_CHECKLIST),
+        toActionCenterTaskCard(record, timeZone, nowEpochMs(), SURFACE_SECTION.CARE_PLAN_CHECKLIST),
       );
     }
   }
 
   async listStaffTasks(input: ListStaffTasksInput): Promise<PaginatedRuntimeTaskCards> {
+    const timeZone = DEFAULT_ACTION_CENTER_TIMEZONE;
+    const wireFilter = isWireDerivedCurrentStateFilter(input.currentState)
+      ? input.currentState
+      : undefined;
+    const repoStateFilter = repositoryCurrentStateFilter(input.currentState);
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -701,14 +724,21 @@ export class TaskService extends BaseTaskService {
       staffUserId: input.staffUserId,
       patientId: input.patientId,
       carePlanInstanceId: input.carePlanInstanceId,
-      currentState: input.currentState,
-      excludeTerminalStates: input.currentState == null,
+      currentState: repoStateFilter,
+      excludeTerminalStates: input.currentState == null || wireFilter != null,
       pageSize: input.pageSize,
       exclusiveStartKey,
     });
 
+    const items = page.items
+      .filter(
+        (record) =>
+          !wireFilter || matchesWireCurrentStateFilter(record, wireFilter, timeZone),
+      )
+      .map((r) => toRuntimeTaskCard(r, { timeZone }));
+
     return {
-      items: sortRuntimeTaskCardsByDue(page.items.map((r) => toRuntimeTaskCard(r))),
+      items: sortRuntimeTaskCardsByDue(items),
       nextToken: encodeTaskHistoryCursor(page.lastEvaluatedKey),
     };
   }
@@ -723,6 +753,15 @@ export class TaskService extends BaseTaskService {
       throw taskHttpError('Runtime task does not belong to this organization', 403, 'FORBIDDEN');
     }
 
+    const meta = await this.repo.getMetaByLookup(lookup);
+    const historyContext = meta
+      ? {
+          dueWindowStart: meta.dueWindowStart,
+          dueWindowEnd: meta.dueWindowEnd,
+          timeZone: DEFAULT_ACTION_CENTER_TIMEZONE,
+        }
+      : undefined;
+
     const exclusiveStartKey = input.nextToken?.trim()
       ? decodeTaskHistoryCursor(input.nextToken)
       : undefined;
@@ -734,12 +773,19 @@ export class TaskService extends BaseTaskService {
     );
 
     return {
-      items: items.map(toTaskHistoryEntry),
+      items: items.map((entry) => toTaskHistoryEntry(entry, historyContext)),
       nextToken: encodeTaskHistoryCursor(lastEvaluatedKey),
     };
   }
 
-  async generateCarePlanTasks(payload: GenerateCarePlanTasksRequest): Promise<GenerateCarePlanTasksResult> {
+  async generateCarePlanTasks(
+    input: CarePlanTaskGenerationIngressInput,
+  ): Promise<GenerateCarePlanTasksResult> {
+    const { organizationId, actorId, ...body } = input;
+    const createdBy = actorId
+      ? `${CARE_PLAN_SYSTEM_ACTOR}:${actorId}`
+      : CARE_PLAN_SYSTEM_ACTOR;
+    const payload = generateCarePlanTasksPayloadFromHttpBody(organizationId, body, createdBy);
     const results: GenerateCarePlanTasksResult['results'] = [];
 
     for (const linkage of payload.linkages) {
@@ -769,7 +815,7 @@ export class TaskService extends BaseTaskService {
         results.push({
           runtimeTaskInstanceId,
           outcome: IDEMPOTENCY_OUTCOME.CREATED,
-          task: toRuntimeTaskCard(record, ctx.nowMs),
+          task: toRuntimeTaskCard(record, { nowMs: ctx.nowMs, timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
         });
         continue;
       }
@@ -778,7 +824,7 @@ export class TaskService extends BaseTaskService {
       results.push({
         runtimeTaskInstanceId: record.runtimeTaskInstanceId,
         outcome,
-        task: toRuntimeTaskCard(record),
+        task: toRuntimeTaskCard(record, { timeZone: DEFAULT_ACTION_CENTER_TIMEZONE }),
       });
     }
 
@@ -839,6 +885,61 @@ export class TaskService extends BaseTaskService {
       throw e;
     }
   }
+
+  async completeLinkedSourceObject(
+    payload: CompleteLinkedSourceObjectRequest,
+  ): Promise<CompleteLinkedSourceObjectResult> {
+    const results: CompleteLinkedSourceObjectResult['results'] = [];
+    const pageSize = 100;
+    let exclusiveStartKey: Record<string, unknown> | undefined;
+
+    do {
+      const page = await this.repo.queryPatientMetaByCompletionSource({
+        organizationId: payload.organizationId,
+        patientId: payload.patientId,
+        completionSourceType: payload.completionSourceType,
+        completionSourceReferenceId: payload.completionSourceReferenceId,
+        pageSize,
+        exclusiveStartKey,
+      });
+
+      for (const meta of page.items) {
+        if (isTerminalPersistedState(meta.currentState)) {
+          results.push({
+            runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+            outcome: 'skippedTerminal',
+          });
+          continue;
+        }
+
+        const lookup = await this.repo.getLookupByTaskId(meta.runtimeTaskInstanceId);
+        if (!lookup) {
+          this.log.warn({
+            event: 'task_linked_source_lookup_missing',
+            runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+            organizationId: payload.organizationId,
+          });
+          continue;
+        }
+
+        const { outcome } = await this.repo.completeLinkedSourceObjectTask({
+          meta,
+          lookup,
+          completionEventId: payload.completionEventId,
+          completedAt: payload.completedAt,
+        });
+
+        results.push({
+          runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
+          outcome: outcome === 'skippedDuplicate' ? 'skippedDuplicate' : 'completed',
+        });
+      }
+
+      exclusiveStartKey = page.lastEvaluatedKey;
+    } while (exclusiveStartKey);
+
+    return { results };
+  }
 }
 
 function sortRuntimeTaskCardsByDue(
@@ -862,6 +963,28 @@ function classificationInputFromMeta(record: TaskMetaDdbRecord) {
     dueWindowEnd: record.dueWindowEnd,
     displayAsChecklistItem: record.displayAsChecklistItem,
   };
+}
+
+function resolveRuntimeTaskPayload(input: RuntimeTaskIngressInput): CreateRuntimeTaskPayload {
+  if (input.kind === 'http') {
+    return createRuntimeTaskPayloadFromHttpBody(
+      input.organizationId,
+      input.body,
+      input.createdBy,
+    );
+  }
+
+  const body = {
+    patientId: input.patientId,
+    runtimeTaskSource: RUNTIME_TASK_SOURCE.SERVICE_FLOW_RUNTIME,
+    ...input.taskPayload,
+  } as CreateRuntimeTaskHttpBody;
+
+  return createRuntimeTaskPayloadFromHttpBody(
+    input.organizationId,
+    body,
+    SERVICE_FLOW_SYSTEM_ACTOR,
+  );
 }
 
 function taskHttpError(message: string, statusCode: number, code: string): Error & {

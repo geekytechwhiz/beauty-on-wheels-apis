@@ -1,32 +1,40 @@
 import type { CreateMonitoringActionRequest } from '../models/api/create-monitoring-action.request';
 import {
-  ASSIGNED_TO_TYPE,
   isPatientAssignedToType,
   TASK_DISPLAY_GROUP,
   type AssignedToType,
-  type TaskBehaviorCode,
   type TaskDisplayGroup,
 } from '../models/types/task-domain.types';
 import { RUNTIME_TASK_STATE, type RuntimeTaskState } from '../models/types/runtime-task-state.type';
 
-const DISPLAY_TITLES: Partial<Record<TaskBehaviorCode, string>> = {
-  METRIC_CHECKIN: 'Record your health metrics',
-  SYMPTOM_CHECKIN: 'Complete your symptom check-in',
-  DEVICE_SETUP: 'Set up your device',
+/** Behavior codes referenced by monitoring create defaults — not a full catalog. */
+const MONITORING_BEHAVIOR_FOR_DEFAULTS = {
+  METRIC_CHECKIN: 'METRIC_CHECKIN',
+  SYMPTOM_CHECKIN: 'SYMPTOM_CHECKIN',
+  DEVICE_SETUP: 'DEVICE_SETUP',
+} as const;
+
+const DISPLAY_TITLES: Record<string, string> = {
+  [MONITORING_BEHAVIOR_FOR_DEFAULTS.METRIC_CHECKIN]: 'Record your health metrics',
+  [MONITORING_BEHAVIOR_FOR_DEFAULTS.SYMPTOM_CHECKIN]: 'Complete your symptom check-in',
+  [MONITORING_BEHAVIOR_FOR_DEFAULTS.DEVICE_SETUP]: 'Set up your device',
 };
 
-export function taskDisplayGroupForBehavior(code: TaskBehaviorCode): TaskDisplayGroup {
-  if (code === 'METRIC_CHECKIN' || code === 'SYMPTOM_CHECKIN') {
+export function taskDisplayGroupForBehavior(code: string): TaskDisplayGroup {
+  if (
+    code === MONITORING_BEHAVIOR_FOR_DEFAULTS.METRIC_CHECKIN ||
+    code === MONITORING_BEHAVIOR_FOR_DEFAULTS.SYMPTOM_CHECKIN
+  ) {
     return TASK_DISPLAY_GROUP.CHECK_IN;
   }
-  if (code === 'DEVICE_SETUP') {
+  if (code === MONITORING_BEHAVIOR_FOR_DEFAULTS.DEVICE_SETUP) {
     return TASK_DISPLAY_GROUP.ACTION;
   }
   return TASK_DISPLAY_GROUP.CHECK_IN;
 }
 
 export function taskDisplayGroupForMonitoring(
-  code: TaskBehaviorCode,
+  code: string,
   assignedToType: AssignedToType,
 ): TaskDisplayGroup {
   if (!isPatientAssignedToType(assignedToType)) {
@@ -36,18 +44,15 @@ export function taskDisplayGroupForMonitoring(
 }
 
 export function displayToPatientForMonitoring(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.PATIENT;
+  return isPatientAssignedToType(assignedToType);
 }
 
-export function displayTitleForMonitoringTask(code: TaskBehaviorCode): string {
+export function displayTitleForMonitoringTask(code: string): string {
   return DISPLAY_TITLES[code] ?? `Complete your ${code.replace(/_/g, ' ').toLowerCase()}`;
 }
 
-export function initialStateForMonitoringCreate(
-  _dueWindowStart: number,
-  _nowMs = Date.now(),
-): RuntimeTaskState {
-  return RUNTIME_TASK_STATE.OPEN;
+export function initialStateForMonitoringCreate(): RuntimeTaskState {
+  return RUNTIME_TASK_STATE.SCHEDULED;
 }
 
 export function reminderEnabledFromContext(

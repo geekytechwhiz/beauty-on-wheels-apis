@@ -41,7 +41,7 @@ describe('aggregateTaskStatusSummary', () => {
   it('returns notApplicable when no required tasks exist', () => {
     const result = aggregateTaskStatusSummary(
       [
-        meta({ runtimeTaskInstanceId: 't-1', currentState: RUNTIME_TASK_STATE.OPEN }),
+        meta({ runtimeTaskInstanceId: 't-1', currentState: RUNTIME_TASK_STATE.SCHEDULED }),
         meta({
           runtimeTaskInstanceId: 't-2',
           currentState: RUNTIME_TASK_STATE.COMPLETED,
@@ -96,7 +96,7 @@ describe('aggregateTaskStatusSummary', () => {
         }),
         meta({
           runtimeTaskInstanceId: 't-open',
-          currentState: RUNTIME_TASK_STATE.OPEN,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
           requiredForStageCompletion: true,
           displayTitle: 'Open task',
         }),
@@ -123,7 +123,7 @@ describe('aggregateTaskStatusSummary', () => {
       't-dismissed',
       't-cancelled',
     ]);
-    expect(result.incompleteRequiredTasks?.[0].currentState).toBe('open');
+    expect(result.incompleteRequiredTasks?.[0].currentState).toBe('active');
   });
 
   it('buckets legacy active/scheduled states into active and scheduled counts', () => {

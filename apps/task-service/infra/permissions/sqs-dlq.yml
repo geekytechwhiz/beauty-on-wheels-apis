@@ -1,0 +1,6 @@
+Effect: Allow
+Action:
+  - sqs:SendMessage
+  - sqs:GetQueueAttributes
+Resource:
+  - !GetAtt TaskEventsConsumerDLQ.Arn

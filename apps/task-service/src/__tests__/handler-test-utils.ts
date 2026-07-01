@@ -15,9 +15,10 @@ export function testLambdaContext(): Context {
 
 export function minimalTaskMetaRecord(overrides: Partial<TaskMetaDdbRecord> = {}): TaskMetaDdbRecord {
   const runtimeTaskInstanceId = 'rtask-test-001';
-  const dueWindowStart = Date.parse('2026-06-05T08:00:00.000Z');
-  const dueWindowEnd = Date.parse('2026-06-06T08:00:00.000Z');
-  const created = Date.parse('2026-06-05T07:00:00.000Z');
+  const now = Date.now();
+  const dueWindowStart = now;
+  const dueWindowEnd = now + 24 * 60 * 60 * 1000;
+  const created = now - 60 * 60 * 1000;
   const metaSk = TaskKeyBuilder.buildMetaSk(dueWindowStart, dueWindowEnd, runtimeTaskInstanceId);
 
   return {
@@ -36,7 +37,7 @@ export function minimalTaskMetaRecord(overrides: Partial<TaskMetaDdbRecord> = {}
     displayTitle: 'Record your health metrics',
     assignedToType: 'patient',
     displayToPatient: true,
-    currentState: 'active',
+    currentState: 'scheduled',
     dueWindowStart,
     dueWindowEnd,
     reminderEnabled: true,

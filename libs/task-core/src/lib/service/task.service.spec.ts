@@ -1093,7 +1093,6 @@ describe('TaskService.listPatientTasks', () => {
     const result = await svc.listPatientTasks({
       organizationId: 'org-1',
       patientId: 'pat-1',
-      staffUserId: 'staff-1',
       pageSize: 50,
     });
 
@@ -1104,7 +1103,6 @@ describe('TaskService.listPatientTasks', () => {
       }),
     );
     expect(result.patientId).toBe('pat-1');
-    expect(result.staffUserId).toBe('staff-1');
     expect(result.patientTasks.items).toHaveLength(1);
     expect(result.patientTasks.items[0].runtimeTaskInstanceId).toBe('rtask-abc');
     expect(result.patientTasks.items[0].currentState).toBe('active');
@@ -1113,7 +1111,42 @@ describe('TaskService.listPatientTasks', () => {
     expect(result.nextToken).toBeUndefined();
   });
 
-  it('includes non-patient assignee tasks in staffTasks when staffUserId matches assignee id', async () => {
+  it('always returns all patient tasks even when staffUserId filters staff bucket', async () => {
+    const patientTask = sampleRecord();
+    const matchingStaffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-staff',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-1',
+    };
+    const otherStaffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-other',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [patientTask, matchingStaffTask, otherStaffTask],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      pageSize: 50,
+    });
+
+    expect(result.patientTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
+  });
+
+  it('filters staffTasks to matching assignee when staffUserId is provided', async () => {
     const careTeamTask = {
       ...sampleRecord(),
       runtimeTaskInstanceId: 'rtask-role',
@@ -1138,11 +1171,45 @@ describe('TaskService.listPatientTasks', () => {
       pageSize: 50,
     });
 
+    expect(result.staffUserId).toBe('role-1');
     expect(result.staffTasks.items).toHaveLength(1);
     expect(result.staffTasks.items[0].assignedToType).toBe('careTeamRole');
   });
 
-  it('returns empty staffTasks when staffUserId is omitted', async () => {
+  it('excludes non-matching staff tasks when staffUserId is provided', async () => {
+    const staffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-staff',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-1',
+    };
+    const otherStaffTask = {
+      ...sampleRecord(),
+      runtimeTaskInstanceId: 'rtask-other',
+      assignedToType: 'orgStaff' as const,
+      assignedToStaffId: 'staff-2',
+    };
+
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [staffTask, otherStaffTask],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      pageSize: 50,
+    });
+
+    expect(result.staffTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
+  });
+
+  it('returns staff-assigned tasks in staffTasks without staffUserId filter', async () => {
     const staffTask = {
       ...sampleRecord(),
       runtimeTaskInstanceId: 'rtask-staff',
@@ -1165,8 +1232,8 @@ describe('TaskService.listPatientTasks', () => {
     });
 
     expect(result.patientTasks.items).toHaveLength(0);
-    expect(result.staffTasks.items).toHaveLength(0);
-    expect(result.staffUserId).toBeUndefined();
+    expect(result.staffTasks.items).toHaveLength(1);
+    expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
   });
 });
 
@@ -1632,7 +1699,7 @@ describe('TaskService.getRuntimeTaskDetail missing meta', () => {
 });
 
 describe('TaskService.listPatientTasks pagination and staff bucket', () => {
-  it('decodes nextToken and includes matching staff tasks', async () => {
+  it('decodes nextToken and returns all non-patient tasks when staffUserId is omitted', async () => {
     const cursor = Buffer.from(JSON.stringify({ pk: 'ORG#org-1#PAT#pat-1' }), 'utf8').toString('base64url');
     const repo = {
       queryPatientTasksPage: jest.fn().mockResolvedValue({
@@ -1663,7 +1730,6 @@ describe('TaskService.listPatientTasks pagination and staff bucket', () => {
     const result = await svc.listPatientTasks({
       organizationId: 'org-1',
       patientId: 'pat-1',
-      staffUserId: 'staff-1',
       pageSize: 10,
       nextToken: cursor,
     });
@@ -1671,9 +1737,45 @@ describe('TaskService.listPatientTasks pagination and staff bucket', () => {
     expect(repo.queryPatientTasksPage).toHaveBeenCalledWith(
       expect.objectContaining({ exclusiveStartKey: { pk: 'ORG#org-1#PAT#pat-1' } }),
     );
+    expect(result.staffTasks.items).toHaveLength(2);
+    expect(result.staffTasks.items.map((t) => t.runtimeTaskInstanceId).sort()).toEqual([
+      'rtask-other',
+      'rtask-staff',
+    ]);
+    expect(result.nextToken).toBeDefined();
+  });
+
+  it('filters staff bucket when staffUserId is provided', async () => {
+    const repo = {
+      queryPatientTasksPage: jest.fn().mockResolvedValue({
+        items: [
+          {
+            ...sampleRecord(),
+            assignedToType: 'orgStaff',
+            assignedToStaffId: 'staff-1',
+            runtimeTaskInstanceId: 'rtask-staff',
+          },
+          {
+            ...sampleRecord(),
+            assignedToType: 'orgStaff',
+            assignedToStaffId: 'staff-other',
+            runtimeTaskInstanceId: 'rtask-other',
+          },
+        ],
+        lastEvaluatedKey: undefined,
+      }),
+    } as unknown as TaskRepository;
+
+    const svc = new TaskService(repo, { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any);
+    const result = await svc.listPatientTasks({
+      organizationId: 'org-1',
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      pageSize: 10,
+    });
+
     expect(result.staffTasks.items).toHaveLength(1);
     expect(result.staffTasks.items[0].runtimeTaskInstanceId).toBe('rtask-staff');
-    expect(result.nextToken).toBeDefined();
   });
 });
 

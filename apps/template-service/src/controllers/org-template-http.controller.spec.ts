@@ -5,6 +5,7 @@ import { OrgTemplateHttpController } from './org-template-http.controller';
 
 const mockCloneTemplateVersion = jest.fn();
 const mockListOrgEnabled = jest.fn();
+const mockGetOrgDerived = jest.fn();
 const mockGetOrgVersionStatus = jest.fn();
 const mockSetOrgTemplateEnablement = jest.fn();
 const mockToDeriveEnableResponse = jest.fn();
@@ -17,6 +18,7 @@ jest.mock('@api-hub/template-core', () => {
     OrgTemplateService: jest.fn().mockImplementation(() => ({
       cloneTemplateVersion: mockCloneTemplateVersion,
       listOrgEnabled: mockListOrgEnabled,
+      getOrgDerived: mockGetOrgDerived,
       getOrgVersionStatus: mockGetOrgVersionStatus,
       setOrgTemplateEnablement: mockSetOrgTemplateEnablement,
       toDeriveEnableResponse: mockToDeriveEnableResponse,
@@ -116,6 +118,44 @@ describe('OrgTemplateHttpController', () => {
     );
 
     expect(out.items).toHaveLength(1);
+  });
+
+  it('handleListOrg ORG_CARE_PLAN lists org-derived care plans only', async () => {
+    mockGetOrgDerived.mockResolvedValue({
+      organizationMeta: { id: 'org-1', name: 'org-1', description: null },
+      items: [{ orgTemplateId: 'CP-VAR-1', templateName: 'HTN Variant' }],
+      pagination: { limit: 20, count: 1, total: 1, hasMore: false },
+      filterOptions: { templateType: ['CARE_PLAN'] },
+    });
+
+    const c = new OrgTemplateHttpController();
+    const out = await c.handleListOrg(
+      baseReq({
+        params: {
+          templateLevel: 'ORG_CARE_PLAN',
+          organizationId: 'org-1',
+        },
+        validatedListOrg: {
+          organizationId: 'org-1',
+          listAllOrganizations: false,
+          query: {
+            templateLevel: 'ORG_CARE_PLAN',
+            organizationId: 'org-1',
+          },
+          actorUser: { userId: 'user-1' },
+        },
+      } as unknown as LambdaRequest),
+    );
+
+    expect(mockGetOrgDerived).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        templateType: 'CARE_PLAN',
+      }),
+    );
+    expect(mockListOrgEnabled).not.toHaveBeenCalled();
+    expect(out.items).toHaveLength(1);
+    expect((out as { templateLevel?: string }).templateLevel).toBe('ORG_CARE_PLAN');
   });
 
   it('handleSetOrgTemplateEnable disables subscription', async () => {

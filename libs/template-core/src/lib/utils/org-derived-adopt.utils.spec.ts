@@ -55,12 +55,23 @@ describe('org-derived-adopt.utils', () => {
     });
 
     expect(preview?.available).toBe(true);
+    expect(preview?.title).toBe("What's new in HTN Care Plan v1 → v2");
     expect(preview?.fromVersionLabel).toBe('v1');
     expect(preview?.toVersionLabel).toBe('v2');
     expect(preview?.changes.added.some((row) => row.key === 'EducationHub')).toBe(true);
-    expect(preview?.changes.changed.some((row) => row.key === 'ReviewCadence' && row.preserved)).toBe(
-      true,
-    );
+    expect(
+      preview?.changes.changed.some(
+        (row) => row.key === 'ReviewCadence' && row.preserved && row.message.includes('30D'),
+      ),
+    ).toBe(true);
+    for (const row of [
+      ...preview!.changes.added,
+      ...preview!.changes.changed,
+      ...preview!.changes.removed,
+    ]) {
+      expect(row.message).not.toMatch(/^\{"/);
+      expect(row.message.length).toBeLessThan(300);
+    }
   });
 
   it('merges canonical latest while preserving variant overrides', () => {
@@ -148,5 +159,53 @@ describe('org-derived-adopt.utils', () => {
     expect(preview?.fromVersion).toBe(5.6);
     expect(preview?.toVersion).toBe(5.7);
     expect(preview?.changes.changed.some((row) => row.key === 'rules.Category')).toBe(true);
+    expect(preview?.changes.changed.find((row) => row.key === 'rules.Category')?.message).toContain(
+      'Category',
+    );
+    expect(preview?.changes.changed.find((row) => row.key === 'rules.Category')?.message).toContain(
+      'org edit',
+    );
+    expect(preview?.changes.changed[0]?.message).not.toContain('{');
+  });
+
+  it('lists each changed rule by name without JSON payloads', () => {
+    const preview = buildOrgDerivedAdoptPreview({
+      variantMeta: {
+        templateId: 'ORG-1',
+        templateVersionId: 'ORG-1-V01',
+        templateName: 'ANOTHER ONE',
+      },
+      variantVersionRow: {
+        meta: { templateId: 'ORG-1', templateVersionId: 'ORG-1-V01', version: 1.9 },
+        fieldValues: { Category: { value: 'CHRONIC_DISEASE' } },
+        rules: {
+          Category: { enable: true },
+          LinkedTaskTemplate: { enable: true, orgedit: true },
+        },
+      } as never,
+      canonicalFromRow: {
+        meta: { templateId: 'ORG-1', templateVersionId: 'ORG-1-V01', version: 1.8 },
+        fieldValues: { Category: { value: 'CHRONIC_DISEASE' } },
+        rules: {
+          Category: { enable: true },
+          LinkedTaskTemplate: { enable: true, orgedit: false },
+        },
+      } as never,
+      canonicalToRow: {
+        meta: { templateId: 'ORG-1', templateVersionId: 'ORG-1-V01', version: 1.9 },
+        fieldValues: { Category: { value: 'CHRONIC_DISEASE' } },
+        rules: {
+          Category: { enable: true },
+          LinkedTaskTemplate: { enable: true, orgedit: true, defaultedit: true },
+        },
+      } as never,
+      sourceOrgTemplateId: 'ORG-1',
+    });
+
+    const linkedRule = preview?.changes.changed.find((row) => row.key === 'rules.LinkedTaskTemplate');
+    expect(linkedRule?.label).toBe('Linked task templates');
+    expect(linkedRule?.message).toContain('Linked task templates');
+    expect(linkedRule?.message).toContain('org edit');
+    expect(linkedRule?.message).not.toContain('{');
   });
 });

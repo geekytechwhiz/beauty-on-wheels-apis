@@ -16,9 +16,63 @@ describe('reminder-settings utils', () => {
     ).toBe(true);
   });
 
+  it('detects difference in scheduleAnchor', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'], scheduleAnchor: 'dueWindowStart' },
+        { channels: ['push'], scheduleAnchor: 'dueWindowEnd' },
+      ),
+    ).toBe(false);
+  });
+
+  it('treats missing scheduleAnchor as dueWindowEnd default', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'] },
+        { channels: ['push'], scheduleAnchor: 'dueWindowEnd' },
+      ),
+    ).toBe(true);
+  });
+
+  it('detects difference in offsetMs', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'], offsetMs: 0 },
+        { channels: ['push'], offsetMs: -3600000 },
+      ),
+    ).toBe(false);
+  });
+
+  it('treats missing offsetMs as 0 default', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'] },
+        { channels: ['push'], offsetMs: 0 },
+      ),
+    ).toBe(true);
+  });
+
+  it('detects difference in quietHoursBufferMs', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'], quietHoursBufferMs: 300000 },
+        { channels: ['push'], quietHoursBufferMs: 600000 },
+      ),
+    ).toBe(false);
+  });
+
+  it('treats missing quietHoursBufferMs as 300000 default', () => {
+    expect(
+      reminderSettingsEqual(
+        { channels: ['push'] },
+        { channels: ['push'], quietHoursBufferMs: 300000 },
+      ),
+    ).toBe(true);
+  });
+
   it('rejects enable on terminal task state', () => {
     expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.COMPLETED)).toBe(false);
-    expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.OPEN)).toBe(true);
+    expect(isReminderRegistrationEligible(RUNTIME_TASK_STATE.SCHEDULED)).toBe(true);
   });
 
   it('merges settings when request omits reminderSettings', () => {

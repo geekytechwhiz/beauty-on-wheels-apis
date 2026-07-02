@@ -4,20 +4,74 @@ import { getOrganizationIdForRequest } from '../utils/helpers';
 
 export type TemplateLevel = 'MASTER' | 'ORG' | 'ORG_DERIVED' | 'ORG_CARE_PLAN';
 
-function firstQuery(
-  req: LambdaRequest,
-  key: string,
-): string | undefined {
-  const fromParams = req.params?.[key];
-  if (typeof fromParams === 'string' && fromParams.trim()) {
-    return fromParams.trim();
+/** API Gateway / serverless-offline may lowercase query keys — map to canonical camelCase. */
+const QUERY_PARAM_KEY_MAP: Record<string, string> = {
+  templatelevel: 'templateLevel',
+  organizationid: 'organizationId',
+  organizationmetaid: 'organizationMetaId',
+  orgtemplateid: 'orgTemplateId',
+  organizationname: 'organizationName',
+  organizationdescription: 'organizationDescription',
+  categorycode: 'categoryCode',
+  conditioncode: 'conditionCode',
+  templatetype: 'templateType',
+  templatename: 'templateName',
+  templateid: 'templateId',
+  templateenabled: 'templateEnabled',
+  nextpaginationkey: 'nextPaginationKey',
+  nexttoken: 'nextToken',
+};
+
+function canonicalQueryKey(key: string): string {
+  return QUERY_PARAM_KEY_MAP[key.toLowerCase()] ?? key;
+}
+
+function collectQueryRecord(
+  source: Record<string, string | string[] | undefined | null> | null | undefined,
+  merged: Record<string, string | undefined>,
+): void {
+  if (!source) return;
+  for (const [key, value] of Object.entries(source)) {
+    if (value === undefined || value === null) continue;
+    const single = Array.isArray(value) ? value[0] : value;
+    if (typeof single !== 'string' || !single.trim()) continue;
+    merged[canonicalQueryKey(key)] = single.trim();
   }
-  const qs = req.event.queryStringParameters as Record<string, string | undefined> | null;
-  const raw = qs?.[key];
-  if (typeof raw === 'string' && raw.trim()) {
-    return raw.trim().toUpperCase();
+}
+
+/** Merge path + query params with case-insensitive keys (later sources override earlier). */
+export function collectTemplateQueryParams(
+  sources: Array<Record<string, string | string[] | undefined> | null | undefined>,
+): Record<string, string | undefined> {
+  const merged: Record<string, string | undefined> = {};
+  for (const source of sources) {
+    collectQueryRecord(source, merged);
   }
-  return undefined;
+  return merged;
+}
+
+export function collectTemplateQueryParamsFromRequest(req: LambdaRequest): Record<string, string | undefined> {
+  const event = req.event as {
+    queryStringParameters?: Record<string, string | undefined> | null;
+    multiValueQueryStringParameters?: Record<string, string[] | undefined> | null;
+  };
+  const merged: Record<string, string | undefined> = {};
+  collectQueryRecord(req.params as Record<string, string | string[] | undefined>, merged);
+  collectQueryRecord(event.queryStringParameters ?? undefined, merged);
+  if (event.multiValueQueryStringParameters) {
+    for (const [key, values] of Object.entries(event.multiValueQueryStringParameters)) {
+      const first = values?.[0];
+      if (typeof first === 'string' && first.trim()) {
+        merged[canonicalQueryKey(key)] = first.trim();
+      }
+    }
+  }
+  return merged;
+}
+
+function firstQuery(req: LambdaRequest, key: string): string | undefined {
+  const canonical = canonicalQueryKey(key);
+  return collectTemplateQueryParamsFromRequest(req)[canonical];
 }
 
 function normalizeTemplateLevel(value: string | undefined): TemplateLevel | undefined {
@@ -53,6 +107,17 @@ export function resolveTemplateLevelFromQuery(req: LambdaRequest): TemplateLevel
   }
 
   return 'MASTER';
+}
+
+/** Prefer validated query level (set in validateListOrgTemplatesRequest) over re-parsing the event. */
+export function resolveListTemplateLevel(
+  req: LambdaRequest,
+  validatedTemplateLevel?: TemplateLevel,
+): TemplateLevel {
+  if (validatedTemplateLevel) {
+    return validatedTemplateLevel;
+  }
+  return resolveTemplateLevelFromQuery(req);
 }
 
 export function resolveTemplateLevelFromBody(body: unknown): TemplateLevel | undefined {

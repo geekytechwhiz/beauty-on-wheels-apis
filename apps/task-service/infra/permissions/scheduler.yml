@@ -1,7 +1,8 @@
 Effect: Allow
 Action:
   - scheduler:CreateSchedule
+  - scheduler:UpdateSchedule
   - scheduler:DeleteSchedule
   - scheduler:GetSchedule
 Resource:
-  - arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/default/*
+  - arn:aws:scheduler:${self:provider.region}:${aws:accountId}:schedule/${self:custom.bundle.reminderSchedulerGroupName}/*

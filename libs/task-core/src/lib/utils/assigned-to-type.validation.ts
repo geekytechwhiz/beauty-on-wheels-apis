@@ -1,15 +1,13 @@
 import {
   ASSIGNED_TO_TYPE,
+  isKnownAssignedToType,
   isPatientAssignedToType,
-  normalizeAssignedToTypeForWire,
   requiresAssigneeGsi,
   type AssignedToType,
 } from '../models/types/task-domain.types';
 
-const ASSIGNED_TO_TYPE_VALUES = Object.values(ASSIGNED_TO_TYPE);
-
 export type AssignedToTypeInput = {
-  assignedToType: AssignedToType;
+  assignedToType: AssignedToType | string;
   assignedToStaffId?: string;
   assignedToStaffDisplayName?: string;
 };
@@ -22,26 +20,28 @@ function validationError(message: string): Error & { statusCode: number; code: s
 }
 
 /**
- * When `assignedToType` is `patient`, assignee inbox fields are ignored (not persisted or indexed).
- * Non-patient types require assignee id + display name — see `validateAssignedToTypeInput`.
+ * When `assignedToType` is patient, assignee inbox fields are ignored (not persisted or indexed).
+ * Assignee type value is stored verbatim — not rewritten to a canonical form.
  */
 export function normalizeAssignedToTypeInput<T extends AssignedToTypeInput>(input: T): T {
-  const assignedToType = normalizeAssignedToTypeForWire(input.assignedToType);
-  if (isPatientAssignedToType(assignedToType)) {
-    const { assignedToStaffId: _id, assignedToStaffDisplayName: _name, ...rest } = input;
-    return { ...rest, assignedToType } as T;
+  if (isPatientAssignedToType(input.assignedToType)) {
+    const normalized = { ...input };
+    delete normalized.assignedToStaffId;
+    delete normalized.assignedToStaffDisplayName;
+    return normalized;
   }
-  return { ...input, assignedToType };
+  return { ...input };
 }
 
 export function validateAssignedToTypeInput(input: AssignedToTypeInput): void {
-  const assignedToType = normalizeAssignedToTypeForWire(input.assignedToType);
-  if (!(ASSIGNED_TO_TYPE_VALUES as readonly string[]).includes(assignedToType)) {
-    throw validationError(`assignedToType must be one of: ${ASSIGNED_TO_TYPE_VALUES.join(', ')}`);
+  if (!isKnownAssignedToType(input.assignedToType)) {
+    throw validationError(
+      `assignedToType must be one of: ${Object.values(ASSIGNED_TO_TYPE).join(', ')}`,
+    );
   }
 
   if (
-    requiresAssigneeGsi(assignedToType) &&
+    requiresAssigneeGsi(input.assignedToType) &&
     (!input.assignedToStaffId?.trim() || !input.assignedToStaffDisplayName?.trim())
   ) {
     throw validationError(
@@ -50,14 +50,9 @@ export function validateAssignedToTypeInput(input: AssignedToTypeInput): void {
   }
 }
 
-/** Normalize then validate — use at create boundaries before persistence. */
+/** Strip patient assignee fields then validate — use at create boundaries before persistence. */
 export function prepareAssignedToTypeInput<T extends AssignedToTypeInput>(input: T): T {
   const normalized = normalizeAssignedToTypeInput(input);
   validateAssignedToTypeInput(normalized);
   return normalized;
-}
-
-/** @deprecated Use `requiresAssigneeGsi` */
-export function isStaffAssignedToType(assignedToType: AssignedToType): boolean {
-  return assignedToType === ASSIGNED_TO_TYPE.ORG_STAFF;
 }

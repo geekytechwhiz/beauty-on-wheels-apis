@@ -10,7 +10,7 @@ const baseMeta = {
   description: 'Old desc',
   displayToPatient: true,
   requiredForStageCompletion: false,
-  currentState: RUNTIME_TASK_STATE.OPEN,
+  currentState: RUNTIME_TASK_STATE.SCHEDULED,
 } as TaskMetaDdbRecord;
 
 describe('runtime-task-metadata utils', () => {

@@ -30,7 +30,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.assignedToType).toBe('patient');
     expect(meta.displayToPatient).toBe(true);
     expect(meta.taskDisplayGroup).toBe('checkIn');
-    expect(meta.currentState).toBe('open');
+    expect(meta.currentState).toBe('scheduled');
     expect(meta.reminderEnabled).toBe(true);
     expect(meta.createdBy).toBe('system:monitoring-runtime');
   });
@@ -60,6 +60,26 @@ describe('TaskEntityBuilder', () => {
     expect(meta.gsi1sk).toContain('PAT#pat-1');
   });
 
+  it('builds monitoring META for careTeamRole assignment with STAFF# assignee GSI1 pk', () => {
+    const roleInput: CreateMonitoringActionRequest = {
+      ...input,
+      assignedToType: 'careTeamRole',
+      assignedToStaffId: 'role-triage',
+      assignedToStaffDisplayName: 'Triage Nurse',
+    };
+    const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
+      runtimeTaskInstanceId: 'rtask-role',
+      idempotencyKey:
+        'org-1|pat-1|mon-1|METRIC_CHECKIN|1780581600000|1780668000000|careTeamRole|role-triage',
+      input: roleInput,
+      nowMs: 1780581600000,
+    });
+
+    const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
+    expect(meta.assignedToType).toBe('careTeamRole');
+    expect(meta.gsi1pk).toBe('ORG#org-1#STAFF#role-triage');
+  });
+
   it('uses open state when dueWindowStart is in the future', () => {
     const ctx = TaskEntityBuilder.buildMonitoringCreateContext({
       runtimeTaskInstanceId: 'rtask-future',
@@ -69,7 +89,7 @@ describe('TaskEntityBuilder', () => {
     });
 
     const meta = TaskEntityBuilder.buildMonitoringMetaRecord(ctx);
-    expect(meta.currentState).toBe('open');
+    expect(meta.currentState).toBe('scheduled');
   });
 
   const staffInput: CreateRuntimeTaskRequest = {
@@ -78,7 +98,7 @@ describe('TaskEntityBuilder', () => {
     patientId: 'pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201',
     patientDisplayName: 'Maria Lopez',
     carePlanInstanceId: 'cp-inst-onboard-2026-04-001',
-    workflowStage: 'ongoing',
+    workflowStage: 'ongoingCare',
     runtimeTaskSource: RUNTIME_TASK_SOURCE.MANUAL_SYSTEM,
     taskBehaviorCode: 'CARE_TEAM_TASK',
     taskDisplayGroup: 'staffTask',
@@ -107,7 +127,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.patientDisplayName).toBe('Maria Lopez');
     expect(meta.gsi1pk).toBe('ORG#org-acme-health-001#STAFF#staff-nurse-44721');
     expect(meta.gsi1sk).toContain('PAT#pat-8f2c91a4-7e3b-4d1a-9c55-2a1f0e883201');
-    expect(meta.currentState).toBe('open');
+    expect(meta.currentState).toBe('scheduled');
     expect(meta.createdBy).toBe('user:staff-lead-001');
   });
 
@@ -187,7 +207,7 @@ describe('TaskEntityBuilder', () => {
     expect(meta.sourceTaskTemplateVersionId).toBe('task-tpl-document-form-v2');
     expect(meta.sk1).toBe('CP#cp-inst-onboard-2026-04-001#TASK#rtask-7k9m2p4q8x1n6w3e');
     expect(meta.reminderEnabled).toBe(true);
-    expect(meta.currentState).toBe('open');
+    expect(meta.currentState).toBe('scheduled');
     expect(meta.createdBy).toBe('system:care-plan-runtime');
     expect(meta.gsi1pk).toBeUndefined();
     expect(meta.gsi1sk).toBeUndefined();
@@ -241,7 +261,7 @@ describe('TaskEntityBuilder', () => {
       displayTitle: 'Check in',
       assignedToType: 'patient' as const,
       displayToPatient: true,
-      currentState: 'open' as const,
+      currentState: 'scheduled' as const,
       createdAt: 1,
       createdBy: 'system',
       lastUpdatedAt: 1,
@@ -250,7 +270,7 @@ describe('TaskEntityBuilder', () => {
 
     const hist = TaskEntityBuilder.buildStateChangeHistRecord({
       meta,
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'completed',
       actorId: 'pat-1',
       reason: 'Done',
@@ -259,7 +279,7 @@ describe('TaskEntityBuilder', () => {
 
     expect(hist).toMatchObject({
       historyEventType: 'stateChange',
-      fromState: 'open',
+      fromState: 'scheduled',
       toState: 'completed',
       transitionBy: 'pat-1',
       transitionSource: 'manual',
@@ -281,7 +301,7 @@ describe('TaskEntityBuilder', () => {
     displayTitle: 'Check in',
     assignedToType: 'patient' as const,
     displayToPatient: true,
-    currentState: 'open' as const,
+    currentState: 'scheduled' as const,
     reminderEnabled: true,
     reminderSettings: { channels: ['push'] },
     createdAt: 1,
@@ -329,6 +349,31 @@ describe('TaskEntityBuilder', () => {
       transitionBy: 'staff-1',
       transitionSource: 'manual',
       transitionReason: 'Patient prefers SMS',
+    });
+  });
+
+  it('buildReminderCurrentRecord uses REM#CURRENT and scheduled status', () => {
+    const record = TaskEntityBuilder.buildReminderCurrentRecord({
+      runtimeTaskInstanceId: 'rtask-abc',
+      orgId: 'org-1',
+      patientId: 'pat-1',
+      reminderRecordId: 'rem-rtask-abc-1700000360000-push',
+      scheduledAt: 1_700_000_360_000,
+      channel: 'push',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      nowMs: 1780573600000,
+    });
+
+    expect(record).toMatchObject({
+      pk: 'TASK#rtask-abc',
+      sk: 'REM#CURRENT',
+      entityType: 'ReminderInstance',
+      reminderStatus: 'scheduled',
+      schedulerJobId: 'task-reminder-rtask-abc',
+      scheduledReminderAt: 1_700_000_360_000,
+      reminderChannel: 'push',
+      createdAt: 1780573600000,
+      updatedAt: 1780573600000,
     });
   });
 });

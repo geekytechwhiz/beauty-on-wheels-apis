@@ -1,5 +1,10 @@
 import { TEMPLATE_STATUS } from '../constants/template.constants';
-import { resolveTemplateHistory, type TemplateHistoryEntry } from '../mappers/template-http.dto';
+import {
+  buildVersionHistory,
+  resolveTemplateHistory,
+  toListHistorySummary,
+  type TemplateHistoryEntry,
+} from '../mappers/template-http.dto';
 import { extractCatalogCodes } from '../utils/field-values-profile.utils';
 import { asTemplateRulesMap } from '../utils/template-rules.utils';
 import { buildOrgDerivedAdoptPreview } from '../utils/org-derived-adopt.utils';
@@ -101,7 +106,7 @@ export function toOrgDerivedListItem(
     templateEnabled: enablement ? isActiveEnablement(enablement) : false,
     upgrade: resolveOrgDerivedUpgrade(meta, canonicalMeta),
     lastModifiedAt: meta.lastModifiedAt,
-    ...(history && history.length > 0 ? { history } : {}),
+    history: history ?? [],
   };
 }
 
@@ -116,7 +121,8 @@ export function toOrgDerivedDetail(
     canonicalToRow?: TemplateDdbRecord;
   },
 ): GetOrgDerivedResult {
-  const base = toOrgDerivedListItem(metaRow, versionRow, enablement, canonicalMeta);
+  const history = resolveOrgDerivedItemHistory(versionRow);
+  const base = toOrgDerivedListItem(metaRow, versionRow, enablement, canonicalMeta, history);
   const meta = metaRow.meta;
 
   let adopt: OrgDerivedAdoptPreview | null = null;
@@ -152,7 +158,15 @@ export function resolveOrgDerivedItemHistory(
   versionRow: TemplateDdbRecord,
   allVersionRows: TemplateDdbRecord[] = [],
 ): TemplateHistoryEntry[] {
-  return resolveTemplateHistory(versionRow, allVersionRows);
+  const resolved = resolveTemplateHistory(versionRow, allVersionRows);
+  if (resolved.length > 0) {
+    return resolved;
+  }
+  // In-place org-derived variants use one VERSION row; synthesize one entry for legacy rows.
+  if (versionRow.meta?.templateId) {
+    return toListHistorySummary(buildVersionHistory([versionRow]));
+  }
+  return [];
 }
 
 export function toOrgDerivedCreateResult(
@@ -235,6 +249,7 @@ export function toUpdateOrgDerivedResult(
     templateEnabled,
     fieldValues: fieldValuesOf(versionRow),
     rules: asTemplateRulesMap(versionRow.rules),
+    history: resolveOrgDerivedItemHistory(versionRow),
   };
 }
 

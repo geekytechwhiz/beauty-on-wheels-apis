@@ -9,7 +9,7 @@ import {
 import { compareTemplateDisplayVersions, resolveTemplateDisplayVersion } from './template.utils';
 
 const CANONICAL_ORG_ADOPT_FOOTER_NOTE =
-  'Adoption updates the org template baseline version; org-derived care plan variants adopt from this canonical template separately.';
+  'Your existing Org Templates and Care Plans are unchanged — adoption only updates this Org Master record.';
 
 /** Baseline org version (set at derive / last adopt); org PUT bumps display version above this. */
 export function resolveCanonicalOrgBaselineVersion(meta: TemplateMeta): number {

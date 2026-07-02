@@ -24,7 +24,16 @@ export function reminderSettingsEqual(
   }
   const aQuiet = a?.quietHoursRespected ?? false;
   const bQuiet = b?.quietHoursRespected ?? false;
-  return aQuiet === bQuiet;
+  if (aQuiet !== bQuiet) return false;
+
+  const aAnchor = a?.scheduleAnchor ?? 'dueWindowEnd';
+  const bAnchor = b?.scheduleAnchor ?? 'dueWindowEnd';
+  if (aAnchor !== bAnchor) return false;
+
+  if ((a?.offsetMs ?? 0) !== (b?.offsetMs ?? 0)) return false;
+  if ((a?.quietHoursBufferMs ?? 300_000) !== (b?.quietHoursBufferMs ?? 300_000)) return false;
+
+  return true;
 }
 
 export function isReminderRegistrationEligible(currentState: RuntimeTaskState): boolean {

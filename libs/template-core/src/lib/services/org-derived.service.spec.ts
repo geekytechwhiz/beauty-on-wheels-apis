@@ -135,3 +135,73 @@ describe('OrgDerivedService.createOrgDerived', () => {
     expect(result.templateEnabled).toBe(true);
   });
 });
+
+describe('OrgDerivedService.getOrgDerived list', () => {
+  it('filters ORG_CARE_PLAN to care-plan variants only', async () => {
+    const carePlanVariant = {
+      sk: 'META',
+      meta: {
+        templateId: 'CP-VAR-1',
+        templateName: 'HTN Variant',
+        templateType: 'CARE_PLAN',
+        derivationKind: DERIVATION_KIND.ORG_DERIVE,
+        derivedFromOrgTemplateId: 'CANONICAL-CP-1',
+        templateVersionId: 'CP-VAR-1-V01',
+        version: 1,
+      },
+    };
+    const monitoringVariant = {
+      sk: 'META',
+      meta: {
+        templateId: 'MON-VAR-1',
+        templateName: 'BP Monitoring Variant',
+        templateType: 'MONITORING',
+        derivationKind: DERIVATION_KIND.ORG_DERIVE,
+        derivedFromOrgTemplateId: 'CANONICAL-MON-1',
+        templateVersionId: 'MON-VAR-1-V01',
+        version: 1,
+      },
+    };
+
+    const orgRepo = {
+      queryOrgTemplatesGsi1Page: jest.fn().mockResolvedValue({
+        items: [carePlanVariant, monitoringVariant],
+      }),
+      getOrgVersionForMeta: jest.fn().mockImplementation(async (_org: string, templateId: string) => ({
+        meta: { templateId, templateVersionId: `${templateId}-V01`, version: 1 },
+        fieldValues: {
+          Category: { value: 'CHRONIC_DISEASE' },
+          Condition: { value: 'HYPERTENSION' },
+        },
+        rules: {},
+      })),
+      listOrgVersions: jest.fn().mockResolvedValue({ items: [] }),
+      getOrgMeta: jest.fn(),
+    };
+    const enablementRepo = {
+      findByOrgAndOrgTemplateId: jest.fn().mockResolvedValue({ meta: { effectiveTo: null } }),
+    };
+    const orgProfileRepo = {
+      getOrgProfile: jest.fn().mockResolvedValue({ meta: { organizationId: 'org-1', name: 'org-1' } }),
+    };
+
+    const svc = new OrgDerivedService(
+      orgRepo as never,
+      enablementRepo as never,
+      orgProfileRepo as never,
+      {} as never,
+    );
+
+    const result = await svc.getOrgDerived({
+      organizationId: 'org-1',
+      carePlanOnly: true,
+    });
+
+    expect(result).toMatchObject({
+      items: [{ orgTemplateId: 'CP-VAR-1' }],
+      pagination: { total: 1, count: 1 },
+    });
+    expect(result.items[0].history).toHaveLength(1);
+    expect(result.items[0].history[0].title).toBe('Template Created');
+  });
+});

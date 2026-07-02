@@ -56,91 +56,6 @@ function canonicalizeTypeHint(hint: ExcelTypeHint): ExcelTypeHint {
   };
 }
 
-/**
- * ServiceType → Specialty edges applied when matching ServiceType value codes exist in Excel.
- * Skipped when the ServiceType value is absent from the catalog.
- */
-export const SERVICE_TYPE_SPECIALTY_RELATIONS: Record<string, string[]> = {
-  CONSULTATION: [
-    'CARDIOLOGY',
-    'ENDOCRINOLOGY',
-    'HEMATOLOGY',
-    'NEPHROLOGY',
-    'PULMONOLOGY',
-    'RHEUMATOLOGY',
-    'FAMILY_MEDICINE',
-    'INTERNAL_MEDICINE',
-    'OBS_AND_GYN',
-    'DERMATOLOGY',
-    'PSYCHIATRY',
-    'PEDIATRIC',
-    'GERIATRICIAN',
-    'IMMUNOLOGY',
-    'UROLOGY',
-    'GASTROENTEROLOGY',
-    'NEUROLOGY',
-    'ONCOLOGY',
-    'ENT',
-    'ORTHOPAEDIST',
-    'OPHTHALMOLOGY',
-    'ODONTOLOGY',
-    'GENERAL',
-  ],
-  REVIEW: [
-    'CARDIOLOGY',
-    'ENDOCRINOLOGY',
-    'NEPHROLOGY',
-    'PULMONOLOGY',
-    'INTERNAL_MEDICINE',
-    'FAMILY_MEDICINE',
-    'GERIATRICIAN',
-    'GENERAL',
-  ],
-  LAB_REVIEW: [
-    'HEMATOLOGY',
-    'ENDOCRINOLOGY',
-    'NEPHROLOGY',
-    'INTERNAL_MEDICINE',
-    'FAMILY_MEDICINE',
-    'BASIC_BLOOD',
-    'DIABETES_SCREENING',
-    'FULL_BODY_CHECKUP',
-  ],
-  PROCEDURE: [
-    'SURGERY',
-    'DERMATOLOGY',
-    'UROLOGY',
-    'GASTROENTEROLOGY',
-    'ENT',
-    'ORTHOPAEDIST',
-    'OPHTHALMOLOGY',
-    'ODONTOLOGY',
-    'OBS_AND_GYN',
-  ],
-  EDUCATION: [
-    'CARDIOLOGY',
-    'ENDOCRINOLOGY',
-    'PULMONOLOGY',
-    'NEPHROLOGY',
-    'DIETICIAN',
-    'FITNESS',
-    'FAMILY_MEDICINE',
-    'INTERNAL_MEDICINE',
-    'GENERAL',
-  ],
-  MONITORING: [
-    'CARDIOLOGY',
-    'ENDOCRINOLOGY',
-    'NEPHROLOGY',
-    'PULMONOLOGY',
-    'FAMILY_MEDICINE',
-    'INTERNAL_MEDICINE',
-    'GERIATRICIAN',
-    'FITNESS',
-    'GENERAL',
-  ],
-  OTHER: ['GENERAL', 'FAMILY_MEDICINE', 'INTERNAL_MEDICINE'],
-};
 const METRIC_VALUE_ATTRIBUTES: Record<string, Record<string, unknown>> = {
   BP_SYSTOLIC: {
     dataType: 'Numeric',
@@ -643,17 +558,6 @@ function promoteToRichValues(
     });
   }
 
-  for (const [serviceTypeCode, specialtyCodes] of Object.entries(SERVICE_TYPE_SPECIALTY_RELATIONS)) {
-    const seed = valuesByType.get('ServiceType')?.find((v) => v.metadataValueCode === serviceTypeCode);
-    if (!seed) {
-      continue;
-    }
-    promote('ServiceType', serviceTypeCode, {
-      ...seed,
-      relationships: specialtyCodes.map((targetMetadataValueCode) => ({ targetMetadataValueCode })),
-    });
-  }
-
   for (const seed of valuesByType.get('MetricCode') ?? []) {
     const attrs = METRIC_VALUE_ATTRIBUTES[seed.metadataValueCode];
     if (!attrs) {
@@ -743,7 +647,6 @@ function buildDependencyOrder(typeOrder: string[]): string[] {
     City: 'State',
     Currency: 'Country',
     Device: 'Vital',
-    ServiceType: 'Specialty',
     MetricCode: ['DataSourceType', 'EvaluationLogic', 'QuestionType'],
     QuestionCode: 'QuestionType',
   };

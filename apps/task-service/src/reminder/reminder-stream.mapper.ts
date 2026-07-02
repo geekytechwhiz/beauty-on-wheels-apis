@@ -1,6 +1,7 @@
 import {
-  isReminderRegistrationEligible,
-  type RuntimeTaskState,
+  resolveReminderScheduleAt,
+  type PatientQuietWindow,
+  type ReminderScheduleAnchor,
 } from '@api-hub/task-core';
 
 import type {
@@ -8,22 +9,25 @@ import type {
   RegisterReminderJobRequest,
 } from './reminder-scheduler.types';
 
-/** META stream image fields used by register/cancel handlers. */
+/** META stream image fields used by register/cancel processors. */
 export type TaskMetaStreamImage = {
   entityType: string;
   runtimeTaskInstanceId: string;
   orgId: string;
   patientId: string;
   reminderEnabled?: boolean;
-  reminderSettings?: { channels?: string[] };
+  reminderSettings?: {
+    channels?: string[];
+    quietHoursRespected?: boolean;
+    scheduleAnchor?: ReminderScheduleAnchor;
+    offsetMs?: number;
+    quietHoursBufferMs?: number;
+    [key: string]: unknown;
+  };
   currentState?: string;
   dueWindowStart?: number;
   dueWindowEnd?: number;
 };
-
-export function scheduledReminderAtFromMeta(meta: TaskMetaStreamImage): number | undefined {
-  return meta.dueWindowEnd ?? meta.dueWindowStart;
-}
 
 export function primaryReminderChannel(meta: TaskMetaStreamImage): string | undefined {
   return meta.reminderSettings?.channels?.[0];
@@ -40,30 +44,36 @@ export function deriveCancelReason(meta: TaskMetaStreamImage): string {
   return 'unknown';
 }
 
+/**
+ * Maps META stream image to a register request for EventBridge Scheduler.
+ * Returns `null` when no due-window anchor can be resolved or no channel is configured.
+ */
 export function mapMetaToRegisterRequest(
   meta: TaskMetaStreamImage,
   correlationId?: string,
-): RegisterReminderJobRequest | undefined {
-  if (meta.reminderEnabled !== true) {
-    return undefined;
-  }
-
-  const currentState = meta.currentState as RuntimeTaskState | undefined;
-  if (!currentState || !isReminderRegistrationEligible(currentState)) {
-    return undefined;
-  }
-
-  const scheduledAt = scheduledReminderAtFromMeta(meta);
+  quietWindow?: PatientQuietWindow | null,
+): RegisterReminderJobRequest | null {
   const channel = primaryReminderChannel(meta);
-  if (scheduledAt == null || !channel) {
-    return undefined;
+  if (!channel) {
+    return null;
+  }
+
+  const resolved = resolveReminderScheduleAt(
+    meta.dueWindowStart,
+    meta.dueWindowEnd,
+    meta.reminderSettings,
+    quietWindow ?? null,
+  );
+
+  if (!resolved) {
+    return null;
   }
 
   return {
     runtimeTaskInstanceId: meta.runtimeTaskInstanceId,
     patientId: meta.patientId,
     orgId: meta.orgId,
-    scheduledAt,
+    scheduledAt: resolved.scheduledAt,
     channel,
     correlationId,
   };

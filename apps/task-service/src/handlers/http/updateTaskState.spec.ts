@@ -94,7 +94,7 @@ function event(overrides: Partial<APIGatewayProxyEvent> = {}): APIGatewayProxyEv
       action: 'complete',
       actorId: 'pat-1',
       actorType: 'patient',
-      expectedCurrentState: 'open',
+      expectedCurrentState: 'active',
       reason: 'Done',
     }),
     ...overrides,

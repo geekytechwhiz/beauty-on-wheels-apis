@@ -4,8 +4,7 @@ export type RelationTypeSeed =
   | 'PARENT_CHILD'
   | 'VALID_IN'
   | 'SUPPORTED_BY'
-  | 'BELONGS_TO_CATEGORY'
-  | 'ALLOWED_FOR';
+  | 'BELONGS_TO_CATEGORY';
 
 export interface ValueApplicabilityConfigSeed {
   moduleScoped?: boolean;

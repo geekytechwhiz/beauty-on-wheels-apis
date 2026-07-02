@@ -28,7 +28,7 @@ All **instants** use **Unix epoch milliseconds** (`number` / DynamoDB **`N`**). 
 |------|--------|
 | **META** | `createdAt`, `lastUpdatedAt`, `dueWindowStart`, `dueWindowEnd`, `TaskExpirationAt` |
 | **LOOKUP** | `dueWindowStart`, `dueWindowEnd` (schedule snapshot at create) |
-| **LOOKUP `reminderHistory[]`** | `scheduledReminderAt`, `updatedAt`, optional `sentAt` |
+| **LOOKUP `reminderHistory[]`** | `scheduledReminderAt`, `createdAt`, optional `sentAt` |
 | **HIST** | `transitionAt` |
 | **EVID** | `completedAt` |
 | **LOOKUP `evidenceSummary`** | `generatedAt`, `completedAt`, `missedAt` |
@@ -87,10 +87,11 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | Item | SK | Notes |
 |------|-----|-------|
 | **TaskLookup** | `LOOKUP` | `taskSk` (write-once); **`dueWindowStart`**, **`dueWindowEnd`** (write-once); `orgId`, `patientId`; **`reminderHistory[]`**; **`evidenceSummary`** |
+| **ReminderInstance** | `REM#CURRENT` | Mutable live reminder (`reminderStatus`, `schedulerJobId`, `scheduledReminderAt`, channel); written on register, updated on cancel/send |
 | **CompletionEvidence** | `EVID#<completionEvidenceId>` | Separate append-only proof rows |
 | **TaskStateHistory** | `HIST#<transitionAtMs13>#<taskStateHistoryId>` | Append-only; **SK time-ordered** (13-digit ms + id); `transitionAt` must match SK ms |
 
-**Not used:** `SUMMARY#LATEST`, patient `SUM#TASK#...#LATEST`, `REM#`, `IDEMP#`.
+**Not used:** `SUMMARY#LATEST`, patient `SUM#TASK#...#LATEST`, `IDEMP#`.
 
 ### LSI1 — `CarePlanIndex` (META only)
 
@@ -117,10 +118,10 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 
 ### CompletionEvidence vs evidenceSummary vs reminders (task partition)
 
-| | **EVID#** | **evidenceSummary** (LOOKUP) | **reminderHistory** (LOOKUP) | **HIST#** (reminder-related) |
-|--|-----------|------------------------------|------------------------------|------------------------------|
-| Role | Completion proof | Latest rollup | **Operational** send/register/cancel trail | **Audit** settings change + register/cancel **requests** |
-| Example | Linked form submit | “Completed” summary | `Scheduled` → `Sent` on one `reminderRecordId` | Portal changed channels; `RegisterReminderJobs` called |
+| | **EVID#** | **evidenceSummary** (LOOKUP) | **reminderHistory** (LOOKUP) | **REM#CURRENT** | **HIST#** (reminder-related) |
+|--|-----------|------------------------------|------------------------------|-----------------|------------------------------|
+| Role | Completion proof | Latest rollup | **Append-only** send/register/cancel trail | **Live** reminder status | **Audit** settings change only |
+| Example | Linked form submit | “Completed” summary | `scheduled` → `sent` rows | `scheduled` on register | Portal changed channels |
 
 **META** keeps `reminderEnabled` (eligibility) and optional **`reminderSettings`** (latest config — Requirements v2 REM-007).
 
@@ -165,7 +166,7 @@ API handlers **convert** inbound timestamps to `N` before write; **emit** number
 | `reminderHistory` | O | List of maps — **canonical** per-task reminder audit; append on register/send/cancel; cap length |
 | `evidenceSummary` | O | Map (§11.4 fields); set on complete/miss rollup |
 
-**reminderHistory entry:** `reminderRecordId` (S), `scheduledReminderAt` (**N** ms), `reminderChannel` (S), `reminderStatus` (S), `updatedAt` (**N** ms), optional `sentAt` (**N** ms), optional `schedulerJobId` (S). Dedupe by `reminderRecordId`.
+**reminderHistory entry:** `reminderRecordId` (S), `scheduledReminderAt` (**N** ms), `reminderChannel` (S), `reminderStatus` (S), `createdAt` (**N** ms), optional `sentAt` (**N** ms), optional `schedulerJobId` (S). Append-only — each status is a new row; no `updatedAt`.
 
 **evidenceSummary map fields:** `taskevidenceSummaryId` (S), `generatedAt` (**N**), `runtimeTaskSource`, `taskBehaviorCode`, `taskDisplayGroup`, `currentState`, optional `carePlanInstanceId`, `workflowStage`, `requiredForStageCompletion`, `completedAt` (**N**), `missedAt` (**N**), `completionSourceType`, `completionSourceReferenceId`, `latestCompletionSummary` (S).
 
@@ -261,7 +262,7 @@ No DynamoDB.
 | `carePlanInstanceId`, `taskGenerationTrigger` | request input |
 | `carePlanTaskLinkageId` | linkage |
 | `taskBehaviorCode`, `taskDisplayGroup`, `displayTitle`, `assignedToType`, `displayToPatient` | linkage |
-| `currentState` | `open` |
+| `currentState` | `scheduled` (in-progress); terminal: `completed`, `dismissed`, `cancelled`; legacy `open`/`active` normalize to `scheduled` on read |
 | `dueWindowStart` | resolved from linkage (`dueWindowStart` else `dueWindowEnd`) |
 | `dueWindowEnd` | linkage |
 | `idempotencyKey`, `generationHash` | hash(`orgId\|patientId\|carePlanInstanceId\|carePlanTaskLinkageId\|resolvedStart\|dueWindowEnd`) |
@@ -304,7 +305,7 @@ One **`TransactWriteItems`** per request (multiple items). **Always:**
 
 | # | Item | Notes |
 |---|------|-------|
-| 1 | `UpdateItem` META | `currentState`, audit fields; condition `currentState = expectedCurrentState` |
+| 1 | `UpdateItem` META | `currentState`, audit fields; condition matches **persisted** state (`scheduled` for in-progress); client sends **wire** `expectedCurrentState` |
 | 2 | `PutItem` `HIST#<transitionAtMs13>#<taskStateHistoryId>` | `historyEventType = StateChange` |
 
 **Conditional by target state** (service maps `action` → `toState`):
@@ -351,12 +352,12 @@ Reminders are **per task** — operational trail on **`TASK#<id>/LOOKUP`**. **`H
 | Command / event | LOOKUP `reminderHistory` | META | HIST# |
 |-----------------|--------------------------|------|-------|
 | `RegisterReminderJobs` | Append `Scheduled` entry | — | Optional `ReminderRegisterRequest` |
-| `SendReminderRequest` | Upsert → `Sent`, `sentAt` | — | — (operational only on LOOKUP) |
-| `CancelReminderJobs` / terminal state | Mark `Cancelled` | `UpdateItem` state | Optional `ReminderCancelRequest`; state `HIST` if transition |
+| `SendReminderRequest` | Append `Sent` row with `sentAt` | — | — (operational only on LOOKUP) |
+| `CancelReminderJobs` / terminal state | Append `Cancelled` row per open `Scheduled` | `UpdateItem` state | Optional `ReminderCancelRequest`; state `HIST` if transition |
 | Portal **settings** change | — | `reminderSettings`, `reminderEnabled` | **`reminderSettingsChange`** (required per v2) |
-| `SchedulerWindowExecution` | Append/update after eligibility | Read `currentState`, `reminderEnabled` | — |
+| `SchedulerWindowExecution` | Append after eligibility | Read `currentState`, `reminderEnabled` | — |
 
-Cap LOOKUP list length (e.g. 50). Dedupe by `reminderRecordId`.
+Cap LOOKUP list length (e.g. 50). Append-only audit — each row has `createdAt` only (no `updatedAt`).
 
 ### LinkedSourceObjectCompleted (required contract)
 
@@ -376,13 +377,28 @@ Cap LOOKUP list length (e.g. 50). Dedupe by `reminderRecordId`.
 
 ---
 
-## 6) Enum quick reference
+## 6) Enum quick reference (Metadata Registry + operational wire codes)
 
-- **runtimeTaskSource:** `CarePlanTaskLinkage` · `MonitoringRuntime` · `ServiceFlowRuntime` · `ManualSystem`
-- **currentState:** `Scheduled` · `Active` · `Completed` · `Missed` · `Dismissed` · `Cancelled`
-- **surfaceSection** (API only, derived): `Today` · `Upcoming` · `NeedsAttention` · `History` · `CarePlanChecklist`
-- **transitionSource:** `Manual` · `Scheduler` · `SourceEvent` · `System`
-- **ReadinessStatus:** `Ready` · `NotReady` · `NotApplicable`
+Registry-backed fields use **Metadata Registry value codes** (SCREAMING_SNAKE) in request examples — see `docs/services/task-service/api/open-api.yaml`. Operational enums (`currentState`, `surfaceSection`, `runtimeTaskSource`) use camelCase.
+
+Metadata type codes map to these **value codes** (authoritative list is Metadata Registry; service persists codes verbatim).
+
+| Type code | Value codes (Metadata Registry — use in API request examples) |
+|-----------|-------------|
+| **CurrentState** (wire) | `scheduled`, `active`, `completed`, `missed`, `dismissed`, `cancelled` |
+| **CurrentState** (persisted META) | `scheduled` while in-progress; terminals `completed`, `missed` (legacy only), `dismissed`, `cancelled` — `active`/`missed` derived on read from schedule |
+| **TaskBehaviorCode** | `INSTRUCTION`, `DOCUMENT_FORM`, `UPLOAD_DOCUMENT`, `DEVICE_SETUP`, `EDUCATION_VIDEO`, `EDUCATION_ARTICLE`, `CARE_TEAM_TASK`, `METRIC_CHECK_IN`, `SYMPTOM_CHECK_IN` |
+| **TaskDisplayGroup** | `ACTION`, `LEARNING`, `CHECK_IN`, `STAFF_TASK` |
+| **SurfaceSection** (derived, not stored) | `today`, `upcoming`, `needsAttention`, `history`, `carePlanChecklist` |
+| **TaskWorkflowStage** | `ONBOARDING`, `ONGOING_CARE`, `FORMAL_REVIEW`, `CLOSURE` |
+| **TaskGenerationTrigger** | `AT_CARE_PLAN_ACTIVATED`, `AT_CARE_PLAN_FULLY_ACTIVE`, `AT_REVIEW_DUE`, `AT_CARE_PLAN_CLOSURE`, `MANUAL` |
+| **AssignedToType** | `PATIENT`, `CARE_TEAM_ROLE`, `USER`, `ORG_STAFF`, `SYSTEM` |
+| **ReminderChannel** | `PUSH`, `SMS`, `EMAIL`, `IN_APP` |
+| **CompletionSourceType** | `manual`, `document`, `education`, `deviceSetup`, `monitoring`, `symptom`, `otherApprovedSource` |
+| **TransitionSource** | `manual`, `scheduler`, `sourceEvent`, `system` |
+| **ReminderStatus** | `scheduled`, `sent`, `cancelled`, `failed`, `suppressed` |
+| **ReadinessStatus** | `ready`, `notReady`, `notApplicable` |
+| **runtimeTaskSource** | `carePlanTaskLinkage`, `monitoringRuntime`, `serviceFlowRuntime`, `manualSystem` |
 
 ---
 

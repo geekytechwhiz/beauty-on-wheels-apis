@@ -108,6 +108,8 @@ export type ListOrgDerivedParams = {
   conditionCode?: string;
   condition?: string;
   specialty?: string;
+  /** When true (ORG_CARE_PLAN list), only care-plan org-derived variants — set from templateLevel, not query. */
+  carePlanOnly?: boolean;
   templateType?: string;
   templateName?: string;
   templateEnabled?: boolean;
@@ -147,8 +149,8 @@ export type OrgDerivedListItem = {
    */
   upgrade: boolean;
   lastModifiedAt?: string;
-  /** Variant version timeline (list mode only). */
-  history?: TemplateHistoryEntry[];
+  /** Variant version timeline (newest first), same shape as master template history. */
+  history: TemplateHistoryEntry[];
 };
 
 export type ListOrgDerivedResult = {
@@ -215,4 +217,5 @@ export type UpdateOrgDerivedResult = {
   templateEnabled: boolean;
   fieldValues?: Record<string, unknown>;
   rules: Record<string, unknown>;
+  history: TemplateHistoryEntry[];
 };

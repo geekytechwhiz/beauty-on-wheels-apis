@@ -98,7 +98,7 @@ describe('getStaffTasks HTTP handler', () => {
 
   it('returns 200 with paginated staff tasks on success', async () => {
     mockListStaffTasks.mockResolvedValue({
-      items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }],
+      items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'scheduled' }],
     });
 
     const res = await main(baseStaffListEvent(), testLambdaContext());

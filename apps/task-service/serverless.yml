@@ -10,6 +10,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - '@myvitalrx/mvrx-resource-registry'
 
 provider:
   name: aws
@@ -42,6 +43,8 @@ provider:
     - ${file(./infra/permissions/scheduler.yml)}
     - ${file(./infra/permissions/scheduler-passrole.yml)}
     - ${file(./infra/permissions/eventbridge.yml)}
+    - ${file(./infra/permissions/sqs-dlq.yml)}
+    - ${file(../../infra/serverless/permissions/ssm-read.yml)}
     - ${file(./infra/permissions/xray.yml)}
 
 package:
@@ -51,10 +54,65 @@ package:
     - '!**/*.spec.ts'
 
 custom:
+  sharedSsmPaths: ${file(../../infra/serverless/config/shared-ssm-paths.yml)}
+  taskSsmPaths: ${file(./infra/config/ssm-paths.yml)}
   bundle: ${file(./infra/config/infra-custom.yml)}
 
-  # Same CORS + authorizer event shape as user-service (cors before authorizer on each http event).
-  # YAML anchor: JSON schema expects a real object for `http.cors`, not `cors: ${...}` (seen as string).
+  resourceRegistry:
+    enabled: true
+    platformOwner: task-service
+    parameters:
+      REGION:
+        value: ${self:provider.region}
+      STAGE:
+        value: ${self:provider.stage}
+      NODE_ENV:
+        value: ${self:provider.stage}
+      SERVICE_NAME:
+        value: ${self:service}
+      TASK_TABLE:
+        value: ${self:custom.bundle.taskDynamoTableName}
+      CARE_PLAN_LSI_INDEX:
+        value: pk-sk1
+      STAFF_TASKS_GSI_INDEX:
+        value: GSI1
+      LOG_LEVEL:
+        value: ${self:custom.bundle.logLevel.${self:provider.stage}, 'info'}
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED:
+        value: '1'
+      USER_SERVICE_TIMEOUT_MS:
+        value: '8000'
+      ORGANIZATION_SERVICE_TIMEOUT_MS:
+        value: '8000'
+      REMINDER_SCHEDULER_GROUP_NAME:
+        value: ${self:custom.bundle.reminderSchedulerGroupName}
+      REMINDER_SCHEDULER_TARGET_ROLE_ARN:
+        value: !GetAtt ReminderSchedulerInvokeRole.Arn
+      PROCESS_REMINDER_LAMBDA_ARN:
+        value: !GetAtt ProcessReminderLambdaFunction.Arn
+    include:
+      - AWS::Events::EventBus
+      - AWS::SQS::Queue
+
+  # Inbound EventBridge bus owned by task-service. Upstream producers PutEvents here.
+  taskEventIngest:
+    sources:
+      - task-service
+      - monitoring-service
+      - service-flow
+      - care-plan-runtime
+      - engagement-service
+
+  monitoringActionRequested:
+    eventBridgeDetailType: MonitoringActionRequested.v1
+  serviceFlowActivated:
+    eventBridgeDetailType: ServiceFlowActivated.v1
+  carePlanTaskGenerationTriggered:
+    eventBridgeDetailType: CarePlanTaskGenerationTriggered.v1
+  linkedSourceObjectCompleted:
+    eventBridgeDetailType: LinkedSourceObjectCompleted.v1
+
+  # REST API secured routes: YAML anchors (Serverless requires real objects on http events).
   cors: &httpApiCors
     origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
     headers:
@@ -69,8 +127,68 @@ custom:
       - Sec-Ch-Ua-Mobile
       - Sec-Ch-Ua-Platform
 
+  securedAuthorizer: &securedAuthorizer
+    name: common_authorizer
+    type: token
+    identitySource: method.request.header.Authorization
+    arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+    resultTtlInSeconds: 0
+
+  securedResponses: &securedResponses
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "500": Server error
+
+  securedResponsesWithConflict: &securedResponsesWithConflict
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "409": Conflict
+    "422": Validation or business rule error
+    "500": Server error
+
+  securedResponsesWithNotFound: &securedResponsesWithNotFound
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "404": Not found
+    "500": Server error
+
+  securedResponsesWithNotFoundValidation: &securedResponsesWithNotFoundValidation
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "404": Not found
+    "422": Validation or business rule error
+    "500": Server error
+
+  securedResponsesWithNotFoundConflict: &securedResponsesWithNotFoundConflict
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "404": Not found
+    "409": Conflict
+    "422": Validation or business rule error
+    "500": Server error
+
+  securedResponsesWithValidation: &securedResponsesWithValidation
+    "200": OK
+    "400": Bad request
+    "401": Unauthorized
+    "403": Forbidden
+    "422": Validation or business rule error
+    "500": Server error
+
+  # Disable sourcemaps in dev — CodeBuild packages with stage dev on SMALL (~3.6 GiB).
+  # Sourcemaps for 20+ individual bundles OOM-kill esbuild ("The service was stopped").
   sourcemapsByStage:
-    dev: true
+    dev: false
     stg: false
     prd: false
 
@@ -85,9 +203,12 @@ custom:
     external:
       - aws-sdk
     keepNames: true
-    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
-    concurrency: 8
-    zipConcurrency: 8
+    skipRebuild: true
+    disposeContext: true
+    # Serialize bundling/zipping. With package.individually + many functions, parallel esbuild
+    # service instances exhaust the CodeBuild container and crash with "The service was stopped".
+    concurrency: 1
+    zipConcurrency: 1
     # Resolve NX workspace dependencies (@api-hub/* packages)
     plugins: esbuild-plugins.js
     # Ensure proper module resolution
@@ -121,13 +242,7 @@ custom:
     logging: false
 
   # DynamoDB stream on manually provisioned task table (task-service-{stage}).
-  # 1) Enable stream (once per stage):
-  #    aws dynamodb update-table --table-name task-service-dev \
-  #      --stream-specification StreamEnabled=true,StreamViewType=NEW_AND_OLD_IMAGES
-  # 2) Record LatestStreamLabel:
-  #    aws dynamodb describe-table --table-name task-service-dev \
-  #      --query 'Table.LatestStreamLabel' --output text
-  # 3) Replace TBD below before deploy. Re-enabling stream changes the label — update and redeploy.
+  # Re-enabling stream changes LatestStreamLabel — update timestamp and redeploy.
   taskTableStreamTimestamp:
     dev: '2026-06-05T10:29:35.640'
     stg: '2026-06-05T10:35:04.797'
@@ -140,7 +255,7 @@ custom:
     httpPort: 3000
     noPrependStageInUrl: true
 
-# REST + CORS; secured routes: cors block first, then shared token authorizer (same as alert-service).
+# Secured HTTP routes: cors + shared authorizer + response anchors (see custom section).
 functions:
   health:
     handler: src/handlers/http/health.main
@@ -160,20 +275,8 @@ functions:
           summary: Create a monitoring-generated runtime task (idempotent)
           description: Called by Monitoring Runtime. orgId from JWT; patientId and patientDisplayName from request body. GSI1 when assignedToStaffId set.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "409": Conflict
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithConflict
 
   generateCarePlanTasks:
     handler: src/handlers/http/generateCarePlanTasks.main
@@ -185,20 +288,8 @@ functions:
           summary: Generate care-plan linkage runtime tasks (idempotent batch)
           description: Called by Care Plan Runtime. orgId from JWT; patientId and patientDisplayName from request body. GSI1 per linkage when assignedToStaffId set.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "409": Conflict
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithConflict
 
   getTasks:
     handler: src/handlers/http/getTasks.main
@@ -209,18 +300,8 @@ functions:
           summary: List tasks by patient and (optionally) care plan
           description: Patient-scoped task list. Organization scope from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   getActionCenterItems:
     handler: src/handlers/http/getActionCenterItems.main
@@ -231,18 +312,8 @@ functions:
           summary: Get Action Center items by surface section
           description: Patient Action Center with server-derived surfaceSection. Organization scope from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   getStaffTasks:
     handler: src/handlers/http/getStaffTasks.main
@@ -253,18 +324,8 @@ functions:
           summary: List tasks assigned to the authenticated staff member
           description: Staff inbox via GSI1. staffUserId must match JWT user id. Organization scope from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   createRuntimeTask:
     handler: src/handlers/http/createRuntimeTask.main
@@ -279,19 +340,8 @@ functions:
             serviceFlowRuntime or manualSystem). orgId from JWT; patientId and patientDisplayName from request body.
             GSI1 when assignedToStaffId set. Prefer manualSystem when the origin is this API or the care UI.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithValidation
 
   getRuntimeTask:
     handler: src/handlers/http/getRuntimeTask.main
@@ -302,19 +352,8 @@ functions:
           summary: Get one runtime task detail
           description: Resolve task detail by LOOKUP, scoped to organization from JWT.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFound
 
   updateRuntimeTask:
     handler: src/handlers/http/updateRuntimeTask.main
@@ -329,20 +368,8 @@ functions:
             Appends HIST taskMetadataChange audit. Does not change due windows, staff assignment,
             reminders, or task state.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFoundValidation
 
   getRuntimeTaskHistory:
     handler: src/handlers/http/getRuntimeTaskHistory.main
@@ -353,19 +380,8 @@ functions:
           summary: Get task audit history
           description: Paged HIST# timeline for one runtime task (newest first), scoped to organization from JWT.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFound
 
   updateAssignedStaff:
     handler: src/handlers/http/updateAssignedStaff.main
@@ -379,20 +395,8 @@ functions:
             Portal assign/reassign for staff tasks. orgId from JWT. Sets or updates GSI1 (gsi1pk + gsi1sk on
             first assignment; gsi1pk only on reassignment). Appends HIST assignedToStaffChange audit.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFoundValidation
 
   updateTaskState:
     handler: src/handlers/http/updateTaskState.main
@@ -406,21 +410,8 @@ functions:
             Manual runtime action from Mobile, Portal, BFF, or authorized staff. Requires expectedCurrentState
             for optimistic concurrency.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "409": Conflict
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFoundConflict
 
   updateReminderSettings:
     handler: src/handlers/http/updateReminderSettings.main
@@ -433,20 +424,8 @@ functions:
           description: >
             Authorized portal users update reminderEnabled and reminderSettings on META with HIST audit.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "404": Not found
-            "422": Validation or business rule error
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponsesWithNotFoundValidation
 
   getTaskStatusSummary:
     handler: src/handlers/http/getTaskStatusSummary.main
@@ -459,28 +438,17 @@ functions:
             Called by Care Plan Runtime for stage readiness gating. patientId query param required.
             Aggregates via CarePlanIndex LSI + in-memory rollup. Organization scope from JWT only.
           cors: *httpApiCors
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
-          responses:
-            "200": OK
-            "400": Bad request
-            "401": Unauthorized
-            "403": Forbidden
-            "500": Server error
+          authorizer: *securedAuthorizer
+          responses: *securedResponses
 
   # Reminder stream consumers (META RuntimeTaskInstance only).
-  # filterPatterns = coarse business gates; handlers guard idempotency and eligibility.
+  # filterPatterns = coarse business gates; handlers map META → scheduler gateway.
   registerReminderJobs:
     handler: src/handlers/streams/registerReminderJobs.main
     timeout: 30
     memorySize: 256
-    description: >
-      DynamoDB stream consumer for RuntimeTaskInstance META. Registers reminder schedules when
-      reminders are enabled on create, turned on, or settings change while enabled on a non-terminal task.
+    description: Registers reminder schedules when reminders are enabled on create or turned on.
+    environment: ${file(./infra/environments/reminder-scheduler-function-env.yml)}
     events:
       - stream:
           type: dynamodb
@@ -489,7 +457,6 @@ functions:
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures
           filterPatterns:
-            # Create with reminders on (non-terminal state only)
             - eventName: [INSERT]
               dynamodb:
                 NewImage:
@@ -499,7 +466,6 @@ functions:
                     BOOL: [true]
                   currentState:
                     S: [open, scheduled, active]
-            # Reminders turned on (false → true) on a non-terminal task
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -514,14 +480,27 @@ functions:
                     S: [RuntimeTaskInstance]
                   reminderEnabled:
                     BOOL: [false]
-            # Note: reminderSettings-only changes (channels while still enabled) are NOT
-            # filtered here — add a handler diff or an extra pattern when re-register is required.
+            - eventName: [MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
+                  currentState:
+                    S: [open, scheduled, active]
+                OldImage:
+                  entityType:
+                    S: [RuntimeTaskInstance]
+                  reminderEnabled:
+                    BOOL: [true]
 
   cancelReminderJobs:
     handler: src/handlers/streams/cancelReminderJobs.main
     timeout: 30
     memorySize: 256
-    description: Cancels reminder schedules when reminders are disabled or task reaches completed, dismissed, or cancelled (not missed).
+    description: Cancels reminder schedules when reminders are disabled or task is completed, dismissed, or cancelled.
+    environment: ${file(./infra/environments/reminder-scheduler-function-env.yml)}
     events:
       - stream:
           type: dynamodb
@@ -530,7 +509,6 @@ functions:
           startingPosition: LATEST
           functionResponseType: ReportBatchItemFailures
           filterPatterns:
-            # Reminders turned off
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -543,7 +521,6 @@ functions:
                     S: [RuntimeTaskInstance]
                   reminderEnabled:
                     BOOL: [true]
-            # Task completed/dismissed/cancelled — not missed (reminder already fired or lapsed before miss)
             - eventName: [MODIFY]
               dynamodb:
                 NewImage:
@@ -558,15 +535,104 @@ functions:
                     S: [open, scheduled, active]
 
   processReminder:
-    handler: src/handlers/http/processReminder.main
+    handler: src/handlers/scheduler/processReminderConsumer.main
     timeout: 30
     memorySize: 256
-    description: Scheduler callback at reminder fire time; validates META eligibility and dispatches notification (stub).
+    description: >
+      EventBridge Scheduler callback at reminder fire time.
+      Invoked directly by the Scheduler as a Lambda target (no API Gateway).
+      Delegates eligibility checks to TaskService; handles quiet hours and notification dispatch.
+    # No events block — invoked by EventBridge Scheduler via Lambda ARN.
+    # Schedules are created programmatically by registerReminderJobs on META stream changes.
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # EventBridge consumers — monitoring action ingest (MonitoringActionRequested.v1).
+  # ──────────────────────────────────────────────────────────────────────────────
+  onMonitoringActionRequested:
+    handler: src/handlers/events/consumer/event-bridge/monitoringActionRequestedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
     events:
-      - http:
-          path: internal/reminders/process
-          method: post
-          cors: false
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.monitoringActionRequested.eventBridgeDetailType}
+
+  onServiceFlowActivated:
+    handler: src/handlers/events/consumer/event-bridge/serviceFlowActivatedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.serviceFlowActivated.eventBridgeDetailType}
+
+  onCarePlanTaskGenerationTriggered:
+    handler: src/handlers/events/consumer/event-bridge/carePlanTaskGenerationTriggeredConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.carePlanTaskGenerationTriggered.eventBridgeDetailType}
+
+  onLinkedSourceObjectCompleted:
+    handler: src/handlers/events/consumer/event-bridge/linkedSourceObjectCompletedConsumer.main
+    maximumRetryAttempts: 2
+    destinations:
+      onFailure:
+        type: sqs
+        arn:
+          Fn::GetAtt:
+            - TaskEventsConsumerDLQ
+            - Arn
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::GetAtt:
+              - TaskServiceBus
+              - Arn
+          pattern:
+            source: ${self:custom.taskEventIngest.sources}
+            detail-type:
+              - ${self:custom.linkedSourceObjectCompleted.eventBridgeDetailType}
 
 resources:
   - ${file(./infra/resources/gateway-responses.yml)}
+  - ${file(./infra/resources/eventbridge-resources.yml)}
+  - ${file(./infra/resources/reminder-scheduler-resources.yml)}

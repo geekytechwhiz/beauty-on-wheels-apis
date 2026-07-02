@@ -6,16 +6,19 @@ import type {
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import {
   RUNTIME_TASK_STATE,
-  normalizeCurrentStateForWire,
+  resolveCurrentStateForWire,
   type RuntimeTaskState,
 } from '../models/types/runtime-task-state.type';
 import { READINESS_STATUS, type ReadinessStatus, type WorkflowStage } from '../models/types/task-domain.types';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from './task-time';
+import { omitUndefined } from './omit-undefined';
 
 export type AggregateTaskStatusSummaryContext = {
   orgId: string;
   patientId: string;
   carePlanInstanceId: string;
   workflowStage?: WorkflowStage;
+  timeZone?: string;
 };
 
 function emptyCounts(): TaskStatusSummaryCounts {
@@ -29,8 +32,8 @@ function emptyCounts(): TaskStatusSummaryCounts {
   };
 }
 
-function incrementStateBucket(counts: TaskStatusSummaryCounts, state: RuntimeTaskState): void {
-  switch (state) {
+function incrementStateBucket(counts: TaskStatusSummaryCounts, wireState: RuntimeTaskState): void {
+  switch (wireState) {
     case RUNTIME_TASK_STATE.COMPLETED:
       counts.completed++;
       break;
@@ -40,7 +43,6 @@ function incrementStateBucket(counts: TaskStatusSummaryCounts, state: RuntimeTas
     case RUNTIME_TASK_STATE.SCHEDULED:
       counts.scheduled++;
       break;
-    case RUNTIME_TASK_STATE.OPEN:
     case RUNTIME_TASK_STATE.ACTIVE:
       counts.active++;
       break;
@@ -63,20 +65,29 @@ export function aggregateTaskStatusSummary(
 ): TaskStatusSummaryResult {
   const counts = emptyCounts();
   const incompleteRequiredTasks: IncompleteRequiredTaskItem[] = [];
+  const timeZone = context.timeZone ?? DEFAULT_ACTION_CENTER_TIMEZONE;
+  const nowMs = nowEpochMs();
 
   for (const record of records) {
     counts.total++;
     if (isRequiredTask(record)) {
       counts.requiredTotal++;
     }
-    incrementStateBucket(counts, record.currentState);
+    const wireState = resolveCurrentStateForWire({
+      persistedState: record.currentState,
+      dueWindowStart: record.dueWindowStart,
+      dueWindowEnd: record.dueWindowEnd,
+      timeZone,
+      nowMs,
+    });
+    incrementStateBucket(counts, wireState);
 
     if (isRequiredIncomplete(record)) {
       incompleteRequiredTasks.push({
         runtimeTaskInstanceId: record.runtimeTaskInstanceId,
         displayTitle: record.displayTitle,
         requiredForStageCompletion: record.requiredForStageCompletion,
-        currentState: normalizeCurrentStateForWire(record.currentState),
+        currentState: wireState,
       });
     }
   }
@@ -87,13 +98,13 @@ export function aggregateTaskStatusSummary(
       incompleteRequiredTasks.length === 0 ? READINESS_STATUS.READY : READINESS_STATUS.NOT_READY;
   }
 
-  return {
+  return omitUndefined({
     orgId: context.orgId,
     patientId: context.patientId,
     carePlanInstanceId: context.carePlanInstanceId,
-    ...(context.workflowStage ? { workflowStage: context.workflowStage } : {}),
+    workflowStage: context.workflowStage,
     readinessStatus,
     counts,
-    ...(incompleteRequiredTasks.length > 0 ? { incompleteRequiredTasks } : {}),
-  };
+    incompleteRequiredTasks: incompleteRequiredTasks.length > 0 ? incompleteRequiredTasks : undefined,
+  }) as TaskStatusSummaryResult;
 }

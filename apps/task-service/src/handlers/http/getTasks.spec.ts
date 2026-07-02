@@ -99,7 +99,7 @@ describe('getTasks HTTP handler', () => {
   it('returns 200 with split patient/staff task buckets on success', async () => {
     mockListPatientTasks.mockResolvedValue({
       patientId: 'pat-1',
-      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'open' }] },
+      patientTasks: { items: [{ runtimeTaskInstanceId: 'rtask-1', currentState: 'active' }] },
       staffTasks: { items: [] },
     });
 
@@ -144,6 +144,36 @@ describe('getTasks HTTP handler', () => {
   it('parses optional query filters', async () => {
     mockListPatientTasks.mockResolvedValue({
       patientId: 'pat-1',
+      patientTasks: { items: [] },
+      staffTasks: { items: [] },
+    });
+
+    await main(
+      baseListEvent({
+        queryStringParameters: {
+          patientId: 'pat-1',
+          carePlanInstanceId: 'cp-1',
+          workflowStage: 'ongoingCare',
+          currentState: 'active',
+          pageSize: '10',
+        },
+      }),
+      testLambdaContext(),
+    );
+
+    expect(mockListPatientTasks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        carePlanInstanceId: 'cp-1',
+        workflowStage: 'ongoingCare',
+        currentState: 'active',
+        pageSize: 10,
+      }),
+    );
+  });
+
+  it('passes optional staffUserId to listPatientTasks', async () => {
+    mockListPatientTasks.mockResolvedValue({
+      patientId: 'pat-1',
       staffUserId: 'staff-1',
       patientTasks: { items: [] },
       staffTasks: { items: [] },
@@ -154,10 +184,6 @@ describe('getTasks HTTP handler', () => {
         queryStringParameters: {
           patientId: 'pat-1',
           staffUserId: 'staff-1',
-          carePlanInstanceId: 'cp-1',
-          workflowStage: 'ongoing',
-          currentState: 'open',
-          pageSize: '10',
         },
       }),
       testLambdaContext(),
@@ -166,10 +192,6 @@ describe('getTasks HTTP handler', () => {
     expect(mockListPatientTasks).toHaveBeenCalledWith(
       expect.objectContaining({
         staffUserId: 'staff-1',
-        carePlanInstanceId: 'cp-1',
-        workflowStage: 'ongoing',
-        currentState: 'open',
-        pageSize: 10,
       }),
     );
   });

@@ -33,7 +33,7 @@ import type { BaseEvent } from '../typings/base-event.types';
 import type { EventConsumerDeps, VersionedPayloadSchemas } from '../typings/consumer.types';
 
 type DynamoStreamOperationName =
-  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed'}`;
+  `${string}.${'created' | 'updated' | 'deleted' | 'processed' | 'failed' | 'register' | 'cancel'}`;
 
 export type CreateDynamoStreamHandlerEventEntry = DynamoStreamRoute & {
   handler: (
@@ -46,10 +46,8 @@ export type CreateDynamoStreamHandlerEventEntry = DynamoStreamRoute & {
 
 export type CreateDynamoStreamHandlerOperationName = DynamoStreamOperationName;
 
-export type CreateDynamoStreamHandlerOptions<
-  TContext extends LambdaInvocationContext = LambdaInvocationContext,
-> = {
-    operation: DynamoStreamOperationName;
+export type CreateDynamoStreamHandlerOptions = {
+  operation: DynamoStreamOperationName;
 
     /**
      * Optional overrides for idempotency, retry, DLQ, tracing, concurrency, etc.
@@ -98,14 +96,14 @@ function coerceDynamoStreamBatchResponse(
 export function createDynamoStreamHandler<
   TContext extends LambdaInvocationContext = LambdaInvocationContext,
 >(
-  options: CreateDynamoStreamHandlerOptions<TContext>,
+  options: CreateDynamoStreamHandlerOptions,
 ): (event: DynamoDBStreamEvent, context: TContext) => Promise<DynamoStreamBatchResponse> {
   const payloadSchemas: VersionedPayloadSchemas = {};
-  const registry: Record<string, (event: BaseEvent<any>) => Promise<void>> = {};
+  const registry: Record<string, (event: BaseEvent<unknown>) => Promise<void>> = {};
 
   const routes: DynamoStreamRoute[] = [];
 
-  for (const e of options.events) {
+  options.events.forEach((e: CreateDynamoStreamHandlerEventEntry) => {
     const meta = getSchemaMeta(e.schema);
     payloadSchemas[meta.eventType] ??= {};
     payloadSchemas[meta.eventType][meta.eventVersion] = e.schema;
@@ -116,16 +114,16 @@ export function createDynamoStreamHandler<
       schema: e.schema,
     });
 
-    registry[meta.eventType] = async (event: BaseEvent<any>) => {
+    registry[meta.eventType] = async (event: BaseEvent<unknown>) => {
       await e.handler(
         {
           ...(event.payload as object),
           meta: event.meta,
-        } as any,
-        {} as any,
+        },
+        {},
       );
     };
-  }
+  });
 
   const mapRawToBaseEvent = createDynamoStreamMapRawToBaseEvent(routes);
 

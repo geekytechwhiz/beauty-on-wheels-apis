@@ -1,38 +1,66 @@
 import type { TaskHistDdbRecord, TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
-import { normalizeAssignedToTypeForWire, type SurfaceSection } from '../models/types/task-domain.types';
-import { normalizeCurrentStateForWire } from '../models/types/runtime-task-state.type';
+import { TASK_HISTORY_EVENT_TYPE, type SurfaceSection } from '../models/types/task-domain.types';
+import {
+  resolveCurrentStateForWire,
+  type RuntimeTaskState,
+} from '../models/types/runtime-task-state.type';
 import { deriveActionCenterSurfaceSection } from '../utils/surface-section';
+import { DEFAULT_ACTION_CENTER_TIMEZONE, nowEpochMs } from '../utils/task-time';
 
-export function toRuntimeTaskCard(r: TaskMetaDdbRecord, _nowMs = Date.now()) {
+export type RuntimeTaskCardOptions = {
+  timeZone?: string;
+  nowMs?: number;
+};
+
+function resolveCardOptions(options?: RuntimeTaskCardOptions | number): RuntimeTaskCardOptions {
+  if (typeof options === 'number') {
+    return { nowMs: options };
+  }
+  return options ?? {};
+}
+
+export function toRuntimeTaskCard(
+  r: TaskMetaDdbRecord,
+  options?: RuntimeTaskCardOptions | number,
+) {
+  const { timeZone = DEFAULT_ACTION_CENTER_TIMEZONE, nowMs = nowEpochMs() } =
+    resolveCardOptions(options);
+
+  /* eslint-disable @typescript-eslint/no-unused-vars -- Dynamo envelope keys omitted via rest */
   const {
-    pk: _pk,
-    sk: _sk,
-    entityType: _entityType,
-    sk1: _sk1,
-    gsi1pk: _gsi1pk,
-    gsi1sk: _gsi1sk,
-    idempotencyKey: _idempotencyKey,
-    generationHash: _generationHash,
-    version: _version,
+    pk,
+    sk,
+    entityType,
+    sk1,
+    gsi1pk,
+    gsi1sk,
+    idempotencyKey,
+    generationHash,
+    version,
     currentState,
-    assignedToType,
     ...rest
   } = r;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   return {
     ...rest,
-    assignedToType: normalizeAssignedToTypeForWire(assignedToType),
-    currentState: normalizeCurrentStateForWire(currentState),
+    currentState: resolveCurrentStateForWire({
+      persistedState: currentState,
+      dueWindowStart: r.dueWindowStart,
+      dueWindowEnd: r.dueWindowEnd,
+      timeZone,
+      nowMs,
+    }),
   };
 }
 
 export function toActionCenterTaskCard(
   r: TaskMetaDdbRecord,
   timeZone: string,
-  nowMs = Date.now(),
+  nowMs = nowEpochMs(),
   surfaceSection?: SurfaceSection,
 ) {
-  const card = toRuntimeTaskCard(r, nowMs);
+  const card = toRuntimeTaskCard(r, { timeZone, nowMs });
   const derived =
     surfaceSection ??
     deriveActionCenterSurfaceSection(
@@ -51,15 +79,49 @@ export function toActionCenterTaskCard(
   };
 }
 
-export function toTaskHistoryEntry(r: TaskHistDdbRecord) {
+export type TaskHistoryWireContext = {
+  dueWindowStart?: number;
+  dueWindowEnd?: number;
+  timeZone?: string;
+};
+
+function mapHistoryStateForWire(
+  state: RuntimeTaskState | undefined,
+  context: TaskHistoryWireContext,
+  asOfMs: number,
+): RuntimeTaskState | undefined {
+  if (state == null) {
+    return undefined;
+  }
+  return resolveCurrentStateForWire({
+    persistedState: state,
+    dueWindowStart: context.dueWindowStart,
+    dueWindowEnd: context.dueWindowEnd,
+    timeZone: context.timeZone ?? DEFAULT_ACTION_CENTER_TIMEZONE,
+    nowMs: asOfMs,
+  });
+}
+
+export function toTaskHistoryEntry(r: TaskHistDdbRecord, context?: TaskHistoryWireContext) {
+  /* eslint-disable @typescript-eslint/no-unused-vars -- Dynamo envelope and scope keys omitted via rest */
   const {
-    pk: _pk,
-    sk: _sk,
-    entityType: _entityType,
-    orgId: _orgId,
-    patientId: _patientId,
-    runtimeTaskInstanceId: _runtimeTaskInstanceId,
+    pk,
+    sk,
+    entityType,
+    orgId,
+    patientId,
+    runtimeTaskInstanceId,
     ...rest
   } = r;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  if (r.historyEventType === TASK_HISTORY_EVENT_TYPE.STATE_CHANGE && context) {
+    return {
+      ...rest,
+      fromState: mapHistoryStateForWire(r.fromState, context, r.transitionAt),
+      toState: mapHistoryStateForWire(r.toState, context, r.transitionAt),
+    };
+  }
+
   return rest;
 }

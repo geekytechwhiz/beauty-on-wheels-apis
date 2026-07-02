@@ -289,12 +289,15 @@ describe('OrgTemplateRulesService', () => {
       },
     ];
 
+    let savedVersion: TemplateDdbRecord | undefined;
     const orgRepo = {
       getOrgMeta: jest.fn().mockResolvedValue(meta),
       getOrgVersionForMeta: jest.fn().mockResolvedValue(version),
       saveOrgMetaAndVersion: jest.fn().mockImplementation(async (m: TemplateDdbRecord, v: TemplateDdbRecord) => {
         meta.meta = m.meta;
         version.meta = v.meta;
+        version.versionHistory = v.versionHistory;
+        savedVersion = v;
       }),
     };
     const enablementRepo = {
@@ -310,10 +313,12 @@ describe('OrgTemplateRulesService', () => {
       actorUser: { userId: 'user-1' },
     });
 
-    expect(result.version).toBe(1.6);
+    expect(result.version).toBe(1.7);
     expect(result.upgrade).toBe(false);
     expect(result.adopt).toBeNull();
-    expect(result.derivedFromMasterVersion).toBe(1.6);
+    expect(result.derivedFromMasterVersion).toBe(1.7);
     expect(orgRepo.saveOrgMetaAndVersion).toHaveBeenCalledTimes(1);
+    expect(savedVersion?.versionHistory?.[0]?.action).toBe('ADOPTED');
+    expect(savedVersion?.versionHistory?.[0]?.version).toBe(1.7);
   });
 });

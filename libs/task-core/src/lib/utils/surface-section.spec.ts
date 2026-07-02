@@ -32,13 +32,13 @@ describe('deriveActionCenterSurfaceSection', () => {
     }
   });
 
-  it('classifies missed as needsAttention', () => {
+  it('classifies persisted scheduled past due as needsAttention (wire missed)', () => {
     expect(
       deriveActionCenterSurfaceSection(
         {
-          currentState: RUNTIME_TASK_STATE.MISSED,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
           dueWindowStart: day('2026-06-01T08:00:00.000Z'),
-          dueWindowEnd: day('2026-06-02T08:00:00.000Z'),
+          dueWindowEnd: day('2026-06-03T08:00:00.000Z'),
         },
         TZ,
         NOW,
@@ -46,11 +46,11 @@ describe('deriveActionCenterSurfaceSection', () => {
     ).toBe(SURFACE_SECTION.NEEDS_ATTENTION);
   });
 
-  it('classifies not-yet-started open task as upcoming when today before StartDate', () => {
+  it('classifies not-yet-started persisted scheduled as upcoming', () => {
     expect(
       deriveActionCenterSurfaceSection(
         {
-          currentState: RUNTIME_TASK_STATE.OPEN,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
           dueWindowStart: day('2026-06-10T08:00:00.000Z'),
           dueWindowEnd: day('2026-06-12T08:00:00.000Z'),
         },
@@ -60,11 +60,11 @@ describe('deriveActionCenterSurfaceSection', () => {
     ).toBe(SURFACE_SECTION.UPCOMING);
   });
 
-  it('classifies in-window open task as today when StartDate <= today <= DueDate', () => {
+  it('classifies in-window persisted scheduled as today (wire active)', () => {
     expect(
       deriveActionCenterSurfaceSection(
         {
-          currentState: RUNTIME_TASK_STATE.OPEN,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
           dueWindowStart: day('2026-06-05T08:00:00.000Z'),
           dueWindowEnd: day('2026-06-07T08:00:00.000Z'),
         },
@@ -78,37 +78,9 @@ describe('deriveActionCenterSurfaceSection', () => {
     expect(
       deriveActionCenterSurfaceSection(
         {
-          currentState: RUNTIME_TASK_STATE.OPEN,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
           dueWindowStart: day('2026-06-05T08:00:00.000Z'),
           dueWindowEnd: day('2026-06-05T20:00:00.000Z'),
-        },
-        TZ,
-        NOW,
-      ),
-    ).toBe(SURFACE_SECTION.TODAY);
-  });
-
-  it('classifies overdue open task as needsAttention when today after DueDate', () => {
-    expect(
-      deriveActionCenterSurfaceSection(
-        {
-          currentState: RUNTIME_TASK_STATE.OPEN,
-          dueWindowStart: day('2026-06-01T08:00:00.000Z'),
-          dueWindowEnd: day('2026-06-03T08:00:00.000Z'),
-        },
-        TZ,
-        NOW,
-      ),
-    ).toBe(SURFACE_SECTION.NEEDS_ATTENTION);
-  });
-
-  it('normalizes legacy active state like open', () => {
-    expect(
-      deriveActionCenterSurfaceSection(
-        {
-          currentState: RUNTIME_TASK_STATE.ACTIVE,
-          dueWindowStart: day('2026-06-05T08:00:00.000Z'),
-          dueWindowEnd: day('2026-06-07T08:00:00.000Z'),
         },
         TZ,
         NOW,
@@ -122,7 +94,9 @@ describe('carePlanChecklist eligibility', () => {
     expect(
       isCarePlanChecklistEligible(
         {
-          currentState: RUNTIME_TASK_STATE.OPEN,
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
+          dueWindowStart: day('2026-06-05T08:00:00.000Z'),
+          dueWindowEnd: day('2026-06-07T08:00:00.000Z'),
           displayAsChecklistItem: true,
         },
         SURFACE_SECTION.TODAY,
@@ -143,14 +117,24 @@ describe('carePlanChecklist eligibility', () => {
     expect(
       matchesActionCenterFilter(
         SURFACE_SECTION.TODAY,
-        { currentState: RUNTIME_TASK_STATE.OPEN, displayAsChecklistItem: true },
+        {
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
+          dueWindowStart: day('2026-06-05T08:00:00.000Z'),
+          dueWindowEnd: day('2026-06-07T08:00:00.000Z'),
+          displayAsChecklistItem: true,
+        },
         SURFACE_SECTION.CARE_PLAN_CHECKLIST,
       ),
     ).toBe(true);
     expect(
       matchesActionCenterFilter(
         SURFACE_SECTION.TODAY,
-        { currentState: RUNTIME_TASK_STATE.OPEN, displayAsChecklistItem: false },
+        {
+          currentState: RUNTIME_TASK_STATE.SCHEDULED,
+          dueWindowStart: day('2026-06-05T08:00:00.000Z'),
+          dueWindowEnd: day('2026-06-07T08:00:00.000Z'),
+          displayAsChecklistItem: false,
+        },
         SURFACE_SECTION.CARE_PLAN_CHECKLIST,
       ),
     ).toBe(false);

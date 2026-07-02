@@ -1,13 +1,16 @@
 import { withApiHandler } from '@api-hub/middleware';
 import type { LambdaRequest } from '@api-hub/utils';
 
-import { getTaskHttpController } from '../../controllers/task-http.controller';
+import {
+  getTaskHttpController, 
+} from '../../controllers/task-http.controller';
 import { updateTaskStateHttpBodySchema } from '../../validators/task.schemas';
-import { validateUpdateTaskStateRequest } from '../../validators/request.validators';
+import { ValidatedUpdateTaskStateRequest, validateUpdateTaskStateRequest } from '../../validators/request.validators';
 
 const c = getTaskHttpController();
 
-const handler = async (req: LambdaRequest) => c.handleUpdateTaskState(req);
+const handler = async (req: LambdaRequest) =>
+  c.handleUpdateTaskState(req as ValidatedUpdateTaskStateRequest);
 
 export const main = withApiHandler(
   {

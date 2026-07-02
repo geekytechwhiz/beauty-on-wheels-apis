@@ -1,11 +1,15 @@
-# SSM parameter paths per stage (account layout: dev|stg use /{stage}/*, prd uses //prd/*).
+# SSM parameter paths per stage (account layout: dev|stg use /{stage}/*, prd uses /firminiq/prd/*).
 dev:
   userServiceBaseUrl: /dev/user-service/USER_SERVICE_URL
   organizationServiceBaseUrl: /dev/organization-service/ORGANIZATION_SERVICE_URL
-  
+  errorMessagesCdnUrl: /dev/error-service/ERROR_MESSAGES_CDN_URL
+
 stg:
- 
-  
+  userServiceBaseUrl: /stg/USER_SERVICE_URL
+  organizationServiceBaseUrl: /stg/ORG_SERVICE_URL
+  errorMessagesCdnUrl: /stg/COMMON_ERROR_MESSAGES_CDN_URL
+
 prd:
-  
-  
+  userServiceBaseUrl: /firminiq/prd/USER_SERVICE_URL
+  organizationServiceBaseUrl: /firminiq/prd/ORGANIZATION_SERVICE_URL
+  errorMessagesCdnUrl: /firminiq/prd/ERROR_MESSAGES_CDN_URL

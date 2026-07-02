@@ -1,46 +1,51 @@
+import {
+  TEMPLATE_FIELD_DISPLAY_LABELS,
+  TEMPLATE_STATUS,
+  TEMPLATE_STATUS_DISPLAY_LABEL,
+  type TemplateStatus,
+} from '../constants/template.constants';
 import type { TemplateHistoryEntry } from '../mappers/template-http.dto';
 import { formatTemplateVersionLabel } from './template.utils';
 
-/** Console-facing labels for common care-plan / org template field keys. */
-const TEMPLATE_FIELD_LABELS: Record<string, string> = {
-  TEMPLATE_NAME: 'Template name',
-  LinkedTaskTemplate: 'Linked task templates',
-  LinkedGoalTemplate: 'Linked goal template',
-  LinkedMonitoringTemplate: 'Linked monitoring template',
-  ReviewCadence: 'Review cadence',
-  DefaultDurationType: 'Default duration',
-  DurationType: 'Duration options',
-  MaxGoalsAllowed: 'Max goals allowed',
-  GoalsEnabled: 'Goals',
-  BillingProgramTypes: 'Billing program types',
-  baselineSections: 'Baseline sections',
-  EducationHub: 'Education hub',
-  TaskTemplateIntro: 'Task template intro',
-  CustomDurationAllowed: 'Custom duration',
-  Category: 'Category',
-  Condition: 'Condition',
-  Country: 'Country',
-  Language: 'Language',
-  Specialty: 'Specialty',
-  SelectScope: 'Scope',
-  IcdCode: 'ICD codes',
-};
+/** Sentinel returned when a field value is too complex for inline before/after text. */
+export const TEMPLATE_DISPLAY_VALUE_UPDATED = 'updated';
 
-function humanizeKey(key: string): string {
+export function humanizeTemplateFieldKey(key: string): string {
   return key
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[._-]+/g, ' ')
     .trim();
 }
 
-function humanizeStatus(status: string | undefined): string {
-  const normalized = (status ?? '').trim().toLowerCase();
-  if (normalized === 'draft') return 'Draft';
-  if (normalized === 'published') return 'Published';
-  return status?.trim() || '—';
+export function formatTemplateStatusLabel(status: string | undefined): string {
+  const normalized = (status ?? TEMPLATE_STATUS.DRAFT).trim().toUpperCase() as TemplateStatus;
+  return TEMPLATE_STATUS_DISPLAY_LABEL[normalized] ?? humanizeTemplateFieldKey(status ?? '');
 }
 
-export function formatHistoryValue(value: unknown): string {
+/**
+ * Resolve a console-facing label for a template field key.
+ * Prefers catalog labels, then fieldValues.labelKey, then humanized key.
+ */
+export function resolveTemplateFieldLabel(
+  key: string,
+  fieldValues?: Record<string, unknown>,
+): string {
+  const catalogLabel = TEMPLATE_FIELD_DISPLAY_LABELS[key];
+  if (catalogLabel) {
+    return catalogLabel;
+  }
+  const raw = fieldValues?.[key];
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const labelKey = (raw as Record<string, unknown>).labelKey;
+    if (typeof labelKey === 'string' && labelKey.trim()) {
+      return labelKey.trim();
+    }
+  }
+  return humanizeTemplateFieldKey(key);
+}
+
+/** Format a template field value for history, adopt preview, and audit messages. */
+export function formatTemplateDisplayValue(value: unknown): string {
   if (value === undefined || value === null) return '—';
   if (typeof value === 'string') return value.trim() || '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -48,7 +53,7 @@ export function formatHistoryValue(value: unknown): string {
   if (Array.isArray(value)) {
     if (value.length === 0) return 'None';
     return value
-      .map((item) => formatHistoryValue(item))
+      .map((item) => formatTemplateDisplayValue(item))
       .filter((part) => part !== '—')
       .join(', ');
   }
@@ -58,19 +63,24 @@ export function formatHistoryValue(value: unknown): string {
   }
   if (typeof obj.title === 'string' && obj.title.trim()) {
     const title = obj.title.trim();
-    const version = typeof obj.version === 'string' || typeof obj.version === 'number' ? ` v${obj.version}` : '';
+    const version =
+      typeof obj.version === 'string' || typeof obj.version === 'number' ? ` v${obj.version}` : '';
     return `${title}${version}`;
   }
   if (typeof obj.sectionName === 'string' && obj.sectionName.trim()) {
     return obj.sectionName.trim();
   }
-  if (typeof obj.value === 'string' || typeof obj.value === 'number' || typeof obj.value === 'boolean') {
-    return formatHistoryValue(obj.value);
+  if (
+    typeof obj.value === 'string' ||
+    typeof obj.value === 'number' ||
+    typeof obj.value === 'boolean'
+  ) {
+    return formatTemplateDisplayValue(obj.value);
   }
-  return 'Updated';
+  return TEMPLATE_DISPLAY_VALUE_UPDATED;
 }
 
-function isComplexHistoryValue(value: unknown): boolean {
+export function isComplexTemplateFieldValue(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value !== 'object') return false;
   if (Array.isArray(value)) {
@@ -85,11 +95,7 @@ function isComplexHistoryValue(value: unknown): boolean {
   );
 }
 
-export function templateFieldLabel(key: string): string {
-  return TEMPLATE_FIELD_LABELS[key] ?? humanizeKey(key);
-}
-
-export function buildHistoryFieldChangeMessages(
+export function buildTemplateFieldChangeMessages(
   previous: Record<string, unknown> | undefined,
   current: Record<string, unknown> | undefined,
 ): string[] {
@@ -103,14 +109,14 @@ export function buildHistoryFieldChangeMessages(
     const after = current[key];
     if (JSON.stringify(before) === JSON.stringify(after)) continue;
 
-    const label = templateFieldLabel(key);
-    const complex = isComplexHistoryValue(before) || isComplexHistoryValue(after);
+    const label = resolveTemplateFieldLabel(key, current);
+    const complex = isComplexTemplateFieldValue(before) || isComplexTemplateFieldValue(after);
 
     if (before === undefined) {
       messages.push(
         complex
           ? `'${label}' was added.`
-          : `'${label}' set to ${formatHistoryValue(after)}.`,
+          : `'${label}' set to ${formatTemplateDisplayValue(after)}.`,
       );
       continue;
     }
@@ -123,14 +129,14 @@ export function buildHistoryFieldChangeMessages(
       continue;
     }
     messages.push(
-      `'${label}' changed from ${formatHistoryValue(before)} to ${formatHistoryValue(after)}.`,
+      `'${label}' changed from ${formatTemplateDisplayValue(before)} to ${formatTemplateDisplayValue(after)}.`,
     );
   }
 
   return messages;
 }
 
-export function buildHistoryMetaChangeMessages(
+export function buildTemplateHistoryMetaChangeMessages(
   previous: TemplateHistoryEntry | undefined,
   current: TemplateHistoryEntry,
 ): string[] {
@@ -144,12 +150,12 @@ export function buildHistoryMetaChangeMessages(
   }
   if (previous.status !== current.status) {
     messages.push(
-      `Status changed from ${humanizeStatus(previous.status)} to ${humanizeStatus(current.status)}.`,
+      `Status changed from ${formatTemplateStatusLabel(previous.status)} to ${formatTemplateStatusLabel(current.status)}.`,
     );
   }
   if (previous.isActive !== current.isActive) {
     messages.push(
-      `Active changed from ${formatHistoryValue(previous.isActive)} to ${formatHistoryValue(current.isActive)}.`,
+      `Active changed from ${formatTemplateDisplayValue(previous.isActive)} to ${formatTemplateDisplayValue(current.isActive)}.`,
     );
   }
   if (current.notes && current.notes !== previous.notes) {
@@ -180,8 +186,8 @@ export function formatHistoryEntriesForApi(entries: TemplateHistoryEntry[]): Tem
         ? []
         : hasSnapshots
           ? [
-              ...buildHistoryMetaChangeMessages(previous, entry),
-              ...buildHistoryFieldChangeMessages(
+              ...buildTemplateHistoryMetaChangeMessages(previous, entry),
+              ...buildTemplateFieldChangeMessages(
                 previous?.fieldValues as Record<string, unknown> | undefined,
                 entry.fieldValues as Record<string, unknown> | undefined,
               ),

@@ -1,21 +1,23 @@
 import type { TemplateHistoryEntry } from '../mappers/template-http.dto';
 import {
-  buildHistoryFieldChangeMessages,
+  buildTemplateFieldChangeMessages,
   formatHistoryEntriesForApi,
-  formatHistoryValue,
-} from './template-history-display.utils';
+  formatTemplateDisplayValue,
+} from './template-display.utils';
 
-describe('template-history-display.utils', () => {
+describe('template-display.utils history', () => {
   it('formats label/value objects as human labels', () => {
     expect(
-      formatHistoryValue({ labelKey: 'Chronic Disease', value: 'CHRONIC_DISEASE' }),
+      formatTemplateDisplayValue({ labelKey: 'Chronic Disease', value: 'CHRONIC_DISEASE' }),
     ).toBe('Chronic Disease');
-    expect(formatHistoryValue({ title: 'Goal Final 1', version: '1' })).toBe('Goal Final 1 v1');
-    expect(formatHistoryValue(true)).toBe('Yes');
+    expect(formatTemplateDisplayValue({ title: 'Goal Final 1', version: '1' })).toBe(
+      'Goal Final 1 v1',
+    );
+    expect(formatTemplateDisplayValue(true)).toBe('Yes');
   });
 
   it('builds readable field change messages', () => {
-    const messages = buildHistoryFieldChangeMessages(
+    const messages = buildTemplateFieldChangeMessages(
       {
         Category: { labelKey: 'Chronic Disease', value: 'CHRONIC_DISEASE' },
         MaxGoalsAllowed: 10,
@@ -31,7 +33,7 @@ describe('template-history-display.utils', () => {
   });
 
   it('uses short update message for complex field values', () => {
-    const messages = buildHistoryFieldChangeMessages(
+    const messages = buildTemplateFieldChangeMessages(
       { LinkedGoalTemplate: { id: 'GOAL-1', title: 'Goal A', version: '1' } },
       { LinkedGoalTemplate: { id: 'GOAL-2', title: 'Goal B', version: '2' } },
     );

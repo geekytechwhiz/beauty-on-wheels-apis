@@ -105,6 +105,64 @@ export const STATUS_TRANSITION_ACTION = {
 export type StatusTransitionAction =
   (typeof STATUS_TRANSITION_ACTION)[keyof typeof STATUS_TRANSITION_ACTION];
 
+/** Console / timeline display labels for `TEMPLATE_STATUS` wire values. */
+export const TEMPLATE_STATUS_DISPLAY_LABEL: Record<TemplateStatus, string> = {
+  DRAFT: 'Draft',
+  SAVED: 'Saved',
+  IN_REVIEW: 'In review',
+  PUBLISHED: 'Published',
+  ARCHIVED: 'Archived',
+  DEPRECATED: 'Deprecated',
+};
+
+/** History timeline titles keyed by template status. */
+export const TEMPLATE_HISTORY_STATUS_TITLE: Record<TemplateStatus, string> = {
+  DRAFT: 'Template Updated',
+  SAVED: 'Template Saved',
+  IN_REVIEW: 'Template In Review',
+  PUBLISHED: 'Template Published',
+  ARCHIVED: 'Template Archived',
+  DEPRECATED: 'Template Deprecated',
+};
+
+/** History timeline actions keyed by template status. */
+export const TEMPLATE_HISTORY_STATUS_ACTION: Record<TemplateStatus, string> = {
+  DRAFT: 'UPDATED',
+  SAVED: 'UPDATED',
+  IN_REVIEW: 'UPDATED',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED',
+  DEPRECATED: 'DEPRECATED',
+};
+
+/**
+ * Console-facing labels for template field keys.
+ * Used by history timelines, adopt previews, and filter dropdowns.
+ */
+export const TEMPLATE_FIELD_DISPLAY_LABELS: Record<string, string> = {
+  TEMPLATE_NAME: 'Template name',
+  LinkedTaskTemplate: 'Linked task templates',
+  LinkedGoalTemplate: 'Linked goal template',
+  LinkedMonitoringTemplate: 'Linked monitoring template',
+  ReviewCadence: 'Review cadence',
+  DefaultDurationType: 'Default duration',
+  DurationType: 'Duration options',
+  MaxGoalsAllowed: 'Max goals allowed',
+  GoalsEnabled: 'Goals',
+  BillingProgramTypes: 'Billing program types',
+  baselineSections: 'Baseline sections',
+  EducationHub: 'Education hub',
+  TaskTemplateIntro: 'Task template intro',
+  CustomDurationAllowed: 'Custom duration',
+  Category: 'Category',
+  Condition: 'Condition',
+  Country: 'Country',
+  Language: 'Language',
+  Specialty: 'Specialty',
+  SelectScope: 'Scope',
+  IcdCode: 'ICD codes',
+};
+
 /** How an org template row was created (persisted on ORG_TEMPLATE meta). */
 export const DERIVATION_KIND = {
   MASTER_DERIVE: 'masterDerive',

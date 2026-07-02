@@ -2,12 +2,17 @@ import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { normalizeTemplateActor } from '../utils/template-actor.utils';
 import { firstString, resolveMasterTemplateIsActive, sanitizeMetaForApi } from '../utils/template.utils';
-import { TEMPLATE_STATUS } from '../constants/template.constants';
 import {
-  buildHistoryFieldChangeMessages,
-  buildHistoryMetaChangeMessages,
+  TEMPLATE_HISTORY_STATUS_ACTION,
+  TEMPLATE_HISTORY_STATUS_TITLE,
+  TEMPLATE_STATUS,
+  type TemplateStatus,
+} from '../constants/template.constants';
+import {
+  buildTemplateFieldChangeMessages,
+  buildTemplateHistoryMetaChangeMessages,
   formatHistoryEntriesForApi,
-} from '../utils/template-history-display.utils';
+} from '../utils/template-display.utils';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -97,14 +102,14 @@ function diffFieldValues(
   previous: Record<string, unknown> | undefined,
   current: Record<string, unknown> | undefined,
 ): string[] {
-  return buildHistoryFieldChangeMessages(previous, current);
+  return buildTemplateFieldChangeMessages(previous, current);
 }
 
 function diffHistoryMeta(
   previous: TemplateHistoryEntry | undefined,
   current: TemplateHistoryEntry,
 ): string[] {
-  return buildHistoryMetaChangeMessages(previous, current);
+  return buildTemplateHistoryMetaChangeMessages(previous, current);
 }
 
 /** API responses omit internal snapshots and return human-readable change messages. */
@@ -224,28 +229,22 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
   };
 }
 
-const HISTORY_STATUS_TITLE: Record<string, string> = {
-  DRAFT: 'Template Updated',
-  PUBLISHED: 'Template Published',
-};
-
-const HISTORY_STATUS_ACTION: Record<string, string> = {
-  DRAFT: 'UPDATED',
-  PUBLISHED: 'PUBLISHED',
-};
+const HISTORY_STATUS_TITLE = TEMPLATE_HISTORY_STATUS_TITLE;
+const HISTORY_STATUS_ACTION = TEMPLATE_HISTORY_STATUS_ACTION;
 
 /** Build a single version-history timeline entry from a stored VERSION row. */
 export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boolean): TemplateHistoryEntry {
   const meta = record.meta;
-  const status = (meta.status ?? 'DRAFT') as string;
+  const status = (meta.status ?? TEMPLATE_STATUS.DRAFT) as string;
+  const statusKey = status.trim().toUpperCase() as TemplateStatus;
   const notes = (firstString(meta.reviewComments) as string | undefined) ?? null;
   const isCreate = isLowestVersion;
   return {
     version: meta.version ?? 1,
     templateVersionId: meta.templateVersionId,
     status,
-    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[status] ?? 'UPDATED',
-    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[status] ?? 'Template Updated',
+    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[statusKey] ?? 'UPDATED',
+    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[statusKey] ?? 'Template Updated',
     isActive: meta.isActive ?? true,
     isLatestVersion: meta.isLatestVersion ?? false,
     updatedAt: meta.lastModifiedAt ?? null,

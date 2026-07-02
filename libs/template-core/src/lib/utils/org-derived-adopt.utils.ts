@@ -5,6 +5,12 @@ import type {
 } from '../models/api/org-derived.types';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import type { TemplateActorUser } from '../models/template-actor.model';
+import {
+  formatTemplateDisplayValue,
+  isComplexTemplateFieldValue,
+  resolveTemplateFieldLabel,
+  TEMPLATE_DISPLAY_VALUE_UPDATED,
+} from './template-display.utils';
 import { normalizeTemplateActor } from './template-actor.utils';
 import {
   compareTemplateDisplayVersions,
@@ -16,25 +22,6 @@ const COMPARE_DOC_KEYS = ['fieldValues', 'rules', 'links', 'steps', 'carePlanAtt
 
 const ADOPT_FOOTER_NOTE =
   'Your existing Org Templates and Care Plans are unchanged — adoption only updates this variant record.';
-
-/** Console-facing labels for common care-plan field keys. */
-const CARE_PLAN_FIELD_LABELS: Record<string, string> = {
-  LinkedTaskTemplate: 'Linked Task Templates',
-  LinkedGoalTemplate: 'Linked Goal Template',
-  LinkedMonitoringTemplate: 'Linked Monitoring Template',
-  ReviewCadence: 'Review cadence',
-  DefaultDurationType: 'Default duration',
-  DurationType: 'Duration options',
-  MaxGoalsAllowed: 'Max goals allowed',
-  GoalsEnabled: 'Goals',
-  BillingProgramTypes: 'Billing program types',
-  baselineSections: 'Baseline sections',
-  EducationHub: 'Education Hub',
-  TaskTemplateIntro: 'Task template intro',
-  CustomDurationAllowed: 'Custom duration',
-  Category: 'Category',
-  Condition: 'Condition',
-};
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -82,58 +69,9 @@ function extractDocumentFields(record: TemplateDdbRecord): Record<string, unknow
   return doc;
 }
 
-function humanizeKey(key: string): string {
-  return key
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[._-]+/g, ' ')
-    .trim();
-}
-
-function formatBrief(value: unknown): string {
-  if (value === undefined || value === null) return '—';
-  if (typeof value === 'string') return value.trim() || '—';
-  if (typeof value === 'boolean') return value ? 'yes' : 'no';
-  if (typeof value === 'number') return String(value);
-  if (Array.isArray(value)) {
-    if (value.length === 0) return 'none';
-    return value
-      .map((item) => formatBrief(item))
-      .filter((part) => part !== '—')
-      .join(', ');
-  }
-  const obj = value as Record<string, unknown>;
-  if (typeof obj.value === 'string' || typeof obj.value === 'number') {
-    return String(obj.value);
-  }
-  if (typeof obj.labelKey === 'string' && obj.labelKey.trim()) {
-    return obj.labelKey.trim();
-  }
-  if (typeof obj.sectionName === 'string' && obj.sectionName.trim()) {
-    return obj.sectionName.trim();
-  }
-  if (typeof obj.title === 'string' && obj.title.trim()) {
-    return obj.title.trim();
-  }
-  return 'updated';
-}
-
-function isComplexFieldValue(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value !== 'object') return false;
-  if (Array.isArray(value)) {
-    return value.some((item) => item !== null && typeof item === 'object');
-  }
-  const obj = value as Record<string, unknown>;
-  return !(
-    typeof obj.value === 'string' ||
-    typeof obj.value === 'number' ||
-    typeof obj.value === 'boolean'
-  );
-}
-
 function formatOverrideBrief(value: unknown): string {
-  const brief = formatBrief(value);
-  return brief === 'updated' ? 'your value' : brief;
+  const brief = formatTemplateDisplayValue(value);
+  return brief === TEMPLATE_DISPLAY_VALUE_UPDATED ? 'your value' : brief;
 }
 
 function buildAddedMessage(label: string, preserved: boolean): string {
@@ -179,21 +117,6 @@ function buildChangedMessage(
   return preserved ? `${base} Your org override (${overrideBrief}) will be preserved.` : base;
 }
 
-function fieldLabel(fieldValues: Record<string, unknown>, key: string): string {
-  const raw = fieldValues[key];
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    const labelKey = (raw as Record<string, unknown>).labelKey;
-    if (typeof labelKey === 'string' && labelKey.trim()) {
-      return labelKey.trim();
-    }
-  }
-  return humanizeKey(key);
-}
-
-function carePlanFieldLabel(fieldValues: Record<string, unknown>, key: string): string {
-  return CARE_PLAN_FIELD_LABELS[key] ?? fieldLabel(fieldValues, key);
-}
-
 function variantHasLocalOverride(
   key: string,
   variantFv: Record<string, unknown>,
@@ -223,7 +146,7 @@ function diffFieldValueChanges(
   for (const key of toKeys) {
     if (!fromKeys.has(key)) {
       const preserved = variantHasLocalOverride(key, variantFv, snapshotFv);
-      const label = carePlanFieldLabel(toFv, key);
+      const label = resolveTemplateFieldLabel(key, toFv);
       added.push({
         key,
         label,
@@ -236,7 +159,7 @@ function diffFieldValueChanges(
   for (const key of fromKeys) {
     if (!toKeys.has(key)) {
       const customized = variantHasLocalOverride(key, variantFv, snapshotFv);
-      const label = carePlanFieldLabel(fromFv, key);
+      const label = resolveTemplateFieldLabel(key, fromFv);
       removed.push({
         key,
         label,
@@ -253,10 +176,10 @@ function diffFieldValueChanges(
     if (stableJson(fromFv[key]) === stableJson(toFv[key])) continue;
 
     const preserved = variantHasLocalOverride(key, variantFv, snapshotFv);
-    const label = carePlanFieldLabel(toFv, key);
-    const before = formatBrief(fromFv[key]);
-    const after = formatBrief(toFv[key]);
-    const complex = isComplexFieldValue(fromFv[key]) || isComplexFieldValue(toFv[key]);
+    const label = resolveTemplateFieldLabel(key, toFv);
+    const before = formatTemplateDisplayValue(fromFv[key]);
+    const after = formatTemplateDisplayValue(toFv[key]);
+    const complex = isComplexTemplateFieldValue(fromFv[key]) || isComplexTemplateFieldValue(toFv[key]);
     const message = complex
       ? preserved
         ? `'${label}' was updated. Your org override will be preserved.`
@@ -290,7 +213,7 @@ function summarizeRuleNodeDelta(before: unknown, after: unknown, label: string):
 
   for (const [flag, human] of Object.entries(RULE_FLAG_LABELS)) {
     if ((flag in b || flag in a) && b[flag] !== a[flag]) {
-      parts.push(`${human} changed from ${formatBrief(b[flag])} to ${formatBrief(a[flag])}`);
+      parts.push(`${human} changed from ${formatTemplateDisplayValue(b[flag])} to ${formatTemplateDisplayValue(a[flag])}`);
     }
   }
 
@@ -320,7 +243,7 @@ function diffRulesChanges(
 
   for (const key of toKeys) {
     if (!fromKeys.has(key)) {
-      const label = carePlanFieldLabel(fieldValues, key);
+      const label = resolveTemplateFieldLabel(key, fieldValues);
       added.push({
         key: `rules.${key}`,
         label,
@@ -331,7 +254,7 @@ function diffRulesChanges(
 
   for (const key of fromKeys) {
     if (!toKeys.has(key)) {
-      const label = carePlanFieldLabel(fieldValues, key);
+      const label = resolveTemplateFieldLabel(key, fieldValues);
       const customized =
         key in variantRules && stableJson(variantRules[key]) !== stableJson(snapshotRules[key]);
       removed.push({
@@ -353,7 +276,7 @@ function diffRulesChanges(
 
     const preserved =
       key in variantRules && stableJson(variantRules[key]) !== stableJson(snapshotRules[key]);
-    const label = carePlanFieldLabel(fieldValues, key);
+    const label = resolveTemplateFieldLabel(key, fieldValues);
     const detail = summarizeRuleNodeDelta(fromRules[key], toRules[key], label);
     changed.push({
       key: `rules.${key}`,

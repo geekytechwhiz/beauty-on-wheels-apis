@@ -144,7 +144,6 @@ describe('getTasks HTTP handler', () => {
   it('parses optional query filters', async () => {
     mockListPatientTasks.mockResolvedValue({
       patientId: 'pat-1',
-      staffUserId: 'staff-1',
       patientTasks: { items: [] },
       staffTasks: { items: [] },
     });
@@ -153,7 +152,6 @@ describe('getTasks HTTP handler', () => {
       baseListEvent({
         queryStringParameters: {
           patientId: 'pat-1',
-          staffUserId: 'staff-1',
           carePlanInstanceId: 'cp-1',
           workflowStage: 'ongoingCare',
           currentState: 'active',
@@ -165,11 +163,35 @@ describe('getTasks HTTP handler', () => {
 
     expect(mockListPatientTasks).toHaveBeenCalledWith(
       expect.objectContaining({
-        staffUserId: 'staff-1',
         carePlanInstanceId: 'cp-1',
         workflowStage: 'ongoingCare',
         currentState: 'active',
         pageSize: 10,
+      }),
+    );
+  });
+
+  it('passes optional staffUserId to listPatientTasks', async () => {
+    mockListPatientTasks.mockResolvedValue({
+      patientId: 'pat-1',
+      staffUserId: 'staff-1',
+      patientTasks: { items: [] },
+      staffTasks: { items: [] },
+    });
+
+    await main(
+      baseListEvent({
+        queryStringParameters: {
+          patientId: 'pat-1',
+          staffUserId: 'staff-1',
+        },
+      }),
+      testLambdaContext(),
+    );
+
+    expect(mockListPatientTasks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        staffUserId: 'staff-1',
       }),
     );
   });

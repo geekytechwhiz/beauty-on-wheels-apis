@@ -57,6 +57,7 @@ export type RuntimeTaskCard = ReturnType<typeof toRuntimeTaskCard>;
 export type ListPatientTasksInput = {
   organizationId: string;
   patientId: string;
+  /** When set, staffTasks includes only non-patient tasks assigned to this id. */
   staffUserId?: string;
   carePlanInstanceId?: string;
   workflowStage?: WorkflowStage;

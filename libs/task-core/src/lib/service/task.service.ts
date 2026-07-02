@@ -43,7 +43,7 @@ import type {
   UpdateTaskStateRequest,
   UpdateTaskStateResult,
 } from '../models/api/update-task-state.request';
-import { isPatientAssignedToType, isOrgStaffAssignedToType, requiresAssigneeGsi, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
+import { isPatientAssignedToType, isOrgStaffAssignedToType, RUNTIME_TASK_SOURCE } from '../models/types/task-domain.types';
 import type { TaskMetaDdbRecord } from '../models/persistence/task-ddb.model';
 import {
   resolveCurrentStateForWire,
@@ -543,11 +543,7 @@ export class TaskService extends BaseTaskService {
       const card = toRuntimeTaskCard(record, { timeZone });
       if (isPatientAssignedToType(card.assignedToType)) {
         patientTasks.push(card);
-      } else if (
-        requiresAssigneeGsi(card.assignedToType) &&
-        staffUserId &&
-        card.assignedToStaffId === staffUserId
-      ) {
+      } else if (!staffUserId || card.assignedToStaffId === staffUserId) {
         staffTasks.push(card);
       }
     }

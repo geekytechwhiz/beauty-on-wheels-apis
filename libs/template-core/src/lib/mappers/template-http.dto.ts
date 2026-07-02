@@ -3,6 +3,11 @@ import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model
 import { normalizeTemplateActor } from '../utils/template-actor.utils';
 import { firstString, resolveMasterTemplateIsActive, sanitizeMetaForApi } from '../utils/template.utils';
 import { TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  buildHistoryFieldChangeMessages,
+  buildHistoryMetaChangeMessages,
+  formatHistoryEntriesForApi,
+} from '../utils/template-history-display.utils';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -88,36 +93,28 @@ export interface TemplateHistoryEntry {
   rules?: Record<string, unknown>;
 }
 
-function formatChangeValue(value: unknown): string {
-  if (value === undefined || value === null) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (Array.isArray(value)) return value.join(', ');
-  return JSON.stringify(value);
-}
-
 function diffFieldValues(
   previous: Record<string, unknown> | undefined,
   current: Record<string, unknown> | undefined,
 ): string[] {
-  if (!current) return [];
-  const prev = previous ?? {};
-  const keys = new Set([...Object.keys(prev), ...Object.keys(current)]);
-  const changes: string[] = [];
-  for (const key of keys) {
-    const before = prev[key];
-    const after = current[key];
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-      if (before === undefined) {
-        changes.push(`${key}: set to ${formatChangeValue(after)}`);
-      } else if (after === undefined) {
-        changes.push(`${key}: cleared (was ${formatChangeValue(before)})`);
-      } else {
-        changes.push(`${key}: ${formatChangeValue(before)} → ${formatChangeValue(after)}`);
-      }
-    }
-  }
-  return changes;
+  return buildHistoryFieldChangeMessages(previous, current);
+}
+
+function diffHistoryMeta(
+  previous: TemplateHistoryEntry | undefined,
+  current: TemplateHistoryEntry,
+): string[] {
+  return buildHistoryMetaChangeMessages(previous, current);
+}
+
+/** API responses omit internal snapshots and return human-readable change messages. */
+export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return formatHistoryEntriesForApi(entries);
+}
+
+/** List/detail endpoints: timeline metadata only — no rules or fieldValues snapshots. */
+export function toListHistorySummary(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return formatHistoryEntriesForApi(entries);
 }
 
 export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryData {
@@ -261,37 +258,6 @@ export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boole
   };
 }
 
-function diffHistoryMeta(
-  previous: TemplateHistoryEntry | undefined,
-  current: TemplateHistoryEntry,
-): string[] {
-  if (!previous) return [];
-  const changes: string[] = [];
-  if (previous.status !== current.status) {
-    changes.push(`status: ${previous.status ?? '—'} → ${current.status ?? '—'}`);
-  }
-  if (previous.version !== current.version) {
-    changes.push(`version: ${previous.version ?? '—'} → ${current.version ?? '—'}`);
-  }
-  if (previous.isActive !== current.isActive) {
-    changes.push(
-      `isActive: ${formatChangeValue(previous.isActive)} → ${formatChangeValue(current.isActive)}`,
-    );
-  }
-  if (previous.notes !== current.notes && current.notes) {
-    changes.push(`note: ${current.notes}`);
-  }
-  return changes;
-}
-
-/** API responses omit internal fieldValue snapshots used for diffs. */
-export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
-  return entries.map(({ fieldValues: _fv, ...entry }) => ({
-    ...entry,
-    changes: entry.changes ?? [],
-  }));
-}
-
 /** True when a history entry belongs to the given org/master template id (not another variant). */
 export function templateVersionBelongsToTemplate(
   templateId: string,
@@ -308,14 +274,6 @@ export function filterHistoryForTemplate(
   return entries.filter((entry) =>
     templateVersionBelongsToTemplate(templateId, entry.templateVersionId),
   );
-}
-
-/** List endpoints: timeline metadata only — omit heavy rules/fieldValues snapshots. */
-export function toListHistorySummary(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
-  return entries.map(({ rules: _r, fieldValues: _fv, ...entry }) => ({
-    ...entry,
-    changes: entry.changes ?? [],
-  }));
 }
 
 /** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */

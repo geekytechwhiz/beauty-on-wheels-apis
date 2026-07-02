@@ -168,7 +168,7 @@ describe('OrgDerivedService.getOrgDerived list', () => {
         items: [carePlanVariant, monitoringVariant],
       }),
       getOrgVersionForMeta: jest.fn().mockImplementation(async (_org: string, templateId: string) => ({
-        meta: { templateVersionId: `${templateId}-V01`, version: 1 },
+        meta: { templateId, templateVersionId: `${templateId}-V01`, version: 1 },
         fieldValues: {
           Category: { value: 'CHRONIC_DISEASE' },
           Condition: { value: 'HYPERTENSION' },
@@ -201,5 +201,7 @@ describe('OrgDerivedService.getOrgDerived list', () => {
       items: [{ orgTemplateId: 'CP-VAR-1' }],
       pagination: { total: 1, count: 1 },
     });
+    expect(result.items[0].history).toHaveLength(1);
+    expect(result.items[0].history[0].title).toBe('Template Created');
   });
 });

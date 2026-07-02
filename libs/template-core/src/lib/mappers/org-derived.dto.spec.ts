@@ -48,6 +48,7 @@ describe('toOrgDerivedListItem upgrade', () => {
     expect(item.upgrade).toBe(false);
     expect(item.status).toBe(TEMPLATE_STATUS.DRAFT);
     expect(item.active).toBe(true);
+    expect(item.history).toEqual([]);
   });
 
   it('returns true when canonical org template was updated after variant copy', () => {
@@ -63,6 +64,23 @@ describe('toOrgDerivedListItem upgrade', () => {
     );
 
     expect(item.upgrade).toBe(true);
+  });
+
+  it('synthesizes one history entry for legacy rows without versionHistory', () => {
+    const history = resolveOrgDerivedItemHistory(baseVariant.versionRow as never);
+    expect(history).toHaveLength(1);
+    expect(history[0].title).toBe('Template Created');
+  });
+
+  it('includes history on single get detail', () => {
+    const detail = toOrgDerivedDetail(
+      'org-1',
+      baseVariant.metaRow as never,
+      baseVariant.versionRow as never,
+      null,
+    );
+    expect(detail.history).toHaveLength(1);
+    expect(detail.history[0].title).toBe('Template Created');
   });
 
   it('includes history on list items when versionHistory is stored', () => {
@@ -143,6 +161,7 @@ describe('toOrgDerivedListItem upgrade', () => {
     expect(history).toHaveLength(1);
     expect(history[0].templateVersionId).toBe(`${templateId}-V01`);
     expect(history[0].rules).toBeUndefined();
+    expect(history[0].changes).toEqual([]);
   });
 
   it('filterHistoryForTemplate keeps only matching templateVersionId prefixes', () => {

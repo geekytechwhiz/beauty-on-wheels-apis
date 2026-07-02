@@ -17,7 +17,7 @@
     "test": {
       "executor": "@nx/jest:jest",
       "options": {
-        "jestConfig": "apps/device-service/jest.config.ts",
+        "jestConfig": "apps/device-service/jest.config.cts",
         "passWithNoTests": true
       }
     },

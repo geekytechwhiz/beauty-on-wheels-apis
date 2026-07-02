@@ -1,0 +1,18 @@
+# Local development only — do not use for CI package/deploy.
+# Usage: pnpm offline  (or npx serverless offline --config serverless.offline.yml --stage dev)
+service: device-service
+
+frameworkVersion: '3.x'
+
+configValidationMode: warn
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+provider: ${file(./serverless.yml):provider}
+package: ${file(./serverless.yml):package}
+custom: ${file(./serverless.yml):custom}
+functions: ${file(./serverless.yml):functions}

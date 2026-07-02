@@ -1,0 +1,6 @@
+Resources:
+  VitalReadingsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: vital-readings-dlq-${self:provider.stage}
+      MessageRetentionPeriod: 1209600

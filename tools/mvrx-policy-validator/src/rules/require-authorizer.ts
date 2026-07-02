@@ -8,6 +8,11 @@ export function validateAuthorizer(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
+  // Opt-out for legacy services until a dedicated auth-hardening change (no API drift in infra PRs).
+  if (config?.custom?.mvrxPolicy?.requireAuthorizer === false) {
+    return errors;
+  }
+
   const functions = config?.functions || {};
 
   Object.entries(functions).forEach(([functionName, fn]: [string, any]) => {

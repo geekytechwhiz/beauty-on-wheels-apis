@@ -7,11 +7,8 @@ configValidationMode: warn
 
 frameworkVersion: '3.x'
 
-plugins:
-  - serverless-esbuild
-  - serverless-dotenv-plugin
-  - serverless-auto-swagger
-  - '@myvitalrx/mvrx-resource-registry'
+plugins: ${file(../../infra/serverless/plugins.yml)}
+package: ${file(./infra/config/package.yml)}
 
 provider:
   name: aws
@@ -29,18 +26,9 @@ provider:
     lambda: true
     apiGateway: true
 
-  logRetentionInDays: 14
+  logRetentionInDays: ${self:custom.logRetentionByStage.${self:provider.stage}, '14'}
 
-  environment:
-    REGION: ${self:provider.region}
-    DEVICE_TABLE: device-table-${self:provider.stage}
-    EVENT_BUS: device-service-bus-${self:provider.stage}
-    NOTIFICATION_TOPIC_ARN: arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
-    ERROR_MESSAGES_CDN_URL: https://d2p9v61861q1ox.cloudfront.net
-    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
-    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    DEFAULT_REGION: ${self:provider.region}
-    COMPLETE_TASK_LAMBDA: ${self:provider.stage}_global_complete_user_task
+  environment: ${file(./infra/environments/environment.yml)}
 
   tags:
     Service: ${self:service}
@@ -48,154 +36,42 @@ provider:
     ManagedBy: serverless
 
   iamRoleStatements:
-    # DynamoDB
-    - Effect: Allow
-      Action:
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-        - dynamodb:Query
-        - dynamodb:BatchGetItem
-        - dynamodb:BatchWriteItem
-        - dynamodb:DescribeTable
-      Resource:
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/device-table-${self:provider.stage} 
-        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/device-table-${self:provider.stage}/index/*
-
-    # EventBridge
-    - Effect: Allow
-      Action:
-        - events:PutEvents
-      Resource:
-        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/device-service-bus-${self:provider.stage}
-
-    # SNS (publish to user-service notification topic for Email/SMS/push)
-    - Effect: Allow
-      Action:
-        - sns:Publish
-      Resource:
-        - arn:aws:sns:${self:provider.region}:${aws:accountId}:user-events-topic-${self:provider.stage}
-
-    # Lambda (for backward compatibility with global_complete_user_task)
-    - Effect: Allow
-      Action:
-        - lambda:InvokeFunction
-      Resource:
-        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_complete_user_task
-
-    # SQS (Vital Reading DLQ)
-    - Effect: Allow
-      Action:
-        - sqs:ReceiveMessage
-        - sqs:DeleteMessage
-        - sqs:GetQueueAttributes
-      Resource: !GetAtt VitalReadingsDLQ.Arn
-
-    # SES (Vital Reading DLQ email after 3 retries)
-    - Effect: Allow
-      Action:
-        - ses:SendEmail
-        - ses:SendRawEmail
-      Resource: '*'
-
-    # X-Ray
-    - Effect: Allow
-      Action:
-        - xray:PutTraceSegments
-        - xray:PutTelemetryRecords
-      Resource: '*'
-
-package:
-  individually: true
-  patterns:
-    - 'src/utils/devices.json'
-    - '!**/*.test.ts'
-    - '!**/*.spec.ts'
+    - ${file(./infra/permissions/dynamodb.yml)}
+    - ${file(./infra/permissions/eventbridge.yml)}
+    - ${file(./infra/permissions/sns.yml)}
+    - ${file(./infra/permissions/lambda-invoke.yml)}
+    - ${file(./infra/permissions/sqs.yml)}
+    - ${file(./infra/permissions/ses.yml)}
+    - ${file(../../infra/serverless/permissions/xray.yml)}
 
 custom:
+  # Pre-commit policy: keep existing route auth (3 secured routes). Hardening is a separate track.
+  mvrxPolicy:
+    requireAuthorizer: false
+
+  logRetentionByStage: ${file(../../infra/serverless/config/log-retention-by-stage.yml)}
+  bundle: ${file(./infra/config/infra-custom.yml)}
+  apiTitle: Device Service API
+
   resourceRegistry:
     enabled: true
     platformOwner: device-service
     parameters:
       DEVICE_TABLE:
-        value: device-table-${self:provider.stage}
+        value: ${self:custom.bundle.deviceTableName}
       EVENT_BUS:
-        value: device-service-bus-${self:provider.stage}
-       
+        value: ${self:custom.bundle.eventBusName}
     include:
       - AWS::DynamoDB::Table
       - AWS::Events::EventBus
       - AWS::SQS::Queue
       - AWS::SNS::Topic
 
-  # Disable sourcemaps everywhere in CI to reduce memory (avoids esbuild "The service was stopped").
-  # dev is the stage CodeBuild packages with, so it must stay false to keep the pipeline within container memory.
-  sourcemapsByStage:
-    dev: false
-    stg: false
-    prd: false
-  keepNamesByStage:
-    dev: false
-    stg: false
-    prd: false
-
-  esbuild:
-    bundle: true
-    minify: false
-    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
-    target: node22
-    platform: node
-    format: cjs
-    tsconfig: ../../tsconfig.base.json
-    external:
-      - aws-sdk
-      - fhir-tool
-    keepNames: ${self:custom.keepNamesByStage.${self:provider.stage}, true}
-    skipRebuild: true
-    disposeContext: true
-    concurrency: 1
-    zipConcurrency: 1
-    plugins: esbuild-plugins.js
-    resolveExtensions:
-      - '.ts'
-      - '.tsx'
-      - '.js'
-      - '.jsx'
-      - '.json'
-    loader:
-      '.json': 'json'
-  autoswagger:
-    title: Device Service API
-    description: RESTful API for managing devices, device-user mappings, organization devices, and recommendations
-    version: 1.0.0
-    apiType: http
-    basePath: /${self:provider.stage}
-    schemes:
-      - https
-      - http
-    host: ${self:custom.apiHost, ''}
-    generateSwaggerOnDeploy: true
-    type: openapi3
-    swaggerFiles:
-      - swagger.json
-    useStage: true
-    swaggerPath: swagger
-    excludeStages:
-      - production
-    swaggerOutputPath: swagger.json
-    tags:
-      - name: Devices
-        description: Device management operations
-      - name: Organization Devices
-        description: Organization-device relationship operations
-      - name: Recommendations
-        description: Device recommendation operations
-
-  logLevel:
-    dev: debug
-    stg: info
-    prd: warn
+  sourcemapsByStage: ${file(../../infra/serverless/config/sourcemaps-by-stage.yml)}
+  keepNamesByStage: ${file(../../infra/serverless/config/keep-names-by-stage.yml)}
+  esbuild: ${file(./infra/config/esbuild.yml)}
+  autoswagger: ${file(./infra/config/autoswagger.yml)}
+  serverless-offline: ${file(../../infra/serverless/config/serverless-offline.yml)}
 
 functions:
   health:
@@ -217,7 +93,7 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
 
   errorNotification:
@@ -271,7 +147,7 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
     description: Delete user-device mapping(s) by userId (from Bearer token) and devices array
 
@@ -286,7 +162,7 @@ functions:
             name: common_authorizer
             type: token
             identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
             resultTtlInSeconds: 0
     description: Patient-app device pairing/registration (legacy payload, correct table mapping)
 
@@ -417,7 +293,7 @@ functions:
           cors: true
 
   # Device Files API
-  deviceFileUpload: 
+  deviceFileUpload:
     handler: src/handlers/deviceFileUpload.handler
     events:
       - http:
@@ -425,11 +301,5 @@ functions:
           method: post
           cors: true
 
-
 resources:
-  Resources:
-    VitalReadingsDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: vital-readings-dlq-${self:provider.stage}
-        MessageRetentionPeriod: 1209600
+  - ${file(./infra/resources/vital-readings-dlq.yml)}

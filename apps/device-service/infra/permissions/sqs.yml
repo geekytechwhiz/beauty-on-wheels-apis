@@ -1,0 +1,6 @@
+Effect: Allow
+Action:
+  - sqs:ReceiveMessage
+  - sqs:DeleteMessage
+  - sqs:GetQueueAttributes
+Resource: !GetAtt VitalReadingsDLQ.Arn

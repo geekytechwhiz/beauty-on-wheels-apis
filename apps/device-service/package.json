@@ -2,6 +2,15 @@
   "name": "@api-hub/device-service",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "ensure-registry": "node ../../tools/mvrx-resource-registry/scripts/ensure-built.js",
+    "prepackage": "pnpm run ensure-registry",
+    "preoffline": "pnpm run ensure-registry",
+    "deploy": "npx --no-install serverless deploy",
+    "offline": "npx --no-install serverless offline --config serverless.offline.yml --stage dev",
+    "package": "npx --no-install serverless package",
+    "test": "cd ../.. && node node_modules/jest/bin/jest.js --config=apps/device-service/jest.config.cts"
+  },
   "nx": {
     "targets": {
       "build": {
@@ -47,11 +56,15 @@
    
   },
   "devDependencies": {
-    "@myvitalrx/mvrx-resource-registry": "^0.0.8",
+    "@myvitalrx/mvrx-resource-registry": "workspace:*",
     "esbuild": "^0.19.2",
     "serverless": "^3.40.0",
     "serverless-auto-swagger": "^3.1.0",
     "serverless-dotenv-plugin": "^6.0.0",
-    "serverless-esbuild": "^1.57.0"
+    "serverless-esbuild": "^1.57.0",
+    "serverless-offline": "13.9.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

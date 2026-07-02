@@ -1,0 +1,25 @@
+title: ${self:custom.apiTitle}
+description: RESTful API for managing devices, device-user mappings, organization devices, and recommendations
+version: 1.0.0
+apiType: http
+basePath: /${self:provider.stage}
+schemes:
+  - https
+  - http
+host: ${self:custom.apiHost, ''}
+generateSwaggerOnDeploy: true
+type: openapi3
+swaggerFiles:
+  - swagger.json
+useStage: true
+swaggerPath: swagger
+excludeStages:
+  - production
+swaggerOutputPath: swagger.json
+tags:
+  - name: Devices
+    description: Device management operations
+  - name: Organization Devices
+    description: Organization-device relationship operations
+  - name: Recommendations
+    description: Device recommendation operations

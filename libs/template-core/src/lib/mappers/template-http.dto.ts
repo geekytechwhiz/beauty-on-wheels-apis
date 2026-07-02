@@ -2,7 +2,17 @@ import type { TemplateActorUser } from '../models/template-actor.model';
 import type { TemplateDdbRecord } from '../models/persistence/template-ddb.model';
 import { normalizeTemplateActor } from '../utils/template-actor.utils';
 import { firstString, resolveMasterTemplateIsActive, sanitizeMetaForApi } from '../utils/template.utils';
-import { TEMPLATE_STATUS } from '../constants/template.constants';
+import {
+  TEMPLATE_HISTORY_STATUS_ACTION,
+  TEMPLATE_HISTORY_STATUS_TITLE,
+  TEMPLATE_STATUS,
+  type TemplateStatus,
+} from '../constants/template.constants';
+import {
+  buildTemplateFieldChangeMessages,
+  buildTemplateHistoryMetaChangeMessages,
+  formatHistoryEntriesForApi,
+} from '../utils/template-display.utils';
 
 export interface TemplateSummaryData {
   templateId: string;
@@ -88,36 +98,28 @@ export interface TemplateHistoryEntry {
   rules?: Record<string, unknown>;
 }
 
-function formatChangeValue(value: unknown): string {
-  if (value === undefined || value === null) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (Array.isArray(value)) return value.join(', ');
-  return JSON.stringify(value);
-}
-
 function diffFieldValues(
   previous: Record<string, unknown> | undefined,
   current: Record<string, unknown> | undefined,
 ): string[] {
-  if (!current) return [];
-  const prev = previous ?? {};
-  const keys = new Set([...Object.keys(prev), ...Object.keys(current)]);
-  const changes: string[] = [];
-  for (const key of keys) {
-    const before = prev[key];
-    const after = current[key];
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-      if (before === undefined) {
-        changes.push(`${key}: set to ${formatChangeValue(after)}`);
-      } else if (after === undefined) {
-        changes.push(`${key}: cleared (was ${formatChangeValue(before)})`);
-      } else {
-        changes.push(`${key}: ${formatChangeValue(before)} → ${formatChangeValue(after)}`);
-      }
-    }
-  }
-  return changes;
+  return buildTemplateFieldChangeMessages(previous, current);
+}
+
+function diffHistoryMeta(
+  previous: TemplateHistoryEntry | undefined,
+  current: TemplateHistoryEntry,
+): string[] {
+  return buildTemplateHistoryMetaChangeMessages(previous, current);
+}
+
+/** API responses omit internal snapshots and return human-readable change messages. */
+export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return formatHistoryEntriesForApi(entries);
+}
+
+/** List/detail endpoints: timeline metadata only — no rules or fieldValues snapshots. */
+export function toListHistorySummary(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
+  return formatHistoryEntriesForApi(entries);
 }
 
 export function toTemplateSummary(record: TemplateDdbRecord): TemplateSummaryData {
@@ -227,28 +229,22 @@ export function toMasterListItem(record: TemplateDdbRecord): MasterTemplateListI
   };
 }
 
-const HISTORY_STATUS_TITLE: Record<string, string> = {
-  DRAFT: 'Template Updated',
-  PUBLISHED: 'Template Published',
-};
-
-const HISTORY_STATUS_ACTION: Record<string, string> = {
-  DRAFT: 'UPDATED',
-  PUBLISHED: 'PUBLISHED',
-};
+const HISTORY_STATUS_TITLE = TEMPLATE_HISTORY_STATUS_TITLE;
+const HISTORY_STATUS_ACTION = TEMPLATE_HISTORY_STATUS_ACTION;
 
 /** Build a single version-history timeline entry from a stored VERSION row. */
 export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boolean): TemplateHistoryEntry {
   const meta = record.meta;
-  const status = (meta.status ?? 'DRAFT') as string;
+  const status = (meta.status ?? TEMPLATE_STATUS.DRAFT) as string;
+  const statusKey = status.trim().toUpperCase() as TemplateStatus;
   const notes = (firstString(meta.reviewComments) as string | undefined) ?? null;
   const isCreate = isLowestVersion;
   return {
     version: meta.version ?? 1,
     templateVersionId: meta.templateVersionId,
     status,
-    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[status] ?? 'UPDATED',
-    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[status] ?? 'Template Updated',
+    action: isCreate ? 'CREATED' : HISTORY_STATUS_ACTION[statusKey] ?? 'UPDATED',
+    title: isCreate ? 'Template Created' : HISTORY_STATUS_TITLE[statusKey] ?? 'Template Updated',
     isActive: meta.isActive ?? true,
     isLatestVersion: meta.isLatestVersion ?? false,
     updatedAt: meta.lastModifiedAt ?? null,
@@ -259,37 +255,6 @@ export function toHistoryEntry(record: TemplateDdbRecord, isLowestVersion: boole
     notes,
     changes: notes ? [notes] : [],
   };
-}
-
-function diffHistoryMeta(
-  previous: TemplateHistoryEntry | undefined,
-  current: TemplateHistoryEntry,
-): string[] {
-  if (!previous) return [];
-  const changes: string[] = [];
-  if (previous.status !== current.status) {
-    changes.push(`status: ${previous.status ?? '—'} → ${current.status ?? '—'}`);
-  }
-  if (previous.version !== current.version) {
-    changes.push(`version: ${previous.version ?? '—'} → ${current.version ?? '—'}`);
-  }
-  if (previous.isActive !== current.isActive) {
-    changes.push(
-      `isActive: ${formatChangeValue(previous.isActive)} → ${formatChangeValue(current.isActive)}`,
-    );
-  }
-  if (previous.notes !== current.notes && current.notes) {
-    changes.push(`note: ${current.notes}`);
-  }
-  return changes;
-}
-
-/** API responses omit internal fieldValue snapshots used for diffs. */
-export function sanitizeHistoryForApi(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
-  return entries.map(({ fieldValues: _fv, ...entry }) => ({
-    ...entry,
-    changes: entry.changes ?? [],
-  }));
 }
 
 /** True when a history entry belongs to the given org/master template id (not another variant). */
@@ -308,14 +273,6 @@ export function filterHistoryForTemplate(
   return entries.filter((entry) =>
     templateVersionBelongsToTemplate(templateId, entry.templateVersionId),
   );
-}
-
-/** List endpoints: timeline metadata only — omit heavy rules/fieldValues snapshots. */
-export function toListHistorySummary(entries: TemplateHistoryEntry[]): TemplateHistoryEntry[] {
-  return entries.map(({ rules: _r, fieldValues: _fv, ...entry }) => ({
-    ...entry,
-    changes: entry.changes ?? [],
-  }));
 }
 
 /** Persist timeline on the VERSION row (in-place edits overwrite the row; history is appended here). */

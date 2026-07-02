@@ -8,6 +8,7 @@ import {
 } from '../constants/template.constants';
 import {
   buildOrgDerivedFilterOptions,
+  resolveOrgDerivedItemHistory,
   toAdoptOrgDerivedResult,
   toOrgDerivedCreateResult,
   toOrgDerivedDetail,
@@ -680,6 +681,7 @@ export class OrgDerivedService {
         row.versionRow,
         row.enablement,
         sourceId ? canonicalMetaById.get(sourceId) : undefined,
+        resolveOrgDerivedItemHistory(row.versionRow),
       );
     });
 

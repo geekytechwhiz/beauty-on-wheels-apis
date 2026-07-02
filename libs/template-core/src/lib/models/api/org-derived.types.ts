@@ -149,8 +149,8 @@ export type OrgDerivedListItem = {
    */
   upgrade: boolean;
   lastModifiedAt?: string;
-  /** Variant version timeline (list mode only). */
-  history?: TemplateHistoryEntry[];
+  /** Variant version timeline (newest first), same shape as master template history. */
+  history: TemplateHistoryEntry[];
 };
 
 export type ListOrgDerivedResult = {
@@ -217,4 +217,5 @@ export type UpdateOrgDerivedResult = {
   templateEnabled: boolean;
   fieldValues?: Record<string, unknown>;
   rules: Record<string, unknown>;
+  history: TemplateHistoryEntry[];
 };

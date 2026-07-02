@@ -203,8 +203,8 @@ describe('org-derived-adopt.utils', () => {
     });
 
     const linkedRule = preview?.changes.changed.find((row) => row.key === 'rules.LinkedTaskTemplate');
-    expect(linkedRule?.label).toBe('Linked Task Templates');
-    expect(linkedRule?.message).toContain('Linked Task Templates');
+    expect(linkedRule?.label).toBe('Linked task templates');
+    expect(linkedRule?.message).toContain('Linked task templates');
     expect(linkedRule?.message).toContain('org edit');
     expect(linkedRule?.message).not.toContain('{');
   });

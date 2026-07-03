@@ -138,7 +138,7 @@ FHIR resource transformation and routing gateway with AI-powered mapping.
 | Service | Requirements | Implementation | Status |
 |---------|--------------|----------------|--------|
 | Organization | ✅ Complete | ✅ Complete | 🟢 Production |
-| Device | ✅ Complete | 🔄 In Progress | 🟡 Development |
+| Device | ✅ Complete | 🔄 In Progress (see [alignment plan](./device-service/implementation/SERVERLESS_INFRA_ALIGNMENT_PLAN.md)) | 🟡 Development |
 | FHIR Gateway | ✅ Complete | ✅ Complete | 🟢 Production |
 | User | 📝 Legacy Docs | ✅ Complete | 🟢 Production |
 | Order | 📝 Legacy Docs | ✅ Complete | 🟢 Production |
@@ -176,6 +176,6 @@ FHIR resource transformation and routing gateway with AI-powered mapping.
 
 ---
 
-**Last Updated**: 2026-01-19  
+**Last Updated**: 2026-07-01  
 **Services**: 5 (3 Production, 1 Development, 1 Legacy)  
 **Status**: ✅ Organized

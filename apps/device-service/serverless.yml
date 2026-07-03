@@ -42,6 +42,7 @@ provider:
     - ${file(./infra/permissions/lambda-invoke.yml)}
     - ${file(./infra/permissions/sqs.yml)}
     - ${file(./infra/permissions/ses.yml)}
+    - ${file(../../infra/serverless/permissions/ssm-read.yml)}
     - ${file(../../infra/serverless/permissions/xray.yml)}
 
 custom:
@@ -49,9 +50,17 @@ custom:
   mvrxPolicy:
     requireAuthorizer: false
 
+  sharedSsmPaths: ${file(../../infra/serverless/config/shared-ssm-paths.yml)}
   logRetentionByStage: ${file(../../infra/serverless/config/log-retention-by-stage.yml)}
   bundle: ${file(./infra/config/infra-custom.yml)}
   apiTitle: Device Service API
+
+  securedAuthorizer: &securedAuthorizer
+    name: common_authorizer
+    type: token
+    identitySource: method.request.header.Authorization
+    arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+    resultTtlInSeconds: 0
 
   resourceRegistry:
     enabled: true
@@ -89,12 +98,7 @@ functions:
           path: devices/register
           method: post
           cors: true
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *securedAuthorizer
 
   errorNotification:
     handler: src/handlers/errorNotification.handler
@@ -143,12 +147,7 @@ functions:
           path: devices/user/delete
           method: post
           cors: true
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *securedAuthorizer
     description: Delete user-device mapping(s) by userId (from Bearer token) and devices array
 
   deviceUserRegister:
@@ -158,12 +157,7 @@ functions:
           path: devices/user/register
           method: post
           cors: true
-          authorizer:
-            name: common_authorizer
-            type: token
-            identitySource: method.request.header.Authorization
-            arn: arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_user_package_custom_authorization
-            resultTtlInSeconds: 0
+          authorizer: *securedAuthorizer
     description: Patient-app device pairing/registration (legacy payload, correct table mapping)
 
   deviceList:

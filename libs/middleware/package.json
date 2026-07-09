@@ -15,10 +15,8 @@
     }
   },
   "dependencies": {
-    "@api-hub/fhir": "workspace:*",
     "@api-hub/observability": "workspace:*",
-    "@api-hub/utils": "workspace:*",
-    "@api-hub/fhir-validator": "workspace:*",
+    "@api-hub/utils": "workspace:*", 
     "zod": "^4.2.1"
   },
   "devDependencies": {

@@ -1,5 +1,0 @@
-Effect: Allow
-Action:
-  - lambda:InvokeFunction
-Resource:
-  - arn:aws:lambda:${self:provider.region}:${self:custom.bundle.awsAccountId}:function:${self:provider.stage}_global_complete_user_task

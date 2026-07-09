@@ -1,8 +1,0 @@
-Effect: Allow
-Action:
-  - dynamodb:GetRecords
-  - dynamodb:GetShardIterator
-  - dynamodb:DescribeStream
-  - dynamodb:ListStreams
-Resource:
-  - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.bundle.taskDynamoTableName}/stream/*

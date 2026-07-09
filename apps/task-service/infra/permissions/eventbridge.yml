@@ -1,5 +1,0 @@
-Effect: Allow
-Action:
-  - events:PutEvents
-Resource:
-  - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:custom.bundle.eventBusName}

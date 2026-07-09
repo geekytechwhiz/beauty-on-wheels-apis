@@ -8,16 +8,10 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../../libs/partners"
-    },
-    {
       "path": "../../libs/utils"
     },
     {
       "path": "../../libs/observability"
-    },
-    {
-      "path": "../../libs/lab-integration"
     }
   ]
 }

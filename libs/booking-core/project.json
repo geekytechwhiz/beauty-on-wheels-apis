@@ -1,0 +1,19 @@
+{
+  "name": "booking-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/booking-core/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/booking-core",
+        "main": "libs/booking-core/src/index.ts",
+        "tsConfig": "libs/booking-core/tsconfig.lib.json",
+        "assets": ["libs/booking-core/*.md"]
+      }
+    }
+  }
+}

@@ -1,1 +1,0 @@
-export { S3Service, s3Service } from '../services/file-upload.service';

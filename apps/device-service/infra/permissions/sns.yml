@@ -1,5 +1,0 @@
-Effect: Allow
-Action:
-  - sns:Publish
-Resource:
-  - arn:aws:sns:${self:provider.region}:${self:custom.bundle.awsAccountId}:user-events-topic-${self:provider.stage}

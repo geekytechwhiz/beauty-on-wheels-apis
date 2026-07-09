@@ -1,0 +1,1 @@
+const fs=require('fs'),p=require('path');const s=process.argv[2];const f=p.join(process.cwd(),'apps',s+'-service','src','controllers','health.controller.ts');fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"export class HealthController{async handleHealth(){return {status:'UP'};}}\nexport const getHealthController=()=>new HealthController();");

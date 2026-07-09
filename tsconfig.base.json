@@ -5,9 +5,7 @@
     "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "lib": [
-      "es2022"
-    ],
+    "lib": ["es2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmitOnError": true,
@@ -19,20 +17,12 @@
     "strict": true,
     "baseUrl": ".",
     "target": "es2022",
-    "customConditions": [
-      "@api-hub/source"
-    ],
-    "paths": { 
+    "customConditions": ["@api-hub/source"],
+    "paths": {
       "@api-hub/event-platform": ["libs/event-platform/src/index.ts"],
       "@api-hub/observability": ["libs/observability/src/index.ts"],
-      "@api-hub/utils": ["libs/utils/src/index.ts"], 
-      "@api-hub/canonical": ["libs/canonical/src/index.ts"],
- 
-      "@api-hub/consent": ["libs/consent/src/index.ts"],
-      "@api-hub/capability": ["libs/capability/src/index.ts"],
-      "@api-hub/terminology": ["libs/terminology/src/index.ts"],
-      "@api-hub/fhir": ["libs/fhir/src/index.ts"],
-      "@api-hub/fhir/middleware": ["libs/fhir/src/middleware/index.ts"],
+      "@api-hub/utils": ["libs/utils/src/index.ts"],
+      "@api-hub/authentication-core": ["libs/authentication-core/src/index.ts"],
       "@api-hub/middleware": ["libs/middleware/src/index.ts"],
       "@myvitalrx/platform-tools/middleware": [
         "packages/platform-tools/src/middleware.ts"
@@ -43,37 +33,7 @@
       "@myvitalrx/platform-tools/event-platform": [
         "packages/platform-tools/src/event-platform.ts"
       ],
-      "@myvitalrx/platform-tools/event-platform/dx": [
-        "packages/platform-tools/src/event-platform-dx.ts"
-      ],
-      "@myvitalrx/fhir-wrapper": [
-        "packages/fhir-wrapper/src/index.ts"
-      ],
-      "@myvitalrx/fhir-wrapper/middleware": [
-        "packages/fhir-wrapper/src/middleware.ts"
-      ],
-      "@api-hub/partners": ["libs/partners/src/index.ts"],
-      "@api-hub/integration-events": ["libs/integration-events/src/index.ts"],
-      "@api-hub/lab-integration": ["libs/lab-integration/src/index.ts"],
-      "@api-hub/auth": ["libs/auth/src/index.ts"],
-      "@api-hub/scope-mapping": ["libs/scope-mapping/src/index.ts"],
-      "@api-hub/access-audit": ["libs/access-audit/src/index.ts"],
-      "@api-hub/tenant-guard": ["libs/tenant-guard/src/index.ts"],
-      "@api-hub/service-clients": ["libs/service-clients/src/index.ts"],
-      "@api-hub/template": ["libs/template/src/index.ts"],
-      "@api-hub/template/*": ["libs/template/src/*"],
-      "@api-hub/rule-engine": ["libs/rule-engine/src/index.ts"],
-      "@api-hub/care-plan": ["libs/template/src/care-plan/index.ts"],
-      "@api-hub/template-core": ["libs/template-core/src/index.ts"],
-      "@api-hub/template-dto": ["libs/template/src/api/request.schemas.ts"],
-      "@api-hub/template-rules": ["libs/rule-engine/src/index.ts"],
-      "@api-hub/template-executor": ["libs/template/src/application/index.ts"],
-      "@api-hub/template-repository": ["libs/template/src/infrastructure/index.ts"],
-      "@api-hub/template-storage": ["libs/template/src/infrastructure/index.ts"],
-      "@api-hub/alert-core": ["libs/alert-core/src/index.ts"],
-      "@api-hub/task-core": ["libs/task-core/src/index.ts"],
-      "@api-hub/metadata": ["libs/metadata/src/index.ts"],
-      
+      "@api-hub/booking-core": ["libs/booking-core/src/index.ts"]
     }
   }
 }

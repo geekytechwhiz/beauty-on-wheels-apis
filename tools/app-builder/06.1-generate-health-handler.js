@@ -1,0 +1,1 @@
+const fs=require('fs'),p=require('path');const s=process.argv[2];const f=p.join(process.cwd(),'apps',s+'-service','src','handlers','health.handler.ts');fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"export const handleHealth=async()=>({statusCode:200,body:JSON.stringify({status:'UP'})});");

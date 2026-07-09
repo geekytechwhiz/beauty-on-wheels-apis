@@ -1,0 +1,414 @@
+service: identity-service
+
+# Serverless 3.40 JSON schema may lag new Lambda runtimes (e.g. nodejs22.x); AWS still accepts them.
+configValidationMode: warn
+
+frameworkVersion: '3.x'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - '@myvitalrx/mvrx-resource-registry'
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-identity-service-bucket
+    serverSideEncryption: AES256
+  memorySize: 512
+  timeout: 30
+  versionFunctions: false
+  tracing:
+    lambda: true
+    apiGateway: true
+  logRetentionInDays: 14
+  environment:
+    REGION: ${self:provider.region}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    IDENTITY_TABLE: identity-table-${self:provider.stage}
+    IDENTITY_EVENT_BUS: identity-service-bus-${self:provider.stage}
+    IDENTITY_EVENTS_TOPIC: arn:aws:sns:${self:provider.region}:${aws:accountId}:identity-events-${self:provider.stage}
+    SECRET_MANAGER_NAME: ${opt:secretStage,'DEV'}_IDENTITY_SECRET_MANAGER
+    ACCESS_TOKEN_EXPIRY: "3600"
+    REFRESH_TOKEN_EXPIRY: "2592000"
+    OTP_EXPIRY_SECONDS: "300"
+    MAX_OTP_ATTEMPTS: "5"
+    JWT_SECRET_NAME: ${opt:secretStage,'DEV'}_JWT_SECRET
+    COGNITO_USER_POOL_ID: ${ssm:/${self:provider.stage}/identity/cognito-user-pool-id, ''}
+    COGNITO_CLIENT_ID: ${ssm:/${self:provider.stage}/identity/cognito-client-id, ''}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  iamRoleStatements:
+    # DynamoDB
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:TransactWriteItems
+        - dynamodb:TransactGetItems
+        - dynamodb:DescribeTable
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.IDENTITY_TABLE}
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.IDENTITY_TABLE}/index/*
+
+    # EventBridge
+    - Effect: Allow
+      Action:
+        - events:PutEvents
+      Resource:
+        - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/${self:provider.environment.IDENTITY_EVENT_BUS}
+
+    # SNS
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - ${self:provider.environment.IDENTITY_EVENTS_TOPIC}
+
+    # Secrets Manager
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+        - secretsmanager:DescribeSecret
+      Resource:
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${opt:secretStage,'DEV'}_IDENTITY_SECRET_MANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${opt:secretStage,'STG'}_IDENTITY_SECRET_MANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${opt:secretStage,'PRD'}_IDENTITY_SECRET_MANAGER*
+        - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${opt:secretStage,'DEV'}_JWT_SECRET*
+
+    # CloudWatch Logs
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource:
+        - arn:aws:logs:${self:provider.region}:${aws:accountId}:*
+
+    # X-Ray
+    - Effect: Allow
+      Action:
+        - xray:PutTraceSegments
+        - xray:PutTelemetryRecords
+      Resource: "*"
+
+    # Cognito User Pool
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminGetUser
+        - cognito-idp:AdminUpdateUserAttributes
+        - cognito-idp:AdminDeleteUser
+        - cognito-idp:AdminSetUserPassword
+        - cognito-idp:AdminInitiateAuth
+        - cognito-idp:AdminRespondToAuthChallenge
+        - cognito-idp:AdminUserGlobalSignOut
+        - cognito-idp:AdminDisableUser
+        - cognito-idp:AdminEnableUser
+        - cognito-idp:AdminResetUserPassword
+        - cognito-idp:ListUsers
+      Resource:
+        - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/*
+
+package:
+  individually: true
+
+custom:
+  resourceRegistry:
+    enabled: true
+    include:
+      - AWS::DynamoDB::Table
+      - AWS::Events::EventBus
+      - AWS::SNS::Topic
+      - AWS::SQS::Queue
+
+  sourcemapsByStage:
+    dev: true
+    nvstg: false
+    stg: false
+    prd: false
+
+  esbuild:
+    packager: pnpm
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - '@aws-sdk/*'
+    keepNames: true
+    concurrency: 8
+    zipConcurrency: 8
+    plugins: ./esbuild-plugins.js
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+
+  autoswagger:
+    title: Identity Service API
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    host: ${self:custom.apiHost, ''}
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    excludeStages:
+      - production
+
+  logLevel:
+    dev: debug
+    stg: info
+    prd: warn
+
+  cors:
+    origin: ${env:CORS_ORIGIN, '*'}
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Correlation-Id
+      - X-Requested-With
+      - Sec-Ch-Ua
+      - Sec-Ch-Ua-Mobile
+      - Sec-Ch-Ua-Platform
+
+functions:
+  # Auth
+  register:
+    handler: src/handlers/http/authentication.handleRegister
+    events:
+      - http:
+          path: /auth/register
+          method: post
+          cors: true
+  # login:
+  #   handler: src/handlers/http/authentication.handleLogin
+  #   events:
+  #     - http:
+  #         path: /auth/login
+  #         method: post
+  #         cors: true
+  # logout:
+  #   handler: src/handlers/http/authentication.handleLogout
+  #   events:
+  #     - http:
+  #         path: /auth/logout
+  #         method: post
+  #         cors: true
+  # refresh:
+  #   handler: src/handlers/http/authentication.handleRefreshToken
+  #   events:
+  #     - http:
+  #         path: /auth/refresh
+  #         method: post
+  #         cors: true
+  # verifyOtp:
+  #   handler: src/handlers/http/authentication.handleVerifyOTP
+  #   events:
+  #     - http:
+  #         path: /auth/verify-otp
+  #         method: post
+  #         cors: true
+  # resendOtp:
+  #   handler: src/handlers/http/authentication.handleResendOTP
+  #   events:
+  #     - http:
+  #         path: /auth/resend-otp
+  #         method: post
+  #         cors: true
+  # forgotPassword:
+  #   handler: src/handlers/http/authentication.handleForgotPassword
+  #   events:
+  #     - http:
+  #         path: /auth/forgot-password
+  #         method: post
+  #         cors: true
+  # resetPassword:
+  #   handler: src/handlers/http/authentication.handleResetPassword
+  #   events:
+  #     - http:
+  #         path: /auth/reset-password
+  #         method: post
+  #         cors: true
+
+  # # Users
+  # getMe:
+  #   handler: src/handlers/http/user.handleGetMe
+  #   events:
+  #     - http:
+  #         path: /users/me
+  #         method: get
+  #         cors: true
+  # updateMe:
+  #   handler: src/handlers/http/user.handleUpdateMe
+  #   events:
+  #     - http:
+  #         path: /users/me
+  #         method: put
+  #         cors: true
+  # updatePassword:
+  #   handler: src/handlers/http/user.handleUpdatePassword
+  #   events:
+  #     - http:
+  #         path: /users/password
+  #         method: put
+  #         cors: true
+
+  # # Roles & Permissions
+  # getRoles:
+  #   handler: src/handlers/http/user.handleGetRoles
+  #   events:
+  #     - http:
+  #         path: /roles
+  #         method: get
+  #         cors: true
+  # getPermissions:
+  #   handler: src/handlers/http/user.handleGetPermissions
+  #   events:
+  #     - http:
+  #         path: /permissions
+  #         method: get
+  #         cors: true
+
+  # # Sessions
+  # getSessions:
+  #   handler: src/handlers/http/user.handleGetSessions
+  #   events:
+  #     - http:
+  #         path: /sessions
+  #         method: get
+  #         cors: true
+  # deleteSession:
+  #   handler: src/handlers/http/user.handleDeleteSession
+  #   events:
+  #     - http:
+  #         path: /sessions/{sessionId}
+  #         method: delete
+  #         cors: true
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    IdentityServiceBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.environment.IDENTITY_EVENT_BUS}
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+    IdentityEventsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: identity-events-${self:provider.stage}
+        DisplayName: Identity Events Topic
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: serverless
+
+  Outputs:
+    IdentityApiUrl:
+      Description: "Base URL for the Identity Service API"
+      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+      Export:
+        Name: ${self:provider.stage}-IdentityApiUrl
+        
+    IdentityTableName:
+      Description: "Name of the Identity Service DynamoDB Table"
+      Value: ${self:provider.environment.IDENTITY_TABLE}
+      Export:
+        Name: ${self:provider.stage}-IdentityTableName
+
+    IdentityEventBus:
+      Description: "Name of the Identity Service Event Bus"
+      Value: !Ref IdentityServiceBus
+      Export:
+        Name: ${self:provider.stage}-IdentityEventBus
+
+    IdentityTopicArn:
+      Description: "ARN of the Identity Events SNS Topic"
+      Value: !Ref IdentityEventsTopic
+      Export:
+        Name: ${self:provider.stage}-IdentityTopicArn

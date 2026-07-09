@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "entries": {
-    "ENABLE_SCOPE": "enable-scope.json",
-    "ORG_DRAWER": "org-drawer.json",
-    "ORG_MANAGEABILITY": "org-manageibility.json"
-  }
-}

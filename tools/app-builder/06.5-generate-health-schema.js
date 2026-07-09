@@ -1,0 +1,1 @@
+const fs=require('fs'),p=require('path');const s=process.argv[2];const f=p.join(process.cwd(),'apps',s+'-service','src','schemas','health.schema.ts');fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"import {z} from 'zod';\nexport const HealthSchema=z.any();");

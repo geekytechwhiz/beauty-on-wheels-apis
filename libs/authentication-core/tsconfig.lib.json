@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "declaration": true,
+    "paths": {
+      "@api-hub/utils": ["dist/libs/utils/index.d.ts"],
+      "@api-hub/observability": ["libs/observability/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../observability/tsconfig.lib.json"
+    }
+  ],
+  "exclude": [
+    "jest.config.cjs",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
+}

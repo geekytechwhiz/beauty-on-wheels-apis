@@ -1,7 +1,0 @@
-{
-  "resource": "Organization",
-  "scopes": [
-    "organization.read",
-    "organization.write"
-  ]
-}

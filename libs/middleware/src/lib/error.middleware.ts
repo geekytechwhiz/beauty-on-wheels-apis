@@ -1,15 +1,7 @@
- 
-import {
-  createChildLogger,
-  createLogger,
-} from '@api-hub/observability';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import { serializeError } from '@api-hub/observability';
 import { BaseError, handleError, toBaseError } from '@api-hub/utils';
 
-import {
-  isFhirValidationErrorLike,
-  loadFhirPeer,
-} from './fhir-peer';
 import { EventSchemaError } from './event-schema/event-schema-error';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
 
@@ -53,27 +45,6 @@ export function httpApiErrorMiddleware<
         correlationId,
         awsRequestId,
       });
-
-      if (isFhirValidationErrorLike(error)) {
-        const fhir = await loadFhirPeer();
-        if (fhir) {
-          logger.error({
-            event: 'http_pipeline_error',
-            operation: raw?.operation,
-            correlationId,
-            traceId: raw?.traceId,
-            'error.code': error.code,
-            'error.retryable': false,
-            err: serializeError(error),
-          });
-
-          return fhir.fhirValidationErrorResponse(error, {
-            correlationId,
-            logger,
-            skipLog: true,
-          }) as TResult;
-        }
-      }
 
       const appError = normalizePipelineError(error);
 

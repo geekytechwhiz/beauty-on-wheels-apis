@@ -1,0 +1,1 @@
+const fs=require('fs'),p=require('path');const s=process.argv[2];const f=p.join(process.cwd(),'apps',s+'-service','functions','health.yml');fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"health:\n  handler: src/handlers/health.handler.handleHealth\n  events:\n    - http:\n        path: /health\n        method: get\n        cors: true\n");

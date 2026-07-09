@@ -1,0 +1,1 @@
+export class HealthService{async check(){return {healthy:true,timestamp:new Date().toISOString()};}}

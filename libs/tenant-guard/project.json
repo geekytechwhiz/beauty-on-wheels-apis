@@ -1,7 +1,0 @@
-{
-  "name": "tenant-guard",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/tenant-guard/src",
-  "projectType": "library",
-  "tags": ["scope:auth", "type:lib","type:shared"]
-}

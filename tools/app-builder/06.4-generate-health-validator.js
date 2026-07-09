@@ -1,0 +1,1 @@
+const fs=require('fs'),p=require('path');const s=process.argv[2];const f=p.join(process.cwd(),'apps',s+'-service','src','validators','health.validator.ts');fs.mkdirSync(p.dirname(f),{recursive:true});fs.writeFileSync(f,"import {HealthSchema} from '../schemas/health.schema';\nexport const validateHealthRequest=(r:any)=>HealthSchema.parse(r);");

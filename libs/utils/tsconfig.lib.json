@@ -9,7 +9,10 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "rootDir": "src"
+    "rootDir": "src",
+    "paths": {
+      "@api-hub/observability": ["dist/libs/observability/index.d.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": [

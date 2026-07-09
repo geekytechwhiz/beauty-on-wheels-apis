@@ -1,0 +1,27 @@
+{
+  "name": "@api-hub/authentication-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@api-hub/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "jwk-to-pem": "^2.0.5",
+    "jsonwebtoken": "^9.0.3",
+    "@api-hub/utils": "workspace:*",
+    "@api-hub/observability": "workspace:*"
+  },
+  "peerDependencies": {
+    "@types/jsonwebtoken": "^9.0.10"
+  }
+}

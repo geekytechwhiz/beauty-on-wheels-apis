@@ -4,10 +4,9 @@ export * from './lib/standard-event-context';
 export * from './lib/middlewareEngine';
 export * from './lib/http-pipeline';
 export * from './lib/withApiHandler';
-export * from './lib/fhir-peer';
+
 export * from './lib/withLambdaHandler';
-export * from './lib/request-context.middleware';
-// export * from './lib/response.middleware';
+export * from './lib/request-context.middleware'; 
 export * from './lib/error.middleware';
 export * from './lib/logger.middleware';
 export * from './lib/performance.middleware';
@@ -20,15 +19,3 @@ export * from './lib/tracer.middleware';
 export * from './lib/realtime/realtime.middleware';
 export * from './lib/event-schema/validate';
 export * from './lib/event-schema/event-schema-error';
-export {
-  fhirSuccessResponse,
-  fhirValidationErrorResponse,
-  FhirValidationError,
-  isFhirEnabled,
-  isFhirRequest,
-  isFhirValidationErrorLike,
-  shouldTransformFhirRequest,
-  transformFhirRequest,
-  transformToFhirResponse,
-  type FhirHandlerOptions,
-} from '@api-hub/fhir/middleware';

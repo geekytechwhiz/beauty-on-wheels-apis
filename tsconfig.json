@@ -3,62 +3,12 @@
   "compileOnSave": false,
   "files": [],
   "references": [
+    
     {
-      "path": "./services/partner-integration"
-    },
-    {
-      "path": "./apps/organization-service"
-    },
-    {
-      "path": "./services/partner-registry"
-    },
-    {
-      "path": "./libs/lab-integration"
-    },
-    {
-      "path": "./apps/device-service"
-    },
-    {
-      "path": "./libs/scope-mapping"
-    },
-    {
-      "path": "./libs/tenant-guard"
-    },
-    {
-      "path": "./apps/user-service"
-    },
-    {
-      "path": "./libs/terminology"
-    },
-    {
-      "path": "./libs/capability"
-    },
-    {
-      "path": "./libs/partners"
-    },
-    {
-      "path": "./libs/consent"
+      "path": "./libs/authentication-core"
     },
     {
       "path": "./libs/utils"
-    },
-    {
-      "path": "./libs/auth"
-    },
-    {
-      "path": "./services/sso-integration"
-    },
-    {
-      "path": "./libs/service-clients"
-    },
-    {
-      "path": "./apps/alert-service"
-    },
-    {
-      "path": "./libs/metadata"
-    },
-    {
-      "path": "./libs/alert-core"
     },
     {
       "path": "./libs/event-platform"
@@ -70,28 +20,7 @@
       "path": "./libs/middleware"
     },
     {
-      "path": "./apps/template-service"
-    },
-    {
-      "path": "./libs/template-core"
-    },
-    {
-      "path": "./libs/fhir"
-    },
-    {
       "path": "./packages/platform-tools"
-    },
-    {
-      "path": "./packages/fhir-wrapper"
-    },
-    {
-      "path": "./packages/fhir"
-    },
-    {
-      "path": "./apps/task-service"
-    },
-    {
-      "path": "./libs/task-core"
     },
     {
       "path": "./tools/mvrx-policy-validator"
@@ -101,6 +30,21 @@
     },
     {
       "path": "./tools/mvrx-resource-registry"
+    },
+    {
+      "path": "./services/partner-integration"
+    },
+    {
+      "path": "./services/partner-registry"
+    },
+    {
+      "path": "./services/sso-integration"
+    },
+    {
+      "path": "./packages/fhir-wrapper"
+    },
+    {
+      "path": "./packages/fhir"
     }
   ]
 }

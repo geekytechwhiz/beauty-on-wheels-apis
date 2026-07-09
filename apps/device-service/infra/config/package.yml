@@ -1,5 +1,0 @@
-individually: true
-patterns:
-  - 'src/utils/devices.json'
-  - '!**/*.test.ts'
-  - '!**/*.spec.ts'

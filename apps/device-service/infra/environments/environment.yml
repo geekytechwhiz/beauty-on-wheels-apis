@@ -1,9 +1,0 @@
-REGION: ${self:provider.region}
-DEVICE_TABLE: ${self:custom.bundle.deviceTableName}
-EVENT_BUS: ${self:custom.bundle.eventBusName}
-NOTIFICATION_TOPIC_ARN: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.userEventsTopicArn}, 'arn:aws:sns:${self:provider.region}:${self:custom.bundle.awsAccountId}:user-events-topic-${self:provider.stage}'}
-ERROR_MESSAGES_CDN_URL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.errorMessagesCdnUrl}, 'https://d2p9v61861q1ox.cloudfront.net'}
-LOG_LEVEL: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.logLevel}, 'info'}
-AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-DEFAULT_REGION: ${self:provider.region}
-COMPLETE_TASK_LAMBDA: ${ssm:${self:custom.sharedSsmPaths.${self:provider.stage}.completeTaskLambdaName}, '${self:provider.stage}_global_complete_user_task'}

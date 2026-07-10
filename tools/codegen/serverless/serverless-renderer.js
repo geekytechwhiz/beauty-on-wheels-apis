@@ -52,6 +52,31 @@ class ServerlessRenderer {
   }
 
   renderFunction(f) {
+    let details = '';
+    if (f.summary) {
+      details += `\n          summary: ${JSON.stringify(f.summary)}`;
+    }
+    if (f.description) {
+      details += `\n          description: ${JSON.stringify(f.description)}`;
+    }
+    if (f.swaggerTags && f.swaggerTags.length > 0) {
+      details += `\n          swaggerTags:\n` + f.swaggerTags.map(tag => `            - ${tag}`).join('\n');
+    }
+    if (f.bodyType) {
+      details += `\n          bodyType: ${f.bodyType}`;
+    }
+    if (f.responseData && Object.keys(f.responseData).length > 0) {
+      details += `\n          responseData:`;
+      Object.entries(f.responseData).forEach(([code, res]) => {
+        details += `\n            ${code}:`;
+        if (res.bodyType) {
+          details += `\n              description: ${JSON.stringify(res.description || '')}\n              bodyType: ${res.bodyType}`;
+        } else {
+          details += `\n              description: ${JSON.stringify(res.description || '')}`;
+        }
+      });
+    }
+
     return `
   ${f.name}:
     handler: ${f.handler}
@@ -59,7 +84,7 @@ class ServerlessRenderer {
       - http:
           path: ${f.path}
           method: ${f.method}
-          cors: ${f.cors}
+          cors: ${f.cors}${details}
 `;
   }
 
@@ -85,6 +110,11 @@ class ServerlessRenderer {
     const esbuild = this.model.custom.esbuild;
     const autoswagger = this.model.custom.autoswagger;
 
+    let typefilesYaml = '';
+    if (autoswagger.typefiles && autoswagger.typefiles.length > 0) {
+      typefilesYaml = '\n    typefiles:\n' + autoswagger.typefiles.map(t => `      - ${t}`).join('\n');
+    }
+
     return `
   esbuild:
     bundle: ${esbuild.bundle}
@@ -106,7 +136,7 @@ class ServerlessRenderer {
     swaggerFiles:
       - swagger.json
     useStage: ${autoswagger.useStage}
-    swaggerPath: ${autoswagger.swaggerPath}
+    swaggerPath: ${autoswagger.swaggerPath}${typefilesYaml}
     excludeStages:
       - production
 `;

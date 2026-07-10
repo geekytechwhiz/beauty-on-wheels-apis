@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const generateSchemas = require('./generators/schema.generator');
+const generateSwaggerTypes = require('./generators/swagger-types.generator');
 const generateRepositories = require('./generators/repository.generator');
 const generateServices = require('./generators/service.generator');
 const generateControllers = require('./generators/controller.generator');
@@ -33,6 +34,9 @@ console.log('');
 
 // 1. Generate Schemas
 generateSchemas(projectRoot, metadata);
+
+// 1.5 Generate Swagger API Types
+generateSwaggerTypes(projectRoot, metadata);
 
 // 2. Generate Repositories
 generateRepositories(projectRoot, metadata);

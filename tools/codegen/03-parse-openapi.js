@@ -109,6 +109,15 @@ function buildOperation(route, method, operation) {
     operation.responses?.['201'] ??
     operation.responses?.['202'];
 
+  const responses = Object.entries(operation.responses || {}).map(([statusCode, resObj]) => {
+    const refObj = buildSchemaReference(resObj.content?.['application/json']?.schema);
+    return {
+      statusCode: parseInt(statusCode, 10),
+      description: resObj.description || '',
+      bodyType: refObj ? refObj.name : null
+    };
+  });
+
   return {
     operationId,
 
@@ -145,6 +154,8 @@ function buildOperation(route, method, operation) {
     response: buildSchemaReference(
       successResponse?.content?.['application/json']?.schema,
     ),
+
+    responses,
   };
 }
 

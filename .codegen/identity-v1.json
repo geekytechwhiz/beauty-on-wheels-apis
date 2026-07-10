@@ -1,0 +1,644 @@
+{
+  "service": "identity-v1",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/identity.yaml",
+  "title": "Beauty on Wheels - Identity Service API",
+  "version": "1.0.0",
+  "description": "Authentication, registration, authorization and session management.",
+  "servers": [
+    {
+      "url": "https://api.example.com/identity/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Registration",
+      "fileName": "registration",
+      "className": "Registration",
+      "operations": [
+        {
+          "operationId": "postRegister",
+          "name": "Postregister",
+          "methodName": "postregister",
+          "handlerName": "handlePostregister",
+          "controllerMethod": "handlePostregister",
+          "serviceMethod": "postregister",
+          "repositoryMethod": "postregister",
+          "method": "POST",
+          "path": "/auth/register",
+          "summary": "Register a new user",
+          "description": "",
+          "tags": [
+            "Registration"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "RegisterRequest",
+            "ref": "#/components/schemas/RegisterRequest"
+          },
+          "response": {
+            "name": "User",
+            "ref": "#/components/schemas/User"
+          },
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "User created",
+              "bodyType": "User"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "fileName": "authentication",
+      "className": "Authentication",
+      "operations": [
+        {
+          "operationId": "postLogin",
+          "name": "Postlogin",
+          "methodName": "postlogin",
+          "handlerName": "handlePostlogin",
+          "controllerMethod": "handlePostlogin",
+          "serviceMethod": "postlogin",
+          "repositoryMethod": "postlogin",
+          "method": "POST",
+          "path": "/auth/login",
+          "summary": "Login",
+          "description": "",
+          "tags": [
+            "Authentication"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "LoginRequest",
+            "ref": "#/components/schemas/LoginRequest"
+          },
+          "response": {
+            "name": "TokenResponse",
+            "ref": "#/components/schemas/TokenResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Login successful",
+              "bodyType": "TokenResponse"
+            }
+          ]
+        },
+        {
+          "operationId": "postRefreshToken",
+          "name": "Postrefreshtoken",
+          "methodName": "postrefreshtoken",
+          "handlerName": "handlePostrefreshtoken",
+          "controllerMethod": "handlePostrefreshtoken",
+          "serviceMethod": "postrefreshtoken",
+          "repositoryMethod": "postrefreshtoken",
+          "method": "POST",
+          "path": "/auth/refresh-token",
+          "summary": "Refresh access token",
+          "description": "",
+          "tags": [
+            "Authentication"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "RefreshTokenRequest",
+            "ref": "#/components/schemas/RefreshTokenRequest"
+          },
+          "response": {
+            "name": "TokenResponse",
+            "ref": "#/components/schemas/TokenResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Token refreshed",
+              "bodyType": "TokenResponse"
+            }
+          ]
+        },
+        {
+          "operationId": "postLogout",
+          "name": "Postlogout",
+          "methodName": "postlogout",
+          "handlerName": "handlePostlogout",
+          "controllerMethod": "handlePostlogout",
+          "serviceMethod": "postlogout",
+          "repositoryMethod": "postlogout",
+          "method": "POST",
+          "path": "/auth/logout",
+          "summary": "Logout current session",
+          "description": "",
+          "tags": [
+            "Authentication"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Logged out",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postChangePassword",
+          "name": "Postchangepassword",
+          "methodName": "postchangepassword",
+          "handlerName": "handlePostchangepassword",
+          "controllerMethod": "handlePostchangepassword",
+          "serviceMethod": "postchangepassword",
+          "repositoryMethod": "postchangepassword",
+          "method": "POST",
+          "path": "/auth/change-password",
+          "summary": "Change password",
+          "description": "",
+          "tags": [
+            "Authentication"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "ChangePasswordRequest",
+            "ref": "#/components/schemas/ChangePasswordRequest"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Password changed",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OTP",
+      "fileName": "otp",
+      "className": "Otp",
+      "operations": [
+        {
+          "operationId": "postSend",
+          "name": "Postsend",
+          "methodName": "postsend",
+          "handlerName": "handlePostsend",
+          "controllerMethod": "handlePostsend",
+          "serviceMethod": "postsend",
+          "repositoryMethod": "postsend",
+          "method": "POST",
+          "path": "/otp/send",
+          "summary": "Send OTP",
+          "description": "",
+          "tags": [
+            "OTP"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "SendOtpRequest",
+            "ref": "#/components/schemas/SendOtpRequest"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 202,
+              "description": "OTP sent",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postVerify",
+          "name": "Postverify",
+          "methodName": "postverify",
+          "handlerName": "handlePostverify",
+          "controllerMethod": "handlePostverify",
+          "serviceMethod": "postverify",
+          "repositoryMethod": "postverify",
+          "method": "POST",
+          "path": "/otp/verify",
+          "summary": "Verify OTP",
+          "description": "",
+          "tags": [
+            "OTP"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "VerifyOtpRequest",
+            "ref": "#/components/schemas/VerifyOtpRequest"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "OTP verified",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "fileName": "profile",
+      "className": "Profile",
+      "operations": [
+        {
+          "operationId": "getMe",
+          "name": "Getme",
+          "methodName": "getme",
+          "handlerName": "handleGetme",
+          "controllerMethod": "handleGetme",
+          "serviceMethod": "getme",
+          "repositoryMethod": "getme",
+          "method": "GET",
+          "path": "/me",
+          "summary": "Current authenticated user",
+          "description": "",
+          "tags": [
+            "Profile"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": "User",
+            "ref": "#/components/schemas/User"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Profile",
+              "bodyType": "User"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "fileName": "sessions",
+      "className": "Sessions",
+      "operations": [
+        {
+          "operationId": "getSessions",
+          "name": "Getsessions",
+          "methodName": "getsessions",
+          "handlerName": "handleGetsessions",
+          "controllerMethod": "handleGetsessions",
+          "serviceMethod": "getsessions",
+          "repositoryMethod": "getsessions",
+          "method": "GET",
+          "path": "/sessions",
+          "summary": "List active sessions",
+          "description": "",
+          "tags": [
+            "Sessions"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Sessions",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteSessions",
+          "name": "Deletesessions",
+          "methodName": "deletesessions",
+          "handlerName": "handleDeletesessions",
+          "controllerMethod": "handleDeletesessions",
+          "serviceMethod": "deletesessions",
+          "repositoryMethod": "deletesessions",
+          "method": "DELETE",
+          "path": "/sessions",
+          "summary": "Logout from all devices",
+          "description": "",
+          "tags": [
+            "Sessions"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "All sessions revoked",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteSessionid",
+          "name": "Deletesessionid",
+          "methodName": "deletesessionid",
+          "handlerName": "handleDeletesessionid",
+          "controllerMethod": "handleDeletesessionid",
+          "serviceMethod": "deletesessionid",
+          "repositoryMethod": "deletesessionid",
+          "method": "DELETE",
+          "path": "/sessions/{sessionId}",
+          "summary": "Revoke a session",
+          "description": "",
+          "tags": [
+            "Sessions"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "sessionId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Session revoked",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "fileName": "roles",
+      "className": "Roles",
+      "operations": [
+        {
+          "operationId": "getRoles",
+          "name": "Getroles",
+          "methodName": "getroles",
+          "handlerName": "handleGetroles",
+          "controllerMethod": "handleGetroles",
+          "serviceMethod": "getroles",
+          "repositoryMethod": "getroles",
+          "method": "GET",
+          "path": "/roles",
+          "summary": "List roles",
+          "description": "",
+          "tags": [
+            "Roles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Roles list",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Permissions",
+      "fileName": "permissions",
+      "className": "Permissions",
+      "operations": [
+        {
+          "operationId": "getPermissions",
+          "name": "Getpermissions",
+          "methodName": "getpermissions",
+          "handlerName": "handleGetpermissions",
+          "controllerMethod": "handleGetpermissions",
+          "serviceMethod": "getpermissions",
+          "repositoryMethod": "getpermissions",
+          "method": "GET",
+          "path": "/permissions",
+          "summary": "List permissions",
+          "description": "",
+          "tags": [
+            "Permissions"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Permissions list",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING_VERIFICATION",
+            "ACTIVE",
+            "LOCKED",
+            "DISABLED"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "RegisterRequest": {
+      "type": "object",
+      "required": [
+        "firstName",
+        "lastName",
+        "email",
+        "password"
+      ],
+      "properties": {
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8
+        }
+      }
+    },
+    "LoginRequest": {
+      "type": "object",
+      "required": [
+        "username",
+        "password"
+      ],
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "TokenResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "refreshToken": {
+          "type": "string"
+        },
+        "expiresIn": {
+          "type": "integer"
+        },
+        "tokenType": {
+          "type": "string",
+          "example": "Bearer"
+        }
+      }
+    },
+    "RefreshTokenRequest": {
+      "type": "object",
+      "required": [
+        "refreshToken"
+      ],
+      "properties": {
+        "refreshToken": {
+          "type": "string"
+        }
+      }
+    },
+    "VerifyOtpRequest": {
+      "type": "object",
+      "required": [
+        "destination",
+        "otp"
+      ],
+      "properties": {
+        "destination": {
+          "type": "string"
+        },
+        "otp": {
+          "type": "string"
+        }
+      }
+    },
+    "SendOtpRequest": {
+      "type": "object",
+      "required": [
+        "destination"
+      ],
+      "properties": {
+        "destination": {
+          "type": "string"
+        }
+      }
+    },
+    "ChangePasswordRequest": {
+      "type": "object",
+      "required": [
+        "oldPassword",
+        "newPassword"
+      ],
+      "properties": {
+        "oldPassword": {
+          "type": "string"
+        },
+        "newPassword": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

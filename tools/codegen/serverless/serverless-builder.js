@@ -96,6 +96,7 @@ class ServerlessBuilder {
         generateSwaggerOnDeploy: true,
         useStage: true,
         swaggerPath: 'swagger',
+        typefiles: ['./src/types/api-types.d.ts'],
       },
     };
   }
@@ -105,6 +106,23 @@ class ServerlessBuilder {
 
     this.metadata.resources.forEach((resource) => {
       resource.operations.forEach((operation) => {
+        const responseData = {};
+        if (operation.responses) {
+          operation.responses.forEach((res) => {
+            responseData[res.statusCode] = {
+              description: res.description,
+              bodyType: res.bodyType,
+            };
+          });
+        } else if (operation.response) {
+          const methodLower = operation.method.toLowerCase();
+          const defaultSuccessCode = methodLower === 'post' ? 201 : 200;
+          responseData[defaultSuccessCode] = {
+            description: 'Success',
+            bodyType: operation.response.name,
+          };
+        }
+
         functions.push({
           name: operation.methodName,
 
@@ -119,6 +137,16 @@ class ServerlessBuilder {
           authorizer: this.requiresAuthorizer(operation),
 
           cors: true,
+
+          summary: operation.summary,
+
+          description: operation.description,
+
+          swaggerTags: operation.tags,
+
+          bodyType: operation.request ? operation.request.name : null,
+
+          responseData,
         });
       });
     });

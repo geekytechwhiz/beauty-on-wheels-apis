@@ -1,7 +1,0 @@
-{
-  "resource": "Observation",
-  "scopes": [
-    "observation.read",
-    "observation.write"
-  ]
-}

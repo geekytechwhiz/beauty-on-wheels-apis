@@ -1,0 +1,270 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Service Catalog Service API
+  version: 1.0.0
+  description: Service, package and add-on catalog management.
+
+servers:
+  - url: https://api.example.com/catalog/v1
+
+tags:
+  - name: Categories
+  - name: Services
+  - name: Packages
+  - name: Add-ons
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Category:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        displayOrder: {type: integer}
+        active: {type: boolean}
+
+    Service:
+      type: object
+      properties:
+        id: {type: string}
+        categoryId: {type: string}
+        name: {type: string}
+        description: {type: string}
+        durationMinutes: {type: integer}
+        vehicleTypes:
+          type: array
+          items: {type: string}
+        basePrice: {type: number}
+        active: {type: boolean}
+
+    Package:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        services:
+          type: array
+          items: {type: string}
+        discountedPrice: {type: number}
+
+    AddOn:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        price: {type: number}
+        durationMinutes: {type: integer}
+
+paths:
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List categories
+      responses: {"200": {description: OK}}
+    post:
+      tags: [Categories]
+      security: [{bearerAuth: []}]
+      summary: Create category
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+      responses: {"201": {description: Created}}
+
+  /categories/{categoryId}:
+    get:
+      tags: [Categories]
+      summary: Get category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: {type: string}
+      responses: {"200": {description: OK}}
+    put:
+      tags: [Categories]
+      security: [{bearerAuth: []}]
+      summary: Update category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Category'}
+      responses: {"200": {description: Updated}}
+    delete:
+      tags: [Categories]
+      security: [{bearerAuth: []}]
+      summary: Delete category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: {type: string}
+      responses: {"204": {description: Deleted}}
+
+  /services:
+    get:
+      tags: [Services]
+      summary: List services
+      responses: {"200": {description: OK}}
+    post:
+      tags: [Services]
+      security: [{bearerAuth: []}]
+      summary: Create service
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Service'}
+      responses: {"201": {description: Created}}
+
+  /services/{serviceId}:
+    get:
+      tags: [Services]
+      summary: Get service
+      parameters:
+        - in: path
+          name: serviceId
+          required: true
+          schema: {type: string}
+      responses: {"200": {description: OK}}
+    put:
+      tags: [Services]
+      security: [{bearerAuth: []}]
+      summary: Update service
+      parameters:
+        - in: path
+          name: serviceId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Service'}
+      responses: {"200": {description: Updated}}
+    delete:
+      tags: [Services]
+      security: [{bearerAuth: []}]
+      summary: Delete service
+      parameters:
+        - in: path
+          name: serviceId
+          required: true
+          schema: {type: string}
+      responses: {"204": {description: Deleted}}
+
+  /packages:
+    get:
+      tags: [Packages]
+      summary: List packages
+      responses: {"200": {description: OK}}
+    post:
+      tags: [Packages]
+      security: [{bearerAuth: []}]
+      summary: Create package
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Package'}
+      responses: {"201": {description: Created}}
+
+  /packages/{packageId}:
+    get:
+      tags: [Packages]
+      summary: Get package
+      parameters:
+        - in: path
+          name: packageId
+          required: true
+          schema: {type: string}
+      responses: {"200": {description: OK}}
+    put:
+      tags: [Packages]
+      security: [{bearerAuth: []}]
+      summary: Update package
+      parameters:
+        - in: path
+          name: packageId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Package'}
+      responses: {"200": {description: Updated}}
+    delete:
+      tags: [Packages]
+      security: [{bearerAuth: []}]
+      summary: Delete package
+      parameters:
+        - in: path
+          name: packageId
+          required: true
+          schema: {type: string}
+      responses: {"204": {description: Deleted}}
+
+  /addons:
+    get:
+      tags: [Add-ons]
+      summary: List add-ons
+      responses: {"200": {description: OK}}
+    post:
+      tags: [Add-ons]
+      security: [{bearerAuth: []}]
+      summary: Create add-on
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddOn'}
+      responses: {"201": {description: Created}}
+
+  /addons/{addonId}:
+    get:
+      tags: [Add-ons]
+      summary: Get add-on
+      parameters:
+        - in: path
+          name: addonId
+          required: true
+          schema: {type: string}
+      responses: {"200": {description: OK}}
+    put:
+      tags: [Add-ons]
+      security: [{bearerAuth: []}]
+      summary: Update add-on
+      parameters:
+        - in: path
+          name: addonId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddOn'}
+      responses: {"200": {description: Updated}}
+    delete:
+      tags: [Add-ons]
+      security: [{bearerAuth: []}]
+      summary: Delete add-on
+      parameters:
+        - in: path
+          name: addonId
+          required: true
+          schema: {type: string}
+      responses: {"204": {description: Deleted}}
+
+security:
+  - bearerAuth: []

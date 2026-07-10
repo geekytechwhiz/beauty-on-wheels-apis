@@ -1,0 +1,200 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Booking Service API
+  version: 1.0.0
+  description: Booking lifecycle management.
+
+servers:
+  - url: https://api.example.com/bookings/v1
+
+tags:
+  - name: Bookings
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Booking:
+      type: object
+      properties:
+        id: {type: string}
+        customerId: {type: string}
+        vendorId: {type: string}
+        vehicleId: {type: string}
+        serviceIds:
+          type: array
+          items: {type: string}
+        bookingDate: {type: string, format: date}
+        slotId: {type: string}
+        totalAmount: {type: number}
+        paymentStatus:
+          type: string
+          enum: [PENDING, PAID, REFUNDED]
+        bookingStatus:
+          type: string
+          enum: [CREATED, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED]
+
+paths:
+  /bookings:
+    get:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: List bookings
+      responses:
+        "200": {description: Booking list}
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Create booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Booking'
+      responses:
+        "201": {description: Booking created}
+
+  /bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Get booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+    put:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Update booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Booking'
+      responses:
+        "200": {description: Updated}
+    delete:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Cancel booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "204": {description: Cancelled}
+
+  /bookings/{bookingId}/confirm:
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Confirm booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Confirmed}
+
+  /bookings/{bookingId}/check-in:
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Customer check-in
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Checked in}
+
+  /bookings/{bookingId}/start:
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Start service
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: In progress}
+
+  /bookings/{bookingId}/complete:
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Complete booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Completed}
+
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Cancel booking
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Cancelled}
+
+  /customers/{customerId}/bookings:
+    get:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Customer booking history
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: History}
+
+  /vendors/{vendorId}/bookings:
+    get:
+      tags: [Bookings]
+      security: [{bearerAuth: []}]
+      summary: Vendor bookings
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Vendor bookings}
+
+security:
+  - bearerAuth: []

@@ -1,0 +1,346 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - User Service API
+  version: 1.0.0
+  description: User profile management for customers, vendors and administrators.
+
+servers:
+  - url: https://api.example.com/users/v1
+
+tags:
+  - name: Users
+  - name: Customers
+  - name: Vendors
+  - name: Admins
+  - name: Addresses
+  - name: Preferences
+  - name: KYC
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: {type: string}
+        identityId: {type: string}
+        userType:
+          type: string
+          enum: [CUSTOMER,VENDOR,ADMIN]
+        firstName: {type: string}
+        lastName: {type: string}
+        email: {type: string, format: email}
+        phone: {type: string}
+        profileImage: {type: string}
+        status:
+          type: string
+          enum: [ACTIVE,INACTIVE,SUSPENDED]
+
+    Address:
+      type: object
+      properties:
+        id: {type: string}
+        type:
+          type: string
+          enum: [HOME,WORK,BUSINESS]
+        line1: {type: string}
+        line2: {type: string}
+        city: {type: string}
+        state: {type: string}
+        postalCode: {type: string}
+        country: {type: string}
+        latitude: {type: number}
+        longitude: {type: number}
+
+    CustomerProfile:
+      type: object
+      properties:
+        loyaltyPoints: {type: integer}
+        preferredLanguage: {type: string}
+        marketingConsent: {type: boolean}
+
+    VendorProfile:
+      type: object
+      properties:
+        businessName: {type: string}
+        businessType: {type: string}
+        gstNumber: {type: string}
+        licenseNumber: {type: string}
+        onboardingStatus:
+          type: string
+          enum: [PENDING,UNDER_REVIEW,APPROVED,REJECTED]
+
+    Preference:
+      type: object
+      properties:
+        notifications: {type: boolean}
+        emailNotifications: {type: boolean}
+        smsNotifications: {type: boolean}
+        language: {type: string}
+        timezone: {type: string}
+
+paths:
+
+  /users:
+    get:
+      tags: [Users]
+      security: [{bearerAuth: []}]
+      summary: List users
+      responses:
+        "200": {description: User list}
+    post:
+      tags: [Users]
+      security: [{bearerAuth: []}]
+      summary: Create user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        "201":
+          description: Created
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      security: [{bearerAuth: []}]
+      summary: Get user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      tags: [Users]
+      security: [{bearerAuth: []}]
+      summary: Update user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        "200": {description: Updated}
+    delete:
+      tags: [Users]
+      security: [{bearerAuth: []}]
+      summary: Soft delete user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "204": {description: Deleted}
+
+  /customers/{userId}:
+    get:
+      tags: [Customers]
+      security: [{bearerAuth: []}]
+      summary: Get customer profile
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Customer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+    put:
+      tags: [Customers]
+      security: [{bearerAuth: []}]
+      summary: Update customer profile
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerProfile'
+      responses:
+        "200": {description: Updated}
+
+  /vendors/{userId}:
+    get:
+      tags: [Vendors]
+      security: [{bearerAuth: []}]
+      summary: Get vendor profile
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Vendor profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorProfile'
+    put:
+      tags: [Vendors]
+      security: [{bearerAuth: []}]
+      summary: Update vendor profile
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorProfile'
+      responses:
+        "200": {description: Updated}
+
+  /vendors/{userId}/kyc:
+    post:
+      tags: [KYC]
+      security: [{bearerAuth: []}]
+      summary: Submit KYC
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "202": {description: Submitted}
+    get:
+      tags: [KYC]
+      security: [{bearerAuth: []}]
+      summary: Get KYC status
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: KYC status}
+
+  /users/{userId}/addresses:
+    get:
+      tags: [Addresses]
+      security: [{bearerAuth: []}]
+      summary: List addresses
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Address list}
+    post:
+      tags: [Addresses]
+      security: [{bearerAuth: []}]
+      summary: Add address
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Address'
+      responses:
+        "201": {description: Created}
+
+  /users/{userId}/addresses/{addressId}:
+    put:
+      tags: [Addresses]
+      security: [{bearerAuth: []}]
+      summary: Update address
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+        - in: path
+          name: addressId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Address'
+      responses:
+        "200": {description: Updated}
+    delete:
+      tags: [Addresses]
+      security: [{bearerAuth: []}]
+      summary: Delete address
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+        - in: path
+          name: addressId
+          required: true
+          schema: {type: string}
+      responses:
+        "204": {description: Deleted}
+
+  /users/{userId}/preferences:
+    get:
+      tags: [Preferences]
+      security: [{bearerAuth: []}]
+      summary: Get preferences
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preference'
+    put:
+      tags: [Preferences]
+      security: [{bearerAuth: []}]
+      summary: Update preferences
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preference'
+      responses:
+        "200": {description: Updated}

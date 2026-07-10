@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 const { spawnSync } = require('child_process');
 const p = require('path');
-const s = process.argv[2];
-if (!s) {
-  console.error('Usage: node ... <service>');
+const args = process.argv.slice(2);
+if (args.length === 0) {
+  console.error('Usage: node ... <service> <endpoint>');
   process.exit(1);
 }
 [
@@ -14,6 +14,6 @@ if (!s) {
   '06.5-generate-health-schema.js',
   '06.6-generate-health-function.js',
 ].forEach((f) => {
-  const r = spawnSync('node', [p.join(__dirname, f), s], { stdio: 'inherit' });
+  const r = spawnSync('node', [p.join(__dirname, f), ...args], { stdio: 'inherit' });
   if (r.status !== 0) process.exit(r.status);
 });

@@ -1,0 +1,217 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Pricing Service API
+  version: 1.0.0
+  description: Pricing, quotations and promotion calculation APIs.
+
+servers:
+  - url: https://api.example.com/pricing/v1
+
+tags:
+  - name: Pricing
+  - name: Quotes
+  - name: Price Rules
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PriceRequest:
+      type: object
+      required:
+        - vendorId
+        - vehicleType
+        - serviceIds
+      properties:
+        vendorId:
+          type: string
+        vehicleType:
+          type: string
+          enum: [HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE]
+        serviceIds:
+          type: array
+          items:
+            type: string
+        addonIds:
+          type: array
+          items:
+            type: string
+        couponCode:
+          type: string
+
+    PriceBreakdown:
+      type: object
+      properties:
+        subtotal:
+          type: number
+        discount:
+          type: number
+        tax:
+          type: number
+        convenienceFee:
+          type: number
+        total:
+          type: number
+        currency:
+          type: string
+          example: INR
+        appliedCoupons:
+          type: array
+          items:
+            type: string
+
+    PriceRule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        priority:
+          type: integer
+        active:
+          type: boolean
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+
+paths:
+
+  /pricing/calculate:
+    post:
+      tags: [Pricing]
+      summary: Calculate booking price
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRequest'
+      responses:
+        "200":
+          description: Price calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceBreakdown'
+
+  /pricing/estimate:
+    post:
+      tags: [Pricing]
+      summary: Estimate price before booking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRequest'
+      responses:
+        "200":
+          description: Estimated price
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceBreakdown'
+
+  /pricing/validate-coupon:
+    post:
+      tags: [Pricing]
+      summary: Validate coupon
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                couponCode:
+                  type: string
+                vendorId:
+                  type: string
+      responses:
+        "200":
+          description: Coupon validation result
+
+  /pricing/rules:
+    get:
+      tags: [Price Rules]
+      security:
+        - bearerAuth: []
+      summary: List pricing rules
+      responses:
+        "200":
+          description: Rule list
+
+    post:
+      tags: [Price Rules]
+      security:
+        - bearerAuth: []
+      summary: Create pricing rule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRule'
+      responses:
+        "201":
+          description: Rule created
+
+  /pricing/rules/{ruleId}:
+    get:
+      tags: [Price Rules]
+      security:
+        - bearerAuth: []
+      summary: Get pricing rule
+      parameters:
+        - in: path
+          name: ruleId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pricing rule
+
+    put:
+      tags: [Price Rules]
+      security:
+        - bearerAuth: []
+      summary: Update pricing rule
+      parameters:
+        - in: path
+          name: ruleId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceRule'
+      responses:
+        "200":
+          description: Updated
+
+    delete:
+      tags: [Price Rules]
+      security:
+        - bearerAuth: []
+      summary: Delete pricing rule
+      parameters:
+        - in: path
+          name: ruleId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+security:
+  - bearerAuth: []

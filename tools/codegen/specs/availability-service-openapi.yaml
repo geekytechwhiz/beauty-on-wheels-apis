@@ -1,0 +1,169 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Availability Service API
+  version: 1.0.0
+  description: Manage vendor schedules, slots and availability.
+
+servers:
+  - url: https://api.example.com/availability/v1
+
+tags:
+  - name: Availability
+  - name: Slots
+  - name: Holidays
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Slot:
+      type: object
+      properties:
+        id: {type: string}
+        vendorId: {type: string}
+        date: {type: string, format: date}
+        startTime: {type: string}
+        endTime: {type: string}
+        capacity: {type: integer}
+        available: {type: integer}
+        status:
+          type: string
+          enum: [AVAILABLE, FULL, BLOCKED]
+
+    WorkingHours:
+      type: object
+      properties:
+        vendorId: {type: string}
+        dayOfWeek:
+          type: string
+          enum: [MON,TUE,WED,THU,FRI,SAT,SUN]
+        openTime: {type: string}
+        closeTime: {type: string}
+
+paths:
+  /vendors/{vendorId}/working-hours:
+    get:
+      tags: [Availability]
+      security: [{bearerAuth: []}]
+      summary: Get working hours
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Working hours}
+    put:
+      tags: [Availability]
+      security: [{bearerAuth: []}]
+      summary: Update working hours
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkingHours'
+      responses:
+        "200": {description: Updated}
+
+  /vendors/{vendorId}/slots:
+    get:
+      tags: [Slots]
+      summary: List slots
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Slots}
+    post:
+      tags: [Slots]
+      security: [{bearerAuth: []}]
+      summary: Generate slots
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "201": {description: Slots generated}
+
+  /slots/{slotId}:
+    get:
+      tags: [Slots]
+      summary: Get slot
+      parameters:
+        - in: path
+          name: slotId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Slot'
+
+  /slots/{slotId}/block:
+    post:
+      tags: [Slots]
+      security: [{bearerAuth: []}]
+      summary: Block slot
+      parameters:
+        - in: path
+          name: slotId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Blocked}
+
+  /slots/{slotId}/unblock:
+    post:
+      tags: [Slots]
+      security: [{bearerAuth: []}]
+      summary: Unblock slot
+      parameters:
+        - in: path
+          name: slotId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Unblocked}
+
+  /vendors/{vendorId}/holidays:
+    get:
+      tags: [Holidays]
+      security: [{bearerAuth: []}]
+      summary: List holidays
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Holiday list}
+    post:
+      tags: [Holidays]
+      security: [{bearerAuth: []}]
+      summary: Add holiday
+      parameters:
+        - in: path
+          name: vendorId
+          required: true
+          schema: {type: string}
+      responses:
+        "201": {description: Holiday added}
+
+security:
+  - bearerAuth: []

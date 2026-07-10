@@ -63,7 +63,7 @@ const result = spawnSync(
 
     `--directory=../../libs/${LIB_NAME}`,
 
-    '--bundler=tsc',
+    '--bundler=esbuild',
 
     '--unitTestRunner=jest',
 

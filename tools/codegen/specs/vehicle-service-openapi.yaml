@@ -1,0 +1,133 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Vehicle Service API
+  version: 1.0.0
+  description: Vehicle management APIs.
+
+servers:
+  - url: https://api.example.com/vehicles/v1
+
+tags:
+  - name: Vehicles
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Vehicle:
+      type: object
+      required: [registrationNumber, vehicleType]
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        registrationNumber: { type: string }
+        vehicleType:
+          type: string
+          enum: [HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE]
+        brand: { type: string }
+        model: { type: string }
+        variant: { type: string }
+        color: { type: string }
+        fuelType:
+          type: string
+          enum: [PETROL, DIESEL, EV, HYBRID, CNG]
+        manufactureYear:
+          type: integer
+        defaultVehicle:
+          type: boolean
+
+paths:
+  /vehicles:
+    get:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: List my vehicles
+      responses:
+        "200": { description: Vehicle list }
+    post:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: Add vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        "201": { description: Vehicle created }
+
+  /vehicles/{vehicleId}:
+    get:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: Get vehicle
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Vehicle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+
+    put:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: Update vehicle
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        "200": { description: Updated }
+
+    delete:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: Delete vehicle
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Deleted }
+
+  /vehicles/{vehicleId}/default:
+    put:
+      tags: [Vehicles]
+      security: [{ bearerAuth: [] }]
+      summary: Set default vehicle
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Default vehicle updated }
+
+  /vehicle-types:
+    get:
+      tags: [Vehicles]
+      summary: List supported vehicle types
+      responses:
+        "200": { description: Vehicle types }
+
+security:
+  - bearerAuth: []

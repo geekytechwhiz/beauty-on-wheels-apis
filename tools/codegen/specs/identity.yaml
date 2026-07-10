@@ -1,0 +1,268 @@
+
+openapi: 3.1.0
+info:
+  title: Beauty on Wheels - Identity Service API
+  version: 1.0.0
+  description: Authentication, registration, authorization and session management.
+
+servers:
+  - url: https://api.example.com/identity/v1
+
+tags:
+  - name: Authentication
+  - name: Registration
+  - name: OTP
+  - name: Sessions
+  - name: Roles
+  - name: Permissions
+  - name: Profile
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        traceId: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        status:
+          type: string
+          enum: [PENDING_VERIFICATION, ACTIVE, LOCKED, DISABLED]
+        roles:
+          type: array
+          items: { type: string }
+
+    RegisterRequest:
+      type: object
+      required: [firstName,lastName,email,password]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, minLength: 8 }
+
+    LoginRequest:
+      type: object
+      required: [username,password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer }
+        tokenType:
+          type: string
+          example: Bearer
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+
+    VerifyOtpRequest:
+      type: object
+      required: [destination,otp]
+      properties:
+        destination: { type: string }
+        otp: { type: string }
+
+    SendOtpRequest:
+      type: object
+      required: [destination]
+      properties:
+        destination: { type: string }
+
+    ChangePasswordRequest:
+      type: object
+      required: [oldPassword,newPassword]
+      properties:
+        oldPassword: { type: string }
+        newPassword: { type: string }
+
+paths:
+
+  /auth/register:
+    post:
+      tags: [Registration]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /auth/refresh-token:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /auth/logout:
+    post:
+      security: [{ bearerAuth: [] }]
+      tags: [Authentication]
+      summary: Logout current session
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/change-password:
+    post:
+      security: [{ bearerAuth: [] }]
+      tags: [Authentication]
+      summary: Change password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        "204":
+          description: Password changed
+
+  /otp/send:
+    post:
+      tags: [OTP]
+      summary: Send OTP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOtpRequest'
+      responses:
+        "202":
+          description: OTP sent
+
+  /otp/verify:
+    post:
+      tags: [OTP]
+      summary: Verify OTP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+      responses:
+        "204":
+          description: OTP verified
+
+  /me:
+    get:
+      security: [{ bearerAuth: [] }]
+      tags: [Profile]
+      summary: Current authenticated user
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /sessions:
+    get:
+      security: [{ bearerAuth: [] }]
+      tags: [Sessions]
+      summary: List active sessions
+      responses:
+        "200":
+          description: Sessions
+    delete:
+      security: [{ bearerAuth: [] }]
+      tags: [Sessions]
+      summary: Logout from all devices
+      responses:
+        "204":
+          description: All sessions revoked
+
+  /sessions/{sessionId}:
+    delete:
+      security: [{ bearerAuth: [] }]
+      tags: [Sessions]
+      summary: Revoke a session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Session revoked
+
+  /roles:
+    get:
+      security: [{ bearerAuth: [] }]
+      tags: [Roles]
+      summary: List roles
+      responses:
+        "200":
+          description: Roles list
+
+  /permissions:
+    get:
+      security: [{ bearerAuth: [] }]
+      tags: [Permissions]
+      summary: List permissions
+      responses:
+        "200":
+          description: Permissions list
+
+security:
+  - bearerAuth: []

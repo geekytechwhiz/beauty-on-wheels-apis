@@ -7,7 +7,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-
+tools/codegen/create-microservice.js
 provider:
   name: aws
   runtime: nodejs22.x
@@ -16,12 +16,14 @@ provider:
 
   region: ${opt:region,'us-east-1'}
 
+  versionFunctions: false
+
   environment:
 
     SERVICE_NAME: identity-v1-service
-    # LOG_LEVEL: ${ssm:/common/log-level}
-    # DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    LOG_LEVEL: ${ssm:/common/log-level}
+    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
+    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
 custom:
 
@@ -263,8 +265,18 @@ functions:
 
 iamRoleStatements:
 
-
-    # IAM policies are injected from the enterprise template.
+  - Effect: Allow
+    Action:
+      - logs:CreateLogGroup
+      - logs:CreateLogStream
+      - logs:PutLogEvents
+    Resource:
+      - arn:aws:logs:${aws:region}:${aws:accountId}:*
+  - Effect: Allow
+    Action:
+      - xray:PutTraceSegments
+      - xray:PutTelemetryRecords
+    Resource: '*'
 
 
 resources:

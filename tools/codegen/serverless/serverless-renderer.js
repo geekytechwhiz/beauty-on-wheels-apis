@@ -1,17 +1,73 @@
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
+const IamPolicyGenerator = require('./iam-policy-generator');
 
 class ServerlessRenderer {
   constructor(model) {
     this.model = model;
+    this.iamGenerator = new IamPolicyGenerator();
+    this.mergedResources = {};
   }
 
   render(outputFile) {
     const template = this.loadTemplate();
 
-    const yaml = this.renderTemplate(template);
+    // 1. Load existing resources and outputs from target serverless.yml
+    let existingResources = {};
+    let existingOutputs = {};
+    if (fs.existsSync(outputFile)) {
+      try {
+        const existingContent = fs.readFileSync(outputFile, 'utf8');
+        const parsed = yaml.load(existingContent);
+        if (parsed && parsed.resources) {
+          if (parsed.resources.Resources) {
+            existingResources = parsed.resources.Resources;
+          }
+          if (parsed.resources.Outputs) {
+            existingOutputs = parsed.resources.Outputs;
+          }
+        }
+      } catch (err) {
+        console.warn(`Warning: Could not parse existing serverless.yml: ${err.message}`);
+      }
+    }
 
-    fs.writeFileSync(outputFile, yaml, 'utf8');
+    // 2. Load default resources from template
+    let templateResources = {};
+    try {
+      const lines = template.split('\n');
+      const resourcesIndex = lines.findIndex(line => line.trim() === 'resources:');
+      if (resourcesIndex !== -1) {
+        const resourcesYaml = lines.slice(resourcesIndex).join('\n');
+        const parsed = yaml.load(resourcesYaml);
+        if (parsed && parsed.resources && parsed.resources.Resources) {
+          templateResources = parsed.resources.Resources;
+        }
+      }
+    } catch (err) {
+      console.warn(`Warning: Could not parse template resources: ${err.message}`);
+    }
+
+    // 3. Merge all resources for IAM Policy Generation
+    const allResources = Object.assign({}, templateResources, existingResources);
+    this.iamGenerator.parseAndRegisterResources(allResources);
+
+    // 4. Extract custom resources (not in template)
+    const customResources = {};
+    const defaultKeys = new Set(Object.keys(templateResources));
+    Object.entries(existingResources).forEach(([key, val]) => {
+      if (!defaultKeys.has(key)) {
+        customResources[key] = val;
+      }
+    });
+
+    this.customResources = customResources;
+    this.customOutputs = existingOutputs;
+
+    const renderedYaml = this.renderTemplate(template);
+
+    fs.writeFileSync(outputFile, renderedYaml, 'utf8');
   }
 
   loadTemplate() {
@@ -30,21 +86,60 @@ class ServerlessRenderer {
   }
 
   renderTemplate(template) {
-    let yaml = template;
+    let yamlStr = template;
 
-    yaml = yaml.replace('{{SERVICE_NAME}}', this.model.service);
+    yamlStr = yamlStr.replace('{{SERVICE_NAME}}', this.model.service);
 
-    yaml = yaml.replace('{{FUNCTIONS}}', this.renderFunctions());
+    yamlStr = yamlStr.replace('{{FUNCTIONS}}', this.renderFunctions());
 
-    yaml = yaml.replace('{{ENVIRONMENT}}', this.renderEnvironment());
+    yamlStr = yamlStr.replace('{{ENVIRONMENT}}', this.renderEnvironment());
 
-    yaml = yaml.replace('{{PLUGINS}}', this.renderPlugins());
+    yamlStr = yamlStr.replace('{{PLUGINS}}', this.renderPlugins());
 
-    yaml = yaml.replace('{{CUSTOM}}', this.renderCustom());
+    yamlStr = yamlStr.replace('{{CUSTOM}}', this.renderCustom());
 
-    yaml = yaml.replace('{{IAM}}', this.renderIam());
+    yamlStr = yamlStr.replace('{{IAM}}', this.renderIam());
 
-    return yaml;
+    // Replace the resources block by injecting custom resources and appending custom outputs
+    yamlStr = this.replaceResourcesBlock(yamlStr);
+
+    return yamlStr;
+  }
+
+  replaceResourcesBlock(yamlStr) {
+    const lines = yamlStr.split('\n');
+    const resourcesIndex = lines.findIndex(line => line.trim() === 'resources:');
+    if (resourcesIndex === -1) {
+      return yamlStr;
+    }
+
+    const resourcesSectionLines = lines.slice(resourcesIndex);
+    const relativeResourcesLineIndex = resourcesSectionLines.findIndex(line => line.trim() === 'Resources:');
+    if (relativeResourcesLineIndex === -1) {
+      return yamlStr;
+    }
+
+    const resourcesLineIndex = resourcesIndex + relativeResourcesLineIndex;
+
+    // Insert custom resources under Resources: (indented by 4 spaces)
+    if (this.customResources && Object.keys(this.customResources).length > 0) {
+      const customResourcesYaml = yaml.dump(this.customResources, { indent: 2, skipInvalid: true })
+        .split('\n')
+        .map(line => line ? '    ' + line : '')
+        .join('\n');
+      lines.splice(resourcesLineIndex + 1, 0, customResourcesYaml);
+    }
+
+    // Append custom outputs at the end (indented by 2 spaces)
+    if (this.customOutputs && Object.keys(this.customOutputs).length > 0) {
+      const customOutputsYaml = yaml.dump({ Outputs: this.customOutputs }, { indent: 2, skipInvalid: true })
+        .split('\n')
+        .map(line => line ? '  ' + line : '')
+        .join('\n');
+      lines.push(customOutputsYaml);
+    }
+
+    return lines.join('\n');
   }
 
   renderFunctions() {
@@ -143,9 +238,14 @@ class ServerlessRenderer {
   }
 
   renderIam() {
-    return `
-    # IAM policies are injected from the enterprise template.
-`;
+    const statements = this.iamGenerator.generateStatements();
+    if (statements.length === 0) {
+      return '    # No IAM statements generated';
+    }
+    return yaml.dump(statements, { indent: 2, skipInvalid: true })
+      .split('\n')
+      .map(line => line ? '  ' + line : '')
+      .join('\n');
   }
 }
 

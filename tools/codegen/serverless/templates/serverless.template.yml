@@ -4,7 +4,7 @@ frameworkVersion: "3"
 
 plugins:
 {{PLUGINS}}
-
+tools/codegen/create-microservice.js
 provider:
   name: aws
   runtime: nodejs22.x
@@ -12,6 +12,8 @@ provider:
   stage: ${opt:stage,'dev'}
 
   region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
 
   environment:
 

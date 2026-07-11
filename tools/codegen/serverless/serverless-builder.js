@@ -47,6 +47,8 @@ class ServerlessBuilder {
 
       memorySize: 512,
 
+      versionFunctions: false,
+
       logRetentionInDays: 14,
 
       tracing: {

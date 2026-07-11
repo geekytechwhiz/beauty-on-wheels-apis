@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SERVICE = process.argv[2];
-const OPENAPI = process.argv[3];
+const SPECS = process.argv[3];
 
 const FLAGS = process.argv.slice(4);
 
@@ -14,7 +14,7 @@ const DRY_RUN = FLAGS.includes('--dry-run');
 const SKIP_SERVERLESS = FLAGS.includes('--skip-serverless');
 const SKIP_INDEX = FLAGS.includes('--skip-index');
 
-if (!SERVICE || !OPENAPI) {
+if (!SERVICE || !SPECS) {
   console.error('');
   console.error('Usage:');
   console.error('');
@@ -31,7 +31,7 @@ if (!SERVICE || !OPENAPI) {
 
   process.exit(1);
 }
-
+const OPENAPI = path.join('./tools/codegen/specs', SPECS);
 const ROOT = findWorkspaceRoot(__dirname);
 
 if (!ROOT) {

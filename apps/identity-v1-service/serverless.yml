@@ -19,9 +19,9 @@ provider:
   environment:
 
     SERVICE_NAME: identity-v1-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    # LOG_LEVEL: ${ssm:/common/log-level}
+    # DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
+    # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
 custom:
 

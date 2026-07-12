@@ -2,32 +2,142 @@ service: identity-v1-service
 
 frameworkVersion: "3"
 
+configValidationMode: warn
+
 plugins:
   - serverless-esbuild
+  - serverless-deployment-bucket
+  - serverless-prune-plugin
   - serverless-dotenv-plugin
   - serverless-auto-swagger
+  - '@myvitalrx/mvrx-resource-registry'
   - serverless-offline
-tools/codegen/create-microservice.js
+
 provider:
   name: aws
   runtime: nodejs22.x
-
-  stage: ${opt:stage,'dev'}
-
-  region: ${opt:region,'us-east-1'}
-
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
   versionFunctions: false
 
-  environment:
+  # Deployment Bucket Configuration
+  deploymentBucket:
+    name: ${self:provider.stage}-mvx-identity-service-bucket-${aws:accountId}
+    serverSideEncryption: AES256
 
-    SERVICE_NAME: identity-v1-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+  # Global Monitoring Settings
+  tracing:
+    lambda: true
+    apiGateway: true
+  logRetentionInDays: ${self:custom.logRetentionInDays.${self:provider.stage}, 14}
+
+  # Global Tags
+  tags: ${file(resources/tags.yml)}
+  stackTags: ${file(resources/tags.yml)}
+
+  # Environment Variables
+  environment:
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    LOG_LEVEL: ${self:custom.logLevel.${self:provider.stage}, 'info'}
+    DYNAMODB_TABLE_NAME: !Ref IdentityTable
+    COGNITO_USER_POOL_ID: !Ref IdentityUserPool
+    COGNITO_CLIENT_ID: !Ref IdentityUserPoolClient
+    COGNITO_HOSTED_UI_URL: !Sub "https://identity-auth-${self:provider.stage}-${aws:accountId}.auth.${self:provider.region}.amazoncognito.com"
+    EVENT_BUS_NAME: beauty-on-wheels-bus-${self:provider.stage}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+
+  # Least-privilege IAM policies
+  iamRoleStatements: ${file(resources/iam.yml)}
 
 custom:
+  # Deployment Bucket Auto-Creation Settings
+  deploymentBucket:
+    versioning: true
+    blockPublicAccess: true
+    tags:
+      - Key: Application
+        Value: beauty-on-wheels
+      - Key: Environment
+        Value: ${self:provider.stage}
+      - Key: Team
+        Value: platform-identity
+      - Key: Owner
+        Value: platform-team
+      - Key: CostCenter
+        Value: platform-core
+      - Key: ManagedBy
+        Value: serverless
+      - Key: Version
+        Value: 1.0.0
 
+  # Automatic Version Pruning
+  prune:
+    automatic: true
+    number: 3
 
+  # MVRX Policy overrides
+  mvrxPolicy:
+    requireAuthorizer: false
+
+  # Multi-environment parameters mapping
+  deletionProtectionEnabled:
+    prod: true
+    production: true
+    dev: false
+    stg: false
+    qa: false
+    uat: false
+
+  logRetentionInDays:
+    prod: 30
+    production: 30
+    dev: 7
+    stg: 14
+    qa: 7
+    uat: 14
+
+  logLevel:
+    prod: info
+    production: info
+    dev: debug
+    stg: info
+    qa: debug
+    uat: info
+
+  secretPrefix:
+    prod: PRD
+    production: PRD
+    stg: STG
+    dev: DEV
+    qa: QA
+    uat: UAT
+
+  cognitoAdvancedSecurity:
+    prod: ENFORCED
+    production: ENFORCED
+    stg: AUDIT
+    dev: AUDIT
+    qa: AUDIT
+    uat: AUDIT
+
+  cognitoCallbackUrl:
+    prod: https://beautyonwheels.com/callback
+    production: https://beautyonwheels.com/callback
+    stg: https://stg.beautyonwheels.com/callback
+    dev: http://localhost:3000/callback
+    qa: http://localhost:3000/callback
+    uat: https://uat.beautyonwheels.com/callback
+
+  cognitoLogoutUrl:
+    prod: https://beautyonwheels.com/logout
+    production: https://beautyonwheels.com/logout
+    stg: https://stg.beautyonwheels.com/logout
+    dev: http://localhost:3000/logout
+    qa: http://localhost:3000/logout
+    uat: https://uat.beautyonwheels.com/logout
+
+  # Esbuild bundler settings
   esbuild:
     bundle: true
     minify: false
@@ -37,6 +147,7 @@ custom:
     concurrency: 10
     plugins: ./esbuild-plugins.js
 
+  # Swagger auto-generation settings
   autoswagger:
     title: "Beauty on Wheels - Identity Service API"
     apiType: http
@@ -53,13 +164,19 @@ custom:
       - ./src/types/api-types.d.ts
     excludeStages:
       - production
-
-
 functions:
-
+  
+  # Mandatory Health check endpoint
+  health:
+    handler: src/handlers/health.handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
 
   postregister:
-    handler: src/handlers/registration.handler.handlePostregister
+    handler: src/handlers/registration.handler
     events:
       - http:
           path: /auth/register
@@ -74,9 +191,8 @@ functions:
               description: "User created"
               bodyType: User
 
-
   postlogin:
-    handler: src/handlers/authentication.handler.handlePostlogin
+    handler: src/handlers/authentication.login
     events:
       - http:
           path: /auth/login
@@ -91,9 +207,8 @@ functions:
               description: "Login successful"
               bodyType: TokenResponse
 
-
   postrefreshtoken:
-    handler: src/handlers/authentication.handler.handlePostrefreshtoken
+    handler: src/handlers/authentication.refreshToken
     events:
       - http:
           path: /auth/refresh-token
@@ -108,9 +223,8 @@ functions:
               description: "Token refreshed"
               bodyType: TokenResponse
 
-
   postlogout:
-    handler: src/handlers/authentication.handler.handlePostlogout
+    handler: src/handlers/authentication.logout
     events:
       - http:
           path: /auth/logout
@@ -123,9 +237,8 @@ functions:
             204:
               description: "Logged out"
 
-
   postchangepassword:
-    handler: src/handlers/authentication.handler.handlePostchangepassword
+    handler: src/handlers/authentication.changePassword
     events:
       - http:
           path: /auth/change-password
@@ -139,9 +252,8 @@ functions:
             204:
               description: "Password changed"
 
-
   postsend:
-    handler: src/handlers/otp.handler.handlePostsend
+    handler: src/handlers/otpHandler.handlePostsend
     events:
       - http:
           path: /otp/send
@@ -155,9 +267,8 @@ functions:
             202:
               description: "OTP sent"
 
-
   postverify:
-    handler: src/handlers/otp.handler.handlePostverify
+    handler: src/handlers/otpHandler.handlePostverify
     events:
       - http:
           path: /otp/verify
@@ -171,9 +282,8 @@ functions:
             204:
               description: "OTP verified"
 
-
   getme:
-    handler: src/handlers/profile.handler.handleGetme
+    handler: src/handlers/profile.handler
     events:
       - http:
           path: /me
@@ -187,9 +297,8 @@ functions:
               description: "Profile"
               bodyType: User
 
-
   getsessions:
-    handler: src/handlers/sessions.handler.handleGetsessions
+    handler: src/handlers/sessions.handleGetsessions
     events:
       - http:
           path: /sessions
@@ -202,9 +311,8 @@ functions:
             200:
               description: "Sessions"
 
-
   deletesessions:
-    handler: src/handlers/sessions.handler.handleDeletesessions
+    handler: src/handlers/sessions.handleDeletesessions
     events:
       - http:
           path: /sessions
@@ -217,9 +325,8 @@ functions:
             204:
               description: "All sessions revoked"
 
-
   deletesessionid:
-    handler: src/handlers/sessions.handler.handleDeletesessionid
+    handler: src/handlers/sessions.handleDeletesessionid
     events:
       - http:
           path: /sessions/{sessionId}
@@ -232,9 +339,8 @@ functions:
             204:
               description: "Session revoked"
 
-
   getroles:
-    handler: src/handlers/roles.handler.handleGetroles
+    handler: src/handlers/roles.handleGetroles
     events:
       - http:
           path: /roles
@@ -247,9 +353,8 @@ functions:
             200:
               description: "Roles list"
 
-
   getpermissions:
-    handler: src/handlers/permissions.handler.handleGetpermissions
+    handler: src/handlers/permissions.handleGetpermissions
     events:
       - http:
           path: /permissions
@@ -262,25 +367,44 @@ functions:
             200:
               description: "Permissions list"
 
-
-iamRoleStatements:
-
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
-
-
 resources:
   Resources:
+    # DynamoDB Table
+    IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}
+
+    # Cognito Configuration
+    IdentityUserPool: ${file(resources/cognito.yml):IdentityUserPool}
+    IdentityUserPoolClient: ${file(resources/cognito.yml):IdentityUserPoolClient}
+    IdentityUserPoolDomain: ${file(resources/cognito.yml):IdentityUserPoolDomain}
+    CognitoSmsRole: ${file(resources/cognito.yml):CognitoSmsRole}
+
+    # KMS Keys and Encryption
+    IdentityKmsKey: ${file(resources/kms.yml):IdentityKmsKey}
+    IdentityKmsAlias: ${file(resources/kms.yml):IdentityKmsAlias}
+
+
+    # CloudWatch Log Groups & Streams
+    ApiGatewayAccessLogGroup: ${file(resources/log-groups.yml):ApiGatewayAccessLogGroup}
+
+    # CloudWatch Monitoring Alarms
+    IdentityAlarmTopic: ${file(resources/alarms.yml):IdentityAlarmTopic}
+    Api5XXAlarm: ${file(resources/alarms.yml):Api5XXAlarm}
+    DynamoDBReadThrottleAlarm: ${file(resources/alarms.yml):DynamoDBReadThrottleAlarm}
+    DynamoDBWriteThrottleAlarm: ${file(resources/alarms.yml):DynamoDBWriteThrottleAlarm}
+    ServiceLambdaErrorsAlarm: ${file(resources/alarms.yml):ServiceLambdaErrorsAlarm}
+    ServiceLambdaThrottlesAlarm: ${file(resources/alarms.yml):ServiceLambdaThrottlesAlarm}
+
+    # SSM Parameters Publishing
+    SSMTableName: ${file(resources/ssm.yml):SSMTableName}
+    SSMTableArn: ${file(resources/ssm.yml):SSMTableArn}
+    SSMUserPoolId: ${file(resources/ssm.yml):SSMUserPoolId}
+    SSMUserPoolArn: ${file(resources/ssm.yml):SSMUserPoolArn}
+    SSMUserPoolClientId: ${file(resources/ssm.yml):SSMUserPoolClientId}
+    SSMHostedUiUrl: ${file(resources/ssm.yml):SSMHostedUiUrl}
+    SSMRegion: ${file(resources/ssm.yml):SSMRegion}
+    SSMStage: ${file(resources/ssm.yml):SSMStage}
+
+    # Gateway Responses (CORS headers support for REST API responses)
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -328,3 +452,12 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+  Outputs:
+    # Reference outputs from resources/outputs.yml
+    IdentityTableName: ${file(resources/outputs.yml):IdentityTableName}
+    IdentityTableArn: ${file(resources/outputs.yml):IdentityTableArn}
+    IdentityUserPoolId: ${file(resources/outputs.yml):IdentityUserPoolId}
+    IdentityUserPoolArn: ${file(resources/outputs.yml):IdentityUserPoolArn}
+    IdentityUserPoolClientId: ${file(resources/outputs.yml):IdentityUserPoolClientId}
+    IdentityHostedUiUrl: ${file(resources/outputs.yml):IdentityHostedUiUrl}

@@ -1,0 +1,912 @@
+{
+  "service": "user",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/user.yaml",
+  "title": "Beauty on Wheels - User Service API",
+  "version": "1.0.0",
+  "description": "User profile management for customers, vendors and administrators.",
+  "servers": [
+    {
+      "url": "https://api.example.com/users/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Users",
+      "fileName": "users",
+      "className": "Users",
+      "operations": [
+        {
+          "operationId": "getUsers",
+          "name": "Getusers",
+          "methodName": "getusers",
+          "handlerName": "handleGetusers",
+          "controllerMethod": "handleGetusers",
+          "serviceMethod": "getusers",
+          "repositoryMethod": "getusers",
+          "method": "GET",
+          "path": "/users",
+          "summary": "List users",
+          "description": "",
+          "tags": [
+            "Users"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "User list",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postUsers",
+          "name": "Postusers",
+          "methodName": "postusers",
+          "handlerName": "handlePostusers",
+          "controllerMethod": "handlePostusers",
+          "serviceMethod": "postusers",
+          "repositoryMethod": "postusers",
+          "method": "POST",
+          "path": "/users",
+          "summary": "Create user profile",
+          "description": "",
+          "tags": [
+            "Users"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "User",
+            "ref": "#/components/schemas/User"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getUserid",
+          "name": "Getuserid",
+          "methodName": "getuserid",
+          "handlerName": "handleGetuserid",
+          "controllerMethod": "handleGetuserid",
+          "serviceMethod": "getuserid",
+          "repositoryMethod": "getuserid",
+          "method": "GET",
+          "path": "/users/{userId}",
+          "summary": "Get user",
+          "description": "",
+          "tags": [
+            "Users"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "User",
+            "ref": "#/components/schemas/User"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "User",
+              "bodyType": "User"
+            }
+          ]
+        },
+        {
+          "operationId": "putUserid",
+          "name": "Putuserid",
+          "methodName": "putuserid",
+          "handlerName": "handlePutuserid",
+          "controllerMethod": "handlePutuserid",
+          "serviceMethod": "putuserid",
+          "repositoryMethod": "putuserid",
+          "method": "PUT",
+          "path": "/users/{userId}",
+          "summary": "Update user",
+          "description": "",
+          "tags": [
+            "Users"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "User",
+            "ref": "#/components/schemas/User"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteUserid",
+          "name": "Deleteuserid",
+          "methodName": "deleteuserid",
+          "handlerName": "handleDeleteuserid",
+          "controllerMethod": "handleDeleteuserid",
+          "serviceMethod": "deleteuserid",
+          "repositoryMethod": "deleteuserid",
+          "method": "DELETE",
+          "path": "/users/{userId}",
+          "summary": "Soft delete user",
+          "description": "",
+          "tags": [
+            "Users"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "fileName": "customers",
+      "className": "Customers",
+      "operations": [
+        {
+          "operationId": "getUserid",
+          "name": "Getuserid",
+          "methodName": "getuserid",
+          "handlerName": "handleGetuserid",
+          "controllerMethod": "handleGetuserid",
+          "serviceMethod": "getuserid",
+          "repositoryMethod": "getuserid",
+          "method": "GET",
+          "path": "/customers/{userId}",
+          "summary": "Get customer profile",
+          "description": "",
+          "tags": [
+            "Customers"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "CustomerProfile",
+            "ref": "#/components/schemas/CustomerProfile"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Customer profile",
+              "bodyType": "CustomerProfile"
+            }
+          ]
+        },
+        {
+          "operationId": "putUserid",
+          "name": "Putuserid",
+          "methodName": "putuserid",
+          "handlerName": "handlePutuserid",
+          "controllerMethod": "handlePutuserid",
+          "serviceMethod": "putuserid",
+          "repositoryMethod": "putuserid",
+          "method": "PUT",
+          "path": "/customers/{userId}",
+          "summary": "Update customer profile",
+          "description": "",
+          "tags": [
+            "Customers"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "CustomerProfile",
+            "ref": "#/components/schemas/CustomerProfile"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vendors",
+      "fileName": "vendors",
+      "className": "Vendors",
+      "operations": [
+        {
+          "operationId": "getUserid",
+          "name": "Getuserid",
+          "methodName": "getuserid",
+          "handlerName": "handleGetuserid",
+          "controllerMethod": "handleGetuserid",
+          "serviceMethod": "getuserid",
+          "repositoryMethod": "getuserid",
+          "method": "GET",
+          "path": "/vendors/{userId}",
+          "summary": "Get vendor profile",
+          "description": "",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "VendorProfile",
+            "ref": "#/components/schemas/VendorProfile"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor profile",
+              "bodyType": "VendorProfile"
+            }
+          ]
+        },
+        {
+          "operationId": "putUserid",
+          "name": "Putuserid",
+          "methodName": "putuserid",
+          "handlerName": "handlePutuserid",
+          "controllerMethod": "handlePutuserid",
+          "serviceMethod": "putuserid",
+          "repositoryMethod": "putuserid",
+          "method": "PUT",
+          "path": "/vendors/{userId}",
+          "summary": "Update vendor profile",
+          "description": "",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "VendorProfile",
+            "ref": "#/components/schemas/VendorProfile"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "KYC",
+      "fileName": "kyc",
+      "className": "Kyc",
+      "operations": [
+        {
+          "operationId": "postKyc",
+          "name": "Postkyc",
+          "methodName": "postkyc",
+          "handlerName": "handlePostkyc",
+          "controllerMethod": "handlePostkyc",
+          "serviceMethod": "postkyc",
+          "repositoryMethod": "postkyc",
+          "method": "POST",
+          "path": "/vendors/{userId}/kyc",
+          "summary": "Submit KYC",
+          "description": "",
+          "tags": [
+            "KYC"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 202,
+              "description": "Submitted",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getKyc",
+          "name": "Getkyc",
+          "methodName": "getkyc",
+          "handlerName": "handleGetkyc",
+          "controllerMethod": "handleGetkyc",
+          "serviceMethod": "getkyc",
+          "repositoryMethod": "getkyc",
+          "method": "GET",
+          "path": "/vendors/{userId}/kyc",
+          "summary": "Get KYC status",
+          "description": "",
+          "tags": [
+            "KYC"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "KYC status",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Addresses",
+      "fileName": "addresses",
+      "className": "Addresses",
+      "operations": [
+        {
+          "operationId": "getAddresses",
+          "name": "Getaddresses",
+          "methodName": "getaddresses",
+          "handlerName": "handleGetaddresses",
+          "controllerMethod": "handleGetaddresses",
+          "serviceMethod": "getaddresses",
+          "repositoryMethod": "getaddresses",
+          "method": "GET",
+          "path": "/users/{userId}/addresses",
+          "summary": "List addresses",
+          "description": "",
+          "tags": [
+            "Addresses"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Address list",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postAddresses",
+          "name": "Postaddresses",
+          "methodName": "postaddresses",
+          "handlerName": "handlePostaddresses",
+          "controllerMethod": "handlePostaddresses",
+          "serviceMethod": "postaddresses",
+          "repositoryMethod": "postaddresses",
+          "method": "POST",
+          "path": "/users/{userId}/addresses",
+          "summary": "Add address",
+          "description": "",
+          "tags": [
+            "Addresses"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Address",
+            "ref": "#/components/schemas/Address"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putAddressid",
+          "name": "Putaddressid",
+          "methodName": "putaddressid",
+          "handlerName": "handlePutaddressid",
+          "controllerMethod": "handlePutaddressid",
+          "serviceMethod": "putaddressid",
+          "repositoryMethod": "putaddressid",
+          "method": "PUT",
+          "path": "/users/{userId}/addresses/{addressId}",
+          "summary": "Update address",
+          "description": "",
+          "tags": [
+            "Addresses"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "addressId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Address",
+            "ref": "#/components/schemas/Address"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteAddressid",
+          "name": "Deleteaddressid",
+          "methodName": "deleteaddressid",
+          "handlerName": "handleDeleteaddressid",
+          "controllerMethod": "handleDeleteaddressid",
+          "serviceMethod": "deleteaddressid",
+          "repositoryMethod": "deleteaddressid",
+          "method": "DELETE",
+          "path": "/users/{userId}/addresses/{addressId}",
+          "summary": "Delete address",
+          "description": "",
+          "tags": [
+            "Addresses"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "in": "path",
+              "name": "addressId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Preferences",
+      "fileName": "preferences",
+      "className": "Preferences",
+      "operations": [
+        {
+          "operationId": "getPreferences",
+          "name": "Getpreferences",
+          "methodName": "getpreferences",
+          "handlerName": "handleGetpreferences",
+          "controllerMethod": "handleGetpreferences",
+          "serviceMethod": "getpreferences",
+          "repositoryMethod": "getpreferences",
+          "method": "GET",
+          "path": "/users/{userId}/preferences",
+          "summary": "Get preferences",
+          "description": "",
+          "tags": [
+            "Preferences"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "Preference",
+            "ref": "#/components/schemas/Preference"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Preferences",
+              "bodyType": "Preference"
+            }
+          ]
+        },
+        {
+          "operationId": "putPreferences",
+          "name": "Putpreferences",
+          "methodName": "putpreferences",
+          "handlerName": "handlePutpreferences",
+          "controllerMethod": "handlePutpreferences",
+          "serviceMethod": "putpreferences",
+          "repositoryMethod": "putpreferences",
+          "method": "PUT",
+          "path": "/users/{userId}/preferences",
+          "summary": "Update preferences",
+          "description": "",
+          "tags": [
+            "Preferences"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "userId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Preference",
+            "ref": "#/components/schemas/Preference"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "identityId": {
+          "type": "string"
+        },
+        "userType": {
+          "type": "string",
+          "enum": [
+            "CUSTOMER",
+            "VENDOR",
+            "ADMIN"
+          ]
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "profileImage": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "INACTIVE",
+            "SUSPENDED"
+          ]
+        }
+      }
+    },
+    "Address": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "HOME",
+            "WORK",
+            "BUSINESS"
+          ]
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        }
+      }
+    },
+    "CustomerProfile": {
+      "type": "object",
+      "properties": {
+        "loyaltyPoints": {
+          "type": "integer"
+        },
+        "preferredLanguage": {
+          "type": "string"
+        },
+        "marketingConsent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "VendorProfile": {
+      "type": "object",
+      "properties": {
+        "businessName": {
+          "type": "string"
+        },
+        "businessType": {
+          "type": "string"
+        },
+        "gstNumber": {
+          "type": "string"
+        },
+        "licenseNumber": {
+          "type": "string"
+        },
+        "onboardingStatus": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED"
+          ]
+        }
+      }
+    },
+    "Preference": {
+      "type": "object",
+      "properties": {
+        "notifications": {
+          "type": "boolean"
+        },
+        "emailNotifications": {
+          "type": "boolean"
+        },
+        "smsNotifications": {
+          "type": "boolean"
+        },
+        "language": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

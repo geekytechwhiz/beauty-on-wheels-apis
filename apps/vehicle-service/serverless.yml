@@ -1,0 +1,233 @@
+service: vehicle-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+tools/codegen/create-microservice.js
+provider:
+  name: aws
+  runtime: nodejs22.x
+
+  stage: ${opt:stage,'dev'}
+
+  region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
+
+  environment:
+
+    SERVICE_NAME: vehicle-service
+    LOG_LEVEL: ${ssm:/common/log-level}
+    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
+    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+
+custom:
+
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+  autoswagger:
+    title: "Beauty on Wheels - Vehicle Service API"
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    typefiles:
+      - ./src/types/api-types.d.ts
+    excludeStages:
+      - production
+
+
+functions:
+
+
+  getvehicles:
+    handler: src/handlers/vehicles.handler.handleGetvehicles
+    events:
+      - http:
+          path: /vehicles
+          method: get
+          cors: true
+          summary: "List my vehicles"
+          swaggerTags:
+            - Vehicles
+          responseData:
+            200:
+              description: "Vehicle list"
+
+
+  postvehicles:
+    handler: src/handlers/vehicles.handler.handlePostvehicles
+    events:
+      - http:
+          path: /vehicles
+          method: post
+          cors: true
+          summary: "Add vehicle"
+          swaggerTags:
+            - Vehicles
+          bodyType: Vehicle
+          responseData:
+            201:
+              description: "Vehicle created"
+
+
+  getvehicleid:
+    handler: src/handlers/vehicles.handler.handleGetvehicleid
+    events:
+      - http:
+          path: /vehicles/{vehicleId}
+          method: get
+          cors: true
+          summary: "Get vehicle"
+          swaggerTags:
+            - Vehicles
+          responseData:
+            200:
+              description: "Vehicle"
+              bodyType: Vehicle
+
+
+  putvehicleid:
+    handler: src/handlers/vehicles.handler.handlePutvehicleid
+    events:
+      - http:
+          path: /vehicles/{vehicleId}
+          method: put
+          cors: true
+          summary: "Update vehicle"
+          swaggerTags:
+            - Vehicles
+          bodyType: Vehicle
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deletevehicleid:
+    handler: src/handlers/vehicles.handler.handleDeletevehicleid
+    events:
+      - http:
+          path: /vehicles/{vehicleId}
+          method: delete
+          cors: true
+          summary: "Delete vehicle"
+          swaggerTags:
+            - Vehicles
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  putdefault:
+    handler: src/handlers/vehicles.handler.handlePutdefault
+    events:
+      - http:
+          path: /vehicles/{vehicleId}/default
+          method: put
+          cors: true
+          summary: "Set default vehicle"
+          swaggerTags:
+            - Vehicles
+          responseData:
+            200:
+              description: "Default vehicle updated"
+
+
+  getvehicletypes:
+    handler: src/handlers/vehicles.handler.handleGetvehicletypes
+    events:
+      - http:
+          path: /vehicle-types
+          method: get
+          cors: true
+          summary: "List supported vehicle types"
+          swaggerTags:
+            - Vehicles
+          responseData:
+            200:
+              description: "Vehicle types"
+
+
+iamRoleStatements:
+
+  - Effect: Allow
+    Action:
+      - logs:CreateLogGroup
+      - logs:CreateLogStream
+      - logs:PutLogEvents
+    Resource:
+      - arn:aws:logs:${aws:region}:${aws:accountId}:*
+  - Effect: Allow
+    Action:
+      - xray:PutTraceSegments
+      - xray:PutTelemetryRecords
+    Resource: '*'
+
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

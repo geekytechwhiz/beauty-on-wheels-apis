@@ -1,0 +1,119 @@
+# CloudWatch Alarms for the Identity Service
+# Monitoring:
+# - IdentityAlarmTopic: SNS topic to route alerts.
+# - Api5XXAlarm: Triggered when HTTP API 5XX count > 0 in a 5-minute period.
+# - DynamoDBReadThrottleAlarm: Triggered when read throttling events occur.
+# - DynamoDBWriteThrottleAlarm: Triggered when write throttling events occur.
+# - ServiceLambdaErrorsAlarm: Triggers when the aggregate lambda error metric exceeds 1 in a 5-minute period.
+# - ServiceLambdaThrottlesAlarm: Triggers when any function is throttled.
+
+IdentityAlarmTopic:
+  Type: AWS::SNS::Topic
+  Properties:
+    TopicName: identity-alarms-${self:provider.stage}
+    DisplayName: Identity Service Alarms Topic
+    Tags:
+      - Key: Application
+        Value: beauty-on-wheels
+      - Key: Environment
+        Value: ${self:provider.stage}
+      - Key: ManagedBy
+        Value: serverless
+
+Api5XXAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: identity-api-5xx-alarm-${self:provider.stage}
+    AlarmDescription: "Alarm if API Gateway returns 5XX responses (REST API)"
+    Namespace: AWS/ApiGateway
+    MetricName: 5XXError
+    Dimensions:
+      - Name: ApiName
+        Value: ${self:provider.stage}-${self:service}
+      - Name: Stage
+        Value: ${self:provider.stage}
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 1
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    AlarmActions:
+      - !Ref IdentityAlarmTopic
+    OKActions:
+      - !Ref IdentityAlarmTopic
+
+DynamoDBReadThrottleAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: identity-db-read-throttles-${self:provider.stage}
+    AlarmDescription: "Alarm if DynamoDB read operations are throttled"
+    Namespace: AWS/DynamoDB
+    MetricName: ReadThrottleEvents
+    Dimensions:
+      - Name: TableName
+        Value: !Ref IdentityTable
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 1
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    AlarmActions:
+      - !Ref IdentityAlarmTopic
+    OKActions:
+      - !Ref IdentityAlarmTopic
+
+DynamoDBWriteThrottleAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: identity-db-write-throttles-${self:provider.stage}
+    AlarmDescription: "Alarm if DynamoDB write operations are throttled"
+    Namespace: AWS/DynamoDB
+    MetricName: WriteThrottleEvents
+    Dimensions:
+      - Name: TableName
+        Value: !Ref IdentityTable
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 1
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    AlarmActions:
+      - !Ref IdentityAlarmTopic
+    OKActions:
+      - !Ref IdentityAlarmTopic
+
+ServiceLambdaErrorsAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: identity-lambda-errors-${self:provider.stage}
+    AlarmDescription: "Alarm if aggregate Lambda errors in the service exceed threshold"
+    Namespace: AWS/Lambda
+    MetricName: Errors
+    # We omit the FunctionName dimension to alarm on the aggregate error count of all functions in the region,
+    # or we can alarm on specific key handlers if preferred.
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 1
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    AlarmActions:
+      - !Ref IdentityAlarmTopic
+    OKActions:
+      - !Ref IdentityAlarmTopic
+
+ServiceLambdaThrottlesAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: identity-lambda-throttles-${self:provider.stage}
+    AlarmDescription: "Alarm if Lambda functions in the service are throttled"
+    Namespace: AWS/Lambda
+    MetricName: Throttles
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 1
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    AlarmActions:
+      - !Ref IdentityAlarmTopic
+    OKActions:
+      - !Ref IdentityAlarmTopic

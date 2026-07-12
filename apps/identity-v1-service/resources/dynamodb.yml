@@ -1,0 +1,62 @@
+# DynamoDB Single Table resource for Identity Service
+# Design details:
+# - Partition Key (PK) and Sort Key (SK) form the composite primary key.
+# - Global Secondary Index (GSI1) with GSI1PK/GSI1SK allows flexible lookups (e.g. email query, session validation).
+# - TimeToLive (TTL) is enabled on 'expiresAt' attribute to automatically clean up expired OTPs and sessions.
+# - Deletion Protection is conditionally enabled in production environments to avoid accidental table drops.
+# - Point-in-Time Recovery (PITR) is enabled for disaster recovery.
+# - Server-Side Encryption is enabled using a Customer Managed Key (KMS).
+
+IdentityTable:
+  Type: AWS::DynamoDB::Table
+  DeletionPolicy: Retain
+  UpdateReplacePolicy: Retain
+  Properties:
+    TableName: identity-table-${self:provider.stage}
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: PK
+        AttributeType: S
+      - AttributeName: SK
+        AttributeType: S
+      - AttributeName: GSI1PK
+        AttributeType: S
+      - AttributeName: GSI1SK
+        AttributeType: S
+    KeySchema:
+      - AttributeName: PK
+        KeyType: HASH
+      - AttributeName: SK
+        KeyType: RANGE
+    GlobalSecondaryIndexes:
+      - IndexName: GSI1
+        KeySchema:
+          - AttributeName: GSI1PK
+            KeyType: HASH
+          - AttributeName: GSI1SK
+            KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+    TimeToLiveSpecification:
+      AttributeName: expiresAt
+      Enabled: true
+    StreamSpecification:
+      StreamViewType: NEW_AND_OLD_IMAGES
+    PointInTimeRecoverySpecification:
+      PointInTimeRecoveryEnabled: true
+    ContributorInsightsSpecification:
+      Enabled: true
+    SSESpecification:
+      SSEEnabled: true
+      SSEType: KMS
+      KMSMasterKeyId: !Ref IdentityKmsKey
+    DeletionProtectionEnabled: ${self:custom.deletionProtectionEnabled.${self:provider.stage}, false}
+    Tags:
+      - Key: Name
+        Value: identity-table-${self:provider.stage}
+      - Key: Application
+        Value: beauty-on-wheels
+      - Key: Environment
+        Value: ${self:provider.stage}
+      - Key: ManagedBy
+        Value: serverless

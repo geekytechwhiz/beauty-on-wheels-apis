@@ -1,0 +1,11 @@
+# CloudWatch Log Groups configurations
+# - Dedicated log group for API Gateway Access logs to audit incoming requests.
+# - Log retention is dynamically set per stage (longer for production, shorter for dev).
+# Note: Serverless Framework automatically manages the log groups for individual Lambda functions;
+# global retention is configured via provider.logRetentionInDays in serverless.yml.
+
+ApiGatewayAccessLogGroup:
+  Type: AWS::Logs::LogGroup
+  Properties:
+    LogGroupName: !Sub "/aws/apigateway/identity-api-${self:provider.stage}"
+    RetentionInDays: ${self:custom.logRetentionInDays.${self:provider.stage}, 14}

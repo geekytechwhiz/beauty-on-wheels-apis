@@ -1,0 +1,7 @@
+Application: beauty-on-wheels
+Environment: ${self:provider.stage}
+Team: platform-identity
+Owner: platform-team
+CostCenter: platform-core
+ManagedBy: serverless
+Version: 1.0.0

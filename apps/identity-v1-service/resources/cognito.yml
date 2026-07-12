@@ -1,0 +1,130 @@
+# Cognito User Pool, User Pool Client, and Hosted UI Domain configurations
+# Security configurations:
+# - MFA is configured as OPTIONAL, supporting both SMS and Software Token (TOTP) MFA.
+# - Password policy is configured to follow strict compliance rules.
+# - ExplicitAuthFlows: ALLOW_USER_SRP_AUTH, ALLOW_USER_PASSWORD_AUTH, and ALLOW_REFRESH_TOKEN_AUTH are enabled.
+# - PreventUserExistenceErrors is set to ENABLED to defend against user enumeration attacks.
+# - Advanced Security is enabled in AUDIT mode to track anomalous behaviors.
+
+IdentityUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UserPoolName: identity-user-pool-${self:provider.stage}
+    UsernameAttributes:
+      - email
+    AutoVerifiedAttributes:
+      - email
+    MfaConfiguration: OPTIONAL
+    EnabledMfas:
+      - SMS_MFA
+      - SOFTWARE_TOKEN_MFA
+    SmsConfiguration:
+      ExternalId: identity-cognito-sms-ext-id-${self:provider.stage}
+      SnsCallerArn: !GetAtt CognitoSmsRole.Arn
+      SnsRegion: ${self:provider.region}
+    DeviceConfiguration:
+      ChallengeRequiredOnNewDevice: true
+      DeviceOnlyRememberedOnUserPrompt: true
+    UserPoolAddOns:
+      AdvancedSecurityMode: ${self:custom.cognitoAdvancedSecurity.${self:provider.stage}, 'AUDIT'}
+    AccountRecoverySetting:
+      RecoveryMechanisms:
+        - Name: verified_email
+          Priority: 1
+        - Name: verified_phone_number
+          Priority: 2
+    Policies:
+      PasswordPolicy:
+        MinimumLength: 8
+        RequireUppercase: true
+        RequireLowercase: true
+        RequireNumbers: true
+        RequireSymbols: true
+        TemporaryPasswordValidityDays: 7
+    Schema:
+      - Name: email
+        AttributeDataType: String
+        Required: true
+        Mutable: true
+      - Name: phone_number
+        AttributeDataType: String
+        Required: false
+        Mutable: true
+      - Name: firstName
+        AttributeDataType: String
+        Required: false
+        Mutable: true
+      - Name: lastName
+        AttributeDataType: String
+        Required: false
+        Mutable: true
+    # Lambda trigger placeholders can be configured here if necessary:
+    # LambdaConfig:
+    #   PreSignUp: !GetAtt PreSignUpLambdaFunction.Arn
+    #   PostConfirmation: !GetAtt PostConfirmationLambdaFunction.Arn
+
+IdentityUserPoolClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties:
+    ClientName: identity-client-${self:provider.stage}
+    UserPoolId: !Ref IdentityUserPool
+    GenerateSecret: false # False for public clients (SPA, Mobile) using PKCE
+    ExplicitAuthFlows:
+      - ALLOW_USER_SRP_AUTH
+      - ALLOW_USER_PASSWORD_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+      - ALLOW_CUSTOM_AUTH
+    PreventUserExistenceErrors: ENABLED
+    SupportedIdentityProviders:
+      - COGNITO
+    AllowedOAuthFlows:
+      - code
+    AllowedOAuthFlowsUserPoolClient: true
+    AllowedOAuthScopes:
+      - phone
+      - email
+      - openid
+      - profile
+      - aws.cognito.signin.user.admin
+    CallbackURLs:
+      - ${self:custom.cognitoCallbackUrl.${self:provider.stage}, 'http://localhost:3000/callback'}
+    LogoutURLs:
+      - ${self:custom.cognitoLogoutUrl.${self:provider.stage}, 'http://localhost:3000/logout'}
+    TokenValidityUnits:
+      AccessToken: hours
+      IdToken: hours
+      RefreshToken: days
+    AccessTokenValidity: 1
+    IdTokenValidity: 1
+    RefreshTokenValidity: 30
+
+IdentityUserPoolDomain:
+  Type: AWS::Cognito::UserPoolDomain
+  Properties:
+    Domain: identity-auth-${self:provider.stage}-${aws:accountId}
+    UserPoolId: !Ref IdentityUserPool
+
+# IAM Role for Cognito to send SMS notifications via SNS caller
+CognitoSmsRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: identity-cognito-sms-role-${self:provider.stage}
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service: cognito-idp.amazonaws.com
+          Action: sts:AssumeRole
+          Condition:
+            StringEquals:
+              sts:ExternalId: identity-cognito-sms-ext-id-${self:provider.stage}
+    Policies:
+      - PolicyName: CognitoSMSPublishPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: '*'

@@ -1,0 +1,42 @@
+# KMS Customer Managed Key (CMK) configuration
+# Features:
+# - Rotation is enabled automatically for compliance.
+# - Key policy delegates full control to the IAM policy of the account root.
+# - Key is exposed via an alias dynamically linked to the stage.
+
+IdentityKmsKey:
+  Type: AWS::KMS::Key
+  Properties:
+    Description: KMS key for encrypting data at rest in Beauty on Wheels Identity Service (${self:provider.stage})
+    Enabled: true
+    EnableKeyRotation: true
+    KeyPolicy:
+      Version: '2012-10-17'
+      Statement:
+        - Sid: Enable IAM User Permissions
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: kms:*
+          Resource: "*"
+        - Sid: Allow CloudWatch Alarms to use the key
+          Effect: Allow
+          Principal:
+            Service: cloudwatch.amazonaws.com
+          Action:
+            - kms:Decrypt
+            - kms:GenerateDataKey*
+          Resource: "*"
+    Tags:
+      - Key: Application
+        Value: beauty-on-wheels
+      - Key: Environment
+        Value: ${self:provider.stage}
+      - Key: ManagedBy
+        Value: serverless
+
+IdentityKmsAlias:
+  Type: AWS::KMS::Alias
+  Properties:
+    AliasName: alias/identity-key-${self:provider.stage}
+    TargetKeyId: !Ref IdentityKmsKey

@@ -7,3 +7,5 @@ export * from "./profile.repository";
 export * from "./registration.repository";
 export * from "./roles.repository";
 export * from "./sessions.repository";
+export * from "./identity.repository";
+

@@ -1,0 +1,66 @@
+# SSM Parameter Store configurations to export infrastructure variables
+# This allows other microservices (e.g. Booking Service, User Service) to dynamically retrieve configuration parameters.
+
+SSMTableName:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/table-name
+    Type: String
+    Value: !Ref IdentityTable
+    Description: Name of the Identity Service DynamoDB Table
+
+SSMTableArn:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/table-arn
+    Type: String
+    Value: !GetAtt IdentityTable.Arn
+    Description: ARN of the Identity Service DynamoDB Table
+
+SSMUserPoolId:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/user-pool-id
+    Type: String
+    Value: !Ref IdentityUserPool
+    Description: Cognito User Pool ID for Identity Service
+
+SSMUserPoolArn:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/user-pool-arn
+    Type: String
+    Value: !GetAtt IdentityUserPool.Arn
+    Description: Cognito User Pool ARN for Identity Service
+
+SSMUserPoolClientId:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/user-pool-client-id
+    Type: String
+    Value: !Ref IdentityUserPoolClient
+    Description: Cognito User Pool Client ID for Identity Service
+
+SSMHostedUiUrl:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/hosted-ui-url
+    Type: String
+    Value: !Sub "https://identity-auth-${self:provider.stage}-${aws:accountId}.auth.${self:provider.region}.amazoncognito.com"
+    Description: Cognito Hosted UI Domain URL
+
+SSMRegion:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/region
+    Type: String
+    Value: ${self:provider.region}
+    Description: Deployment Region for Identity Service
+
+SSMStage:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /identity-service/${self:provider.stage}/stage
+    Type: String
+    Value: ${self:provider.stage}
+    Description: Deployment Stage for Identity Service

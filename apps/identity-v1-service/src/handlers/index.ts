@@ -1,9 +1,10 @@
 // Auto-generated exports
 
-export * from "./authentication.handler";
-export * from "./otp.handler";
-export * from "./permissions.handler";
-export * from "./profile.handler";
-export * from "./registration.handler";
-export * from "./roles.handler";
-export * from "./sessions.handler";
+export * as authenticationHandlers from './authentication';
+export * as permissionsHandlers from './permissions';
+export * as profileHandlers from './profile';
+export * as registrationHandlers from './registration';
+export * as rolesHandlers from './roles';
+export * as sessionsHandlers from './sessions';
+export * as healthHandlers from './health';
+export * as otpHandlers from './otpHandler';

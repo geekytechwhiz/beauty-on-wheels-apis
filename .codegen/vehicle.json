@@ -1,0 +1,338 @@
+{
+  "service": "vehicle",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/vehicle.yaml",
+  "title": "Beauty on Wheels - Vehicle Service API",
+  "version": "1.0.0",
+  "description": "Vehicle management APIs.",
+  "servers": [
+    {
+      "url": "https://api.example.com/vehicles/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Vehicles",
+      "fileName": "vehicles",
+      "className": "Vehicles",
+      "operations": [
+        {
+          "operationId": "getVehicles",
+          "name": "Getvehicles",
+          "methodName": "getvehicles",
+          "handlerName": "handleGetvehicles",
+          "controllerMethod": "handleGetvehicles",
+          "serviceMethod": "getvehicles",
+          "repositoryMethod": "getvehicles",
+          "method": "GET",
+          "path": "/vehicles",
+          "summary": "List my vehicles",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vehicle list",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postVehicles",
+          "name": "Postvehicles",
+          "methodName": "postvehicles",
+          "handlerName": "handlePostvehicles",
+          "controllerMethod": "handlePostvehicles",
+          "serviceMethod": "postvehicles",
+          "repositoryMethod": "postvehicles",
+          "method": "POST",
+          "path": "/vehicles",
+          "summary": "Add vehicle",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "Vehicle",
+            "ref": "#/components/schemas/Vehicle"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Vehicle created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getVehicleid",
+          "name": "Getvehicleid",
+          "methodName": "getvehicleid",
+          "handlerName": "handleGetvehicleid",
+          "controllerMethod": "handleGetvehicleid",
+          "serviceMethod": "getvehicleid",
+          "repositoryMethod": "getvehicleid",
+          "method": "GET",
+          "path": "/vehicles/{vehicleId}",
+          "summary": "Get vehicle",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vehicleId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "Vehicle",
+            "ref": "#/components/schemas/Vehicle"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vehicle",
+              "bodyType": "Vehicle"
+            }
+          ]
+        },
+        {
+          "operationId": "putVehicleid",
+          "name": "Putvehicleid",
+          "methodName": "putvehicleid",
+          "handlerName": "handlePutvehicleid",
+          "controllerMethod": "handlePutvehicleid",
+          "serviceMethod": "putvehicleid",
+          "repositoryMethod": "putvehicleid",
+          "method": "PUT",
+          "path": "/vehicles/{vehicleId}",
+          "summary": "Update vehicle",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vehicleId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Vehicle",
+            "ref": "#/components/schemas/Vehicle"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteVehicleid",
+          "name": "Deletevehicleid",
+          "methodName": "deletevehicleid",
+          "handlerName": "handleDeletevehicleid",
+          "controllerMethod": "handleDeletevehicleid",
+          "serviceMethod": "deletevehicleid",
+          "repositoryMethod": "deletevehicleid",
+          "method": "DELETE",
+          "path": "/vehicles/{vehicleId}",
+          "summary": "Delete vehicle",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vehicleId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putDefault",
+          "name": "Putdefault",
+          "methodName": "putdefault",
+          "handlerName": "handlePutdefault",
+          "controllerMethod": "handlePutdefault",
+          "serviceMethod": "putdefault",
+          "repositoryMethod": "putdefault",
+          "method": "PUT",
+          "path": "/vehicles/{vehicleId}/default",
+          "summary": "Set default vehicle",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vehicleId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Default vehicle updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getVehicleTypes",
+          "name": "Getvehicletypes",
+          "methodName": "getvehicletypes",
+          "handlerName": "handleGetvehicletypes",
+          "controllerMethod": "handleGetvehicletypes",
+          "serviceMethod": "getvehicletypes",
+          "repositoryMethod": "getvehicletypes",
+          "method": "GET",
+          "path": "/vehicle-types",
+          "summary": "List supported vehicle types",
+          "description": "",
+          "tags": [
+            "Vehicles"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vehicle types",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Vehicle": {
+      "type": "object",
+      "required": [
+        "registrationNumber",
+        "vehicleType"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "registrationNumber": {
+          "type": "string"
+        },
+        "vehicleType": {
+          "type": "string",
+          "enum": [
+            "HATCHBACK",
+            "SEDAN",
+            "SUV",
+            "MUV",
+            "LUXURY",
+            "BIKE"
+          ]
+        },
+        "brand": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "fuelType": {
+          "type": "string",
+          "enum": [
+            "PETROL",
+            "DIESEL",
+            "EV",
+            "HYBRID",
+            "CNG"
+          ]
+        },
+        "manufactureYear": {
+          "type": "integer"
+        },
+        "defaultVehicle": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

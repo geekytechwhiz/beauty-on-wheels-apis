@@ -1,0 +1,391 @@
+service: user-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+tools/codegen/create-microservice.js
+provider:
+  name: aws
+  runtime: nodejs22.x
+
+  stage: ${opt:stage,'dev'}
+
+  region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
+
+  environment:
+
+    SERVICE_NAME: user-service
+    LOG_LEVEL: ${ssm:/common/log-level}
+    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
+    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+
+custom:
+
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+  autoswagger:
+    title: "Beauty on Wheels - User Service API"
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    typefiles:
+      - ./src/types/api-types.d.ts
+    excludeStages:
+      - production
+
+
+functions:
+
+
+  getusers:
+    handler: src/handlers/users.handler.handleGetusers
+    events:
+      - http:
+          path: /users
+          method: get
+          cors: true
+          summary: "List users"
+          swaggerTags:
+            - Users
+          responseData:
+            200:
+              description: "User list"
+
+
+  postusers:
+    handler: src/handlers/users.handler.handlePostusers
+    events:
+      - http:
+          path: /users
+          method: post
+          cors: true
+          summary: "Create user profile"
+          swaggerTags:
+            - Users
+          bodyType: User
+          responseData:
+            201:
+              description: "Created"
+
+
+  getuserid:
+    handler: src/handlers/users.handler.handleGetuserid
+    events:
+      - http:
+          path: /users/{userId}
+          method: get
+          cors: true
+          summary: "Get user"
+          swaggerTags:
+            - Users
+          responseData:
+            200:
+              description: "User"
+              bodyType: User
+
+
+  putuserid:
+    handler: src/handlers/users.handler.handlePutuserid
+    events:
+      - http:
+          path: /users/{userId}
+          method: put
+          cors: true
+          summary: "Update user"
+          swaggerTags:
+            - Users
+          bodyType: User
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deleteuserid:
+    handler: src/handlers/users.handler.handleDeleteuserid
+    events:
+      - http:
+          path: /users/{userId}
+          method: delete
+          cors: true
+          summary: "Soft delete user"
+          swaggerTags:
+            - Users
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  getuserid:
+    handler: src/handlers/customers.handler.handleGetuserid
+    events:
+      - http:
+          path: /customers/{userId}
+          method: get
+          cors: true
+          summary: "Get customer profile"
+          swaggerTags:
+            - Customers
+          responseData:
+            200:
+              description: "Customer profile"
+              bodyType: CustomerProfile
+
+
+  putuserid:
+    handler: src/handlers/customers.handler.handlePutuserid
+    events:
+      - http:
+          path: /customers/{userId}
+          method: put
+          cors: true
+          summary: "Update customer profile"
+          swaggerTags:
+            - Customers
+          bodyType: CustomerProfile
+          responseData:
+            200:
+              description: "Updated"
+
+
+  getuserid:
+    handler: src/handlers/vendors.handler.handleGetuserid
+    events:
+      - http:
+          path: /vendors/{userId}
+          method: get
+          cors: true
+          summary: "Get vendor profile"
+          swaggerTags:
+            - Vendors
+          responseData:
+            200:
+              description: "Vendor profile"
+              bodyType: VendorProfile
+
+
+  putuserid:
+    handler: src/handlers/vendors.handler.handlePutuserid
+    events:
+      - http:
+          path: /vendors/{userId}
+          method: put
+          cors: true
+          summary: "Update vendor profile"
+          swaggerTags:
+            - Vendors
+          bodyType: VendorProfile
+          responseData:
+            200:
+              description: "Updated"
+
+
+  postkyc:
+    handler: src/handlers/kyc.handler.handlePostkyc
+    events:
+      - http:
+          path: /vendors/{userId}/kyc
+          method: post
+          cors: true
+          summary: "Submit KYC"
+          swaggerTags:
+            - KYC
+          responseData:
+            202:
+              description: "Submitted"
+
+
+  getkyc:
+    handler: src/handlers/kyc.handler.handleGetkyc
+    events:
+      - http:
+          path: /vendors/{userId}/kyc
+          method: get
+          cors: true
+          summary: "Get KYC status"
+          swaggerTags:
+            - KYC
+          responseData:
+            200:
+              description: "KYC status"
+
+
+  getaddresses:
+    handler: src/handlers/addresses.handler.handleGetaddresses
+    events:
+      - http:
+          path: /users/{userId}/addresses
+          method: get
+          cors: true
+          summary: "List addresses"
+          swaggerTags:
+            - Addresses
+          responseData:
+            200:
+              description: "Address list"
+
+
+  postaddresses:
+    handler: src/handlers/addresses.handler.handlePostaddresses
+    events:
+      - http:
+          path: /users/{userId}/addresses
+          method: post
+          cors: true
+          summary: "Add address"
+          swaggerTags:
+            - Addresses
+          bodyType: Address
+          responseData:
+            201:
+              description: "Created"
+
+
+  putaddressid:
+    handler: src/handlers/addresses.handler.handlePutaddressid
+    events:
+      - http:
+          path: /users/{userId}/addresses/{addressId}
+          method: put
+          cors: true
+          summary: "Update address"
+          swaggerTags:
+            - Addresses
+          bodyType: Address
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deleteaddressid:
+    handler: src/handlers/addresses.handler.handleDeleteaddressid
+    events:
+      - http:
+          path: /users/{userId}/addresses/{addressId}
+          method: delete
+          cors: true
+          summary: "Delete address"
+          swaggerTags:
+            - Addresses
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  getpreferences:
+    handler: src/handlers/preferences.handler.handleGetpreferences
+    events:
+      - http:
+          path: /users/{userId}/preferences
+          method: get
+          cors: true
+          summary: "Get preferences"
+          swaggerTags:
+            - Preferences
+          responseData:
+            200:
+              description: "Preferences"
+              bodyType: Preference
+
+
+  putpreferences:
+    handler: src/handlers/preferences.handler.handlePutpreferences
+    events:
+      - http:
+          path: /users/{userId}/preferences
+          method: put
+          cors: true
+          summary: "Update preferences"
+          swaggerTags:
+            - Preferences
+          bodyType: Preference
+          responseData:
+            200:
+              description: "Updated"
+
+
+iamRoleStatements:
+
+  - Effect: Allow
+    Action:
+      - logs:CreateLogGroup
+      - logs:CreateLogStream
+      - logs:PutLogEvents
+    Resource:
+      - arn:aws:logs:${aws:region}:${aws:accountId}:*
+  - Effect: Allow
+    Action:
+      - xray:PutTraceSegments
+      - xray:PutTelemetryRecords
+    Resource: '*'
+
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

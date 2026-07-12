@@ -1,0 +1,80 @@
+# Least-privilege IAM Role Statements for Lambda functions
+# Scope:
+# - DynamoDB: CRUD permissions restricted strictly to IdentityTable and its GSIs.
+# - KMS: Key usage (encrypt/decrypt/generate data keys) restricted strictly to IdentityKmsKey.
+# - EventBridge: PutEvents on the specific service event bus.
+# - SNS: Publish permission on the specific service SNS topics.
+# - Secrets Manager: Decrypt/Read access on specific secret prefixes.
+# - SSM Parameter Store: Read permissions restricted to service parameters.
+# - X-Ray: Telemetry and segment writes for tracing.
+# - CloudWatch: Standard logger capabilities.
+
+- Effect: Allow
+  Action:
+    - dynamodb:GetItem
+    - dynamodb:PutItem
+    - dynamodb:UpdateItem
+    - dynamodb:DeleteItem
+    - dynamodb:Query
+    - dynamodb:Scan
+    - dynamodb:BatchGetItem
+    - dynamodb:BatchWriteItem
+    - dynamodb:TransactWriteItems
+    - dynamodb:TransactGetItems
+    - dynamodb:DescribeTable
+  Resource:
+    - !GetAtt IdentityTable.Arn
+    - !Sub "${IdentityTable.Arn}/index/*"
+
+- Effect: Allow
+  Action:
+    - kms:Decrypt
+    - kms:Encrypt
+    - kms:GenerateDataKey*
+    - kms:DescribeKey
+  Resource:
+    - !GetAtt IdentityKmsKey.Arn
+
+- Effect: Allow
+  Action:
+    - events:PutEvents
+  Resource:
+    - arn:aws:events:${self:provider.region}:${aws:accountId}:event-bus/beauty-on-wheels-bus-${self:provider.stage}
+
+- Effect: Allow
+  Action:
+    - sns:Publish
+  Resource:
+    - arn:aws:sns:${self:provider.region}:${aws:accountId}:identity-events-${self:provider.stage}
+    - !Ref IdentityAlarmTopic
+
+- Effect: Allow
+  Action:
+    - secretsmanager:GetSecretValue
+    - secretsmanager:DescribeSecret
+  Resource:
+    - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.secretPrefix.${self:provider.stage}}_IDENTITY_SECRET_MANAGER*
+    - arn:aws:secretsmanager:${self:provider.region}:${aws:accountId}:secret:${self:custom.secretPrefix.${self:provider.stage}}_JWT_SECRET*
+
+- Effect: Allow
+  Action:
+    - ssm:GetParameter
+    - ssm:GetParameters
+    - ssm:GetParametersByPath
+  Resource:
+    - arn:aws:ssm:${self:provider.region}:${aws:accountId}:parameter/identity-service/${self:provider.stage}/*
+    - arn:aws:ssm:${self:provider.region}:${aws:accountId}:parameter/common/*
+
+- Effect: Allow
+  Action:
+    - logs:CreateLogGroup
+    - logs:CreateLogStream
+    - logs:PutLogEvents
+  Resource:
+    - arn:aws:logs:${self:provider.region}:${aws:accountId}:log-group:/aws/lambda/*
+
+- Effect: Allow
+  Action:
+    - xray:PutTraceSegments
+    - xray:PutTelemetryRecords
+  Resource: '*'

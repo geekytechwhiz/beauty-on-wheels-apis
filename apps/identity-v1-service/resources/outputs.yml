@@ -1,0 +1,37 @@
+# CloudFormation Outputs for the Identity Service Stack
+
+IdentityTableName:
+  Description: "Name of the Identity Service DynamoDB Table"
+  Value: !Ref IdentityTable
+  Export:
+    Name: ${self:provider.stage}-IdentityTableName
+
+IdentityTableArn:
+  Description: "ARN of the Identity Service DynamoDB Table"
+  Value: !GetAtt IdentityTable.Arn
+  Export:
+    Name: ${self:provider.stage}-IdentityTableArn
+
+IdentityUserPoolId:
+  Description: "Cognito User Pool ID"
+  Value: !Ref IdentityUserPool
+  Export:
+    Name: ${self:provider.stage}-IdentityUserPoolId
+
+IdentityUserPoolArn:
+  Description: "Cognito User Pool ARN"
+  Value: !GetAtt IdentityUserPool.Arn
+  Export:
+    Name: ${self:provider.stage}-IdentityUserPoolArn
+
+IdentityUserPoolClientId:
+  Description: "Cognito User Pool Client ID"
+  Value: !Ref IdentityUserPoolClient
+  Export:
+    Name: ${self:provider.stage}-IdentityUserPoolClientId
+
+IdentityHostedUiUrl:
+  Description: "Cognito Hosted UI URL"
+  Value: !Sub "https://identity-auth-${self:provider.stage}-${aws:accountId}.auth.${self:provider.region}.amazoncognito.com"
+  Export:
+    Name: ${self:provider.stage}-IdentityHostedUiUrl

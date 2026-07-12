@@ -1,0 +1,545 @@
+{
+  "service": "booking",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/booking.yaml",
+  "title": "Beauty on Wheels - Booking Service API",
+  "version": "1.0.0",
+  "description": "Booking lifecycle management.",
+  "servers": [
+    {
+      "url": "https://api.example.com/bookings/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Bookings",
+      "fileName": "bookings",
+      "className": "Bookings",
+      "operations": [
+        {
+          "operationId": "getBookings",
+          "name": "Getbookings",
+          "methodName": "getbookings",
+          "handlerName": "handleGetbookings",
+          "controllerMethod": "handleGetbookings",
+          "serviceMethod": "getbookings",
+          "repositoryMethod": "getbookings",
+          "method": "GET",
+          "path": "/bookings",
+          "summary": "List bookings",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Booking list",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postBookings",
+          "name": "Postbookings",
+          "methodName": "postbookings",
+          "handlerName": "handlePostbookings",
+          "controllerMethod": "handlePostbookings",
+          "serviceMethod": "postbookings",
+          "repositoryMethod": "postbookings",
+          "method": "POST",
+          "path": "/bookings",
+          "summary": "Create booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "Booking",
+            "ref": "#/components/schemas/Booking"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Booking created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getBookingid",
+          "name": "Getbookingid",
+          "methodName": "getbookingid",
+          "handlerName": "handleGetbookingid",
+          "controllerMethod": "handleGetbookingid",
+          "serviceMethod": "getbookingid",
+          "repositoryMethod": "getbookingid",
+          "method": "GET",
+          "path": "/bookings/{bookingId}",
+          "summary": "Get booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "Booking",
+            "ref": "#/components/schemas/Booking"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Booking",
+              "bodyType": "Booking"
+            }
+          ]
+        },
+        {
+          "operationId": "putBookingid",
+          "name": "Putbookingid",
+          "methodName": "putbookingid",
+          "handlerName": "handlePutbookingid",
+          "controllerMethod": "handlePutbookingid",
+          "serviceMethod": "putbookingid",
+          "repositoryMethod": "putbookingid",
+          "method": "PUT",
+          "path": "/bookings/{bookingId}",
+          "summary": "Update booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Booking",
+            "ref": "#/components/schemas/Booking"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteBookingid",
+          "name": "Deletebookingid",
+          "methodName": "deletebookingid",
+          "handlerName": "handleDeletebookingid",
+          "controllerMethod": "handleDeletebookingid",
+          "serviceMethod": "deletebookingid",
+          "repositoryMethod": "deletebookingid",
+          "method": "DELETE",
+          "path": "/bookings/{bookingId}",
+          "summary": "Cancel booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Cancelled",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postConfirm",
+          "name": "Postconfirm",
+          "methodName": "postconfirm",
+          "handlerName": "handlePostconfirm",
+          "controllerMethod": "handlePostconfirm",
+          "serviceMethod": "postconfirm",
+          "repositoryMethod": "postconfirm",
+          "method": "POST",
+          "path": "/bookings/{bookingId}/confirm",
+          "summary": "Confirm booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Confirmed",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postCheckIn",
+          "name": "Postcheckin",
+          "methodName": "postcheckin",
+          "handlerName": "handlePostcheckin",
+          "controllerMethod": "handlePostcheckin",
+          "serviceMethod": "postcheckin",
+          "repositoryMethod": "postcheckin",
+          "method": "POST",
+          "path": "/bookings/{bookingId}/check-in",
+          "summary": "Customer check-in",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Checked in",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postStart",
+          "name": "Poststart",
+          "methodName": "poststart",
+          "handlerName": "handlePoststart",
+          "controllerMethod": "handlePoststart",
+          "serviceMethod": "poststart",
+          "repositoryMethod": "poststart",
+          "method": "POST",
+          "path": "/bookings/{bookingId}/start",
+          "summary": "Start service",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "In progress",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postComplete",
+          "name": "Postcomplete",
+          "methodName": "postcomplete",
+          "handlerName": "handlePostcomplete",
+          "controllerMethod": "handlePostcomplete",
+          "serviceMethod": "postcomplete",
+          "repositoryMethod": "postcomplete",
+          "method": "POST",
+          "path": "/bookings/{bookingId}/complete",
+          "summary": "Complete booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Completed",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postCancel",
+          "name": "Postcancel",
+          "methodName": "postcancel",
+          "handlerName": "handlePostcancel",
+          "controllerMethod": "handlePostcancel",
+          "serviceMethod": "postcancel",
+          "repositoryMethod": "postcancel",
+          "method": "POST",
+          "path": "/bookings/{bookingId}/cancel",
+          "summary": "Cancel booking",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "bookingId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Cancelled",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getBookings",
+          "name": "Getbookings",
+          "methodName": "getbookings",
+          "handlerName": "handleGetbookings",
+          "controllerMethod": "handleGetbookings",
+          "serviceMethod": "getbookings",
+          "repositoryMethod": "getbookings",
+          "method": "GET",
+          "path": "/customers/{customerId}/bookings",
+          "summary": "Customer booking history",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "customerId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "History",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getBookings",
+          "name": "Getbookings",
+          "methodName": "getbookings",
+          "handlerName": "handleGetbookings",
+          "controllerMethod": "handleGetbookings",
+          "serviceMethod": "getbookings",
+          "repositoryMethod": "getbookings",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/bookings",
+          "summary": "Vendor bookings",
+          "description": "",
+          "tags": [
+            "Bookings"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor bookings",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Booking": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "customerId": {
+          "type": "string"
+        },
+        "vendorId": {
+          "type": "string"
+        },
+        "vehicleId": {
+          "type": "string"
+        },
+        "serviceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bookingDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "slotId": {
+          "type": "string"
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "PAID",
+            "REFUNDED"
+          ]
+        },
+        "bookingStatus": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "CONFIRMED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED"
+          ]
+        }
+      }
+    }
+  }
+}

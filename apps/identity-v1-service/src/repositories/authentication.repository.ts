@@ -1,13 +1,13 @@
 import {
-    BaseRepository
-} from "@api-hub/utils";
+    IdentityRepository
+} from "./identity.repository";
 
 import {
     env
 } from "../configs/env.config";
 
 export class AuthenticationRepository
-    extends BaseRepository {
+    extends IdentityRepository {
 
     constructor() {
         super();

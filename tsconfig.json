@@ -3,7 +3,6 @@
   "compileOnSave": false,
   "files": [],
   "references": [
-    
     {
       "path": "./libs/authentication-core"
     },
@@ -45,6 +44,15 @@
     },
     {
       "path": "./packages/fhir"
+    },
+    {
+      "path": "./apps/booking-service"
+    },
+    {
+      "path": "./apps/user-service"
+    },
+    {
+      "path": "./apps/vehicle-service"
     }
   ]
 }

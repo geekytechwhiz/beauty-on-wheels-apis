@@ -130,3 +130,4 @@ apps/template-service/swagger/
 .nx/polygraph
 .claude/worktrees
 .claude/settings.local.json
+test-output

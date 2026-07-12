@@ -8,6 +8,7 @@ import {
     PermissionsRepository,
     getPermissionsRepository
 } from "../repositories/permissions.repository";
+import { Permission } from "../types/repository.types";
 
 const baseLogger = createLogger({
     service: "permissions-service",
@@ -25,48 +26,47 @@ export class PermissionsService {
         );
 
     constructor(
-
-        private readonly repository: PermissionsRepository =
-            getPermissionsRepository()
-
-    ) {
-        this.repository;
-    }
-
-
+        private readonly repository: PermissionsRepository = getPermissionsRepository()
+    ) {}
 
     async getpermissions(
         request: LambdaRequest
     ) {
-
         this.logger.info({
             event: "getpermissions",
         });
 
-        /**
-         * TODO
-         * Implement business logic
-         */
+        let roleId = request.params?.roleId;
 
-        throw new Error(
-            "Not Implemented"
-        );
+        // If no roleId is explicitly passed, resolve it from the current authenticated user's role
+        if (!roleId) {
+            const userId = request.context.userContext?.userId;
+            if (userId) {
+                const user = await this.repository.getUser(userId);
+                if (user && user.roleId) {
+                    roleId = user.roleId;
+                }
+            }
+        }
 
+        const permissions = roleId ? await this.repository.listPermissions(roleId) : [];
+        return permissions;
     }
 
+    async getPermissions(roleId: string): Promise<Permission[]> {
+        return this.repository.listPermissions(roleId);
+    }
+
+    async hasPermission(roleId: string, permissionId: string): Promise<boolean> {
+        return this.repository.hasPermission(roleId, permissionId);
+    }
 }
 
 let service: PermissionsService;
 
 export function getPermissionsService() {
-
     if (!service) {
-
-        service =
-            new PermissionsService();
-
+        service = new PermissionsService();
     }
-
     return service;
-
 }

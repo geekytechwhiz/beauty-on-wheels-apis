@@ -8,6 +8,7 @@ import {
     RolesRepository,
     getRolesRepository
 } from "../repositories/roles.repository";
+import { Role } from "../types/repository.types";
 
 const baseLogger = createLogger({
     service: "roles-service",
@@ -25,48 +26,44 @@ export class RolesService {
         );
 
     constructor(
-
-        private readonly repository: RolesRepository =
-            getRolesRepository()
-
-    ) {
-        this.repository;
-    }
-
-
+        private readonly repository: RolesRepository = getRolesRepository()
+    ) {}
 
     async getroles(
         request: LambdaRequest
     ) {
-
         this.logger.info({
             event: "getroles",
         });
 
-        /**
-         * TODO
-         * Implement business logic
-         */
-
-        throw new Error(
-            "Not Implemented"
-        );
-
+        const roles = await this.repository.listRoles();
+        return roles;
     }
 
+    async assignRole(userId: string, roleId: string): Promise<void> {
+        this.logger.info({ event: 'Role Assigned', userId, roleId });
+        await this.repository.assignRole(userId, roleId);
+    }
+
+    async removeRole(userId: string, roleId: string): Promise<void> {
+        this.logger.info({ event: 'Role Removed', userId, roleId });
+        await this.repository.removeRole(userId, roleId);
+    }
+
+    async getUserRoles(userId: string): Promise<string[]> {
+        return this.repository.getUserRoles(userId);
+    }
+
+    async listRoles(): Promise<Role[]> {
+        return this.repository.listRoles();
+    }
 }
 
 let service: RolesService;
 
 export function getRolesService() {
-
     if (!service) {
-
-        service =
-            new RolesService();
-
+        service = new RolesService();
     }
-
     return service;
-
 }

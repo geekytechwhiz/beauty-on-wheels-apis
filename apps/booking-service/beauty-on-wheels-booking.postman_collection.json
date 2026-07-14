@@ -1,0 +1,380 @@
+{
+  "info": {
+    "_postman_id": "c6a2e4b1-9b1b-4f5a-93f5-7f9a2e63c001",
+    "name": "Beauty on Wheels - Booking Service API",
+    "description": "Postman collection for local and remote testing of the Beauty on Wheels Booking Service APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Core Bookings",
+      "item": [
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "description": "Retrieve all bookings in the system."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"cust_john_doe\",\n  \"vendorId\": \"vend_stylist_anna\",\n  \"vehicleId\": \"veh_mobile_salon_1\",\n  \"serviceIds\": [\n    \"srv_haircut_001\",\n    \"srv_styling_002\"\n  ],\n  \"bookingDate\": \"2026-07-20T10:00:00.000Z\",\n  \"slotId\": \"slot_morning_1\",\n  \"totalAmount\": 120.50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            },
+            "description": "Create a new booking."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to retrieve"
+                }
+              ]
+            },
+            "description": "Get detailed information about a specific booking."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Booking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"cust_john_doe\",\n  \"vendorId\": \"vend_stylist_anna\",\n  \"vehicleId\": \"veh_mobile_salon_1\",\n  \"serviceIds\": [\n    \"srv_haircut_001\",\n    \"srv_styling_002\",\n    \"srv_shampoo_003\"\n  ],\n  \"bookingDate\": \"2026-07-21T11:00:00.000Z\",\n  \"slotId\": \"slot_morning_2\",\n  \"totalAmount\": 150.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to update"
+                }
+              ]
+            },
+            "description": "Update details of an existing booking (only allowed in CREATED, CONFIRMED, or PENDING states)."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to cancel/delete"
+                }
+              ]
+            },
+            "description": "Cancel the booking (only allowed in CREATED, CONFIRMED, or PENDING states)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Lifecycle Transitions",
+      "item": [
+        {
+          "name": "Confirm Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId",
+                "confirm"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to confirm"
+                }
+              ]
+            },
+            "description": "Transition status to CONFIRMED (from CREATED or PENDING)."
+          },
+          "response": []
+        },
+        {
+          "name": "Check-in Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId",
+                "check-in"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking for customer check-in"
+                }
+              ]
+            },
+            "description": "Transition status to CHECKED_IN (from CONFIRMED)."
+          },
+          "response": []
+        },
+        {
+          "name": "Start Service",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId",
+                "start"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to start service"
+                }
+              ]
+            },
+            "description": "Transition status to IN_PROGRESS (from CHECKED_IN)."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId",
+                "complete"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to mark as complete"
+                }
+              ]
+            },
+            "description": "Transition status to COMPLETED (from IN_PROGRESS)."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking (POST)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/:bookingId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                ":bookingId",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "b7b0b6bb-f529-4d64-96ee-098765432101",
+                  "description": "The unique ID of the booking to cancel"
+                }
+              ]
+            },
+            "description": "Transition status to CANCELLED (from CREATED, PENDING, or CONFIRMED)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User & Vendor Queries",
+      "item": [
+        {
+          "name": "Get Customer Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/:customerId/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                ":customerId",
+                "bookings"
+              ],
+              "variable": [
+                {
+                  "key": "customerId",
+                  "value": "cust_john_doe",
+                  "description": "The unique ID of the customer"
+                }
+              ]
+            },
+            "description": "Retrieve booking history for a specific customer."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vendor Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "bookings"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vend_stylist_anna",
+                  "description": "The unique ID of the vendor"
+                }
+              ]
+            },
+            "description": "Retrieve booking schedule/history for a specific vendor."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://34yky7hz8b.execute-api.us-east-1.amazonaws.com/dev",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    }
+  ]
+}

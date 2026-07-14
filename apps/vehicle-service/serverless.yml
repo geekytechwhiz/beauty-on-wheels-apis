@@ -7,7 +7,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-tools/codegen/create-microservice.js
+
 provider:
   name: aws
   runtime: nodejs22.x
@@ -21,9 +21,33 @@ provider:
   environment:
 
     SERVICE_NAME: vehicle-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    LOG_LEVEL: INFO
+    DYNAMODB_TABLE_NAME: vehicle-table-${self:provider.stage}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+          Resource:
+            - !GetAtt VehicleTable.Arn
+            - !Join [ "/", [ !GetAtt VehicleTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: '*'
 
 custom:
 
@@ -59,7 +83,7 @@ functions:
 
 
   getvehicles:
-    handler: src/handlers/vehicles.handler.handleGetvehicles
+    handler: src/handlers/vehicles-handler.handleGetvehicles
     events:
       - http:
           path: /vehicles
@@ -74,7 +98,7 @@ functions:
 
 
   postvehicles:
-    handler: src/handlers/vehicles.handler.handlePostvehicles
+    handler: src/handlers/vehicles-handler.handlePostvehicles
     events:
       - http:
           path: /vehicles
@@ -90,7 +114,7 @@ functions:
 
 
   getvehicleid:
-    handler: src/handlers/vehicles.handler.handleGetvehicleid
+    handler: src/handlers/vehicles-handler.handleGetvehicleid
     events:
       - http:
           path: /vehicles/{vehicleId}
@@ -106,7 +130,7 @@ functions:
 
 
   putvehicleid:
-    handler: src/handlers/vehicles.handler.handlePutvehicleid
+    handler: src/handlers/vehicles-handler.handlePutvehicleid
     events:
       - http:
           path: /vehicles/{vehicleId}
@@ -122,7 +146,7 @@ functions:
 
 
   deletevehicleid:
-    handler: src/handlers/vehicles.handler.handleDeletevehicleid
+    handler: src/handlers/vehicles-handler.handleDeletevehicleid
     events:
       - http:
           path: /vehicles/{vehicleId}
@@ -137,7 +161,7 @@ functions:
 
 
   putdefault:
-    handler: src/handlers/vehicles.handler.handlePutdefault
+    handler: src/handlers/vehicles-handler.handlePutdefault
     events:
       - http:
           path: /vehicles/{vehicleId}/default
@@ -152,7 +176,7 @@ functions:
 
 
   getvehicletypes:
-    handler: src/handlers/vehicles.handler.handleGetvehicletypes
+    handler: src/handlers/vehicles-handler.handleGetvehicletypes
     events:
       - http:
           path: /vehicle-types
@@ -164,26 +188,100 @@ functions:
           responseData:
             200:
               description: "Vehicle types"
-
-
-iamRoleStatements:
-
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
-
+# Deleted legacy root-level iamRoleStatements
 
 resources:
   Resources:
+    VehicleTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+
+      Properties:
+        TableName: vehicle-table-${self:provider.stage}
+
+        BillingMode: PAY_PER_REQUEST
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+        SSESpecification:
+          SSEEnabled: true
+
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: false
+
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+
+          - AttributeName: SK
+            AttributeType: S
+
+          - AttributeName: LSI1SK
+            AttributeType: S
+
+          - AttributeName: LSI2SK
+            AttributeType: S
+
+          - AttributeName: LSI3SK
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+
+          - AttributeName: SK
+            KeyType: RANGE
+
+        LocalSecondaryIndexes:
+          - IndexName: StatusIndex
+
+            KeySchema:
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI1SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: VehicleTypeIndex
+
+            KeySchema:
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI2SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: DefaultVehicleIndex
+
+            KeySchema:
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI3SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+          - Key: ManagedBy
+            Value: Serverless 
+ 
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:

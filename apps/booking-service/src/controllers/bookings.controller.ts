@@ -133,31 +133,6 @@ export class BookingsController {
         );
 
     }
-
-
-
-    async handleGetbookings(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getbookings(
-            request
-        );
-
-    }
-
-
-
-    async handleGetbookings(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getbookings(
-            request
-        );
-
-    }
-
 }
 
 let controller: BookingsController;

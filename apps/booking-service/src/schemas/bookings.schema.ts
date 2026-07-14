@@ -18,7 +18,7 @@ bookingDate: z.string().optional(),
 slotId: z.string().optional(),
 totalAmount: z.number().optional(),
 paymentStatus: z.enum(["PENDING", "PAID", "REFUNDED"]).optional(),
-bookingStatus: z.enum(["CREATED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional()
+bookingStatus: z.enum(["CREATED", "PENDING", "CONFIRMED", "CHECKED_IN", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional()
 }).strict();
 
 export type Booking =

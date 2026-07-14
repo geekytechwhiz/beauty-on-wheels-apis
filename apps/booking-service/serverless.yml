@@ -20,9 +20,30 @@ provider:
   environment:
 
     SERVICE_NAME: booking-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    # LOG_LEVEL: ${ssm:/common/log-level}
+    DYNAMODB_TABLE_NAME: ${self:provider.environment.BOOKING_TABLE}
+    BOOKING_TABLE: booking-table-${self:provider.stage}
+    # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+          Resource:
+            - !GetAtt BookingTable.Arn
+            - !Join [ "/", [ !GetAtt BookingTable.Arn, "index", "*" ] ]
 
 custom:
 
@@ -35,7 +56,7 @@ custom:
     platform: node
     concurrency: 10
     plugins: ./esbuild-plugins.js
-
+  booking: booking-table-${self:provider.stage}
   autoswagger:
     title: "Beauty on Wheels - Booking Service API"
     apiType: http
@@ -58,7 +79,7 @@ functions:
 
 
   getbookings:
-    handler: src/handlers/bookings.handler.handleGetbookings
+    handler: src/handlers/bookingsHandler.handleGetbookings
     events:
       - http:
           path: /bookings
@@ -73,7 +94,7 @@ functions:
 
 
   postbookings:
-    handler: src/handlers/bookings.handler.handlePostbookings
+    handler: src/handlers/bookingsHandler.handlePostbookings
     events:
       - http:
           path: /bookings
@@ -89,7 +110,7 @@ functions:
 
 
   getbookingid:
-    handler: src/handlers/bookings.handler.handleGetbookingid
+    handler: src/handlers/bookingsHandler.handleGetbookingid
     events:
       - http:
           path: /bookings/{bookingId}
@@ -105,7 +126,7 @@ functions:
 
 
   putbookingid:
-    handler: src/handlers/bookings.handler.handlePutbookingid
+    handler: src/handlers/bookingsHandler.handlePutbookingid
     events:
       - http:
           path: /bookings/{bookingId}
@@ -121,7 +142,7 @@ functions:
 
 
   deletebookingid:
-    handler: src/handlers/bookings.handler.handleDeletebookingid
+    handler: src/handlers/bookingsHandler.handleDeletebookingid
     events:
       - http:
           path: /bookings/{bookingId}
@@ -136,7 +157,7 @@ functions:
 
 
   postconfirm:
-    handler: src/handlers/bookings.handler.handlePostconfirm
+    handler: src/handlers/bookingsHandler.handlePostconfirm
     events:
       - http:
           path: /bookings/{bookingId}/confirm
@@ -151,7 +172,7 @@ functions:
 
 
   postcheckin:
-    handler: src/handlers/bookings.handler.handlePostcheckin
+    handler: src/handlers/bookingsHandler.handlePostcheckin
     events:
       - http:
           path: /bookings/{bookingId}/check-in
@@ -166,7 +187,7 @@ functions:
 
 
   poststart:
-    handler: src/handlers/bookings.handler.handlePoststart
+    handler: src/handlers/bookingsHandler.handlePoststart
     events:
       - http:
           path: /bookings/{bookingId}/start
@@ -181,7 +202,7 @@ functions:
 
 
   postcomplete:
-    handler: src/handlers/bookings.handler.handlePostcomplete
+    handler: src/handlers/bookingsHandler.handlePostcomplete
     events:
       - http:
           path: /bookings/{bookingId}/complete
@@ -196,7 +217,7 @@ functions:
 
 
   postcancel:
-    handler: src/handlers/bookings.handler.handlePostcancel
+    handler: src/handlers/bookingsHandler.handlePostcancel
     events:
       - http:
           path: /bookings/{bookingId}/cancel
@@ -211,7 +232,7 @@ functions:
 
 
   getcustomerbookings:
-    handler: src/handlers/bookings.handler.handleGetbookings
+    handler: src/handlers/bookingsHandler.handleGetbookings
     events:
       - http:
           path: /customers/{customerId}/bookings
@@ -226,7 +247,7 @@ functions:
 
 
   getvendorbookings:
-    handler: src/handlers/bookings.handler.handleGetbookings
+    handler: src/handlers/bookingsHandler.handleGetbookings
     events:
       - http:
           path: /vendors/{vendorId}/bookings
@@ -238,22 +259,6 @@ functions:
           responseData:
             200:
               description: "Vendor bookings"
-
-
-iamRoleStatements:
-
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
 
 
 resources:
@@ -305,3 +310,100 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+  
+    BookingTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+
+      Properties:
+        TableName: ${self:custom.booking}
+
+        BillingMode: PAY_PER_REQUEST
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+        SSESpecification:
+          SSEEnabled: true
+
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+
+          - AttributeName: SK
+            AttributeType: S
+
+          - AttributeName: GSI1PK
+            AttributeType: S
+
+          - AttributeName: GSI1SK
+            AttributeType: S
+
+          - AttributeName: GSI2PK
+            AttributeType: S
+
+          - AttributeName: GSI2SK
+            AttributeType: S
+
+          - AttributeName: GSI3PK
+            AttributeType: S
+
+          - AttributeName: GSI3SK
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+
+          - AttributeName: SK
+            KeyType: RANGE
+
+        GlobalSecondaryIndexes:
+
+          - IndexName: GSI1
+
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: GSI2
+
+            KeySchema:
+              - AttributeName: GSI2PK
+                KeyType: HASH
+
+              - AttributeName: GSI2SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: GSI3
+
+            KeySchema:
+              - AttributeName: GSI3PK
+                KeyType: HASH
+
+              - AttributeName: GSI3SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+        Tags:
+          - Key: Service
+            Value: booking
+
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+          - Key: ManagedBy
+            Value: Serverless

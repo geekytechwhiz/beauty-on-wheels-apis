@@ -1,0 +1,281 @@
+{
+  "info": {
+    "_postman_id": "f5b1d7a3-e29b-4f5c-93f5-7f9a2e63c002",
+    "name": "Beauty on Wheels - Vehicle Service API",
+    "description": "Postman collection for local and remote testing of the Beauty on Wheels Vehicle Service APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Core Vehicles",
+      "item": [
+        {
+          "name": "List My Vehicles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "description": "Retrieve all vehicles belonging to the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Vehicles By Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles?status=ACTIVE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "Filter by status (ACTIVE or INACTIVE)"
+                }
+              ]
+            },
+            "description": "Retrieve vehicles filtered by status (ACTIVE or INACTIVE)."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Vehicles By Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles?vehicleType=SUV",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "vehicleType",
+                  "value": "SUV",
+                  "description": "Filter by vehicle type (HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE)"
+                }
+              ]
+            },
+            "description": "Retrieve vehicles filtered by vehicleType."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"KA 03 MX 1234\",\n  \"vehicleType\": \"SUV\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Fortuner\",\n  \"variant\": \"Sigma 4\",\n  \"color\": \"White\",\n  \"fuelType\": \"DIESEL\",\n  \"manufactureYear\": 2023\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "description": "Add a new vehicle to the user's profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vehicle by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/:vehicleId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                ":vehicleId"
+              ],
+              "variable": [
+                {
+                  "key": "vehicleId",
+                  "value": "d3b07384-d113-40f4-b258-f9b1d7d43201",
+                  "description": "The unique ID of the vehicle to retrieve"
+                }
+              ]
+            },
+            "description": "Get details of a specific vehicle belonging to the user."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"KA 03 MX 1234\",\n  \"vehicleType\": \"SUV\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Fortuner\",\n  \"variant\": \"Sigma 4\",\n  \"color\": \"Black\",\n  \"fuelType\": \"DIESEL\",\n  \"manufactureYear\": 2023\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/:vehicleId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                ":vehicleId"
+              ],
+              "variable": [
+                {
+                  "key": "vehicleId",
+                  "value": "d3b07384-d113-40f4-b258-f9b1d7d43201",
+                  "description": "The unique ID of the vehicle to update"
+                }
+              ]
+            },
+            "description": "Update specific fields of a vehicle."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Default Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/:vehicleId/default",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                ":vehicleId",
+                "default"
+              ],
+              "variable": [
+                {
+                  "key": "vehicleId",
+                  "value": "d3b07384-d113-40f4-b258-f9b1d7d43201",
+                  "description": "The unique ID of the vehicle to set as default"
+                }
+              ]
+            },
+            "description": "Set a vehicle as the default vehicle for the user. Demotes the current default vehicle atomically."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/:vehicleId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                ":vehicleId"
+              ],
+              "variable": [
+                {
+                  "key": "vehicleId",
+                  "value": "d3b07384-d113-40f4-b258-f9b1d7d43201",
+                  "description": "The unique ID of the vehicle to delete"
+                }
+              ]
+            },
+            "description": "Delete a vehicle. If deleting default vehicle and other vehicles exist, another vehicle is automatically made default."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Metadata",
+      "item": [
+        {
+          "name": "List Supported Vehicle Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicle-types",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicle-types"
+              ]
+            },
+            "description": "Retrieve the list of supported vehicle types (HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://8y3xjrmjvd.execute-api.us-east-1.amazonaws.com/dev",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    }
+  ]
+}

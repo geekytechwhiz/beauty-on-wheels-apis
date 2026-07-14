@@ -1,3 +1,3 @@
 // Auto-generated exports
 
-export * from "./vehicles.handler";
+export * from './vehicles-handler';

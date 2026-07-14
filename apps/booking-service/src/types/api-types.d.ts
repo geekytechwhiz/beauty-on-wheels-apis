@@ -13,6 +13,6 @@ export interface Booking {
   slotId?: string;
   totalAmount?: number;
   paymentStatus?: 'PENDING' | 'PAID' | 'REFUNDED';
-  bookingStatus?: 'CREATED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  bookingStatus?: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 }
 

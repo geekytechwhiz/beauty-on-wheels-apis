@@ -48,11 +48,14 @@ export class BookingsService {
             getBookingsRepository()
     ) {}
 
-    async getbookings(request: LambdaRequest) {
-        const correlationId = (request.context as any)?.correlationId || "unknown";
-        const pathParams = request.pathParameters || {};
-        const customerId = pathParams.customerId;
-        const vendorId = pathParams.vendorId;
+    async getbookings(filters: {
+        customerId?: string;
+        vendorId?: string;
+        correlationId?: string;
+    }) {
+        const correlationId = filters.correlationId || "unknown";
+        const customerId = filters.customerId;
+        const vendorId = filters.vendorId;
 
         this.logger.info({
             event: "getbookings_start",

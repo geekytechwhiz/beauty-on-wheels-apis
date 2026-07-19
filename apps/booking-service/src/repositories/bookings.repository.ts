@@ -102,6 +102,7 @@ export class BookingsRepository extends BaseRepository {
     return BookingsMapper.toDomain(detailsItem);
   }
 
+  /** Access pattern: customer bookings via GSI1 (GSI1PK = CUSTOMER#id, date-sorted GSI1SK). */
   async getCustomerBookings(customerId: string): Promise<Booking[]> {
     const params: QueryCommandInput = {
       TableName: this.getTableName(),
@@ -112,11 +113,13 @@ export class BookingsRepository extends BaseRepository {
         ':gsi1pk': `CUSTOMER#${customerId}`,
         ':gsi1skPrefix': 'BOOKING#',
       },
+      ScanIndexForward: false,
     };
-    const items = await this.query<BookingLookupDdbItem>(params);
+    const items = await this.queryAll<BookingLookupDdbItem>(params);
     return items.map((item) => BookingsMapper.toDomain(item));
   }
 
+  /** Access pattern: vendor bookings via GSI1 (GSI1PK = VENDOR#id, date-sorted GSI1SK). */
   async getVendorBookings(vendorId: string): Promise<Booking[]> {
     const params: QueryCommandInput = {
       TableName: this.getTableName(),
@@ -127,11 +130,13 @@ export class BookingsRepository extends BaseRepository {
         ':gsi1pk': `VENDOR#${vendorId}`,
         ':gsi1skPrefix': 'BOOKING#',
       },
+      ScanIndexForward: false,
     };
-    const items = await this.query<BookingLookupDdbItem>(params);
+    const items = await this.queryAll<BookingLookupDdbItem>(params);
     return items.map((item) => BookingsMapper.toDomain(item));
   }
 
+  /** Access pattern: global booking list via GSI1 (GSI1PK = BOOKING_LIST). */
   async listAllBookings(): Promise<Booking[]> {
     const params: QueryCommandInput = {
       TableName: this.getTableName(),
@@ -142,8 +147,9 @@ export class BookingsRepository extends BaseRepository {
         ':gsi1pk': 'BOOKING_LIST',
         ':gsi1skPrefix': 'BOOKING#',
       },
+      ScanIndexForward: false,
     };
-    const items = await this.query<BookingDdbItem>(params);
+    const items = await this.queryAll<BookingDdbItem>(params);
     return items.map((item) => BookingsMapper.toDomain(item));
   }
 

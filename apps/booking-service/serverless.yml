@@ -86,8 +86,18 @@ functions:
           method: get
           cors: true
           summary: "List bookings"
+          description: "List all bookings, or filter by customerId or vendorId query param"
           swaggerTags:
             - Bookings
+          queryStringParameters:
+            customerId:
+              required: false
+              type: string
+              description: "Filter bookings by customer ID"
+            vendorId:
+              required: false
+              type: string
+              description: "Filter bookings by vendor ID"
           responseData:
             200:
               description: "Booking list"

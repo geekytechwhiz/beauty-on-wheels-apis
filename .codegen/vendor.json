@@ -1,0 +1,2059 @@
+{
+  "service": "vendor",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/vendor.yaml",
+  "title": "Beauty on Wheels - Vendor Service API",
+  "version": "1.0.0",
+  "description": "Vendor management service for the Beauty on Wheels platform.\n\nThe Vendor Service owns:\n  - Vendor onboarding and profile management\n  - Vendor lifecycle and operational status\n  - Vendor service areas\n  - Vendor operating hours\n  - Vendor staff/workers\n  - Vendor capabilities and supported vehicle types\n  - Vendor references to Service Catalog services/packages\n\nThe Vendor Service does NOT own:\n  - Service definitions (Service Catalog Service)\n  - Pricing (Pricing Service)\n  - Slot availability/capacity (Availability Service)\n  - Bookings (Booking Service)\n  - Authentication (Identity Service)\n  - Customer/user profiles (User Service)\n",
+  "servers": [
+    {
+      "url": "https://api.example.com/vendors/v1",
+      "description": "Production"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Vendors",
+      "fileName": "vendors",
+      "className": "Vendors",
+      "operations": [
+        {
+          "operationId": "createVendor",
+          "name": "Createvendor",
+          "methodName": "createvendor",
+          "handlerName": "handleCreatevendor",
+          "controllerMethod": "handleCreatevendor",
+          "serviceMethod": "createvendor",
+          "repositoryMethod": "createvendor",
+          "method": "POST",
+          "path": "/vendors",
+          "summary": "Create vendor",
+          "description": "Creates a new vendor profile.\n\nThe authenticated identity should be linked to the vendor through ownerUserId.\nVendor creation does not automatically activate the vendor.\n",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "CreateVendorRequest",
+            "ref": "#/components/schemas/CreateVendorRequest"
+          },
+          "response": {
+            "name": "VendorResponse",
+            "ref": "#/components/schemas/VendorResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Vendor created successfully",
+              "bodyType": "VendorResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "listVendors",
+          "name": "Listvendors",
+          "methodName": "listvendors",
+          "handlerName": "handleListvendors",
+          "controllerMethod": "handleListvendors",
+          "serviceMethod": "listvendors",
+          "repositoryMethod": "listvendors",
+          "method": "GET",
+          "path": "/vendors",
+          "summary": "List vendors",
+          "description": "Lists vendors using optional filters.\nIntended primarily for admin and operational use.\n",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "name": "status",
+              "in": "query",
+              "schema": {
+                "$ref": "#/components/schemas/VendorStatus"
+              }
+            },
+            {
+              "name": "operationalStatus",
+              "in": "query",
+              "schema": {
+                "$ref": "#/components/schemas/OperationalStatus"
+              }
+            },
+            {
+              "name": "city",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "postalCode",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "vehicleType",
+              "in": "query",
+              "schema": {
+                "$ref": "#/components/schemas/VehicleType"
+              }
+            },
+            {
+              "name": "serviceId",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "description": "Pagination cursor returned by the previous request",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "VendorListResponse",
+            "ref": "#/components/schemas/VendorListResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendors retrieved successfully",
+              "bodyType": "VendorListResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getVendor",
+          "name": "Getvendor",
+          "methodName": "getvendor",
+          "handlerName": "handleGetvendor",
+          "controllerMethod": "handleGetvendor",
+          "serviceMethod": "getvendor",
+          "repositoryMethod": "getvendor",
+          "method": "GET",
+          "path": "/vendors/{vendorId}",
+          "summary": "Get vendor",
+          "description": "",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": "VendorResponse",
+            "ref": "#/components/schemas/VendorResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor retrieved successfully",
+              "bodyType": "VendorResponse"
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendor",
+          "name": "Updatevendor",
+          "methodName": "updatevendor",
+          "handlerName": "handleUpdatevendor",
+          "controllerMethod": "handleUpdatevendor",
+          "serviceMethod": "updatevendor",
+          "repositoryMethod": "updatevendor",
+          "method": "PATCH",
+          "path": "/vendors/{vendorId}",
+          "summary": "Update vendor",
+          "description": "",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateVendorRequest",
+            "ref": "#/components/schemas/UpdateVendorRequest"
+          },
+          "response": {
+            "name": "VendorResponse",
+            "ref": "#/components/schemas/VendorResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor updated successfully",
+              "bodyType": "VendorResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorStatus",
+          "name": "Updatevendorstatus",
+          "methodName": "updatevendorstatus",
+          "handlerName": "handleUpdatevendorstatus",
+          "controllerMethod": "handleUpdatevendorstatus",
+          "serviceMethod": "updatevendorstatus",
+          "repositoryMethod": "updatevendorstatus",
+          "method": "PATCH",
+          "path": "/vendors/{vendorId}/status",
+          "summary": "Update vendor lifecycle status",
+          "description": "Updates the administrative lifecycle status of a vendor.\n\nTypical lifecycle:\n  PENDING_VERIFICATION\n  -> ACTIVE\n  -> SUSPENDED\n  -> ACTIVE\n  -> INACTIVE\n",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateVendorStatusRequest",
+            "ref": "#/components/schemas/UpdateVendorStatusRequest"
+          },
+          "response": {
+            "name": "VendorResponse",
+            "ref": "#/components/schemas/VendorResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor status updated successfully",
+              "bodyType": "VendorResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 403,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorOperationalStatus",
+          "name": "Updatevendoroperationalstatus",
+          "methodName": "updatevendoroperationalstatus",
+          "handlerName": "handleUpdatevendoroperationalstatus",
+          "controllerMethod": "handleUpdatevendoroperationalstatus",
+          "serviceMethod": "updatevendoroperationalstatus",
+          "repositoryMethod": "updatevendoroperationalstatus",
+          "method": "PATCH",
+          "path": "/vendors/{vendorId}/operational-status",
+          "summary": "Update vendor operational status",
+          "description": "Controls whether a vendor is currently accepting work.\n\nThis is different from the administrative vendor lifecycle status.\n",
+          "tags": [
+            "Vendors"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateOperationalStatusRequest",
+            "ref": "#/components/schemas/UpdateOperationalStatusRequest"
+          },
+          "response": {
+            "name": "VendorResponse",
+            "ref": "#/components/schemas/VendorResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Operational status updated successfully",
+              "bodyType": "VendorResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Default",
+      "fileName": "default",
+      "className": "Default",
+      "operations": [
+        {
+          "operationId": "parametersVendorid",
+          "name": "Parametersvendorid",
+          "methodName": "parametersvendorid",
+          "handlerName": "handleParametersvendorid",
+          "controllerMethod": "handleParametersvendorid",
+          "serviceMethod": "parametersvendorid",
+          "repositoryMethod": "parametersvendorid",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersStatus",
+          "name": "Parametersstatus",
+          "methodName": "parametersstatus",
+          "handlerName": "handleParametersstatus",
+          "controllerMethod": "handleParametersstatus",
+          "serviceMethod": "parametersstatus",
+          "repositoryMethod": "parametersstatus",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/status",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersOperationalStatus",
+          "name": "Parametersoperationalstatus",
+          "methodName": "parametersoperationalstatus",
+          "handlerName": "handleParametersoperationalstatus",
+          "controllerMethod": "handleParametersoperationalstatus",
+          "serviceMethod": "parametersoperationalstatus",
+          "repositoryMethod": "parametersoperationalstatus",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/operational-status",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersServiceAreas",
+          "name": "Parametersserviceareas",
+          "methodName": "parametersserviceareas",
+          "handlerName": "handleParametersserviceareas",
+          "controllerMethod": "handleParametersserviceareas",
+          "serviceMethod": "parametersserviceareas",
+          "repositoryMethod": "parametersserviceareas",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/service-areas",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersServiceareaid",
+          "name": "Parametersserviceareaid",
+          "methodName": "parametersserviceareaid",
+          "handlerName": "handleParametersserviceareaid",
+          "controllerMethod": "handleParametersserviceareaid",
+          "serviceMethod": "parametersserviceareaid",
+          "repositoryMethod": "parametersserviceareaid",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/service-areas/{serviceAreaId}",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersOperatingHours",
+          "name": "Parametersoperatinghours",
+          "methodName": "parametersoperatinghours",
+          "handlerName": "handleParametersoperatinghours",
+          "controllerMethod": "handleParametersoperatinghours",
+          "serviceMethod": "parametersoperatinghours",
+          "repositoryMethod": "parametersoperatinghours",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/operating-hours",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersStaff",
+          "name": "Parametersstaff",
+          "methodName": "parametersstaff",
+          "handlerName": "handleParametersstaff",
+          "controllerMethod": "handleParametersstaff",
+          "serviceMethod": "parametersstaff",
+          "repositoryMethod": "parametersstaff",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/staff",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersStaffid",
+          "name": "Parametersstaffid",
+          "methodName": "parametersstaffid",
+          "handlerName": "handleParametersstaffid",
+          "controllerMethod": "handleParametersstaffid",
+          "serviceMethod": "parametersstaffid",
+          "repositoryMethod": "parametersstaffid",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/staff/{staffId}",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        },
+        {
+          "operationId": "parametersCapabilities",
+          "name": "Parameterscapabilities",
+          "methodName": "parameterscapabilities",
+          "handlerName": "handleParameterscapabilities",
+          "controllerMethod": "handleParameterscapabilities",
+          "serviceMethod": "parameterscapabilities",
+          "repositoryMethod": "parameterscapabilities",
+          "method": "PARAMETERS",
+          "path": "/vendors/{vendorId}/capabilities",
+          "summary": "",
+          "description": "",
+          "tags": [],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": []
+        }
+      ]
+    },
+    {
+      "name": "Service Areas",
+      "fileName": "service-areas",
+      "className": "ServiceAreas",
+      "operations": [
+        {
+          "operationId": "listVendorServiceAreas",
+          "name": "Listvendorserviceareas",
+          "methodName": "listvendorserviceareas",
+          "handlerName": "handleListvendorserviceareas",
+          "controllerMethod": "handleListvendorserviceareas",
+          "serviceMethod": "listvendorserviceareas",
+          "repositoryMethod": "listvendorserviceareas",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/service-areas",
+          "summary": "List vendor service areas",
+          "description": "",
+          "tags": [
+            "Service Areas"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "required": [
+                "data"
+              ],
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceArea"
+                  }
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Service areas retrieved successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "addVendorServiceArea",
+          "name": "Addvendorservicearea",
+          "methodName": "addvendorservicearea",
+          "handlerName": "handleAddvendorservicearea",
+          "controllerMethod": "handleAddvendorservicearea",
+          "serviceMethod": "addvendorservicearea",
+          "repositoryMethod": "addvendorservicearea",
+          "method": "POST",
+          "path": "/vendors/{vendorId}/service-areas",
+          "summary": "Add vendor service area",
+          "description": "",
+          "tags": [
+            "Service Areas"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "CreateServiceAreaRequest",
+            "ref": "#/components/schemas/CreateServiceAreaRequest"
+          },
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/ServiceArea"
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Service area created successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 500,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getVendorServiceArea",
+          "name": "Getvendorservicearea",
+          "methodName": "getvendorservicearea",
+          "handlerName": "handleGetvendorservicearea",
+          "controllerMethod": "handleGetvendorservicearea",
+          "serviceMethod": "getvendorservicearea",
+          "repositoryMethod": "getvendorservicearea",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/service-areas/{serviceAreaId}",
+          "summary": "Get vendor service area",
+          "description": "",
+          "tags": [
+            "Service Areas"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/ServiceArea"
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Service area retrieved successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorServiceArea",
+          "name": "Updatevendorservicearea",
+          "methodName": "updatevendorservicearea",
+          "handlerName": "handleUpdatevendorservicearea",
+          "controllerMethod": "handleUpdatevendorservicearea",
+          "serviceMethod": "updatevendorservicearea",
+          "repositoryMethod": "updatevendorservicearea",
+          "method": "PATCH",
+          "path": "/vendors/{vendorId}/service-areas/{serviceAreaId}",
+          "summary": "Update vendor service area",
+          "description": "",
+          "tags": [
+            "Service Areas"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateServiceAreaRequest",
+            "ref": "#/components/schemas/UpdateServiceAreaRequest"
+          },
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/ServiceArea"
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Service area updated successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteVendorServiceArea",
+          "name": "Deletevendorservicearea",
+          "methodName": "deletevendorservicearea",
+          "handlerName": "handleDeletevendorservicearea",
+          "controllerMethod": "handleDeletevendorservicearea",
+          "serviceMethod": "deletevendorservicearea",
+          "repositoryMethod": "deletevendorservicearea",
+          "method": "DELETE",
+          "path": "/vendors/{vendorId}/service-areas/{serviceAreaId}",
+          "summary": "Remove vendor service area",
+          "description": "",
+          "tags": [
+            "Service Areas"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Service area removed successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Operating Hours",
+      "fileName": "operating-hours",
+      "className": "OperatingHours",
+      "operations": [
+        {
+          "operationId": "getVendorOperatingHours",
+          "name": "Getvendoroperatinghours",
+          "methodName": "getvendoroperatinghours",
+          "handlerName": "handleGetvendoroperatinghours",
+          "controllerMethod": "handleGetvendoroperatinghours",
+          "serviceMethod": "getvendoroperatinghours",
+          "repositoryMethod": "getvendoroperatinghours",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/operating-hours",
+          "summary": "Get vendor operating hours",
+          "description": "",
+          "tags": [
+            "Operating Hours"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperatingHours"
+                  }
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Operating hours retrieved successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorOperatingHours",
+          "name": "Updatevendoroperatinghours",
+          "methodName": "updatevendoroperatinghours",
+          "handlerName": "handleUpdatevendoroperatinghours",
+          "controllerMethod": "handleUpdatevendoroperatinghours",
+          "serviceMethod": "updatevendoroperatinghours",
+          "repositoryMethod": "updatevendoroperatinghours",
+          "method": "PUT",
+          "path": "/vendors/{vendorId}/operating-hours",
+          "summary": "Replace vendor operating hours",
+          "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n",
+          "tags": [
+            "Operating Hours"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "required": [
+                "operatingHours"
+              ],
+              "properties": {
+                "operatingHours": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/components/schemas/OperatingHoursRequest"
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperatingHours"
+                  }
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Operating hours updated successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Staff",
+      "fileName": "staff",
+      "className": "Staff",
+      "operations": [
+        {
+          "operationId": "listVendorStaff",
+          "name": "Listvendorstaff",
+          "methodName": "listvendorstaff",
+          "handlerName": "handleListvendorstaff",
+          "controllerMethod": "handleListvendorstaff",
+          "serviceMethod": "listvendorstaff",
+          "repositoryMethod": "listvendorstaff",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/staff",
+          "summary": "List vendor staff",
+          "description": "",
+          "tags": [
+            "Staff"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "name": "status",
+              "in": "query",
+              "schema": {
+                "$ref": "#/components/schemas/StaffStatus"
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20
+              }
+            },
+            {
+              "name": "cursor",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "StaffListResponse",
+            "ref": "#/components/schemas/StaffListResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Staff retrieved successfully",
+              "bodyType": "StaffListResponse"
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "createVendorStaff",
+          "name": "Createvendorstaff",
+          "methodName": "createvendorstaff",
+          "handlerName": "handleCreatevendorstaff",
+          "controllerMethod": "handleCreatevendorstaff",
+          "serviceMethod": "createvendorstaff",
+          "repositoryMethod": "createvendorstaff",
+          "method": "POST",
+          "path": "/vendors/{vendorId}/staff",
+          "summary": "Add vendor staff member",
+          "description": "",
+          "tags": [
+            "Staff"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "CreateStaffRequest",
+            "ref": "#/components/schemas/CreateStaffRequest"
+          },
+          "response": {
+            "name": "StaffResponse",
+            "ref": "#/components/schemas/StaffResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Staff member created successfully",
+              "bodyType": "StaffResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getVendorStaff",
+          "name": "Getvendorstaff",
+          "methodName": "getvendorstaff",
+          "handlerName": "handleGetvendorstaff",
+          "controllerMethod": "handleGetvendorstaff",
+          "serviceMethod": "getvendorstaff",
+          "repositoryMethod": "getvendorstaff",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/staff/{staffId}",
+          "summary": "Get vendor staff member",
+          "description": "",
+          "tags": [
+            "Staff"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": "StaffResponse",
+            "ref": "#/components/schemas/StaffResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Staff member retrieved successfully",
+              "bodyType": "StaffResponse"
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorStaff",
+          "name": "Updatevendorstaff",
+          "methodName": "updatevendorstaff",
+          "handlerName": "handleUpdatevendorstaff",
+          "controllerMethod": "handleUpdatevendorstaff",
+          "serviceMethod": "updatevendorstaff",
+          "repositoryMethod": "updatevendorstaff",
+          "method": "PATCH",
+          "path": "/vendors/{vendorId}/staff/{staffId}",
+          "summary": "Update vendor staff member",
+          "description": "",
+          "tags": [
+            "Staff"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateStaffRequest",
+            "ref": "#/components/schemas/UpdateStaffRequest"
+          },
+          "response": {
+            "name": "StaffResponse",
+            "ref": "#/components/schemas/StaffResponse"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Staff member updated successfully",
+              "bodyType": "StaffResponse"
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deactivateVendorStaff",
+          "name": "Deactivatevendorstaff",
+          "methodName": "deactivatevendorstaff",
+          "handlerName": "handleDeactivatevendorstaff",
+          "controllerMethod": "handleDeactivatevendorstaff",
+          "serviceMethod": "deactivatevendorstaff",
+          "repositoryMethod": "deactivatevendorstaff",
+          "method": "DELETE",
+          "path": "/vendors/{vendorId}/staff/{staffId}",
+          "summary": "Deactivate vendor staff member",
+          "description": "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n",
+          "tags": [
+            "Staff"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Staff member deactivated successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Capabilities",
+      "fileName": "capabilities",
+      "className": "Capabilities",
+      "operations": [
+        {
+          "operationId": "getVendorCapabilities",
+          "name": "Getvendorcapabilities",
+          "methodName": "getvendorcapabilities",
+          "handlerName": "handleGetvendorcapabilities",
+          "controllerMethod": "handleGetvendorcapabilities",
+          "serviceMethod": "getvendorcapabilities",
+          "repositoryMethod": "getvendorcapabilities",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/capabilities",
+          "summary": "Get vendor capabilities",
+          "description": "",
+          "tags": [
+            "Capabilities"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/VendorCapabilities"
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor capabilities retrieved successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "updateVendorCapabilities",
+          "name": "Updatevendorcapabilities",
+          "methodName": "updatevendorcapabilities",
+          "handlerName": "handleUpdatevendorcapabilities",
+          "controllerMethod": "handleUpdatevendorcapabilities",
+          "serviceMethod": "updatevendorcapabilities",
+          "repositoryMethod": "updatevendorcapabilities",
+          "method": "PUT",
+          "path": "/vendors/{vendorId}/capabilities",
+          "summary": "Replace vendor capabilities",
+          "description": "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n",
+          "tags": [
+            "Capabilities"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": {
+            "name": "UpdateVendorCapabilitiesRequest",
+            "ref": "#/components/schemas/UpdateVendorCapabilitiesRequest"
+          },
+          "response": {
+            "name": null,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/VendorCapabilities"
+                }
+              }
+            }
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Vendor capabilities updated successfully",
+              "bodyType": null
+            },
+            {
+              "statusCode": 400,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 401,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 404,
+              "description": "",
+              "bodyType": null
+            },
+            {
+              "statusCode": 409,
+              "description": "",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "VendorStatus": {
+      "type": "string",
+      "enum": [
+        "PENDING_VERIFICATION",
+        "ACTIVE",
+        "SUSPENDED",
+        "INACTIVE",
+        "REJECTED"
+      ]
+    },
+    "OperationalStatus": {
+      "type": "string",
+      "enum": [
+        "ONLINE",
+        "OFFLINE",
+        "BUSY",
+        "TEMPORARILY_UNAVAILABLE"
+      ]
+    },
+    "VendorType": {
+      "type": "string",
+      "enum": [
+        "INDIVIDUAL",
+        "BUSINESS"
+      ]
+    },
+    "VehicleType": {
+      "type": "string",
+      "enum": [
+        "HATCHBACK",
+        "SEDAN",
+        "SUV",
+        "MUV",
+        "LUXURY",
+        "OTHER"
+      ]
+    },
+    "StaffStatus": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ]
+    },
+    "DayOfWeek": {
+      "type": "string",
+      "enum": [
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY",
+        "SATURDAY",
+        "SUNDAY"
+      ]
+    },
+    "Address": {
+      "type": "object",
+      "required": [
+        "addressLine1",
+        "city",
+        "state",
+        "country",
+        "postalCode"
+      ],
+      "properties": {
+        "addressLine1": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "addressLine2": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "landmark": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "country": {
+          "type": "string",
+          "maxLength": 2,
+          "description": "ISO 3166-1 alpha-2 country code",
+          "example": "IN"
+        },
+        "postalCode": {
+          "type": "string",
+          "maxLength": 20,
+          "example": "682301"
+        }
+      }
+    },
+    "GeoLocation": {
+      "type": "object",
+      "required": [
+        "latitude",
+        "longitude"
+      ],
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "format": "double",
+          "minimum": -90,
+          "maximum": 90,
+          "example": 9.9496
+        },
+        "longitude": {
+          "type": "number",
+          "format": "double",
+          "minimum": -180,
+          "maximum": 180,
+          "example": 76.3495
+        }
+      }
+    },
+    "CreateVendorRequest": {
+      "type": "object",
+      "required": [
+        "ownerUserId",
+        "vendorType",
+        "businessName",
+        "contactName",
+        "phoneNumber",
+        "address"
+      ],
+      "properties": {
+        "ownerUserId": {
+          "type": "string",
+          "description": "User ID owned by User Service",
+          "example": "USR_01JXYZ123456789"
+        },
+        "vendorType": {
+          "$ref": "#/components/schemas/VendorType"
+        },
+        "businessName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 150,
+          "example": "Premium Auto Care"
+        },
+        "contactName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "example": "John Mathew"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "example": "+919876543210"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "example": "vendor@example.com"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "address": {
+          "$ref": "#/components/schemas/Address"
+        },
+        "geoLocation": {
+          "$ref": "#/components/schemas/GeoLocation"
+        }
+      }
+    },
+    "UpdateVendorRequest": {
+      "type": "object",
+      "properties": {
+        "businessName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 150
+        },
+        "contactName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "address": {
+          "$ref": "#/components/schemas/Address"
+        },
+        "geoLocation": {
+          "$ref": "#/components/schemas/GeoLocation"
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "UpdateVendorStatusRequest": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/components/schemas/VendorStatus"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "UpdateOperationalStatusRequest": {
+      "type": "object",
+      "required": [
+        "operationalStatus"
+      ],
+      "properties": {
+        "operationalStatus": {
+          "$ref": "#/components/schemas/OperationalStatus"
+        }
+      }
+    },
+    "Vendor": {
+      "type": "object",
+      "required": [
+        "vendorId",
+        "ownerUserId",
+        "vendorType",
+        "businessName",
+        "status",
+        "operationalStatus",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "vendorId": {
+          "type": "string",
+          "example": "VND_01JXYZ123456789"
+        },
+        "ownerUserId": {
+          "type": "string",
+          "example": "USR_01JXYZ123456789"
+        },
+        "vendorType": {
+          "$ref": "#/components/schemas/VendorType"
+        },
+        "businessName": {
+          "type": "string",
+          "example": "Premium Auto Care"
+        },
+        "contactName": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "description": {
+          "type": "string"
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "address": {
+          "$ref": "#/components/schemas/Address"
+        },
+        "geoLocation": {
+          "$ref": "#/components/schemas/GeoLocation"
+        },
+        "status": {
+          "$ref": "#/components/schemas/VendorStatus"
+        },
+        "operationalStatus": {
+          "$ref": "#/components/schemas/OperationalStatus"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "VendorResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/Vendor"
+        }
+      }
+    },
+    "VendorListResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Vendor"
+          }
+        },
+        "pagination": {
+          "$ref": "#/components/schemas/Pagination"
+        }
+      }
+    },
+    "CreateServiceAreaRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "city"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "example": "Tripunithura"
+        },
+        "city": {
+          "type": "string",
+          "example": "Kochi"
+        },
+        "state": {
+          "type": "string",
+          "example": "Kerala"
+        },
+        "postalCodes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          },
+          "example": [
+            "682301",
+            "682305"
+          ]
+        },
+        "center": {
+          "$ref": "#/components/schemas/GeoLocation"
+        },
+        "radiusKm": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0,
+          "example": 10
+        },
+        "active": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "UpdateServiceAreaRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "postalCodes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "center": {
+          "$ref": "#/components/schemas/GeoLocation"
+        },
+        "radiusKm": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ServiceArea": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/CreateServiceAreaRequest"
+        },
+        {
+          "type": "object",
+          "required": [
+            "serviceAreaId",
+            "vendorId",
+            "createdAt",
+            "updatedAt"
+          ],
+          "properties": {
+            "serviceAreaId": {
+              "type": "string"
+            },
+            "vendorId": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      ]
+    },
+    "OperatingHoursRequest": {
+      "type": "object",
+      "required": [
+        "dayOfWeek",
+        "closed"
+      ],
+      "properties": {
+        "dayOfWeek": {
+          "$ref": "#/components/schemas/DayOfWeek"
+        },
+        "closed": {
+          "type": "boolean"
+        },
+        "openTime": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "example": "08:00"
+        },
+        "closeTime": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "example": "18:00"
+        }
+      }
+    },
+    "OperatingHours": {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/OperatingHoursRequest"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "vendorId": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "CreateStaffRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "phoneNumber"
+      ],
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Optional reference to User Service if the staff member\nhas a platform user account.\n"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "example": "CAR_WASH_TECHNICIAN"
+        },
+        "status": {
+          "$ref": "#/components/schemas/StaffStatus"
+        }
+      }
+    },
+    "UpdateStaffRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/components/schemas/StaffStatus"
+        }
+      }
+    },
+    "Staff": {
+      "type": "object",
+      "required": [
+        "staffId",
+        "vendorId",
+        "name",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "staffId": {
+          "type": "string",
+          "example": "STF_01JXYZ123456789"
+        },
+        "vendorId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/components/schemas/StaffStatus"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "StaffResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/components/schemas/Staff"
+        }
+      }
+    },
+    "StaffListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Staff"
+          }
+        },
+        "pagination": {
+          "$ref": "#/components/schemas/Pagination"
+        }
+      }
+    },
+    "VendorCapabilities": {
+      "type": "object",
+      "required": [
+        "vendorId",
+        "vehicleTypes",
+        "serviceIds",
+        "packageIds"
+      ],
+      "properties": {
+        "vendorId": {
+          "type": "string"
+        },
+        "vehicleTypes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/components/schemas/VehicleType"
+          }
+        },
+        "serviceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "References Service Catalog Service service IDs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "packageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "References Service Catalog Service package IDs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "UpdateVendorCapabilitiesRequest": {
+      "type": "object",
+      "required": [
+        "vehicleTypes",
+        "serviceIds",
+        "packageIds"
+      ],
+      "properties": {
+        "vehicleTypes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/components/schemas/VehicleType"
+          }
+        },
+        "serviceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "packageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Pagination": {
+      "type": "object",
+      "properties": {
+        "nextCursor": {
+          "type": "string",
+          "nullable": true
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "example": "VENDOR_NOT_FOUND"
+        },
+        "message": {
+          "type": "string",
+          "example": "Vendor not found"
+        },
+        "correlationId": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

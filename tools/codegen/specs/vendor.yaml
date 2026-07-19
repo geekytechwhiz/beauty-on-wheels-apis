@@ -1,0 +1,1400 @@
+openapi: 3.0.3
+
+info:
+  title: Beauty on Wheels - Vendor Service API
+  version: 1.0.0
+  description: |
+    Vendor management service for the Beauty on Wheels platform.
+
+    The Vendor Service owns:
+      - Vendor onboarding and profile management
+      - Vendor lifecycle and operational status
+      - Vendor service areas
+      - Vendor operating hours
+      - Vendor staff/workers
+      - Vendor capabilities and supported vehicle types
+      - Vendor references to Service Catalog services/packages
+
+    The Vendor Service does NOT own:
+      - Service definitions (Service Catalog Service)
+      - Pricing (Pricing Service)
+      - Slot availability/capacity (Availability Service)
+      - Bookings (Booking Service)
+      - Authentication (Identity Service)
+      - Customer/user profiles (User Service)
+
+servers:
+  - url: https://api.example.com/vendors/v1
+    description: Production
+
+tags:
+  - name: Vendors
+    description: Vendor profile and lifecycle management
+  - name: Service Areas
+    description: Vendor service area management
+  - name: Operating Hours
+    description: Vendor operating schedule management
+  - name: Staff
+    description: Vendor staff and worker management
+  - name: Capabilities
+    description: Vendor service and vehicle capabilities
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /vendors:
+    post:
+      tags:
+        - Vendors
+      summary: Create vendor
+      operationId: createVendor
+      description: |
+        Creates a new vendor profile.
+
+        The authenticated identity should be linked to the vendor through ownerUserId.
+        Vendor creation does not automatically activate the vendor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVendorRequest'
+      responses:
+        '201':
+          description: Vendor created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      tags:
+        - Vendors
+      summary: List vendors
+      operationId: listVendors
+      description: |
+        Lists vendors using optional filters.
+        Intended primarily for admin and operational use.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VendorStatus'
+
+        - name: operationalStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/OperationalStatus'
+
+        - name: city
+          in: query
+          schema:
+            type: string
+
+        - name: postalCode
+          in: query
+          schema:
+            type: string
+
+        - name: vehicleType
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+
+        - name: cursor
+          in: query
+          description: Pagination cursor returned by the previous request
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Vendors retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /vendors/{vendorId}:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Vendors
+      summary: Get vendor
+      operationId: getVendor
+      responses:
+        '200':
+          description: Vendor retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Vendors
+      summary: Update vendor
+      operationId: updateVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorRequest'
+      responses:
+        '200':
+          description: Vendor updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /vendors/{vendorId}/status:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    patch:
+      tags:
+        - Vendors
+      summary: Update vendor lifecycle status
+      operationId: updateVendorStatus
+      description: |
+        Updates the administrative lifecycle status of a vendor.
+
+        Typical lifecycle:
+          PENDING_VERIFICATION
+          -> ACTIVE
+          -> SUSPENDED
+          -> ACTIVE
+          -> INACTIVE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorStatusRequest'
+      responses:
+        '200':
+          description: Vendor status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /vendors/{vendorId}/operational-status:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    patch:
+      tags:
+        - Vendors
+      summary: Update vendor operational status
+      operationId: updateVendorOperationalStatus
+      description: |
+        Controls whether a vendor is currently accepting work.
+
+        This is different from the administrative vendor lifecycle status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOperationalStatusRequest'
+      responses:
+        '200':
+          description: Operational status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /vendors/{vendorId}/service-areas:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Service Areas
+      summary: List vendor service areas
+      operationId: listVendorServiceAreas
+      responses:
+        '200':
+          description: Service areas retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceArea'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Service Areas
+      summary: Add vendor service area
+      operationId: addVendorServiceArea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceAreaRequest'
+      responses:
+        '201':
+          description: Service area created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceArea'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+  /vendors/{vendorId}/service-areas/{serviceAreaId}:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+      - $ref: '#/components/parameters/ServiceAreaId'
+
+    get:
+      tags:
+        - Service Areas
+      summary: Get vendor service area
+      operationId: getVendorServiceArea
+      responses:
+        '200':
+          description: Service area retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceArea'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Service Areas
+      summary: Update vendor service area
+      operationId: updateVendorServiceArea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceAreaRequest'
+      responses:
+        '200':
+          description: Service area updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceArea'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Service Areas
+      summary: Remove vendor service area
+      operationId: deleteVendorServiceArea
+      responses:
+        '204':
+          description: Service area removed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  /vendors/{vendorId}/operating-hours:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Operating Hours
+      summary: Get vendor operating hours
+      operationId: getVendorOperatingHours
+      responses:
+        '200':
+          description: Operating hours retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatingHours'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Operating Hours
+      summary: Replace vendor operating hours
+      operationId: updateVendorOperatingHours
+      description: |
+        Replaces the vendor's standard weekly operating schedule.
+
+        Availability Service may use this schedule as an input when
+        generating or validating bookable slots.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operatingHours
+              properties:
+                operatingHours:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/OperatingHoursRequest'
+      responses:
+        '200':
+          description: Operating hours updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatingHours'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  /vendors/{vendorId}/staff:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Staff
+      summary: List vendor staff
+      operationId: listVendorStaff
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StaffStatus'
+
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+
+        - name: cursor
+          in: query
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Staff retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Staff
+      summary: Add vendor staff member
+      operationId: createVendorStaff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaffRequest'
+      responses:
+        '201':
+          description: Staff member created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+
+  /vendors/{vendorId}/staff/{staffId}:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+      - $ref: '#/components/parameters/StaffId'
+
+    get:
+      tags:
+        - Staff
+      summary: Get vendor staff member
+      operationId: getVendorStaff
+      responses:
+        '200':
+          description: Staff member retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Staff
+      summary: Update vendor staff member
+      operationId: updateVendorStaff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStaffRequest'
+      responses:
+        '200':
+          description: Staff member updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Staff
+      summary: Deactivate vendor staff member
+      operationId: deactivateVendorStaff
+      description: |
+        Deactivates the staff member.
+        Historical booking/job references should remain intact.
+      responses:
+        '204':
+          description: Staff member deactivated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  /vendors/{vendorId}/capabilities:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Capabilities
+      summary: Get vendor capabilities
+      operationId: getVendorCapabilities
+      responses:
+        '200':
+          description: Vendor capabilities retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VendorCapabilities'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Capabilities
+      summary: Replace vendor capabilities
+      operationId: updateVendorCapabilities
+      description: |
+        Updates the services, packages and vehicle types that the vendor
+        is capable of supporting.
+
+        serviceIds and packageIds are references to entities owned by the
+        Service Catalog Service.
+
+        This endpoint does not define pricing or availability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorCapabilitiesRequest'
+      responses:
+        '200':
+          description: Vendor capabilities updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VendorCapabilities'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+
+  parameters:
+
+    VendorId:
+      name: vendorId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: VND_01JXYZ123456789
+
+    ServiceAreaId:
+      name: serviceAreaId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: AREA_01JXYZ123456789
+
+    StaffId:
+      name: staffId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: STF_01JXYZ123456789
+
+
+  schemas:
+
+    VendorStatus:
+      type: string
+      enum:
+        - PENDING_VERIFICATION
+        - ACTIVE
+        - SUSPENDED
+        - INACTIVE
+        - REJECTED
+
+    OperationalStatus:
+      type: string
+      enum:
+        - ONLINE
+        - OFFLINE
+        - BUSY
+        - TEMPORARILY_UNAVAILABLE
+
+    VendorType:
+      type: string
+      enum:
+        - INDIVIDUAL
+        - BUSINESS
+
+    VehicleType:
+      type: string
+      enum:
+        - HATCHBACK
+        - SEDAN
+        - SUV
+        - MUV
+        - LUXURY
+        - OTHER
+
+    StaffStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+
+    DayOfWeek:
+      type: string
+      enum:
+        - MONDAY
+        - TUESDAY
+        - WEDNESDAY
+        - THURSDAY
+        - FRIDAY
+        - SATURDAY
+        - SUNDAY
+
+
+    Address:
+      type: object
+      required:
+        - addressLine1
+        - city
+        - state
+        - country
+        - postalCode
+      properties:
+        addressLine1:
+          type: string
+          maxLength: 200
+        addressLine2:
+          type: string
+          maxLength: 200
+        landmark:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        country:
+          type: string
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code
+          example: IN
+        postalCode:
+          type: string
+          maxLength: 20
+          example: "682301"
+
+
+    GeoLocation:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 9.9496
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 76.3495
+
+
+    CreateVendorRequest:
+      type: object
+      required:
+        - ownerUserId
+        - vendorType
+        - businessName
+        - contactName
+        - phoneNumber
+        - address
+      properties:
+        ownerUserId:
+          type: string
+          description: User ID owned by User Service
+          example: USR_01JXYZ123456789
+
+        vendorType:
+          $ref: '#/components/schemas/VendorType'
+
+        businessName:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Premium Auto Care
+
+        contactName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John Mathew
+
+        phoneNumber:
+          type: string
+          example: "+919876543210"
+
+        email:
+          type: string
+          format: email
+          example: vendor@example.com
+
+        description:
+          type: string
+          maxLength: 1000
+
+        address:
+          $ref: '#/components/schemas/Address'
+
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+
+
+    UpdateVendorRequest:
+      type: object
+      properties:
+        businessName:
+          type: string
+          minLength: 2
+          maxLength: 150
+
+        contactName:
+          type: string
+          maxLength: 100
+
+        phoneNumber:
+          type: string
+
+        email:
+          type: string
+          format: email
+
+        description:
+          type: string
+          maxLength: 1000
+
+        address:
+          $ref: '#/components/schemas/Address'
+
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+
+        profileImageUrl:
+          type: string
+          format: uri
+
+
+    UpdateVendorStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/VendorStatus'
+
+        reason:
+          type: string
+          maxLength: 500
+
+
+    UpdateOperationalStatusRequest:
+      type: object
+      required:
+        - operationalStatus
+      properties:
+        operationalStatus:
+          $ref: '#/components/schemas/OperationalStatus'
+
+
+    Vendor:
+      type: object
+      required:
+        - vendorId
+        - ownerUserId
+        - vendorType
+        - businessName
+        - status
+        - operationalStatus
+        - createdAt
+        - updatedAt
+      properties:
+        vendorId:
+          type: string
+          example: VND_01JXYZ123456789
+
+        ownerUserId:
+          type: string
+          example: USR_01JXYZ123456789
+
+        vendorType:
+          $ref: '#/components/schemas/VendorType'
+
+        businessName:
+          type: string
+          example: Premium Auto Care
+
+        contactName:
+          type: string
+
+        phoneNumber:
+          type: string
+
+        email:
+          type: string
+          format: email
+
+        description:
+          type: string
+
+        profileImageUrl:
+          type: string
+          format: uri
+
+        address:
+          $ref: '#/components/schemas/Address'
+
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+
+        status:
+          $ref: '#/components/schemas/VendorStatus'
+
+        operationalStatus:
+          $ref: '#/components/schemas/OperationalStatus'
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+
+    VendorResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Vendor'
+
+
+    VendorListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vendor'
+
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+
+    CreateServiceAreaRequest:
+      type: object
+      required:
+        - name
+        - city
+      properties:
+        name:
+          type: string
+          example: Tripunithura
+
+        city:
+          type: string
+          example: Kochi
+
+        state:
+          type: string
+          example: Kerala
+
+        postalCodes:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+          example:
+            - "682301"
+            - "682305"
+
+        center:
+          $ref: '#/components/schemas/GeoLocation'
+
+        radiusKm:
+          type: number
+          format: double
+          minimum: 0
+          example: 10
+
+        active:
+          type: boolean
+          default: true
+
+
+    UpdateServiceAreaRequest:
+      type: object
+      properties:
+        name:
+          type: string
+
+        city:
+          type: string
+
+        state:
+          type: string
+
+        postalCodes:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+
+        center:
+          $ref: '#/components/schemas/GeoLocation'
+
+        radiusKm:
+          type: number
+          format: double
+          minimum: 0
+
+        active:
+          type: boolean
+
+
+    ServiceArea:
+      allOf:
+        - $ref: '#/components/schemas/CreateServiceAreaRequest'
+        - type: object
+          required:
+            - serviceAreaId
+            - vendorId
+            - createdAt
+            - updatedAt
+          properties:
+            serviceAreaId:
+              type: string
+
+            vendorId:
+              type: string
+
+            createdAt:
+              type: string
+              format: date-time
+
+            updatedAt:
+              type: string
+              format: date-time
+
+
+    OperatingHoursRequest:
+      type: object
+      required:
+        - dayOfWeek
+        - closed
+      properties:
+        dayOfWeek:
+          $ref: '#/components/schemas/DayOfWeek'
+
+        closed:
+          type: boolean
+
+        openTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "08:00"
+
+        closeTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "18:00"
+
+
+    OperatingHours:
+      allOf:
+        - $ref: '#/components/schemas/OperatingHoursRequest'
+        - type: object
+          properties:
+            vendorId:
+              type: string
+
+
+    CreateStaffRequest:
+      type: object
+      required:
+        - name
+        - phoneNumber
+      properties:
+        userId:
+          type: string
+          description: |
+            Optional reference to User Service if the staff member
+            has a platform user account.
+
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+
+        phoneNumber:
+          type: string
+
+        email:
+          type: string
+          format: email
+
+        role:
+          type: string
+          example: CAR_WASH_TECHNICIAN
+
+        status:
+          $ref: '#/components/schemas/StaffStatus'
+
+
+    UpdateStaffRequest:
+      type: object
+      properties:
+        name:
+          type: string
+
+        phoneNumber:
+          type: string
+
+        email:
+          type: string
+          format: email
+
+        role:
+          type: string
+
+        status:
+          $ref: '#/components/schemas/StaffStatus'
+
+
+    Staff:
+      type: object
+      required:
+        - staffId
+        - vendorId
+        - name
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        staffId:
+          type: string
+          example: STF_01JXYZ123456789
+
+        vendorId:
+          type: string
+
+        userId:
+          type: string
+
+        name:
+          type: string
+
+        phoneNumber:
+          type: string
+
+        email:
+          type: string
+          format: email
+
+        role:
+          type: string
+
+        status:
+          $ref: '#/components/schemas/StaffStatus'
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+
+    StaffResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Staff'
+
+
+    StaffListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Staff'
+
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+
+    VendorCapabilities:
+      type: object
+      required:
+        - vendorId
+        - vehicleTypes
+        - serviceIds
+        - packageIds
+      properties:
+        vendorId:
+          type: string
+
+        vehicleTypes:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/VehicleType'
+
+        serviceIds:
+          type: array
+          uniqueItems: true
+          description: References Service Catalog Service service IDs
+          items:
+            type: string
+
+        packageIds:
+          type: array
+          uniqueItems: true
+          description: References Service Catalog Service package IDs
+          items:
+            type: string
+
+        updatedAt:
+          type: string
+          format: date-time
+
+
+    UpdateVendorCapabilitiesRequest:
+      type: object
+      required:
+        - vehicleTypes
+        - serviceIds
+        - packageIds
+      properties:
+        vehicleTypes:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/VehicleType'
+
+        serviceIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+
+        packageIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+
+        hasMore:
+          type: boolean
+
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: VENDOR_NOT_FOUND
+
+        message:
+          type: string
+          example: Vendor not found
+
+        correlationId:
+          type: string
+
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+
+  responses:
+
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: User does not have permission to perform this operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Resource conflict or invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

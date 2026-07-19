@@ -19,10 +19,15 @@ export class BookingsController {
     async handleGetbookings(
         request: LambdaRequest
     ) {
+        // params merges path + query (e.g. /bookings?customerId=x or /customers/{customerId}/bookings)
+        const customerId = request.params?.customerId as string | undefined;
+        const vendorId = request.params?.vendorId as string | undefined;
 
-        return this.service.getbookings(
-            request
-        );
+        return this.service.getbookings({
+            customerId,
+            vendorId,
+            correlationId: (request.context as { correlationId?: string })?.correlationId,
+        });
 
     }
 

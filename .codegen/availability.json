@@ -1,0 +1,456 @@
+{
+  "service": "availability",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/availability-service.yaml",
+  "title": "Beauty on Wheels - Availability Service API",
+  "version": "1.0.0",
+  "description": "Manage vendor schedules, slots and availability.",
+  "servers": [
+    {
+      "url": "https://api.example.com/availability/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Availability",
+      "fileName": "availability",
+      "className": "Availability",
+      "operations": [
+        {
+          "operationId": "getWorkingHours",
+          "name": "Getworkinghours",
+          "methodName": "getworkinghours",
+          "handlerName": "handleGetworkinghours",
+          "controllerMethod": "handleGetworkinghours",
+          "serviceMethod": "getworkinghours",
+          "repositoryMethod": "getworkinghours",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/working-hours",
+          "summary": "Get working hours",
+          "description": "",
+          "tags": [
+            "Availability"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Working hours",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putWorkingHours",
+          "name": "Putworkinghours",
+          "methodName": "putworkinghours",
+          "handlerName": "handlePutworkinghours",
+          "controllerMethod": "handlePutworkinghours",
+          "serviceMethod": "putworkinghours",
+          "repositoryMethod": "putworkinghours",
+          "method": "PUT",
+          "path": "/vendors/{vendorId}/working-hours",
+          "summary": "Update working hours",
+          "description": "",
+          "tags": [
+            "Availability"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "WorkingHours",
+            "ref": "#/components/schemas/WorkingHours"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Slots",
+      "fileName": "slots",
+      "className": "Slots",
+      "operations": [
+        {
+          "operationId": "getSlots",
+          "name": "Getslots",
+          "methodName": "getslots",
+          "handlerName": "handleGetslots",
+          "controllerMethod": "handleGetslots",
+          "serviceMethod": "getslots",
+          "repositoryMethod": "getslots",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/slots",
+          "summary": "List slots",
+          "description": "",
+          "tags": [
+            "Slots"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Slots",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postSlots",
+          "name": "Postslots",
+          "methodName": "postslots",
+          "handlerName": "handlePostslots",
+          "controllerMethod": "handlePostslots",
+          "serviceMethod": "postslots",
+          "repositoryMethod": "postslots",
+          "method": "POST",
+          "path": "/vendors/{vendorId}/slots",
+          "summary": "Generate slots",
+          "description": "",
+          "tags": [
+            "Slots"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Slots generated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getSlotid",
+          "name": "Getslotid",
+          "methodName": "getslotid",
+          "handlerName": "handleGetslotid",
+          "controllerMethod": "handleGetslotid",
+          "serviceMethod": "getslotid",
+          "repositoryMethod": "getslotid",
+          "method": "GET",
+          "path": "/slots/{slotId}",
+          "summary": "Get slot",
+          "description": "",
+          "tags": [
+            "Slots"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "slotId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": {
+            "name": "Slot",
+            "ref": "#/components/schemas/Slot"
+          },
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Slot",
+              "bodyType": "Slot"
+            }
+          ]
+        },
+        {
+          "operationId": "postBlock",
+          "name": "Postblock",
+          "methodName": "postblock",
+          "handlerName": "handlePostblock",
+          "controllerMethod": "handlePostblock",
+          "serviceMethod": "postblock",
+          "repositoryMethod": "postblock",
+          "method": "POST",
+          "path": "/slots/{slotId}/block",
+          "summary": "Block slot",
+          "description": "",
+          "tags": [
+            "Slots"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "slotId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Blocked",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postUnblock",
+          "name": "Postunblock",
+          "methodName": "postunblock",
+          "handlerName": "handlePostunblock",
+          "controllerMethod": "handlePostunblock",
+          "serviceMethod": "postunblock",
+          "repositoryMethod": "postunblock",
+          "method": "POST",
+          "path": "/slots/{slotId}/unblock",
+          "summary": "Unblock slot",
+          "description": "",
+          "tags": [
+            "Slots"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "slotId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Unblocked",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Holidays",
+      "fileName": "holidays",
+      "className": "Holidays",
+      "operations": [
+        {
+          "operationId": "getHolidays",
+          "name": "Getholidays",
+          "methodName": "getholidays",
+          "handlerName": "handleGetholidays",
+          "controllerMethod": "handleGetholidays",
+          "serviceMethod": "getholidays",
+          "repositoryMethod": "getholidays",
+          "method": "GET",
+          "path": "/vendors/{vendorId}/holidays",
+          "summary": "List holidays",
+          "description": "",
+          "tags": [
+            "Holidays"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Holiday list",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postHolidays",
+          "name": "Postholidays",
+          "methodName": "postholidays",
+          "handlerName": "handlePostholidays",
+          "controllerMethod": "handlePostholidays",
+          "serviceMethod": "postholidays",
+          "repositoryMethod": "postholidays",
+          "method": "POST",
+          "path": "/vendors/{vendorId}/holidays",
+          "summary": "Add holiday",
+          "description": "",
+          "tags": [
+            "Holidays"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "vendorId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Holiday added",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Slot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "vendorId": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "capacity": {
+          "type": "integer"
+        },
+        "available": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "AVAILABLE",
+            "FULL",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    "WorkingHours": {
+      "type": "object",
+      "properties": {
+        "vendorId": {
+          "type": "string"
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "enum": [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN"
+          ]
+        },
+        "openTime": {
+          "type": "string"
+        },
+        "closeTime": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -77,7 +77,7 @@ export class IdentityKeyBuilder {
   static otp(userId: string, otpId: string) {
     return {
       PK: `${PREFIXES.USER}${userId.trim()}`,
-      SK: `${PREFIXES.OTP}${otpId.trim()}`,
+      SK: `${PREFIXES.OTP}${otpId.trim()}${Math.random().toString(36).substring(2, 15)}`,
     };
   }
 

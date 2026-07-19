@@ -1,0 +1,856 @@
+{
+  "service": "service-catalog",
+  "openApiFile": "/Applications/Utilities/projects/agent-hub/beauty-on-wheels-apis/tools/codegen/specs/service-catalog.yaml",
+  "title": "Beauty on Wheels - Service Catalog Service API",
+  "version": "1.0.0",
+  "description": "Service, package and add-on catalog management.",
+  "servers": [
+    {
+      "url": "https://api.example.com/catalog/v1"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Categories",
+      "fileName": "categories",
+      "className": "Categories",
+      "operations": [
+        {
+          "operationId": "getCategories",
+          "name": "Getcategories",
+          "methodName": "getcategories",
+          "handlerName": "handleGetcategories",
+          "controllerMethod": "handleGetcategories",
+          "serviceMethod": "getcategories",
+          "repositoryMethod": "getcategories",
+          "method": "GET",
+          "path": "/categories",
+          "summary": "List categories",
+          "description": "",
+          "tags": [
+            "Categories"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postCategories",
+          "name": "Postcategories",
+          "methodName": "postcategories",
+          "handlerName": "handlePostcategories",
+          "controllerMethod": "handlePostcategories",
+          "serviceMethod": "postcategories",
+          "repositoryMethod": "postcategories",
+          "method": "POST",
+          "path": "/categories",
+          "summary": "Create category",
+          "description": "",
+          "tags": [
+            "Categories"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "Category",
+            "ref": "#/components/schemas/Category"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getCategoryid",
+          "name": "Getcategoryid",
+          "methodName": "getcategoryid",
+          "handlerName": "handleGetcategoryid",
+          "controllerMethod": "handleGetcategoryid",
+          "serviceMethod": "getcategoryid",
+          "repositoryMethod": "getcategoryid",
+          "method": "GET",
+          "path": "/categories/{categoryId}",
+          "summary": "Get category",
+          "description": "",
+          "tags": [
+            "Categories"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "categoryId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putCategoryid",
+          "name": "Putcategoryid",
+          "methodName": "putcategoryid",
+          "handlerName": "handlePutcategoryid",
+          "controllerMethod": "handlePutcategoryid",
+          "serviceMethod": "putcategoryid",
+          "repositoryMethod": "putcategoryid",
+          "method": "PUT",
+          "path": "/categories/{categoryId}",
+          "summary": "Update category",
+          "description": "",
+          "tags": [
+            "Categories"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "categoryId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Category",
+            "ref": "#/components/schemas/Category"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteCategoryid",
+          "name": "Deletecategoryid",
+          "methodName": "deletecategoryid",
+          "handlerName": "handleDeletecategoryid",
+          "controllerMethod": "handleDeletecategoryid",
+          "serviceMethod": "deletecategoryid",
+          "repositoryMethod": "deletecategoryid",
+          "method": "DELETE",
+          "path": "/categories/{categoryId}",
+          "summary": "Delete category",
+          "description": "",
+          "tags": [
+            "Categories"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "categoryId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "fileName": "services",
+      "className": "Services",
+      "operations": [
+        {
+          "operationId": "getServices",
+          "name": "Getservices",
+          "methodName": "getservices",
+          "handlerName": "handleGetservices",
+          "controllerMethod": "handleGetservices",
+          "serviceMethod": "getservices",
+          "repositoryMethod": "getservices",
+          "method": "GET",
+          "path": "/services",
+          "summary": "List services",
+          "description": "",
+          "tags": [
+            "Services"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postServices",
+          "name": "Postservices",
+          "methodName": "postservices",
+          "handlerName": "handlePostservices",
+          "controllerMethod": "handlePostservices",
+          "serviceMethod": "postservices",
+          "repositoryMethod": "postservices",
+          "method": "POST",
+          "path": "/services",
+          "summary": "Create service",
+          "description": "",
+          "tags": [
+            "Services"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "Service",
+            "ref": "#/components/schemas/Service"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getServiceid",
+          "name": "Getserviceid",
+          "methodName": "getserviceid",
+          "handlerName": "handleGetserviceid",
+          "controllerMethod": "handleGetserviceid",
+          "serviceMethod": "getserviceid",
+          "repositoryMethod": "getserviceid",
+          "method": "GET",
+          "path": "/services/{serviceId}",
+          "summary": "Get service",
+          "description": "",
+          "tags": [
+            "Services"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "serviceId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putServiceid",
+          "name": "Putserviceid",
+          "methodName": "putserviceid",
+          "handlerName": "handlePutserviceid",
+          "controllerMethod": "handlePutserviceid",
+          "serviceMethod": "putserviceid",
+          "repositoryMethod": "putserviceid",
+          "method": "PUT",
+          "path": "/services/{serviceId}",
+          "summary": "Update service",
+          "description": "",
+          "tags": [
+            "Services"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "serviceId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Service",
+            "ref": "#/components/schemas/Service"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteServiceid",
+          "name": "Deleteserviceid",
+          "methodName": "deleteserviceid",
+          "handlerName": "handleDeleteserviceid",
+          "controllerMethod": "handleDeleteserviceid",
+          "serviceMethod": "deleteserviceid",
+          "repositoryMethod": "deleteserviceid",
+          "method": "DELETE",
+          "path": "/services/{serviceId}",
+          "summary": "Delete service",
+          "description": "",
+          "tags": [
+            "Services"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "serviceId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Packages",
+      "fileName": "packages",
+      "className": "Packages",
+      "operations": [
+        {
+          "operationId": "getPackages",
+          "name": "Getpackages",
+          "methodName": "getpackages",
+          "handlerName": "handleGetpackages",
+          "controllerMethod": "handleGetpackages",
+          "serviceMethod": "getpackages",
+          "repositoryMethod": "getpackages",
+          "method": "GET",
+          "path": "/packages",
+          "summary": "List packages",
+          "description": "",
+          "tags": [
+            "Packages"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postPackages",
+          "name": "Postpackages",
+          "methodName": "postpackages",
+          "handlerName": "handlePostpackages",
+          "controllerMethod": "handlePostpackages",
+          "serviceMethod": "postpackages",
+          "repositoryMethod": "postpackages",
+          "method": "POST",
+          "path": "/packages",
+          "summary": "Create package",
+          "description": "",
+          "tags": [
+            "Packages"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "Package",
+            "ref": "#/components/schemas/Package"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getPackageid",
+          "name": "Getpackageid",
+          "methodName": "getpackageid",
+          "handlerName": "handleGetpackageid",
+          "controllerMethod": "handleGetpackageid",
+          "serviceMethod": "getpackageid",
+          "repositoryMethod": "getpackageid",
+          "method": "GET",
+          "path": "/packages/{packageId}",
+          "summary": "Get package",
+          "description": "",
+          "tags": [
+            "Packages"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "packageId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putPackageid",
+          "name": "Putpackageid",
+          "methodName": "putpackageid",
+          "handlerName": "handlePutpackageid",
+          "controllerMethod": "handlePutpackageid",
+          "serviceMethod": "putpackageid",
+          "repositoryMethod": "putpackageid",
+          "method": "PUT",
+          "path": "/packages/{packageId}",
+          "summary": "Update package",
+          "description": "",
+          "tags": [
+            "Packages"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "packageId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "Package",
+            "ref": "#/components/schemas/Package"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deletePackageid",
+          "name": "Deletepackageid",
+          "methodName": "deletepackageid",
+          "handlerName": "handleDeletepackageid",
+          "controllerMethod": "handleDeletepackageid",
+          "serviceMethod": "deletepackageid",
+          "repositoryMethod": "deletepackageid",
+          "method": "DELETE",
+          "path": "/packages/{packageId}",
+          "summary": "Delete package",
+          "description": "",
+          "tags": [
+            "Packages"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "packageId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Add-ons",
+      "fileName": "add-ons",
+      "className": "AddOns",
+      "operations": [
+        {
+          "operationId": "getAddons",
+          "name": "Getaddons",
+          "methodName": "getaddons",
+          "handlerName": "handleGetaddons",
+          "controllerMethod": "handleGetaddons",
+          "serviceMethod": "getaddons",
+          "repositoryMethod": "getaddons",
+          "method": "GET",
+          "path": "/addons",
+          "summary": "List add-ons",
+          "description": "",
+          "tags": [
+            "Add-ons"
+          ],
+          "security": [],
+          "parameters": [],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "postAddons",
+          "name": "Postaddons",
+          "methodName": "postaddons",
+          "handlerName": "handlePostaddons",
+          "controllerMethod": "handlePostaddons",
+          "serviceMethod": "postaddons",
+          "repositoryMethod": "postaddons",
+          "method": "POST",
+          "path": "/addons",
+          "summary": "Create add-on",
+          "description": "",
+          "tags": [
+            "Add-ons"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [],
+          "request": {
+            "name": "AddOn",
+            "ref": "#/components/schemas/AddOn"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 201,
+              "description": "Created",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "getAddonid",
+          "name": "Getaddonid",
+          "methodName": "getaddonid",
+          "handlerName": "handleGetaddonid",
+          "controllerMethod": "handleGetaddonid",
+          "serviceMethod": "getaddonid",
+          "repositoryMethod": "getaddonid",
+          "method": "GET",
+          "path": "/addons/{addonId}",
+          "summary": "Get add-on",
+          "description": "",
+          "tags": [
+            "Add-ons"
+          ],
+          "security": [],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "addonId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "OK",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "putAddonid",
+          "name": "Putaddonid",
+          "methodName": "putaddonid",
+          "handlerName": "handlePutaddonid",
+          "controllerMethod": "handlePutaddonid",
+          "serviceMethod": "putaddonid",
+          "repositoryMethod": "putaddonid",
+          "method": "PUT",
+          "path": "/addons/{addonId}",
+          "summary": "Update add-on",
+          "description": "",
+          "tags": [
+            "Add-ons"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "addonId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": {
+            "name": "AddOn",
+            "ref": "#/components/schemas/AddOn"
+          },
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 200,
+              "description": "Updated",
+              "bodyType": null
+            }
+          ]
+        },
+        {
+          "operationId": "deleteAddonid",
+          "name": "Deleteaddonid",
+          "methodName": "deleteaddonid",
+          "handlerName": "handleDeleteaddonid",
+          "controllerMethod": "handleDeleteaddonid",
+          "serviceMethod": "deleteaddonid",
+          "repositoryMethod": "deleteaddonid",
+          "method": "DELETE",
+          "path": "/addons/{addonId}",
+          "summary": "Delete add-on",
+          "description": "",
+          "tags": [
+            "Add-ons"
+          ],
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "in": "path",
+              "name": "addonId",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "request": null,
+          "response": null,
+          "responses": [
+            {
+              "statusCode": 204,
+              "description": "Deleted",
+              "bodyType": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Category": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayOrder": {
+          "type": "integer"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Service": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "categoryId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "vehicleTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "basePrice": {
+          "type": "number"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Package": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discountedPrice": {
+          "type": "number"
+        }
+      }
+    },
+    "AddOn": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

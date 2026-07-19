@@ -9,7 +9,7 @@
     "/bookings": {
       "get": {
         "summary": "List bookings",
-        "description": "",
+        "description": "List all bookings, or filter by customerId or vendorId query param",
         "tags": [
           "Bookings"
         ],
@@ -20,7 +20,22 @@
         "produces": [
           "application/json"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customerId",
+            "type": "string",
+            "description": "Filter bookings by customer ID",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "vendorId",
+            "type": "string",
+            "description": "Filter bookings by vendor ID",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Booking list"

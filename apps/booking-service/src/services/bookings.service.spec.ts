@@ -26,39 +26,29 @@ describe('BookingsService Unit Tests', () => {
     });
 
     describe('getbookings', () => {
-        it('queries customer bookings if customerId is present in pathParameters', async () => {
+        it('queries customer bookings if customerId is present', async () => {
             const mockBookings: Booking[] = [{ id: 'b1', customerId: 'c1', bookingStatus: 'CREATED' }];
             mockRepo.getCustomerBookings.mockResolvedValue(mockBookings);
 
-            const req = {
-                pathParameters: { customerId: 'c1' }
-            } as unknown as LambdaRequest;
-
-            const result = await service.getbookings(req);
+            const result = await service.getbookings({ customerId: 'c1' });
             expect(result).toEqual(mockBookings);
             expect(mockRepo.getCustomerBookings).toHaveBeenCalledWith('c1');
         });
 
-        it('queries vendor bookings if vendorId is present in pathParameters', async () => {
+        it('queries vendor bookings if vendorId is present', async () => {
             const mockBookings: Booking[] = [{ id: 'b1', vendorId: 'v1', bookingStatus: 'CREATED' }];
             mockRepo.getVendorBookings.mockResolvedValue(mockBookings);
 
-            const req = {
-                pathParameters: { vendorId: 'v1' }
-            } as unknown as LambdaRequest;
-
-            const result = await service.getbookings(req);
+            const result = await service.getbookings({ vendorId: 'v1' });
             expect(result).toEqual(mockBookings);
             expect(mockRepo.getVendorBookings).toHaveBeenCalledWith('v1');
         });
 
-        it('lists all bookings if no specific pathParameters are present', async () => {
+        it('lists all bookings if no customerId or vendorId is present', async () => {
             const mockBookings: Booking[] = [{ id: 'b1', bookingStatus: 'CREATED' }];
             mockRepo.listAllBookings.mockResolvedValue(mockBookings);
 
-            const req = {} as unknown as LambdaRequest;
-
-            const result = await service.getbookings(req);
+            const result = await service.getbookings({});
             expect(result).toEqual(mockBookings);
             expect(mockRepo.listAllBookings).toHaveBeenCalled();
         });

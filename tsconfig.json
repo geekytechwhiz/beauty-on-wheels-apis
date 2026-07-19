@@ -53,6 +53,15 @@
     },
     {
       "path": "./apps/vehicle-service"
+    },
+    {
+      "path": "./apps/service-catalog-service"
+    },
+    {
+      "path": "./apps/availability-service"
+    },
+    {
+      "path": "./apps/vendor-service"
     }
   ]
 }

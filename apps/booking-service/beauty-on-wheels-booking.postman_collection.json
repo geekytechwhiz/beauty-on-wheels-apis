@@ -21,9 +21,23 @@
               ],
               "path": [
                 "bookings"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "cust_john_doe",
+                  "description": "Optional. Filter by customer ID",
+                  "disabled": true
+                },
+                {
+                  "key": "vendorId",
+                  "value": "vend_stylist_anna",
+                  "description": "Optional. Filter by vendor ID",
+                  "disabled": true
+                }
               ]
             },
-            "description": "Retrieve all bookings in the system."
+            "description": "List all bookings. Optionally filter with ?customerId= or ?vendorId=."
           },
           "response": []
         },

@@ -1,0 +1,552 @@
+{
+  "info": {
+    "_postman_id": "4b426770-b18c-4a60-98e1-70f012a47518",
+    "name": "Beauty on Wheels - Service Catalog API",
+    "description": "Complete collection for the Service Catalog API. Includes all 20 CRUD endpoints and every supported list/filter/pagination parameter. Run create requests in this order: category, service, add-on, package. Created IDs and pagination tokens are saved automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Successful response', function () {",
+          "  pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+          "});",
+          "if (pm.response.code !== 204) {",
+          "  pm.test('Response is JSON', function () {",
+          "    pm.response.to.be.json;",
+          "  });",
+          "  const body = pm.response.json();",
+          "  pm.test('Uses the standard API envelope', function () {",
+          "    pm.expect(body).to.have.property('success', true);",
+          "    pm.expect(body).to.have.property('data');",
+          "    pm.expect(body).to.have.property('meta');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories - All Find Parameters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories?active={{active}}&limit={{limit}}&nextToken={{nextToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"],
+              "query": [
+                {
+                  "key": "active",
+                  "value": "{{active}}",
+                  "description": "Set to true to return active categories only."
+                },
+                {
+                  "key": "limit",
+                  "value": "{{limit}}",
+                  "description": "Maximum page size."
+                },
+                {
+                  "key": "nextToken",
+                  "value": "{{nextToken}}",
+                  "description": "Base64 pagination token returned by the previous page.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists categories. All supported filter and pagination parameters are included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.nextToken) pm.collectionVariables.set('nextToken', data.nextToken);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Exterior Care {{$timestamp}}\",\n  \"description\": \"Exterior cleaning and detailing\",\n  \"displayOrder\": 1,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            },
+            "description": "Creates a category. name is required (1-100 characters); description is optional (maximum 500); displayOrder defaults to 0; active defaults to true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.id) pm.collectionVariables.set('categoryId', data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories/:categoryId",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":categoryId"],
+              "variable": [{"key": "categoryId", "value": "{{categoryId}}", "description": "Category ID"}]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Exterior Care\",\n  \"description\": \"Updated category description\",\n  \"displayOrder\": 2,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/:categoryId",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":categoryId"],
+              "variable": [{"key": "categoryId", "value": "{{categoryId}}"}]
+            },
+            "description": "Updates any category fields. All body fields are optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories/:categoryId",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", ":categoryId"],
+              "variable": [{"key": "categoryId", "value": "{{categoryId}}"}]
+            },
+            "description": "Deletes a category only when no services remain linked."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "List Services - All Find Parameters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services?categoryId={{categoryId}}&active={{active}}&vehicleType={{vehicleType}}&durationMinutes={{durationMinutes}}&limit={{limit}}&nextToken={{nextToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["services"],
+              "query": [
+                {"key": "categoryId", "value": "{{categoryId}}", "description": "Required parent category ID."},
+                {"key": "active", "value": "{{active}}", "description": "Set to true to return active services only."},
+                {"key": "vehicleType", "value": "{{vehicleType}}", "description": "Filter by vehicle type.", "disabled": true},
+                {"key": "durationMinutes", "value": "{{durationMinutes}}", "description": "Filter by exact duration in minutes.", "disabled": true},
+                {"key": "limit", "value": "{{limit}}", "description": "Maximum page size."},
+                {"key": "nextToken", "value": "{{nextToken}}", "description": "Base64 pagination token.", "disabled": true}
+              ]
+            },
+            "description": "Lists services in a category. vehicleType and durationMinutes use specialized queries; enable one at a time."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.nextToken) pm.collectionVariables.set('nextToken', data.nextToken);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Service",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"Premium Exterior Wash {{$timestamp}}\",\n  \"description\": \"Foam wash and polish\",\n  \"durationMinutes\": 60,\n  \"vehicleTypes\": [\"sedan\", \"suv\"],\n  \"basePrice\": 1499,\n  \"displayOrder\": 1,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["services"]
+            },
+            "description": "Creates a service under an existing category. durationMinutes must be an integer >= 1; vehicleTypes must be non-empty; basePrice must be >= 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.id) pm.collectionVariables.set('serviceId', data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/:serviceId?categoryId={{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["services", ":serviceId"],
+              "query": [{"key": "categoryId", "value": "{{categoryId}}", "description": "Required parent category ID."}],
+              "variable": [{"key": "serviceId", "value": "{{serviceId}}"}]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Service",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Deluxe Exterior Wash\",\n  \"description\": \"Updated wash service\",\n  \"durationMinutes\": 75,\n  \"vehicleTypes\": [\"sedan\", \"suv\"],\n  \"basePrice\": 1699,\n  \"displayOrder\": 2,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/services/:serviceId?categoryId={{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["services", ":serviceId"],
+              "query": [{"key": "categoryId", "value": "{{categoryId}}"}],
+              "variable": [{"key": "serviceId", "value": "{{serviceId}}"}]
+            },
+            "description": "Updates mutable service fields. categoryId cannot be changed."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Service",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services/:serviceId?categoryId={{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["services", ":serviceId"],
+              "query": [{"key": "categoryId", "value": "{{categoryId}}"}],
+              "variable": [{"key": "serviceId", "value": "{{serviceId}}"}]
+            },
+            "description": "Deletes a service only when no add-ons remain linked."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Add-ons",
+      "item": [
+        {
+          "name": "List Add-ons - All Find Parameters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/addons?categoryId={{categoryId}}&serviceId={{serviceId}}&active={{active}}&limit={{limit}}&nextToken={{nextToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["addons"],
+              "query": [
+                {"key": "categoryId", "value": "{{categoryId}}", "description": "Required parent category ID."},
+                {"key": "serviceId", "value": "{{serviceId}}", "description": "Required parent service ID."},
+                {"key": "active", "value": "{{active}}", "description": "Set to true to return active add-ons only."},
+                {"key": "limit", "value": "{{limit}}", "description": "Maximum page size."},
+                {"key": "nextToken", "value": "{{nextToken}}", "description": "Base64 pagination token.", "disabled": true}
+              ]
+            },
+            "description": "Lists add-ons for a service with every supported filter and pagination parameter."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.nextToken) pm.collectionVariables.set('nextToken', data.nextToken);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Add-on",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"serviceId\": \"{{serviceId}}\",\n  \"name\": \"Interior Vacuum {{$timestamp}}\",\n  \"description\": \"Complete interior vacuuming\",\n  \"price\": 299,\n  \"durationMinutes\": 20,\n  \"displayOrder\": 1,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/addons",
+              "host": ["{{baseUrl}}"],
+              "path": ["addons"]
+            },
+            "description": "Creates an add-on under an existing service. price must be >= 0 and durationMinutes must be an integer >= 1."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.id) pm.collectionVariables.set('addonId', data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Add-on",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/addons/:addonId?categoryId={{categoryId}}&serviceId={{serviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["addons", ":addonId"],
+              "query": [
+                {"key": "categoryId", "value": "{{categoryId}}"},
+                {"key": "serviceId", "value": "{{serviceId}}"}
+              ],
+              "variable": [{"key": "addonId", "value": "{{addonId}}"}]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Add-on",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Interior Vacuum\",\n  \"description\": \"Updated interior vacuuming\",\n  \"price\": 399,\n  \"durationMinutes\": 25,\n  \"displayOrder\": 2,\n  \"active\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/addons/:addonId?categoryId={{categoryId}}&serviceId={{serviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["addons", ":addonId"],
+              "query": [
+                {"key": "categoryId", "value": "{{categoryId}}"},
+                {"key": "serviceId", "value": "{{serviceId}}"}
+              ],
+              "variable": [{"key": "addonId", "value": "{{addonId}}"}]
+            },
+            "description": "Updates mutable add-on fields. categoryId and serviceId cannot be changed."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Add-on",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/addons/:addonId?categoryId={{categoryId}}&serviceId={{serviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["addons", ":addonId"],
+              "query": [
+                {"key": "categoryId", "value": "{{categoryId}}"},
+                {"key": "serviceId", "value": "{{serviceId}}"}
+              ],
+              "variable": [{"key": "addonId", "value": "{{addonId}}"}]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Packages",
+      "item": [
+        {
+          "name": "List Packages - All Find Parameters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/packages?active={{active}}&limit={{limit}}&nextToken={{nextToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["packages"],
+              "query": [
+                {"key": "active", "value": "{{active}}", "description": "Set to true to return active packages only."},
+                {"key": "limit", "value": "{{limit}}", "description": "Maximum page size."},
+                {"key": "nextToken", "value": "{{nextToken}}", "description": "Base64 pagination token.", "disabled": true}
+              ]
+            },
+            "description": "Lists packages with every supported filter and pagination parameter."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.nextToken) pm.collectionVariables.set('nextToken', data.nextToken);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Package",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Complete Car Care {{$timestamp}}\",\n  \"description\": \"Exterior and interior package\",\n  \"discountedPrice\": 1799,\n  \"displayOrder\": 1,\n  \"active\": true,\n  \"items\": [\n    {\n      \"serviceId\": \"{{serviceId}}\",\n      \"addons\": [\"{{addonId}}\"]\n    }\n  ]\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/packages",
+              "host": ["{{baseUrl}}"],
+              "path": ["packages"]
+            },
+            "description": "Creates a package. discountedPrice must be >= 0; items must contain at least one service; service IDs must be unique."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data.id) pm.collectionVariables.set('packageId', data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Package",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/packages/:packageId",
+              "host": ["{{baseUrl}}"],
+              "path": ["packages", ":packageId"],
+              "variable": [{"key": "packageId", "value": "{{packageId}}"}]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Package",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Deluxe Complete Car Care\",\n  \"description\": \"Updated package\",\n  \"discountedPrice\": 1999,\n  \"displayOrder\": 2,\n  \"active\": true,\n  \"items\": [\n    {\n      \"serviceId\": \"{{serviceId}}\",\n      \"addons\": [\"{{addonId}}\"]\n    }\n  ]\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/packages/:packageId",
+              "host": ["{{baseUrl}}"],
+              "path": ["packages", ":packageId"],
+              "variable": [{"key": "packageId", "value": "{{packageId}}"}]
+            },
+            "description": "Updates package fields. Providing items replaces all existing package items."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Package",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/packages/:packageId",
+              "host": ["{{baseUrl}}"],
+              "path": ["packages", ":packageId"],
+              "variable": [{"key": "packageId", "value": "{{packageId}}"}]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:3000/dev", "type": "string"},
+    {"key": "authToken", "value": "", "type": "string"},
+    {"key": "categoryId", "value": "", "type": "string"},
+    {"key": "serviceId", "value": "", "type": "string"},
+    {"key": "addonId", "value": "", "type": "string"},
+    {"key": "packageId", "value": "", "type": "string"},
+    {"key": "active", "value": "true", "type": "string"},
+    {"key": "vehicleType", "value": "suv", "type": "string"},
+    {"key": "durationMinutes", "value": "60", "type": "string"},
+    {"key": "limit", "value": "25", "type": "string"},
+    {"key": "nextToken", "value": "", "type": "string"}
+  ]
+}

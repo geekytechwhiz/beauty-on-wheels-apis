@@ -1,6 +1,0 @@
-- Always analyze existing repo before coding
-- Reuse utilities (DO NOT duplicate)
-- Follow naming conventions
-- Keep backward compatibility
-- Do not over-engineer
-- Keep modules loosely coupled

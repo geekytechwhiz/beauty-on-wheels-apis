@@ -1,0 +1,670 @@
+service: vendor-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline 
+provider:
+  name: aws
+  runtime: nodejs22.x
+
+  stage: ${opt:stage,'dev'}
+
+  region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
+
+  environment:
+
+    SERVICE_NAME: vendor-service
+    LOG_LEVEL:  INFO
+    DYNAMODB_TABLE_NAME: vendor-service-${self:provider.stage} 
+
+custom:
+
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+  autoswagger:
+    title: "Beauty on Wheels - Vendor Service API"
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    typefiles:
+      - ./src/types/api-types.d.ts
+    excludeStages:
+      - production
+
+
+functions:
+
+
+  createvendor:
+    handler: src/handlers/vendors.handler.handleCreatevendor
+    events:
+      - http:
+          path: /vendors
+          method: post
+          cors: true
+          summary: "Create vendor"
+          description: "Creates a new vendor profile.\n\nThe authenticated identity should be linked to the vendor through ownerUserId.\nVendor creation does not automatically activate the vendor.\n"
+          swaggerTags:
+            - Vendors
+          bodyType: CreateVendorRequest
+          responseData:
+            201:
+              description: "Vendor created successfully"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            409:
+              description: ""
+            500:
+              description: ""
+
+
+  listvendors:
+    handler: src/handlers/vendors.handler.handleListvendors
+    events:
+      - http:
+          path: /vendors
+          method: get
+          cors: true
+          summary: "List vendors"
+          description: "Lists vendors using optional filters.\nIntended primarily for admin and operational use.\n"
+          swaggerTags:
+            - Vendors
+          responseData:
+            200:
+              description: "Vendors retrieved successfully"
+              bodyType: VendorListResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            500:
+              description: ""
+
+
+  getvendor:
+    handler: src/handlers/vendors.handler.handleGetvendor
+    events:
+      - http:
+          path: /vendors/{vendorId}
+          method: get
+          cors: true
+          summary: "Get vendor"
+          swaggerTags:
+            - Vendors
+          responseData:
+            200:
+              description: "Vendor retrieved successfully"
+              bodyType: VendorResponse
+            401:
+              description: ""
+            404:
+              description: ""
+            500:
+              description: ""
+
+
+  updatevendor:
+    handler: src/handlers/vendors.handler.handleUpdatevendor
+    events:
+      - http:
+          path: /vendors/{vendorId}
+          method: patch
+          cors: true
+          summary: "Update vendor"
+          swaggerTags:
+            - Vendors
+          bodyType: UpdateVendorRequest
+          responseData:
+            200:
+              description: "Vendor updated successfully"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            500:
+              description: ""
+
+
+  updatevendorstatus:
+    handler: src/handlers/vendors.handler.handleUpdatevendorstatus
+    events:
+      - http:
+          path: /vendors/{vendorId}/status
+          method: patch
+          cors: true
+          summary: "Update vendor lifecycle status"
+          description: "Updates the administrative lifecycle status of a vendor.\n\nTypical lifecycle:\n  PENDING_VERIFICATION\n  -> ACTIVE\n  -> SUSPENDED\n  -> ACTIVE\n  -> INACTIVE\n"
+          swaggerTags:
+            - Vendors
+          bodyType: UpdateVendorStatusRequest
+          responseData:
+            200:
+              description: "Vendor status updated successfully"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            500:
+              description: ""
+
+
+  updatevendoroperationalstatus:
+    handler: src/handlers/vendors.handler.handleUpdatevendoroperationalstatus
+    events:
+      - http:
+          path: /vendors/{vendorId}/operational-status
+          method: patch
+          cors: true
+          summary: "Update vendor operational status"
+          description: "Controls whether a vendor is currently accepting work.\n\nThis is different from the administrative vendor lifecycle status.\n"
+          swaggerTags:
+            - Vendors
+          bodyType: UpdateOperationalStatusRequest
+          responseData:
+            200:
+              description: "Operational status updated successfully"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            500:
+              description: ""
+
+
+  listvendorserviceareas:
+    handler: src/handlers/service-areas.handler.handleListvendorserviceareas
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-areas
+          method: get
+          cors: true
+          summary: "List vendor service areas"
+          swaggerTags:
+            - Service Areas
+          responseData:
+            200:
+              description: "Service areas retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+            500:
+              description: ""
+
+
+  addvendorservicearea:
+    handler: src/handlers/service-areas.handler.handleAddvendorservicearea
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-areas
+          method: post
+          cors: true
+          summary: "Add vendor service area"
+          swaggerTags:
+            - Service Areas
+          bodyType: CreateServiceAreaRequest
+          responseData:
+            201:
+              description: "Service area created successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            500:
+              description: ""
+
+
+  getvendorservicearea:
+    handler: src/handlers/service-areas.handler.handleGetvendorservicearea
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-areas/{serviceAreaId}
+          method: get
+          cors: true
+          summary: "Get vendor service area"
+          swaggerTags:
+            - Service Areas
+          responseData:
+            200:
+              description: "Service area retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  updatevendorservicearea:
+    handler: src/handlers/service-areas.handler.handleUpdatevendorservicearea
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-areas/{serviceAreaId}
+          method: patch
+          cors: true
+          summary: "Update vendor service area"
+          swaggerTags:
+            - Service Areas
+          bodyType: UpdateServiceAreaRequest
+          responseData:
+            200:
+              description: "Service area updated successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  deletevendorservicearea:
+    handler: src/handlers/service-areas.handler.handleDeletevendorservicearea
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-areas/{serviceAreaId}
+          method: delete
+          cors: true
+          summary: "Remove vendor service area"
+          swaggerTags:
+            - Service Areas
+          responseData:
+            204:
+              description: "Service area removed successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  getvendoroperatinghours:
+    handler: src/handlers/operating-hours.handler.handleGetvendoroperatinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/operating-hours
+          method: get
+          cors: true
+          summary: "Get vendor operating hours"
+          swaggerTags:
+            - Operating Hours
+          responseData:
+            200:
+              description: "Operating hours retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  updatevendoroperatinghours:
+    handler: src/handlers/operating-hours.handler.handleUpdatevendoroperatinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/operating-hours
+          method: put
+          cors: true
+          summary: "Replace vendor operating hours"
+          description: "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n"
+          swaggerTags:
+            - Operating Hours
+          responseData:
+            200:
+              description: "Operating hours updated successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  listvendorstaff:
+    handler: src/handlers/staff.handler.handleListvendorstaff
+    events:
+      - http:
+          path: /vendors/{vendorId}/staff
+          method: get
+          cors: true
+          summary: "List vendor staff"
+          swaggerTags:
+            - Staff
+          responseData:
+            200:
+              description: "Staff retrieved successfully"
+              bodyType: StaffListResponse
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  createvendorstaff:
+    handler: src/handlers/staff.handler.handleCreatevendorstaff
+    events:
+      - http:
+          path: /vendors/{vendorId}/staff
+          method: post
+          cors: true
+          summary: "Add vendor staff member"
+          swaggerTags:
+            - Staff
+          bodyType: CreateStaffRequest
+          responseData:
+            201:
+              description: "Staff member created successfully"
+              bodyType: StaffResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+
+
+  getvendorstaff:
+    handler: src/handlers/staff.handler.handleGetvendorstaff
+    events:
+      - http:
+          path: /vendors/{vendorId}/staff/{staffId}
+          method: get
+          cors: true
+          summary: "Get vendor staff member"
+          swaggerTags:
+            - Staff
+          responseData:
+            200:
+              description: "Staff member retrieved successfully"
+              bodyType: StaffResponse
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  updatevendorstaff:
+    handler: src/handlers/staff.handler.handleUpdatevendorstaff
+    events:
+      - http:
+          path: /vendors/{vendorId}/staff/{staffId}
+          method: patch
+          cors: true
+          summary: "Update vendor staff member"
+          swaggerTags:
+            - Staff
+          bodyType: UpdateStaffRequest
+          responseData:
+            200:
+              description: "Staff member updated successfully"
+              bodyType: StaffResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  deactivatevendorstaff:
+    handler: src/handlers/staff.handler.handleDeactivatevendorstaff
+    events:
+      - http:
+          path: /vendors/{vendorId}/staff/{staffId}
+          method: delete
+          cors: true
+          summary: "Deactivate vendor staff member"
+          description: "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n"
+          swaggerTags:
+            - Staff
+          responseData:
+            204:
+              description: "Staff member deactivated successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  getvendorcapabilities:
+    handler: src/handlers/capabilities.handler.handleGetvendorcapabilities
+    events:
+      - http:
+          path: /vendors/{vendorId}/capabilities
+          method: get
+          cors: true
+          summary: "Get vendor capabilities"
+          swaggerTags:
+            - Capabilities
+          responseData:
+            200:
+              description: "Vendor capabilities retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+
+  updatevendorcapabilities:
+    handler: src/handlers/capabilities.handler.handleUpdatevendorcapabilities
+    events:
+      - http:
+          path: /vendors/{vendorId}/capabilities
+          method: put
+          cors: true
+          summary: "Replace vendor capabilities"
+          description: "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n"
+          swaggerTags:
+            - Capabilities
+          bodyType: UpdateVendorCapabilitiesRequest
+          responseData:
+            200:
+              description: "Vendor capabilities updated successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+
+
+iamRoleStatements:
+
+  - Effect: Allow
+    Action:
+      - logs:CreateLogGroup
+      - logs:CreateLogStream
+      - logs:PutLogEvents
+    Resource:
+      - arn:aws:logs:${aws:region}:${aws:accountId}:*
+  - Effect: Allow
+    Action:
+      - xray:PutTraceSegments
+      - xray:PutTelemetryRecords
+    Resource: '*'
+
+
+resources:
+  Resources:
+     
+    VendorTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-vendor
+
+        BillingMode: PAY_PER_REQUEST
+
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+
+          - AttributeName: SK
+            AttributeType: S
+
+          - AttributeName: GSI1PK
+            AttributeType: S
+
+          - AttributeName: GSI1SK
+            AttributeType: S
+
+          - AttributeName: GSI2PK
+            AttributeType: S
+
+          - AttributeName: GSI2SK
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+
+          - AttributeName: SK
+            KeyType: RANGE
+
+        GlobalSecondaryIndexes:
+
+          # --------------------------------------------------
+          # GSI1 - Vendor alternate lookups
+          #
+          # STATUS#ACTIVE
+          # OPERATIONAL#ONLINE
+          # OWNER#<userId>
+          # --------------------------------------------------
+
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          # --------------------------------------------------
+          # GSI2 - Vendor service-area lookup
+          #
+          # CITY#KOCHI
+          # POSTAL#682301
+          # --------------------------------------------------
+
+          - IndexName: GSI2
+            KeySchema:
+              - AttributeName: GSI2PK
+                KeyType: HASH
+
+              - AttributeName: GSI2SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+        SSESpecification:
+          SSEEnabled: true
+
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+        Tags:
+          - Key: Service
+            Value: vendor
+
+          - Key: Environment
+            Value: ${sls:stage}
+
+          - Key: ManagedBy
+            Value: Serverless
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

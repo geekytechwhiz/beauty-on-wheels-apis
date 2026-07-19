@@ -1,0 +1,556 @@
+service: service-catalog-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline 
+provider:
+  name: aws
+  runtime: nodejs22.x
+
+  stage: ${opt:stage,'dev'}
+
+  region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
+
+  environment:
+
+    SERVICE_NAME: service-catalog-service
+    LOG_LEVEL: INFO
+    DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-service-catalog
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+          Resource:
+            - !GetAtt ServiceCatalogTable.Arn
+            - !Join [ "/", [ !GetAtt ServiceCatalogTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: "*"
+
+custom:
+
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+  autoswagger:
+    title: "Beauty on Wheels - Service Catalog Service API"
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    typefiles:
+      - ./src/types/api-types.d.ts
+    excludeStages:
+      - production
+
+
+functions:
+
+
+  getcategories:
+    handler: src/handlers/categories-handler.handleGetcategories
+    events:
+      - http:
+          path: /categories
+          method: get
+          cors: true
+          summary: "List categories"
+          swaggerTags:
+            - Categories
+          responseData:
+            200:
+              description: "OK"
+
+
+  postcategories:
+    handler: src/handlers/categories-handler.handlePostcategories
+    events:
+      - http:
+          path: /categories
+          method: post
+          cors: true
+          summary: "Create category"
+          swaggerTags:
+            - Categories
+          bodyType: Category
+          responseData:
+            201:
+              description: "Created"
+
+
+  getcategoryid:
+    handler: src/handlers/categories-handler.handleGetcategoryid
+    events:
+      - http:
+          path: /categories/{categoryId}
+          method: get
+          cors: true
+          summary: "Get category"
+          swaggerTags:
+            - Categories
+          responseData:
+            200:
+              description: "OK"
+
+
+  putcategoryid:
+    handler: src/handlers/categories-handler.handlePutcategoryid
+    events:
+      - http:
+          path: /categories/{categoryId}
+          method: put
+          cors: true
+          summary: "Update category"
+          swaggerTags:
+            - Categories
+          bodyType: Category
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deletecategoryid:
+    handler: src/handlers/categories-handler.handleDeletecategoryid
+    events:
+      - http:
+          path: /categories/{categoryId}
+          method: delete
+          cors: true
+          summary: "Delete category"
+          swaggerTags:
+            - Categories
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  getservices:
+    handler: src/handlers/services-handler.handleGetservices
+    events:
+      - http:
+          path: /services
+          method: get
+          cors: true
+          summary: "List services"
+          swaggerTags:
+            - Services
+          responseData:
+            200:
+              description: "OK"
+
+
+  postservices:
+    handler: src/handlers/services-handler.handlePostservices
+    events:
+      - http:
+          path: /services
+          method: post
+          cors: true
+          summary: "Create service"
+          swaggerTags:
+            - Services
+          bodyType: Service
+          responseData:
+            201:
+              description: "Created"
+
+
+  getserviceid:
+    handler: src/handlers/services-handler.handleGetserviceid
+    events:
+      - http:
+          path: /services/{serviceId}
+          method: get
+          cors: true
+          summary: "Get service"
+          swaggerTags:
+            - Services
+          responseData:
+            200:
+              description: "OK"
+
+
+  putserviceid:
+    handler: src/handlers/services-handler.handlePutserviceid
+    events:
+      - http:
+          path: /services/{serviceId}
+          method: put
+          cors: true
+          summary: "Update service"
+          swaggerTags:
+            - Services
+          bodyType: Service
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deleteserviceid:
+    handler: src/handlers/services-handler.handleDeleteserviceid
+    events:
+      - http:
+          path: /services/{serviceId}
+          method: delete
+          cors: true
+          summary: "Delete service"
+          swaggerTags:
+            - Services
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  getpackages:
+    handler: src/handlers/packages-handler.handleGetpackages
+    events:
+      - http:
+          path: /packages
+          method: get
+          cors: true
+          summary: "List packages"
+          swaggerTags:
+            - Packages
+          responseData:
+            200:
+              description: "OK"
+
+
+  postpackages:
+    handler: src/handlers/packages-handler.handlePostpackages
+    events:
+      - http:
+          path: /packages
+          method: post
+          cors: true
+          summary: "Create package"
+          swaggerTags:
+            - Packages
+          bodyType: Package
+          responseData:
+            201:
+              description: "Created"
+
+
+  getpackageid:
+    handler: src/handlers/packages-handler.handleGetpackageid
+    events:
+      - http:
+          path: /packages/{packageId}
+          method: get
+          cors: true
+          summary: "Get package"
+          swaggerTags:
+            - Packages
+          responseData:
+            200:
+              description: "OK"
+
+
+  putpackageid:
+    handler: src/handlers/packages-handler.handlePutpackageid
+    events:
+      - http:
+          path: /packages/{packageId}
+          method: put
+          cors: true
+          summary: "Update package"
+          swaggerTags:
+            - Packages
+          bodyType: Package
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deletepackageid:
+    handler: src/handlers/packages-handler.handleDeletepackageid
+    events:
+      - http:
+          path: /packages/{packageId}
+          method: delete
+          cors: true
+          summary: "Delete package"
+          swaggerTags:
+            - Packages
+          responseData:
+            204:
+              description: "Deleted"
+
+
+  getaddons:
+    handler: src/handlers/add-ons-handler.handleGetaddons
+    events:
+      - http:
+          path: /addons
+          method: get
+          cors: true
+          summary: "List add-ons"
+          swaggerTags:
+            - Add-ons
+          responseData:
+            200:
+              description: "OK"
+
+
+  postaddons:
+    handler: src/handlers/add-ons-handler.handlePostaddons
+    events:
+      - http:
+          path: /addons
+          method: post
+          cors: true
+          summary: "Create add-on"
+          swaggerTags:
+            - Add-ons
+          bodyType: AddOn
+          responseData:
+            201:
+              description: "Created"
+
+
+  getaddonid:
+    handler: src/handlers/add-ons-handler.handleGetaddonid
+    events:
+      - http:
+          path: /addons/{addonId}
+          method: get
+          cors: true
+          summary: "Get add-on"
+          swaggerTags:
+            - Add-ons
+          responseData:
+            200:
+              description: "OK"
+
+
+  putaddonid:
+    handler: src/handlers/add-ons-handler.handlePutaddonid
+    events:
+      - http:
+          path: /addons/{addonId}
+          method: put
+          cors: true
+          summary: "Update add-on"
+          swaggerTags:
+            - Add-ons
+          bodyType: AddOn
+          responseData:
+            200:
+              description: "Updated"
+
+
+  deleteaddonid:
+    handler: src/handlers/add-ons-handler.handleDeleteaddonid
+    events:
+      - http:
+          path: /addons/{addonId}
+          method: delete
+          cors: true
+          summary: "Delete add-on"
+          swaggerTags:
+            - Add-ons
+          responseData:
+            204:
+              description: "Deleted"
+
+
+resources:
+  Resources:
+
+    ServiceCatalogTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-service-catalog
+
+        BillingMode: PAY_PER_REQUEST
+
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+
+          - AttributeName: sk
+            AttributeType: S
+
+          - AttributeName: lsi1sk
+            AttributeType: S
+
+          - AttributeName: lsi2sk
+            AttributeType: S
+
+          - AttributeName: lsi3sk
+            AttributeType: S
+
+          - AttributeName: lsi4sk
+            AttributeType: S
+
+          - AttributeName: lsi5sk
+            AttributeType: S
+
+          - AttributeName: GSI1PK
+            AttributeType: S
+
+          - AttributeName: GSI1SK
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+
+        LocalSecondaryIndexes:
+          - IndexName: LSI1
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: lsi1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: LSI2
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: lsi2sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: LSI3
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: lsi3sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: LSI4
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: lsi4sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: LSI5
+            KeySchema:
+              - AttributeName: pk
+                KeyType: HASH
+              - AttributeName: lsi5sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+        SSESpecification:
+          SSEEnabled: true
+
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+        Tags:
+          - Key: Service
+            Value: service-catalog
+
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+          - Key: ManagedBy
+            Value: Serverless
+
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

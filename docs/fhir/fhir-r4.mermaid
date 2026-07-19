@@ -1,8 +1,0 @@
-flowchart TD
-  A[API Gateway] --> B[Standard middleware pipeline]
-  B --> C[buildRequestContext]
-  C --> D["fhirRequestTransform (optional)"]
-  D --> E[Business Handler]
-  E --> F["fhirResponseTransform (optional)"]
-  F --> G["fhirSuccessResponse / successResponse"]
-  B -.-> H["fhirErrorHandler (FhirValidationError → OperationOutcome)"]

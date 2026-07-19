@@ -1,0 +1,278 @@
+service: availability-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+tools/codegen/create-microservice.js
+provider:
+  name: aws
+  runtime: nodejs22.x
+
+  stage: ${opt:stage,'dev'}
+
+  region: ${opt:region,'us-east-1'}
+
+  versionFunctions: false
+
+  environment:
+
+    SERVICE_NAME: availability-service
+    LOG_LEVEL: ${ssm:/common/log-level}
+    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
+    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+
+custom:
+
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+  autoswagger:
+    title: "Beauty on Wheels - Availability Service API"
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+    typefiles:
+      - ./src/types/api-types.d.ts
+    excludeStages:
+      - production
+
+
+functions:
+
+
+  getworkinghours:
+    handler: src/handlers/availability.handler.handleGetworkinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/working-hours
+          method: get
+          cors: true
+          summary: "Get working hours"
+          swaggerTags:
+            - Availability
+          responseData:
+            200:
+              description: "Working hours"
+
+
+  putworkinghours:
+    handler: src/handlers/availability.handler.handlePutworkinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/working-hours
+          method: put
+          cors: true
+          summary: "Update working hours"
+          swaggerTags:
+            - Availability
+          bodyType: WorkingHours
+          responseData:
+            200:
+              description: "Updated"
+
+
+  getslots:
+    handler: src/handlers/slots.handler.handleGetslots
+    events:
+      - http:
+          path: /vendors/{vendorId}/slots
+          method: get
+          cors: true
+          summary: "List slots"
+          swaggerTags:
+            - Slots
+          responseData:
+            200:
+              description: "Slots"
+
+
+  postslots:
+    handler: src/handlers/slots.handler.handlePostslots
+    events:
+      - http:
+          path: /vendors/{vendorId}/slots
+          method: post
+          cors: true
+          summary: "Generate slots"
+          swaggerTags:
+            - Slots
+          responseData:
+            201:
+              description: "Slots generated"
+
+
+  getslotid:
+    handler: src/handlers/slots.handler.handleGetslotid
+    events:
+      - http:
+          path: /slots/{slotId}
+          method: get
+          cors: true
+          summary: "Get slot"
+          swaggerTags:
+            - Slots
+          responseData:
+            200:
+              description: "Slot"
+              bodyType: Slot
+
+
+  postblock:
+    handler: src/handlers/slots.handler.handlePostblock
+    events:
+      - http:
+          path: /slots/{slotId}/block
+          method: post
+          cors: true
+          summary: "Block slot"
+          swaggerTags:
+            - Slots
+          responseData:
+            200:
+              description: "Blocked"
+
+
+  postunblock:
+    handler: src/handlers/slots.handler.handlePostunblock
+    events:
+      - http:
+          path: /slots/{slotId}/unblock
+          method: post
+          cors: true
+          summary: "Unblock slot"
+          swaggerTags:
+            - Slots
+          responseData:
+            200:
+              description: "Unblocked"
+
+
+  getholidays:
+    handler: src/handlers/holidays.handler.handleGetholidays
+    events:
+      - http:
+          path: /vendors/{vendorId}/holidays
+          method: get
+          cors: true
+          summary: "List holidays"
+          swaggerTags:
+            - Holidays
+          responseData:
+            200:
+              description: "Holiday list"
+
+
+  postholidays:
+    handler: src/handlers/holidays.handler.handlePostholidays
+    events:
+      - http:
+          path: /vendors/{vendorId}/holidays
+          method: post
+          cors: true
+          summary: "Add holiday"
+          swaggerTags:
+            - Holidays
+          responseData:
+            201:
+              description: "Holiday added"
+
+
+iamRoleStatements:
+
+  - Effect: Allow
+    Action:
+      - logs:CreateLogGroup
+      - logs:CreateLogStream
+      - logs:PutLogEvents
+    Resource:
+      - arn:aws:logs:${aws:region}:${aws:accountId}:*
+  - Effect: Allow
+    Action:
+      - xray:PutTraceSegments
+      - xray:PutTelemetryRecords
+    Resource: '*'
+  - Effect: Allow
+    Action:
+      - dynamodb:GetItem
+      - dynamodb:PutItem
+      - dynamodb:UpdateItem
+      - dynamodb:DeleteItem
+      - dynamodb:Query
+      - dynamodb:BatchGetItem
+      - dynamodb:BatchWriteItem
+
+      - dynamodb:TransactWriteItems
+      - dynamodb:TransactGetItems
+      - dynamodb:DescribeTable
+    Resource:
+      - !GetAtt AvailabilityTable.Arn
+      - !Join [ "/", [ !GetAtt AvailabilityTable.Arn, "index", "*" ] ]
+
+
+resources:
+  Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: DEFAULT_5XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseUnauthorized:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: UNAUTHORIZED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+    GatewayResponseAccessDenied:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseType: ACCESS_DENIED
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: >-
+            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

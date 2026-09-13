@@ -1,28 +1,41 @@
-# @api-hub/auth
+# @api-hub/authentication-core
 
-Reusable auth utilities for the Lambda Authorizer: JWKS cache, scope parser, and token validator. OAuth2 and SMART on FHIR aware; no OTP/MFA or unnecessary I/O.
+Reusable Cognito authentication and RBAC for Beauty on Wheels services.
 
-## Modules
+## JWT validation
 
-- **jwks-cache** – In-memory JWKS fetch and PEM cache (survives Lambda warm runs).
-- **scope-parser** – Parses `scope` string into an array (e.g. `patient/*.read`, `launch/patient`).
-- **token-validator** – Verifies JWT with JWKS; validates `iss`, `aud`, `token_use`, `exp`; extracts `sub`, `client_id`, `tenant_id`, scopes, SMART claims.
-
-## Usage
+- Reads the Bearer token from `Authorization` only.
+- Verifies RS256 signature via Cognito JWKS (`kid` rotation supported).
+- Caches JWKS PEMs in memory (Lambda warm starts).
+- Validates issuer, expiry, user pool, and app client / audience.
 
 ```ts
-import { validateAccessToken, getCognitoJwksUrl, parseScopes } from '@api-hub/auth';
+import { authenticate, authorize, PERMISSION } from '@api-hub/authentication-core';
 
-const ctx = await validateAccessToken(token, {
-  userPoolId: process.env.COGNITO_USER_POOL_ID!,
-  region: process.env.REGION!,
-  expectedAudience: process.env.EXPECTED_AUDIENCE!,
-});
-// ctx: { sub, clientId, scopes, tenantId, patient?, fhirUser?, encounter? }
+const ctx = await authenticate(request, { userDirectory });
+await authorize(request, { permissions: [PERMISSION.VEHICLE_READ] }, { userDirectory });
 ```
 
-## Security
+`AuthContext` is `{ identityId, userId?, roles, permissions, claims }`. Identity comes from the verified JWT `sub`.
 
-- No security decisions from `jwt.decode`; verification is done with `jwt.verify` and PEM from JWKS.
-- Access tokens only (`token_use === 'access'`); ID tokens rejected.
-- Tenant required (`custom:tenant_id` or `tenant_id`).
+## Authorization
+
+JWT → Cognito identity → application user → roles → permissions → allow / deny.
+
+- `401` when the token is missing, malformed, invalid, or expired.
+- `403` when the caller is authenticated but lacks the permission or has no application-user mapping.
+
+Resource ownership is not implemented here.
+
+The shared API Gateway Lambda authorizer (`evaluateApiGatewayAuthorizer`) returns an IAM `Allow`/`Deny` policy and a string context of `identityId`, `userId`, `roles`, and `permissions`. Downstream Lambdas hydrate `AuthContext` from `requestContext.authorizer` and do not re-validate the JWT.
+
+## Configuration
+
+```
+COGNITO_REGION
+COGNITO_USER_POOL_ID
+COGNITO_APP_CLIENT_ID
+COGNITO_ISSUER
+COGNITO_JWKS_URI
+DYNAMODB_TABLE_NAME   # identity table for the authorizer directory
+```

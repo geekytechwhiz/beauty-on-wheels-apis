@@ -11,6 +11,9 @@ export interface User {
   emailVerified: boolean;
   phoneVerified: boolean;
   version: number;
+  /** Cognito `sub`. Primary link between Cognito and the application user. */
+  identityId?: string;
+  cognitoUsername?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -19,6 +22,29 @@ export interface Profile {
   userId: string;
   firstName: string;
   lastName: string;
+  profileImageUrl?: string;
+  language?: string;
+  timezone?: string;
+  email?: string;
+  phoneNumber?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** GET /me response: User + Profile fields (no secrets or DynamoDB keys). */
+export interface MeResponse {
+  userId: string;
+  identityId?: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phoneNumber?: string;
+  username?: string;
+  status?: string;
+  roleId?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  version?: number;
   profileImageUrl?: string;
   language?: string;
   timezone?: string;
@@ -41,7 +67,7 @@ export interface Session {
 
 export interface Otp {
   otpId: string;
-  userId: string;
+  destination: string;
   purpose: string;
   referenceId: string;
   codeHash: string;
@@ -49,6 +75,7 @@ export interface Otp {
   verified: boolean;
   expiresAt: string;
   ttl?: number;
+  otpCode?: string;
   createdAt?: string;
   updatedAt?: string;
 }

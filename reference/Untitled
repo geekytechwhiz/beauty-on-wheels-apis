@@ -1,0 +1,143 @@
+resources:
+  Resources:
+
+    VendorTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tables.vendor}
+
+        BillingMode: PAY_PER_REQUEST
+
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+        SSESpecification:
+          SSEEnabled: true
+
+        AttributeDefinitions:
+
+          # Primary Key
+          - AttributeName: PK
+            AttributeType: S
+
+          - AttributeName: SK
+            AttributeType: S
+
+          # LSI Attributes
+
+          - AttributeName: LSI1SK
+            AttributeType: S
+
+          - AttributeName: LSI2SK
+            AttributeType: S
+
+          - AttributeName: LSI3SK
+            AttributeType: S
+
+          - AttributeName: LSI4SK
+            AttributeType: S
+
+          # Optional GSI
+
+          - AttributeName: GSI1PK
+            AttributeType: S
+
+          - AttributeName: GSI1SK
+            AttributeType: S
+
+        KeySchema:
+
+          - AttributeName: PK
+            KeyType: HASH
+
+          - AttributeName: SK
+            KeyType: RANGE
+
+        LocalSecondaryIndexes:
+
+          #
+          # LSI 1
+          # Entity Type
+          #
+          - IndexName: LSI1
+
+            KeySchema:
+
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI1SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          #
+          # LSI 2
+          # Status
+          #
+          - IndexName: LSI2
+
+            KeySchema:
+
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI2SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          #
+          # LSI 3
+          # UpdatedAt
+          #
+          - IndexName: LSI3
+
+            KeySchema:
+
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI3SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          #
+          # LSI 4
+          # Branch Hierarchy
+          #
+          - IndexName: LSI4
+
+            KeySchema:
+
+              - AttributeName: PK
+                KeyType: HASH
+
+              - AttributeName: LSI4SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+        GlobalSecondaryIndexes:
+
+          #
+          # Optional
+          # Search Vendors by City/Pincode
+          #
+          - IndexName: GSI1
+
+            KeySchema:
+
+              - AttributeName: GSI1PK
+                KeyType: HASH
+
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL

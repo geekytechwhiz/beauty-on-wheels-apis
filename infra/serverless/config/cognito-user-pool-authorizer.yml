@@ -1,0 +1,24 @@
+# Optional REST API Cognito User Pool authorizer.
+# Prefer Lambda-level authenticate()/authorize() from @api-hub/authentication-core
+# so the same RBAC path works in serverless-offline and across services.
+#
+# Attach per protected route:
+#   authorizer:
+#     type: COGNITO_USER_POOLS
+#     authorizerId:
+#       Ref: CognitoAuthorizer
+#
+# And add to resources:
+#   CognitoAuthorizer:
+#     Type: AWS::ApiGateway::Authorizer
+#     Properties:
+#       Name: cognitoAuthorizer
+#       Type: COGNITO_USER_POOLS
+#       IdentitySource: method.request.header.Authorization
+#       RestApiId:
+#         Ref: ApiGatewayRestApi
+#       ProviderARNs:
+#         - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID}
+
+type: COGNITO_USER_POOLS
+identitySource: method.request.header.Authorization

@@ -1,4 +1,6 @@
-export const TABLE_NAME = 'identity-table-dev';
+import { env } from '../configs/env.config';
+
+export const TABLE_NAME = env.DYNAMODB_TABLE_NAME || 'identity-table-dev';
 
 export const GSI_INDEX_NAMES = {
   GSI1: process.env['GSI1_INDEX_NAME'] || 'GSI1',
@@ -25,6 +27,7 @@ export const PREFIXES = {
   EMAIL: 'EMAIL#',
   PHONE: 'PHONE#',
   USERNAME: 'USERNAME#',
+  IDENTITY: 'IDENTITY#',
   SESSION: 'SESSION#',
   REFRESH: 'REFRESH#',
   OTP: 'OTP#',
@@ -48,6 +51,7 @@ export const ENTITY_TYPES = {
   EMAIL_LOOKUP: 'EmailLookup',
   PHONE_LOOKUP: 'PhoneLookup',
   USERNAME_LOOKUP: 'UsernameLookup',
+  IDENTITY_LOOKUP: 'IdentityLookup',
   SESSION: 'Session',
   REFRESH_TOKEN_LOOKUP: 'RefreshTokenLookup',
   OTP: 'Otp',

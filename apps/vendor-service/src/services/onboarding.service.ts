@@ -1,0 +1,442 @@
+import { randomUUID } from 'crypto';
+import { LambdaRequest } from '@api-hub/utils';
+import {
+  ConditionalWriteConflictError,
+  NotFoundError,
+} from '@api-hub/utils';
+import { createLogger, createChildLogger, getLoggerContext } from '@api-hub/observability';
+
+import {
+  AddressData,
+  BankDetailsData,
+  BranchData,
+  BusinessInfoData,
+  DocumentsData,
+  OnboardingResponse,
+  OnboardingSection,
+  OwnerDetailsData,
+  Vendor,
+} from '../types/api-types';
+import {
+  VendorAddressDdbItem,
+  VendorBankDdbItem,
+  VendorBranchDdbItem,
+  VendorDdbItem,
+  VendorDocumentDdbItem,
+} from '../types/repository.types';
+import {
+  VendorsRepository,
+  getVendorsRepository,
+} from '../repositories/vendors.repository';
+import {
+  BranchesRepository,
+  getBranchesRepository,
+} from '../repositories/branches.repository';
+import {
+  DocumentsRepository,
+  getDocumentsRepository,
+} from '../repositories/documents.repository';
+import { VendorsMapper } from '../mappers/vendors.mapper';
+import { OwnerMapper } from '../mappers/owner.mapper';
+import {
+  BankDetailsMapper,
+  BranchesMapper,
+} from '../mappers/bank-and-branches.mapper';
+import { DocumentsMapper } from '../mappers/documents.mapper';
+import {
+  DocumentStorage,
+  getDocumentStorage,
+} from '../storage/document-storage';
+import { ONBOARDING_SECTION, ONBOARDING_STATUS } from '../domain/onboarding';
+import {
+  computeStateFromAggregate,
+  toVendorAggregate,
+  VendorAggregate,
+} from '../domain/vendor-aggregate';
+import {
+  assertVendorAccess,
+  getVendorId,
+} from '../utils/helpers';
+
+const baseLogger = createLogger({
+  service: 'onboarding-service',
+  redactPII: true,
+});
+
+export class OnboardingService {
+  private readonly logger = createChildLogger(baseLogger, {
+    service: 'OnboardingService',
+  });
+
+  constructor(
+    private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
+    private readonly branchesRepository: BranchesRepository = getBranchesRepository(),
+    private readonly documentsRepository: DocumentsRepository = getDocumentsRepository(),
+    private readonly documentStorage: DocumentStorage = getDocumentStorage(),
+  ) {}
+
+  private async requireVendor(vendorId: string): Promise<VendorDdbItem> {
+    const item = await this.vendorsRepository.getVendorById(vendorId);
+    if (!item) {
+      throw new NotFoundError('Vendor not found');
+    }
+    return item;
+  }
+
+  private async loadAggregate(vendorId: string): Promise<VendorAggregate> {
+    const items = await this.vendorsRepository.queryVendorItems(vendorId);
+    return toVendorAggregate(items);
+  }
+
+  private toOnboardingResponse(
+    aggregate: VendorAggregate,
+    extras?: { documentUploadUrl?: string; documentId?: string },
+  ): OnboardingResponse {
+    const profile = aggregate.profile;
+    if (!profile) {
+      throw new NotFoundError('Vendor not found');
+    }
+
+    const state = computeStateFromAggregate(aggregate);
+    const documents = aggregate.documents.map((item) =>
+      DocumentsMapper.toDomain(item, {
+        uploadUrl:
+          extras?.documentId === item.documentId
+            ? extras.documentUploadUrl
+            : undefined,
+      }),
+    );
+
+    return {
+      vendorId: profile.vendorId,
+      status: state.status,
+      currentSection: state.currentSection,
+      completedSections: state.completedSections,
+      applicationId: profile.applicationId,
+      sections: {
+        ...(aggregate.profile
+          ? {
+              BUSINESS_INFO: aggregate.profile.businessName
+                ? {
+                    vendorType: aggregate.profile.vendorType ?? 'BUSINESS',
+                    businessName: aggregate.profile.businessName,
+                    contactName: aggregate.profile.contactName ?? '',
+                    phoneNumber: aggregate.profile.phoneNumber ?? '',
+                    email: aggregate.profile.email,
+                    description: aggregate.profile.description,
+                    gstNumber: aggregate.profile.gstNumber,
+                    panNumber: aggregate.profile.panNumber,
+                    profileImageUrl: aggregate.profile.profileImageUrl,
+                  }
+                : undefined,
+            }
+          : {}),
+        OWNER_DETAILS: aggregate.owner
+          ? OwnerMapper.toDomain(aggregate.owner)
+          : undefined,
+        ADDRESS: aggregate.address
+          ? VendorsMapper.toAddressDomain(aggregate.address)
+          : undefined,
+        BRANCH: aggregate.branches.map((item) => BranchesMapper.toDomain(item)),
+        DOCUMENTS: documents,
+        BANK_DETAILS: aggregate.bank
+          ? BankDetailsMapper.toDomain(aggregate.bank)
+          : undefined,
+      },
+    };
+  }
+
+  private async persistProfileAndSection(
+    profile: VendorDdbItem,
+    aggregate: VendorAggregate,
+    sectionItem?: Record<string, unknown>,
+  ): Promise<OnboardingResponse> {
+    aggregate.profile = profile;
+    const state = computeStateFromAggregate(aggregate);
+    const correlationId = getLoggerContext()?.correlationId;
+    const applicationId =
+      profile.applicationId ??
+      (state.status === ONBOARDING_STATUS.PENDING_REVIEW
+        ? randomUUID()
+        : undefined);
+    const email = profile.email ?? aggregate.owner?.email;
+
+    const updatedProfile = VendorsMapper.applyOnboardingState(profile, {
+      onboardingStatus: state.status,
+      currentSection: state.currentSection,
+      completedSections: state.completedSections,
+      primaryBranchId: profile.primaryBranchId,
+      addressCity: aggregate.address?.city,
+      addressPostalCode: aggregate.address?.postalCode,
+      applicationId,
+      email,
+      meta:
+        correlationId && correlationId !== 'unknown'
+          ? { correlationId }
+          : undefined,
+    });
+    aggregate.profile = updatedProfile;
+
+    try {
+      await this.vendorsRepository.putSection(updatedProfile, sectionItem);
+    } catch (err) {
+      if (err instanceof ConditionalWriteConflictError) {
+        throw new NotFoundError('Vendor not found');
+      }
+      throw err;
+    }
+
+    return this.toOnboardingResponse(aggregate);
+  }
+
+  async getvendoronboarding(request: LambdaRequest): Promise<OnboardingResponse> {
+    const vendorId = getVendorId(request);
+    const profile = await this.requireVendor(vendorId);
+    assertVendorAccess(request, profile);
+
+    this.logger.info({ event: 'getvendoronboarding_start', vendorId });
+
+    const aggregate = await this.loadAggregate(vendorId);
+    const response = this.toOnboardingResponse(aggregate);
+
+    this.logger.info({
+      event: 'getvendoronboarding_success',
+      vendorId,
+      status: response.status,
+    });
+
+    return response;
+  }
+
+  async updatevendoronboarding(
+    request: LambdaRequest,
+  ): Promise<OnboardingResponse> {
+    const vendorId = getVendorId(request);
+    const profile = await this.requireVendor(vendorId);
+    assertVendorAccess(request, profile);
+    const body = request.body as {
+      section: OnboardingSection;
+      data: unknown;
+    };
+
+    this.logger.info({
+      event: 'updatevendoronboarding_start',
+      vendorId,
+      section: body.section,
+    });
+
+    const aggregate = await this.loadAggregate(vendorId);
+    aggregate.profile = profile;
+
+    let response: OnboardingResponse;
+
+    switch (body.section) {
+      case ONBOARDING_SECTION.BUSINESS_INFO:
+        response = await this.saveBusinessInfo(
+          aggregate,
+          body.data as BusinessInfoData,
+        );
+        break;
+      case ONBOARDING_SECTION.OWNER_DETAILS:
+        response = await this.saveOwnerDetails(
+          aggregate,
+          body.data as OwnerDetailsData,
+        );
+        break;
+      case ONBOARDING_SECTION.ADDRESS:
+        response = await this.saveAddress(aggregate, body.data as AddressData);
+        break;
+      case ONBOARDING_SECTION.BRANCH:
+        response = await this.saveBranch(aggregate, body.data as BranchData);
+        break;
+      case ONBOARDING_SECTION.DOCUMENTS:
+        response = await this.saveDocument(
+          aggregate,
+          body.data as DocumentsData,
+        );
+        break;
+      case ONBOARDING_SECTION.BANK_DETAILS:
+        response = await this.saveBank(
+          aggregate,
+          body.data as BankDetailsData,
+        );
+        break;
+      default:
+        throw new NotFoundError('Unknown onboarding section');
+    }
+
+    this.logger.info({
+      event: 'updatevendoronboarding_success',
+      vendorId,
+      section: body.section,
+      status: response.status,
+    });
+
+    return response;
+  }
+
+  private async saveBusinessInfo(
+    aggregate: VendorAggregate,
+    data: BusinessInfoData,
+  ): Promise<OnboardingResponse> {
+    const profile = VendorsMapper.applyBusinessInfo(aggregate.profile!, data);
+    aggregate.profile = profile;
+    return this.persistProfileAndSection(profile, aggregate);
+  }
+
+  private async saveOwnerDetails(
+    aggregate: VendorAggregate,
+    data: OwnerDetailsData,
+  ): Promise<OnboardingResponse> {
+    const owner = OwnerMapper.toDdbItem(
+      aggregate.profile!.vendorId,
+      data,
+      { createdAt: aggregate.owner?.createdAt },
+    );
+    aggregate.owner = owner;
+    return this.persistProfileAndSection(
+      aggregate.profile!,
+      aggregate,
+      owner as unknown as Record<string, unknown>,
+    );
+  }
+
+  private async saveAddress(
+    aggregate: VendorAggregate,
+    data: AddressData,
+  ): Promise<OnboardingResponse> {
+    const address: VendorAddressDdbItem = VendorsMapper.toAddressDdbItem(
+      aggregate.profile!.vendorId,
+      data,
+      { createdAt: aggregate.address?.createdAt },
+    );
+    aggregate.address = address;
+    return this.persistProfileAndSection(
+      aggregate.profile!,
+      aggregate,
+      address as unknown as Record<string, unknown>,
+    );
+  }
+
+  private async saveBranch(
+    aggregate: VendorAggregate,
+    data: BranchData,
+  ): Promise<OnboardingResponse> {
+    const profile = aggregate.profile!;
+    const existingId =
+      data.branchId ??
+      profile.primaryBranchId ??
+      aggregate.branches.find((item) => item.isPrimary)?.branchId;
+
+    let branch: VendorBranchDdbItem;
+
+    if (existingId) {
+      const current =
+        aggregate.branches.find((item) => item.branchId === existingId) ??
+        (await this.branchesRepository.getBranch(profile.vendorId, existingId));
+
+      if (!current) {
+        throw new NotFoundError('Branch not found');
+      }
+
+      branch = BranchesMapper.applyUpdate(current, data);
+    } else {
+      const branchId = randomUUID();
+      branch = BranchesMapper.toDdbItem(data, profile.vendorId, branchId, {
+        isPrimary: true,
+      });
+      profile.primaryBranchId = branchId;
+    }
+
+    const nextBranches = [
+      ...aggregate.branches.filter((item) => item.branchId !== branch.branchId),
+      branch,
+    ];
+    aggregate.branches = nextBranches;
+    aggregate.profile = profile;
+
+    return this.persistProfileAndSection(
+      profile,
+      aggregate,
+      branch as unknown as Record<string, unknown>,
+    );
+  }
+
+  private async saveDocument(
+    aggregate: VendorAggregate,
+    data: DocumentsData,
+  ): Promise<OnboardingResponse> {
+    const profile = aggregate.profile!;
+    const existing =
+      aggregate.documents.find((item) => item.documentType === data.documentType) ??
+      (await this.documentsRepository.findByDocumentType(
+        profile.vendorId,
+        data.documentType,
+      ));
+
+    const documentId = existing?.documentId ?? randomUUID();
+    const objectKey = this.documentStorage.createObjectKey(
+      profile.vendorId,
+      documentId,
+      data.fileName,
+    );
+    const upload = await this.documentStorage.createUploadUrl({
+      objectKey,
+      contentType: data.contentType,
+    });
+
+    const document: VendorDocumentDdbItem = DocumentsMapper.toDdbItem(
+      data,
+      profile.vendorId,
+      documentId,
+      { bucket: upload.bucket, objectKey: upload.objectKey },
+      { createdAt: existing?.createdAt, status: 'PENDING_UPLOAD' },
+    );
+
+    aggregate.documents = [
+      ...aggregate.documents.filter((item) => item.documentId !== documentId),
+      document,
+    ];
+
+    await this.persistProfileAndSection(
+      profile,
+      aggregate,
+      document as unknown as Record<string, unknown>,
+    );
+
+    return this.toOnboardingResponse(aggregate, {
+      documentId,
+      documentUploadUrl: upload.uploadUrl,
+    });
+  }
+
+  private async saveBank(
+    aggregate: VendorAggregate,
+    data: BankDetailsData,
+  ): Promise<OnboardingResponse> {
+    const bank: VendorBankDdbItem = BankDetailsMapper.toDdbItem(
+      aggregate.profile!.vendorId,
+      data,
+      { createdAt: aggregate.bank?.createdAt },
+    );
+    aggregate.bank = bank;
+    return this.persistProfileAndSection(
+      aggregate.profile!,
+      aggregate,
+      bank as unknown as Record<string, unknown>,
+    );
+  }
+
+  toVendorView(profile: VendorDdbItem, address?: VendorAddressDdbItem | null): Vendor {
+    return VendorsMapper.toDomain(profile, address);
+  }
+}
+
+let service: OnboardingService;
+
+export function getOnboardingService() {
+  if (!service) {
+    service = new OnboardingService();
+  }
+  return service;
+}

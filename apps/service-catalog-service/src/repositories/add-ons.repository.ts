@@ -28,8 +28,8 @@ export class AddOnsRepository extends BaseRepository {
         addonId: string
     ): Promise<AddonEntity | null> {
         return this.get<AddonEntity>(TABLE(), {
-            pk: CatalogKeyBuilder.categoryPk(categoryId),
-            sk: CatalogKeyBuilder.addonSk(serviceId, addonId),
+            PK: CatalogKeyBuilder.categoryPk(categoryId),
+            SK: CatalogKeyBuilder.addonSk(serviceId, addonId),
         });
     }
 
@@ -50,8 +50,8 @@ export class AddOnsRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -84,8 +84,8 @@ export class AddOnsRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#lsi1sk, :prefix)",
             FilterExpression: "entityType = :et AND serviceId = :svcId",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi1sk": "lsi1sk",
+                "#pk": "PK",
+                "#lsi1sk": "LSI1SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -109,12 +109,11 @@ export class AddOnsRepository extends BaseRepository {
         return this.queryOne<AddonEntity>({
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
-            FilterExpression: "entityType = :et AND (#gsi1pk = :gsi1pk OR #gsi1pk_lower = :gsi1pk)",
+            FilterExpression: "entityType = :et AND #gsi1pk = :gsi1pk",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
                 "#gsi1pk": "GSI1PK",
-                "#gsi1pk_lower": "gsi1pk",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -134,7 +133,7 @@ export class AddOnsRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_not_exists(pk) AND attribute_not_exists(sk)",
+                        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
                     },
                 },
             ],
@@ -148,7 +147,7 @@ export class AddOnsRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_exists(pk) AND attribute_exists(sk)",
+                        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
             ],
@@ -166,10 +165,10 @@ export class AddOnsRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: CatalogKeyBuilder.categoryPk(categoryId),
-                            sk: CatalogKeyBuilder.addonSk(serviceId, addonId),
+                            PK: CatalogKeyBuilder.categoryPk(categoryId),
+                            SK: CatalogKeyBuilder.addonSk(serviceId, addonId),
                         },
-                        ConditionExpression: "attribute_exists(pk) AND attribute_exists(sk)",
+                        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
             ],

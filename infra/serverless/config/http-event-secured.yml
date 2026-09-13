@@ -2,7 +2,8 @@
 # REST API events require per-endpoint cors + authorizer (YAML anchors in serverless.yml).
 # See apps/template-service/serverless.yml: custom.cors (&httpApiCors), securedAuthorizer, securedResponses.
 #
-# Per route (except /health):
-#   cors: *httpApiCors
-#   authorizer: *securedAuthorizer
-#   responses: *securedResponses
+# Per protected route (except /health, login, OTP, register, refresh):
+#   cors: true
+#   authorizer: ${self:custom.securedAuthorizer}
+#
+# custom.securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}

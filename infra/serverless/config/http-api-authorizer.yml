@@ -1,5 +1,16 @@
-name: common_authorizer
-type: token
+# Shared REST API Lambda TOKEN authorizer.
+# Include from each microservice:
+#   custom:
+#     securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+# Then on protected http events:
+#   authorizer: ${self:custom.securedAuthorizer}
+#
+# Deploy apps/authorizer-service first so ${stage}-platform-authorizer exists.
+# Leave public routes (health, login, OTP, register, refresh) without an authorizer.
+
+name: platformAuthorizer
+type: TOKEN
 identitySource: method.request.header.Authorization
-arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}-platform-authorizer
+# Use 0 (not omitted). Falsy handling in some Serverless versions falls back to 300s.
 resultTtlInSeconds: 0

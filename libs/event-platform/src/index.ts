@@ -13,6 +13,16 @@ export {
   createDynamoStreamHandler, 
 } from './lib/create-dynamo-stream-handler';
 export { onDynamoEvent } from './lib/on-dynamo-event';
+export { StreamRecordFilteredError } from './dynamo-stream/stream-record-filtered.error';
+export {
+  createDynamoStreamMapRawToBaseEvent,
+  type DynamoStreamRoute,
+} from './dynamo-stream/map-dynamo-stream-record';
+export {
+  normalizeDynamoStreamRecord,
+  isDynamoDbStreamRecord,
+} from './dynamo-stream/normalize-dynamo-stream-record';
+export type { NormalizedDynamoStreamEvent } from './dynamo-stream/normalized-dynamo-stream-event';
 export { 
   unwrapSnsNotificationPayload,
 } from './sdk/consumer/transport-normalize';
@@ -157,4 +167,34 @@ export {
   ALERT_REALTIME_EVENT_VERSION,
 } from './core/contracts/alert.events';
 export { TASK_EVENT_OPERATIONS } from './core/contracts/task.events';
+export {
+  VendorOnboardingSubmittedEvent,
+  VendorOnboardingSubmittedPayloadSchema,
+  VENDOR_ONBOARDING_EVENT_TYPE,
+  VENDOR_ONBOARDING_EVENT_VERSION,
+  VENDOR_ONBOARDING_EVENT_SOURCE,
+  VENDOR_ONBOARDING_EVENT_OPERATIONS,
+  vendorOnboardingSubmittedIdempotencyKey,
+  type VendorOnboardingSubmittedPayload,
+} from './core/contracts/vendor-onboarding.events';
+export {
+  VendorEmailVerificationRequestedEvent,
+  VendorEmailVerificationRequestedPayloadSchema,
+  VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+  VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
+  VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,
+  VENDOR_EMAIL_VERIFICATION_EVENT_OPERATIONS,
+  vendorEmailVerificationRequestedIdempotencyKey,
+  type VendorEmailVerificationRequestedPayload,
+} from './core/contracts/vendor-email-verification.events';
+export {
+  BookingConfirmedEvent,
+  BookingConfirmedPayloadSchema,
+  BOOKING_CONFIRMED_EVENT_TYPE,
+  BOOKING_CONFIRMED_EVENT_VERSION,
+  BOOKING_CONFIRMED_EVENT_SOURCE,
+  BOOKING_EVENT_OPERATIONS,
+  bookingConfirmedIdempotencyKey,
+  type BookingConfirmedPayload,
+} from './core/contracts/booking.events';
 export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

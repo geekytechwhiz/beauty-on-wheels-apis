@@ -18,6 +18,12 @@ export class IdentityKeyBuilder {
     return phoneNumber.trim().replace(/\s+/g, '');
   }
 
+  static normalizeDestination(destination: string): string {
+    return destination.includes('@')
+      ? this.normalizeEmail(destination)
+      : this.normalizePhone(destination);
+  }
+
   static userProfile(userId: string) {
     return {
       PK: `${PREFIXES.USER}${userId.trim()}`,
@@ -53,6 +59,13 @@ export class IdentityKeyBuilder {
     };
   }
 
+  static userByIdentityId(identityId: string) {
+    return {
+      PK: `${PREFIXES.IDENTITY}${identityId.trim()}`,
+      SK: SK_VALS.LOOKUP,
+    };
+  }
+
   static userSession(userId: string, sessionId: string) {
     return {
       PK: `${PREFIXES.USER}${userId.trim()}`,
@@ -74,10 +87,10 @@ export class IdentityKeyBuilder {
     };
   }
 
-  static otp(userId: string, otpId: string) {
+  static otp(destination: string, purpose: string) {
     return {
-      PK: `${PREFIXES.USER}${userId.trim()}`,
-      SK: `${PREFIXES.OTP}${otpId.trim()}${Math.random().toString(36).substring(2, 15)}`,
+      PK: `${PREFIXES.OTP}${this.normalizeDestination(destination)}`,
+      SK: `${PREFIXES.OTP}${purpose.trim()}`,
     };
   }
 

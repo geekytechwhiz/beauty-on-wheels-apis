@@ -1,18 +1,25 @@
-import { decodeJwtPayload, pickOrganizationIdFromJwtPayload } from '../helper/jwt.helpers';
-
 export const buildRequestContext = (event: any) => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
-  const decoded = authHeader ? decodeJwtPayload(authHeader) : ({} as Record<string, unknown>);
+  const authorizer = event.requestContext?.authorizer as
+    | Record<string, unknown>
+    | undefined;
+  const identityId =
+    typeof authorizer?.identityId === 'string' && authorizer.identityId.trim()
+      ? authorizer.identityId.trim()
+      : undefined;
+  const authorizerUserId =
+    typeof authorizer?.userId === 'string' && authorizer.userId.trim()
+      ? authorizer.userId.trim()
+      : undefined;
 
-  const user = {
-    userId:
-      decoded['custom:userID'] ||
-      decoded.userId ||
-      decoded.sub,
-    organizationId: pickOrganizationIdFromJwtPayload(decoded),
-  };
+  const user = identityId
+    ? {
+        userId: authorizerUserId || identityId,
+        identityId,
+      }
+    : {};
 
   let body: any = undefined;
   if (event.body != null) {

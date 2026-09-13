@@ -1,3 +1,10 @@
 {
-    "snyk.advanced.autoSelectOrganization": true
+    "snyk.advanced.autoSelectOrganization": false,
+    "snyk.features.codeSecurity": false,
+    "snyk.features.openSourceSecurity": false,
+    "snyk.features.infrastructureAsCode": false,
+    "snyk.features.secrets": false,
+    "snyk.scanningMode": "manual",
+    "snyk.securityAtInception.autoConfigureSnykMcpServer": false,
+    "snyk.securityAtInception.executionFrequency": "Manual"
 }

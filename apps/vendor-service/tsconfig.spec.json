@@ -16,6 +16,12 @@
   "references": [
     {
       "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "../../libs/authentication-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/event-platform/tsconfig.lib.json"
     }
   ]
 }

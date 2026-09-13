@@ -1,0 +1,555 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Email Service API",
+    "version": "1.0.0",
+    "description": "Email templates and ad-hoc send HTTP API. **Deployed Swagger UI uses this file + serverless-auto-swagger**."
+  },
+  "schemes": ["https", "http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "definitions": {
+    "AdhocAttachment": {
+      "type": "object",
+      "description": "Base64-encoded file attachment for ad-hoc email.",
+      "required": ["filename", "content", "contentType"],
+      "properties": {
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Attachment file name."
+        },
+        "content": {
+          "type": "string",
+          "description": "Base64-encoded file content."
+        },
+        "contentType": {
+          "type": "string",
+          "description": "MIME type (e.g. application/pdf)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "SendAdhocEmailRequest": {
+      "type": "object",
+      "description": "Send an ad-hoc email. Raw send requires `subject` plus `htmlContent` or `textContent` (enforced in service). Templated send uses `templateName` (and optional `templateData`).",
+      "required": ["to", "from"],
+      "properties": {
+        "to": {
+          "description": "Recipient email, or non-empty array of emails.",
+          "oneOf": [
+            { "type": "string", "format": "email" },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "format": "email" }
+            }
+          ]
+        },
+        "from": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified sender address."
+        },
+        "fromName": {
+          "type": "string",
+          "description": "Optional display name for the sender."
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Required for raw (non-template) sends."
+        },
+        "htmlContent": {
+          "type": "string",
+          "description": "HTML body for raw send. Required (with or instead of textContent) when not using a template."
+        },
+        "textContent": {
+          "type": "string",
+          "description": "Plain-text body for raw send. Required (with or instead of htmlContent) when not using a template."
+        },
+        "templateName": {
+          "type": "string",
+          "description": "SES template name. When set, sends via templated email instead of raw content."
+        },
+        "templateData": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Substitution data for the SES template."
+        },
+        "cc": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "bcc": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "replyTo": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AdhocAttachment" }
+        },
+        "contactListName": {
+          "type": "string",
+          "description": "Optional SES contact list for subscription management."
+        },
+        "topicName": {
+          "type": "string",
+          "description": "Optional SES topic name within the contact list."
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "to": "patient@example.com",
+        "from": "noreply@example.com",
+        "fromName": "MyVitalRx",
+        "subject": "Appointment reminder",
+        "htmlContent": "<p>Your appointment is tomorrow.</p>",
+        "textContent": "Your appointment is tomorrow."
+      }
+    },
+    "CreateTemplateRequest": {
+      "type": "object",
+      "description": "Create an SES email template. Provide at least one of htmlContent or textContent for a usable template.",
+      "required": ["templateName", "subject"],
+      "properties": {
+        "templateName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "description": "Template name (letters, digits, underscore, hyphen; max 128)."
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Email subject (may include SES template placeholders)."
+        },
+        "htmlContent": {
+          "type": "string",
+          "description": "HTML body. Unsubscribe placeholder {{amazonSESUnsubscribeUrl}} is auto-injected if missing."
+        },
+        "textContent": {
+          "type": "string",
+          "description": "Plain-text body. Unsubscribe placeholder is auto-injected if missing."
+        }
+      },
+      "additionalProperties": false,
+      "example": {
+        "templateName": "welcome_email",
+        "subject": "Welcome, {{firstName}}",
+        "htmlContent": "<p>Hello {{firstName}}</p>",
+        "textContent": "Hello {{firstName}}"
+      }
+    },
+    "CreateMultipleTemplatesRequest": {
+      "type": "array",
+      "description": "Array of SES email templates to create (1–50 items, unique templateName values).",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": { "$ref": "#/definitions/CreateTemplateRequest" },
+      "example": [
+        {
+          "templateName": "PAYMENT_PAID_POST_CONSULT",
+          "subject": "Hi {{firstName}} I am test Email",
+          "htmlContent": "Hello {{firstName}}",
+          "textContent": "Hello {{firstName}}"
+        },
+        {
+          "templateName": "PAYMENT_FAILED_POST_CONSULT",
+          "subject": "Hi {{firstName}} payment failed",
+          "htmlContent": "Hello {{firstName}}",
+          "textContent": "Hello {{firstName}}"
+        }
+      ]
+    },
+    "CreateTemplateFailure": {
+      "type": "object",
+      "required": ["templateName", "message", "code"],
+      "properties": {
+        "templateName": {
+          "type": "string",
+          "description": "Template that failed to create."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable failure reason."
+        },
+        "code": {
+          "type": "string",
+          "description": "Failure code (e.g. CONFLICT, CREATE_FAILED)."
+        }
+      }
+    },
+    "CreateMultipleTemplatesData": {
+      "type": "object",
+      "required": ["message", "successList", "failedList"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Human-readable bulk result summary."
+        },
+        "successList": {
+          "type": "array",
+          "description": "Template names created successfully.",
+          "items": { "type": "string" }
+        },
+        "failedList": {
+          "type": "array",
+          "description": "Templates that failed to create.",
+          "items": { "$ref": "#/definitions/CreateTemplateFailure" }
+        }
+      }
+    },
+    "SendAdhocEmailData": {
+      "type": "object",
+      "required": ["messageId"],
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": "SES message id for the sent email."
+        }
+      }
+    },
+    "EmailTemplateMetadata": {
+      "type": "object",
+      "description": "SES list-templates metadata (PascalCase fields from SES).",
+      "required": ["Name"],
+      "properties": {
+        "Name": {
+          "type": "string",
+          "description": "SES template name."
+        },
+        "CreatedTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the template was created (SES CreatedTimestamp)."
+        }
+      }
+    },
+    "TemplateListData": {
+      "type": "object",
+      "required": ["templates"],
+      "properties": {
+        "templates": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/EmailTemplateMetadata" }
+        }
+      }
+    },
+    "SesTemplateParts": {
+      "type": "object",
+      "description": "SES GetEmailTemplate-shaped parts returned by GET /templates/{templateName} (PascalCase passthrough).",
+      "required": ["TemplateName", "SubjectPart"],
+      "properties": {
+        "TemplateName": { "type": "string" },
+        "SubjectPart": { "type": "string" },
+        "HtmlPart": { "type": "string" },
+        "TextPart": { "type": "string" }
+      }
+    },
+    "TemplateDetailData": {
+      "type": "object",
+      "required": ["template"],
+      "properties": {
+        "template": { "$ref": "#/definitions/SesTemplateParts" }
+      }
+    },
+    "TemplateMutationData": {
+      "type": "object",
+      "required": ["message", "templateName"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Human-readable result (e.g. Template created successfully)."
+        },
+        "templateName": {
+          "type": "string",
+          "description": "Affected template name."
+        }
+      }
+    },
+    "ApiMessage": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "severity": { "type": "string" }
+      }
+    },
+    "ApiMeta": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "version": { "type": "string", "enum": ["v1"] }
+      }
+    },
+    "SuccessEnvelopeSendAdhocEmail": {
+      "type": "object",
+      "description": "ApiResponse.ok body with SendAdhocEmailData in `data`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "$ref": "#/definitions/SendAdhocEmailData" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    },
+    "SuccessEnvelopeTemplateList": {
+      "type": "object",
+      "description": "ApiResponse.ok body with TemplateListData in `data`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "$ref": "#/definitions/TemplateListData" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    },
+    "SuccessEnvelopeTemplateDetail": {
+      "type": "object",
+      "description": "ApiResponse.ok body with TemplateDetailData in `data`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "$ref": "#/definitions/TemplateDetailData" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    },
+    "SuccessEnvelopeTemplateMutation": {
+      "type": "object",
+      "description": "ApiResponse.ok body with TemplateMutationData in `data` (create/delete).",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "$ref": "#/definitions/TemplateMutationData" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    },
+    "SuccessEnvelopeCreateMultipleTemplates": {
+      "type": "object",
+      "description": "ApiResponse.ok body with CreateMultipleTemplatesData in `data`.",
+      "properties": {
+        "success": { "type": "boolean", "example": true },
+        "statusCode": { "type": "integer", "example": 200 },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "$ref": "#/definitions/CreateMultipleTemplatesData" },
+        "error": { "type": "object", "x-nullable": true },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    },
+    "ErrorEnvelope": {
+      "type": "object",
+      "description": "Standard error response from withApiHandler / ApiResponse.",
+      "properties": {
+        "success": { "type": "boolean", "example": false },
+        "statusCode": { "type": "integer" },
+        "message": { "$ref": "#/definitions/ApiMessage" },
+        "data": { "type": "object", "x-nullable": true },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string" },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "field": { "type": "string" },
+                  "message": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "meta": { "$ref": "#/definitions/ApiMeta" }
+      }
+    }
+  },
+  "paths": {
+    "/send-email": {
+      "post": {
+        "summary": "Send an ad-hoc email",
+        "description": "Sends a one-off email via SES. Use raw content (`subject` + `htmlContent`/`textContent`) or a named SES template (`templateName` + optional `templateData`).",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/SendAdhocEmailRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — SES messageId in `data`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeSendAdhocEmail" }
+          },
+          "400": {
+            "description": "Validation or business rule error (e.g. missing subject/content for raw send)",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      }
+    },
+    "/templates": {
+      "get": {
+        "summary": "List email templates",
+        "description": "Lists SES email templates (name + created timestamp).",
+        "produces": ["application/json"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK — template metadata list in `data.templates`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateList" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an email template",
+        "description": "Creates an SES email template. Unsubscribe placeholder is auto-injected into html/text when missing.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateTemplateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — created template name in `data`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateMutation" }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "409": {
+            "description": "Template already exists",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      }
+    },
+    "/multipleTemplates": {
+      "patch": {
+        "summary": "Create multiple email templates",
+        "description": "Creates multiple SES email templates in one request. Each item is processed independently; successful names are returned in `successList` and failures in `failedList`.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/CreateMultipleTemplatesRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — `successList` and `failedList` in `data`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeCreateMultipleTemplates" }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      }
+    },
+    "/templates/{templateName}": {
+      "get": {
+        "summary": "Get email template by name",
+        "description": "Returns SES-shaped template parts (TemplateName, SubjectPart, HtmlPart, TextPart) inside `data.template`.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "templateName",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "SES template name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — template parts in `data.template`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateDetail" }
+          },
+          "404": {
+            "description": "Template not found",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete email template",
+        "description": "Deletes an SES email template by name.",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "templateName",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "SES template name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — deleted template name in `data`",
+            "schema": { "$ref": "#/definitions/SuccessEnvelopeTemplateMutation" }
+          },
+          "400": {
+            "description": "Missing template name",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "404": {
+            "description": "Template not found",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": { "$ref": "#/definitions/ErrorEnvelope" }
+          }
+        }
+      }
+    }
+  }
+}

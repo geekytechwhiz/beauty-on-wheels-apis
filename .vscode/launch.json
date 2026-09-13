@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "type": "node",
       "request": "launch",
@@ -295,17 +296,44 @@
       "type": "node",
       "request": "launch",
       "name": "Debug identity-v1-service with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "identity-v1-service"],
+      "runtimeVersion": "22",
+      "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v22.21.1/bin/node",
+      "runtimeArgs": [
+        "--inspect=9243",
+        "${workspaceFolder}/node_modules/serverless/bin/serverless.js",
+        "offline",
+        "--stage",
+        "dev"
+      ],
+      "cwd": "${workspaceFolder}/apps/identity-v1-service",
       "env": {
-        "NODE_OPTIONS": "--inspect=9243"
+        "PATH": "${env:HOME}/.nvm/versions/node/v22.21.1/bin:${env:PATH}",
+        "AWS_PROFILE": "ci-user-bw"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
+      "sourceMaps": true,
+      "timeout": 60000,
+      "outFiles": [
+        "${workspaceFolder}/apps/identity-v1-service/.esbuild/**/*.js",
+        "${workspaceFolder}/dist/apps/identity-v1-service/**/*.(m|c|)js",
+        "${workspaceFolder}/apps/identity-v1-service/dist/**/*.(m|c|)js",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to identity-v1-service",
+      "port": 9243,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
       "sourceMaps": true,
       "outFiles": [
-        "${workspaceFolder}/apps/identity-v1-service/dist/**/*.(m|c|)js",
+        "${workspaceFolder}/apps/identity-v1-service/.esbuild/**/*.js",
+        "${workspaceFolder}/dist/apps/identity-v1-service/**/*.(m|c|)js",
         "!**/node_modules/**"
       ]
     },

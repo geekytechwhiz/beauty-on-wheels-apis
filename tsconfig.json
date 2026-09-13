@@ -62,6 +62,15 @@
     },
     {
       "path": "./apps/vendor-service"
+    },
+    {
+      "path": "./apps/identity-v1-service"
+    },
+    {
+      "path": "./apps/email-service"
+    },
+    {
+      "path": "./apps/authorizer-service"
     }
   ]
 }

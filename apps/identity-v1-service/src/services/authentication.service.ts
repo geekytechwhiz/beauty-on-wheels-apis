@@ -4,22 +4,23 @@ import {
     createChildLogger
 } from "@api-hub/observability";
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import type { CognitoAuthClient } from '@api-hub/authentication-core';
+import { getCognitoAuthClient } from '@api-hub/authentication-core';
 
 import {
     IdentityRepository,
     identityRepositoryInstance
 } from "../repositories/identity.repository";
-import { Session, InvalidRefreshTokenException } from "../types/repository.types";
+import { Session, User, InvalidRefreshTokenException } from "../types/repository.types";
 import { LoginRequest, RefreshTokenRequest, ChangePasswordRequest } from "../schemas/authentication.schema";
+import type { TokenResponse } from "../types/api-types";
 import { hashPassword } from "./registration.service";
+import { USER_STATUS } from "../constants/identity-index.constant";
 
 const baseLogger = createLogger({
     service: "authentication-service",
     redactPII: true,
 });
-
-const JWT_SECRET = process.env.JWT_SECRET || 'beauty-on-wheels-jwt-secret-key-123';
 
 export function verifyPassword(password: string, storedHash: string): boolean {
     if (password === storedHash) return true;
@@ -28,6 +29,10 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     const [salt, hash] = parts;
     const verifyHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
     return hash === verifyHash;
+}
+
+export function isActiveUser(status?: string): boolean {
+    return (status ?? '').trim().toLowerCase() === USER_STATUS.ACTIVE;
 }
 
 export class AuthenticationService {
@@ -41,7 +46,8 @@ export class AuthenticationService {
         );
 
     constructor(
-        private readonly repository: IdentityRepository = identityRepositoryInstance
+        private readonly repository: IdentityRepository = identityRepositoryInstance,
+        private readonly cognito: CognitoAuthClient = getCognitoAuthClient(),
     ) {}
 
     async postlogin(
@@ -53,19 +59,16 @@ export class AuthenticationService {
 
         const body = request.body as LoginRequest;
 
-        // Find user by email or username
-        const user = await this.repository.getUserByEmail(body.username) || 
+        const user = await this.repository.getUserByEmail(body.username) ||
                      await this.repository.getUserByUsername(body.username);
 
         if (!user) {
-            this.logger.info({ event: 'Login Failed', reason: 'User not found', username: body.username });
+            this.logger.info({ event: 'Login Failed', reason: 'User not found' });
             throw new BaseError("Invalid credentials", 401, "INVALID_CREDENTIALS");
         }
 
-        // Verify password securely
         const isPasswordValid = verifyPassword(body.password, user.passwordHash);
         if (!isPasswordValid) {
-            // Save login history as failed
             await this.repository.saveLoginHistory({
                 userId: user.userId,
                 timestamp: new Date().toISOString(),
@@ -78,56 +81,48 @@ export class AuthenticationService {
             throw new BaseError("Invalid credentials", 401, "INVALID_CREDENTIALS");
         }
 
-        // Validate account status
-        if (user.status !== 'ACTIVE') {
-            this.logger.info({ event: 'Login Failed', reason: `Account status is ${user.status}`, userId: user.userId });
+        return this.authenticateExistingIdentity(user, request);
+    }
+
+    async authenticateExistingIdentity(
+        user: User,
+        request?: LambdaRequest,
+    ): Promise<TokenResponse> {
+        if (!isActiveUser(user.status)) {
+            this.logger.info({ event: 'Authentication Failed', reason: `Account status is ${user.status}`, userId: user.userId });
             throw new BaseError(`Account is ${user.status.toLowerCase()}`, 403, "ACCOUNT_NOT_ACTIVE");
         }
 
+        const linked = await this.ensureCognitoLink(user);
+        const tokens = await this.cognito.issueTokens(linked.cognitoUsername as string);
+
         const sessionId = `s-${crypto.randomUUID()}`;
+        const refreshTokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
 
-        // Generate JWT and Refresh Token
-        const tokenPayload = {
-            sub: user.userId,
-            userId: user.userId,
-            sessionId,
-            roleId: user.roleId,
-            email: user.email,
-        };
-        const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '15m' });
-        
-        const refreshToken = crypto.randomBytes(32).toString('hex');
-        const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-
-        // Create Session
         const session: Session = {
             sessionId,
-            userId: user.userId,
+            userId: linked.userId,
             refreshTokenHash,
             status: 'ACTIVE',
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         };
         await this.repository.createSession(session);
 
-        // Save login history
         await this.repository.saveLoginHistory({
-            userId: user.userId,
+            userId: linked.userId,
             timestamp: new Date().toISOString(),
             status: 'SUCCESS',
-            ipAddress: request.event?.requestContext?.identity?.sourceIp,
-            userAgent: request.event?.headers?.['User-Agent'] || request.event?.headers?.['user-agent'],
+            ipAddress: request?.event?.requestContext?.identity?.sourceIp,
+            userAgent: request?.event?.headers?.['User-Agent'] || request?.event?.headers?.['user-agent'],
         });
 
-        this.logger.info({ event: 'Login Successful', userId: user.userId });
-
-        // TODO: Publish UserLoggedIn event
-        // eventBus.publish(new UserLoggedInEvent(user));
+        this.logger.info({ event: 'Authentication Successful', userId: linked.userId });
 
         return {
-            accessToken,
-            refreshToken,
-            expiresIn: 15 * 60,
-            tokenType: 'Bearer',
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresIn: tokens.expiresIn,
+            tokenType: tokens.tokenType || 'Bearer',
         };
     }
 
@@ -146,29 +141,25 @@ export class AuthenticationService {
             throw new InvalidRefreshTokenException("Invalid refresh token");
         }
 
-        if (session.status !== 'ACTIVE' || new Date(session.expiresAt) < new Date()) {
+        if (session.status !== 'ACTIVE' && session.status !== 'active') {
+            throw new InvalidRefreshTokenException("Refresh token expired or inactive");
+        }
+        if (new Date(session.expiresAt) < new Date()) {
             throw new InvalidRefreshTokenException("Refresh token expired or inactive");
         }
 
         const user = await this.repository.getUser(session.userId);
-        if (!user || user.status !== 'ACTIVE') {
+        if (!user || !isActiveUser(user.status)) {
             throw new BaseError("User not found or inactive", 401, "USER_INACTIVE");
         }
 
-        const tokenPayload = {
-            sub: user.userId,
-            userId: user.userId,
-            sessionId: session.sessionId,
-            roleId: user.roleId,
-            email: user.email,
-        };
-        const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '15m' });
+        const tokens = await this.cognito.refreshTokens(body.refreshToken);
 
         return {
-            accessToken,
-            refreshToken: body.refreshToken,
-            expiresIn: 15 * 60,
-            tokenType: 'Bearer',
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken || body.refreshToken,
+            expiresIn: tokens.expiresIn,
+            tokenType: tokens.tokenType || 'Bearer',
         };
     }
 
@@ -186,17 +177,13 @@ export class AuthenticationService {
             throw new BaseError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const decoded = jwt.decode(authHeader.replace(/^\s*Bearer\s+/i, '').trim()) as Record<string, any>;
-        const sessionId = decoded?.sessionId;
-
-        if (sessionId) {
-            const session = await this.repository.getSession(userId, sessionId);
-            if (session) {
-                await this.repository.deleteSession(userId, sessionId);
-                await this.repository.deleteRefreshToken(session.refreshTokenHash);
-                this.logger.info({ event: 'Logout Successful', userId, sessionId });
-            }
+        const user = await this.repository.getUser(userId);
+        if (user?.cognitoUsername) {
+            await this.cognito.signOut(user.cognitoUsername);
         }
+
+        await this.repository.deleteAllSessions(userId);
+        this.logger.info({ event: 'Logout Successful', userId });
     }
 
     async postchangepassword(
@@ -227,10 +214,65 @@ export class AuthenticationService {
         await this.repository.changePassword(userId, newPasswordHash, user.version);
         await this.repository.deleteAllSessions(userId);
 
-        this.logger.info({ event: 'Password Changed', userId });
+        if (user.cognitoUsername) {
+            await this.cognito.signOut(user.cognitoUsername);
+        }
 
-        // TODO: Publish PasswordChanged event
-        // eventBus.publish(new PasswordChangedEvent(userId));
+        this.logger.info({ event: 'Password Changed', userId });
+    }
+
+    /**
+     * Ensures Cognito `sub` is persisted as IDENTITY#{sub}/LOOKUP.
+     * In-memory identity fields are not sufficient — the authorizer resolves
+     * application users only through that lookup item.
+     */
+    async ensureCognitoLink(
+        user: User,
+        knownIdentity?: { sub: string; username: string },
+    ): Promise<User> {
+        const identity =
+            knownIdentity ??
+            (user.identityId && user.cognitoUsername
+                ? { sub: user.identityId, username: user.cognitoUsername }
+                : await this.cognito.findOrCreateUser({
+                      email: user.email?.trim() || undefined,
+                      phoneNumber: user.phoneNumber?.trim() || undefined,
+                  }));
+
+        const existing = await this.repository.getUserByIdentityId(identity.sub);
+        if (existing && existing.userId !== user.userId) {
+            throw new BaseError(
+                'Cognito identity is already linked to another user',
+                409,
+                'IDENTITY_ALREADY_LINKED',
+            );
+        }
+
+        if (
+            existing &&
+            existing.userId === user.userId &&
+            existing.cognitoUsername
+        ) {
+            return existing;
+        }
+
+        try {
+            return await this.repository.linkIdentity(
+                user.userId,
+                identity.sub,
+                identity.username,
+            );
+        } catch {
+            const raced = await this.repository.getUserByIdentityId(identity.sub);
+            if (raced && raced.userId === user.userId) {
+                return raced;
+            }
+            throw new BaseError(
+                'Cognito identity is already linked to another user',
+                409,
+                'IDENTITY_ALREADY_LINKED',
+            );
+        }
     }
 }
 

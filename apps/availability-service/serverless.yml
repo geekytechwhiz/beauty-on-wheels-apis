@@ -27,6 +27,8 @@ provider:
 
 custom:
 
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+
 
   esbuild:
     bundle: true
@@ -65,6 +67,7 @@ functions:
           path: /vendors/{vendorId}/working-hours
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get working hours"
           swaggerTags:
             - Availability
@@ -80,6 +83,7 @@ functions:
           path: /vendors/{vendorId}/working-hours
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update working hours"
           swaggerTags:
             - Availability
@@ -96,6 +100,7 @@ functions:
           path: /vendors/{vendorId}/slots
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List slots"
           swaggerTags:
             - Slots
@@ -111,6 +116,7 @@ functions:
           path: /vendors/{vendorId}/slots
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Generate slots"
           swaggerTags:
             - Slots
@@ -126,6 +132,7 @@ functions:
           path: /slots/{slotId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get slot"
           swaggerTags:
             - Slots
@@ -142,6 +149,7 @@ functions:
           path: /slots/{slotId}/block
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Block slot"
           swaggerTags:
             - Slots
@@ -157,6 +165,7 @@ functions:
           path: /slots/{slotId}/unblock
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Unblock slot"
           swaggerTags:
             - Slots
@@ -172,6 +181,7 @@ functions:
           path: /vendors/{vendorId}/holidays
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List holidays"
           swaggerTags:
             - Holidays
@@ -187,6 +197,7 @@ functions:
           path: /vendors/{vendorId}/holidays
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Add holiday"
           swaggerTags:
             - Holidays

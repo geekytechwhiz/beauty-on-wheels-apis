@@ -1,4 +1,10 @@
 
+export interface VehicleDetailsDdb {
+  bodyCategory?: string;
+  makeModel?: string;
+  saveToGarage?: boolean;
+}
+
 export interface BookingDdbItem {
   PK: string;
   SK: string;
@@ -8,10 +14,12 @@ export interface BookingDdbItem {
   customerId: string;
   vendorId: string;
   vehicleId?: string;
+  vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
   bookingDate: string;
   slotId: string;
   totalAmount: number;
+  paymentMethod?: string;
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
   bookingStatus: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   version: number;
@@ -29,10 +37,12 @@ export interface BookingLookupDdbItem {
   customerId: string;
   vendorId: string;
   vehicleId?: string;
+  vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
   bookingDate: string;
   slotId: string;
   totalAmount: number;
+  paymentMethod?: string;
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
   bookingStatus: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;

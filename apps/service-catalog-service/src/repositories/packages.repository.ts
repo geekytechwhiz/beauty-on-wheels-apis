@@ -24,8 +24,8 @@ export class PackagesRepository extends BaseRepository {
 
     async findById(packageId: string): Promise<PackageEntity | null> {
         return this.get<PackageEntity>(TABLE(), {
-            pk: CatalogKeyBuilder.packagePk(packageId),
-            sk: CatalogKeyBuilder.packageSk(),
+            PK: CatalogKeyBuilder.packagePk(packageId),
+            SK: CatalogKeyBuilder.packageSk(),
         });
     }
 
@@ -43,8 +43,8 @@ export class PackagesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": PACKAGES_AGGREGATE_PK,
@@ -72,8 +72,8 @@ export class PackagesRepository extends BaseRepository {
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.packagePk(packageId),
@@ -91,8 +91,8 @@ export class PackagesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "itemType = :itemType",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.packagePk(packageId),
@@ -111,8 +111,8 @@ export class PackagesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "itemType = :itemType",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.packagePk(packageId),
@@ -156,7 +156,7 @@ export class PackagesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_not_exists(pk)",
+                        ConditionExpression: "attribute_not_exists(PK)",
                     },
                 },
                 // Aggregate index entry for listing
@@ -170,7 +170,7 @@ export class PackagesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: item as any,
-                        ConditionExpression: "attribute_not_exists(pk) AND attribute_not_exists(sk)",
+                        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
                     },
                 })),
             ],
@@ -190,8 +190,8 @@ export class PackagesRepository extends BaseRepository {
             Delete: {
                 TableName: TABLE(),
                 Key: {
-                    pk: item.pk,
-                    sk: item.sk,
+                    PK: item.PK,
+                    SK: item.SK,
                 },
             },
         }));
@@ -201,7 +201,7 @@ export class PackagesRepository extends BaseRepository {
                 Put: {
                     TableName: TABLE(),
                     Item: entity as any,
-                    ConditionExpression: "attribute_exists(pk)",
+                    ConditionExpression: "attribute_exists(PK)",
                 },
             },
             {
@@ -230,10 +230,10 @@ export class PackagesRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: CatalogKeyBuilder.packagePk(packageId),
-                            sk: CatalogKeyBuilder.packageSk(),
+                            PK: CatalogKeyBuilder.packagePk(packageId),
+                            SK: CatalogKeyBuilder.packageSk(),
                         },
-                        ConditionExpression: "attribute_exists(pk)",
+                        ConditionExpression: "attribute_exists(PK)",
                     },
                 },
                 // Remove aggregate index entry
@@ -241,8 +241,8 @@ export class PackagesRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: PACKAGES_AGGREGATE_PK,
-                            sk: `META#PACKAGE#${packageId}`,
+                            PK: PACKAGES_AGGREGATE_PK,
+                            SK: `META#PACKAGE#${packageId}`,
                         },
                     },
                 },
@@ -250,13 +250,16 @@ export class PackagesRepository extends BaseRepository {
         });
     }
 
-    async deletePackageItem(pk: string, sk: string): Promise<void> {
+    async deletePackageItem(pkKey: string, skKey: string): Promise<void> {
         await this.transactWrite({
             TransactItems: [
                 {
                     Delete: {
                         TableName: TABLE(),
-                        Key: { pk, sk },
+                        Key: {
+                            PK: pkKey,
+                            SK: skKey,
+                        },
                     },
                 },
             ],
@@ -272,17 +275,17 @@ const PACKAGES_AGGREGATE_INDEX = "LSI3";
 
 function buildPackageIndexEntry(entity: PackageEntity): Record<string, unknown> {
     return {
-        pk: PACKAGES_AGGREGATE_PK,
-        sk: `META#PACKAGE#${entity.packageId}`,
+        PK: PACKAGES_AGGREGATE_PK,
+        SK: `META#PACKAGE#${entity.packageId}`,
         entityType: entity.entityType,
         packageId: entity.packageId,
         name: entity.name,
         discountedPrice: entity.discountedPrice,
         displayOrder: entity.displayOrder,
         active: entity.active,
-        lsi1sk: entity.lsi1sk,
-        lsi2sk: entity.lsi2sk,
-        lsi3sk: entity.lsi3sk,
+        LSI1SK: entity.LSI1SK,
+        LSI2SK: entity.LSI2SK,
+        LSI3SK: entity.LSI3SK,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };

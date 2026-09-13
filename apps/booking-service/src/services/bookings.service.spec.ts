@@ -1,6 +1,7 @@
 import { BookingsService } from './bookings.service';
 import { BookingsRepository } from '../repositories/bookings.repository';
 import { Booking } from '../types/api-types';
+import { validateBooking } from '../schemas/bookings.schema';
 import { LambdaRequest } from '@api-hub/utils';
 import { ValidationError, ConflictError, NotFoundError, BusinessRuleError, ConditionalWriteConflictError } from '@api-hub/utils';
 
@@ -59,10 +60,17 @@ describe('BookingsService Unit Tests', () => {
             const input: Booking = {
                 customerId: 'c1',
                 vendorId: 'v1',
+                vehicleId: 'KA05NB4819',
+                vehicleDetails: {
+                    bodyCategory: 'SEDAN',
+                    makeModel: 'Honda City 2022',
+                    saveToGarage: true
+                },
                 bookingDate: '2026-07-20',
                 slotId: 'slot1',
                 serviceIds: ['s1'],
-                totalAmount: 100
+                totalAmount: 609,
+                paymentMethod: 'CARD'
             };
             const createdBooking = { ...input, id: 'b1', bookingStatus: 'CREATED', paymentStatus: 'PENDING' };
             mockRepo.createBooking.mockResolvedValue(createdBooking);
@@ -270,6 +278,32 @@ describe('BookingsService Unit Tests', () => {
             } as unknown as LambdaRequest;
 
             await expect(service.poststart(req)).rejects.toThrow(BusinessRuleError);
+        });
+    });
+
+    describe('validateBooking schema', () => {
+        it('successfully validates payload with vehicleDetails, totalAmount and paymentMethod', () => {
+            const rawBody = {
+                customerId: "u-e2b72c5b-82aa-497f-bdd2-42c028097126",
+                vendorId: "vendor-01",
+                vehicleId: "KA05NB4819",
+                vehicleDetails: {
+                    bodyCategory: "SEDAN",
+                    makeModel: "Honda City 2022",
+                    saveToGarage: true
+                },
+                serviceIds: [
+                    "srv-detail-01"
+                ],
+                bookingDate: "2026-07-21T00:00:00.000Z",
+                slotId: "slot-2026-07-21-3",
+                totalAmount: 609,
+                paymentMethod: "CARD"
+            };
+
+            const req = { body: rawBody } as unknown as LambdaRequest;
+            const parsed = validateBooking(req);
+            expect(parsed).toEqual(rawBody);
         });
     });
 });

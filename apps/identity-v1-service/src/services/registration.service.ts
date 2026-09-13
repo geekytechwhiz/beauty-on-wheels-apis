@@ -20,6 +20,18 @@ export function hashPassword(password: string): string {
   return `${salt}:${hash}`;
 }
 
+export type CreateIdentityInput = {
+  email?: string;
+  phoneNumber?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  identityId?: string;
+  cognitoUsername?: string;
+};
+
 export class RegistrationService {
   private readonly logger = createChildLogger(baseLogger, {
     service: 'RegistrationService',
@@ -59,47 +71,71 @@ export class RegistrationService {
       }
     }
 
-    // Hash password securely with native PBKDF2
-    const passwordHash = hashPassword(body.password);
-    const userId = `u-${crypto.randomUUID()}`;
-
-    const newUser: User = {
-      userId,
+    const newUser = await this.createIdentity({
       email,
-      username,
-      phoneNumber: phone || '',
-      passwordHash,
-      status: 'ACTIVE',
-      emailVerified: false,
-      phoneVerified: false,
-      version: 1,
-      roleId: 'user', // Default role
-    };
-
-    const newProfile: Profile = {
-      userId,
+      phoneNumber: phone,
+      password: body.password,
       firstName: body.firstName,
       lastName: body.lastName,
-    };
-
-    await this.repository.createUser(newUser, newProfile);
+    });
 
     this.logger.info({
       event: 'User Registered',
-      userId,
-      email,
+      userId: newUser.userId,
+      email: newUser.email,
     });
 
     // TODO: Publish UserRegistered event
     // eventBus.publish(new UserRegisteredEvent(newUser));
 
     return {
-      id: userId,
+      id: newUser.userId,
       email: newUser.email,
       phone: newUser.phoneNumber,
       status: newUser.status,
       roles: newUser.roleId ? [newUser.roleId] : [],
     };
+  }
+
+  /**
+   * Shared identity persistence used by email/password registration and OTP verify.
+   * User.email, User.username, and User.passwordHash are required by the existing
+   * model, so OTP-created identities store empty email/phone when absent, use the
+   * verified destination as username, and persist an unusable random password hash
+   * (not a known password) so password login cannot succeed.
+   */
+  async createIdentity(input: CreateIdentityInput): Promise<User> {
+    const email = input.email?.trim() ?? '';
+    const phoneNumber = input.phoneNumber?.trim() ?? '';
+    const username = email || phoneNumber;
+    const userId = `u-${crypto.randomUUID()}`;
+    const passwordHash = input.password
+      ? hashPassword(input.password)
+      : hashPassword(crypto.randomBytes(32).toString('hex'));
+
+    const newUser: User = {
+      userId,
+      email,
+      username,
+      phoneNumber,
+      passwordHash,
+      status: 'ACTIVE',
+      emailVerified: Boolean(input.emailVerified),
+      phoneVerified: Boolean(input.phoneVerified),
+      version: 1,
+      roleId: 'user',
+      identityId: input.identityId,
+      cognitoUsername: input.cognitoUsername,
+    };
+
+    const newProfile: Profile = {
+      userId,
+      firstName: input.firstName ?? '',
+      lastName: input.lastName ?? '',
+    };
+
+    await this.repository.createUser(newUser, newProfile);
+    return newUser;
   }
 
   async postregister(request: LambdaRequest) {

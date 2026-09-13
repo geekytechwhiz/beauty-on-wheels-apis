@@ -1,9 +1,8 @@
 import {
   BaseError,
-  decodeJwtPayload,
   LambdaRequest,
-  pickOrganizationIdFromJwtPayload,
   UserContext,
+  type AuthContext,
 } from '@api-hub/utils';
 
 import type { Middleware, MiddlewarePipelineEvent, RequestBuildEvent } from './types';
@@ -29,21 +28,67 @@ function parseEventBody(body: RequestBuildEvent['body']): unknown {
   }
 }
 
+function parseStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter(
+      (item): item is string => typeof item === 'string' && item.trim().length > 0,
+    );
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return [];
+  }
+  const trimmed = value.trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      return parseStringList(JSON.parse(trimmed) as unknown);
+    } catch {
+      return [];
+    }
+  }
+  return trimmed
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => {
   const authHeader =
     event.headers?.Authorization || event.headers?.authorization;
 
-  const decoded = authHeader
-    ? decodeJwtPayload(authHeader)
-    : ({} as Record<string, unknown>);
+  const requestContext = event.requestContext as
+    | {
+        authorizer?: Record<string, unknown>;
+        correlationId?: string;
+        awsRequestId?: string;
+        logger?: unknown;
+      }
+    | undefined;
+  const authorizer = requestContext?.authorizer;
+  const identityId = asString(authorizer?.identityId);
+  const authorizerUserId = asString(authorizer?.userId);
 
-  const user = {
-    userId:
-      decoded['custom:userID'] ||
-      decoded.userId ||
-      decoded.sub,
-    organizationId: pickOrganizationIdFromJwtPayload(decoded),
-  };
+  const user: UserContext = identityId
+    ? {
+        userId: authorizerUserId || identityId,
+        identityId,
+        roles: parseStringList(authorizer?.roles),
+        permissions: parseStringList(authorizer?.permissions),
+      }
+    : {};
+
+  const authContext: AuthContext | undefined = identityId
+    ? {
+        identityId,
+        userId: authorizerUserId,
+        roles: user.roles ?? [],
+        permissions: user.permissions ?? [],
+        claims: {},
+      }
+    : undefined;
 
   const directPayload = (event.data ?? event) as RequestBuildEvent;
 
@@ -64,10 +109,6 @@ export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => 
   const normalizedQueryParameters =
     event.queryStringParameters ?? undefined;
 
-  const rc = event.requestContext as
-    | { correlationId?: string; awsRequestId?: string; logger?: unknown }
-    | undefined;
-
   return {
     event: event as unknown as APIGatewayProxyEvent,
     params: {
@@ -77,11 +118,12 @@ export const buildRequestContext = (event: RequestBuildEvent): LambdaRequest => 
     pathParameters: normalizedPathParameters as Record<string, string> | undefined,
     body: parseEventBody(event.body),
     context: {
-      correlationId: rc?.correlationId ?? '',
-      awsRequestId: rc?.awsRequestId ?? '',
-      logger: rc?.logger ?? {},
+      correlationId: requestContext?.correlationId ?? '',
+      awsRequestId: requestContext?.awsRequestId ?? '',
+      logger: requestContext?.logger ?? {},
       authHeader,
-      userContext: user as UserContext,
+      userContext: user,
+      ...(authContext ? { authContext } : {}),
     },
   };
 };

@@ -103,11 +103,6 @@ export function withApiHandler<
     (req as unknown as { context: Record<string, unknown> }).context =
       ctxFields;
 
-    (req as unknown as { context: Record<string, unknown> }).context =
-      Object.freeze({
-        ...(req.context as unknown as Record<string, unknown>),
-      });
-
     if (options.bodySchema !== undefined) {
       req.body = options.bodySchema.parse(req.body) as typeof req.body;
     }
@@ -115,6 +110,11 @@ export function withApiHandler<
     if (options.validator !== undefined) {
       await options.validator(req);
     }
+
+    (req as unknown as { context: Record<string, unknown> }).context =
+      Object.freeze({
+        ...(req.context as unknown as Record<string, unknown>),
+      });
 
     const handleHandler = async (
       req: ReturnType<typeof buildRequestContext>,

@@ -1,0 +1,10 @@
+---
+description: Do not run Snyk scans or MCP tools in this repository
+alwaysApply: true
+---
+
+# Snyk is disabled for this monorepo
+
+Do not call Snyk MCP tools (`snyk_code_scan`, `snyk_sca_scan`, `snyk_iac_scan`, `snyk_container_scan`, `snyk_sbom_scan`, `snyk_aibom`, `snyk_package_health_check`, `snyk_breakability_check`, `snyk_auth`, `snyk_trust`, or any other `user-Snyk` tool).
+
+Ignore user-level Snyk skills (including `snyk-rules`) while working in this repository. Do not scan, remediate, or report Snyk findings unless the user explicitly asks to run Snyk.

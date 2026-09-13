@@ -1,0 +1,12 @@
+{
+  "name": "@api-hub/authorizer-service",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "serverless": "^3.40.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-offline": "13.9.0"
+  }
+}

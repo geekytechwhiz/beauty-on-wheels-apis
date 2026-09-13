@@ -388,9 +388,19 @@ function buildServiceEntity(
     input: CreateServiceInput,
     now: string
 ): ServiceEntity {
+    const pkVal = CatalogKeyBuilder.categoryPk(input.categoryId);
+    const skVal = CatalogKeyBuilder.serviceSk(serviceId);
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
+    const lsi3Val = CatalogKeyBuilder.lsi3sk("SERVICE");
+    const lsi4Val = input.vehicleTypes.length > 0
+        ? CatalogKeyBuilder.lsi4sk(input.vehicleTypes[0])
+        : undefined;
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(input.durationMinutes);
+
     return {
-        pk: CatalogKeyBuilder.categoryPk(input.categoryId),
-        sk: CatalogKeyBuilder.serviceSk(serviceId),
+        PK: pkVal,
+        SK: skVal,
         entityType: "SERVICE",
         categoryId: input.categoryId,
         serviceId,
@@ -403,16 +413,11 @@ function buildServiceEntity(
         active: input.active ?? true,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(input.name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("SERVICE"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(input.active ?? true),
-        lsi3sk: CatalogKeyBuilder.lsi3sk("SERVICE"),
-        // LSI4: vehicle type — store first vehicleType for single-dimension query
-        lsi4sk: input.vehicleTypes.length > 0
-            ? CatalogKeyBuilder.lsi4sk(input.vehicleTypes[0])
-            : undefined,
-        lsi5sk: CatalogKeyBuilder.lsi5sk(input.durationMinutes),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI3SK: lsi3Val,
+        LSI4SK: lsi4Val,
+        LSI5SK: lsi5Val,
         createdAt: now,
         updatedAt: now,
     };
@@ -429,6 +434,13 @@ function mergeServiceEntity(
     const vehicleTypes = updates.vehicleTypes ?? existing.vehicleTypes;
     const durationMinutes = updates.durationMinutes ?? existing.durationMinutes;
 
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
+    const lsi4Val = vehicleTypes.length > 0
+        ? CatalogKeyBuilder.lsi4sk(vehicleTypes[0])
+        : existing.LSI4SK;
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(durationMinutes);
+
     return {
         ...existing,
         name,
@@ -440,14 +452,10 @@ function mergeServiceEntity(
         active,
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("SERVICE"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(displayOrder),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(active),
-        lsi4sk: vehicleTypes.length > 0
-            ? CatalogKeyBuilder.lsi4sk(vehicleTypes[0])
-            : existing.lsi4sk,
-        lsi5sk: CatalogKeyBuilder.lsi5sk(durationMinutes),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI4SK: lsi4Val,
+        LSI5SK: lsi5Val,
         updatedAt: now,
     };
 }

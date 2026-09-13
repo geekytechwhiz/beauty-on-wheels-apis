@@ -15,6 +15,27 @@ export type StaffStatus = 'ACTIVE' | 'INACTIVE';
 
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
+export type OnboardingSection =
+  | 'BUSINESS_INFO'
+  | 'OWNER_DETAILS'
+  | 'ADDRESS'
+  | 'BRANCH'
+  | 'DOCUMENTS'
+  | 'BANK_DETAILS';
+
+export type OnboardingStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'PENDING_REVIEW';
+
+export type DocumentType =
+  | 'GST_REGISTRATION'
+  | 'BUSINESS_REGISTRATION'
+  | 'COMMERCIAL_INSURANCE';
+
+export type DocumentStatus = 'PENDING_UPLOAD' | 'UPLOADED';
+
+export type BankAccountType = 'SAVINGS' | 'CURRENT';
+
+export type CapabilityCategory = 'vehicleType';
+
 export interface Address {
   addressLine1: string;
   addressLine2?: string;
@@ -31,15 +52,16 @@ export interface GeoLocation {
 }
 
 export interface CreateVendorRequest {
-  ownerUserId: string;
-  vendorType: VendorType;
   businessName: string;
   contactName: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   email?: string;
   description?: string;
-  address: Address;
-  geoLocation?: GeoLocation;
+  gstNumber?: string;
+  panNumber?: string;
+  profileImageUrl?: string;
+  vendorType?: VendorType;
+  ownerUserId?: string;
 }
 
 export interface UpdateVendorRequest {
@@ -48,8 +70,6 @@ export interface UpdateVendorRequest {
   phoneNumber?: string;
   email?: string;
   description?: string;
-  address?: Address;
-  geoLocation?: GeoLocation;
   profileImageUrl?: string;
 }
 
@@ -62,20 +82,210 @@ export interface UpdateOperationalStatusRequest {
   operationalStatus: OperationalStatus;
 }
 
+export interface BusinessInfoData {
+  vendorType: VendorType;
+  businessName: string;
+  contactName: string;
+  phoneNumber: string;
+  email?: string;
+  description?: string;
+  gstNumber?: string;
+  panNumber?: string;
+  profileImageUrl?: string;
+}
+
+export interface OwnerDetailsData {
+  userId: string;
+  fullName: string;
+  designation?: string;
+  phoneNumber?: string;
+  email?: string;
+}
+
+export interface AddressData {
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  geoLocation?: GeoLocation;
+}
+
+export interface BranchData {
+  branchId?: string;
+  name: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: Address;
+  geoLocation?: GeoLocation;
+  isPrimary?: boolean;
+}
+
+export interface DocumentsData {
+  documentType: DocumentType;
+  fileName: string;
+  contentType: string;
+}
+
+export interface BankDetailsData {
+  accountHolderName: string;
+  accountNumber: string;
+  ifscCode: string;
+  bankName: string;
+  branchName?: string;
+  accountType?: BankAccountType;
+}
+
+export interface UpdateOnboardingRequest {
+  section: OnboardingSection;
+  data:
+    | BusinessInfoData
+    | OwnerDetailsData
+    | AddressData
+    | BranchData
+    | DocumentsData
+    | BankDetailsData;
+}
+
+export interface VendorOwner {
+  vendorId: string;
+  userId: string;
+  fullName?: string;
+  designation?: string;
+  phoneNumber?: string;
+  email?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendorAddress {
+  vendorId: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  geoLocation?: GeoLocation;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BankDetails {
+  vendorId: string;
+  accountHolderName: string;
+  accountNumberLast4: string;
+  accountNumberMasked: string;
+  ifscCode: string;
+  bankName: string;
+  branchName?: string;
+  accountType?: BankAccountType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendorBranch {
+  branchId: string;
+  vendorId: string;
+  name: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: Address;
+  geoLocation?: GeoLocation;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBranchRequest {
+  name: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: Address;
+  geoLocation?: GeoLocation;
+  isPrimary?: boolean;
+}
+
+export interface UpdateBranchRequest {
+  name?: string;
+  phoneNumber?: string;
+  email?: string;
+  address?: Address;
+  geoLocation?: GeoLocation;
+  isPrimary?: boolean;
+}
+
+export interface VendorDocument {
+  documentId: string;
+  vendorId: string;
+  documentType: DocumentType;
+  fileName: string;
+  contentType: string;
+  objectKey: string;
+  status: DocumentStatus;
+  uploadUrl?: string;
+  downloadUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentRequest {
+  documentType: DocumentType;
+  fileName: string;
+  contentType: string;
+}
+
+export interface UpdateDocumentRequest {
+  fileName?: string;
+  contentType?: string;
+}
+
+export interface OnboardingState {
+  vendorId: string;
+  status: OnboardingStatus;
+  currentSection: OnboardingSection;
+  completedSections: OnboardingSection[];
+}
+
+export interface OnboardingResponse {
+  vendorId: string;
+  status: OnboardingStatus;
+  currentSection: OnboardingSection;
+  completedSections: OnboardingSection[];
+  applicationId?: string;
+  sections: {
+    BUSINESS_INFO?: BusinessInfoData;
+    OWNER_DETAILS?: VendorOwner;
+    ADDRESS?: VendorAddress;
+    BRANCH?: VendorBranch[];
+    DOCUMENTS?: VendorDocument[];
+    BANK_DETAILS?: BankDetails;
+  };
+}
+
 export interface Vendor {
   vendorId: string;
   ownerUserId: string;
-  vendorType: VendorType;
-  businessName: string;
+  vendorType?: VendorType;
+  businessName?: string;
   contactName?: string;
   phoneNumber?: string;
   email?: string;
   description?: string;
   profileImageUrl?: string;
+  gstNumber?: string;
+  panNumber?: string;
   address?: Address;
   geoLocation?: GeoLocation;
   status: VendorStatus;
   operationalStatus: OperationalStatus;
+  onboardingStatus: OnboardingStatus;
+  currentSection?: OnboardingSection;
+  completedSections?: OnboardingSection[];
+  applicationId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,6 +337,10 @@ export type OperatingHours = OperatingHoursRequest & ({
   vendorId?: string;
 });
 
+export interface UpdateVendorOperatingHoursRequest {
+  operatingHours: OperatingHoursRequest[];
+}
+
 export interface CreateStaffRequest {
   userId?: string;
   name: string;
@@ -166,6 +380,21 @@ export interface StaffListResponse {
   pagination?: Pagination;
 }
 
+export interface CapabilityDefinition {
+  capabilityId: string;
+  category: CapabilityCategory;
+  code: VehicleType;
+  name: string;
+}
+
+export interface AvailableCapabilities {
+  vehicleTypes: CapabilityDefinition[];
+  catalogSources: {
+    services: string;
+    packages: string;
+  };
+}
+
 export interface VendorCapabilities {
   vendorId: string;
   vehicleTypes: VehicleType[];
@@ -193,4 +422,3 @@ export interface Error {
     [key: string]: any;
   })[];
 }
-

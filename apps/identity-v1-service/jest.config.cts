@@ -13,5 +13,6 @@ module.exports = {
     '^@api-hub/observability$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/logger$': '<rootDir>/../../libs/observability/src/index.ts',
     '^@api-hub/event-platform$': '<rootDir>/../../libs/event-platform/src/index.ts',
+    '^@api-hub/authentication-core$': '<rootDir>/../../libs/authentication-core/src/index.ts',
   },
 };

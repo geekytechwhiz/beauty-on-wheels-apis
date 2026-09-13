@@ -26,8 +26,8 @@ export class CategoriesRepository extends BaseRepository {
 
     async findById(categoryId: string): Promise<CategoryEntity | null> {
         return this.get<CategoryEntity>(TABLE(), {
-            pk: CatalogKeyBuilder.categoryPk(categoryId),
-            sk: CatalogKeyBuilder.categorySk(),
+            PK: CatalogKeyBuilder.categoryPk(categoryId),
+            SK: CatalogKeyBuilder.categorySk(),
         });
     }
 
@@ -46,8 +46,8 @@ export class CategoriesRepository extends BaseRepository {
             IndexName: LSI3_INDEX,
             KeyConditionExpression: "#pk = :pk AND #lsi3sk = :lsi3sk",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi3sk": "lsi3sk",
+                "#pk": "PK",
+                "#lsi3sk": "LSI3SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CATALOG_AGGREGATE_PK,
@@ -74,7 +74,7 @@ export class CategoriesRepository extends BaseRepository {
             TableName: TABLE(),
             IndexName: LSI1_INDEX,
             KeyConditionExpression: "#pk = :pk",
-            ExpressionAttributeNames: { "#pk": "pk" },
+            ExpressionAttributeNames: { "#pk": "PK" },
             ExpressionAttributeValues: {
                 ":pk": CATALOG_AGGREGATE_PK,
             },
@@ -96,8 +96,8 @@ export class CategoriesRepository extends BaseRepository {
             IndexName: LSI2_INDEX,
             KeyConditionExpression: "#pk = :pk AND #lsi2sk = :lsi2sk",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi2sk": "lsi2sk",
+                "#pk": "PK",
+                "#lsi2sk": "LSI2SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CATALOG_AGGREGATE_PK,
@@ -131,12 +131,12 @@ export class CategoriesRepository extends BaseRepository {
      * Count how many services exist under a category (to enforce delete constraint).
      */
     async countServices(categoryId: string): Promise<number> {
-        const items = await this.query<{ pk: string; sk: string }>({
+        const items = await this.query<{ PK: string; SK: string }>({
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -156,8 +156,8 @@ export class CategoriesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "#active = :active AND entityType = :et",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
                 "#active": "active",
             },
             ExpressionAttributeValues: {
@@ -179,7 +179,7 @@ export class CategoriesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_not_exists(pk)",
+                        ConditionExpression: "attribute_not_exists(PK)",
                     },
                 },
                 // Aggregate index entry for listing
@@ -187,7 +187,7 @@ export class CategoriesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: buildCategoryIndexEntry(entity) as any,
-                        ConditionExpression: "attribute_not_exists(pk)",
+                        ConditionExpression: "attribute_not_exists(PK)",
                     },
                 },
             ],
@@ -201,7 +201,7 @@ export class CategoriesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_exists(pk)",
+                        ConditionExpression: "attribute_exists(PK)",
                     },
                 },
                 // Update aggregate index entry
@@ -222,10 +222,10 @@ export class CategoriesRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: CatalogKeyBuilder.categoryPk(categoryId),
-                            sk: CatalogKeyBuilder.categorySk(),
+                            PK: CatalogKeyBuilder.categoryPk(categoryId),
+                            SK: CatalogKeyBuilder.categorySk(),
                         },
-                        ConditionExpression: "attribute_exists(pk)",
+                        ConditionExpression: "attribute_exists(PK)",
                     },
                 },
                 // Remove aggregate index entry
@@ -233,8 +233,8 @@ export class CategoriesRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: CATALOG_AGGREGATE_PK,
-                            sk: CatalogKeyBuilder.categorySk() + "#CAT#" + categoryId,
+                            PK: CATALOG_AGGREGATE_PK,
+                            SK: CatalogKeyBuilder.categorySk() + "#CAT#" + categoryId,
                         },
                     },
                 },
@@ -255,16 +255,16 @@ const LSI3_INDEX = "LSI3";
 
 function buildCategoryIndexEntry(entity: CategoryEntity): Record<string, unknown> {
     return {
-        pk: CATALOG_AGGREGATE_PK,
-        sk: `META#CAT#${entity.categoryId}`,
+        PK: CATALOG_AGGREGATE_PK,
+        SK: `META#CAT#${entity.categoryId}`,
         entityType: entity.entityType,
         categoryId: entity.categoryId,
         name: entity.name,
         displayOrder: entity.displayOrder,
         active: entity.active,
-        lsi1sk: entity.lsi1sk,
-        lsi2sk: entity.lsi2sk,
-        lsi3sk: entity.lsi3sk,
+        LSI1SK: entity.LSI1SK,
+        LSI2SK: entity.LSI2SK,
+        LSI3SK: entity.LSI3SK,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };

@@ -17,7 +17,6 @@
         "main": "apps/identity-v1-service/src/main.ts",
         "tsConfig": "apps/identity-v1-service/tsconfig.app.json",
         "assets": ["apps/identity-v1-service/src/assets"],
-        "generatePackageJson": true,
         "esbuildOptions": {
           "sourcemap": true,
           "outExtension": {
@@ -66,20 +65,11 @@
     },
     "serve": {
       "continuous": true,
-      "executor": "@nx/js:node",
+      "executor": "nx:run-commands",
       "defaultConfiguration": "development",
-      "dependsOn": ["build"],
       "options": {
-        "buildTarget": "identity-v1-service:build",
-        "runBuildTargetDependencies": false
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "identity-v1-service:build:development"
-        },
-        "production": {
-          "buildTarget": "identity-v1-service:build:production"
-        }
+        "command": "AWS_PROFILE=ci-user-bw npx serverless offline --stage dev --aws-profile ci-user-bw",
+        "cwd": "apps/identity-v1-service"
       }
     },
     "test": {

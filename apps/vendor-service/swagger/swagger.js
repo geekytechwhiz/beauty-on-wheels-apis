@@ -9,7 +9,7 @@
     "/vendors": {
       "post": {
         "summary": "Create vendor",
-        "description": "Creates a new vendor profile.\n\nThe authenticated identity should be linked to the vendor through ownerUserId.\nVendor creation does not automatically activate the vendor.\n",
+        "description": "Creates a new Vendor profile with a unique vendorId and the submitted business information. Each POST mints a new vendorId. Progressive section data is saved via PUT /vendors/{vendorId}/onboarding.",
         "tags": [
           "Vendors"
         ],
@@ -85,10 +85,153 @@
         }
       }
     },
+    "/vendors/{vendorId}/onboarding": {
+      "get": {
+        "summary": "Get vendor onboarding state",
+        "description": "Returns backend-authoritative onboarding progress and persisted section data so the frontend can resume.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "getvendoronboarding.get./vendors/{vendorId}/onboarding",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding state retrieved",
+            "schema": {
+              "$ref": "#/definitions/OnboardingResponse"
+            }
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Save an onboarding section",
+        "description": "Progressively creates or updates one onboarding section. `section` identifies the domain portion. Repeated PUTs or PATCHes for the same section update in place. The `data` payload is validated against the selected section schema. Vendors may be onboarded by the vendor owner or by platform admin staff.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "updatevendoronboarding.put./vendors/{vendorId}/onboarding",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateOnboardingRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding section saved",
+            "schema": {
+              "$ref": "#/definitions/OnboardingResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid section or section payload"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Save an onboarding section",
+        "description": "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "updatevendoronboarding.patch./vendors/{vendorId}/onboarding",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateOnboardingRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding section saved",
+            "schema": {
+              "$ref": "#/definitions/OnboardingResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid section or section payload"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}": {
       "get": {
         "summary": "Get vendor",
-        "description": "",
+        "description": "Returns the vendor profile and primary address. Bank details are omitted.",
         "tags": [
           "Vendors"
         ],
@@ -117,6 +260,9 @@
           "401": {
             "description": "401 response"
           },
+          "403": {
+            "description": "403 response"
+          },
           "404": {
             "description": "404 response"
           },
@@ -127,7 +273,7 @@
       },
       "patch": {
         "summary": "Update vendor",
-        "description": "",
+        "description": "Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs.",
         "tags": [
           "Vendors"
         ],
@@ -564,6 +710,15 @@
         ],
         "parameters": [
           {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateVendorOperatingHoursRequest"
+            }
+          },
+          {
             "name": "vendorId",
             "in": "path",
             "required": true,
@@ -772,6 +927,60 @@
           }
         }
       },
+      "put": {
+        "summary": "Replace vendor staff member",
+        "description": "",
+        "tags": [
+          "Staff"
+        ],
+        "operationId": "updatevendorstaff.put./vendors/{vendorId}/staff/{staffId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateStaffRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "staffId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff member updated successfully",
+            "schema": {
+              "$ref": "#/definitions/StaffResponse"
+            }
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
       "delete": {
         "summary": "Deactivate vendor staff member",
         "description": "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n",
@@ -808,6 +1017,34 @@
           },
           "404": {
             "description": "404 response"
+          }
+        }
+      }
+    },
+    "/capabilities": {
+      "get": {
+        "summary": "List available capabilities",
+        "description": "Returns capability master data. Vendor assignments store IDs only; service and package definitions remain in Service Catalog.",
+        "tags": [
+          "Capabilities"
+        ],
+        "operationId": "listavailablecapabilities.get./capabilities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Available capabilities retrieved",
+            "schema": {
+              "$ref": "#/definitions/AvailableCapabilities"
+            }
+          },
+          "401": {
+            "description": "401 response"
           }
         }
       }
@@ -894,6 +1131,517 @@
           }
         }
       }
+    },
+    "/vendors/{vendorId}/branches": {
+      "get": {
+        "summary": "List vendor branches",
+        "description": "",
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "listvendorbranches.get./vendors/{vendorId}/branches",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branches retrieved successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create vendor branch",
+        "description": "",
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "createvendorbranch.post./vendors/{vendorId}/branches",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateBranchRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Branch created successfully"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/branches/{branchId}": {
+      "get": {
+        "summary": "Get vendor branch",
+        "description": "",
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "getvendorbranch.get./vendors/{vendorId}/branches/{branchId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "branchId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch retrieved successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update vendor branch",
+        "description": "",
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "updatevendorbranch.put./vendors/{vendorId}/branches/{branchId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateBranchRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "branchId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch updated successfully"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete vendor branch",
+        "description": "",
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "deletevendorbranch.delete./vendors/{vendorId}/branches/{branchId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "branchId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Branch deleted successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/documents": {
+      "get": {
+        "summary": "List vendor documents",
+        "description": "",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "listvendordocuments.get./vendors/{vendorId}/documents",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documents retrieved successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create vendor document metadata and upload URL",
+        "description": "",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "createvendordocument.post./vendors/{vendorId}/documents",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateDocumentRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Document created successfully"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "409": {
+            "description": "409 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/documents/{documentId}": {
+      "get": {
+        "summary": "Get vendor document",
+        "description": "",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "getvendordocument.get./vendors/{vendorId}/documents/{documentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document retrieved successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace vendor document",
+        "description": "",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "updatevendordocument.put./vendors/{vendorId}/documents/{documentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateDocumentRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document updated successfully"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete vendor document",
+        "description": "",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "deletevendordocument.delete./vendors/{vendorId}/documents/{documentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Document deleted successfully"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/bank-details": {
+      "get": {
+        "summary": "Get vendor bank details",
+        "description": "Returns masked banking information. Full account numbers are never returned.",
+        "tags": [
+          "Bank Details"
+        ],
+        "operationId": "getvendorbankdetails.get./vendors/{vendorId}/bank-details",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bank details retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/BankDetails"
+            }
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create or update vendor bank details",
+        "description": "",
+        "tags": [
+          "Bank Details"
+        ],
+        "operationId": "updatevendorbankdetails.put./vendors/{vendorId}/bank-details",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BankDetailsData"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bank details saved successfully",
+            "schema": {
+              "$ref": "#/definitions/BankDetails"
+            }
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -960,6 +1708,60 @@
       "title": "DayOfWeek",
       "type": "string"
     },
+    "OnboardingSection": {
+      "enum": [
+        "BUSINESS_INFO",
+        "OWNER_DETAILS",
+        "ADDRESS",
+        "BRANCH",
+        "DOCUMENTS",
+        "BANK_DETAILS"
+      ],
+      "title": "OnboardingSection",
+      "type": "string"
+    },
+    "OnboardingStatus": {
+      "enum": [
+        "DRAFT",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "PENDING_REVIEW"
+      ],
+      "title": "OnboardingStatus",
+      "type": "string"
+    },
+    "DocumentType": {
+      "enum": [
+        "GST_REGISTRATION",
+        "BUSINESS_REGISTRATION",
+        "COMMERCIAL_INSURANCE"
+      ],
+      "title": "DocumentType",
+      "type": "string"
+    },
+    "DocumentStatus": {
+      "enum": [
+        "PENDING_UPLOAD",
+        "UPLOADED"
+      ],
+      "title": "DocumentStatus",
+      "type": "string"
+    },
+    "BankAccountType": {
+      "enum": [
+        "SAVINGS",
+        "CURRENT"
+      ],
+      "title": "BankAccountType",
+      "type": "string"
+    },
+    "CapabilityCategory": {
+      "title": "CapabilityCategory",
+      "enum": [
+        "vehicleType"
+      ],
+      "type": "string"
+    },
     "Address": {
       "properties": {
         "addressLine1": {
@@ -1023,14 +1825,6 @@
     },
     "CreateVendorRequest": {
       "properties": {
-        "ownerUserId": {
-          "title": "CreateVendorRequest.ownerUserId",
-          "type": "string"
-        },
-        "vendorType": {
-          "$ref": "#/definitions/VendorType",
-          "title": "CreateVendorRequest.vendorType"
-        },
         "businessName": {
           "title": "CreateVendorRequest.businessName",
           "type": "string"
@@ -1051,22 +1845,30 @@
           "title": "CreateVendorRequest.description",
           "type": "string"
         },
-        "address": {
-          "$ref": "#/definitions/Address",
-          "title": "CreateVendorRequest.address"
+        "gstNumber": {
+          "title": "CreateVendorRequest.gstNumber",
+          "type": "string"
         },
-        "geoLocation": {
-          "$ref": "#/definitions/GeoLocation",
-          "title": "CreateVendorRequest.geoLocation"
+        "panNumber": {
+          "title": "CreateVendorRequest.panNumber",
+          "type": "string"
+        },
+        "profileImageUrl": {
+          "title": "CreateVendorRequest.profileImageUrl",
+          "type": "string"
+        },
+        "vendorType": {
+          "$ref": "#/definitions/VendorType",
+          "title": "CreateVendorRequest.vendorType"
+        },
+        "ownerUserId": {
+          "title": "CreateVendorRequest.ownerUserId",
+          "type": "string"
         }
       },
       "required": [
-        "ownerUserId",
-        "vendorType",
         "businessName",
-        "contactName",
-        "phoneNumber",
-        "address"
+        "contactName"
       ],
       "additionalProperties": false,
       "title": "CreateVendorRequest",
@@ -1093,14 +1895,6 @@
         "description": {
           "title": "UpdateVendorRequest.description",
           "type": "string"
-        },
-        "address": {
-          "$ref": "#/definitions/Address",
-          "title": "UpdateVendorRequest.address"
-        },
-        "geoLocation": {
-          "$ref": "#/definitions/GeoLocation",
-          "title": "UpdateVendorRequest.geoLocation"
         },
         "profileImageUrl": {
           "title": "UpdateVendorRequest.profileImageUrl",
@@ -1143,6 +1937,769 @@
       "title": "UpdateOperationalStatusRequest",
       "type": "object"
     },
+    "BusinessInfoData": {
+      "properties": {
+        "vendorType": {
+          "$ref": "#/definitions/VendorType",
+          "title": "BusinessInfoData.vendorType"
+        },
+        "businessName": {
+          "title": "BusinessInfoData.businessName",
+          "type": "string"
+        },
+        "contactName": {
+          "title": "BusinessInfoData.contactName",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "BusinessInfoData.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "BusinessInfoData.email",
+          "type": "string"
+        },
+        "description": {
+          "title": "BusinessInfoData.description",
+          "type": "string"
+        },
+        "gstNumber": {
+          "title": "BusinessInfoData.gstNumber",
+          "type": "string"
+        },
+        "panNumber": {
+          "title": "BusinessInfoData.panNumber",
+          "type": "string"
+        },
+        "profileImageUrl": {
+          "title": "BusinessInfoData.profileImageUrl",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorType",
+        "businessName",
+        "contactName",
+        "phoneNumber"
+      ],
+      "additionalProperties": false,
+      "title": "BusinessInfoData",
+      "type": "object"
+    },
+    "OwnerDetailsData": {
+      "properties": {
+        "userId": {
+          "title": "OwnerDetailsData.userId",
+          "type": "string"
+        },
+        "fullName": {
+          "title": "OwnerDetailsData.fullName",
+          "type": "string"
+        },
+        "designation": {
+          "title": "OwnerDetailsData.designation",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "OwnerDetailsData.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "OwnerDetailsData.email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId",
+        "fullName"
+      ],
+      "additionalProperties": false,
+      "title": "OwnerDetailsData",
+      "type": "object"
+    },
+    "AddressData": {
+      "properties": {
+        "addressLine1": {
+          "title": "AddressData.addressLine1",
+          "type": "string"
+        },
+        "addressLine2": {
+          "title": "AddressData.addressLine2",
+          "type": "string"
+        },
+        "landmark": {
+          "title": "AddressData.landmark",
+          "type": "string"
+        },
+        "city": {
+          "title": "AddressData.city",
+          "type": "string"
+        },
+        "state": {
+          "title": "AddressData.state",
+          "type": "string"
+        },
+        "country": {
+          "title": "AddressData.country",
+          "type": "string"
+        },
+        "postalCode": {
+          "title": "AddressData.postalCode",
+          "type": "string"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "AddressData.geoLocation"
+        }
+      },
+      "required": [
+        "addressLine1",
+        "city",
+        "state",
+        "country",
+        "postalCode"
+      ],
+      "additionalProperties": false,
+      "title": "AddressData",
+      "type": "object"
+    },
+    "BranchData": {
+      "properties": {
+        "branchId": {
+          "title": "BranchData.branchId",
+          "type": "string"
+        },
+        "name": {
+          "title": "BranchData.name",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "BranchData.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "BranchData.email",
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/Address",
+          "title": "BranchData.address"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "BranchData.geoLocation"
+        },
+        "isPrimary": {
+          "title": "BranchData.isPrimary",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "title": "BranchData",
+      "type": "object"
+    },
+    "DocumentsData": {
+      "properties": {
+        "documentType": {
+          "$ref": "#/definitions/DocumentType",
+          "title": "DocumentsData.documentType"
+        },
+        "fileName": {
+          "title": "DocumentsData.fileName",
+          "type": "string"
+        },
+        "contentType": {
+          "title": "DocumentsData.contentType",
+          "type": "string"
+        }
+      },
+      "required": [
+        "documentType",
+        "fileName",
+        "contentType"
+      ],
+      "additionalProperties": false,
+      "title": "DocumentsData",
+      "type": "object"
+    },
+    "BankDetailsData": {
+      "properties": {
+        "accountHolderName": {
+          "title": "BankDetailsData.accountHolderName",
+          "type": "string"
+        },
+        "accountNumber": {
+          "title": "BankDetailsData.accountNumber",
+          "type": "string"
+        },
+        "ifscCode": {
+          "title": "BankDetailsData.ifscCode",
+          "type": "string"
+        },
+        "bankName": {
+          "title": "BankDetailsData.bankName",
+          "type": "string"
+        },
+        "branchName": {
+          "title": "BankDetailsData.branchName",
+          "type": "string"
+        },
+        "accountType": {
+          "$ref": "#/definitions/BankAccountType",
+          "title": "BankDetailsData.accountType"
+        }
+      },
+      "required": [
+        "accountHolderName",
+        "accountNumber",
+        "ifscCode",
+        "bankName"
+      ],
+      "additionalProperties": false,
+      "title": "BankDetailsData",
+      "type": "object"
+    },
+    "UpdateOnboardingRequest": {
+      "properties": {
+        "section": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "UpdateOnboardingRequest.section"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BusinessInfoData",
+              "title": "UpdateOnboardingRequest.data"
+            },
+            {
+              "$ref": "#/definitions/OwnerDetailsData",
+              "title": "UpdateOnboardingRequest.data"
+            },
+            {
+              "$ref": "#/definitions/AddressData",
+              "title": "UpdateOnboardingRequest.data"
+            },
+            {
+              "$ref": "#/definitions/BranchData",
+              "title": "UpdateOnboardingRequest.data"
+            },
+            {
+              "$ref": "#/definitions/DocumentsData",
+              "title": "UpdateOnboardingRequest.data"
+            },
+            {
+              "$ref": "#/definitions/BankDetailsData",
+              "title": "UpdateOnboardingRequest.data"
+            }
+          ],
+          "title": "UpdateOnboardingRequest.data"
+        }
+      },
+      "required": [
+        "section",
+        "data"
+      ],
+      "additionalProperties": false,
+      "title": "UpdateOnboardingRequest",
+      "type": "object"
+    },
+    "VendorOwner": {
+      "properties": {
+        "vendorId": {
+          "title": "VendorOwner.vendorId",
+          "type": "string"
+        },
+        "userId": {
+          "title": "VendorOwner.userId",
+          "type": "string"
+        },
+        "fullName": {
+          "title": "VendorOwner.fullName",
+          "type": "string"
+        },
+        "designation": {
+          "title": "VendorOwner.designation",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "VendorOwner.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "VendorOwner.email",
+          "type": "string"
+        },
+        "createdAt": {
+          "title": "VendorOwner.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "VendorOwner.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorId",
+        "userId",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorOwner",
+      "type": "object"
+    },
+    "VendorAddress": {
+      "properties": {
+        "vendorId": {
+          "title": "VendorAddress.vendorId",
+          "type": "string"
+        },
+        "addressLine1": {
+          "title": "VendorAddress.addressLine1",
+          "type": "string"
+        },
+        "addressLine2": {
+          "title": "VendorAddress.addressLine2",
+          "type": "string"
+        },
+        "landmark": {
+          "title": "VendorAddress.landmark",
+          "type": "string"
+        },
+        "city": {
+          "title": "VendorAddress.city",
+          "type": "string"
+        },
+        "state": {
+          "title": "VendorAddress.state",
+          "type": "string"
+        },
+        "country": {
+          "title": "VendorAddress.country",
+          "type": "string"
+        },
+        "postalCode": {
+          "title": "VendorAddress.postalCode",
+          "type": "string"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "VendorAddress.geoLocation"
+        },
+        "createdAt": {
+          "title": "VendorAddress.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "VendorAddress.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorId",
+        "addressLine1",
+        "city",
+        "state",
+        "country",
+        "postalCode",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorAddress",
+      "type": "object"
+    },
+    "BankDetails": {
+      "properties": {
+        "vendorId": {
+          "title": "BankDetails.vendorId",
+          "type": "string"
+        },
+        "accountHolderName": {
+          "title": "BankDetails.accountHolderName",
+          "type": "string"
+        },
+        "accountNumberLast4": {
+          "title": "BankDetails.accountNumberLast4",
+          "type": "string"
+        },
+        "accountNumberMasked": {
+          "title": "BankDetails.accountNumberMasked",
+          "type": "string"
+        },
+        "ifscCode": {
+          "title": "BankDetails.ifscCode",
+          "type": "string"
+        },
+        "bankName": {
+          "title": "BankDetails.bankName",
+          "type": "string"
+        },
+        "branchName": {
+          "title": "BankDetails.branchName",
+          "type": "string"
+        },
+        "accountType": {
+          "$ref": "#/definitions/BankAccountType",
+          "title": "BankDetails.accountType"
+        },
+        "createdAt": {
+          "title": "BankDetails.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "BankDetails.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorId",
+        "accountHolderName",
+        "accountNumberLast4",
+        "accountNumberMasked",
+        "ifscCode",
+        "bankName",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "BankDetails",
+      "type": "object"
+    },
+    "VendorBranch": {
+      "properties": {
+        "branchId": {
+          "title": "VendorBranch.branchId",
+          "type": "string"
+        },
+        "vendorId": {
+          "title": "VendorBranch.vendorId",
+          "type": "string"
+        },
+        "name": {
+          "title": "VendorBranch.name",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "VendorBranch.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "VendorBranch.email",
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/Address",
+          "title": "VendorBranch.address"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "VendorBranch.geoLocation"
+        },
+        "isPrimary": {
+          "title": "VendorBranch.isPrimary",
+          "type": "boolean"
+        },
+        "createdAt": {
+          "title": "VendorBranch.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "VendorBranch.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branchId",
+        "vendorId",
+        "name",
+        "isPrimary",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorBranch",
+      "type": "object"
+    },
+    "CreateBranchRequest": {
+      "properties": {
+        "name": {
+          "title": "CreateBranchRequest.name",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "CreateBranchRequest.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "CreateBranchRequest.email",
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/Address",
+          "title": "CreateBranchRequest.address"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "CreateBranchRequest.geoLocation"
+        },
+        "isPrimary": {
+          "title": "CreateBranchRequest.isPrimary",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "title": "CreateBranchRequest",
+      "type": "object"
+    },
+    "UpdateBranchRequest": {
+      "properties": {
+        "name": {
+          "title": "UpdateBranchRequest.name",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "UpdateBranchRequest.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "UpdateBranchRequest.email",
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/Address",
+          "title": "UpdateBranchRequest.address"
+        },
+        "geoLocation": {
+          "$ref": "#/definitions/GeoLocation",
+          "title": "UpdateBranchRequest.geoLocation"
+        },
+        "isPrimary": {
+          "title": "UpdateBranchRequest.isPrimary",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "title": "UpdateBranchRequest",
+      "type": "object"
+    },
+    "VendorDocument": {
+      "properties": {
+        "documentId": {
+          "title": "VendorDocument.documentId",
+          "type": "string"
+        },
+        "vendorId": {
+          "title": "VendorDocument.vendorId",
+          "type": "string"
+        },
+        "documentType": {
+          "$ref": "#/definitions/DocumentType",
+          "title": "VendorDocument.documentType"
+        },
+        "fileName": {
+          "title": "VendorDocument.fileName",
+          "type": "string"
+        },
+        "contentType": {
+          "title": "VendorDocument.contentType",
+          "type": "string"
+        },
+        "objectKey": {
+          "title": "VendorDocument.objectKey",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/DocumentStatus",
+          "title": "VendorDocument.status"
+        },
+        "uploadUrl": {
+          "title": "VendorDocument.uploadUrl",
+          "type": "string"
+        },
+        "downloadUrl": {
+          "title": "VendorDocument.downloadUrl",
+          "type": "string"
+        },
+        "createdAt": {
+          "title": "VendorDocument.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "VendorDocument.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "documentId",
+        "vendorId",
+        "documentType",
+        "fileName",
+        "contentType",
+        "objectKey",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorDocument",
+      "type": "object"
+    },
+    "CreateDocumentRequest": {
+      "properties": {
+        "documentType": {
+          "$ref": "#/definitions/DocumentType",
+          "title": "CreateDocumentRequest.documentType"
+        },
+        "fileName": {
+          "title": "CreateDocumentRequest.fileName",
+          "type": "string"
+        },
+        "contentType": {
+          "title": "CreateDocumentRequest.contentType",
+          "type": "string"
+        }
+      },
+      "required": [
+        "documentType",
+        "fileName",
+        "contentType"
+      ],
+      "additionalProperties": false,
+      "title": "CreateDocumentRequest",
+      "type": "object"
+    },
+    "UpdateDocumentRequest": {
+      "properties": {
+        "fileName": {
+          "title": "UpdateDocumentRequest.fileName",
+          "type": "string"
+        },
+        "contentType": {
+          "title": "UpdateDocumentRequest.contentType",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "title": "UpdateDocumentRequest",
+      "type": "object"
+    },
+    "OnboardingState": {
+      "properties": {
+        "vendorId": {
+          "title": "OnboardingState.vendorId",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/OnboardingStatus",
+          "title": "OnboardingState.status"
+        },
+        "currentSection": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "OnboardingState.currentSection"
+        },
+        "completedSections": {
+          "items": {
+            "$ref": "#/definitions/OnboardingSection",
+            "title": "OnboardingState.completedSections.[]"
+          },
+          "title": "OnboardingState.completedSections",
+          "type": "array"
+        }
+      },
+      "required": [
+        "vendorId",
+        "status",
+        "currentSection",
+        "completedSections"
+      ],
+      "additionalProperties": false,
+      "title": "OnboardingState",
+      "type": "object"
+    },
+    "OnboardingResponse": {
+      "properties": {
+        "vendorId": {
+          "title": "OnboardingResponse.vendorId",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/OnboardingStatus",
+          "title": "OnboardingResponse.status"
+        },
+        "currentSection": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "OnboardingResponse.currentSection"
+        },
+        "completedSections": {
+          "items": {
+            "$ref": "#/definitions/OnboardingSection",
+            "title": "OnboardingResponse.completedSections.[]"
+          },
+          "title": "OnboardingResponse.completedSections",
+          "type": "array"
+        },
+        "applicationId": {
+          "title": "OnboardingResponse.applicationId",
+          "type": "string"
+        },
+        "sections": {
+          "properties": {
+            "BUSINESS_INFO": {
+              "$ref": "#/definitions/BusinessInfoData",
+              "title": "OnboardingResponse.sections.BUSINESS_INFO"
+            },
+            "OWNER_DETAILS": {
+              "$ref": "#/definitions/VendorOwner",
+              "title": "OnboardingResponse.sections.OWNER_DETAILS"
+            },
+            "ADDRESS": {
+              "$ref": "#/definitions/VendorAddress",
+              "title": "OnboardingResponse.sections.ADDRESS"
+            },
+            "BRANCH": {
+              "items": {
+                "$ref": "#/definitions/VendorBranch",
+                "title": "OnboardingResponse.sections.BRANCH.[]"
+              },
+              "title": "OnboardingResponse.sections.BRANCH",
+              "type": "array"
+            },
+            "DOCUMENTS": {
+              "items": {
+                "$ref": "#/definitions/VendorDocument",
+                "title": "OnboardingResponse.sections.DOCUMENTS.[]"
+              },
+              "title": "OnboardingResponse.sections.DOCUMENTS",
+              "type": "array"
+            },
+            "BANK_DETAILS": {
+              "$ref": "#/definitions/BankDetails",
+              "title": "OnboardingResponse.sections.BANK_DETAILS"
+            }
+          },
+          "additionalProperties": false,
+          "title": "OnboardingResponse.sections",
+          "type": "object"
+        }
+      },
+      "required": [
+        "vendorId",
+        "status",
+        "currentSection",
+        "completedSections",
+        "sections"
+      ],
+      "additionalProperties": false,
+      "title": "OnboardingResponse",
+      "type": "object"
+    },
     "Vendor": {
       "properties": {
         "vendorId": {
@@ -1181,6 +2738,14 @@
           "title": "Vendor.profileImageUrl",
           "type": "string"
         },
+        "gstNumber": {
+          "title": "Vendor.gstNumber",
+          "type": "string"
+        },
+        "panNumber": {
+          "title": "Vendor.panNumber",
+          "type": "string"
+        },
         "address": {
           "$ref": "#/definitions/Address",
           "title": "Vendor.address"
@@ -1197,6 +2762,26 @@
           "$ref": "#/definitions/OperationalStatus",
           "title": "Vendor.operationalStatus"
         },
+        "onboardingStatus": {
+          "$ref": "#/definitions/OnboardingStatus",
+          "title": "Vendor.onboardingStatus"
+        },
+        "currentSection": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "Vendor.currentSection"
+        },
+        "completedSections": {
+          "items": {
+            "$ref": "#/definitions/OnboardingSection",
+            "title": "Vendor.completedSections.[]"
+          },
+          "title": "Vendor.completedSections",
+          "type": "array"
+        },
+        "applicationId": {
+          "title": "Vendor.applicationId",
+          "type": "string"
+        },
         "createdAt": {
           "title": "Vendor.createdAt",
           "type": "string"
@@ -1209,10 +2794,9 @@
       "required": [
         "vendorId",
         "ownerUserId",
-        "vendorType",
-        "businessName",
         "status",
         "operationalStatus",
+        "onboardingStatus",
         "createdAt",
         "updatedAt"
       ],
@@ -1419,6 +3003,24 @@
       ],
       "title": "OperatingHours"
     },
+    "UpdateVendorOperatingHoursRequest": {
+      "properties": {
+        "operatingHours": {
+          "items": {
+            "$ref": "#/definitions/OperatingHoursRequest",
+            "title": "UpdateVendorOperatingHoursRequest.operatingHours.[]"
+          },
+          "title": "UpdateVendorOperatingHoursRequest.operatingHours",
+          "type": "array"
+        }
+      },
+      "required": [
+        "operatingHours"
+      ],
+      "additionalProperties": false,
+      "title": "UpdateVendorOperatingHoursRequest",
+      "type": "object"
+    },
     "CreateStaffRequest": {
       "properties": {
         "userId": {
@@ -1564,6 +3166,73 @@
       },
       "additionalProperties": false,
       "title": "StaffListResponse",
+      "type": "object"
+    },
+    "CapabilityDefinition": {
+      "properties": {
+        "capabilityId": {
+          "title": "CapabilityDefinition.capabilityId",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/definitions/CapabilityCategory",
+          "title": "CapabilityDefinition.category"
+        },
+        "code": {
+          "$ref": "#/definitions/VehicleType",
+          "title": "CapabilityDefinition.code"
+        },
+        "name": {
+          "title": "CapabilityDefinition.name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "category",
+        "code",
+        "name"
+      ],
+      "additionalProperties": false,
+      "title": "CapabilityDefinition",
+      "type": "object"
+    },
+    "AvailableCapabilities": {
+      "properties": {
+        "vehicleTypes": {
+          "items": {
+            "$ref": "#/definitions/CapabilityDefinition",
+            "title": "AvailableCapabilities.vehicleTypes.[]"
+          },
+          "title": "AvailableCapabilities.vehicleTypes",
+          "type": "array"
+        },
+        "catalogSources": {
+          "properties": {
+            "services": {
+              "title": "AvailableCapabilities.catalogSources.services",
+              "type": "string"
+            },
+            "packages": {
+              "title": "AvailableCapabilities.catalogSources.packages",
+              "type": "string"
+            }
+          },
+          "required": [
+            "services",
+            "packages"
+          ],
+          "additionalProperties": false,
+          "title": "AvailableCapabilities.catalogSources",
+          "type": "object"
+        }
+      },
+      "required": [
+        "vehicleTypes",
+        "catalogSources"
+      ],
+      "additionalProperties": false,
+      "title": "AvailableCapabilities",
       "type": "object"
     },
     "VendorCapabilities": {

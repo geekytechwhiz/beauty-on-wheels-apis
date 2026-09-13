@@ -26,6 +26,12 @@ export class CapabilitiesController {
 
     }
 
+    async handleListavailablecapabilities(
+        request: LambdaRequest
+    ) {
+        return this.service.listavailablecapabilities(request);
+    }
+
 
 
     async handleUpdatevendorcapabilities(

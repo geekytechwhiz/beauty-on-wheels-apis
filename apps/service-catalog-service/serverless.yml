@@ -49,6 +49,8 @@ provider:
 
 custom:
 
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+
 
   esbuild:
     bundle: true
@@ -87,6 +89,7 @@ functions:
           path: /categories
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List categories"
           swaggerTags:
             - Categories
@@ -102,6 +105,7 @@ functions:
           path: /categories
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create category"
           swaggerTags:
             - Categories
@@ -118,6 +122,7 @@ functions:
           path: /categories/{categoryId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get category"
           swaggerTags:
             - Categories
@@ -133,6 +138,7 @@ functions:
           path: /categories/{categoryId}
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update category"
           swaggerTags:
             - Categories
@@ -149,6 +155,7 @@ functions:
           path: /categories/{categoryId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete category"
           swaggerTags:
             - Categories
@@ -164,6 +171,7 @@ functions:
           path: /services
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List services"
           swaggerTags:
             - Services
@@ -179,6 +187,7 @@ functions:
           path: /services
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create service"
           swaggerTags:
             - Services
@@ -195,6 +204,7 @@ functions:
           path: /services/{serviceId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get service"
           swaggerTags:
             - Services
@@ -210,6 +220,7 @@ functions:
           path: /services/{serviceId}
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update service"
           swaggerTags:
             - Services
@@ -226,6 +237,7 @@ functions:
           path: /services/{serviceId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete service"
           swaggerTags:
             - Services
@@ -241,6 +253,7 @@ functions:
           path: /packages
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List packages"
           swaggerTags:
             - Packages
@@ -256,6 +269,7 @@ functions:
           path: /packages
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create package"
           swaggerTags:
             - Packages
@@ -272,6 +286,7 @@ functions:
           path: /packages/{packageId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get package"
           swaggerTags:
             - Packages
@@ -287,6 +302,7 @@ functions:
           path: /packages/{packageId}
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update package"
           swaggerTags:
             - Packages
@@ -303,6 +319,7 @@ functions:
           path: /packages/{packageId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete package"
           swaggerTags:
             - Packages
@@ -318,6 +335,7 @@ functions:
           path: /addons
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List add-ons"
           swaggerTags:
             - Add-ons
@@ -333,6 +351,7 @@ functions:
           path: /addons
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create add-on"
           swaggerTags:
             - Add-ons
@@ -349,6 +368,7 @@ functions:
           path: /addons/{addonId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get add-on"
           swaggerTags:
             - Add-ons
@@ -364,6 +384,7 @@ functions:
           path: /addons/{addonId}
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update add-on"
           swaggerTags:
             - Add-ons
@@ -380,6 +401,7 @@ functions:
           path: /addons/{addonId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete add-on"
           swaggerTags:
             - Add-ons
@@ -399,25 +421,25 @@ resources:
         BillingMode: PAY_PER_REQUEST
 
         AttributeDefinitions:
-          - AttributeName: pk
+          - AttributeName: PK
             AttributeType: S
 
-          - AttributeName: sk
+          - AttributeName: SK
             AttributeType: S
 
-          - AttributeName: lsi1sk
+          - AttributeName: LSI1SK
             AttributeType: S
 
-          - AttributeName: lsi2sk
+          - AttributeName: LSI2SK
             AttributeType: S
 
-          - AttributeName: lsi3sk
+          - AttributeName: LSI3SK
             AttributeType: S
 
-          - AttributeName: lsi4sk
+          - AttributeName: LSI4SK
             AttributeType: S
 
-          - AttributeName: lsi5sk
+          - AttributeName: LSI5SK
             AttributeType: S
 
           - AttributeName: GSI1PK
@@ -427,53 +449,53 @@ resources:
             AttributeType: S
 
         KeySchema:
-          - AttributeName: pk
+          - AttributeName: PK
             KeyType: HASH
-          - AttributeName: sk
+          - AttributeName: SK
             KeyType: RANGE
 
         LocalSecondaryIndexes:
           - IndexName: LSI1
             KeySchema:
-              - AttributeName: pk
+              - AttributeName: PK
                 KeyType: HASH
-              - AttributeName: lsi1sk
+              - AttributeName: LSI1SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
 
           - IndexName: LSI2
             KeySchema:
-              - AttributeName: pk
+              - AttributeName: PK
                 KeyType: HASH
-              - AttributeName: lsi2sk
+              - AttributeName: LSI2SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
 
           - IndexName: LSI3
             KeySchema:
-              - AttributeName: pk
+              - AttributeName: PK
                 KeyType: HASH
-              - AttributeName: lsi3sk
+              - AttributeName: LSI3SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
 
           - IndexName: LSI4
             KeySchema:
-              - AttributeName: pk
+              - AttributeName: PK
                 KeyType: HASH
-              - AttributeName: lsi4sk
+              - AttributeName: LSI4SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
 
           - IndexName: LSI5
             KeySchema:
-              - AttributeName: pk
+              - AttributeName: PK
                 KeyType: HASH
-              - AttributeName: lsi5sk
+              - AttributeName: LSI5SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL

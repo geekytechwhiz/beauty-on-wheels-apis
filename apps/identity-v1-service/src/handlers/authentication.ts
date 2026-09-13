@@ -2,6 +2,7 @@ import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getAuthenticationController } from '../controllers/authentication.controller';
+import { requireAuth } from '../auth/require-auth';
 
 import {
   validateLoginRequest,
@@ -34,6 +35,9 @@ export const refreshToken = withApiHandler(
 export const logout = withApiHandler(
   {
     operation: 'postlogout',
+    validator: async (request: LambdaRequest) => {
+      await requireAuth(request);
+    },
   },
   async (request: LambdaRequest) => controller.handlePostlogout(request),
 );
@@ -41,7 +45,8 @@ export const logout = withApiHandler(
 export const changePassword = withApiHandler(
   {
     operation: 'postchangepassword',
-    validator: (request: LambdaRequest) => {
+    validator: async (request: LambdaRequest) => {
+      await requireAuth(request);
       validateChangePasswordRequest(request);
     },
   },

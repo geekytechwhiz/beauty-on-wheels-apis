@@ -328,9 +328,14 @@ function buildCategoryEntity(
     input: CreateCategoryInput,
     now: string
 ): CategoryEntity {
+    const pkVal = CatalogKeyBuilder.categoryPk(categoryId);
+    const skVal = CatalogKeyBuilder.categorySk();
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
+    const lsi3Val = CatalogKeyBuilder.lsi3sk("CATEGORY");
     return {
-        pk: CatalogKeyBuilder.categoryPk(categoryId),
-        sk: CatalogKeyBuilder.categorySk(),
+        PK: pkVal,
+        SK: skVal,
         entityType: "CATEGORY",
         categoryId,
         name: input.name,
@@ -339,11 +344,9 @@ function buildCategoryEntity(
         active: input.active ?? true,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("CATEGORY"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(input.name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("CATEGORY"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(input.active ?? true),
-        lsi3sk: CatalogKeyBuilder.lsi3sk("CATEGORY"),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI3SK: lsi3Val,
         createdAt: now,
         updatedAt: now,
     };
@@ -357,6 +360,8 @@ function mergeCategoryEntity(
     const name = updates.name ?? existing.name;
     const displayOrder = updates.displayOrder ?? existing.displayOrder;
     const active = updates.active ?? existing.active;
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
 
     return {
         ...existing,
@@ -366,10 +371,8 @@ function mergeCategoryEntity(
         active,
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("CATEGORY"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("CATEGORY"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(displayOrder),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(active),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
         updatedAt: now,
     };
 }

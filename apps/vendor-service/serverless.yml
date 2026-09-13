@@ -1,4 +1,4 @@
-service: vendor-service
+service: vendor-service-api
 
 frameworkVersion: "3"
 
@@ -20,11 +20,66 @@ provider:
   environment:
 
     SERVICE_NAME: vendor-service
-    LOG_LEVEL:  INFO
-    DYNAMODB_TABLE_NAME: vendor-service-${self:provider.stage} 
+    LOG_LEVEL: INFO
+    DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-vendor
+    DOCUMENTS_BUCKET_NAME: ${self:service}-${self:provider.stage}-vendor-documents
+    EVENT_BUS_NAME: ${self:custom.vendorEventBusName}
+    COGNITO_REGION: ${self:provider.region}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
+    COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+    COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+            - dynamodb:ConditionCheckItem
+          Resource:
+            - !GetAtt VendorTable.Arn
+            - !Join [ "/", [ !GetAtt VendorTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource:
+            - !Join [ "", [ !GetAtt VendorDocumentsBucket.Arn, "/*" ] ]
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource:
+            - !GetAtt VendorEventBus.Arn
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource:
+            - !GetAtt VendorOnboardingStreamDlq.Arn
+            - !GetAtt VendorEmailVerificationStreamDlq.Arn 
 
 custom:
+  # nv{stage}-bw-  e.g. nvdev-bw-
+  resourcePrefix: nv${self:provider.stage}-bw
+  vendorEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
 
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
   esbuild:
     bundle: true
@@ -55,16 +110,16 @@ custom:
 
 functions:
 
-
   createvendor:
-    handler: src/handlers/vendors.handler.handleCreatevendor
+    handler: src/handlers/vendors-handler.handleCreatevendor
     events:
       - http:
           path: /vendors
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor"
-          description: "Creates a new vendor profile.\n\nThe authenticated identity should be linked to the vendor through ownerUserId.\nVendor creation does not automatically activate the vendor.\n"
+          description: "Creates a new Vendor profile with a unique vendorId and the submitted business information. Each POST mints a new vendorId. Progressive section data is saved via PUT /vendors/{vendorId}/onboarding."
           swaggerTags:
             - Vendors
           bodyType: CreateVendorRequest
@@ -81,14 +136,121 @@ functions:
             500:
               description: ""
 
+  getvendoronboarding:
+    handler: src/handlers/onboarding-handler.handleGetvendoronboarding
+    events:
+      - http:
+          path: /vendors/{vendorId}/onboarding
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor onboarding state"
+          description: "Returns backend-authoritative onboarding progress and persisted section data so the frontend can resume."
+          swaggerTags:
+            - Onboarding
+          responseData:
+            200:
+              description: "Onboarding state retrieved"
+              bodyType: OnboardingResponse
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  updatevendoronboarding:
+    handler: src/handlers/onboarding-handler.handleUpdatevendoronboarding
+    events:
+      - http:
+          path: /vendors/{vendorId}/onboarding
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Save an onboarding section"
+          description: "Progressively creates or updates one onboarding section. `section` identifies the domain portion. Repeated PUTs or PATCHes for the same section update in place. The `data` payload is validated against the selected section schema. Vendors may be onboarded by the vendor owner or by platform admin staff."
+          swaggerTags:
+            - Onboarding
+          bodyType: UpdateOnboardingRequest
+          responseData:
+            200:
+              description: "Onboarding section saved"
+              bodyType: OnboardingResponse
+            400:
+              description: "Invalid section or section payload"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+      - http:
+          path: /vendors/{vendorId}/onboarding
+          method: patch
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Save an onboarding section"
+          description: "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding."
+          swaggerTags:
+            - Onboarding
+          bodyType: UpdateOnboardingRequest
+          responseData:
+            200:
+              description: "Onboarding section saved"
+              bodyType: OnboardingResponse
+            400:
+              description: "Invalid section or section payload"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  onVendorOnboardingSubmitted:
+    handler: src/handlers/vendor-onboarding-stream.handler.main
+    name: ${self:custom.resourcePrefix}-vendor-onboarding-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorOnboardingStreamDlq.Arn
+              type: sqs
+
+  onVendorEmailVerificationRequested:
+    handler: src/handlers/vendor-email-verification-stream.handler.main
+    name: ${self:custom.resourcePrefix}-vendor-email-verification-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorEmailVerificationStreamDlq.Arn
+              type: sqs
 
   listvendors:
-    handler: src/handlers/vendors.handler.handleListvendors
+    handler: src/handlers/vendors-handler.handleListvendors
     events:
       - http:
           path: /vendors
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendors"
           description: "Lists vendors using optional filters.\nIntended primarily for admin and operational use.\n"
           swaggerTags:
@@ -106,13 +268,15 @@ functions:
 
 
   getvendor:
-    handler: src/handlers/vendors.handler.handleGetvendor
+    handler: src/handlers/vendors-handler.handleGetvendor
     events:
       - http:
           path: /vendors/{vendorId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor"
+          description: "Returns the vendor profile and primary address. Bank details are omitted."
           swaggerTags:
             - Vendors
           responseData:
@@ -121,6 +285,8 @@ functions:
               bodyType: VendorResponse
             401:
               description: ""
+            403:
+              description: ""
             404:
               description: ""
             500:
@@ -128,13 +294,15 @@ functions:
 
 
   updatevendor:
-    handler: src/handlers/vendors.handler.handleUpdatevendor
+    handler: src/handlers/vendors-handler.handleUpdatevendor
     events:
       - http:
           path: /vendors/{vendorId}
           method: patch
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor"
+          description: "Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs."
           swaggerTags:
             - Vendors
           bodyType: UpdateVendorRequest
@@ -155,12 +323,13 @@ functions:
 
 
   updatevendorstatus:
-    handler: src/handlers/vendors.handler.handleUpdatevendorstatus
+    handler: src/handlers/vendors-handler.handleUpdatevendorstatus
     events:
       - http:
           path: /vendors/{vendorId}/status
           method: patch
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor lifecycle status"
           description: "Updates the administrative lifecycle status of a vendor.\n\nTypical lifecycle:\n  PENDING_VERIFICATION\n  -> ACTIVE\n  -> SUSPENDED\n  -> ACTIVE\n  -> INACTIVE\n"
           swaggerTags:
@@ -185,12 +354,13 @@ functions:
 
 
   updatevendoroperationalstatus:
-    handler: src/handlers/vendors.handler.handleUpdatevendoroperationalstatus
+    handler: src/handlers/vendors-handler.handleUpdatevendoroperationalstatus
     events:
       - http:
           path: /vendors/{vendorId}/operational-status
           method: patch
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor operational status"
           description: "Controls whether a vendor is currently accepting work.\n\nThis is different from the administrative vendor lifecycle status.\n"
           swaggerTags:
@@ -213,12 +383,13 @@ functions:
 
 
   listvendorserviceareas:
-    handler: src/handlers/service-areas.handler.handleListvendorserviceareas
+    handler: src/handlers/service-areas-handler.handleListvendorserviceareas
     events:
       - http:
           path: /vendors/{vendorId}/service-areas
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor service areas"
           swaggerTags:
             - Service Areas
@@ -234,12 +405,13 @@ functions:
 
 
   addvendorservicearea:
-    handler: src/handlers/service-areas.handler.handleAddvendorservicearea
+    handler: src/handlers/service-areas-handler.handleAddvendorservicearea
     events:
       - http:
           path: /vendors/{vendorId}/service-areas
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor service area"
           swaggerTags:
             - Service Areas
@@ -260,12 +432,13 @@ functions:
 
 
   getvendorservicearea:
-    handler: src/handlers/service-areas.handler.handleGetvendorservicearea
+    handler: src/handlers/service-areas-handler.handleGetvendorservicearea
     events:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor service area"
           swaggerTags:
             - Service Areas
@@ -279,12 +452,13 @@ functions:
 
 
   updatevendorservicearea:
-    handler: src/handlers/service-areas.handler.handleUpdatevendorservicearea
+    handler: src/handlers/service-areas-handler.handleUpdatevendorservicearea
     events:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: patch
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor service area"
           swaggerTags:
             - Service Areas
@@ -301,12 +475,13 @@ functions:
 
 
   deletevendorservicearea:
-    handler: src/handlers/service-areas.handler.handleDeletevendorservicearea
+    handler: src/handlers/service-areas-handler.handleDeletevendorservicearea
     events:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Remove vendor service area"
           swaggerTags:
             - Service Areas
@@ -320,12 +495,13 @@ functions:
 
 
   getvendoroperatinghours:
-    handler: src/handlers/operating-hours.handler.handleGetvendoroperatinghours
+    handler: src/handlers/operating-hours-handler.handleGetvendoroperatinghours
     events:
       - http:
           path: /vendors/{vendorId}/operating-hours
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor operating hours"
           swaggerTags:
             - Operating Hours
@@ -339,16 +515,18 @@ functions:
 
 
   updatevendoroperatinghours:
-    handler: src/handlers/operating-hours.handler.handleUpdatevendoroperatinghours
+    handler: src/handlers/operating-hours-handler.handleUpdatevendoroperatinghours
     events:
       - http:
           path: /vendors/{vendorId}/operating-hours
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor operating hours"
           description: "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n"
           swaggerTags:
             - Operating Hours
+          bodyType: UpdateVendorOperatingHoursRequest
           responseData:
             200:
               description: "Operating hours updated successfully"
@@ -361,12 +539,13 @@ functions:
 
 
   listvendorstaff:
-    handler: src/handlers/staff.handler.handleListvendorstaff
+    handler: src/handlers/staff-handler.handleListvendorstaff
     events:
       - http:
           path: /vendors/{vendorId}/staff
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor staff"
           swaggerTags:
             - Staff
@@ -381,12 +560,13 @@ functions:
 
 
   createvendorstaff:
-    handler: src/handlers/staff.handler.handleCreatevendorstaff
+    handler: src/handlers/staff-handler.handleCreatevendorstaff
     events:
       - http:
           path: /vendors/{vendorId}/staff
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor staff member"
           swaggerTags:
             - Staff
@@ -406,12 +586,13 @@ functions:
 
 
   getvendorstaff:
-    handler: src/handlers/staff.handler.handleGetvendorstaff
+    handler: src/handlers/staff-handler.handleGetvendorstaff
     events:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor staff member"
           swaggerTags:
             - Staff
@@ -426,13 +607,33 @@ functions:
 
 
   updatevendorstaff:
-    handler: src/handlers/staff.handler.handleUpdatevendorstaff
+    handler: src/handlers/staff-handler.handleUpdatevendorstaff
     events:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: patch
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor staff member"
+          swaggerTags:
+            - Staff
+          bodyType: UpdateStaffRequest
+          responseData:
+            200:
+              description: "Staff member updated successfully"
+              bodyType: StaffResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+      - http:
+          path: /vendors/{vendorId}/staff/{staffId}
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace vendor staff member"
           swaggerTags:
             - Staff
           bodyType: UpdateStaffRequest
@@ -449,12 +650,13 @@ functions:
 
 
   deactivatevendorstaff:
-    handler: src/handlers/staff.handler.handleDeactivatevendorstaff
+    handler: src/handlers/staff-handler.handleDeactivatevendorstaff
     events:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Deactivate vendor staff member"
           description: "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n"
           swaggerTags:
@@ -468,13 +670,34 @@ functions:
               description: ""
 
 
+  listavailablecapabilities:
+    handler: src/handlers/capabilities-handler.handleListavailablecapabilities
+    events:
+      - http:
+          path: /capabilities
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List available capabilities"
+          description: "Returns capability master data. Vendor assignments store IDs only; service and package definitions remain in Service Catalog."
+          swaggerTags:
+            - Capabilities
+          responseData:
+            200:
+              description: "Available capabilities retrieved"
+              bodyType: AvailableCapabilities
+            401:
+              description: ""
+
+
   getvendorcapabilities:
-    handler: src/handlers/capabilities.handler.handleGetvendorcapabilities
+    handler: src/handlers/capabilities-handler.handleGetvendorcapabilities
     events:
       - http:
           path: /vendors/{vendorId}/capabilities
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor capabilities"
           swaggerTags:
             - Capabilities
@@ -488,12 +711,13 @@ functions:
 
 
   updatevendorcapabilities:
-    handler: src/handlers/capabilities.handler.handleUpdatevendorcapabilities
+    handler: src/handlers/capabilities-handler.handleUpdatevendorcapabilities
     events:
       - http:
           path: /vendors/{vendorId}/capabilities
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor capabilities"
           description: "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n"
           swaggerTags:
@@ -512,25 +736,269 @@ functions:
               description: ""
 
 
-iamRoleStatements:
+  listvendorbranches:
+    handler: src/handlers/branches-handler.handleListvendorbranches
+    events:
+      - http:
+          path: /vendors/{vendorId}/branches
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor branches"
+          swaggerTags:
+            - Branches
+          responseData:
+            200:
+              description: "Branches retrieved successfully"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
 
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
+  createvendorbranch:
+    handler: src/handlers/branches-handler.handleCreatevendorbranch
+    events:
+      - http:
+          path: /vendors/{vendorId}/branches
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create vendor branch"
+          swaggerTags:
+            - Branches
+          bodyType: CreateBranchRequest
+          responseData:
+            201:
+              description: "Branch created successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+  getvendorbranch:
+    handler: src/handlers/branches-handler.handleGetvendorbranch
+    events:
+      - http:
+          path: /vendors/{vendorId}/branches/{branchId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor branch"
+          swaggerTags:
+            - Branches
+          responseData:
+            200:
+              description: "Branch retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+  updatevendorbranch:
+    handler: src/handlers/branches-handler.handleUpdatevendorbranch
+    events:
+      - http:
+          path: /vendors/{vendorId}/branches/{branchId}
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Update vendor branch"
+          swaggerTags:
+            - Branches
+          bodyType: UpdateBranchRequest
+          responseData:
+            200:
+              description: "Branch updated successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+  deletevendorbranch:
+    handler: src/handlers/branches-handler.handleDeletevendorbranch
+    events:
+      - http:
+          path: /vendors/{vendorId}/branches/{branchId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Delete vendor branch"
+          swaggerTags:
+            - Branches
+          responseData:
+            204:
+              description: "Branch deleted successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+  listvendordocuments:
+    handler: src/handlers/documents-handler.handleListvendordocuments
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor documents"
+          swaggerTags:
+            - Documents
+          responseData:
+            200:
+              description: "Documents retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+  createvendordocument:
+    handler: src/handlers/documents-handler.handleCreatevendordocument
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create vendor document metadata and upload URL"
+          swaggerTags:
+            - Documents
+          bodyType: CreateDocumentRequest
+          responseData:
+            201:
+              description: "Document created successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            409:
+              description: ""
+
+  getvendordocument:
+    handler: src/handlers/documents-handler.handleGetvendordocument
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents/{documentId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor document"
+          swaggerTags:
+            - Documents
+          responseData:
+            200:
+              description: "Document retrieved successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+  updatevendordocument:
+    handler: src/handlers/documents-handler.handleUpdatevendordocument
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents/{documentId}
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace vendor document"
+          swaggerTags:
+            - Documents
+          bodyType: UpdateDocumentRequest
+          responseData:
+            200:
+              description: "Document updated successfully"
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
+
+  deletevendordocument:
+    handler: src/handlers/documents-handler.handleDeletevendordocument
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents/{documentId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Delete vendor document"
+          swaggerTags:
+            - Documents
+          responseData:
+            204:
+              description: "Document deleted successfully"
+            401:
+              description: ""
+            404:
+              description: ""
+
+  getvendorbankdetails:
+    handler: src/handlers/bank-details-handler.handleGetvendorbankdetails
+    events:
+      - http:
+          path: /vendors/{vendorId}/bank-details
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor bank details"
+          description: "Returns masked banking information. Full account numbers are never returned."
+          swaggerTags:
+            - Bank Details
+          responseData:
+            200:
+              description: "Bank details retrieved successfully"
+              bodyType: BankDetails
+            401:
+              description: ""
+            404:
+              description: ""
+
+  updatevendorbankdetails:
+    handler: src/handlers/bank-details-handler.handleUpdatevendorbankdetails
+    events:
+      - http:
+          path: /vendors/{vendorId}/bank-details
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create or update vendor bank details"
+          swaggerTags:
+            - Bank Details
+          bodyType: BankDetailsData
+          responseData:
+            200:
+              description: "Bank details saved successfully"
+              bodyType: BankDetails
+            400:
+              description: ""
+            401:
+              description: ""
+            404:
+              description: ""
 
 
 resources:
   Resources:
-     
+    VendorEventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.vendorEventBusName}
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: ManagedBy
+            Value: Serverless
+
     VendorTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -621,6 +1089,48 @@ resources:
 
           - Key: ManagedBy
             Value: Serverless
+
+    VendorOnboardingStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-onboarding-stream-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
+    VendorEmailVerificationStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-email-verification-stream-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
+    VendorDocumentsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${sls:stage}-vendor-documents
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -668,3 +1178,15 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+
+  Outputs:
+    VendorEventBusName:
+      Description: Vendor EventBridge bus name
+      Value: !Ref VendorEventBus
+      Export:
+        Name: ${self:custom.resourcePrefix}-vendor-event-bus-name
+    VendorEventBusArn:
+      Description: Vendor EventBridge bus ARN
+      Value: !GetAtt VendorEventBus.Arn
+      Export:
+        Name: ${self:custom.resourcePrefix}-vendor-event-bus-arn

@@ -55,6 +55,9 @@ export class IdentityRepository extends BaseRepository {
     log.info({ event: 'repository_start' });
 
     const userDdb = IdentityMapper.toUserDdb(user, tenantId);
+    const hasEmail = Boolean(user.email?.trim());
+    const hasPhone = Boolean(user.phoneNumber?.trim());
+    const hasUsername = Boolean(user.username?.trim());
 
     const transactItems: any[] = [
       {
@@ -64,7 +67,10 @@ export class IdentityRepository extends BaseRepository {
           ConditionExpression: 'attribute_not_exists(PK)',
         },
       },
-      {
+    ];
+
+    if (hasEmail) {
+      transactItems.push({
         Put: {
           TableName: TABLE_NAME,
           Item: {
@@ -80,8 +86,11 @@ export class IdentityRepository extends BaseRepository {
           },
           ConditionExpression: 'attribute_not_exists(PK)',
         },
-      },
-      {
+      });
+    }
+
+    if (hasPhone) {
+      transactItems.push({
         Put: {
           TableName: TABLE_NAME,
           Item: {
@@ -97,8 +106,11 @@ export class IdentityRepository extends BaseRepository {
           },
           ConditionExpression: 'attribute_not_exists(PK)',
         },
-      },
-      {
+      });
+    }
+
+    if (hasUsername) {
+      transactItems.push({
         Put: {
           TableName: TABLE_NAME,
           Item: {
@@ -114,8 +126,29 @@ export class IdentityRepository extends BaseRepository {
           },
           ConditionExpression: 'attribute_not_exists(PK)',
         },
-      },
-    ];
+      });
+    }
+
+    if (user.identityId?.trim()) {
+      const identityKeys = IdentityKeyBuilder.userByIdentityId(user.identityId);
+      transactItems.push({
+        Put: {
+          TableName: TABLE_NAME,
+          Item: {
+            PK: identityKeys.PK,
+            SK: identityKeys.SK,
+            entityType: ENTITY_TYPES.IDENTITY_LOOKUP,
+            userId: user.userId,
+            identityId: user.identityId.trim(),
+            GSI1PK: identityKeys.PK,
+            GSI1SK: `USER#${user.userId}`,
+            createdAt: userDdb.createdAt,
+            updatedAt: userDdb.updatedAt,
+          },
+          ConditionExpression: 'attribute_not_exists(PK)',
+        },
+      });
+    }
 
     if (profile) {
       const profileDdb = IdentityMapper.toProfileDdb(profile);
@@ -192,6 +225,113 @@ export class IdentityRepository extends BaseRepository {
     if (items.length === 0) return null;
     const userId = items[0].userId;
     return this.getUser(userId);
+  }
+
+  async getUserByIdentityId(identityId: string): Promise<User | null> {
+    const keys = IdentityKeyBuilder.userByIdentityId(identityId);
+    const item = await this.get<{ userId?: string }>(TABLE_NAME, keys);
+    if (!item?.userId) return null;
+    return this.getUser(item.userId);
+  }
+
+  async linkIdentity(
+    userId: string,
+    identityId: string,
+    cognitoUsername: string,
+  ): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new UserAlreadyExistsException(`User ${userId} not found.`);
+    }
+
+    if (user.identityId && user.identityId !== identityId) {
+      throw new UserAlreadyExistsException(
+        'User is already linked to a different identity',
+      );
+    }
+
+    const existing = await this.getUserByIdentityId(identityId);
+    if (existing && existing.userId !== userId) {
+      throw new UserAlreadyExistsException(
+        'Cognito identity is already linked to another user',
+      );
+    }
+
+    const lookupPresent = Boolean(existing && existing.userId === userId);
+    const userAlreadyLinked =
+      user.identityId === identityId && Boolean(user.cognitoUsername);
+
+    if (lookupPresent && userAlreadyLinked) {
+      return user;
+    }
+
+    const timestamp = new Date().toISOString();
+    const identityKeys = IdentityKeyBuilder.userByIdentityId(identityId);
+    const userKeys = IdentityKeyBuilder.userMeta(userId);
+    const transactItems: any[] = [];
+
+    if (!lookupPresent) {
+      transactItems.push({
+        Put: {
+          TableName: TABLE_NAME,
+          Item: {
+            PK: identityKeys.PK,
+            SK: identityKeys.SK,
+            entityType: ENTITY_TYPES.IDENTITY_LOOKUP,
+            userId,
+            identityId,
+            GSI1PK: identityKeys.PK,
+            GSI1SK: `USER#${userId}`,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          ConditionExpression: 'attribute_not_exists(PK)',
+        },
+      });
+    }
+
+    if (!userAlreadyLinked) {
+      transactItems.push({
+        Update: {
+          TableName: TABLE_NAME,
+          Key: userKeys,
+          UpdateExpression:
+            'SET identityId = :identityId, cognitoUsername = :cognitoUsername, version = :nextVersion, updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':identityId': identityId,
+            ':cognitoUsername': cognitoUsername,
+            ':nextVersion': user.version + 1,
+            ':expectedVersion': user.version,
+            ':updatedAt': timestamp,
+          },
+          ConditionExpression: 'version = :expectedVersion',
+        },
+      });
+    }
+
+    if (transactItems.length === 0) {
+      return {
+        ...user,
+        identityId,
+        cognitoUsername,
+      };
+    }
+
+    await this.transactWrite({
+      TransactItems: transactItems,
+    }).catch((err) => {
+      throw new UserAlreadyExistsException(
+        err instanceof Error ? err.message : 'Failed to link identity',
+      );
+    });
+
+    return {
+      ...user,
+      identityId,
+      cognitoUsername,
+      version: userAlreadyLinked ? user.version : user.version + 1,
+      updatedAt: timestamp,
+    };
   }
 
   async updateUser(user: User, expectedVersion: number): Promise<User> {
@@ -281,6 +421,15 @@ export class IdentityRepository extends BaseRepository {
         },
       },
     ];
+
+    if (user.identityId) {
+      transactItems.push({
+        Delete: {
+          TableName: TABLE_NAME,
+          Key: IdentityKeyBuilder.userByIdentityId(user.identityId),
+        },
+      });
+    }
 
     for (const session of sessions) {
       transactItems.push({
@@ -513,6 +662,12 @@ export class IdentityRepository extends BaseRepository {
   }
 
   async getRefreshToken(tokenHash: string): Promise<Session | null> {
+    const keys = IdentityKeyBuilder.refreshTokenLookup(tokenHash);
+    const lookup = await this.get<RefreshTokenLookupDdbItem>(TABLE_NAME, keys);
+    if (lookup) {
+      return this.getSession(lookup.userId, lookup.sessionId);
+    }
+
     const params: QueryCommandInput = {
       TableName: TABLE_NAME,
       IndexName: GSI_INDEX_NAMES.GSI5,
@@ -521,17 +676,21 @@ export class IdentityRepository extends BaseRepository {
         ':gsi5pk': `REFRESH#${tokenHash}`,
       },
     };
-    const items = await this.query<any>(params);
-    if (items.length === 0) return null;
+    try {
+      const items = await this.query<any>(params);
+      if (items.length === 0) return null;
 
-    const record = items[0];
-    if (record.entityType === ENTITY_TYPES.SESSION) {
-      return IdentityMapper.toSessionDomain(record as SessionDdbItem);
+      const record = items[0];
+      if (record.entityType === ENTITY_TYPES.SESSION) {
+        return IdentityMapper.toSessionDomain(record as SessionDdbItem);
+      }
+      if (record.entityType === ENTITY_TYPES.REFRESH_TOKEN_LOOKUP) {
+        return this.getSession(record.userId, record.sessionId);
+      }
+      return null;
+    } catch {
+      return null;
     }
-    if (record.entityType === ENTITY_TYPES.REFRESH_TOKEN_LOOKUP) {
-      return this.getSession(record.userId, record.sessionId);
-    }
-    return null;
   }
 
   async deleteRefreshToken(tokenHash: string): Promise<void> {
@@ -647,27 +806,30 @@ export class IdentityRepository extends BaseRepository {
 
   async createOtp(otp: Otp): Promise<Otp> {
     const otpDdb = IdentityMapper.toOtpDdb(otp);
-    await this.put(TABLE_NAME, otpDdb, 'attribute_not_exists(PK)');
+    await this.put(TABLE_NAME, otpDdb);
     return otp;
   }
 
   async verifyOtp(
-    userId: string,
+    destination: string,
     purpose: string,
     codeHash: string,
   ): Promise<boolean> {
-    const latest = await this.getLatestOtp(userId, purpose);
-    if (
-      !latest ||
-      latest.codeHash !== codeHash ||
-      latest.verified ||
-      new Date(latest.expiresAt) < new Date()
-    ) {
+    const latest = await this.getLatestOtp(destination, purpose);
+    if (!latest || new Date(latest.expiresAt) < new Date()) {
       return false;
     }
 
+    if (latest.codeHash !== codeHash) {
+      return false;
+    }
+
+    if (latest.verified) {
+      return true;
+    }
+
     const timestamp = new Date().toISOString();
-    const keys = IdentityKeyBuilder.otp(userId, purpose);
+    const keys = IdentityKeyBuilder.otp(destination, purpose);
 
     await this.update({
       TableName: TABLE_NAME,
@@ -682,13 +844,13 @@ export class IdentityRepository extends BaseRepository {
     return true;
   }
 
-  async deleteOtp(userId: string, purpose: string): Promise<void> {
-    const keys = IdentityKeyBuilder.otp(userId, purpose);
+  async deleteOtp(destination: string, purpose: string): Promise<void> {
+    const keys = IdentityKeyBuilder.otp(destination, purpose);
     await this.delete(TABLE_NAME, keys);
   }
 
-  async getLatestOtp(userId: string, purpose: string): Promise<Otp | null> {
-    const keys = IdentityKeyBuilder.otp(userId, purpose);
+  async getLatestOtp(destination: string, purpose: string): Promise<Otp | null> {
+    const keys = IdentityKeyBuilder.otp(destination, purpose);
     const item = await this.get<OtpDdbItem>(TABLE_NAME, keys);
     return item ? IdentityMapper.toOtpDomain(item) : null;
   }

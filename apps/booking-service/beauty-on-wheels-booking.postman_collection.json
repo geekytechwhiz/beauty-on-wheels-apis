@@ -54,7 +54,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"cust_john_doe\",\n  \"vendorId\": \"vend_stylist_anna\",\n  \"vehicleId\": \"veh_mobile_salon_1\",\n  \"serviceIds\": [\n    \"srv_haircut_001\",\n    \"srv_styling_002\"\n  ],\n  \"bookingDate\": \"2026-07-20T10:00:00.000Z\",\n  \"slotId\": \"slot_morning_1\",\n  \"totalAmount\": 120.50\n}",
+              "raw": "{\n  \"customerId\": \"u-e2b72c5b-82aa-497f-bdd2-42c028097126\",\n  \"vendorId\": \"vendor-01\",\n  \"vehicleId\": \"KA05NB4819\",\n  \"vehicleDetails\": {\n    \"bodyCategory\": \"SEDAN\",\n    \"makeModel\": \"Honda City 2022\",\n    \"saveToGarage\": true\n  },\n  \"serviceIds\": [\n    \"srv-detail-01\"\n  ],\n  \"bookingDate\": \"2026-07-21T00:00:00.000Z\",\n  \"slotId\": \"slot-2026-07-21-3\",\n  \"totalAmount\": 609,\n  \"paymentMethod\": \"CARD\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

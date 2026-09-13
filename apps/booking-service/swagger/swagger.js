@@ -373,6 +373,26 @@
     }
   },
   "definitions": {
+    "VehicleDetails": {
+      "properties": {
+        "bodyCategory": {
+          "title": "VehicleDetails.bodyCategory",
+          "type": "string"
+        },
+        "makeModel": {
+          "title": "VehicleDetails.makeModel",
+          "type": "string"
+        },
+        "saveToGarage": {
+          "title": "VehicleDetails.saveToGarage",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "title": "VehicleDetails",
+      "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
+      "type": "object"
+    },
     "Booking": {
       "properties": {
         "id": {
@@ -390,6 +410,10 @@
         "vehicleId": {
           "title": "Booking.vehicleId",
           "type": "string"
+        },
+        "vehicleDetails": {
+          "$ref": "#/definitions/VehicleDetails",
+          "title": "Booking.vehicleDetails"
         },
         "serviceIds": {
           "items": {
@@ -410,6 +434,10 @@
         "totalAmount": {
           "title": "Booking.totalAmount",
           "type": "number"
+        },
+        "paymentMethod": {
+          "title": "Booking.paymentMethod",
+          "type": "string"
         },
         "paymentStatus": {
           "enum": [
@@ -436,7 +464,6 @@
       },
       "additionalProperties": false,
       "title": "Booking",
-      "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
       "type": "object"
     }
   },

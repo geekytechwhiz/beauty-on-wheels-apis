@@ -47,6 +47,8 @@ provider:
 
 custom:
 
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+
 
   esbuild:
     bundle: true
@@ -85,6 +87,7 @@ functions:
           path: /bookings
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "List bookings"
           description: "List all bookings, or filter by customerId or vendorId query param"
           swaggerTags:
@@ -110,6 +113,7 @@ functions:
           path: /bookings
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Create booking"
           swaggerTags:
             - Bookings
@@ -126,6 +130,7 @@ functions:
           path: /bookings/{bookingId}
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Get booking"
           swaggerTags:
             - Bookings
@@ -142,6 +147,7 @@ functions:
           path: /bookings/{bookingId}
           method: put
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Update booking"
           swaggerTags:
             - Bookings
@@ -158,6 +164,7 @@ functions:
           path: /bookings/{bookingId}
           method: delete
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Cancel booking"
           swaggerTags:
             - Bookings
@@ -173,6 +180,7 @@ functions:
           path: /bookings/{bookingId}/confirm
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Confirm booking"
           swaggerTags:
             - Bookings
@@ -188,6 +196,7 @@ functions:
           path: /bookings/{bookingId}/check-in
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Customer check-in"
           swaggerTags:
             - Bookings
@@ -203,6 +212,7 @@ functions:
           path: /bookings/{bookingId}/start
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Start service"
           swaggerTags:
             - Bookings
@@ -218,6 +228,7 @@ functions:
           path: /bookings/{bookingId}/complete
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Complete booking"
           swaggerTags:
             - Bookings
@@ -233,6 +244,7 @@ functions:
           path: /bookings/{bookingId}/cancel
           method: post
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Cancel booking"
           swaggerTags:
             - Bookings
@@ -248,6 +260,7 @@ functions:
           path: /customers/{customerId}/bookings
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Customer booking history"
           swaggerTags:
             - Bookings
@@ -263,6 +276,7 @@ functions:
           path: /vendors/{vendorId}/bookings
           method: get
           cors: true
+          authorizer: ${self:custom.securedAuthorizer}
           summary: "Vendor bookings"
           swaggerTags:
             - Bookings

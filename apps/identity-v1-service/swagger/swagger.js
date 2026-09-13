@@ -242,8 +242,11 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "OTP verified"
+          "200": {
+            "description": "OTP verified",
+            "schema": {
+              "$ref": "#/definitions/TokenResponse"
+            }
           }
         }
       }

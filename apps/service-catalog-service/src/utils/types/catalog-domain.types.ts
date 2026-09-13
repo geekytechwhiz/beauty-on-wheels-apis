@@ -8,28 +8,25 @@ export type EntityType = 'CATEGORY' | 'SERVICE' | 'ADDON' | 'PACKAGE' | 'PACKAGE
 
 export interface CatalogBaseEntity {
     /** DynamoDB partition key */
-    pk: string;
+    PK: string;
     /** DynamoDB sort key */
-    sk: string;
+    SK: string;
     /** Entity type discriminator — used by LSI3 */
     entityType: EntityType;
     /** LSI1 sort key — display order */
-    lsi1sk?: string;
+    LSI1SK?: string;
     /** LSI2 sort key — active status */
-    lsi2sk?: string;
+    LSI2SK?: string;
     /** LSI3 sort key — entity type prefix */
-    lsi3sk?: string;
+    LSI3SK?: string;
     /** LSI4 sort key — vehicle type (service only) */
-    lsi4sk?: string;
+    LSI4SK?: string;
     /** LSI5 sort key — duration (service / addon) */
-    lsi5sk?: string;
+    LSI5SK?: string;
     /** GSI1 pk — normalised lowercase name */
     GSI1PK?: string;
     /** GSI1 sk — entity type discriminator (`TYPE#<entityType>`) */
     GSI1SK?: string;
-    /** Legacy lowercase aliases */
-    gsi1pk?: string;
-    gsi1sk?: string;
     createdAt: string;
     updatedAt: string;
     /** Soft-delete flag */

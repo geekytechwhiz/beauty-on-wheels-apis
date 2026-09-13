@@ -3,7 +3,31 @@ import { UserDdbItem, ProfileDdbItem, SessionDdbItem, OtpDdbItem, RoleDdbItem, P
 import { IdentityKeyBuilder } from '../keys/identity-key.builder';
 import { ENTITY_TYPES } from '../constants/identity-index.constant';
 
+/** DynamoDB key / index attributes that must never be returned on the API wire. */
+const DDB_INTERNAL_KEYS = new Set([
+  'PK',
+  'SK',
+  'entityType',
+  'GSI1PK',
+  'GSI1SK',
+  'GSI2PK',
+  'GSI2SK',
+  'GSI5PK',
+  'GSI5SK',
+]);
+
 export class IdentityMapper {
+  /** Returns all item attributes except PK/SK/GSI/entityType. */
+  static omitDdbKeys<T extends Record<string, unknown>>(item: T): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(item)) {
+      if (!DDB_INTERNAL_KEYS.has(key) && value !== undefined) {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
   static toUserDomain(item: UserDdbItem): User {
     return {
       userId: item.userId,
@@ -16,6 +40,8 @@ export class IdentityMapper {
       emailVerified: item.emailVerified,
       phoneVerified: item.phoneVerified,
       version: item.version,
+      identityId: item.identityId,
+      cognitoUsername: item.cognitoUsername,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -38,6 +64,8 @@ export class IdentityMapper {
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       version: user.version,
+      identityId: user.identityId,
+      cognitoUsername: user.cognitoUsername,
       tenantId,
       createdAt: user.createdAt || timestamp,
       updatedAt: timestamp,
@@ -49,16 +77,7 @@ export class IdentityMapper {
   }
 
   static toProfileDomain(item: ProfileDdbItem): Profile {
-    return {
-      userId: item.userId,
-      firstName: item.firstName,
-      lastName: item.lastName,
-      profileImageUrl: item.profileImageUrl,
-      language: item.language,
-      timezone: item.timezone,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    };
+    return IdentityMapper.omitDdbKeys(item as unknown as Record<string, unknown>) as unknown as Profile;
   }
 
   static toProfileDdb(profile: Profile): ProfileDdbItem {
@@ -74,6 +93,8 @@ export class IdentityMapper {
       profileImageUrl: profile.profileImageUrl,
       language: profile.language,
       timezone: profile.timezone,
+      email: profile.email,
+      phoneNumber: profile.phoneNumber,
       createdAt: profile.createdAt || timestamp,
       updatedAt: timestamp,
     };
@@ -119,7 +140,7 @@ export class IdentityMapper {
   static toOtpDomain(item: OtpDdbItem): Otp {
     return {
       otpId: item.otpId,
-      userId: item.userId,
+      destination: item.destination,
       purpose: item.purpose,
       referenceId: item.referenceId,
       codeHash: item.codeHash,
@@ -133,14 +154,15 @@ export class IdentityMapper {
   }
 
   static toOtpDdb(otp: Otp): OtpDdbItem {
-    const keys = IdentityKeyBuilder.otp(otp.userId, otp.purpose);
+    const keys = IdentityKeyBuilder.otp(otp.destination, otp.purpose);
     const timestamp = new Date().toISOString();
+    const destination = IdentityKeyBuilder.normalizeDestination(otp.destination);
     return {
       PK: keys.PK,
       SK: keys.SK,
       entityType: ENTITY_TYPES.OTP,
       otpId: otp.otpId,
-      userId: otp.userId,
+      destination,
       purpose: otp.purpose,
       referenceId: otp.referenceId,
       codeHash: otp.codeHash,
@@ -151,7 +173,7 @@ export class IdentityMapper {
       createdAt: otp.createdAt || timestamp,
       updatedAt: timestamp,
       GSI1PK: `OTP_REF#${otp.referenceId}`,
-      GSI1SK: `USER#${otp.userId}#OTP#${otp.purpose}`,
+      GSI1SK: `${keys.PK}#${otp.purpose}`,
     };
   }
 

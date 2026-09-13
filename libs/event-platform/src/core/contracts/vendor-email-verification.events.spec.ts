@@ -1,0 +1,84 @@
+import {
+  VendorEmailVerificationRequestedEvent,
+  VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+  VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
+  VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,
+  vendorEmailVerificationRequestedIdempotencyKey,
+} from './vendor-email-verification.events';
+import { getRegisteredEventDefinition } from '../../governance/event-registry';
+import { getSchemaMeta } from '../schema/schema-meta';
+
+describe('VendorEmailVerificationRequestedEvent', () => {
+  it('is registered with stable type, version, and source', () => {
+    const meta = getSchemaMeta(VendorEmailVerificationRequestedEvent);
+    expect(meta.eventType).toBe(VENDOR_EMAIL_VERIFICATION_EVENT_TYPE);
+    expect(meta.eventVersion).toBe(VENDOR_EMAIL_VERIFICATION_EVENT_VERSION);
+    expect(meta.source).toBe(VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE);
+    expect(meta.transport).toBe('eventbridge');
+
+    const registered = getRegisteredEventDefinition(
+      VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+    );
+    expect(registered?.eventVersion).toBe(
+      VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
+    );
+    expect(registered?.classification).toBe('domain');
+  });
+
+  it('accepts the vendor identifiers required by email delivery', () => {
+    const parsed = VendorEmailVerificationRequestedEvent.parse({
+      vendorId: 'vendor-1',
+      ownerUserId: 'user-1',
+      email: 'owner@example.com',
+      firstName: 'Priya',
+      otp: '482193',
+      expiryMinutes: 10,
+      vendorStatus: 'ACTIVE',
+    });
+
+    expect(parsed.email).toBe('owner@example.com');
+    expect(parsed.firstName).toBe('Priya');
+    expect(parsed.otp).toBe('482193');
+    expect(parsed.expiryMinutes).toBe(10);
+  });
+
+  it('rejects an invalid email', () => {
+    expect(() =>
+      VendorEmailVerificationRequestedEvent.parse({
+        vendorId: 'vendor-1',
+        ownerUserId: 'user-1',
+        email: 'not-an-email',
+        firstName: 'Priya',
+        otp: '482193',
+        expiryMinutes: 10,
+        vendorStatus: 'ACTIVE',
+      }),
+    ).toThrow();
+  });
+
+  it('does not accept a template identifier from producers', () => {
+    const parsed = VendorEmailVerificationRequestedEvent.safeParse({
+      vendorId: 'vendor-1',
+      ownerUserId: 'user-1',
+      email: 'owner@example.com',
+      firstName: 'Priya',
+      otp: '482193',
+      expiryMinutes: 10,
+      vendorStatus: 'ACTIVE',
+      templateId: 'vendor_email_confirmation',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('builds a stable business idempotency key', () => {
+    expect(
+      vendorEmailVerificationRequestedIdempotencyKey(
+        'vendor-1',
+        '2026-01-01T00:00:00.000Z',
+      ),
+    ).toBe(
+      'VendorEmailVerification.Requested:vendor-1:2026-01-01T00:00:00.000Z',
+    );
+  });
+});

@@ -88,13 +88,25 @@ export interface RequestContext {
   logger: any;
   authHeader?: string;
   userContext?: UserContext;
+  /** Populated by authenticate() after Cognito JWT verification. */
+  authContext?: AuthContext;
   traceId?: string;
   operation?: string;
+}
+export interface AuthContext {
+  identityId: string;
+  userId?: string;
+  roles: string[];
+  permissions: string[];
+  claims: Record<string, unknown>;
 }
 export interface UserContext {
   userId?: string;
   organizationId?: string;
   authHeader?: string;
+  identityId?: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 

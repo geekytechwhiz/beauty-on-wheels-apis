@@ -16,7 +16,7 @@
       "@api-hub/observability": ["libs/observability/dist/index.d.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
       "path": "../utils/tsconfig.lib.json"

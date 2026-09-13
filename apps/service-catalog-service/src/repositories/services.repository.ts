@@ -27,8 +27,8 @@ export class ServicesRepository extends BaseRepository {
 
     async findById(categoryId: string, serviceId: string): Promise<ServiceEntity | null> {
         return this.get<ServiceEntity>(TABLE(), {
-            pk: CatalogKeyBuilder.categoryPk(categoryId),
-            sk: CatalogKeyBuilder.serviceSk(serviceId),
+            PK: CatalogKeyBuilder.categoryPk(categoryId),
+            SK: CatalogKeyBuilder.serviceSk(serviceId),
         });
     }
 
@@ -48,8 +48,8 @@ export class ServicesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -79,8 +79,8 @@ export class ServicesRepository extends BaseRepository {
             KeyConditionExpression: "#pk = :pk AND begins_with(#lsi1sk, :prefix)",
             FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi1sk": "lsi1sk",
+                "#pk": "PK",
+                "#lsi1sk": "LSI1SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -104,8 +104,8 @@ export class ServicesRepository extends BaseRepository {
             IndexName: LSI4_INDEX,
             KeyConditionExpression: "#pk = :pk AND #lsi4sk = :lsi4sk",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi4sk": "lsi4sk",
+                "#pk": "PK",
+                "#lsi4sk": "LSI4SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -127,8 +127,8 @@ export class ServicesRepository extends BaseRepository {
             IndexName: LSI5_INDEX,
             KeyConditionExpression: "#pk = :pk AND #lsi5sk = :lsi5sk",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#lsi5sk": "lsi5sk",
+                "#pk": "PK",
+                "#lsi5sk": "LSI5SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -172,8 +172,8 @@ export class ServicesRepository extends BaseRepository {
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             ExpressionAttributeNames: {
-                "#pk": "pk",
-                "#sk": "sk",
+                "#pk": "PK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
@@ -192,7 +192,7 @@ export class ServicesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_not_exists(pk) AND attribute_not_exists(sk)",
+                        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
                     },
                 },
             ],
@@ -206,7 +206,7 @@ export class ServicesRepository extends BaseRepository {
                     Put: {
                         TableName: TABLE(),
                         Item: entity as any,
-                        ConditionExpression: "attribute_exists(pk) AND attribute_exists(sk)",
+                        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
             ],
@@ -220,10 +220,10 @@ export class ServicesRepository extends BaseRepository {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            pk: CatalogKeyBuilder.categoryPk(categoryId),
-                            sk: CatalogKeyBuilder.serviceSk(serviceId),
+                            PK: CatalogKeyBuilder.categoryPk(categoryId),
+                            SK: CatalogKeyBuilder.serviceSk(serviceId),
                         },
-                        ConditionExpression: "attribute_exists(pk) AND attribute_exists(sk)",
+                        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
             ],

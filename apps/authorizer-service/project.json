@@ -1,0 +1,23 @@
+{
+  "name": "authorizer-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/authorizer-service/src",
+  "projectType": "application",
+  "tags": ["type:microservice", "scope:authorizer"],
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "command": "npx serverless offline --stage dev",
+        "cwd": "apps/authorizer-service"
+      }
+    },
+    "test": {
+      "options": {
+        "passWithNoTests": true
+      }
+    }
+  }
+}

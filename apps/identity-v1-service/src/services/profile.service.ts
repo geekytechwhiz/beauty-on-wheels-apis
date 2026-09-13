@@ -8,7 +8,7 @@ import {
     ProfileRepository,
     getProfileRepository
 } from "../repositories/profile.repository";
-import { Profile } from "../types/repository.types";
+import { MeResponse, Profile } from "../types/repository.types";
 
 const baseLogger = createLogger({
     service: "profile-service",
@@ -31,7 +31,7 @@ export class ProfileService {
 
     async getme(
         request: LambdaRequest
-    ) {
+    ): Promise<MeResponse> {
         this.logger.info({
             event: "getme",
         });
@@ -41,21 +41,27 @@ export class ProfileService {
             throw new BaseError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const profile = await this.repository.getProfile(userId);
-        if (!profile) {
-            const user = await this.repository.getUser(userId);
-            if (!user) {
-                throw new BaseError("User not found", 404, "USER_NOT_FOUND");
-            }
-            // If profile is missing but user exists, return default details
-            return {
-                userId,
-                firstName: "",
-                lastName: "",
-            };
+        const [profile, user] = await Promise.all([
+            this.repository.getProfile(userId),
+            this.repository.getUser(userId),
+        ]);
+
+        if (!user && !profile) {
+            throw new BaseError("User not found", 404, "USER_NOT_FOUND");
         }
 
-        return profile;
+        // Never expose passwordHash; merge META + PROFILE (profile wins on overlap).
+        const safeUser = user
+            ? (({ passwordHash: _passwordHash, ...rest }) => rest)(user)
+            : { userId };
+
+        return {
+            ...safeUser,
+            ...(profile ?? {}),
+            userId,
+            firstName: profile?.firstName ?? '',
+            lastName: profile?.lastName ?? '',
+        };
     }
 
     async getProfile(userId: string): Promise<Profile | null> {

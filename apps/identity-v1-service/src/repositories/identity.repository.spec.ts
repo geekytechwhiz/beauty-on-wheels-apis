@@ -38,7 +38,7 @@ describe('IdentityRepository', () => {
 
   const mockOtp: Otp = {
     otpId: 'o-111',
-    userId: 'u-123',
+    destination: '+1234567890',
     purpose: 'login',
     referenceId: 'ref-xyz',
     codeHash: 'code-hash',
@@ -91,6 +91,50 @@ describe('IdentityRepository', () => {
       ddbMock.on(TransactWriteCommand).rejects(new Error('Conditional check failed'));
 
       await expect(repository.createUser(mockUser)).rejects.toThrow(UserAlreadyExistsException);
+    });
+
+    it('skips empty email and phone uniqueness lookups', async () => {
+      ddbMock.on(TransactWriteCommand).resolves({});
+
+      const mobileOnlyUser: User = {
+        ...mockUser,
+        email: '',
+        username: '+1234567890',
+        phoneNumber: '+1234567890',
+        emailVerified: false,
+        phoneVerified: true,
+      };
+
+      await repository.createUser(mobileOnlyUser);
+
+      const transact = ddbMock.commandCalls(TransactWriteCommand)[0]?.args[0].input;
+      const items = transact?.TransactItems ?? [];
+      const entityTypes = items.map((item) => item.Put?.Item?.entityType);
+      expect(entityTypes).toContain('User');
+      expect(entityTypes).toContain('PhoneLookup');
+      expect(entityTypes).toContain('UsernameLookup');
+      expect(entityTypes).not.toContain('EmailLookup');
+    });
+
+    it('writes IDENTITY lookup when creating a user with identityId', async () => {
+      ddbMock.on(TransactWriteCommand).resolves({});
+
+      await repository.createUser({
+        ...mockUser,
+        identityId: 'cognito-sub-1',
+        cognitoUsername: 'bow_user',
+      });
+
+      const transact = ddbMock.commandCalls(TransactWriteCommand)[0]?.args[0].input;
+      const identityPut = transact?.TransactItems?.find(
+        (item) => item.Put?.Item?.entityType === 'IdentityLookup',
+      );
+      expect(identityPut?.Put?.Item).toMatchObject({
+        PK: 'IDENTITY#cognito-sub-1',
+        SK: 'LOOKUP',
+        userId: 'u-123',
+        identityId: 'cognito-sub-1',
+      });
     });
 
     it('gets user metadata by userId', async () => {
@@ -155,6 +199,48 @@ describe('IdentityRepository', () => {
 
       const user = await repository.getUserByUsername('testuser');
       expect(user?.userId).toBe('u-123');
+    });
+
+    it('retrieves user by Cognito identityId', async () => {
+      ddbMock
+        .on(GetCommand)
+        .resolvesOnce({ Item: { userId: 'u-123', identityId: 'sub-1' } })
+        .resolvesOnce({ Item: { ...mockUser, identityId: 'sub-1' } });
+
+      const user = await repository.getUserByIdentityId('sub-1');
+      expect(user?.userId).toBe('u-123');
+    });
+
+    it('writes IDENTITY lookup when META already has identityId', async () => {
+      ddbMock
+        .on(GetCommand)
+        .resolvesOnce({
+          Item: {
+            ...mockUser,
+            identityId: 'cognito-sub-1',
+            cognitoUsername: 'bow_user',
+          },
+        })
+        .resolvesOnce({});
+      ddbMock.on(TransactWriteCommand).resolves({});
+
+      const linked = await repository.linkIdentity(
+        'u-123',
+        'cognito-sub-1',
+        'bow_user',
+      );
+
+      expect(linked.identityId).toBe('cognito-sub-1');
+      const transact = ddbMock.commandCalls(TransactWriteCommand)[0]?.args[0].input;
+      const identityPut = transact?.TransactItems?.find(
+        (item) => item.Put?.Item?.entityType === 'IdentityLookup',
+      );
+      expect(identityPut?.Put?.Item).toMatchObject({
+        PK: 'IDENTITY#cognito-sub-1',
+        SK: 'LOOKUP',
+        userId: 'u-123',
+      });
+      expect(transact?.TransactItems?.some((item) => item.Update)).toBe(false);
     });
 
     it('updates user with optimistic locking check', async () => {
@@ -231,6 +317,7 @@ describe('IdentityRepository', () => {
     });
 
     it('resolves refresh token via GSI5', async () => {
+      ddbMock.on(GetCommand).resolves({});
       ddbMock.on(QueryCommand).resolves({
         Items: [{
           entityType: 'Session',
@@ -242,15 +329,19 @@ describe('IdentityRepository', () => {
       expect(resolved?.sessionId).toBe('s-999');
     });
 
-    it('resolves refresh token via lookup and session load', async () => {
-      ddbMock.on(QueryCommand).resolves({
-        Items: [{
-          entityType: 'RefreshTokenLookup',
-          userId: 'u-123',
-          sessionId: 's-999',
-        }],
-      });
-      ddbMock.on(GetCommand).resolves({ Item: mockSession });
+    it('resolves refresh token via lookup item', async () => {
+      ddbMock
+        .on(GetCommand)
+        .resolvesOnce({
+          Item: {
+            PK: 'REFRESH#hash-abc',
+            SK: 'LOOKUP',
+            entityType: 'RefreshTokenLookup',
+            userId: 'u-123',
+            sessionId: 's-999',
+          },
+        })
+        .resolvesOnce({ Item: mockSession });
 
       const resolved = await repository.getRefreshToken('hash-abc');
       expect(resolved?.sessionId).toBe('s-999');
@@ -280,7 +371,7 @@ describe('IdentityRepository', () => {
       ddbMock.on(GetCommand).resolves({ Item: mockOtp });
 
       await repository.createOtp(mockOtp);
-      const fetched = await repository.getLatestOtp('u-123', 'login');
+      const fetched = await repository.getLatestOtp('+1234567890', 'login');
       expect(fetched?.otpId).toBe('o-111');
     });
 
@@ -288,19 +379,43 @@ describe('IdentityRepository', () => {
       ddbMock.on(GetCommand).resolves({ Item: mockOtp });
       ddbMock.on(UpdateCommand).resolves({});
 
-      const verified = await repository.verifyOtp('u-123', 'login', 'code-hash');
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'code-hash');
       expect(verified).toBe(true);
     });
 
     it('rejects verification for incorrect or expired OTP', async () => {
       ddbMock.on(GetCommand).resolves({ Item: undefined });
-      const verified = await repository.verifyOtp('u-123', 'login', 'wrong-code');
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'wrong-code');
       expect(verified).toBe(false);
+    });
+
+    it('rejects an expired OTP even when the hash matches', async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: {
+          ...mockOtp,
+          expiresAt: new Date(Date.now() - 1000).toISOString(),
+        },
+      });
+
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'code-hash');
+      expect(verified).toBe(false);
+    });
+
+    it('allows idempotent re-verify of a matching unexpired OTP', async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: {
+          ...mockOtp,
+          verified: true,
+        },
+      });
+
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'code-hash');
+      expect(verified).toBe(true);
     });
 
     it('deletes OTP record', async () => {
       ddbMock.on(DeleteCommand).resolves({});
-      await repository.deleteOtp('u-123', 'login');
+      await repository.deleteOtp('+1234567890', 'login');
     });
   });
 

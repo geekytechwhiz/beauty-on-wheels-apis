@@ -2,8 +2,9 @@
 # See apps/template-service/serverless.yml for the reference wiring pattern.
 #
 # REST API (http:) events require per-endpoint cors + authorizer — there is no provider.defaults.http.
-# Use YAML anchors in serverless.yml: &httpApiCors, &securedAuthorizer, &securedResponses.
+# Use YAML: authorizer: ${self:custom.securedAuthorizer}
 # See infra/serverless/config/http-event-secured.yml for the documented shape.
+# Shared authorizer fragment: infra/serverless/config/http-api-authorizer.yml
 httpApiCors:
   origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
   headers:
@@ -19,10 +20,10 @@ httpApiCors:
     - Sec-Ch-Ua-Platform
 
 httpApiAuthorizer:
-  name: common_authorizer
-  type: token
+  name: platformAuthorizer
+  type: TOKEN
   identitySource: method.request.header.Authorization
-  arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}_global_user_package_custom_authorization
+  arn: arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:provider.stage}-platform-authorizer
   resultTtlInSeconds: 0
 
 httpApiResponsesSecured:

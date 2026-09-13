@@ -1,0 +1,102 @@
+service: authorizer-service
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  versionFunctions: false
+  tracing:
+    lambda: true
+  logRetentionInDays: 14
+  tags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+  stackTags:
+    Service: ${self:service}
+    Stage: ${self:provider.stage}
+    ManagedBy: serverless
+
+  environment:
+    SERVICE_NAME: authorizer-service
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    LOG_LEVEL: info
+    DYNAMODB_TABLE_NAME: identity-table-${self:provider.stage}
+    IDENTITY_TABLE: identity-table-${self:provider.stage}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    COGNITO_REGION: ${self:provider.region}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
+    COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+    COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:DescribeTable
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/identity-table-${self:provider.stage}
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/identity-table-${self:provider.stage}/index/*
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: '*'
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    plugins: ./esbuild-plugins.js
+
+functions:
+  authorizer:
+    name: ${self:provider.stage}-platform-authorizer
+    handler: src/handlers/authorizer.handleAuthorize
+    description: Shared Cognito JWT + identity RBAC API Gateway TOKEN authorizer
+    memorySize: 256
+    timeout: 10
+
+resources:
+  Resources:
+    AuthorizerInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt AuthorizerLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: apigateway.amazonaws.com
+        SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*
+
+  Outputs:
+    AuthorizerLambdaArn:
+      Description: ARN of the shared platform API Gateway authorizer
+      Value: !GetAtt AuthorizerLambdaFunction.Arn
+      Export:
+        Name: ${self:provider.stage}-platform-authorizer-arn
+    AuthorizerLambdaName:
+      Description: Name of the shared platform API Gateway authorizer
+      Value: !Ref AuthorizerLambdaFunction
+      Export:
+        Name: ${self:provider.stage}-platform-authorizer-name
+    AuthorizerFunctionName:
+      Description: Stable function name used by microservice authorizer ARNs
+      Value: ${self:provider.stage}-platform-authorizer
+      Export:
+        Name: ${self:provider.stage}-platform-authorizer-function-name

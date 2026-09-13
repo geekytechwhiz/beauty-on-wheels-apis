@@ -1,11 +1,5 @@
-# DynamoDB Single Table resource for Identity Service
-# Design details:
-# - Partition Key (PK) and Sort Key (SK) form the composite primary key.
-# - Global Secondary Index (GSI1) with GSI1PK/GSI1SK allows flexible lookups (e.g. email query, session validation).
-# - TimeToLive (TTL) is enabled on 'expiresAt' attribute to automatically clean up expired OTPs and sessions.
-# - Deletion Protection is conditionally enabled in production environments to avoid accidental table drops.
-# - Point-in-Time Recovery (PITR) is enabled for disaster recovery.
-# - Server-Side Encryption is enabled using a Customer Managed Key (KMS).
+# Identity single-table: PK/SK + GSI1 (email/phone/username lookups).
+# TTL uses the numeric `ttl` epoch attribute written by OTP/session items.
 
 IdentityTable:
   Type: AWS::DynamoDB::Table
@@ -38,24 +32,16 @@ IdentityTable:
         Projection:
           ProjectionType: ALL
     TimeToLiveSpecification:
-      AttributeName: expiresAt
+      AttributeName: ttl
       Enabled: true
-    StreamSpecification:
-      StreamViewType: NEW_AND_OLD_IMAGES
     PointInTimeRecoverySpecification:
       PointInTimeRecoveryEnabled: true
-    ContributorInsightsSpecification:
-      Enabled: true
     SSESpecification:
       SSEEnabled: true
-      SSEType: KMS
-      KMSMasterKeyId: !Ref IdentityKmsKey
     DeletionProtectionEnabled: ${self:custom.deletionProtectionEnabled.${self:provider.stage}, false}
     Tags:
-      - Key: Name
-        Value: identity-table-${self:provider.stage}
-      - Key: Application
-        Value: beauty-on-wheels
+      - Key: Service
+        Value: identity-v1
       - Key: Environment
         Value: ${self:provider.stage}
       - Key: ManagedBy

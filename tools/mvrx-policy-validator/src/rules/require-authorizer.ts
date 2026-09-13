@@ -1,6 +1,14 @@
 import { ValidationError } from '../utils/types';
 
-const EXCLUDED_PATHS = ['/health'];
+const EXCLUDED_PATHS = [
+  '/health',
+  'health',
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh-token',
+  '/otp/send',
+  '/otp/verify',
+];
 
 export function validateAuthorizer(
   config: Record<string, any>,

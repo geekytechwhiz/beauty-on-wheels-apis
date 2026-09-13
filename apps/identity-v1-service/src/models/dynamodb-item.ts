@@ -23,6 +23,8 @@ export interface UserDdbItem extends BaseDdbItem {
   emailVerified: boolean;
   phoneVerified: boolean;
   version: number;
+  identityId?: string;
+  cognitoUsername?: string;
   tenantId?: string; // used for listUsersByTenant access pattern
 }
 
@@ -33,6 +35,8 @@ export interface ProfileDdbItem extends BaseDdbItem {
   profileImageUrl?: string;
   language?: string;
   timezone?: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 export interface LookupDdbItem extends BaseDdbItem {
@@ -40,6 +44,7 @@ export interface LookupDdbItem extends BaseDdbItem {
   email?: string;
   phoneNumber?: string;
   username?: string;
+  identityId?: string;
 }
 
 export interface SessionDdbItem extends BaseDdbItem {
@@ -63,7 +68,7 @@ export interface RefreshTokenLookupDdbItem extends BaseDdbItem {
 
 export interface OtpDdbItem extends BaseDdbItem {
   otpId: string;
-  userId: string;
+  destination: string;
   purpose: string;
   referenceId: string;
   codeHash: string;

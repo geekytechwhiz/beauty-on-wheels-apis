@@ -1,0 +1,387 @@
+service: bw-email-service
+frameworkVersion: '3.x'
+configValidationMode: warn
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  versionFunctions: false
+
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-email-service
+  #   serverSideEncryption: AES256
+  memorySize: 256
+  timeout: 30
+  logRetentionInDays: 14
+  tracing:
+    lambda: true
+
+  eventBridge:
+    useCloudFormation: true
+
+  environment:
+    ALLOWED_ORIGIN: ${self:custom.allowedOrigin}
+    SERVICE_NAME: ${self:service}
+    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, ''}
+    DEFAULT_FROM_NAME: ${env:DEFAULT_FROM_NAME, 'Beauty on Wheels'}
+    VENDOR_ONBOARDING_TEMPLATE_NAME: ${env:VENDOR_ONBOARDING_TEMPLATE_NAME, 'VendorOnboardingSubmitted'}
+    VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME: ${env:VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME, 'vendor_email_confirmation'}
+    BOOKING_CONFIRMED_TEMPLATE_NAME: ${env:BOOKING_CONFIRMED_TEMPLATE_NAME, 'BookingConfirmed'}
+    # Consume the vendor-owned bus (producer stack exports this name).
+    EVENT_BUS_NAME:
+      Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+    VENDOR_EVENT_BUS_NAME:
+      Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+    EMAIL_NOTIFICATION_QUEUE_URL: !Ref EmailNotificationQueue
+    EMAIL_NOTIFICATION_DLQ_URL: !Ref EmailNotificationDlq
+    DLQ_QUEUE_URL: !Ref EmailNotificationDlq
+
+  iam:
+    role:
+      statements: 
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendTemplatedEmail
+            - ses:GetEmailIdentity
+            - ses:ListEmailIdentities
+            - ses:CreateEmailTemplate
+            - ses:GetEmailTemplate
+            - ses:DeleteEmailTemplate
+            - ses:ListEmailTemplates
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt EmailNotificationQueue.Arn
+            - !GetAtt EmailNotificationDlq.Arn
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+  # - '@myvitalrx/mvrx-resource-registry' 
+
+custom:
+  # nv{stage}-bw-  e.g. nvdev-bw-
+  resourcePrefix: nv${self:provider.stage}-bw
+  vendorEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
+  emailNotificationQueueName: ${self:custom.resourcePrefix}-email-notification-queue
+  emailNotificationDlqName: ${self:custom.resourcePrefix}-email-notification-dlq
+
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+  allowedOrigin: ${opt:allowed-origin, '*'}
+  resourceRegistry:
+    enabled: true
+    platformOwner: ${self:service}
+            
+    include:
+      - AWS::DynamoDB::Table
+
+  autoswagger:
+    title: Email Service API
+    description: Email templates and ad-hoc send HTTP API. Swagger 2 merge file for serverless-auto-swagger.
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+
+  serverless-offline:
+    httpPort: 4000
+    lambdaPort: 4002
+    noTimeout: true
+
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: ${self:custom.sourcemapsByStage.${self:provider.stage}, false}
+    target: node22
+    platform: node
+    format: cjs
+    tsconfig: ../../tsconfig.base.json
+    external:
+      - aws-sdk
+    keepNames: true
+    # Limit concurrent bundles to avoid OOM/EPIPE in CodeBuild (serverless-esbuild + esbuild docs)
+    concurrency: 8
+    zipConcurrency: 8
+    # Resolve NX workspace dependencies (@api-hub/* packages)
+    plugins: esbuild-plugins.js
+    # Ensure proper module resolution
+    resolveExtensions:
+      - '.ts'
+      - '.tsx'
+      - '.js'
+      - '.jsx'
+      - '.mjs'
+      - '.json'
+ 
+
+functions:
+  health:
+    handler: src/handlers/health.main
+    events:
+      - http:
+          path: /health
+          method: get
+          cors: true
+
+  templateManager:
+    handler: src/modules/template/handlers/template-manager.main
+    events:
+      - http:
+          path: templates
+          method: get
+          summary: List email templates
+          description: Lists SES email templates (name + created timestamp).
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — template metadata list in data.templates
+              bodyType: SuccessEnvelopeTemplateList
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+      - http:
+          path: templates
+          method: post
+          bodyType: CreateTemplateRequest
+          summary: Create an email template
+          description: Creates an SES email template. Unsubscribe placeholder is auto-injected into html/text when missing.
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — created template name in data
+              bodyType: SuccessEnvelopeTemplateMutation
+            400:
+              description: Validation error
+              bodyType: ErrorEnvelope
+            409:
+              description: Template already exists
+              bodyType: ErrorEnvelope
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+      - http:
+          path: templates/{templateName}
+          method: get
+          summary: Get email template by name
+          description: Returns SES-shaped template parts (TemplateName, SubjectPart, HtmlPart, TextPart) inside data.template.
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — template parts in data.template
+              bodyType: SuccessEnvelopeTemplateDetail
+            404:
+              description: Template not found
+              bodyType: ErrorEnvelope
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+      - http:
+          path: templates/{templateName}
+          method: delete
+          summary: Delete email template
+          description: Deletes an SES email template by name.
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — deleted template name in data
+              bodyType: SuccessEnvelopeTemplateMutation
+            400:
+              description: Missing template name
+              bodyType: ErrorEnvelope
+            404:
+              description: Template not found
+              bodyType: ErrorEnvelope
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+
+  createMultipleTemplates:
+    handler: src/modules/template/handlers/create-multiple-templates.main
+    events:
+      - http:
+          path: multipleTemplates
+          method: patch
+          bodyType: CreateMultipleTemplatesRequest
+          summary: Create multiple email templates
+          description: >
+            Creates multiple SES email templates in one request. Each item is processed independently;
+            successful names are returned in successList and failures in failedList.
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — successList and failedList in data
+              bodyType: SuccessEnvelopeCreateMultipleTemplates
+            400:
+              description: Validation error
+              bodyType: ErrorEnvelope
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+
+  sendAdhocEmail:
+    handler: src/modules/email/handlers/send-adhoc.main
+    events:
+      - http:
+          path: send-email
+          method: post
+          bodyType: SendAdhocEmailRequest
+          summary: Send an ad-hoc email
+          description: >
+            Sends a one-off email via SES. Use raw content (subject + htmlContent/textContent)
+            or a named SES template (templateName + optional templateData).
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          responseData:
+            200:
+              description: OK — SES messageId in data
+              bodyType: SuccessEnvelopeSendAdhocEmail
+            400:
+              description: Validation or business rule error
+              bodyType: ErrorEnvelope
+            500:
+              description: Server error
+              bodyType: ErrorEnvelope
+
+  emailNotification:
+    handler: src/modules/email/handlers/email-notification.main
+    name: ${self:custom.resourcePrefix}-email-notification
+    timeout: 30
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          name: ${self:custom.resourcePrefix}-email-vendor-onboarding-submitted
+          description: Vendor onboarding submitted to email notification
+          pattern:
+            source:
+              - vendor-service
+            detail-type:
+              - VendorOnboarding.Submitted
+          retryPolicy:
+            maximumRetryAttempts: 3
+          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
+      - eventBridge:
+          eventBus:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          name: ${self:custom.resourcePrefix}-email-vendor-email-verification-requested
+          description: Vendor email verification requested to email notification
+          pattern:
+            source:
+              - vendor-service
+            detail-type:
+              - VendorEmailVerification.Requested
+          retryPolicy:
+            maximumRetryAttempts: 3
+          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
+      - eventBridge:
+          eventBus:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          name: ${self:custom.resourcePrefix}-email-booking-confirmed
+          description: Booking confirmed to email notification
+          pattern:
+            source:
+              - booking-service
+            detail-type:
+              - Booking.Confirmed
+          retryPolicy:
+            maximumRetryAttempts: 3
+          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
+
+resources:
+  Resources:
+    EmailNotificationDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.emailNotificationDlqName}
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+        Tags:
+          - Key: Service
+            Value: email
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+    EmailNotificationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.emailNotificationQueueName}
+        MessageRetentionPeriod: 1209600
+        VisibilityTimeout: 90
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt EmailNotificationDlq.Arn
+          maxReceiveCount: 3
+        Tags:
+          - Key: Service
+            Value: email
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+    EmailNotificationQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref EmailNotificationQueue
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowEventBridgeSendToNotificationQueue
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt EmailNotificationQueue.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+    EmailNotificationDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref EmailNotificationDlq
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowEventBridgeSendToNotificationDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt EmailNotificationDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+  Outputs:
+    EmailNotificationQueueUrl:
+      Description: Email notification SQS queue URL
+      Value: !Ref EmailNotificationQueue
+      Export:
+        Name: ${self:custom.resourcePrefix}-email-notification-queue-url
+    EmailNotificationDlqUrl:
+      Description: Email notification SQS DLQ URL
+      Value: !Ref EmailNotificationDlq
+      Export:
+        Name: ${self:custom.resourcePrefix}-email-notification-dlq-url

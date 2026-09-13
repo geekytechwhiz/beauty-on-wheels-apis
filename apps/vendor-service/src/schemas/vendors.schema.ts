@@ -8,38 +8,63 @@ import { EventSchemaError } from "@api-hub/middleware";
  * ---------------------------------------------------------
  */
 
+const optionalTrimmedString = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .optional()
+    .transform((value) => {
+      if (value === undefined) {
+        return undefined;
+      }
+      const trimmed = value.trim();
+      return trimmed.length === 0 ? undefined : trimmed;
+    });
+
 export const CreateVendorRequestSchema = z.object({
-ownerUserId: z.string(),
-vendorType: z.enum(["INDIVIDUAL", "BUSINESS"]),
-businessName: z.string().min(2).max(150),
-contactName: z.string().min(2).max(100),
-phoneNumber: z.string(),
-email: z.string().email().optional(),
-description: z.string().max(1000).optional(),
-address: z.object({
-addressLine1: z.string().max(200),
-addressLine2: z.string().max(200).optional(),
-landmark: z.string().max(100).optional(),
-city: z.string().max(100),
-state: z.string().max(100),
-country: z.string().max(2),
-postalCode: z.string().max(20)
-}),
-geoLocation: z.object({
-latitude: z.number().min(-90).max(90),
-longitude: z.number().min(-180).max(180)
-}).optional()
-}).strict();
+  businessName: z.string().min(2).max(150),
+  contactName: z.string().min(2).max(100),
+  phoneNumber: optionalTrimmedString(20),
+  email: optionalTrimmedString(254).pipe(z.string().email().optional()),
+  description: optionalTrimmedString(1000),
+  gstNumber: optionalTrimmedString(50),
+  panNumber: optionalTrimmedString(20),
+  profileImageUrl: optionalTrimmedString(2048),
+  vendorType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
+  ownerUserId: z.string().min(1).optional(),
+});
+
+export const RegisterVendorRequestSchema = z.object({ 
+  email: optionalTrimmedString(254).pipe(z.string().email().optional()),
+  phoneNumber: optionalTrimmedString(20), 
+});
 
 export type CreateVendorRequest =
     z.infer<typeof CreateVendorRequestSchema>;
 
+export type RegisterVendorRequest =
+    z.infer<typeof RegisterVendorRequestSchema>;
+
 export const validateCreateVendorRequest = (req: LambdaRequest): CreateVendorRequest => {
-    const result = CreateVendorRequestSchema.safeParse(req.body);
+    const body = req.body === undefined || req.body === null ? {} : req.body;
+    const result = CreateVendorRequestSchema.safeParse(body);
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
+    req.body = result.data;
     return result.data;
+};
+
+export const validateRegisterVendorRequest = (
+  req: LambdaRequest,
+): RegisterVendorRequest => {
+  const body = req.body === undefined || req.body === null ? {} : req.body;
+  const result = RegisterVendorRequestSchema.safeParse(body);
+  if (!result.success) {
+    throw new EventSchemaError('Request validation failed', result.error);
+  }
+  req.body = result.data;
+  return result.data;
 };
 
 /**
@@ -54,19 +79,6 @@ contactName: z.string().max(100).optional(),
 phoneNumber: z.string().optional(),
 email: z.string().email().optional(),
 description: z.string().max(1000).optional(),
-address: z.object({
-addressLine1: z.string().max(200),
-addressLine2: z.string().max(200).optional(),
-landmark: z.string().max(100).optional(),
-city: z.string().max(100),
-state: z.string().max(100),
-country: z.string().max(2),
-postalCode: z.string().max(20)
-}).optional(),
-geoLocation: z.object({
-latitude: z.number().min(-90).max(90),
-longitude: z.number().min(-180).max(180)
-}).optional(),
 profileImageUrl: z.string().url().optional()
 }).strict();
 

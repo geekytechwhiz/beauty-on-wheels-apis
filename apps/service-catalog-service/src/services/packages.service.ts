@@ -292,7 +292,10 @@ export class PackagesService {
                 // Batch deletes — items are removed separately since they can exceed transaction limits
                 // Using individual deletes is safe here since the package header is already gone
                 for (const item of existingItems) {
-                    await this.deletePackageItemRecord(item.pk, item.sk);
+                    await this.deletePackageItemRecord(
+                        item.PK,
+                        item.SK
+                    );
                 }
             }
 
@@ -351,8 +354,8 @@ export class PackagesService {
         }
     }
 
-    private async deletePackageItemRecord(pk: string, sk: string): Promise<void> {
-        await this.repository.deletePackageItem(pk, sk);
+    private async deletePackageItemRecord(pkKey: string, skKey: string): Promise<void> {
+        await this.repository.deletePackageItem(pkKey, skKey);
     }
 
 }
@@ -386,9 +389,15 @@ function buildPackageEntity(
     input: CreatePackageInput,
     now: string
 ): PackageEntity {
+    const pkVal = CatalogKeyBuilder.packagePk(packageId);
+    const skVal = CatalogKeyBuilder.packageSk();
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
+    const lsi3Val = CatalogKeyBuilder.lsi3sk("PACKAGE");
+
     return {
-        pk: CatalogKeyBuilder.packagePk(packageId),
-        sk: CatalogKeyBuilder.packageSk(),
+        PK: pkVal,
+        SK: skVal,
         entityType: "PACKAGE",
         packageId,
         name: input.name,
@@ -398,11 +407,9 @@ function buildPackageEntity(
         active: input.active ?? true,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(input.name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("PACKAGE"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(input.active ?? true),
-        lsi3sk: CatalogKeyBuilder.lsi3sk("PACKAGE"),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI3SK: lsi3Val,
         createdAt: now,
         updatedAt: now,
     };
@@ -414,13 +421,14 @@ function buildPackageItemEntities(
     now: string
 ): PackageItemEntity[] {
     const entities: PackageItemEntity[] = [];
-    const pk = CatalogKeyBuilder.packagePk(packageId);
+    const pkVal = CatalogKeyBuilder.packagePk(packageId);
 
     for (const item of items) {
         // Service item
+        const skService = CatalogKeyBuilder.packageItemServiceSk(item.serviceId);
         entities.push({
-            pk,
-            sk: CatalogKeyBuilder.packageItemServiceSk(item.serviceId),
+            PK: pkVal,
+            SK: skService,
             entityType: "PACKAGE_ITEM",
             packageId,
             refId: item.serviceId,
@@ -431,9 +439,10 @@ function buildPackageItemEntities(
 
         // Addon items for this service
         for (const addonId of item.addons ?? []) {
+            const skAddon = CatalogKeyBuilder.packageItemAddonSk(addonId);
             entities.push({
-                pk,
-                sk: CatalogKeyBuilder.packageItemAddonSk(addonId),
+                PK: pkVal,
+                SK: skAddon,
                 entityType: "PACKAGE_ITEM",
                 packageId,
                 refId: addonId,
@@ -456,6 +465,9 @@ function mergePackageEntity(
     const displayOrder = updates.displayOrder ?? existing.displayOrder;
     const active = updates.active ?? existing.active;
 
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
+
     return {
         ...existing,
         name,
@@ -465,10 +477,8 @@ function mergePackageEntity(
         active,
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("PACKAGE"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(displayOrder),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(active),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
         updatedAt: now,
     };
 }

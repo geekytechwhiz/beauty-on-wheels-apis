@@ -381,9 +381,16 @@ function buildAddonEntity(
     input: CreateAddOnInput,
     now: string
 ): AddonEntity {
+    const pkVal = CatalogKeyBuilder.categoryPk(input.categoryId);
+    const skVal = CatalogKeyBuilder.addonSk(input.serviceId, addonId);
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
+    const lsi3Val = CatalogKeyBuilder.lsi3sk("ADDON");
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(input.durationMinutes);
+
     return {
-        pk: CatalogKeyBuilder.categoryPk(input.categoryId),
-        sk: CatalogKeyBuilder.addonSk(input.serviceId, addonId),
+        PK: pkVal,
+        SK: skVal,
         entityType: "ADDON",
         categoryId: input.categoryId,
         serviceId: input.serviceId,
@@ -396,12 +403,10 @@ function buildAddonEntity(
         active: input.active ?? true,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(input.name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("ADDON"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(input.active ?? true),
-        lsi3sk: CatalogKeyBuilder.lsi3sk("ADDON"),
-        lsi5sk: CatalogKeyBuilder.lsi5sk(input.durationMinutes),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI3SK: lsi3Val,
+        LSI5SK: lsi5Val,
         createdAt: now,
         updatedAt: now,
     };
@@ -417,6 +422,10 @@ function mergeAddonEntity(
     const active = updates.active ?? existing.active;
     const durationMinutes = updates.durationMinutes ?? existing.durationMinutes;
 
+    const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
+    const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(durationMinutes);
+
     return {
         ...existing,
         name,
@@ -427,11 +436,9 @@ function mergeAddonEntity(
         active,
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
-        gsi1pk: CatalogKeyBuilder.gsi1pk(name),
-        gsi1sk: CatalogKeyBuilder.gsi1sk("ADDON"),
-        lsi1sk: CatalogKeyBuilder.lsi1sk(displayOrder),
-        lsi2sk: CatalogKeyBuilder.lsi2sk(active),
-        lsi5sk: CatalogKeyBuilder.lsi5sk(durationMinutes),
+        LSI1SK: lsi1Val,
+        LSI2SK: lsi2Val,
+        LSI5SK: lsi5Val,
         updatedAt: now,
     };
 }

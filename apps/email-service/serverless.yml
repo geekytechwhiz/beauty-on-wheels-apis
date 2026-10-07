@@ -24,7 +24,7 @@ provider:
   environment:
     ALLOWED_ORIGIN: ${self:custom.allowedOrigin}
     SERVICE_NAME: ${self:service}
-    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, ''}
+    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, 'prasanthms.dev@gmail.com'}
     DEFAULT_FROM_NAME: ${env:DEFAULT_FROM_NAME, 'Beauty on Wheels'}
     VENDOR_ONBOARDING_TEMPLATE_NAME: ${env:VENDOR_ONBOARDING_TEMPLATE_NAME, 'VendorOnboardingSubmitted'}
     VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME: ${env:VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME, 'vendor_email_confirmation'}
@@ -268,6 +268,8 @@ functions:
     name: ${self:custom.resourcePrefix}-email-notification
     timeout: 30
     events:
+      # Serverless logical IDs are event-index based (rule1, rule2, ...).
+      # Keep existing deployed order: do not insert events ahead of these rules.
       - eventBridge:
           eventBus:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
@@ -284,19 +286,6 @@ functions:
       - eventBridge:
           eventBus:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-          name: ${self:custom.resourcePrefix}-email-vendor-email-verification-requested
-          description: Vendor email verification requested to email notification
-          pattern:
-            source:
-              - vendor-service
-            detail-type:
-              - VendorEmailVerification.Requested
-          retryPolicy:
-            maximumRetryAttempts: 3
-          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
-      - eventBridge:
-          eventBus:
-            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
           name: ${self:custom.resourcePrefix}-email-booking-confirmed
           description: Booking confirmed to email notification
           pattern:
@@ -304,6 +293,19 @@ functions:
               - booking-service
             detail-type:
               - Booking.Confirmed
+          retryPolicy:
+            maximumRetryAttempts: 3
+          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
+      - eventBridge:
+          eventBus:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          name: ${self:custom.resourcePrefix}-email-vendor-email-verification-requested
+          description: Vendor email verification requested to email notification
+          pattern:
+            source:
+              - vendor-service
+            detail-type:
+              - VendorEmailVerification.Requested
           retryPolicy:
             maximumRetryAttempts: 3
           deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn

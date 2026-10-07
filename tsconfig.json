@@ -31,18 +31,6 @@
       "path": "./tools/mvrx-resource-registry"
     },
     {
-      "path": "./services/partner-integration"
-    },
-    {
-      "path": "./services/partner-registry"
-    },
-    {
-      "path": "./services/sso-integration"
-    },
-    {
-      "path": "./packages/fhir-wrapper"
-    },
-    {
       "path": "./packages/fhir"
     },
     {
@@ -71,6 +59,12 @@
     },
     {
       "path": "./apps/authorizer-service"
+    },
+    {
+      "path": "./apps/whatsapp-channel-service"
+    },
+    {
+      "path": "./libs/booking-core"
     }
   ]
 }

@@ -1,0 +1,232 @@
+service: whatsapp-channel-service
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  versionFunctions: false
+  memorySize: 256
+  timeout: 30
+  logRetentionInDays: 14
+  tracing:
+    lambda: true
+  stackTags:
+    Service: whatsapp-channel-service
+    Product: beauty-on-wheels
+  environment:
+    STAGE: ${self:provider.stage}
+    SERVICE_NAME: whatsapp-channel-service
+    LOG_LEVEL: INFO
+    METRICS_NAMESPACE: ApiHub
+    REDACT_PII: 'true'
+    WHATSAPP_API_VERSION: ${env:WHATSAPP_API_VERSION, 'v23.0'}
+    WHATSAPP_PHONE_NUMBER_ID: ${env:WHATSAPP_PHONE_NUMBER_ID, ''}
+    WHATSAPP_BUSINESS_ACCOUNT_ID: ${env:WHATSAPP_BUSINESS_ACCOUNT_ID, ''}
+    WHATSAPP_VERIFY_TOKEN: ${env:WHATSAPP_VERIFY_TOKEN, ''}
+    WHATSAPP_ACCESS_TOKEN_SECRET: ${self:custom.accessTokenSecretName}
+    WHATSAPP_APP_SECRET_NAME: ${self:custom.appSecretName}
+    SERVICE_AUTH_TOKEN_SECRET: ${self:custom.serviceAuthSecretName}
+    WHATSAPP_CONVERSATION_TABLE: ${self:custom.conversationTableName}
+    CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
+    AVAILABILITY_SERVICE_URL: ${env:AVAILABILITY_SERVICE_URL, ''}
+    PRICING_SERVICE_URL: ${env:PRICING_SERVICE_URL, ''}
+    BOOKING_SERVICE_URL: ${env:BOOKING_SERVICE_URL, ''}
+    USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
+    VEHICLE_SERVICE_URL: ${env:VEHICLE_SERVICE_URL, ''}
+    VENDOR_SERVICE_URL: ${env:VENDOR_SERVICE_URL, ''}
+    CONVERSATION_TTL_SECONDS: ${env:CONVERSATION_TTL_SECONDS, '1800'}
+    DOWNSTREAM_TIMEOUT_MS: ${env:DOWNSTREAM_TIMEOUT_MS, '8000'}
+    WHATSAPP_PROCESS_INLINE: ${env:WHATSAPP_PROCESS_INLINE, 'false'}
+    INBOUND_QUEUE_URL: !Ref WhatsAppInboundQueue
+    WHATSAPP_PILOT_VENDOR_IDS: ${env:WHATSAPP_PILOT_VENDOR_IDS, ''}
+    WHATSAPP_BUSINESS_NAME: ${env:WHATSAPP_BUSINESS_NAME, 'Beauty on Wheels'}
+    WHATSAPP_CUSTOMER_LINKS: ${env:WHATSAPP_CUSTOMER_LINKS, ''}
+    DEFAULT_TIMEZONE: ${env:DEFAULT_TIMEZONE, 'Asia/Kolkata'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - !GetAtt ConversationTable.Arn
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+            - sqs:ChangeMessageVisibility
+          Resource:
+            - !GetAtt WhatsAppInboundQueue.Arn
+            - !GetAtt WhatsAppInboundDlq.Arn
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.accessTokenSecretName}-*
+            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.appSecretName}-*
+            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.serviceAuthSecretName}-*
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: '*'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-auto-swagger
+  - serverless-offline
+
+custom:
+  resourcePrefix: nv${self:provider.stage}-bw
+  conversationTableName: ${self:service}-${self:provider.stage}-conversations
+  inboundQueueName: ${self:custom.resourcePrefix}-whatsapp-inbound
+  inboundDlqName: ${self:custom.resourcePrefix}-whatsapp-inbound-dlq
+  accessTokenSecretName: ${self:custom.resourcePrefix}/whatsapp/access-token
+  appSecretName: ${self:custom.resourcePrefix}/whatsapp/app-secret
+  serviceAuthSecretName: ${self:custom.resourcePrefix}/whatsapp/service-auth-token
+  dotenv:
+    exclude:
+      - WHATSAPP_ACCESS_TOKEN
+      - WHATSAPP_APP_SECRET
+      - SERVICE_AUTH_TOKEN
+      - META_WHATSAPP_ACCESS_TOKEN
+      - META_APP_SECRET
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 8
+    plugins: esbuild-plugins.js
+    external:
+      - aws-sdk
+  autoswagger:
+    title: WhatsApp Channel Service API
+    description: Meta WhatsApp webhook and health endpoints.
+    version: 1.0.0
+    apiType: http
+    basePath: /${self:provider.stage}
+    schemes:
+      - https
+      - http
+    generateSwaggerOnDeploy: true
+    swaggerFiles:
+      - swagger.json
+    useStage: true
+    swaggerPath: swagger
+  serverless-offline:
+    httpPort: 4010
+    lambdaPort: 4012
+    noTimeout: true
+
+functions:
+  webhook:
+    handler: src/handlers/webhook.handler
+    timeout: 10
+    memorySize: 256
+    events:
+      - http:
+          path: /webhooks/whatsapp
+          method: get
+          cors: true
+          summary: Verify the Meta WhatsApp webhook
+          description: Returns the hub.challenge when hub.verify_token matches. This route is public because Meta calls it.
+      - http:
+          path: /webhooks/whatsapp
+          method: post
+          cors: true
+          summary: Receive Meta WhatsApp webhook events
+          description: Validates the X-Hub-Signature-256 header, then enqueues the payload for conversation processing.
+      - http:
+          path: /health
+          method: get
+          cors: true
+          summary: Health check
+
+  inbound:
+    handler: src/handlers/inbound.handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - sqs:
+          arn: !GetAtt WhatsAppInboundQueue.Arn
+          batchSize: 5
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    ConversationTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.conversationTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        Tags:
+          - Key: Service
+            Value: whatsapp-channel-service
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+    WhatsAppInboundDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.inboundDlqName}
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+        Tags:
+          - Key: Service
+            Value: whatsapp-channel-service
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+    WhatsAppInboundQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.inboundQueueName}
+        MessageRetentionPeriod: 345600
+        VisibilityTimeout: 90
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt WhatsAppInboundDlq.Arn
+          maxReceiveCount: 3
+        Tags:
+          - Key: Service
+            Value: whatsapp-channel-service
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+  Outputs:
+    ConversationTableName:
+      Description: WhatsApp conversation table
+      Value: !Ref ConversationTable
+    InboundQueueUrl:
+      Description: Inbound WhatsApp event queue
+      Value: !Ref WhatsAppInboundQueue
+    InboundDlqUrl:
+      Description: Inbound WhatsApp event dead-letter queue
+      Value: !Ref WhatsAppInboundDlq

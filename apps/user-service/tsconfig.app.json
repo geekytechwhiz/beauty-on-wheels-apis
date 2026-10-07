@@ -2,18 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "composite": false,
     "declaration": false,
     "declarationMap": false,
     "emitDeclarationOnly": false
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "out-tsc",
     "dist",
@@ -24,5 +20,16 @@
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
+  ],
+  "references": [
+    {
+      "path": "../../libs/observability/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/middleware/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/utils/tsconfig.lib.json"
+    }
   ]
 }

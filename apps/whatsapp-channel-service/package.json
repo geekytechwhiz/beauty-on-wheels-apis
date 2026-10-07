@@ -1,0 +1,77 @@
+{
+  "name": "@api-hub/whatsapp-channel-service",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "tags": ["type:microservice", "scope:whatsapp-channel"],
+    "targets": {
+      "build": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": ["{options.outputPath}"],
+        "defaultConfiguration": "production",
+        "options": {
+          "platform": "node",
+          "outputPath": "apps/whatsapp-channel-service/dist",
+          "format": ["cjs"],
+          "bundle": false,
+          "main": "apps/whatsapp-channel-service/src/main.ts",
+          "tsConfig": "apps/whatsapp-channel-service/tsconfig.app.json",
+          "assets": ["apps/whatsapp-channel-service/src/assets"],
+          "esbuildOptions": {
+            "sourcemap": true,
+            "outExtension": { ".js": ".js" }
+          }
+        },
+        "configurations": {
+          "development": {},
+          "production": {
+            "esbuildOptions": {
+              "sourcemap": false,
+              "outExtension": { ".js": ".js" }
+            }
+          }
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": ["build"],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/whatsapp-channel-service/dist/package.json",
+          "{workspaceRoot}/apps/whatsapp-channel-service/dist/pnpm-lock.yaml"
+        ],
+        "options": { "buildTarget": "build" }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": ["build"],
+        "cache": true,
+        "outputs": ["{workspaceRoot}/apps/whatsapp-channel-service/dist/workspace_modules"],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": { "buildTarget": "build" }
+      },
+      "prune": {
+        "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "npx serverless offline --stage dev --httpPort 4010 --lambdaPort 4012",
+          "cwd": "apps/whatsapp-channel-service"
+        }
+      },
+      "test": {
+        "options": { "passWithNoTests": true }
+      }
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serverless": "^3.40.0",
+    "serverless-esbuild": "^1.57.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-auto-swagger": "^3.1.0",
+    "serverless-offline": "13.9.0"
+  }
+}

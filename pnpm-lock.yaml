@@ -394,6 +394,21 @@ importers:
         specifier: ^0.18.5
         version: 0.18.5
 
+  apps/authorizer-service:
+    devDependencies:
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-dotenv-plugin:
+        specifier: ^6.0.0
+        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.28.1)
+      serverless-offline:
+        specifier: 13.9.0
+        version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
+
   apps/availability-service:
     devDependencies:
       serverless:
@@ -416,30 +431,6 @@ importers:
 
   apps/email-service: {}
 
-  apps/identity-service:
-    devDependencies:
-      '@myvitalrx/mvrx-resource-registry':
-        specifier: ^0.0.8
-        version: 0.0.8(serverless@3.40.0(@types/node@20.19.9))
-      esbuild:
-        specifier: ^0.19.2
-        version: 0.19.12
-      serverless:
-        specifier: ^3.40.0
-        version: 3.40.0(@types/node@20.19.9)
-      serverless-auto-swagger:
-        specifier: ^3.1.0
-        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
-      serverless-dotenv-plugin:
-        specifier: ^6.0.0
-        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
-      serverless-esbuild:
-        specifier: ^1.57.0
-        version: 1.57.2(esbuild@0.19.12)
-      serverless-offline:
-        specifier: 12.0.4
-        version: 12.0.4(@types/node@20.19.9)(serverless@3.40.0(@types/node@20.19.9))
-
   apps/identity-v1-service:
     devDependencies:
       serverless:
@@ -453,7 +444,7 @@ importers:
         version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
       serverless-esbuild:
         specifier: ^1.57.0
-        version: 1.57.2(esbuild@0.19.12)
+        version: 1.57.2(esbuild@0.28.1)
       serverless-offline:
         specifier: 13.9.0
         version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
@@ -530,6 +521,24 @@ importers:
         specifier: 13.9.0
         version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
 
+  apps/whatsapp-channel-service:
+    devDependencies:
+      serverless:
+        specifier: ^3.40.0
+        version: 3.40.0(@types/node@20.19.9)
+      serverless-auto-swagger:
+        specifier: ^3.1.0
+        version: 3.1.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-dotenv-plugin:
+        specifier: ^6.0.0
+        version: 6.0.0(serverless@3.40.0(@types/node@20.19.9))
+      serverless-esbuild:
+        specifier: ^1.57.0
+        version: 1.57.2(esbuild@0.28.1)
+      serverless-offline:
+        specifier: 13.9.0
+        version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
+
   libs/authentication-core:
     dependencies:
       '@api-hub/observability':
@@ -538,6 +547,9 @@ importers:
       '@api-hub/utils':
         specifier: workspace:*
         version: link:../utils
+      '@aws-sdk/client-cognito-identity-provider':
+        specifier: ^3.958.0
+        version: 3.1084.0
       '@types/jsonwebtoken':
         specifier: ^9.0.10
         version: 9.0.10
@@ -660,7 +672,7 @@ importers:
         version: 1.0.7
       jest:
         specifier: ^30.0.2
-        version: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3))
+        version: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
       libphonenumber-js:
         specifier: ^1.12.39
         version: 1.13.8
@@ -725,8 +737,6 @@ importers:
       typescript:
         specifier: ^5.9.0
         version: 5.9.3
-
-  services/sso-integration: {}
 
   tools/codegen:
     devDependencies:
@@ -3647,6 +3657,7 @@ packages:
   '@smithy/node-http-handler@4.12.0':
     resolution: {integrity: sha512-0mq1pHadfyXCYCqm2cNpbjNIT+fbaUpNxewZb/YNr2L0IrEVMOb8gM/Fl4K6XvHCW3uSNDFwPl/+iKm0bx9jYg==}
     engines: {node: '>=18.0.0'}
+    deprecated: Depreacted due to a memory leak issue https://github.com/smithy-lang/smithy-typescript/issues/2258
 
   '@smithy/node-http-handler@4.7.7':
     resolution: {integrity: sha512-ZAFvHXrEk6K180EVhmZVg8GU5pUH5BSFqRs27JW3j1qEFx9YyYwWFx17x/MHcjALYimGAji7qEOlF1++be+G5A==}
@@ -4039,9 +4050,6 @@ packages:
 
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
-
-  '@types/retry@0.12.1':
-    resolution: {integrity: sha512-xoDlM2S4ortawSWORYqsdU+2rxdh4LRW9ytc3zmT37RIKQh6IHyKwwtKhKis9ah8ol07DCkZxPt8BBvPjC6v4g==}
 
   '@types/retry@0.12.2':
     resolution: {integrity: sha512-XISRgDJ2Tc5q4TRqvgJtzsRkFYNJzZrhTdtMoGVBttwzzQJkPnS3WWTFc7kuDRoPtPakl+T+OfdEUjYJj7Jbow==}
@@ -5775,10 +5783,6 @@ packages:
     resolution: {integrity: sha512-jRFi8UDGo6j+odZiEpjazZaWqEal3w/basFjQHQEwVtZJGDpxbH1MeYluwCS8Xq5wmLJooDlMgvVarmWfGM44g==}
     engines: {node: '>=0.10'}
 
-  data-uri-to-buffer@4.0.1:
-    resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
-    engines: {node: '>= 12'}
-
   data-urls@6.0.1:
     resolution: {integrity: sha512-euIQENZg6x8mj3fO6o9+fOW8MimUI4PpD/fZBhJfeioZVy9TUpM4UY7KjQNVZFlqwJ0UdzRDzkycB997HEq1BQ==}
     engines: {node: '>=20'}
@@ -6391,10 +6395,6 @@ packages:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
 
-  execa@6.1.0:
-    resolution: {integrity: sha512-QVWlX2e50heYJcCPG0iWtf8r0xjEYfz/OYLGDYH+IyjWezzPNxz63qNFOu0l4YftGWuizFVZHHs8PrLU5p2IDA==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
   execa@8.0.1:
     resolution: {integrity: sha512-VyhnebXciFV2DESc+p6B+y0LjSm0krU4OgJN44qFAhBY0TJ+1V61tYD2+wHusZ6F9n5K+vl8k0sTy7PEfV4qpg==}
     engines: {node: '>=16.17'}
@@ -6512,10 +6512,6 @@ packages:
 
   fecha@4.2.3:
     resolution: {integrity: sha512-OP2IUU6HeYKJi3i0z4A19kHMQoLVs4Hc+DPqqxI2h/DPZHTm/vjsfC6P0b4jCMy14XizLBqvndQ+UilD7707Jw==}
-
-  fetch-blob@3.2.0:
-    resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
-    engines: {node: ^12.20 || >= 14.13}
 
   fflate@0.8.1:
     resolution: {integrity: sha512-/exOvEuc+/iaUm105QIiOt4LpBdMTWsXxqR0HDF35vx3fmaKzw7354gTilCh5rkzEt8WYyG//ku3h3nRmd7CHQ==}
@@ -6681,10 +6677,6 @@ packages:
   form-data@4.0.6:
     resolution: {integrity: sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==}
     engines: {node: '>= 6'}
-
-  formdata-polyfill@4.0.10:
-    resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
-    engines: {node: '>=12.20.0'}
 
   formidable@2.1.5:
     resolution: {integrity: sha512-Oz5Hwvwak/DCaXVVUtPn4oLMLLy1CdclLKO1LFgU7XzDpVMUU5UjlSLpGMocyQNNk8F6IJW9M/YdooSn2MRI+Q==}
@@ -7060,10 +7052,6 @@ packages:
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
-
-  human-signals@3.0.1:
-    resolution: {integrity: sha512-rQLskxnM/5OCldHo+wNXbpVgDn5A17CUoKX+7Sokwaknlq7CdSnphy0W39GU8dw59XiCXmFXDg4fRuckQRKewQ==}
-    engines: {node: '>=12.20.0'}
 
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
@@ -7770,9 +7758,6 @@ packages:
     resolution: {integrity: sha512-RtCMVccL9rDfwqgQHpRx8ewxRDPkN2eoPbElrBJYMZIt0pTW2x8p2km4svpFmLb/sOPPRfD+ZwlJwYmONVVZzA==}
     engines: {ender: '>= 0.5.0'}
 
-  jose@4.15.9:
-    resolution: {integrity: sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA==}
-
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
 
@@ -7947,10 +7932,6 @@ packages:
     resolution: {integrity: sha512-T92WWatJXmhBbKsgH/0hl+jxjdXrifi5IKeMY02DWggRxX0UElcbVzPlmgLTbvsPeW1PasQ6xE2Q75stkhGbsA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
-
-  jsonpath-plus@7.2.0:
-    resolution: {integrity: sha512-zBfiUPM5nD0YZSBT/o/fbCUlCcepMIdP0CJZxM1+KgA4f2T206f6VAg9e7mX35+KlMaIc5qXW34f3BnwJ3w+RA==}
-    engines: {node: '>=12.0.0'}
 
   jsonpointer@4.1.0:
     resolution: {integrity: sha512-CXcRvMyTlnR53xMcKnuMzfCA5i/nfblTnnr74CZb6C4vG39eu6w51t7nKmU5MfLfbTgGItliNyjO/ciNPDqClg==}
@@ -8624,11 +8605,6 @@ packages:
     resolution: {integrity: sha512-tmPX422rYgofd4epzrNoOXiE8XFZYOcCq1vD7MAXCDO+O+zndlA2ztdKKMa+EeuBG5tHETpr4ml4RGgpqDCCAg==}
     engines: {node: '>= 0.10.5'}
 
-  node-domexception@1.0.0:
-    resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
-    engines: {node: '>=10.5.0'}
-    deprecated: Use your platform's native DOMException instead
-
   node-exports-info@1.6.2:
     resolution: {integrity: sha512-kXs9Go0cah0qHVV2v389IXQLdLCeE1xfFtjOAF+iobu0OIoG1pje8At2vMHyaPMiPMnG/LWP50twML21eMcAag==}
     engines: {node: '>= 0.4'}
@@ -8654,10 +8630,6 @@ packages:
     peerDependenciesMeta:
       encoding:
         optional: true
-
-  node-fetch@3.3.2:
-    resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   node-int64@0.4.0:
     resolution: {integrity: sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw==}
@@ -8773,10 +8745,6 @@ packages:
 
   object.groupby@1.0.3:
     resolution: {integrity: sha512-+Lhy3TQTuzXI5hevh8sBGqbmurHbbIjAi0Z4S63nthVLmLxfbj4T54a4CfZrXIrt9iP4mVAPYMo/v99taj3wjQ==}
-    engines: {node: '>= 0.4'}
-
-  object.hasown@1.1.4:
-    resolution: {integrity: sha512-FZ9LZt9/RHzGySlBARE3VF+gE26TxR38SdmqOqliuTnl9wrKulaQs+4dee1V+Io8VfxqzAfHu6YuRgUy8OHoTg==}
     engines: {node: '>= 0.4'}
 
   object.values@1.2.1:
@@ -8938,10 +8906,6 @@ packages:
   p-memoize@7.1.1:
     resolution: {integrity: sha512-DZ/bONJILHkQ721hSr/E9wMz5Am/OTJ9P6LhLFo2Tu+jL8044tgc9LwHO8g4PiaYePnlVVRAJcKmgy8J9MVFrA==}
     engines: {node: '>=14.16'}
-
-  p-retry@5.1.2:
-    resolution: {integrity: sha512-couX95waDu98NfNZV+i/iLt+fdVxmI7CbrrdC2uDWfPdUAApyxT4wmDlyOtR5KtTDmkDO0zDScDjDou9YHhd9g==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   p-retry@6.2.1:
     resolution: {integrity: sha512-hEt02O4hUct5wtwg4H4KcWgDdm+l1bOaEy/hWzd8xtXB9BqxTWBBhb+2ImAtH4Cv4rPjV76xN3Zumqk3k3AhhQ==}
@@ -10017,12 +9981,6 @@ packages:
     peerDependenciesMeta:
       esbuild-node-externals:
         optional: true
-
-  serverless-offline@12.0.4:
-    resolution: {integrity: sha512-G256wDHI12vE0CJ0uTJMBlfnaN7o7td4GgClvQtuedt/n7vKoUfN0och+LybD6YVGsR5h1xpYjPPPLy2QFqWaA==}
-    engines: {node: '>=14.18.0'}
-    peerDependencies:
-      serverless: ^3.2.0
 
   serverless-offline@13.9.0:
     resolution: {integrity: sha512-r/GU1FcgUbrhUzPJ5BOpni6JXhHVhxksYQH8d3S4alx4IZQo3E9Q8fT2z8Mvh+d0rfQ1Y0kHvyeKJ126rleGfg==}
@@ -11220,10 +11178,6 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
-  web-streams-polyfill@3.3.3:
-    resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
-    engines: {node: '>= 8'}
-
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
@@ -11669,13 +11623,13 @@ snapshots:
 
   '@aws-sdk/client-api-gateway@3.1084.0':
     dependencies:
-      '@aws-sdk/core': 3.975.1
-      '@aws-sdk/credential-provider-node': 3.972.66
+      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/credential-provider-node': 3.972.82
       '@aws-sdk/middleware-sdk-api-gateway': 3.972.22
-      '@aws-sdk/types': 3.974.0
-      '@smithy/core': 3.29.3
-      '@smithy/fetch-http-handler': 5.6.5
-      '@smithy/node-http-handler': 4.9.5
+      '@aws-sdk/types': 3.974.5
+      '@smithy/core': 3.33.3
+      '@smithy/fetch-http-handler': 5.7.2
+      '@smithy/node-http-handler': 4.12.0
       '@smithy/types': 4.14.2
       tslib: 2.8.1
 
@@ -11715,12 +11669,12 @@ snapshots:
 
   '@aws-sdk/client-cognito-identity-provider@3.1084.0':
     dependencies:
-      '@aws-sdk/core': 3.975.1
-      '@aws-sdk/credential-provider-node': 3.972.66
-      '@aws-sdk/types': 3.974.0
-      '@smithy/core': 3.29.3
-      '@smithy/fetch-http-handler': 5.6.5
-      '@smithy/node-http-handler': 4.9.5
+      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/credential-provider-node': 3.972.82
+      '@aws-sdk/types': 3.974.5
+      '@smithy/core': 3.33.3
+      '@smithy/fetch-http-handler': 5.7.2
+      '@smithy/node-http-handler': 4.12.0
       '@smithy/types': 4.14.2
       tslib: 2.8.1
 
@@ -11751,12 +11705,12 @@ snapshots:
 
   '@aws-sdk/client-iam@3.1084.0':
     dependencies:
-      '@aws-sdk/core': 3.975.1
-      '@aws-sdk/credential-provider-node': 3.972.66
-      '@aws-sdk/types': 3.974.0
-      '@smithy/core': 3.29.3
-      '@smithy/fetch-http-handler': 5.6.5
-      '@smithy/node-http-handler': 4.9.5
+      '@aws-sdk/core': 3.977.9
+      '@aws-sdk/credential-provider-node': 3.972.82
+      '@aws-sdk/types': 3.974.5
+      '@smithy/core': 3.33.3
+      '@smithy/fetch-http-handler': 5.7.2
+      '@smithy/node-http-handler': 4.12.0
       '@smithy/types': 4.14.2
       tslib: 2.8.1
 
@@ -11875,7 +11829,7 @@ snapshots:
     dependencies:
       '@aws-sdk/core': 3.977.9
       '@aws-sdk/credential-provider-node': 3.972.82
-      '@aws-sdk/signature-v4-multi-region': 3.996.39
+      '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.7.2
@@ -12153,7 +12107,7 @@ snapshots:
   '@aws-sdk/nested-clients@3.997.31':
     dependencies:
       '@aws-sdk/core': 3.977.9
-      '@aws-sdk/signature-v4-multi-region': 3.996.39
+      '@aws-sdk/signature-v4-multi-region': 3.996.46
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.7.2
@@ -13932,6 +13886,42 @@ snapshots:
       graceful-fs: 4.2.11
       jest-changed-files: 30.4.1
       jest-config: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3))
+      jest-haste-map: 30.4.1
+      jest-message-util: 30.4.1
+      jest-regex-util: 30.4.0
+      jest-resolve: 30.4.1
+      jest-resolve-dependencies: 30.4.2
+      jest-runner: 30.4.2
+      jest-runtime: 30.4.2
+      jest-snapshot: 30.4.1
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      jest-watcher: 30.4.1
+      pretty-format: 30.4.1
+      slash: 3.0.0
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
+  '@jest/core@30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))':
+    dependencies:
+      '@jest/console': 30.4.1
+      '@jest/pattern': 30.4.0
+      '@jest/reporters': 30.4.1
+      '@jest/test-result': 30.4.1
+      '@jest/transform': 30.4.1
+      '@jest/types': 30.4.1
+      '@types/node': 20.19.9
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      ci-info: 4.4.0
+      exit-x: 0.2.2
+      fast-json-stable-stringify: 2.1.0
+      graceful-fs: 4.2.11
+      jest-changed-files: 30.4.1
+      jest-config: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
       jest-haste-map: 30.4.1
       jest-message-util: 30.4.1
       jest-regex-util: 30.4.0
@@ -15773,8 +15763,6 @@ snapshots:
     dependencies:
       '@types/node': 20.19.9
 
-  '@types/retry@0.12.1': {}
-
   '@types/retry@0.12.2': {}
 
   '@types/send@0.17.6':
@@ -17166,7 +17154,7 @@ snapshots:
   buffer@4.9.2:
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.1.13
+      ieee754: 1.2.1
       isarray: 1.0.0
 
   buffer@5.7.1:
@@ -17831,8 +17819,6 @@ snapshots:
     dependencies:
       assert-plus: 1.0.0
 
-  data-uri-to-buffer@4.0.1: {}
-
   data-urls@6.0.1:
     dependencies:
       whatwg-mimetype: 5.0.0
@@ -18050,7 +18036,7 @@ snapshots:
 
   dotenv-expand@11.0.7:
     dependencies:
-      dotenv: 16.4.7
+      dotenv: 16.6.1
 
   dotenv@16.4.7: {}
 
@@ -18630,18 +18616,6 @@ snapshots:
       signal-exit: 3.0.7
       strip-final-newline: 2.0.0
 
-  execa@6.1.0:
-    dependencies:
-      cross-spawn: 7.0.6
-      get-stream: 6.0.1
-      human-signals: 3.0.1
-      is-stream: 3.0.0
-      merge-stream: 2.0.0
-      npm-run-path: 5.3.0
-      onetime: 6.0.0
-      signal-exit: 3.0.7
-      strip-final-newline: 3.0.0
-
   execa@8.0.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -18822,11 +18796,6 @@ snapshots:
 
   fecha@4.2.3: {}
 
-  fetch-blob@3.2.0:
-    dependencies:
-      node-domexception: 1.0.0
-      web-streams-polyfill: 3.3.3
-
   fflate@0.8.1: {}
 
   fflate@0.8.3: {}
@@ -19002,10 +18971,6 @@ snapshots:
       es-set-tostringtag: 2.1.0
       hasown: 2.0.4
       mime-types: 2.1.35
-
-  formdata-polyfill@4.0.10:
-    dependencies:
-      fetch-blob: 3.2.0
 
   formidable@2.1.5:
     dependencies:
@@ -19467,8 +19432,6 @@ snapshots:
       - supports-color
 
   human-signals@2.1.0: {}
-
-  human-signals@3.0.1: {}
 
   human-signals@5.0.0: {}
 
@@ -19974,6 +19937,25 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest-cli@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      '@jest/test-result': 30.4.1
+      '@jest/types': 30.4.1
+      chalk: 4.1.2
+      exit-x: 0.2.2
+      import-local: 3.2.0
+      jest-config: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      yargs: 17.7.3
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
   jest-config@29.7.0(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
     dependencies:
       '@babel/core': 7.29.7
@@ -20033,6 +20015,38 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.9
       ts-node: 10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.8.3)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@babel/core': 7.29.7
+      '@jest/get-type': 30.1.0
+      '@jest/pattern': 30.4.0
+      '@jest/test-sequencer': 30.4.1
+      '@jest/types': 30.4.1
+      babel-jest: 30.4.1(@babel/core@7.29.7)
+      chalk: 4.1.2
+      ci-info: 4.4.0
+      deepmerge: 4.3.1
+      glob: 10.5.0
+      graceful-fs: 4.2.11
+      jest-circus: 30.4.2(babel-plugin-macros@3.1.0)
+      jest-docblock: 30.4.0
+      jest-environment-node: 30.4.1
+      jest-regex-util: 30.4.0
+      jest-resolve: 30.4.1
+      jest-runner: 30.4.2
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      parse-json: 5.2.0
+      pretty-format: 30.4.1
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 20.19.9
+      ts-node: 10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -20499,6 +20513,19 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest@30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 30.4.2(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+      '@jest/types': 30.4.1
+      import-local: 3.2.0
+      jest-cli: 30.4.2(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(ts-node@10.9.1(@swc/core@1.5.29(@swc/helpers@0.5.23))(@types/node@20.19.9)(typescript@5.9.3))
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+
   jiti@2.4.2: {}
 
   jju@1.4.0: {}
@@ -20506,8 +20533,6 @@ snapshots:
   jmespath@0.16.0: {}
 
   join@3.0.0: {}
-
-  jose@4.15.9: {}
 
   jose@5.10.0: {}
 
@@ -20637,7 +20662,7 @@ snapshots:
 
   json-schema-compare@0.2.2:
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.18.1
 
   json-schema-cycles@1.1.0:
     dependencies:
@@ -20654,7 +20679,7 @@ snapshots:
     dependencies:
       compute-lcm: 1.1.2
       json-schema-compare: 0.2.2
-      lodash: 4.17.21
+      lodash: 4.18.1
 
   json-schema-traverse@0.3.1: {}
 
@@ -20709,8 +20734,6 @@ snapshots:
       '@jsep-plugin/assignment': 1.3.0(jsep@1.4.0)
       '@jsep-plugin/regex': 1.0.4(jsep@1.4.0)
       jsep: 1.4.0
-
-  jsonpath-plus@7.2.0: {}
 
   jsonpointer@4.1.0: {}
 
@@ -21344,8 +21367,6 @@ snapshots:
     dependencies:
       minimatch: 3.1.5
 
-  node-domexception@1.0.0: {}
-
   node-exports-info@1.6.2:
     dependencies:
       array.prototype.flatmap: 1.3.3
@@ -21364,12 +21385,6 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
-
-  node-fetch@3.3.2:
-    dependencies:
-      data-uri-to-buffer: 4.0.1
-      fetch-blob: 3.2.0
-      formdata-polyfill: 4.0.10
 
   node-int64@0.4.0: {}
 
@@ -21553,12 +21568,6 @@ snapshots:
       call-bind: 1.0.9
       define-properties: 1.2.1
       es-abstract: 1.24.2
-
-  object.hasown@1.1.4:
-    dependencies:
-      define-properties: 1.2.1
-      es-abstract: 1.24.2
-      es-object-atoms: 1.1.2
 
   object.values@1.2.1:
     dependencies:
@@ -21752,11 +21761,6 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
       type-fest: 3.13.1
-
-  p-retry@5.1.2:
-    dependencies:
-      '@types/retry': 0.12.1
-      retry: 0.13.1
 
   p-retry@6.2.1:
     dependencies:
@@ -22848,42 +22852,6 @@ snapshots:
       - bare-buffer
       - bufferutil
       - react-native-b4a
-      - utf-8-validate
-
-  serverless-offline@12.0.4(@types/node@20.19.9)(serverless@3.40.0(@types/node@20.19.9)):
-    dependencies:
-      '@aws-sdk/client-lambda': 3.1084.0
-      '@hapi/boom': 10.0.1
-      '@hapi/h2o2': 10.0.4
-      '@hapi/hapi': 21.4.9
-      '@serverless/utils': 6.15.0(@types/node@20.19.9)
-      array-unflat-js: 0.1.3
-      boxen: 7.1.1
-      chalk: 5.6.2
-      desm: 1.3.1
-      execa: 6.1.0
-      fs-extra: 11.3.6
-      is-wsl: 2.2.0
-      java-invoke-local: 0.0.6
-      jose: 4.15.9
-      js-string-escape: 1.0.1
-      jsonpath-plus: 7.2.0
-      jsonschema: 1.5.0
-      jszip: 3.10.1
-      luxon: 3.7.2
-      node-fetch: 3.3.2
-      node-schedule: 2.1.1
-      object.hasown: 1.1.4
-      p-memoize: 7.1.1
-      p-retry: 5.1.2
-      serverless: 3.40.0(@types/node@20.19.9)
-      velocityjs: 2.1.6
-      ws: 8.21.0
-    transitivePeerDependencies:
-      - '@types/node'
-      - bufferutil
-      - encoding
-      - supports-color
       - utf-8-validate
 
   serverless-offline@13.9.0(serverless@3.40.0(@types/node@20.19.9)):
@@ -24391,8 +24359,6 @@ snapshots:
     dependencies:
       defaults: 1.0.4
 
-  web-streams-polyfill@3.3.3: {}
-
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@8.0.1: {}
@@ -24707,7 +24673,7 @@ snapshots:
 
   xml2js@0.6.2:
     dependencies:
-      sax: 1.2.1
+      sax: 1.6.0
       xmlbuilder: 11.0.1
 
   xmlbuilder@11.0.1: {}

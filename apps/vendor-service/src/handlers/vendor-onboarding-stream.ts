@@ -56,4 +56,4 @@ export function createVendorOnboardingSubmittedStreamHandler(deps?: {
   });
 }
 
-export const main = createVendorOnboardingSubmittedStreamHandler();
+export const handler = createVendorOnboardingSubmittedStreamHandler();

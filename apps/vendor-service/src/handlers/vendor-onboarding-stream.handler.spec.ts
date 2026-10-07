@@ -6,7 +6,7 @@ import {
   type VendorOnboardingSubmittedPayload,
 } from '@api-hub/event-platform';
 
-import { createVendorOnboardingSubmittedStreamHandler } from './vendor-onboarding-stream.handler';
+import { createVendorOnboardingSubmittedStreamHandler } from './vendor-onboarding-stream';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');

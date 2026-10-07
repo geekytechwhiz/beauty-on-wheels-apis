@@ -208,7 +208,7 @@ functions:
               description: ""
 
   onVendorOnboardingSubmitted:
-    handler: src/handlers/vendor-onboarding-stream.handler.main
+    handler: src/handlers/vendor-onboarding-stream.handler
     name: ${self:custom.resourcePrefix}-vendor-onboarding-stream
     timeout: 60
     events:
@@ -226,7 +226,7 @@ functions:
               type: sqs
 
   onVendorEmailVerificationRequested:
-    handler: src/handlers/vendor-email-verification-stream.handler.main
+    handler: src/handlers/vendor-email-verification-stream.handler
     name: ${self:custom.resourcePrefix}-vendor-email-verification-stream
     timeout: 60
     events:

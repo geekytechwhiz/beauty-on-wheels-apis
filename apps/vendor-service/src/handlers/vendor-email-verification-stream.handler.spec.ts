@@ -6,7 +6,7 @@ import {
   type VendorEmailVerificationRequestedPayload,
 } from '@api-hub/event-platform';
 
-import { createVendorEmailVerificationRequestedStreamHandler } from './vendor-email-verification-stream.handler';
+import { createVendorEmailVerificationRequestedStreamHandler } from './vendor-email-verification-stream';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');

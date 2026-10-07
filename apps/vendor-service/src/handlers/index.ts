@@ -7,5 +7,5 @@ export * from "./operating-hours-handler";
 export * from "./service-areas-handler";
 export * from "./staff-handler";
 export * from "./vendors-handler";
-export * from "./vendor-onboarding-stream.handler";
-export * from "./vendor-email-verification-stream.handler";
+export * from "./vendor-onboarding-stream";
+export * from "./vendor-email-verification-stream";

@@ -1,0 +1,64 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "WhatsApp Channel Service API",
+    "version": "1.0.0",
+    "description": "Public Meta webhook and health endpoints for the Beauty on Wheels WhatsApp channel. Downstream catalog, vendor, vehicle, availability, booking, and user calls are not exposed here."
+  },
+  "basePath": "/dev",
+  "schemes": ["https"],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "produces": ["application/json"],
+        "responses": {
+          "200": { "description": "Service is up" }
+        }
+      }
+    },
+    "/webhooks/whatsapp": {
+      "get": {
+        "summary": "Meta webhook verification",
+        "operationId": "verifyWhatsAppWebhook",
+        "parameters": [
+          { "name": "hub.mode", "in": "query", "type": "string", "required": true },
+          { "name": "hub.verify_token", "in": "query", "type": "string", "required": true },
+          { "name": "hub.challenge", "in": "query", "type": "string", "required": true }
+        ],
+        "produces": ["text/plain", "application/json"],
+        "responses": {
+          "200": { "description": "hub.challenge echoed as plain text" },
+          "403": { "description": "Verification token did not match" }
+        }
+      },
+      "post": {
+        "summary": "Meta webhook events",
+        "operationId": "receiveWhatsAppWebhook",
+        "parameters": [
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "type": "string",
+            "required": true,
+            "description": "sha256 HMAC of the raw body using the Meta app secret"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": { "type": "object" }
+          }
+        ],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "responses": {
+          "200": { "description": "Event accepted and queued" },
+          "401": { "description": "Invalid signature" },
+          "400": { "description": "Body is not JSON" }
+        }
+      }
+    }
+  }
+}

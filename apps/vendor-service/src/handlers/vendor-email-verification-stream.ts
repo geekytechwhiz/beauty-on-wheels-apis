@@ -58,4 +58,4 @@ export function createVendorEmailVerificationRequestedStreamHandler(deps?: {
   });
 }
 
-export const main = createVendorEmailVerificationRequestedStreamHandler();
+export const handler = createVendorEmailVerificationRequestedStreamHandler();

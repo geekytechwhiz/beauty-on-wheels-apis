@@ -78,6 +78,27 @@ export interface UpdateVendorStatusRequest {
   reason?: string;
 }
 
+export interface ApproveVendorRequest {
+  reason?: string;
+}
+
+export interface RejectVendorRequest {
+  reason: string;
+}
+
+export interface VendorStatusReview {
+  previousStatus: VendorStatus;
+  newStatus: VendorStatus;
+  reviewerUserId: string;
+  reason?: string;
+  reviewedAt: string;
+  correlationId?: string;
+}
+
+export interface VendorStatusHistoryEntry extends VendorStatusReview {
+  vendorId: string;
+}
+
 export interface UpdateOperationalStatusRequest {
   operationalStatus: OperationalStatus;
 }
@@ -286,6 +307,8 @@ export interface Vendor {
   currentSection?: OnboardingSection;
   completedSections?: OnboardingSection[];
   applicationId?: string;
+  communityIds: string[];
+  latestReview?: VendorStatusReview;
   createdAt: string;
   updatedAt: string;
 }
@@ -395,18 +418,60 @@ export interface AvailableCapabilities {
   };
 }
 
+export interface VendorServiceOffering {
+  serviceId: string;
+  categoryId?: string;
+  enabled: boolean;
+  priceOverride?: number;
+}
+
+export interface VendorPackageOffering {
+  packageId: string;
+  enabled: boolean;
+  priceOverride?: number;
+}
+
 export interface VendorCapabilities {
   vendorId: string;
   vehicleTypes: VehicleType[];
   serviceIds: string[];
   packageIds: string[];
+  services: VendorServiceOffering[];
+  packages: VendorPackageOffering[];
   updatedAt?: string;
 }
 
 export interface UpdateVendorCapabilitiesRequest {
   vehicleTypes: VehicleType[];
-  serviceIds: string[];
-  packageIds: string[];
+  serviceIds?: string[];
+  packageIds?: string[];
+  services?: VendorServiceOffering[];
+  packages?: VendorPackageOffering[];
+}
+
+export interface ReplaceVendorServicesRequest {
+  services: VendorServiceOffering[];
+}
+
+export interface ReplaceVendorPackagesRequest {
+  packages: VendorPackageOffering[];
+}
+
+export interface VendorCommunityAssignment {
+  vendorId: string;
+  communityId: string;
+  assignedBy: string;
+  assignedAt: string;
+  status: VendorStatus;
+  operationalStatus: OperationalStatus;
+}
+
+export interface ReplaceVendorCommunitiesRequest {
+  communityIds: string[];
+}
+
+export interface AddVendorCommunityRequest {
+  communityId: string;
 }
 
 export interface Pagination {

@@ -45,5 +45,10 @@ export interface VerifiedPayload {
   token_use?: string;
   scope?: string;
   client_id?: string;
+  /**
+   * Application roles (`CUSTOMER`, `VENDOR`, `ADMIN`). Absent on tokens issued
+   * before role mapping was added. Not derived from `scope`.
+   */
+  roles?: string[];
   [key: string]: unknown;
 }

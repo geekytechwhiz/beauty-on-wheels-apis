@@ -9,6 +9,8 @@ export const CHANNEL_ERROR_CODE = {
   AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
   AUTHORIZATION_ERROR: 'AUTHORIZATION_ERROR',
   META_API_ERROR: 'META_API_ERROR',
+  WHATSAPP_CONFIG_MISSING: 'WHATSAPP_CONFIG_MISSING',
+  WHATSAPP_SEND_FAILED: 'WHATSAPP_SEND_FAILED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 
@@ -23,6 +25,8 @@ const STATUS_BY_CODE: Record<ChannelErrorCode, number> = {
   AUTHENTICATION_ERROR: 401,
   AUTHORIZATION_ERROR: 403,
   META_API_ERROR: 502,
+  WHATSAPP_CONFIG_MISSING: 500,
+  WHATSAPP_SEND_FAILED: 502,
   INTERNAL_ERROR: 500,
 };
 
@@ -60,6 +64,8 @@ export function customerMessage(error: unknown): string {
     case CHANNEL_ERROR_CODE.VALIDATION_ERROR:
       return 'Something in that request was not valid. Please try again.';
     case CHANNEL_ERROR_CODE.META_API_ERROR:
+    case CHANNEL_ERROR_CODE.WHATSAPP_CONFIG_MISSING:
+    case CHANNEL_ERROR_CODE.WHATSAPP_SEND_FAILED:
       return 'I could not send a WhatsApp message just now. Please try again.';
     default:
       return 'Sorry, something went wrong. Please reply MENU to start again.';

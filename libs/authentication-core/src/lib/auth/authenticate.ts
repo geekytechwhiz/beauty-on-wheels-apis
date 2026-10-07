@@ -6,6 +6,7 @@ import {
 } from '@api-hub/utils';
 
 import type { AuthContext, AuthenticateOptions } from './auth-context';
+import { parseAccessTokenRolesClaim } from './application-roles';
 import { readAuthorizerContextFromEvent } from './authorizer-context';
 import { readBearerToken, validateAccessToken } from './token-validator';
 import { USER_STATUS } from '../constants/identity.constants';
@@ -81,8 +82,17 @@ async function resolveApplicationUser(
   }
 
   ctx.userId = user.userId;
-  const roles = await directory.getUserRoles(user.userId);
-  ctx.roles = roles.length > 0 ? roles : user.roleId ? [user.roleId] : [];
+  const tokenRoles = parseAccessTokenRolesClaim(ctx.claims.roles);
+  const applicationRoles =
+    tokenRoles.ok && tokenRoles.roles && tokenRoles.roles.length > 0
+      ? tokenRoles.roles
+      : undefined;
+  if (applicationRoles) {
+    ctx.roles = applicationRoles;
+  } else {
+    const roles = await directory.getUserRoles(user.userId);
+    ctx.roles = roles.length > 0 ? roles : user.roleId ? [user.roleId] : [];
+  }
   ctx.permissions = await directory.getPermissionsForRoles(ctx.roles);
   return ctx;
 }

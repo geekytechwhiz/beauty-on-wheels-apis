@@ -1,7 +1,9 @@
 import { LambdaRequest } from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
+import { APPLICATION_ROLE } from '@api-hub/authentication-core';
 import crypto from 'crypto';
 
+import { prepareApplicationRolesForToken } from '../auth/application-role-assignment';
 import {
   IdentityRepository,
   identityRepositoryInstance,
@@ -93,7 +95,7 @@ export class RegistrationService {
       email: newUser.email,
       phone: newUser.phoneNumber,
       status: newUser.status,
-      roles: newUser.roleId ? [newUser.roleId] : [],
+      roles: [APPLICATION_ROLE.CUSTOMER],
     };
   }
 
@@ -135,6 +137,7 @@ export class RegistrationService {
     };
 
     await this.repository.createUser(newUser, newProfile);
+    await prepareApplicationRolesForToken(this.repository, newUser);
     return newUser;
   }
 

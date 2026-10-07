@@ -8,6 +8,10 @@ Reusable Cognito authentication and RBAC for Beauty on Wheels services.
 - Verifies RS256 signature via Cognito JWKS (`kid` rotation supported).
 - Caches JWKS PEMs in memory (Lambda warm starts).
 - Validates issuer, expiry, user pool, and app client / audience.
+- `sub` is the Cognito identity id.
+- Access-token `roles`, when present, is an array of `CUSTOMER`, `VENDOR`, and/or `ADMIN`. It is resolved from the identity role mapping at issuance, not from the Cognito `scope` claim.
+- Tokens without `roles` remain valid. Callers then keep using the identity directory, including the generic `user` role for accounts that have no explicit application role.
+- `roles` must be a string array (or a JSON array string). An object, such as vendor onboarding status, is rejected.
 
 ```ts
 import { authenticate, authorize, PERMISSION } from '@api-hub/authentication-core';
@@ -21,6 +25,8 @@ await authorize(request, { permissions: [PERMISSION.VEHICLE_READ] }, { userDirec
 ## Authorization
 
 JWT → Cognito identity → application user → roles → permissions → allow / deny.
+
+When the access token includes `roles`, those values are the caller's application roles. Otherwise roles still come from the identity directory.
 
 - `401` when the token is missing, malformed, invalid, or expired.
 - `403` when the caller is authenticated but lacks the permission or has no application-user mapping.

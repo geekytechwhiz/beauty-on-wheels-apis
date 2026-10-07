@@ -10,6 +10,64 @@ identity-v1
 
 Bootstrap Completed
 
+## Access token roles
+
+`POST /auth/register` writes the application `USER#` record and a `USER#{userId}` / `ROLE#CUSTOMER` mapping. Cognito user creation stays on the existing login and OTP path. The profile `roleId` stays `user` and is not an application role.
+
+`POST /auth/login`, `POST /otp/verify`, and `POST /auth/refresh-token` still return a Cognito access token (`accessToken`, `refreshToken`, `expiresIn`, `tokenType`). Before Cognito issues that token, the user pool Pre Token Generation trigger (`src/handlers/pre-token-generation.ts`) reads the application user by Cognito `sub` and adds `roles` to the **access** token. The same trigger runs for authentication and refresh (`TokenGeneration_Authentication` and `TokenGeneration_RefreshTokens`), so a newly issued token contains the latest mappings.
+
+| Claim | Meaning |
+|---|---|
+| `sub` | Cognito identity id. Not the application `userId`, username, or phone number. |
+| `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["ADMIN"]`, `["CUSTOMER","VENDOR"]`. |
+| `token_use` | `access` |
+| `scope` | Cognito OAuth scopes. Not an application role. |
+
+Vendor onboarding status (`PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `PENDING_REVIEW`) stays on the vendor record and is not written into the token. Approving a vendor adds `VENDOR` and leaves `CUSTOMER` in place.
+
+Tokens that omit `roles` still validate. Authorization uses `roles` when the claim is present and does not treat a missing claim as `CUSTOMER` or `VENDOR`.
+
+Deploy attaches `preTokenGeneration` to `COGNITO_USER_POOL_ID` with `LambdaVersion: V2_0`. `V1_0` customizes the ID token only and will not add `roles`.
+
+### Backfill existing users
+
+Users created before this change have no `ROLE#CUSTOMER` item. The backfill is safe to run more than once: it assigns `CUSTOMER` only when the user has no `CUSTOMER`, `VENDOR`, or `ADMIN` role, and it does not replace an existing `VENDOR` or `ADMIN` mapping.
+
+```bash
+aws lambda invoke \
+  --function-name identity-v1-service-dev-backfillCustomerRoles \
+  --region us-east-1 \
+  /tmp/identity-role-backfill.json
+cat /tmp/identity-role-backfill.json
+```
+
+Replace `dev` with the deployed stage. Login and OTP verification also write the missing default mapping before Cognito issues the token, so the first sign-in after deploy picks up `CUSTOMER` even if the scan has not finished.
+
+### Deployment verification
+
+1. Pre Token Generation is attached at V2_0:
+
+```bash
+aws cognito-idp describe-user-pool \
+  --user-pool-id "$COGNITO_USER_POOL_ID" \
+  --region us-east-1 \
+  --query 'UserPool.LambdaConfig.{arn:PreTokenGenerationConfig.LambdaArn,version:PreTokenGenerationConfig.LambdaVersion,legacy:PreTokenGeneration}'
+```
+
+`version` must be `V2_0`, and both ARNs must be the deployed `preTokenGeneration` function.
+
+2. Run the backfill above. `assignedCustomer` is greater than zero only for users that had no application role. A second invoke reports `assignedCustomer: 0`.
+
+3. Register a user. The response `roles` is `["CUSTOMER"]`. The identity table has `PK=USER#{userId}`, `SK=ROLE#CUSTOMER`.
+
+4. Verify OTP or log in, then decode the access token (payload only):
+
+```bash
+node -e 'const t=process.argv[1].split(".")[1]; console.log(JSON.parse(Buffer.from(t,"base64url").toString()))' "$ACCESS_TOKEN"
+```
+
+Expect `sub` (Cognito id), `roles: ["CUSTOMER"]`, and `token_use: "access"`. `scope` remains the Cognito scope string. After a vendor is approved, refresh and expect `roles: ["CUSTOMER","VENDOR"]`.
+
 ## Next Step
 
 Run

@@ -135,3 +135,34 @@ export const validateUpdateOperationalStatusRequest = (req: LambdaRequest): Upda
     }
     return result.data;
 };
+
+export const ApproveVendorRequestSchema = z
+  .object({
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const RejectVendorRequestSchema = z
+  .object({
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const validateApproveVendorRequest = (req: LambdaRequest) => {
+  const body = req.body === undefined || req.body === null ? {} : req.body;
+  const result = ApproveVendorRequestSchema.safeParse(body);
+  if (!result.success) {
+    throw new EventSchemaError('Request validation failed', result.error);
+  }
+  req.body = result.data;
+  return result.data;
+};
+
+export const validateRejectVendorRequest = (req: LambdaRequest) => {
+  const result = RejectVendorRequestSchema.safeParse(req.body);
+  if (!result.success) {
+    throw new EventSchemaError('Request validation failed', result.error);
+  }
+  req.body = result.data;
+  return result.data;
+};

@@ -102,6 +102,7 @@ export class ServiceAreasService {
 
     try {
       await this.requireAccessibleVendor(request, vendorId);
+      await this.assertUniqueServiceArea(vendorId, body.name, body.city);
 
       const serviceAreaId = randomUUID();
       const ddbItem = ServiceAreasMapper.toDdbItem(body, vendorId, serviceAreaId);
@@ -200,6 +201,12 @@ export class ServiceAreasService {
       }
 
       const updated = ServiceAreasMapper.applyUpdate(existing, body);
+      await this.assertUniqueServiceArea(
+        vendorId,
+        updated.name,
+        updated.city,
+        serviceAreaId,
+      );
 
       try {
         await this.repository.updateServiceArea(updated);
@@ -278,9 +285,33 @@ export class ServiceAreasService {
       throw error;
     }
   }
+
+  private async assertUniqueServiceArea(
+    vendorId: string,
+    name: string,
+    city: string,
+    ignoreServiceAreaId?: string,
+  ) {
+    const areas = await this.repository.listServiceAreas(vendorId);
+    const key = serviceAreaKey(name, city);
+    const duplicate = areas.find(
+      (area) =>
+        area.serviceAreaId !== ignoreServiceAreaId &&
+        serviceAreaKey(area.name, area.city) === key,
+    );
+    if (duplicate) {
+      throw new ConflictError(
+        'A service area with this name already exists for the city',
+      );
+    }
+  }
 }
 
 let service: ServiceAreasService;
+
+function serviceAreaKey(name: string, city: string): string {
+  return `${city.trim().toLowerCase()}|${name.trim().toLowerCase()}`;
+}
 
 export function getServiceAreasService() {
   if (!service) {

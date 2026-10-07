@@ -22,7 +22,25 @@ export class CapabilitiesRepository extends BaseRepository {
     });
   }
 
-  async putCapabilities(item: VendorCapabilitiesDdbItem): Promise<void> {
+  async putCapabilities(
+    item: VendorCapabilitiesDdbItem,
+    expectedUpdatedAt?: string,
+  ): Promise<void> {
+    const capabilitiesPut = expectedUpdatedAt
+      ? {
+          TableName: this.getTableName(),
+          Item: item,
+          ConditionExpression:
+            'attribute_not_exists(SK) OR updatedAt = :expectedUpdatedAt',
+          ExpressionAttributeValues: {
+            ':expectedUpdatedAt': expectedUpdatedAt,
+          },
+        }
+      : {
+          TableName: this.getTableName(),
+          Item: item,
+        };
+
     await this.transactWrite({
       TransactItems: [
         {
@@ -36,10 +54,7 @@ export class CapabilitiesRepository extends BaseRepository {
           },
         },
         {
-          Put: {
-            TableName: this.getTableName(),
-            Item: item,
-          },
+          Put: capabilitiesPut,
         },
       ],
     });

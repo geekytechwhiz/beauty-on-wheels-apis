@@ -1,56 +1,26 @@
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest } from '@api-hub/utils';
 
-import {
-    CustomersService,
-    getCustomersService
-} from "../services/customers.service";
+import { CustomersService, getCustomersService } from '../services/customers.service';
 
 export class CustomersController {
+  constructor(
+    private readonly service: CustomersService = getCustomersService(),
+  ) {}
 
-    constructor(
+  async getCustomer(request: LambdaRequest) {
+    return this.service.getCustomer(request);
+  }
 
-        private readonly service: CustomersService =
-            getCustomersService()
-
-    ) {}
-
-
-
-    async handleGetuserid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getuserid(
-            request
-        );
-
-    }
-
-
-
-    async handlePutuserid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.putuserid(
-            request
-        );
-
-    }
-
+  async putCustomer(request: LambdaRequest) {
+    return this.service.putCustomer(request);
+  }
 }
 
 let controller: CustomersController;
 
-export function getCustomersController() {
-
-    if (!controller) {
-
-        controller =
-            new CustomersController();
-
-    }
-
-    return controller;
-
+export function getCustomersController(): CustomersController {
+  if (!controller) {
+    controller = new CustomersController();
+  }
+  return controller;
 }

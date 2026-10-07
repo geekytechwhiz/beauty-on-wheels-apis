@@ -68,7 +68,7 @@
                 "register"
               ]
             },
-            "description": "Register a new user."
+            "description": "Register a new customer. Writes the application USER# record and a USER#/ROLE#CUSTOMER mapping. The response roles array is [\"CUSTOMER\"]. roleId user is not an application role."
           },
           "response": []
         }
@@ -110,7 +110,7 @@
                 "login"
               ]
             },
-            "description": "Login to obtain access token."
+            "description": "Login. Returns a Cognito access token. When the user pool pre-token trigger is V2_0, the access token includes roles such as [\"CUSTOMER\"]. scope stays the Cognito OAuth scope and is not the application role."
           },
           "response": []
         },
@@ -147,7 +147,7 @@
                 "refresh-token"
               ]
             },
-            "description": "Refresh access token using refresh token."
+            "description": "Refresh the Cognito access token. The pre-token trigger runs again, so the new access token roles claim matches the latest USER#/ROLE# mappings."
           },
           "response": []
         },
@@ -279,7 +279,7 @@
                 "verify"
               ]
             },
-            "description": "Verify One-Time Password."
+            "description": "Verify a one-time password and return the usual access token. The token sub is the Cognito identity id. When the user has an application role, the access token roles claim is CUSTOMER, VENDOR, and/or ADMIN."
           },
           "response": []
         }

@@ -3,6 +3,7 @@ import { UnauthorizedError } from '@api-hub/utils';
 
 import type { CognitoConfig } from '../config/cognito.config';
 import { getCognitoConfig } from '../config/cognito.config';
+import { parseAccessTokenRolesClaim } from './application-roles';
 import { getJwksCache, type JwksCache } from './jwks-cache';
 import type { VerifiedPayload } from '../types';
 
@@ -48,6 +49,9 @@ export type ValidateAccessTokenOptions = {
 /**
  * Verifies a Cognito JWT (signature via JWKS, issuer, expiry, user pool, audience/client).
  * Access tokens (`token_use=access`) are preferred; ID tokens are accepted when `aud` matches.
+ * When `roles` is present it must be an application-role list. A missing `roles`
+ * claim is accepted so tokens issued before that claim still validate. `scope`
+ * is not interpreted as an application role.
  */
 export async function validateAccessToken(
   token: string,
@@ -95,6 +99,14 @@ export async function validateAccessToken(
   const sub = asString(payload.sub);
   if (!sub) {
     throw new UnauthorizedError('Invalid token');
+  }
+
+  const parsedRoles = parseAccessTokenRolesClaim(payload.roles);
+  if (!parsedRoles.ok) {
+    throw new UnauthorizedError('Invalid token');
+  }
+  if (parsedRoles.roles) {
+    payload.roles = parsedRoles.roles;
   }
 
   const tokenUse = asString(payload.token_use);

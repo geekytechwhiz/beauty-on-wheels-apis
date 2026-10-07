@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import type { CognitoAuthClient } from '@api-hub/authentication-core';
 import { getCognitoAuthClient } from '@api-hub/authentication-core';
 
+import { prepareApplicationRolesForToken } from "../auth/application-role-assignment";
 import {
     IdentityRepository,
     identityRepositoryInstance
@@ -94,6 +95,7 @@ export class AuthenticationService {
         }
 
         const linked = await this.ensureCognitoLink(user);
+        await this.prepareRoles(linked);
         const tokens = await this.cognito.issueTokens(linked.cognitoUsername as string);
 
         const sessionId = `s-${crypto.randomUUID()}`;
@@ -153,6 +155,7 @@ export class AuthenticationService {
             throw new BaseError("User not found or inactive", 401, "USER_INACTIVE");
         }
 
+        await this.prepareRoles(user);
         const tokens = await this.cognito.refreshTokens(body.refreshToken);
 
         return {
@@ -219,6 +222,23 @@ export class AuthenticationService {
         }
 
         this.logger.info({ event: 'Password Changed', userId });
+    }
+
+    /**
+     * Persists the default CUSTOMER mapping, or an existing VENDOR/ADMIN mapping,
+     * before Cognito issues a token. A write failure does not block sign-in;
+     * the pre-token trigger omits `roles` when no mapping is available.
+     */
+    private async prepareRoles(user: User): Promise<void> {
+        try {
+            await prepareApplicationRolesForToken(this.repository, user);
+        } catch (err) {
+            this.logger.warn({
+                event: 'application_role_prepare_failed',
+                userId: user.userId,
+                error: err instanceof Error ? err.message : 'unknown',
+            });
+        }
     }
 
     /**

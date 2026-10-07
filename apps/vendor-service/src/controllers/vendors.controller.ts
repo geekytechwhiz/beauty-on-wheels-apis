@@ -95,6 +95,18 @@ export class VendorsController {
 
     }
 
+    async handleApprovevendor(request: LambdaRequest) {
+        return this.service.approvevendor(request);
+    }
+
+    async handleRejectvendor(request: LambdaRequest) {
+        return this.service.rejectvendor(request);
+    }
+
+    async handleGetvendorstatushistory(request: LambdaRequest) {
+        return this.service.getvendorstatushistory(request);
+    }
+
 }
 
 let controller: VendorsController;

@@ -78,7 +78,7 @@ describe('ServiceAreasService', () => {
     repository = {
       createServiceArea: jest.fn(),
       getServiceArea: jest.fn(),
-      listServiceAreas: jest.fn(),
+      listServiceAreas: jest.fn().mockResolvedValue([]),
       updateServiceArea: jest.fn(),
       deleteServiceArea: jest.fn(),
     } as unknown as jest.Mocked<ServiceAreasRepository>;

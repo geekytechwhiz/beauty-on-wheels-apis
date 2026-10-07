@@ -1,5 +1,5 @@
 import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { IdentityRepository } from './identity.repository';
 import { User, Profile, Session, Otp, Role, Permission, LoginHistory, AuditLog, UserAlreadyExistsException } from '../types/repository.types';
 import { ConditionalWriteConflictError } from '@api-hub/utils';
@@ -430,6 +430,53 @@ describe('IdentityRepository', () => {
       ddbMock.on(GetCommand).resolves({ Item: mockUser });
       ddbMock.on(TransactWriteCommand).resolves({});
       await repository.removeRole('u-123', 'admin');
+    });
+
+    it('creates a USER# ROLE# mapping without changing the profile role', async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: { ...mockUser, PK: 'USER#u-123', SK: 'META' },
+      });
+      ddbMock.on(PutCommand).resolves({});
+
+      await expect(repository.ensureUserRoleMapping('u-123', 'CUSTOMER')).resolves.toBe(
+        'created',
+      );
+
+      const input = ddbMock.commandCalls(PutCommand)[0].args[0].input;
+      expect(input.Item).toEqual(
+        expect.objectContaining({
+          PK: 'USER#u-123',
+          SK: 'ROLE#CUSTOMER',
+          userId: 'u-123',
+          roleId: 'CUSTOMER',
+          entityType: 'UserRole',
+        }),
+      );
+      expect(input.ConditionExpression).toBe('attribute_not_exists(PK)');
+      expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
+    });
+
+    it('does not create a duplicate role mapping', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockUser });
+      const conflict = new Error('The conditional request failed');
+      conflict.name = 'ConditionalCheckFailedException';
+      ddbMock.on(PutCommand).rejects(conflict);
+
+      await expect(repository.ensureUserRoleMapping('u-123', 'CUSTOMER')).resolves.toBe(
+        'exists',
+      );
+    });
+
+    it('scans user meta pages for the role backfill', async () => {
+      ddbMock.on(ScanCommand).resolves({
+        Items: [{ ...mockUser, PK: 'USER#u-123', SK: 'META', entityType: 'User' }],
+      });
+
+      const page = await repository.listUserMetaPage();
+      expect(page.users[0]?.userId).toBe('u-123');
+      expect(ddbMock.commandCalls(ScanCommand)[0].args[0].input.FilterExpression).toBe(
+        'begins_with(PK, :userPrefix) AND SK = :meta',
+      );
     });
 
     it('gets all user role strings', async () => {

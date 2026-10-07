@@ -36,6 +36,8 @@ export interface VendorDdbItem {
   currentSection: OnboardingSection;
   completedSections: OnboardingSection[];
   applicationId?: string;
+  communityIds?: string[];
+  latestReview?: VendorStatusReviewRecord;
   primaryBranchId?: string;
   emailVerificationOtp?: string;
   emailVerificationExpiryMinutes?: number;
@@ -165,6 +167,51 @@ export interface StaffDdbItem {
   entityType: 'Staff';
 }
 
+export interface VendorStatusReviewRecord {
+  previousStatus: VendorStatus;
+  newStatus: VendorStatus;
+  reviewerUserId: string;
+  reason?: string;
+  reviewedAt: string;
+  correlationId?: string;
+}
+
+export interface VendorStatusHistoryDdbItem extends VendorStatusReviewRecord {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  entityType: 'VendorStatusHistory';
+}
+
+export interface VendorCommunityDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  communityId: string;
+  assignedBy: string;
+  assignedAt: string;
+  status: VendorStatus;
+  operationalStatus: OperationalStatus;
+  createdAt: string;
+  updatedAt: string;
+  GSI3PK: string;
+  GSI3SK: string;
+  entityType: 'VendorCommunity';
+}
+
+export interface VendorServiceOfferingRecord {
+  serviceId: string;
+  categoryId?: string;
+  enabled: boolean;
+  priceOverride?: number;
+}
+
+export interface VendorPackageOfferingRecord {
+  packageId: string;
+  enabled: boolean;
+  priceOverride?: number;
+}
+
 export interface VendorCapabilitiesDdbItem {
   PK: string;
   SK: string;
@@ -172,6 +219,8 @@ export interface VendorCapabilitiesDdbItem {
   vehicleTypes: VehicleType[];
   serviceIds: string[];
   packageIds: string[];
+  services?: VendorServiceOfferingRecord[];
+  packages?: VendorPackageOfferingRecord[];
   createdAt: string;
   updatedAt: string;
   entityType: 'VendorCapabilities';
@@ -204,4 +253,6 @@ export type VendorChildDdbItem =
   | ServiceAreaDdbItem
   | StaffDdbItem
   | VendorCapabilitiesDdbItem
-  | VendorOperatingHoursDdbItem;
+  | VendorOperatingHoursDdbItem
+  | VendorStatusHistoryDdbItem
+  | VendorCommunityDdbItem;

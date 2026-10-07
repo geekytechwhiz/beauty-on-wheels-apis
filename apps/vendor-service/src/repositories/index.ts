@@ -7,3 +7,4 @@ export * from "./operating-hours.repository";
 export * from "./service-areas.repository";
 export * from "./staff.repository";
 export * from "./vendors.repository";
+export * from "./communities.repository";

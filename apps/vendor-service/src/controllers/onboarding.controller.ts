@@ -17,6 +17,10 @@ export class OnboardingController {
   async handleUpdatevendoronboarding(request: LambdaRequest) {
     return this.service.updatevendoronboarding(request);
   }
+
+  async handleSubmitvendorforreview(request: LambdaRequest) {
+    return this.service.submitvendorforreview(request);
+  }
 }
 
 let controller: OnboardingController;

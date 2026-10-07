@@ -1,1 +1,1 @@
-export { webhookHandler, inboundHandler } from './index';
+export { webhookHandler, inboundHandler, sendMessageHandler } from './index';

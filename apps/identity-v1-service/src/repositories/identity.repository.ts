@@ -1,10 +1,16 @@
-import { BaseRepository, ConditionalWriteConflictError } from '@api-hub/utils';
+import {
+  BaseRepository,
+  ConditionalWriteConflictError,
+  ddbDocClient,
+  sendDoc,
+} from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
 import {
   TABLE_NAME,
   GSI_INDEX_NAMES,
   ENTITY_TYPES,
   PREFIXES,
+  SK_VALS,
 } from '../constants/identity-index.constant';
 import { IdentityKeyBuilder } from '../keys/identity-key.builder';
 import { IdentityMapper } from '../mappers/identity.mapper';
@@ -29,7 +35,13 @@ import {
   AuditLogDdbItem,
   RefreshTokenLookupDdbItem,
 } from '../models/dynamodb-item';
-import { QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import {
+  QueryCommandInput,
+  ScanCommand,
+  ScanCommandInput,
+  ScanCommandOutput,
+  UpdateCommandInput,
+} from '@aws-sdk/lib-dynamodb';
 
 const baseLogger = createLogger({
   service: 'identity-repository',
@@ -935,6 +947,74 @@ export class IdentityRepository extends BaseRepository {
     ];
 
     await this.transactWrite({ TransactItems: transactItems });
+  }
+
+  /**
+   * Writes USER#{userId} / ROLE#{roleId} when that mapping is absent.
+   * Does not change the profile `roleId` and does not remove other role mappings.
+   */
+  async ensureUserRoleMapping(
+    userId: string,
+    roleId: string,
+  ): Promise<'created' | 'exists'> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new UserAlreadyExistsException(`User ${userId} not found.`);
+    }
+
+    const timestamp = new Date().toISOString();
+    const keys = IdentityKeyBuilder.userRole(userId, roleId);
+    try {
+      await this.put(
+        TABLE_NAME,
+        {
+          PK: keys.PK,
+          SK: keys.SK,
+          entityType: ENTITY_TYPES.USER_ROLE,
+          userId,
+          roleId,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+        'attribute_not_exists(PK)',
+      );
+      return 'created';
+    } catch (err) {
+      if (err instanceof ConditionalWriteConflictError) {
+        return 'exists';
+      }
+      throw err;
+    }
+  }
+
+  async listUserMetaPage(exclusiveStartKey?: Record<string, unknown>): Promise<{
+    users: User[];
+    lastEvaluatedKey?: Record<string, unknown>;
+  }> {
+    const result = await sendDoc<ScanCommandOutput>(
+      ddbDocClient,
+      new ScanCommand({
+        TableName: TABLE_NAME,
+        FilterExpression: 'begins_with(PK, :userPrefix) AND SK = :meta',
+        ExpressionAttributeValues: {
+          ':userPrefix': PREFIXES.USER,
+          ':meta': SK_VALS.META,
+        },
+        ExclusiveStartKey:
+          exclusiveStartKey as ScanCommandInput['ExclusiveStartKey'],
+      }),
+    );
+
+    const users = (result.Items ?? [])
+      .filter((item) => typeof item.userId === 'string' && item.userId.trim())
+      .map((item) => IdentityMapper.toUserDomain(item as UserDdbItem));
+
+    return {
+      users,
+      lastEvaluatedKey: result.LastEvaluatedKey as
+        | Record<string, unknown>
+        | undefined,
+    };
   }
 
   async getUserRoles(userId: string): Promise<string[]> {

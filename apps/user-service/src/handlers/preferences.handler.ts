@@ -1,32 +1,22 @@
-import { withApiHandler } from "@api-hub/middleware";
-import { LambdaRequest } from "@api-hub/utils";
+import { withApiHandler } from '@api-hub/middleware';
+import { LambdaRequest } from '@api-hub/utils';
 
-import {
-    getPreferencesController
-} from "../controllers/preferences.controller";
+import { getPreferencesController } from '../controllers/preferences.controller';
+import { validateOperationalPreferencesUpdate } from '../schemas/preferences.schema';
 
-import {
-    validatePreference
-} from "../schemas/preferences.schema";
+const controller = getPreferencesController();
 
-const controller =
-    getPreferencesController();
+export const handleGetPreferences = withApiHandler(
+  { operation: 'getPreferences' },
+  async (request: LambdaRequest) => controller.getPreferences(request),
+);
 
-export const handleGetpreferences =
-    withApiHandler(
-        {
-            operation: "getpreferences",
-        },
-        async (request: LambdaRequest) =>
-            controller.handleGetpreferences(request)
-    );
-
-export const handlePutpreferences =
-    withApiHandler(
-        {
-            operation: "putpreferences",
-            validator: (request: LambdaRequest) => { validatePreference(request); }
-        },
-        async (request: LambdaRequest) =>
-            controller.handlePutpreferences(request)
-    );
+export const handlePutPreferences = withApiHandler(
+  {
+    operation: 'putPreferences',
+    validator: (request: LambdaRequest) => {
+      validateOperationalPreferencesUpdate(request);
+    },
+  },
+  async (request: LambdaRequest) => controller.putPreferences(request),
+);

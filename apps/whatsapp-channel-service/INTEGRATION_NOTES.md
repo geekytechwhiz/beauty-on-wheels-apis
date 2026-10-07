@@ -29,22 +29,18 @@ The platform HTTP envelope is `{ success, data, error, meta }`. List payloads in
 | Booking | `/bookings/{bookingId}` | GET | Load an in-flight booking | Platform bearer | Path `bookingId` | Booking | VERIFIED. Used so a retry confirms instead of creating. |
 | Booking | `/customers/{customerId}/bookings` | GET | Upcoming bookings | Platform bearer | Path `customerId` | Booking array, wrapped as `items` | VERIFIED. |
 | Booking | `PUT /bookings/{bookingId}` | PUT | Reschedule | Platform bearer | Booking fields, status unchanged | Booking | VERIFIED contract, not exposed in the pilot chat. |
-| User | `GET /users?phone=` | GET | Resolve a customer from a WhatsApp number | — | Phone | User | MISSING CONTRACT. `GET /users` and `GET /users/{userId}` throw `Not Implemented`, and neither accepts a phone lookup. The channel stores `IDENT#WHATSAPP#<wa_id>` and an optional `WHATSAPP_CUSTOMER_LINKS` map. It does not scan users. |
-| User | `PUT /customers/{userId}` | PUT | Mirror marketing consent | Platform bearer | `{ marketingConsent }` | Customer profile | BLOCKED. The route and schema exist. `CustomersService` throws `Not Implemented`. Local consent is still stored and is what blocks marketing sends. |
+| User | `GET /users?phone=` | GET | Resolve a customer from a WhatsApp number | Platform bearer, service principal or admin | Query `phone` (E.164, encode `+` as `%2B`) | `{ id, phone, status }` | VERIFIED contract in user-service. The channel still stores `IDENT#WHATSAPP#<wa_id>` until it calls this route. |
+| User | `PUT /customers/{userId}` | PUT | Customer profile | Platform bearer, owner or admin | Profile fields. `marketingConsent` is rejected | Customer profile | VERIFIED for profile fields. Marketing consent stays in this service and is not written to user-service. |
 
 ## Required user API
+
+Implemented on user-service:
 
 ```text
 GET /users?phone={e164}
 ```
 
-or
-
-```text
-GET /customers/by-phone/{phone}
-```
-
-Response should be the existing user object (`id`, `phone`, `status`) inside the platform envelope. The channel will store only `customerId` on the identity row.
+Caller must be a service principal (`service`, `service_principal`, `whatsapp`, or `notification`) or an admin. Response `data` is `{ id, phone, status }` inside the platform envelope. The channel should store only `id` as `customerId` on the identity row.
 
 ## Required vehicle API
 

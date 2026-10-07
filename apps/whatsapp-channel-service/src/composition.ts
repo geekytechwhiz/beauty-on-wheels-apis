@@ -15,10 +15,12 @@ import {
 import { DynamoConversationStore } from './repositories/conversation.repository';
 import { WhatsAppChannelService } from './services/channel.service';
 import { CustomerChannelService } from './services/customer-channel.service';
+import { WhatsAppMessageService } from './services/whatsapp-message.service';
 import { WebhookRuntime } from './services/webhook-http';
 import { InboundEnvelope } from './types/whatsapp';
 
 let runtime: WebhookRuntime | undefined;
+let messageServicePromise: Promise<WhatsAppMessageService> | undefined;
 
 function toMetaConfig(config: ChannelConfig, credentials: WhatsAppCredentials): MetaClientConfig {
   return {
@@ -118,6 +120,27 @@ export function getWebhookRuntime(): Promise<WebhookRuntime> {
   return Promise.resolve(runtime);
 }
 
+export function createWhatsAppMessageService(
+  config: ChannelConfig,
+  credentials: WhatsAppCredentials,
+): WhatsAppMessageService {
+  return new WhatsAppMessageService(new MetaWhatsAppProvider(toMetaConfig(config, credentials)));
+}
+
+export function getWhatsAppMessageService(): Promise<WhatsAppMessageService> {
+  if (!messageServicePromise) {
+    const config = loadConfig();
+    messageServicePromise = loadWhatsAppCredentials(config)
+      .then((credentials) => createWhatsAppMessageService(config, credentials))
+      .catch((error: unknown) => {
+        messageServicePromise = undefined;
+        throw error;
+      });
+  }
+  return messageServicePromise;
+}
+
 export function resetRuntimeForTests(): void {
   runtime = undefined;
+  messageServicePromise = undefined;
 }

@@ -17,7 +17,7 @@ WhatsApp credentials are one JSON secret in Secrets Manager. The secret name is 
 
 `WHATSAPP_PHONE_NUMBER_ID` is the Graph path `/{phone-number-id}/messages`. `WHATSAPP_BUSINESS_ACCOUNT_ID` is the WhatsApp Business Account id. They are not interchangeable. Env values are used when set. The secret fills them in when the env values are empty.
 
-`GET /health` does not read Secrets Manager and does not call Meta or downstream services. `GET /webhooks/whatsapp` uses only `WHATSAPP_VERIFY_TOKEN`.
+`GET /health` does not read Secrets Manager and does not call Meta or downstream services. `GET /webhooks/whatsapp` uses only `WHATSAPP_VERIFY_TOKEN`. `POST /whatsapp/messages` needs `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, and `WHATSAPP_API_VERSION`. The token and phone number id come from the JSON secret when the env overrides are empty. The API version comes from the environment.
 
 `serverless-dotenv-plugin` excludes `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, and `SERVICE_AUTH_TOKEN` from the deployed template. Leave those empty so runtime code reads Secrets Manager. A non-empty local value is a test override and must not be committed.
 

@@ -7,11 +7,14 @@ import {
   Vendor,
   VendorAddress,
   VendorStatus,
+  VendorStatusReview,
   VendorType,
 } from '../types/api-types';
 import {
   VendorAddressDdbItem,
   VendorDdbItem,
+  VendorStatusHistoryDdbItem,
+  VendorStatusReviewRecord,
 } from '../types/repository.types';
 import {
   computeOnboardingState,
@@ -20,6 +23,7 @@ import {
 import {
   VENDOR_ADDRESS_ENTITY_TYPE,
   VENDOR_ENTITY_TYPE,
+  VENDOR_STATUS_HISTORY_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 
@@ -55,6 +59,10 @@ export class VendorsMapper {
       currentSection: item.currentSection,
       completedSections: item.completedSections,
       applicationId: item.applicationId,
+      communityIds: item.communityIds ?? [],
+      latestReview: item.latestReview
+        ? VendorsMapper.toReview(item.latestReview)
+        : undefined,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -78,8 +86,8 @@ export class VendorsMapper {
     vendorId: string;
     ownerUserId: string;
     vendorType?: VendorType;
-    businessName: string;
-    contactName: string;
+    businessName?: string;
+    contactName?: string;
     phoneNumber?: string;
     email?: string;
     description?: string;
@@ -124,6 +132,7 @@ export class VendorsMapper {
       onboardingStatus: onboarding.status,
       currentSection: onboarding.currentSection,
       completedSections: onboarding.completedSections,
+      communityIds: [],
       createdAt: timestamp,
       updatedAt: timestamp,
       GSI1PK: VendorKeyBuilder.gsi1Pk(),
@@ -188,46 +197,87 @@ export class VendorsMapper {
     };
   }
 
-  static applyStatusUpdate(
+  static toReview(record: VendorStatusReviewRecord): VendorStatusReview {
+    return {
+      previousStatus: record.previousStatus,
+      newStatus: record.newStatus,
+      reviewerUserId: record.reviewerUserId,
+      reason: record.reason,
+      reviewedAt: record.reviewedAt,
+      correlationId: record.correlationId,
+    };
+  }
+
+  static applyLifecycleTransition(
     existing: VendorDdbItem,
-    status: VendorStatus,
-    extras?: {
-      verification?: {
-        emailVerificationOtp: string;
-        emailVerificationExpiryMinutes: number;
-        emailVerificationRequestedAt: string;
-      };
-      meta?: { correlationId?: string };
+    input: {
+      status: VendorStatus;
+      reviewerUserId: string;
+      reason?: string;
+      reviewedAt: string;
+      correlationId?: string;
     },
   ): VendorDdbItem {
-    const updated: VendorDdbItem = {
+    const reason = input.reason?.trim();
+    const latestReview: VendorStatusReviewRecord = {
+      previousStatus: existing.status,
+      newStatus: input.status,
+      reviewerUserId: input.reviewerUserId,
+      reviewedAt: input.reviewedAt,
+      ...(reason ? { reason } : {}),
+      ...(input.correlationId ? { correlationId: input.correlationId } : {}),
+    };
+
+    return {
       ...existing,
-      status,
-      updatedAt: new Date().toISOString(),
+      status: input.status,
+      latestReview,
+      updatedAt: input.reviewedAt,
       GSI1SK: VendorKeyBuilder.gsi1Sk(
-        status,
+        input.status,
         existing.operationalStatus,
         existing.createdAt,
         existing.vendorId,
       ),
+      meta: input.correlationId
+        ? { ...existing.meta, correlationId: input.correlationId }
+        : existing.meta,
     };
+  }
 
-    if (extras?.verification) {
-      updated.emailVerificationOtp = extras.verification.emailVerificationOtp;
-      updated.emailVerificationExpiryMinutes =
-        extras.verification.emailVerificationExpiryMinutes;
-      updated.emailVerificationRequestedAt =
-        extras.verification.emailVerificationRequestedAt;
+  static toStatusHistoryItem(
+    profile: VendorDdbItem,
+    historyId: string,
+  ): VendorStatusHistoryDdbItem {
+    const review = profile.latestReview;
+    if (!review) {
+      throw new Error('Status history requires latestReview on the vendor profile');
     }
 
-    if (extras?.meta?.correlationId) {
-      updated.meta = {
-        ...existing.meta,
-        correlationId: extras.meta.correlationId,
-      };
-    }
+    return {
+      PK: VendorKeyBuilder.vendorPk(profile.vendorId),
+      SK: VendorKeyBuilder.statusHistorySk(review.reviewedAt, historyId),
+      vendorId: profile.vendorId,
+      previousStatus: review.previousStatus,
+      newStatus: review.newStatus,
+      reviewerUserId: review.reviewerUserId,
+      reviewedAt: review.reviewedAt,
+      ...(review.reason ? { reason: review.reason } : {}),
+      ...(review.correlationId ? { correlationId: review.correlationId } : {}),
+      entityType: VENDOR_STATUS_HISTORY_ENTITY_TYPE,
+    };
+  }
 
-    return updated;
+  static applyCommunityIds(
+    existing: VendorDdbItem,
+    communityIds: string[],
+    updatedAt: string,
+  ): VendorDdbItem {
+    return {
+      ...existing,
+      communityIds,
+      updatedAt,
+    };
   }
 
   static applyOperationalStatusUpdate(

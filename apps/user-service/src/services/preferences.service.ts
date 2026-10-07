@@ -1,93 +1,94 @@
-import { LambdaRequest } from "@api-hub/utils";
-import {
-    createLogger,
-    createChildLogger
-} from "@api-hub/observability";
+import { LambdaRequest, NotFoundError } from '@api-hub/utils';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import {
-    PreferencesRepository,
-    getPreferencesRepository
-} from "../repositories/preferences.repository";
+  toOperationalPreferences,
+  toPreferencesRecord,
+} from '../mappers/preferences.mapper';
+import {
+  CustomersRepository,
+  getCustomersRepository,
+} from '../repositories/customers.repository';
+import {
+  getPreferencesRepository,
+  PreferencesRepository,
+} from '../repositories/preferences.repository';
+import {
+  OperationalPreferences,
+  OperationalPreferencesUpdate,
+} from '../types/api-types';
+import { assertOwnerAdminOrService, assertOwnerOrAdmin, getUserId } from '../utils';
 
 const baseLogger = createLogger({
-    service: "preferences-service",
-    redactPII: true,
+  service: 'preferences-service',
+  redactPII: true,
 });
 
 export class PreferencesService {
+  private readonly logger = createChildLogger(baseLogger, {
+    service: 'PreferencesService',
+  });
 
-    private readonly logger =
-        createChildLogger(
-            baseLogger,
-            {
-                service: "PreferencesService"
-            }
-        );
+  constructor(
+    private readonly preferences: PreferencesRepository = getPreferencesRepository(),
+    private readonly customers: CustomersRepository = getCustomersRepository(),
+  ) {}
 
-    constructor(
+  async getPreferences(request: LambdaRequest): Promise<OperationalPreferences> {
+    const userId = getUserId(request);
+    assertOwnerAdminOrService(request, userId);
 
-        private readonly repository: PreferencesRepository =
-            getPreferencesRepository()
+    const record = await this.preferences.getPreferences(userId);
 
-    ) {
-        this.repository;
+    this.logger.info({
+      event: 'get_preferences_success',
+      userId,
+      stored: Boolean(record),
+    });
+
+    return toOperationalPreferences(record ?? undefined, userId);
+  }
+
+  async putPreferences(request: LambdaRequest): Promise<OperationalPreferences> {
+    const userId = getUserId(request);
+    assertOwnerOrAdmin(request, userId);
+
+    const profile = await this.customers.getProfile(userId);
+    if (!profile) {
+      throw new NotFoundError('Customer profile not found');
     }
 
+    const body = request.body as OperationalPreferencesUpdate;
+    const existing = await this.preferences.getPreferences(userId);
+    const now = new Date().toISOString();
+    const record = toPreferencesRecord({
+      userId,
+      whatsapp: body.whatsapp,
+      sms: body.sms,
+      email: body.email,
+      push: body.push,
+      language: body.language,
+      timezone: body.timezone,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    });
 
+    await this.preferences.savePreferences(record);
 
-    async getpreferences(
-        request: LambdaRequest
-    ) {
+    this.logger.info({
+      event: 'put_preferences_success',
+      userId,
+    });
 
-        this.logger.info({
-            event: "getpreferences",
-        });
-
-        /**
-         * TODO
-         * Implement business logic
-         */
-
-        throw new Error(
-            "Not Implemented"
-        );
-
-    }
-
-
-
-    async putpreferences(
-        request: LambdaRequest
-    ) {
-
-        this.logger.info({
-            event: "putpreferences",
-        });
-
-        /**
-         * TODO
-         * Implement business logic
-         */
-
-        throw new Error(
-            "Not Implemented"
-        );
-
-    }
-
+    return toOperationalPreferences(record, userId);
+  }
 }
 
 let service: PreferencesService;
 
-export function getPreferencesService() {
-
-    if (!service) {
-
-        service =
-            new PreferencesService();
-
-    }
-
-    return service;
-
+export function getPreferencesService(): PreferencesService {
+  if (!service) {
+    service = new PreferencesService();
+  }
+  return service;
 }

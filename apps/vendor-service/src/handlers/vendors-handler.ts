@@ -10,7 +10,9 @@ import {
     validateUpdateVendorRequest,
     validateUpdateVendorStatusRequest,
     validateUpdateOperationalStatusRequest,
-    validateRegisterVendorRequest
+    validateRegisterVendorRequest,
+    validateApproveVendorRequest,
+    validateRejectVendorRequest,
 } from "../schemas/vendors.schema";
 
 const controller =
@@ -83,3 +85,31 @@ export const handleUpdatevendoroperationalstatus =
         async (request: LambdaRequest) =>
             controller.handleUpdatevendoroperationalstatus(request)
     );
+
+export const handleApprovevendor = withApiHandler(
+  {
+    operation: 'approvevendor',
+    validator: (request: LambdaRequest) => {
+      validateApproveVendorRequest(request);
+    },
+  },
+  async (request: LambdaRequest) => controller.handleApprovevendor(request),
+);
+
+export const handleRejectvendor = withApiHandler(
+  {
+    operation: 'rejectvendor',
+    validator: (request: LambdaRequest) => {
+      validateRejectVendorRequest(request);
+    },
+  },
+  async (request: LambdaRequest) => controller.handleRejectvendor(request),
+);
+
+export const handleGetvendorstatushistory = withApiHandler(
+  {
+    operation: 'getvendorstatushistory',
+  },
+  async (request: LambdaRequest) =>
+    controller.handleGetvendorstatushistory(request),
+);

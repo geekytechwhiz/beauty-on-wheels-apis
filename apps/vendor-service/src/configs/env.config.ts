@@ -10,4 +10,5 @@ export const env = {
   COGNITO_APP_CLIENT_ID: process.env.COGNITO_APP_CLIENT_ID || '',
   COGNITO_ISSUER: process.env.COGNITO_ISSUER || '',
   COGNITO_JWKS_URI: process.env.COGNITO_JWKS_URI || '',
+  CATALOG_SERVICE_URL: process.env.CATALOG_SERVICE_URL || '',
 };

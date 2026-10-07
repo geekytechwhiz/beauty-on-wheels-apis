@@ -1,9 +1,10 @@
 import { LambdaRequest } from '@api-hub/utils';
-import { NotFoundError, UnauthorizedError } from '@api-hub/utils';
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
 
 import { CapabilitiesService } from './capabilities.service';
 import { CapabilitiesRepository } from '../repositories/capabilities.repository';
 import { VendorsRepository } from '../repositories/vendors.repository';
+import { CatalogEntityLookup } from '../integrations/catalog-entity-lookup';
 import {
   VendorCapabilitiesDdbItem,
   VendorDdbItem,
@@ -65,6 +66,7 @@ function capabilitiesItem(): VendorCapabilitiesDdbItem {
 describe('CapabilitiesService', () => {
   let repository: jest.Mocked<CapabilitiesRepository>;
   let vendorsRepository: jest.Mocked<VendorsRepository>;
+  let catalog: jest.Mocked<CatalogEntityLookup>;
   let service: CapabilitiesService;
 
   beforeEach(() => {
@@ -77,7 +79,12 @@ describe('CapabilitiesService', () => {
       getVendorById: jest.fn().mockResolvedValue(vendorItem()),
     } as unknown as jest.Mocked<VendorsRepository>;
 
-    service = new CapabilitiesService(repository, vendorsRepository);
+    catalog = {
+      assertServicesExist: jest.fn().mockResolvedValue(undefined),
+      assertPackagesExist: jest.fn().mockResolvedValue(undefined),
+    };
+
+    service = new CapabilitiesService(repository, vendorsRepository, catalog);
   });
 
   describe('getvendorcapabilities', () => {
@@ -103,6 +110,8 @@ describe('CapabilitiesService', () => {
         vehicleTypes: [],
         serviceIds: [],
         packageIds: [],
+        services: [],
+        packages: [],
       });
     });
 
@@ -140,21 +149,76 @@ describe('CapabilitiesService', () => {
         authRequest({
           body: {
             vehicleTypes: ['SUV', 'SUV'],
-            serviceIds: ['svc-1', 'svc-2'],
-            packageIds: ['pkg-1'],
+            services: [
+              {
+                serviceId: 'svc-1',
+                categoryId: 'cat-1',
+                enabled: true,
+                priceOverride: 550,
+              },
+              { serviceId: 'svc-2', categoryId: 'cat-1', enabled: false },
+            ],
+            packages: [{ packageId: 'pkg-1', enabled: true }],
           },
         }),
       );
 
       expect(result.vehicleTypes).toEqual(['SUV']);
-      expect(result.serviceIds).toEqual(['svc-1', 'svc-2']);
+      expect(result.serviceIds).toEqual(['svc-1']);
+      expect(result.packageIds).toEqual(['pkg-1']);
+      expect(catalog.assertServicesExist).toHaveBeenCalledWith(
+        [
+          {
+            serviceId: 'svc-1',
+            categoryId: 'cat-1',
+            enabled: true,
+          },
+          {
+            serviceId: 'svc-2',
+            categoryId: 'cat-1',
+            enabled: false,
+          },
+        ],
+        undefined,
+      );
       expect(repository.putCapabilities).toHaveBeenCalledTimes(1);
       const saved = repository.putCapabilities.mock.calls[0][0];
       expect(saved.PK).toBe('VENDOR#vendor-1');
       expect(saved.SK).toBe('CAPABILITIES');
+      expect(saved.services?.[0].priceOverride).toBe(550);
       expect(saved).not.toHaveProperty('name');
       expect(saved).not.toHaveProperty('durationMinutes');
       expect(saved).not.toHaveProperty('basePrice');
+    });
+
+    it('rejects service ids that cannot be checked against the catalog', async () => {
+      await expect(
+        service.updatevendorcapabilities(
+          authRequest({
+            body: {
+              vehicleTypes: ['SEDAN'],
+              serviceIds: ['svc-1'],
+              packageIds: [],
+            },
+          }),
+        ),
+      ).rejects.toThrow(ValidationError);
+      expect(repository.putCapabilities).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate service mappings', async () => {
+      await expect(
+        service.updatevendorservices(
+          authRequest({
+            body: {
+              services: [
+                { serviceId: 'svc-1', categoryId: 'cat-1', enabled: true },
+                { serviceId: 'svc-1', categoryId: 'cat-1', enabled: true },
+              ],
+            },
+          }),
+        ),
+      ).rejects.toThrow(ConflictError);
     });
 
     it('returns 404 when replacing capabilities for a missing vendor', async () => {

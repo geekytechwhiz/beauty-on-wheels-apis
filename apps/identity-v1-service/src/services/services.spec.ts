@@ -48,7 +48,8 @@ describe('Services Unit Tests', () => {
             verifyOtp: jest.fn(),
             assignRole: jest.fn(),
             removeRole: jest.fn(),
-            getUserRoles: jest.fn(),
+            getUserRoles: jest.fn().mockResolvedValue([]),
+            ensureUserRoleMapping: jest.fn().mockResolvedValue('created'),
             listRoles: jest.fn(),
             listPermissions: jest.fn(),
             hasPermission: jest.fn(),
@@ -94,7 +95,14 @@ describe('Services Unit Tests', () => {
             expect(result.email).toBe('john@example.com');
             expect(result.phone).toBe('+1234567890');
             expect(result.status).toBe('ACTIVE');
+            expect(result.roles).toEqual(['CUSTOMER']);
             expect(mockRepo.createUser).toHaveBeenCalled();
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                expect.stringMatching(/^u-/),
+                'CUSTOMER',
+            );
+            const created = mockRepo.createUser.mock.calls[0][0] as User;
+            expect(created.roleId).toBe('user');
         });
 
         it('throws if email exists', async () => {
@@ -131,6 +139,10 @@ describe('Services Unit Tests', () => {
             expect(result.roleId).toBe('user');
             expect(result.passwordHash).toContain(':');
             expect(mockRepo.createUser).toHaveBeenCalled();
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                result.userId,
+                'CUSTOMER',
+            );
         });
     });
 
@@ -161,8 +173,38 @@ describe('Services Unit Tests', () => {
             expect(result.refreshToken).toBe('cognito-refresh');
             expect(result.tokenType).toBe('Bearer');
             expect(mockCognito.issueTokens).toHaveBeenCalledWith('bow_user');
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith('u-123', 'CUSTOMER');
+            expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
+                mockCognito.issueTokens.mock.invocationCallOrder[0],
+            );
             expect(mockRepo.createSession).toHaveBeenCalled();
             expect(mockRepo.saveLoginHistory).toHaveBeenCalled();
+        });
+
+        it('does not replace an existing VENDOR role with CUSTOMER at login', async () => {
+            const storedHash = crypto.pbkdf2Sync('password123', 'salt', 10000, 64, 'sha512').toString('hex');
+            const linkedUser = {
+                userId: 'u-123',
+                email: 'john@example.com',
+                passwordHash: `salt:${storedHash}`,
+                status: 'ACTIVE',
+                roleId: 'VENDOR',
+                identityId: 'cognito-sub-1',
+                cognitoUsername: 'bow_user',
+            };
+            mockRepo.getUserByEmail.mockResolvedValue(linkedUser as any);
+            mockRepo.getUserByIdentityId.mockResolvedValue(linkedUser as any);
+            mockRepo.getUserRoles.mockResolvedValue(['VENDOR']);
+
+            const service = new AuthenticationService(mockRepo, mockCognito);
+            await service.postlogin({
+                body: { username: 'john@example.com', password: 'password123' },
+                event: { requestContext: { identity: { sourceIp: '127.0.0.1' } } },
+                headers: {},
+            } as unknown as LambdaRequest);
+
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalled();
+            expect(mockCognito.issueTokens).toHaveBeenCalledWith('bow_user');
         });
 
         it('throws error for invalid password', async () => {
@@ -210,6 +252,10 @@ describe('Services Unit Tests', () => {
             const result = await service.postrefreshtoken(req);
             expect(result.accessToken).toBe('cognito-access');
             expect(result.refreshToken).toBe('token123');
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith('u-123', 'CUSTOMER');
+            expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
+                mockCognito.refreshTokens.mock.invocationCallOrder[0],
+            );
         });
 
         it('logs out and signs the Cognito user out globally', async () => {
@@ -469,6 +515,13 @@ describe('Services Unit Tests', () => {
                 expect.objectContaining({ firstName: '', lastName: '' }),
             );
             expect(mockRepo.createSession).toHaveBeenCalled();
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                expect.stringMatching(/^u-/),
+                'CUSTOMER',
+            );
+            expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
+                mockCognito.issueTokens.mock.invocationCallOrder[0],
+            );
         });
 
         it('issues tokens for a valid OTP and existing email identity', async () => {

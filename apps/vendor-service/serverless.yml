@@ -29,6 +29,7 @@ provider:
     COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
     COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
     COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
+    CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
 
   iam:
     role:
@@ -40,7 +41,6 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - dynamodb:Query
-            - dynamodb:Scan
             - dynamodb:BatchGetItem
             - dynamodb:BatchWriteItem
             - dynamodb:TransactWriteItems
@@ -72,7 +72,8 @@ provider:
             - sqs:SendMessage
           Resource:
             - !GetAtt VendorOnboardingStreamDlq.Arn
-            - !GetAtt VendorEmailVerificationStreamDlq.Arn 
+            - !GetAtt VendorEmailVerificationStreamDlq.Arn
+            - !GetAtt VendorLifecycleStreamDlq.Arn 
 
 custom:
   # nv{stage}-bw-  e.g. nvdev-bw-
@@ -243,6 +244,24 @@ functions:
               arn: !GetAtt VendorEmailVerificationStreamDlq.Arn
               type: sqs
 
+  onVendorLifecycleChanged:
+    handler: src/handlers/vendor-lifecycle-stream.handler
+    name: ${self:custom.resourcePrefix}-vendor-lifecycle-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorLifecycleStreamDlq.Arn
+              type: sqs
+
   listvendors:
     handler: src/handlers/vendors-handler.handleListvendors
     events:
@@ -331,7 +350,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor lifecycle status"
-          description: "Updates the administrative lifecycle status of a vendor.\n\nTypical lifecycle:\n  PENDING_VERIFICATION\n  -> ACTIVE\n  -> SUSPENDED\n  -> ACTIVE\n  -> INACTIVE\n"
+          description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved and VendorRejected are published from the vendor table stream.\n"
           swaggerTags:
             - Vendors
           bodyType: UpdateVendorStatusRequest
@@ -379,6 +398,212 @@ functions:
             409:
               description: ""
             500:
+              description: ""
+
+
+  submitvendorforreview:
+    handler: src/handlers/onboarding-handler.handleSubmitvendorforreview
+    events:
+      - http:
+          path: /vendors/{vendorId}/submit-review
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Submit vendor for review"
+          description: "Submits a complete onboarding application for review. Incomplete applications are rejected. Repeating submit after PENDING_REVIEW is idempotent."
+          swaggerTags:
+            - Onboarding
+          responseData:
+            200:
+              description: "Vendor submitted for review"
+              bodyType: OnboardingResponse
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: "Onboarding is incomplete"
+
+  approvevendor:
+    handler: src/handlers/vendors-handler.handleApprovevendor
+    events:
+      - http:
+          path: /vendors/{vendorId}/approve
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Approve vendor"
+          description: "Approves a vendor whose onboarding status is PENDING_REVIEW. Allowed only from PENDING_VERIFICATION. Approving an already ACTIVE vendor is idempotent."
+          swaggerTags:
+            - Vendors
+          bodyType: ApproveVendorRequest
+          responseData:
+            200:
+              description: "Vendor approved"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: "Invalid status transition"
+
+  rejectvendor:
+    handler: src/handlers/vendors-handler.handleRejectvendor
+    events:
+      - http:
+          path: /vendors/{vendorId}/reject
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Reject vendor"
+          description: "Rejects a vendor that is PENDING_VERIFICATION. A reason is required. Rejecting an already REJECTED vendor is idempotent."
+          swaggerTags:
+            - Vendors
+          bodyType: RejectVendorRequest
+          responseData:
+            200:
+              description: "Vendor rejected"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: "Invalid status transition"
+
+  getvendorstatushistory:
+    handler: src/handlers/vendors-handler.handleGetvendorstatushistory
+    events:
+      - http:
+          path: /vendors/{vendorId}/status-history
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor status history"
+          description: "Returns approval and lifecycle transition history, newest first."
+          swaggerTags:
+            - Vendors
+          responseData:
+            200:
+              description: "Status history retrieved"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  listvendorcommunities:
+    handler: src/handlers/communities-handler.handleListvendorcommunities
+    events:
+      - http:
+          path: /vendors/{vendorId}/communities
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor communities"
+          description: "Returns business community assignments for the vendor. This is not the geographic service-area list."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Communities retrieved"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  replacevendorcommunities:
+    handler: src/handlers/communities-handler.handleReplacevendorcommunities
+    events:
+      - http:
+          path: /vendors/{vendorId}/communities
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace vendor communities"
+          description: "Admin replacement of the vendor community set. Duplicate ids are ignored. Community existence is owned by User Service and is not checked here."
+          swaggerTags:
+            - Communities
+          bodyType: ReplaceVendorCommunitiesRequest
+          responseData:
+            200:
+              description: "Communities replaced"
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+
+  addvendorcommunity:
+    handler: src/handlers/communities-handler.handleAddvendorcommunity
+    events:
+      - http:
+          path: /vendors/{vendorId}/communities
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Add vendor community"
+          description: "Admin assignment of one community. Adding an existing assignment is idempotent."
+          swaggerTags:
+            - Communities
+          bodyType: AddVendorCommunityRequest
+          responseData:
+            200:
+              description: "Community assigned"
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+
+  removevendorcommunity:
+    handler: src/handlers/communities-handler.handleRemovevendorcommunity
+    events:
+      - http:
+          path: /vendors/{vendorId}/communities/{communityId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Remove vendor community"
+          description: "Admin removal of one community assignment. Removing a missing assignment is idempotent."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Community removed"
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
               description: ""
 
 
@@ -523,7 +748,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor operating hours"
-          description: "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n"
+          description: "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n\nHoliday dates and slot blocks are owned by Availability Service and are not stored here.\n"
           swaggerTags:
             - Operating Hours
           bodyType: UpdateVendorOperatingHoursRequest
@@ -719,7 +944,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor capabilities"
-          description: "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n"
+          description: "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nService mappings require catalog serviceId and categoryId so Vendor Service\ncan confirm the entity with Service Catalog. Package ids are confirmed the same way.\nOptional priceOverride is provider configuration only. Checkout price is not calculated here.\n"
           swaggerTags:
             - Capabilities
           bodyType: UpdateVendorCapabilitiesRequest
@@ -734,6 +959,108 @@ functions:
               description: ""
             409:
               description: ""
+
+
+  getvendorservices:
+    handler: src/handlers/capabilities-handler.handleGetvendorservices
+    events:
+      - http:
+          path: /vendors/{vendorId}/services
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor catalog services"
+          description: "Returns provider-specific catalog service mappings, including disabled offerings and optional price overrides."
+          swaggerTags:
+            - Capabilities
+          responseData:
+            200:
+              description: "Vendor services retrieved"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  updatevendorservices:
+    handler: src/handlers/capabilities-handler.handleUpdatevendorservices
+    events:
+      - http:
+          path: /vendors/{vendorId}/services
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace vendor catalog services"
+          description: "Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price."
+          swaggerTags:
+            - Capabilities
+          bodyType: ReplaceVendorServicesRequest
+          responseData:
+            200:
+              description: "Vendor services replaced"
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            502:
+              description: "Catalog service unavailable"
+
+  getvendorpackages:
+    handler: src/handlers/capabilities-handler.handleGetvendorpackages
+    events:
+      - http:
+          path: /vendors/{vendorId}/packages
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor catalog packages"
+          swaggerTags:
+            - Capabilities
+          responseData:
+            200:
+              description: "Vendor packages retrieved"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+
+  updatevendorpackages:
+    handler: src/handlers/capabilities-handler.handleUpdatevendorpackages
+    events:
+      - http:
+          path: /vendors/{vendorId}/packages
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace vendor catalog packages"
+          description: "Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only."
+          swaggerTags:
+            - Capabilities
+          bodyType: ReplaceVendorPackagesRequest
+          responseData:
+            200:
+              description: "Vendor packages replaced"
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: ""
+            502:
+              description: "Catalog service unavailable"
 
 
   listvendorbranches:
@@ -1025,6 +1352,12 @@ resources:
           - AttributeName: GSI2SK
             AttributeType: S
 
+          - AttributeName: GSI3PK
+            AttributeType: S
+
+          - AttributeName: GSI3SK
+            AttributeType: S
+
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -1071,6 +1404,17 @@ resources:
             Projection:
               ProjectionType: ALL
 
+          # GSI3 - community assignment lookup
+          # COMMUNITY#<communityId> / STATUS#<status>#VENDOR#<vendorId>
+          - IndexName: GSI3
+            KeySchema:
+              - AttributeName: GSI3PK
+                KeyType: HASH
+              - AttributeName: GSI3SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
 
@@ -1105,6 +1449,17 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:custom.resourcePrefix}-vendor-email-verification-stream-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
+    VendorLifecycleStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-lifecycle-stream-dlq
         MessageRetentionPeriod: 1209600
         Tags:
           - Key: Service

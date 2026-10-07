@@ -86,8 +86,15 @@ provider:
             - cognito-idp:AdminUserGlobalSignOut
             - cognito-idp:ListUsers
             - cognito-idp:InitiateAuth
+            - cognito-idp:DescribeUserPool
+            - cognito-idp:UpdateUserPool
           Resource:
             - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource:
+            - !GetAtt VendorApprovedRoleDlq.Arn
 
 custom:
 
@@ -95,6 +102,7 @@ custom:
   deletionProtectionEnabled:
     prod: true
     production: true
+  resourcePrefix: nv${self:provider.stage}-bw
 
   # Public routes (health, register, login, refresh, OTP) omit the authorizer.
   esbuild:
@@ -318,6 +326,45 @@ functions:
             200:
               description: "Roles list"
 
+  # Cognito calls this before issuing access tokens for login, OTP verify, and
+  # refresh. AttachPreTokenGenerationTrigger sets LambdaVersion V2_0.
+  # V1_0 only customizes the ID token and will not add `roles`.
+  preTokenGeneration:
+    handler: src/handlers/pre-token-generation.handler
+    description: Adds application roles to the Cognito access token
+    timeout: 10
+
+  attachPreTokenGeneration:
+    handler: src/handlers/attach-pre-token-generation.handler
+    description: Attaches the pre-token trigger to the Cognito user pool at V2_0
+    timeout: 60
+
+  backfillCustomerRoles:
+    handler: src/handlers/backfill-customer-roles.handler
+    description: Assigns CUSTOMER mappings to users that have no application role
+    timeout: 300
+
+  vendorApprovedRole:
+    handler: src/handlers/vendor-approved-role.handler
+    description: Adds the VENDOR application role when a vendor is approved
+    timeout: 30
+    environment:
+      DLQ_QUEUE_URL: !Ref VendorApprovedRoleDlq
+    events:
+      - eventBridge:
+          eventBus:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          name: ${self:custom.resourcePrefix}-identity-vendor-approved-role
+          description: Adds VENDOR to the owner application roles after approval
+          pattern:
+            source:
+              - vendor-service
+            detail-type:
+              - VendorApproved
+          retryPolicy:
+            maximumRetryAttempts: 3
+          deadLetterQueueArn: !GetAtt VendorApprovedRoleDlq.Arn
+
   getpermissions:
     handler: src/handlers/permissions.handleGetpermissions
     events:
@@ -336,6 +383,51 @@ functions:
 resources:
   Resources:
     IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}
+
+    PreTokenGenerationInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !Ref PreTokenGenerationLambdaFunction
+        Principal: cognito-idp.amazonaws.com
+        SourceArn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+
+    AttachPreTokenGenerationTrigger:
+      Type: AWS::CloudFormation::CustomResource
+      DependsOn:
+        - PreTokenGenerationLambdaFunction
+        - PreTokenGenerationInvokePermission
+      Properties:
+        ServiceToken: !GetAtt AttachPreTokenGenerationLambdaFunction.Arn
+        UserPoolId: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+        FunctionArn: !GetAtt PreTokenGenerationLambdaFunction.Arn
+        LambdaVersion: V2_0
+        ConfigVersion: access-token-roles-v2
+
+    VendorApprovedRoleDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-vendor-approved-role-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    VendorApprovedRoleDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref VendorApprovedRoleDlq
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowEventBridgeSendToVendorApprovedRoleDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt VendorApprovedRoleDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
 
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse

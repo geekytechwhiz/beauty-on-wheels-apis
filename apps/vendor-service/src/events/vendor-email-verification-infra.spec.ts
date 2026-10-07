@@ -20,7 +20,7 @@ describe('vendor email verification stream infrastructure', () => {
   it('wires the confirmation stream handler to VendorTable.StreamArn with retry and DLQ', () => {
     expect(vendorServerless).toContain('onVendorEmailVerificationRequested:');
     expect(vendorServerless).toContain(
-      'src/handlers/vendor-email-verification-stream.handler.main',
+      'src/handlers/vendor-email-verification-stream.handler',
     );
     expect(vendorServerless).toContain('!GetAtt VendorTable.StreamArn');
     expect(vendorServerless).toContain(

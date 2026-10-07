@@ -13,17 +13,25 @@ import {
   getVendorsRepository,
   VendorPageResult,
 } from '../repositories/vendors.repository';
+import {
+  CommunitiesRepository,
+  getCommunitiesRepository,
+} from '../repositories/communities.repository';
 import { VendorsMapper } from '../mappers/vendors.mapper';
+import { CommunitiesMapper } from '../mappers/communities.mapper';
 import { OwnerMapper } from '../mappers/owner.mapper';
 import {
+  ApproveVendorRequest,
   CreateVendorRequest,
   OperationalStatus,
+  RejectVendorRequest,
   UpdateOperationalStatusRequest,
   UpdateVendorRequest,
   UpdateVendorStatusRequest,
   Vendor,
   VendorListResponse,
   VendorStatus,
+  VendorStatusHistoryEntry,
 } from '../types/api-types';
 import {
   assertAdminAccess,
@@ -36,10 +44,12 @@ import {
 } from '../utils/helpers';
 import { RegisterVendorRequest } from '../schemas/vendors.schema';
 import {
-  CONFIRMED_VENDOR_STATUS,
-  VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
-  generateVendorEmailVerificationOtp,
-} from '../domain/email-verification';
+  assertOperationalStatusAllowed,
+  decideVendorStatusTransition,
+  isVendorApproval,
+  isVendorRejection,
+} from '../domain/lifecycle';
+import { isCommunityId, normalizeCommunityId } from '../domain/community';
 
 const baseLogger = createLogger({
   service: 'vendors-service',
@@ -68,6 +78,7 @@ export class VendorsService {
 
   constructor(
     private readonly repository: VendorsRepository = getVendorsRepository(),
+    private readonly communitiesRepository: CommunitiesRepository = getCommunitiesRepository(),
   ) {}
 
   private async requireVendor(vendorId: string) {
@@ -102,7 +113,9 @@ export class VendorsService {
     const vendorId = randomUUID();
     const profile = VendorsMapper.toInitialDdbItem({
       vendorId,
-      ownerUserId: userId, 
+      ownerUserId: userId,
+      email: body.email,
+      phoneNumber: body.phoneNumber,
     });
     const owner = OwnerMapper.initialOwner(vendorId, userId);
 
@@ -176,6 +189,7 @@ export class VendorsService {
       | undefined;
     const city = request.params?.city as string | undefined;
     const postalCode = request.params?.postalCode as string | undefined;
+    const communityId = request.params?.communityId as string | undefined;
     const limit = parseLimit(request.params?.limit);
     const lastEvaluatedKey = decodeCursor(request.params?.cursor);
 
@@ -186,6 +200,7 @@ export class VendorsService {
       operationalStatus,
       city,
       postalCode,
+      communityId,
       limit,
     });
 
@@ -206,9 +221,27 @@ export class VendorsService {
       );
     }
 
+    if (communityId && (city || postalCode)) {
+      throw new ValidationError(
+        'communityId cannot be combined with city or postalCode filters',
+      );
+    }
+
+    if (communityId && !isCommunityId(normalizeCommunityId(communityId))) {
+      throw new ValidationError('Invalid communityId');
+    }
+
     let result: VendorPageResult;
 
-    if (city) {
+    if (communityId) {
+      result = await this.listVendorsInCommunity({
+        communityId: normalizeCommunityId(communityId),
+        status: status as VendorStatus | undefined,
+        operationalStatus: operationalStatus as OperationalStatus | undefined,
+        limit,
+        lastEvaluatedKey,
+      });
+    } else if (city) {
       result = await this.repository.listVendorsByCity({
         city,
         postalCode,
@@ -299,51 +332,149 @@ export class VendorsService {
     const userId = assertAdminAccess(request);
     const vendorId = getVendorId(request);
     const body = request.body as UpdateVendorStatusRequest;
+    return this.transitionStatus(vendorId, userId, body.status, body.reason);
+  }
 
+  async approvevendor(request: LambdaRequest): Promise<Vendor> {
+    const userId = assertAdminAccess(request);
+    const vendorId = getVendorId(request);
+    const body = (request.body ?? {}) as ApproveVendorRequest;
+    return this.transitionStatus(vendorId, userId, 'ACTIVE', body.reason);
+  }
+
+  async rejectvendor(request: LambdaRequest): Promise<Vendor> {
+    const userId = assertAdminAccess(request);
+    const vendorId = getVendorId(request);
+    const body = request.body as RejectVendorRequest;
+    return this.transitionStatus(vendorId, userId, 'REJECTED', body.reason);
+  }
+
+  async getvendorstatushistory(
+    request: LambdaRequest,
+  ): Promise<{ data: VendorStatusHistoryEntry[] }> {
+    const vendorId = getVendorId(request);
+    const existing = await this.requireVendor(vendorId);
+    assertVendorAccess(request, existing);
+    const items = await this.repository.listStatusHistory(vendorId);
+    return {
+      data: items.map((item) => ({
+        vendorId: item.vendorId,
+        previousStatus: item.previousStatus,
+        newStatus: item.newStatus,
+        reviewerUserId: item.reviewerUserId,
+        reason: item.reason,
+        reviewedAt: item.reviewedAt,
+        correlationId: item.correlationId,
+      })),
+    };
+  }
+
+  private async transitionStatus(
+    vendorId: string,
+    userId: string,
+    status: VendorStatus,
+    reason?: string,
+  ): Promise<Vendor> {
     this.logger.info({
       event: 'updatevendorstatus_start',
       userId,
       vendorId,
-      status: body?.status,
+      status,
     });
 
     const existing = await this.requireVendor(vendorId);
-    const transitioningToConfirmed =
-      existing.status !== CONFIRMED_VENDOR_STATUS &&
-      body.status === CONFIRMED_VENDOR_STATUS;
-    const correlationId = getLoggerContext()?.correlationId;
-    const updated = VendorsMapper.applyStatusUpdate(existing, body.status, {
-      verification: transitioningToConfirmed
-        ? {
-            emailVerificationOtp: generateVendorEmailVerificationOtp(),
-            emailVerificationExpiryMinutes:
-              VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
-            emailVerificationRequestedAt: new Date().toISOString(),
-          }
-        : undefined,
-      meta:
-        correlationId && correlationId !== 'unknown'
-          ? { correlationId }
-          : undefined,
+    const decision = decideVendorStatusTransition({
+      from: existing.status,
+      to: status,
+      onboardingStatus: existing.onboardingStatus,
+      reason,
     });
 
+    if (decision.kind === 'invalid') {
+      throw new ConflictError(decision.message);
+    }
+
+    if (decision.kind === 'idempotent') {
+      this.logger.info({
+        event: 'updatevendorstatus_idempotent',
+        userId,
+        vendorId,
+        status,
+      });
+      return VendorsMapper.toDomain(existing);
+    }
+
+    const reviewedAt = new Date().toISOString();
+    const correlationId = correlationFromContext();
+    const updated = VendorsMapper.applyLifecycleTransition(existing, {
+      status,
+      reviewerUserId: userId,
+      reason,
+      reviewedAt,
+      correlationId,
+    });
+    const history = VendorsMapper.toStatusHistoryItem(updated, randomUUID());
+    const communities = await this.communitiesRepository.listByVendor(vendorId);
+    const communityPuts = communities.map((item) => ({
+      item: CommunitiesMapper.withVendorState(item, updated, reviewedAt),
+      condition: 'exists' as const,
+    }));
+
     try {
-      await this.repository.updateVendor(updated);
+      await this.repository.transactVendorProfile({
+        profile: updated,
+        expectedStatus: existing.status,
+        puts: [{ item: history, condition: 'not_exists' }, ...communityPuts],
+      });
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
+        const current = await this.repository.getVendorById(vendorId);
+        if (current?.status === status) {
+          return VendorsMapper.toDomain(current);
+        }
         throw new ConflictError('Vendor status update conflict');
       }
       throw err;
     }
 
+    const lifecycleEvent = isVendorApproval(existing.status, status)
+      ? 'VendorApproved'
+      : isVendorRejection(status)
+        ? 'VendorRejected'
+        : 'VendorUpdated';
+
     this.logger.info({
-      event: 'updatevendorstatus_success',
+      event: lifecycleEvent,
       userId,
       vendorId,
-      status: body.status,
+      previousStatus: existing.status,
+      newStatus: status,
+      correlationId,
     });
 
     return VendorsMapper.toDomain(updated);
+  }
+
+  private async listVendorsInCommunity(params: {
+    communityId: string;
+    status?: VendorStatus;
+    operationalStatus?: OperationalStatus;
+    limit?: number;
+    lastEvaluatedKey?: Record<string, unknown>;
+  }): Promise<VendorPageResult> {
+    const page = await this.communitiesRepository.listByCommunity(params);
+    const profiles = await this.repository.getVendorsByIds(
+      page.items.map((item) => item.vendorId),
+    );
+    const byId = new Map(profiles.map((item) => [item.vendorId, item]));
+    const items = page.items
+      .map((item) => byId.get(item.vendorId))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    return {
+      items,
+      lastEvaluatedKey: page.lastEvaluatedKey,
+    };
   }
 
   async updatevendoroperationalstatus(request: LambdaRequest): Promise<Vendor> {
@@ -358,13 +489,30 @@ export class VendorsService {
       operationalStatus: body?.operationalStatus,
     });
 
+    const decision = assertOperationalStatusAllowed(
+      existing.status,
+      body.operationalStatus,
+    );
+    if (decision.kind === 'invalid') {
+      throw new ConflictError(decision.message);
+    }
+
     const updated = VendorsMapper.applyOperationalStatusUpdate(
       existing,
       body.operationalStatus,
     );
+    const communities = await this.communitiesRepository.listByVendor(vendorId);
 
     try {
-      await this.repository.updateVendor(updated);
+      await this.repository.transactVendorProfile({
+        profile: updated,
+        expectedUpdatedAt: existing.updatedAt,
+        expectedStatus: existing.status,
+        puts: communities.map((item) => ({
+          item: CommunitiesMapper.withVendorState(item, updated, updated.updatedAt),
+          condition: 'exists' as const,
+        })),
+      });
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         throw new ConflictError('Vendor operational status update conflict');
@@ -383,6 +531,14 @@ export class VendorsService {
 }
 
 let service: VendorsService;
+
+function correlationFromContext(): string | undefined {
+  const correlationId = getLoggerContext()?.correlationId;
+  if (!correlationId || correlationId === 'unknown') {
+    return undefined;
+  }
+  return correlationId;
+}
 
 export function getVendorsService() {
   if (!service) {

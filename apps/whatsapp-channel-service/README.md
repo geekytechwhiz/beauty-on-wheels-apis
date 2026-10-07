@@ -46,6 +46,18 @@ Examples: `cloudflared tunnel --url http://localhost:4010` or `ngrok http 4010`.
 
 `GET /webhooks/whatsapp` returns `hub.challenge` as plain text. `POST /webhooks/whatsapp` checks `X-Hub-Signature-256`, then enqueues the body. The inbound worker runs the conversation. Duplicate Meta message ids are acknowledged and not processed twice.
 
+Send a text message through Meta:
+
+```bash
+curl -s -X POST http://localhost:4010/whatsapp/messages \
+  -H 'content-type: application/json' \
+  -d '{"to":"919876543210","message":"Hello from Car Wash WhatsApp!"}'
+```
+
+A successful response uses the platform envelope. `data.messageId` is the id Meta returned, and `data.to` is the recipient in E.164 digits. Meta errors come back as `success: false` with `error.code` of `WHATSAPP_SEND_FAILED` or `WHATSAPP_AUTH_FAILED`. The access token is never included. Use the in-memory server above, or `npx nx serve @api-hub/whatsapp-channel-service` (Serverless Offline prefixes the stage, so the path is `/dev/whatsapp/messages`).
+
+This route is unauthenticated, same as the webhook routes in this service. Put it behind the platform authorizer before it is exposed beyond local testing. It can send messages with the business access token.
+
 ## AWS deployment
 
 This service deploys with Serverless Framework, like the other apps. It does not add Terraform.

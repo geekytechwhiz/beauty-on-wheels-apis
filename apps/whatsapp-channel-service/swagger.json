@@ -3,7 +3,7 @@
   "info": {
     "title": "WhatsApp Channel Service API",
     "version": "1.0.0",
-    "description": "Public Meta webhook and health endpoints for the Beauty on Wheels WhatsApp channel. Downstream catalog, vendor, vehicle, availability, booking, and user calls are not exposed here."
+    "description": "Meta webhook, outbound text messages, and health endpoints for the Beauty on Wheels WhatsApp channel. Downstream catalog, vendor, vehicle, availability, booking, and user calls are not exposed here."
   },
   "basePath": "/dev",
   "schemes": ["https"],
@@ -57,6 +57,59 @@
           "200": { "description": "Event accepted and queued" },
           "401": { "description": "Invalid signature" },
           "400": { "description": "Body is not JSON" }
+        }
+      }
+    },
+    "/whatsapp/messages": {
+      "post": {
+        "summary": "Send a WhatsApp text message",
+        "operationId": "sendWhatsAppMessage",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["to", "message"],
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "description": "Recipient phone number in E.164 form, with or without a leading plus. Example: 919876543210"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Text body. Must not be empty."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meta accepted the message",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean" },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "messageId": { "type": "string" },
+                    "to": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing or invalid to or message" },
+          "401": { "description": "Meta rejected the access token" },
+          "403": { "description": "Meta rejected the request" },
+          "500": { "description": "WhatsApp configuration is incomplete" },
+          "502": { "description": "Meta API or network failure" },
+          "504": { "description": "Meta API timed out" }
         }
       }
     }

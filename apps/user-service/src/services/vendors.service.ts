@@ -1,3 +1,4 @@
+// Provider profiles are owned by vendor-service. These handlers are not deployed.
 import { LambdaRequest } from "@api-hub/utils";
 import {
     createLogger,

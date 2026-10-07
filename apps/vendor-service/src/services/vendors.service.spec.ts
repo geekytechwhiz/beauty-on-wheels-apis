@@ -1,8 +1,9 @@
 import { LambdaRequest } from '@api-hub/utils';
-import { ForbiddenError, UnauthorizedError } from '@api-hub/utils';
+import { ConflictError, ForbiddenError, UnauthorizedError } from '@api-hub/utils';
 
 import { VendorsService } from './vendors.service';
 import { VendorsRepository } from '../repositories/vendors.repository';
+import { CommunitiesRepository } from '../repositories/communities.repository';
 import { validateCreateVendorRequest } from '../schemas/vendors.schema';
 import { VendorDdbItem } from '../types/repository.types';
 
@@ -43,6 +44,7 @@ function vendorItem(): VendorDdbItem {
 
 describe('VendorsService', () => {
   let repository: jest.Mocked<VendorsRepository>;
+  let communitiesRepository: jest.Mocked<CommunitiesRepository>;
   let service: VendorsService;
 
   beforeEach(() => {
@@ -52,10 +54,18 @@ describe('VendorsService', () => {
       createVendor: jest.fn().mockResolvedValue(undefined),
       getAddress: jest.fn().mockResolvedValue(null),
       updateVendor: jest.fn().mockResolvedValue(undefined),
+      transactVendorProfile: jest.fn().mockResolvedValue(undefined),
       listVendors: jest.fn(),
+      listStatusHistory: jest.fn().mockResolvedValue([]),
+      getVendorsByIds: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<VendorsRepository>;
 
-    service = new VendorsService(repository);
+    communitiesRepository = {
+      listByVendor: jest.fn().mockResolvedValue([]),
+      listByCommunity: jest.fn(),
+    } as unknown as jest.Mocked<CommunitiesRepository>;
+
+    service = new VendorsService(repository, communitiesRepository);
   });
 
   const createBody = {
@@ -175,7 +185,12 @@ describe('VendorsService', () => {
     expect(parsed.profileImageUrl).toBe('prasanth@gmail.com');
   });
 
-  it('persists verification data when an admin confirms the vendor to ACTIVE', async () => {
+  it('approves a vendor that is pending review without issuing an email OTP', async () => {
+    repository.getVendorById.mockResolvedValue({
+      ...vendorItem(),
+      onboardingStatus: 'PENDING_REVIEW',
+    });
+
     const result = await service.updatevendorstatus(
       authRequest({
         context: {
@@ -186,13 +201,61 @@ describe('VendorsService', () => {
     );
 
     expect(result.status).toBe('ACTIVE');
+    expect(result.latestReview?.previousStatus).toBe('PENDING_VERIFICATION');
+    expect(result.latestReview?.reviewerUserId).toBe('admin-1');
     expect(result).not.toHaveProperty('emailVerificationOtp');
-    expect(repository.updateVendor).toHaveBeenCalledTimes(1);
-    const saved = repository.updateVendor.mock.calls[0][0];
+    expect(repository.transactVendorProfile).toHaveBeenCalledTimes(1);
+    const saved = repository.transactVendorProfile.mock.calls[0][0].profile;
     expect(saved.status).toBe('ACTIVE');
-    expect(saved.emailVerificationOtp).toMatch(/^\d{6}$/);
-    expect(saved.emailVerificationExpiryMinutes).toBe(10);
-    expect(saved.emailVerificationRequestedAt).toEqual(expect.any(String));
+    expect(saved.emailVerificationOtp).toBeUndefined();
+    expect(saved.latestReview?.newStatus).toBe('ACTIVE');
+  });
+
+  it('rejects approval before onboarding review', async () => {
+    await expect(
+      service.approvevendor(
+        authRequest({
+          context: {
+            userContext: { userId: 'admin-1', roles: ['admin'] },
+          },
+          body: {},
+        }),
+      ),
+    ).rejects.toThrow(ConflictError);
+    expect(repository.transactVendorProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid lifecycle jump', async () => {
+    await expect(
+      service.updatevendorstatus(
+        authRequest({
+          context: {
+            userContext: { userId: 'admin-1', roles: ['admin'] },
+          },
+          body: { status: 'SUSPENDED' },
+        }),
+      ),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it('is idempotent when the vendor is already in the requested status', async () => {
+    repository.getVendorById.mockResolvedValue({
+      ...vendorItem(),
+      status: 'ACTIVE',
+      onboardingStatus: 'PENDING_REVIEW',
+    });
+
+    const result = await service.approvevendor(
+      authRequest({
+        context: {
+          userContext: { userId: 'admin-1', roles: ['admin'] },
+        },
+        body: {},
+      }),
+    );
+
+    expect(result.status).toBe('ACTIVE');
+    expect(repository.transactVendorProfile).not.toHaveBeenCalled();
   });
 
   it('does not regenerate verification data for unrelated status updates', async () => {
@@ -210,7 +273,7 @@ describe('VendorsService', () => {
       }),
     );
 
-    const saved = repository.updateVendor.mock.calls[0][0];
+    const saved = repository.transactVendorProfile.mock.calls[0][0].profile;
     expect(saved.status).toBe('SUSPENDED');
     expect(saved.emailVerificationOtp).toBeUndefined();
   });

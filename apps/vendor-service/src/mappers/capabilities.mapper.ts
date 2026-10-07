@@ -1,51 +1,97 @@
+import { VehicleType } from '../types/api-types';
 import {
-  UpdateVendorCapabilitiesRequest,
-  VendorCapabilities,
-} from '../types/api-types';
-import { VendorCapabilitiesDdbItem } from '../types/repository.types';
+  VendorCapabilitiesDdbItem,
+  VendorPackageOfferingRecord,
+  VendorServiceOfferingRecord,
+} from '../types/repository.types';
 import {
   VENDOR_CAPABILITIES_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 
 export class CapabilitiesMapper {
-  static toDomain(item: VendorCapabilitiesDdbItem): VendorCapabilities {
+  static toDomain(item: VendorCapabilitiesDdbItem) {
+    const services = CapabilitiesMapper.servicesFromItem(item);
+    const packages = CapabilitiesMapper.packagesFromItem(item);
     return {
       vendorId: item.vendorId,
       vehicleTypes: item.vehicleTypes,
-      serviceIds: item.serviceIds,
-      packageIds: item.packageIds,
+      serviceIds: services.filter((entry) => entry.enabled).map((entry) => entry.serviceId),
+      packageIds: packages.filter((entry) => entry.enabled).map((entry) => entry.packageId),
+      services,
+      packages,
       updatedAt: item.updatedAt,
     };
   }
 
-  static empty(vendorId: string): VendorCapabilities {
+  static empty(vendorId: string) {
     return {
       vendorId,
-      vehicleTypes: [],
-      serviceIds: [],
-      packageIds: [],
+      vehicleTypes: [] as VehicleType[],
+      serviceIds: [] as string[],
+      packageIds: [] as string[],
+      services: [] as VendorServiceOfferingRecord[],
+      packages: [] as VendorPackageOfferingRecord[],
     };
   }
 
-  static toDdbItem(
-    request: UpdateVendorCapabilitiesRequest,
-    vendorId: string,
-    options?: { createdAt?: string },
-  ): VendorCapabilitiesDdbItem {
+  static servicesFromItem(
+    item: VendorCapabilitiesDdbItem,
+  ): VendorServiceOfferingRecord[] {
+    if (item.services) {
+      return item.services.map((entry) => ({ ...entry }));
+    }
+    return (item.serviceIds ?? []).map((serviceId) => ({
+      serviceId,
+      enabled: true,
+    }));
+  }
+
+  static packagesFromItem(
+    item: VendorCapabilitiesDdbItem,
+  ): VendorPackageOfferingRecord[] {
+    if (item.packages) {
+      return item.packages.map((entry) => ({ ...entry }));
+    }
+    return (item.packageIds ?? []).map((packageId) => ({
+      packageId,
+      enabled: true,
+    }));
+  }
+
+  static toDdbItem(input: {
+    vendorId: string;
+    vehicleTypes: VehicleType[];
+    services: VendorServiceOfferingRecord[];
+    packages: VendorPackageOfferingRecord[];
+    createdAt?: string;
+  }): VendorCapabilitiesDdbItem {
     const timestamp = new Date().toISOString();
-    const createdAt = options?.createdAt || timestamp;
+    const services = input.services.map((entry) => stripUndefined(entry));
+    const packages = input.packages.map((entry) => stripUndefined(entry));
 
     return {
-      PK: VendorKeyBuilder.vendorPk(vendorId),
+      PK: VendorKeyBuilder.vendorPk(input.vendorId),
       SK: VendorKeyBuilder.capabilitiesSk(),
-      vendorId,
-      vehicleTypes: [...new Set(request.vehicleTypes)],
-      serviceIds: [...new Set(request.serviceIds)],
-      packageIds: [...new Set(request.packageIds)],
-      createdAt,
+      vendorId: input.vendorId,
+      vehicleTypes: [...new Set(input.vehicleTypes)],
+      serviceIds: services
+        .filter((entry) => entry.enabled)
+        .map((entry) => entry.serviceId),
+      packageIds: packages
+        .filter((entry) => entry.enabled)
+        .map((entry) => entry.packageId),
+      services,
+      packages,
+      createdAt: input.createdAt || timestamp,
       updatedAt: timestamp,
       entityType: VENDOR_CAPABILITIES_ENTITY_TYPE,
     };
   }
+}
+
+function stripUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as T;
 }

@@ -16,6 +16,7 @@ export * from './lib/repositories/UserRepository';
 export * from './lib/repositories/AuthenticationRepository';
 export * from './lib/services/AuthenticationService';
 export * from './lib/services/UserService';
+export * from './lib/auth/application-roles';
 export * from './lib/auth/auth-context';
 export * from './lib/auth/permissions';
 export * from './lib/auth/jwks-cache';

@@ -23,3 +23,11 @@ export const handleUpdatevendoronboarding = withApiHandler(
   async (request: LambdaRequest) =>
     controller.handleUpdatevendoronboarding(request),
 );
+
+export const handleSubmitvendorforreview = withApiHandler(
+  {
+    operation: 'submitvendorforreview',
+  },
+  async (request: LambdaRequest) =>
+    controller.handleSubmitvendorforreview(request),
+);

@@ -7,28 +7,45 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-tools/codegen/create-microservice.js
+
 provider:
   name: aws
   runtime: nodejs22.x
-
   stage: ${opt:stage,'dev'}
-
   region: ${opt:region,'us-east-1'}
-
   versionFunctions: false
 
   environment:
-
     SERVICE_NAME: user-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    LOG_LEVEL: INFO
+    DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-user
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:BatchGetItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+            - dynamodb:ConditionCheckItem
+          Resource:
+            - !GetAtt UserTable.Arn
+            - !Join ["/", [!GetAtt UserTable.Arn, "index", "*"]]
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: "*"
 
 custom:
-
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
-
 
   esbuild:
     bundle: true
@@ -56,45 +73,32 @@ custom:
     excludeStages:
       - production
 
-
 functions:
-
-
-  getusers:
-    handler: src/handlers/users.handler.handleGetusers
+  lookupUserByPhone:
+    handler: src/handlers/users.handler.handleLookupUserByPhone
     events:
       - http:
           path: /users
           method: get
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "List users"
+          summary: "Look up a user by phone"
+          description: "Service principal or admin. Requires query phone in E.164. Percent-encode + as %2B. Returns id, phone, and status."
           swaggerTags:
             - Users
           responseData:
             200:
-              description: "User list"
+              description: "Matching user"
+              bodyType: PhoneLookupResult
+            400:
+              description: "Phone is missing or not E.164"
+            403:
+              description: "Caller is not a service principal or admin"
+            404:
+              description: "No user for that phone"
 
-
-  postusers:
-    handler: src/handlers/users.handler.handlePostusers
-    events:
-      - http:
-          path: /users
-          method: post
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Create user profile"
-          swaggerTags:
-            - Users
-          bodyType: User
-          responseData:
-            201:
-              description: "Created"
-
-
-  getuserid:
-    handler: src/handlers/users.handler.handleGetuserid
+  getUser:
+    handler: src/handlers/users.handler.handleGetUser
     events:
       - http:
           path: /users/{userId}
@@ -102,49 +106,20 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get user"
+          description: "Owner, admin, or service principal. Reads the customer profile summary."
           swaggerTags:
             - Users
           responseData:
             200:
               description: "User"
               bodyType: User
+            403:
+              description: "Caller cannot read this user"
+            404:
+              description: "User not found"
 
-
-  putuserid:
-    handler: src/handlers/users.handler.handlePutuserid
-    events:
-      - http:
-          path: /users/{userId}
-          method: put
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update user"
-          swaggerTags:
-            - Users
-          bodyType: User
-          responseData:
-            200:
-              description: "Updated"
-
-
-  deleteuserid:
-    handler: src/handlers/users.handler.handleDeleteuserid
-    events:
-      - http:
-          path: /users/{userId}
-          method: delete
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Soft delete user"
-          swaggerTags:
-            - Users
-          responseData:
-            204:
-              description: "Deleted"
-
-
-  getuserid:
-    handler: src/handlers/customers.handler.handleGetuserid
+  getCustomer:
+    handler: src/handlers/customers.handler.handleGetCustomer
     events:
       - http:
           path: /customers/{userId}
@@ -152,99 +127,44 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get customer profile"
+          description: "Owner, admin, or service principal. Includes communityIds and defaultAddressId."
           swaggerTags:
             - Customers
           responseData:
             200:
               description: "Customer profile"
               bodyType: CustomerProfile
+            403:
+              description: "Caller cannot read this profile"
+            404:
+              description: "Customer profile not found"
 
-
-  putuserid:
-    handler: src/handlers/customers.handler.handlePutuserid
+  putCustomer:
+    handler: src/handlers/customers.handler.handlePutCustomer
     events:
       - http:
           path: /customers/{userId}
           method: put
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update customer profile"
+          summary: "Create or update customer profile"
+          description: "Owner or admin. Upserts the profile and the phone lookup used by WhatsApp. Status and loyaltyPoints are admin-only. Marketing consent is not accepted."
           swaggerTags:
             - Customers
-          bodyType: CustomerProfile
+          bodyType: CustomerProfileUpdate
           responseData:
             200:
-              description: "Updated"
+              description: "Customer profile"
+              bodyType: CustomerProfile
+            400:
+              description: "Invalid profile"
+            403:
+              description: "Caller cannot update this profile"
+            409:
+              description: "Phone number is already in use"
 
-
-  getuserid:
-    handler: src/handlers/vendors.handler.handleGetuserid
-    events:
-      - http:
-          path: /vendors/{userId}
-          method: get
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get vendor profile"
-          swaggerTags:
-            - Vendors
-          responseData:
-            200:
-              description: "Vendor profile"
-              bodyType: VendorProfile
-
-
-  putuserid:
-    handler: src/handlers/vendors.handler.handlePutuserid
-    events:
-      - http:
-          path: /vendors/{userId}
-          method: put
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update vendor profile"
-          swaggerTags:
-            - Vendors
-          bodyType: VendorProfile
-          responseData:
-            200:
-              description: "Updated"
-
-
-  postkyc:
-    handler: src/handlers/kyc.handler.handlePostkyc
-    events:
-      - http:
-          path: /vendors/{userId}/kyc
-          method: post
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Submit KYC"
-          swaggerTags:
-            - KYC
-          responseData:
-            202:
-              description: "Submitted"
-
-
-  getkyc:
-    handler: src/handlers/kyc.handler.handleGetkyc
-    events:
-      - http:
-          path: /vendors/{userId}/kyc
-          method: get
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get KYC status"
-          swaggerTags:
-            - KYC
-          responseData:
-            200:
-              description: "KYC status"
-
-
-  getaddresses:
-    handler: src/handlers/addresses.handler.handleGetaddresses
+  listAddresses:
+    handler: src/handlers/addresses.handler.handleListAddresses
     events:
       - http:
           path: /users/{userId}/addresses
@@ -252,15 +172,20 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List addresses"
+          description: "Owner, admin, or service principal. Deleted addresses are omitted. The default address is first."
           swaggerTags:
             - Addresses
           responseData:
             200:
               description: "Address list"
+              bodyType: AddressListResponse
+            403:
+              description: "Caller cannot read these addresses"
+            404:
+              description: "Customer profile not found"
 
-
-  postaddresses:
-    handler: src/handlers/addresses.handler.handlePostaddresses
+  createAddress:
+    handler: src/handlers/addresses.handler.handleCreateAddress
     events:
       - http:
           path: /users/{userId}/addresses
@@ -268,16 +193,23 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add address"
+          description: "Owner or admin. The first active address becomes the default. isDefault true replaces the previous default."
           swaggerTags:
             - Addresses
-          bodyType: Address
+          bodyType: AddressRequest
           responseData:
-            201:
-              description: "Created"
+            200:
+              description: "Created address"
+              bodyType: Address
+            400:
+              description: "Invalid address"
+            403:
+              description: "Caller cannot add an address"
+            404:
+              description: "Customer profile not found"
 
-
-  putaddressid:
-    handler: src/handlers/addresses.handler.handlePutaddressid
+  updateAddress:
+    handler: src/handlers/addresses.handler.handleUpdateAddress
     events:
       - http:
           path: /users/{userId}/addresses/{addressId}
@@ -285,16 +217,21 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update address"
+          description: "Owner or admin. Replaces the address. The only active address stays the default."
           swaggerTags:
             - Addresses
-          bodyType: Address
+          bodyType: AddressRequest
           responseData:
             200:
-              description: "Updated"
+              description: "Updated address"
+              bodyType: Address
+            403:
+              description: "Caller cannot update this address"
+            404:
+              description: "Address not found"
 
-
-  deleteaddressid:
-    handler: src/handlers/addresses.handler.handleDeleteaddressid
+  deleteAddress:
+    handler: src/handlers/addresses.handler.handleDeleteAddress
     events:
       - http:
           path: /users/{userId}/addresses/{addressId}
@@ -302,65 +239,241 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete address"
+          description: "Owner or admin. Soft-deletes the address. If it was the default, another active address is promoted."
           swaggerTags:
             - Addresses
           responseData:
-            204:
+            200:
               description: "Deleted"
+            403:
+              description: "Caller cannot delete this address"
+            404:
+              description: "Address not found"
 
-
-  getpreferences:
-    handler: src/handlers/preferences.handler.handleGetpreferences
+  getPreferences:
+    handler: src/handlers/preferences.handler.handleGetPreferences
     events:
       - http:
           path: /users/{userId}/preferences
           method: get
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get preferences"
+          summary: "Get operational channel preferences"
+          description: "Owner, admin, or service principal. Missing row means WhatsApp, SMS, email, and push are enabled. Marketing consent is not part of this resource."
           swaggerTags:
             - Preferences
           responseData:
             200:
-              description: "Preferences"
-              bodyType: Preference
+              description: "Operational preferences"
+              bodyType: OperationalPreferences
+            403:
+              description: "Caller cannot read these preferences"
 
-
-  putpreferences:
-    handler: src/handlers/preferences.handler.handlePutpreferences
+  putPreferences:
+    handler: src/handlers/preferences.handler.handlePutPreferences
     events:
       - http:
           path: /users/{userId}/preferences
           method: put
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update preferences"
+          summary: "Replace operational channel preferences"
+          description: "Owner or admin. whatsapp, sms, email, and push are required. Marketing consent is rejected."
           swaggerTags:
             - Preferences
-          bodyType: Preference
+          bodyType: OperationalPreferencesUpdate
           responseData:
             200:
-              description: "Updated"
+              description: "Operational preferences"
+              bodyType: OperationalPreferences
+            400:
+              description: "Invalid preferences"
+            403:
+              description: "Caller cannot update these preferences"
+            404:
+              description: "Customer profile not found"
 
+  createCommunity:
+    handler: src/handlers/communities.handler.handleCreateCommunity
+    events:
+      - http:
+          path: /communities
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create community"
+          description: "Admin. Communities are territories a customer can belong to."
+          swaggerTags:
+            - Communities
+          bodyType: CommunityCreate
+          responseData:
+            200:
+              description: "Community"
+              bodyType: Community
+            403:
+              description: "Administrator access is required"
 
-iamRoleStatements:
+  listCommunities:
+    handler: src/handlers/communities.handler.handleListCommunities
+    events:
+      - http:
+          path: /communities
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List communities"
+          description: "Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Community list"
+              bodyType: CommunityListResponse
+            403:
+              description: "Administrator access is required"
 
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
+  getCommunity:
+    handler: src/handlers/communities.handler.handleGetCommunity
+    events:
+      - http:
+          path: /communities/{communityId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get community"
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Community"
+              bodyType: Community
+            403:
+              description: "Administrator access is required"
+            404:
+              description: "Community not found"
 
+  updateCommunity:
+    handler: src/handlers/communities.handler.handleUpdateCommunity
+    events:
+      - http:
+          path: /communities/{communityId}
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Update community"
+          swaggerTags:
+            - Communities
+          bodyType: CommunityUpdate
+          responseData:
+            200:
+              description: "Community"
+              bodyType: Community
+            403:
+              description: "Administrator access is required"
+            404:
+              description: "Community not found"
+
+  deleteCommunity:
+    handler: src/handlers/communities.handler.handleDeleteCommunity
+    events:
+      - http:
+          path: /communities/{communityId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Deactivate community"
+          description: "Admin. Sets status to inactive. Existing memberships are left in place until an admin replaces them."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Inactive community"
+              bodyType: Community
+            403:
+              description: "Administrator access is required"
+            404:
+              description: "Community not found"
+
+  getCustomerCommunities:
+    handler: src/handlers/communities.handler.handleGetCustomerCommunities
+    events:
+      - http:
+          path: /customers/{userId}/communities
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get customer community membership"
+          description: "Owner, admin, or service principal."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Membership"
+              bodyType: CustomerCommunities
+            403:
+              description: "Caller cannot read this membership"
+            404:
+              description: "Customer profile not found"
+
+  putCustomerCommunities:
+    handler: src/handlers/communities.handler.handlePutCustomerCommunities
+    events:
+      - http:
+          path: /customers/{userId}/communities
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Replace customer community membership"
+          description: "Admin. Replaces communityIds. Every id must be an active community."
+          swaggerTags:
+            - Communities
+          bodyType: CustomerCommunitiesUpdate
+          responseData:
+            200:
+              description: "Membership"
+              bodyType: CustomerCommunities
+            400:
+              description: "Community is not active"
+            403:
+              description: "Administrator access is required"
+            404:
+              description: "Customer profile or community not found"
 
 resources:
   Resources:
+    UserTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-user
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -369,9 +482,8 @@ resources:
           Ref: ApiGatewayRestApi
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
 
     GatewayResponseDefault5XX:
       Type: AWS::ApiGateway::GatewayResponse
@@ -381,9 +493,8 @@ resources:
           Ref: ApiGatewayRestApi
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
 
     GatewayResponseUnauthorized:
       Type: AWS::ApiGateway::GatewayResponse
@@ -393,9 +504,8 @@ resources:
           Ref: ApiGatewayRestApi
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
 
     GatewayResponseAccessDenied:
       Type: AWS::ApiGateway::GatewayResponse
@@ -405,6 +515,5 @@ resources:
           Ref: ApiGatewayRestApi
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"

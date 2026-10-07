@@ -329,7 +329,7 @@
     "/vendors/{vendorId}/status": {
       "patch": {
         "summary": "Update vendor lifecycle status",
-        "description": "Updates the administrative lifecycle status of a vendor.\n\nTypical lifecycle:\n  PENDING_VERIFICATION\n  -> ACTIVE\n  -> SUSPENDED\n  -> ACTIVE\n  -> INACTIVE\n",
+        "description": "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved and VendorRejected are published from the vendor table stream.\n",
         "tags": [
           "Vendors"
         ],
@@ -437,6 +437,390 @@
           },
           "500": {
             "description": "500 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/submit-review": {
+      "post": {
+        "summary": "Submit vendor for review",
+        "description": "Submits a complete onboarding application for review. Incomplete applications are rejected. Repeating submit after PENDING_REVIEW is idempotent.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "submitvendorforreview.post./vendors/{vendorId}/submit-review",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor submitted for review",
+            "schema": {
+              "$ref": "#/definitions/OnboardingResponse"
+            }
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "Onboarding is incomplete"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/approve": {
+      "post": {
+        "summary": "Approve vendor",
+        "description": "Approves a vendor whose onboarding status is PENDING_REVIEW. Allowed only from PENDING_VERIFICATION. Approving an already ACTIVE vendor is idempotent.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "approvevendor.post./vendors/{vendorId}/approve",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ApproveVendorRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor approved",
+            "schema": {
+              "$ref": "#/definitions/VendorResponse"
+            }
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "Invalid status transition"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/reject": {
+      "post": {
+        "summary": "Reject vendor",
+        "description": "Rejects a vendor that is PENDING_VERIFICATION. A reason is required. Rejecting an already REJECTED vendor is idempotent.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "rejectvendor.post./vendors/{vendorId}/reject",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RejectVendorRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor rejected",
+            "schema": {
+              "$ref": "#/definitions/VendorResponse"
+            }
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "Invalid status transition"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/status-history": {
+      "get": {
+        "summary": "Get vendor status history",
+        "description": "Returns approval and lifecycle transition history, newest first.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "getvendorstatushistory.get./vendors/{vendorId}/status-history",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status history retrieved"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/communities": {
+      "get": {
+        "summary": "List vendor communities",
+        "description": "Returns business community assignments for the vendor. This is not the geographic service-area list.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "listvendorcommunities.get./vendors/{vendorId}/communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Communities retrieved"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace vendor communities",
+        "description": "Admin replacement of the vendor community set. Duplicate ids are ignored. Community existence is owned by User Service and is not checked here.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "replacevendorcommunities.put./vendors/{vendorId}/communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReplaceVendorCommunitiesRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Communities replaced"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "409 response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add vendor community",
+        "description": "Admin assignment of one community. Adding an existing assignment is idempotent.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "addvendorcommunity.post./vendors/{vendorId}/communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AddVendorCommunityRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community assigned"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "409 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/communities/{communityId}": {
+      "delete": {
+        "summary": "Remove vendor community",
+        "description": "Admin removal of one community assignment. Removing a missing assignment is idempotent.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "removevendorcommunity.delete./vendors/{vendorId}/communities/{communityId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community removed"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "409 response"
           }
         }
       }
@@ -697,7 +1081,7 @@
       },
       "put": {
         "summary": "Replace vendor operating hours",
-        "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n",
+        "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n\nHoliday dates and slot blocks are owned by Availability Service and are not stored here.\n",
         "tags": [
           "Operating Hours"
         ],
@@ -1085,7 +1469,7 @@
       },
       "put": {
         "summary": "Replace vendor capabilities",
-        "description": "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n",
+        "description": "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nService mappings require catalog serviceId and categoryId so Vendor Service\ncan confirm the entity with Service Catalog. Package ids are confirmed the same way.\nOptional priceOverride is provider configuration only. Checkout price is not calculated here.\n",
         "tags": [
           "Capabilities"
         ],
@@ -1128,6 +1512,190 @@
           },
           "409": {
             "description": "409 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/services": {
+      "get": {
+        "summary": "List vendor catalog services",
+        "description": "Returns provider-specific catalog service mappings, including disabled offerings and optional price overrides.",
+        "tags": [
+          "Capabilities"
+        ],
+        "operationId": "getvendorservices.get./vendors/{vendorId}/services",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor services retrieved"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace vendor catalog services",
+        "description": "Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price.",
+        "tags": [
+          "Capabilities"
+        ],
+        "operationId": "updatevendorservices.put./vendors/{vendorId}/services",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReplaceVendorServicesRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor services replaced"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "409 response"
+          },
+          "502": {
+            "description": "Catalog service unavailable"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/packages": {
+      "get": {
+        "summary": "List vendor catalog packages",
+        "description": "",
+        "tags": [
+          "Capabilities"
+        ],
+        "operationId": "getvendorpackages.get./vendors/{vendorId}/packages",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor packages retrieved"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace vendor catalog packages",
+        "description": "Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only.",
+        "tags": [
+          "Capabilities"
+        ],
+        "operationId": "updatevendorpackages.put./vendors/{vendorId}/packages",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReplaceVendorPackagesRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor packages replaced"
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "409 response"
+          },
+          "502": {
+            "description": "Catalog service unavailable"
           }
         }
       }
@@ -1921,6 +2489,82 @@
       ],
       "additionalProperties": false,
       "title": "UpdateVendorStatusRequest",
+      "type": "object"
+    },
+    "ApproveVendorRequest": {
+      "properties": {
+        "reason": {
+          "title": "ApproveVendorRequest.reason",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "title": "ApproveVendorRequest",
+      "type": "object"
+    },
+    "RejectVendorRequest": {
+      "properties": {
+        "reason": {
+          "title": "RejectVendorRequest.reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false,
+      "title": "RejectVendorRequest",
+      "type": "object"
+    },
+    "VendorStatusReview": {
+      "properties": {
+        "previousStatus": {
+          "$ref": "#/definitions/VendorStatus",
+          "title": "VendorStatusReview.previousStatus"
+        },
+        "newStatus": {
+          "$ref": "#/definitions/VendorStatus",
+          "title": "VendorStatusReview.newStatus"
+        },
+        "reviewerUserId": {
+          "title": "VendorStatusReview.reviewerUserId",
+          "type": "string"
+        },
+        "reason": {
+          "title": "VendorStatusReview.reason",
+          "type": "string"
+        },
+        "reviewedAt": {
+          "title": "VendorStatusReview.reviewedAt",
+          "type": "string"
+        },
+        "correlationId": {
+          "title": "VendorStatusReview.correlationId",
+          "type": "string"
+        }
+      },
+      "required": [
+        "previousStatus",
+        "newStatus",
+        "reviewerUserId",
+        "reviewedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorStatusReview",
+      "type": "object"
+    },
+    "VendorStatusHistoryEntry": {
+      "properties": {
+        "vendorId": {
+          "title": "VendorStatusHistoryEntry.vendorId",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorId"
+      ],
+      "additionalProperties": false,
+      "title": "VendorStatusHistoryEntry",
       "type": "object"
     },
     "UpdateOperationalStatusRequest": {
@@ -2782,6 +3426,18 @@
           "title": "Vendor.applicationId",
           "type": "string"
         },
+        "communityIds": {
+          "items": {
+            "title": "Vendor.communityIds.[]",
+            "type": "string"
+          },
+          "title": "Vendor.communityIds",
+          "type": "array"
+        },
+        "latestReview": {
+          "$ref": "#/definitions/VendorStatusReview",
+          "title": "Vendor.latestReview"
+        },
         "createdAt": {
           "title": "Vendor.createdAt",
           "type": "string"
@@ -2797,6 +3453,7 @@
         "status",
         "operationalStatus",
         "onboardingStatus",
+        "communityIds",
         "createdAt",
         "updatedAt"
       ],
@@ -3235,6 +3892,56 @@
       "title": "AvailableCapabilities",
       "type": "object"
     },
+    "VendorServiceOffering": {
+      "properties": {
+        "serviceId": {
+          "title": "VendorServiceOffering.serviceId",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "VendorServiceOffering.categoryId",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "VendorServiceOffering.enabled",
+          "type": "boolean"
+        },
+        "priceOverride": {
+          "title": "VendorServiceOffering.priceOverride",
+          "type": "number"
+        }
+      },
+      "required": [
+        "serviceId",
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "title": "VendorServiceOffering",
+      "type": "object"
+    },
+    "VendorPackageOffering": {
+      "properties": {
+        "packageId": {
+          "title": "VendorPackageOffering.packageId",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "VendorPackageOffering.enabled",
+          "type": "boolean"
+        },
+        "priceOverride": {
+          "title": "VendorPackageOffering.priceOverride",
+          "type": "number"
+        }
+      },
+      "required": [
+        "packageId",
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "title": "VendorPackageOffering",
+      "type": "object"
+    },
     "VendorCapabilities": {
       "properties": {
         "vendorId": {
@@ -3265,6 +3972,22 @@
           "title": "VendorCapabilities.packageIds",
           "type": "array"
         },
+        "services": {
+          "items": {
+            "$ref": "#/definitions/VendorServiceOffering",
+            "title": "VendorCapabilities.services.[]"
+          },
+          "title": "VendorCapabilities.services",
+          "type": "array"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/VendorPackageOffering",
+            "title": "VendorCapabilities.packages.[]"
+          },
+          "title": "VendorCapabilities.packages",
+          "type": "array"
+        },
         "updatedAt": {
           "title": "VendorCapabilities.updatedAt",
           "type": "string"
@@ -3274,7 +3997,9 @@
         "vendorId",
         "vehicleTypes",
         "serviceIds",
-        "packageIds"
+        "packageIds",
+        "services",
+        "packages"
       ],
       "additionalProperties": false,
       "title": "VendorCapabilities",
@@ -3305,15 +4030,136 @@
           },
           "title": "UpdateVendorCapabilitiesRequest.packageIds",
           "type": "array"
+        },
+        "services": {
+          "items": {
+            "$ref": "#/definitions/VendorServiceOffering",
+            "title": "UpdateVendorCapabilitiesRequest.services.[]"
+          },
+          "title": "UpdateVendorCapabilitiesRequest.services",
+          "type": "array"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/VendorPackageOffering",
+            "title": "UpdateVendorCapabilitiesRequest.packages.[]"
+          },
+          "title": "UpdateVendorCapabilitiesRequest.packages",
+          "type": "array"
         }
       },
       "required": [
-        "vehicleTypes",
-        "serviceIds",
-        "packageIds"
+        "vehicleTypes"
       ],
       "additionalProperties": false,
       "title": "UpdateVendorCapabilitiesRequest",
+      "type": "object"
+    },
+    "ReplaceVendorServicesRequest": {
+      "properties": {
+        "services": {
+          "items": {
+            "$ref": "#/definitions/VendorServiceOffering",
+            "title": "ReplaceVendorServicesRequest.services.[]"
+          },
+          "title": "ReplaceVendorServicesRequest.services",
+          "type": "array"
+        }
+      },
+      "required": [
+        "services"
+      ],
+      "additionalProperties": false,
+      "title": "ReplaceVendorServicesRequest",
+      "type": "object"
+    },
+    "ReplaceVendorPackagesRequest": {
+      "properties": {
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/VendorPackageOffering",
+            "title": "ReplaceVendorPackagesRequest.packages.[]"
+          },
+          "title": "ReplaceVendorPackagesRequest.packages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "packages"
+      ],
+      "additionalProperties": false,
+      "title": "ReplaceVendorPackagesRequest",
+      "type": "object"
+    },
+    "VendorCommunityAssignment": {
+      "properties": {
+        "vendorId": {
+          "title": "VendorCommunityAssignment.vendorId",
+          "type": "string"
+        },
+        "communityId": {
+          "title": "VendorCommunityAssignment.communityId",
+          "type": "string"
+        },
+        "assignedBy": {
+          "title": "VendorCommunityAssignment.assignedBy",
+          "type": "string"
+        },
+        "assignedAt": {
+          "title": "VendorCommunityAssignment.assignedAt",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/VendorStatus",
+          "title": "VendorCommunityAssignment.status"
+        },
+        "operationalStatus": {
+          "$ref": "#/definitions/OperationalStatus",
+          "title": "VendorCommunityAssignment.operationalStatus"
+        }
+      },
+      "required": [
+        "vendorId",
+        "communityId",
+        "assignedBy",
+        "assignedAt",
+        "status",
+        "operationalStatus"
+      ],
+      "additionalProperties": false,
+      "title": "VendorCommunityAssignment",
+      "type": "object"
+    },
+    "ReplaceVendorCommunitiesRequest": {
+      "properties": {
+        "communityIds": {
+          "items": {
+            "title": "ReplaceVendorCommunitiesRequest.communityIds.[]",
+            "type": "string"
+          },
+          "title": "ReplaceVendorCommunitiesRequest.communityIds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "communityIds"
+      ],
+      "additionalProperties": false,
+      "title": "ReplaceVendorCommunitiesRequest",
+      "type": "object"
+    },
+    "AddVendorCommunityRequest": {
+      "properties": {
+        "communityId": {
+          "title": "AddVendorCommunityRequest.communityId",
+          "type": "string"
+        }
+      },
+      "required": [
+        "communityId"
+      ],
+      "additionalProperties": false,
+      "title": "AddVendorCommunityRequest",
       "type": "object"
     },
     "Pagination": {

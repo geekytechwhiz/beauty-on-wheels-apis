@@ -7,8 +7,10 @@ import {
   VendorAddressDdbItem,
   VendorBankDdbItem,
   VendorChildDdbItem,
+  VendorCommunityDdbItem,
   VendorDdbItem,
   VendorOwnerDdbItem,
+  VendorStatusHistoryDdbItem,
 } from '../types/repository.types';
 import {
   GSI1_INDEX,
@@ -256,6 +258,108 @@ export class VendorsRepository extends BaseRepository {
     };
 
     return this.queryPage<VendorDdbItem>(queryParams);
+  }
+
+  async getVendorsByIds(vendorIds: string[]): Promise<VendorDdbItem[]> {
+    if (vendorIds.length === 0) {
+      return [];
+    }
+
+    return this.batchGet<VendorDdbItem>({
+      RequestItems: {
+        [this.getTableName()]: {
+          Keys: vendorIds.map((vendorId) => ({
+            PK: VendorKeyBuilder.vendorPk(vendorId),
+            SK: VendorKeyBuilder.vendorSk(),
+          })),
+        },
+      },
+    });
+  }
+
+  async listStatusHistory(
+    vendorId: string,
+    limit = 50,
+  ): Promise<VendorStatusHistoryDdbItem[]> {
+    const page = await this.queryPage<VendorStatusHistoryDdbItem>({
+      TableName: this.getTableName(),
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': VendorKeyBuilder.vendorPk(vendorId),
+        ':sk': VendorKeyBuilder.statusHistorySkPrefix(),
+      },
+      ScanIndexForward: false,
+      Limit: limit,
+    });
+    return page.items;
+  }
+
+  async transactVendorProfile(input: {
+    profile: VendorDdbItem;
+    expectedUpdatedAt?: string;
+    expectedStatus?: VendorStatus;
+    puts?: Array<{
+      item: Record<string, unknown> | VendorCommunityDdbItem | VendorStatusHistoryDdbItem;
+      condition?: 'exists' | 'not_exists';
+    }>;
+    deletes?: Array<{ PK: string; SK: string }>;
+  }): Promise<void> {
+    const names: Record<string, string> = {};
+    const values: Record<string, unknown> = {};
+    const conditions = ['attribute_exists(PK)', 'attribute_exists(SK)'];
+
+    if (input.expectedStatus) {
+      names['#status'] = 'status';
+      values[':expectedStatus'] = input.expectedStatus;
+      conditions.push('#status = :expectedStatus');
+    }
+
+    if (input.expectedUpdatedAt) {
+      values[':expectedUpdatedAt'] = input.expectedUpdatedAt;
+      conditions.push('updatedAt = :expectedUpdatedAt');
+    }
+
+    const profilePut: Record<string, unknown> = {
+      TableName: this.getTableName(),
+      Item: input.profile,
+      ConditionExpression: conditions.join(' AND '),
+    };
+    if (Object.keys(names).length > 0) {
+      profilePut.ExpressionAttributeNames = names;
+    }
+    if (Object.keys(values).length > 0) {
+      profilePut.ExpressionAttributeValues = values;
+    }
+
+    const transactItems: Array<Record<string, unknown>> = [{ Put: profilePut }];
+
+    for (const put of input.puts ?? []) {
+      const entry: Record<string, unknown> = {
+        TableName: this.getTableName(),
+        Item: put.item,
+      };
+      if (put.condition === 'not_exists') {
+        entry.ConditionExpression =
+          'attribute_not_exists(PK) AND attribute_not_exists(SK)';
+      } else if (put.condition === 'exists') {
+        entry.ConditionExpression = 'attribute_exists(PK) AND attribute_exists(SK)';
+      }
+      transactItems.push({ Put: entry });
+    }
+
+    for (const key of input.deletes ?? []) {
+      transactItems.push({
+        Delete: {
+          TableName: this.getTableName(),
+          Key: key,
+          ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
+        },
+      });
+    }
+
+    await this.transactWrite({
+      TransactItems: transactItems as never,
+    });
   }
 }
 

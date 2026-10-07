@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { createLogger } from '@api-hub/observability';
+import { getWhatsAppMessageService } from './composition';
 import { loadConfig } from './config/env';
 import { ConversationFlow } from './flows/conversation.flow';
 import { loadWhatsAppCredentials } from './infra/secrets';
@@ -16,6 +17,7 @@ import {
 import { InMemoryConversationStore } from './repositories/conversation.repository';
 import { WhatsAppChannelService } from './services/channel.service';
 import { CustomerChannelService } from './services/customer-channel.service';
+import { handleSendMessageRequest, isSendMessageRequest } from './services/message-http';
 import { handleHttpRequest, healthResponse, HttpRequest, isHealthRequest, WebhookRuntime } from './services/webhook-http';
 
 const config = loadConfig();
@@ -90,7 +92,9 @@ createServer(async (req, res) => {
   try {
     const response = isHealthRequest(request)
       ? healthResponse(request.headers['x-correlation-id'])
-      : await handleHttpRequest(request, await localRuntime());
+      : isSendMessageRequest(request)
+        ? await handleSendMessageRequest(request, () => getWhatsAppMessageService())
+        : await handleHttpRequest(request, await localRuntime());
     res.writeHead(response.statusCode, response.headers);
     res.end(response.body);
   } catch (error) {

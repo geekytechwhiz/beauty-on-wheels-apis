@@ -178,6 +178,18 @@ export {
   type VendorOnboardingSubmittedPayload,
 } from './core/contracts/vendor-onboarding.events';
 export {
+  VendorApprovedEvent,
+  VendorRejectedEvent,
+  VendorLifecyclePayloadSchema,
+  VENDOR_APPROVED_EVENT_TYPE,
+  VENDOR_REJECTED_EVENT_TYPE,
+  VENDOR_LIFECYCLE_EVENT_VERSION,
+  VENDOR_LIFECYCLE_EVENT_SOURCE,
+  VENDOR_LIFECYCLE_EVENT_OPERATIONS,
+  vendorLifecycleIdempotencyKey,
+  type VendorLifecyclePayload,
+} from './core/contracts/vendor-lifecycle.events';
+export {
   VendorEmailVerificationRequestedEvent,
   VendorEmailVerificationRequestedPayloadSchema,
   VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,

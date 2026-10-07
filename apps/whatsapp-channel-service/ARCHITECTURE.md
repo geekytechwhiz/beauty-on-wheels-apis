@@ -49,7 +49,9 @@ Webhook idempotency is the Meta message id. The worker puts `MSG#<id>` with `att
 
 ## Errors
 
-Downstream failures become `ChannelError` codes: `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `TIMEOUT`, `AUTHENTICATION_ERROR`, `AUTHORIZATION_ERROR`, `META_API_ERROR`, `INTERNAL_ERROR`. Customers see a short sentence from `customerMessage`. Logs include the code, dependency, and correlation id, not tokens or full phone numbers.
+Downstream failures become `ChannelError` codes: `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `TIMEOUT`, `AUTHENTICATION_ERROR`, `AUTHORIZATION_ERROR`, `META_API_ERROR`, `WHATSAPP_CONFIG_MISSING`, `WHATSAPP_SEND_FAILED`, `INTERNAL_ERROR`. Customers see a short sentence from `customerMessage`. Logs include the code, dependency, and correlation id, not tokens or full phone numbers.
+
+`POST /whatsapp/messages` is a separate Lambda. The handler validates the body, `WhatsAppMessageService` checks the recipient and text, and `MetaWhatsAppProvider` calls Graph. The HTTP envelope is `ApiResponse`. Meta failures are returned as `WHATSAPP_SEND_FAILED` or `WHATSAPP_AUTH_FAILED` and do not include the access token.
 
 Webhook JSON responses use `ApiResponse` from `@api-hub/utils`. The Meta challenge is the exception: it is plain text, because Meta requires the raw `hub.challenge`.
 

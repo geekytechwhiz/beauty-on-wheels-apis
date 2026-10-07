@@ -1,56 +1,29 @@
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest } from '@api-hub/utils';
 
 import {
-    PreferencesService,
-    getPreferencesService
-} from "../services/preferences.service";
+  getPreferencesService,
+  PreferencesService,
+} from '../services/preferences.service';
 
 export class PreferencesController {
+  constructor(
+    private readonly service: PreferencesService = getPreferencesService(),
+  ) {}
 
-    constructor(
+  async getPreferences(request: LambdaRequest) {
+    return this.service.getPreferences(request);
+  }
 
-        private readonly service: PreferencesService =
-            getPreferencesService()
-
-    ) {}
-
-
-
-    async handleGetpreferences(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getpreferences(
-            request
-        );
-
-    }
-
-
-
-    async handlePutpreferences(
-        request: LambdaRequest
-    ) {
-
-        return this.service.putpreferences(
-            request
-        );
-
-    }
-
+  async putPreferences(request: LambdaRequest) {
+    return this.service.putPreferences(request);
+  }
 }
 
 let controller: PreferencesController;
 
-export function getPreferencesController() {
-
-    if (!controller) {
-
-        controller =
-            new PreferencesController();
-
-    }
-
-    return controller;
-
+export function getPreferencesController(): PreferencesController {
+  if (!controller) {
+    controller = new PreferencesController();
+  }
+  return controller;
 }

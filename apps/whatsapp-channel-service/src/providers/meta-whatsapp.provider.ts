@@ -94,7 +94,16 @@ export class MetaWhatsAppProvider {
   }
 
   async text(to: string, text: string): Promise<void> {
-    await this.deliver({ to, type: 'text', text: text.slice(0, 4096) });
+    await this.sendText(to, text);
+  }
+
+  async sendText(to: string, text: string): Promise<{ messageId: string }> {
+    const payload = await this.deliver({ to, type: 'text', text: text.slice(0, 4096) });
+    const messageId = readMessageId(payload);
+    if (!messageId) {
+      throw new ChannelError(CHANNEL_ERROR_CODE.META_API_ERROR, 'Meta WhatsApp API did not return a message id');
+    }
+    return { messageId };
   }
 
   async buttons(to: string, body: string, buttons: ReplyButton[]): Promise<void> {
@@ -159,7 +168,7 @@ export class MetaWhatsAppProvider {
     });
   }
 
-  private async deliver(request: SendMessageRequest): Promise<void> {
+  private async deliver(request: SendMessageRequest): Promise<Record<string, unknown>> {
     const body: Record<string, unknown> = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -169,14 +178,38 @@ export class MetaWhatsAppProvider {
     if (request.type === 'text') body.text = { preview_url: false, body: request.text ?? '' };
     if (request.type === 'interactive') body.interactive = request.interactive;
     if (request.type === 'template') body.template = request.template;
-    await this.post(body);
-    recordMetric(WHATSAPP_METRIC.MESSAGES_SENT);
+    const payload = await this.post(body);
+    if (readMessageId(payload)) recordMetric(WHATSAPP_METRIC.MESSAGES_SENT);
+    return payload;
   }
 
-  private async post(body: Record<string, unknown>): Promise<void> {
-    if (!this.config.phoneNumberId || !this.config.accessToken) {
-      throw new ChannelError(CHANNEL_ERROR_CODE.META_API_ERROR, 'WhatsApp Cloud API credentials are not configured');
+  private assertReady(): void {
+    if (!this.config.accessToken.trim()) {
+      throw new ChannelError(CHANNEL_ERROR_CODE.WHATSAPP_CONFIG_MISSING, 'WhatsApp access token is not configured', {
+        metadata: { field: 'WHATSAPP_ACCESS_TOKEN' },
+      });
     }
+    if (!this.config.phoneNumberId.trim()) {
+      throw new ChannelError(CHANNEL_ERROR_CODE.WHATSAPP_CONFIG_MISSING, 'WhatsApp phone number id is not configured', {
+        metadata: { field: 'WHATSAPP_PHONE_NUMBER_ID' },
+      });
+    }
+    if (!this.config.apiVersion.trim()) {
+      throw new ChannelError(CHANNEL_ERROR_CODE.WHATSAPP_CONFIG_MISSING, 'WhatsApp API version is not configured', {
+        metadata: { field: 'WHATSAPP_API_VERSION' },
+      });
+    }
+  }
+
+  private redact(value: string): string {
+    let text = value.replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]');
+    const token = this.config.accessToken;
+    if (token) text = text.split(token).join('[REDACTED]');
+    return text.slice(0, 300);
+  }
+
+  private async post(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.assertReady();
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}/${this.config.phoneNumberId}/messages`, {
@@ -190,25 +223,46 @@ export class MetaWhatsAppProvider {
       });
     } catch (error) {
       recordMetric(WHATSAPP_METRIC.META_API_FAILED);
-      const name = error instanceof Error ? error.name : '';
+      const name = error instanceof Error ? error.name : 'Error';
+      logger.error({ event: 'meta_api_failed', errorName: name });
       if (name === 'TimeoutError' || name === 'AbortError') {
         throw new ChannelError(CHANNEL_ERROR_CODE.TIMEOUT, 'Meta WhatsApp API timed out', { retryable: true });
       }
       throw new ChannelError(CHANNEL_ERROR_CODE.META_API_ERROR, 'Meta WhatsApp API request failed', { retryable: true });
     }
 
+    const raw = await readBody(response);
     if (!response.ok) {
       recordMetric(WHATSAPP_METRIC.META_API_FAILED);
+      const metaError = readMetaError(raw);
       const retryable = response.status === 429 || response.status >= 500;
-      logger.error({ event: 'meta_api_failed', status: response.status, retryable });
-      if (response.status === 401 || response.status === 403) {
-        throw new ChannelError(CHANNEL_ERROR_CODE.AUTHENTICATION_ERROR, 'Meta WhatsApp API rejected the access token');
+      logger.error({
+        event: 'meta_api_failed',
+        status: response.status,
+        retryable,
+        metaErrorCode: metaError.code,
+        metaErrorType: metaError.type,
+        metaErrorMessage: metaError.message ? this.redact(metaError.message) : undefined,
+      });
+      if (response.status === 401) {
+        throw new ChannelError(CHANNEL_ERROR_CODE.AUTHENTICATION_ERROR, 'Meta WhatsApp API rejected the request');
+      }
+      if (response.status === 403) {
+        throw new ChannelError(CHANNEL_ERROR_CODE.AUTHORIZATION_ERROR, 'Meta WhatsApp API rejected the request');
       }
       throw new ChannelError(CHANNEL_ERROR_CODE.META_API_ERROR, `Meta WhatsApp API failed with status ${response.status}`, {
         retryable,
         metadata: { status: response.status },
       });
     }
+
+    const payload = parseJsonObject(raw);
+    logger.info({
+      event: 'meta_api_response',
+      status: response.status,
+      messageId: readMessageId(payload) || undefined,
+    });
+    return payload;
   }
 
   private parseMessage(message: Record<string, unknown>): IncomingMessage {
@@ -240,4 +294,45 @@ export class MetaWhatsAppProvider {
     }
     return { ...base, type: type === 'image' ? 'image' : 'unknown' };
   }
+}
+
+async function readBody(response: Response): Promise<string> {
+  if (typeof response.text !== 'function') return '';
+  try {
+    return await response.text();
+  } catch {
+    return '';
+  }
+}
+
+function parseJsonObject(raw: string): Record<string, unknown> {
+  if (!raw.trim()) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function readMessageId(payload: Record<string, unknown>): string {
+  const messages = payload.messages;
+  if (!Array.isArray(messages)) return '';
+  const first = messages[0];
+  if (!first || typeof first !== 'object') return '';
+  const id = (first as { id?: unknown }).id;
+  return typeof id === 'string' ? id : '';
+}
+
+function readMetaError(raw: string): { code?: number | string; type?: string; message?: string } {
+  const payload = parseJsonObject(raw);
+  const error = payload.error;
+  if (!error || typeof error !== 'object' || Array.isArray(error)) return {};
+  const record = error as { code?: unknown; type?: unknown; message?: unknown };
+  return {
+    code: typeof record.code === 'number' || typeof record.code === 'string' ? record.code : undefined,
+    type: typeof record.type === 'string' ? record.type : undefined,
+    message: typeof record.message === 'string' ? record.message : undefined,
+  };
 }

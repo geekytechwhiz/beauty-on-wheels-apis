@@ -44,6 +44,22 @@ export class CapabilitiesController {
 
     }
 
+    async handleGetvendorservices(request: LambdaRequest) {
+        return this.service.getvendorservices(request);
+    }
+
+    async handleUpdatevendorservices(request: LambdaRequest) {
+        return this.service.updatevendorservices(request);
+    }
+
+    async handleGetvendorpackages(request: LambdaRequest) {
+        return this.service.getvendorpackages(request);
+    }
+
+    async handleUpdatevendorpackages(request: LambdaRequest) {
+        return this.service.updatevendorpackages(request);
+    }
+
 }
 
 let controller: CapabilitiesController;

@@ -1,80 +1,34 @@
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest } from '@api-hub/utils';
 
-import {
-    AddressesService,
-    getAddressesService
-} from "../services/addresses.service";
+import { AddressesService, getAddressesService } from '../services/addresses.service';
 
 export class AddressesController {
+  constructor(
+    private readonly service: AddressesService = getAddressesService(),
+  ) {}
 
-    constructor(
+  async listAddresses(request: LambdaRequest) {
+    return this.service.listAddresses(request);
+  }
 
-        private readonly service: AddressesService =
-            getAddressesService()
+  async createAddress(request: LambdaRequest) {
+    return this.service.createAddress(request);
+  }
 
-    ) {}
+  async updateAddress(request: LambdaRequest) {
+    return this.service.updateAddress(request);
+  }
 
-
-
-    async handleGetaddresses(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getaddresses(
-            request
-        );
-
-    }
-
-
-
-    async handlePostaddresses(
-        request: LambdaRequest
-    ) {
-
-        return this.service.postaddresses(
-            request
-        );
-
-    }
-
-
-
-    async handlePutaddressid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.putaddressid(
-            request
-        );
-
-    }
-
-
-
-    async handleDeleteaddressid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.deleteaddressid(
-            request
-        );
-
-    }
-
+  async deleteAddress(request: LambdaRequest) {
+    return this.service.deleteAddress(request);
+  }
 }
 
 let controller: AddressesController;
 
-export function getAddressesController() {
-
-    if (!controller) {
-
-        controller =
-            new AddressesController();
-
-    }
-
-    return controller;
-
+export function getAddressesController(): AddressesController {
+  if (!controller) {
+    controller = new AddressesController();
+  }
+  return controller;
 }

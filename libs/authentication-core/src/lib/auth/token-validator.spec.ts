@@ -139,6 +139,43 @@ describe('validateAccessToken', () => {
     expect(payload.token_use).toBe('id');
   });
 
+  it('accepts an access token that carries application roles', async () => {
+    const token = signAccessToken(privateKey, kid, {
+      roles: ['CUSTOMER', 'VENDOR'],
+      scope: 'aws.cognito.signin.user.admin',
+    });
+    const payload = await validateAccessToken(token, { config, jwksCache: cache });
+    expect(payload.sub).toBe('cognito-sub-1');
+    expect(payload.roles).toEqual(['CUSTOMER', 'VENDOR']);
+    expect(payload.scope).toBe('aws.cognito.signin.user.admin');
+  });
+
+  it('accepts a legacy access token that has no roles claim', async () => {
+    const token = signAccessToken(privateKey, kid, {
+      scope: 'aws.cognito.signin.user.admin',
+    });
+    const payload = await validateAccessToken(token, { config, jwksCache: cache });
+    expect(payload.sub).toBe('cognito-sub-1');
+    expect(payload.roles).toBeUndefined();
+  });
+
+  it('normalizes a JSON-string roles claim and ignores the generic user role', async () => {
+    const token = signAccessToken(privateKey, kid, {
+      roles: '["user","admin"]',
+    });
+    const payload = await validateAccessToken(token, { config, jwksCache: cache });
+    expect(payload.roles).toEqual(['ADMIN']);
+  });
+
+  it('rejects a roles claim that carries profile data', async () => {
+    const token = signAccessToken(privateKey, kid, {
+      roles: { onboardingStatus: 'PENDING_REVIEW' },
+    });
+    await expect(
+      validateAccessToken(token, { config, jwksCache: cache }),
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
   it('rejects an ID token when access tokens are required', async () => {
     const token = signAccessToken(privateKey, kid, {
       token_use: 'id',

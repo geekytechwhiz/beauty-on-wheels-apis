@@ -10,6 +10,8 @@ export const SERVICE_AREA_ENTITY_TYPE = 'ServiceArea' as const;
 export const STAFF_ENTITY_TYPE = 'Staff' as const;
 export const VENDOR_CAPABILITIES_ENTITY_TYPE = 'VendorCapabilities' as const;
 export const VENDOR_OPERATING_HOURS_ENTITY_TYPE = 'VendorOperatingHours' as const;
+export const VENDOR_STATUS_HISTORY_ENTITY_TYPE = 'VendorStatusHistory' as const;
+export const VENDOR_COMMUNITY_ENTITY_TYPE = 'VendorCommunity' as const;
 
 export const VENDOR_PROFILE_SK = 'PROFILE';
 export const VENDOR_OWNER_SK = 'OWNER';
@@ -21,10 +23,13 @@ export const BRANCH_SK_PREFIX = 'BRANCH#';
 export const DOCUMENT_SK_PREFIX = 'DOCUMENT#';
 export const SERVICE_AREA_SK_PREFIX = 'SERVICE_AREA#';
 export const STAFF_SK_PREFIX = 'STAFF#';
+export const STATUS_HISTORY_SK_PREFIX = 'STATUS_HISTORY#';
+export const COMMUNITY_SK_PREFIX = 'COMMUNITY#';
 
 export const VENDOR_GSI1_PK = 'VENDOR';
 export const GSI1_INDEX = 'GSI1';
 export const GSI2_INDEX = 'GSI2';
+export const GSI3_INDEX = 'GSI3';
 
 export const VendorKeyBuilder = {
   vendorPk: (vendorId: string) => `VENDOR#${vendorId}`,
@@ -87,4 +92,20 @@ export const VendorKeyBuilder = {
     `POSTAL#${postalCode}#${createdAt}#${vendorId}`,
 
   gsi2SkPostalPrefix: (postalCode: string) => `POSTAL#${postalCode}#`,
+
+  statusHistorySk: (reviewedAt: string, historyId: string) =>
+    `${STATUS_HISTORY_SK_PREFIX}${reviewedAt}#${historyId}`,
+
+  statusHistorySkPrefix: () => STATUS_HISTORY_SK_PREFIX,
+
+  communitySk: (communityId: string) => `${COMMUNITY_SK_PREFIX}${communityId}`,
+
+  communitySkPrefix: () => COMMUNITY_SK_PREFIX,
+
+  communityGsi3Pk: (communityId: string) => `COMMUNITY#${communityId}`,
+
+  communityGsi3Sk: (status: VendorStatus, vendorId: string) =>
+    `STATUS#${status}#VENDOR#${vendorId}`,
+
+  communityGsi3StatusPrefix: (status: VendorStatus) => `STATUS#${status}#`,
 };

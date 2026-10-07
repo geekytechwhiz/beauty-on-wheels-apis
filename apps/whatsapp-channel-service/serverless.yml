@@ -105,7 +105,7 @@ custom:
       - aws-sdk
   autoswagger:
     title: WhatsApp Channel Service API
-    description: Meta WhatsApp webhook and health endpoints.
+    description: Meta WhatsApp webhook, outbound text messages, and health endpoints.
     version: 1.0.0
     apiType: http
     basePath: /${self:provider.stage}
@@ -146,6 +146,18 @@ functions:
           cors: true
           summary: Liveness check
           description: Returns ok without reading Secrets Manager or calling downstream services.
+
+  sendMessage:
+    handler: src/handlers/messages.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - http:
+          path: /whatsapp/messages
+          method: post
+          cors: true
+          summary: Send a WhatsApp text message
+          description: Validates the recipient and text, then sends the message through the Meta WhatsApp Cloud API. Credentials come from the environment or the WhatsApp secret.
 
   inbound:
     handler: src/handlers/inbound.handler

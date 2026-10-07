@@ -21,7 +21,7 @@ export interface HttpResponse {
 
 export interface WebhookRuntime {
   verifyWebhook(mode?: string, token?: string, challenge?: string): string | null;
-  verifySignature(rawBody: string, signatureHeader?: string): boolean;
+  verifySignature(rawBody: string, signatureHeader?: string): boolean | Promise<boolean>;
   processInline: boolean;
   processWebhook(payload: WhatsAppWebhookPayload, correlationId: string): Promise<void>;
   enqueue(envelope: InboundEnvelope): Promise<void>;
@@ -47,14 +47,26 @@ function asHeaders(headers: APIGatewayProxyResult['headers']): Record<string, st
   return result;
 }
 
+export function isHealthRequest(request: Pick<HttpRequest, 'method' | 'path'>): boolean {
+  return request.method === 'GET' && request.path.endsWith('/health');
+}
+
+export function healthResponse(correlationId?: string): HttpResponse {
+  const response = ApiResponse.ok(
+    { status: 'ok', service: 'whatsapp-channel-service' },
+    'OK',
+    { correlationId: correlationId || `corr-${Date.now()}` },
+  );
+  return { statusCode: response.statusCode, body: response.body, headers: asHeaders(response.headers) };
+}
+
 export async function handleHttpRequest(request: HttpRequest, runtime: WebhookRuntime): Promise<HttpResponse> {
   const correlationId = header(request.headers, 'x-correlation-id') || `corr-${Date.now()}`;
   const options = { correlationId };
 
   try {
-    if (request.method === 'GET' && request.path.endsWith('/health')) {
-      const response = ApiResponse.ok({ status: 'ok', service: 'whatsapp-channel-service' }, 'OK', options);
-      return { statusCode: response.statusCode, body: response.body, headers: asHeaders(response.headers) };
+    if (isHealthRequest(request)) {
+      return healthResponse(correlationId);
     }
 
     if (request.method === 'GET' && request.path.includes('/webhooks/whatsapp')) {
@@ -68,7 +80,7 @@ export async function handleHttpRequest(request: HttpRequest, runtime: WebhookRu
 
     if (request.method === 'POST' && request.path.includes('/webhooks/whatsapp')) {
       const signature = header(request.headers, 'x-hub-signature-256');
-      if (!runtime.verifySignature(request.rawBody, signature)) {
+      if (!(await runtime.verifySignature(request.rawBody, signature))) {
         recordMetric(WHATSAPP_METRIC.WEBHOOK_FAILED);
         const response = ApiResponse.unauthorized(message('Unauthorized', 'Invalid webhook signature'), options, { code: CHANNEL_ERROR_CODE.AUTHENTICATION_ERROR });
         return { statusCode: response.statusCode, body: response.body, headers: asHeaders(response.headers) };

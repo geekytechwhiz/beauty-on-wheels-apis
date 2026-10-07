@@ -21,13 +21,11 @@ provider:
     LOG_LEVEL: INFO
     METRICS_NAMESPACE: ApiHub
     REDACT_PII: 'true'
-    WHATSAPP_API_VERSION: ${env:WHATSAPP_API_VERSION, 'v23.0'}
+    WHATSAPP_API_VERSION: ${env:WHATSAPP_API_VERSION, 'v25.0'}
     WHATSAPP_PHONE_NUMBER_ID: ${env:WHATSAPP_PHONE_NUMBER_ID, ''}
     WHATSAPP_BUSINESS_ACCOUNT_ID: ${env:WHATSAPP_BUSINESS_ACCOUNT_ID, ''}
     WHATSAPP_VERIFY_TOKEN: ${env:WHATSAPP_VERIFY_TOKEN, ''}
-    WHATSAPP_ACCESS_TOKEN_SECRET: ${self:custom.accessTokenSecretName}
-    WHATSAPP_APP_SECRET_NAME: ${self:custom.appSecretName}
-    SERVICE_AUTH_TOKEN_SECRET: ${self:custom.serviceAuthSecretName}
+    WHATSAPP_SECRET_NAME: ${self:custom.whatsappSecretName}
     WHATSAPP_CONVERSATION_TABLE: ${self:custom.conversationTableName}
     CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
     AVAILABILITY_SERVICE_URL: ${env:AVAILABILITY_SERVICE_URL, ''}
@@ -69,9 +67,7 @@ provider:
           Action:
             - secretsmanager:GetSecretValue
           Resource:
-            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.accessTokenSecretName}-*
-            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.appSecretName}-*
-            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.serviceAuthSecretName}-*
+            - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${self:custom.whatsappSecretName}-*
         - Effect: Allow
           Action:
             - xray:PutTraceSegments
@@ -89,9 +85,7 @@ custom:
   conversationTableName: ${self:service}-${self:provider.stage}-conversations
   inboundQueueName: ${self:custom.resourcePrefix}-whatsapp-inbound
   inboundDlqName: ${self:custom.resourcePrefix}-whatsapp-inbound-dlq
-  accessTokenSecretName: ${self:custom.resourcePrefix}/whatsapp/access-token
-  appSecretName: ${self:custom.resourcePrefix}/whatsapp/app-secret
-  serviceAuthSecretName: ${self:custom.resourcePrefix}/whatsapp/service-auth-token
+  whatsappSecretName: ${env:WHATSAPP_SECRET_NAME, 'apdev-beauty-on-wheels/whatsapp'}
   dotenv:
     exclude:
       - WHATSAPP_ACCESS_TOKEN
@@ -150,7 +144,8 @@ functions:
           path: /health
           method: get
           cors: true
-          summary: Health check
+          summary: Liveness check
+          description: Returns ok without reading Secrets Manager or calling downstream services.
 
   inbound:
     handler: src/handlers/inbound.handler

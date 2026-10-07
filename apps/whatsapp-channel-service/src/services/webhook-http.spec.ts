@@ -86,9 +86,28 @@ describe('handleHttpRequest', () => {
     expect(deps.processWebhook).not.toHaveBeenCalled();
   });
 
+  it('returns health without calling runtime dependencies', async () => {
+    const response = await handleHttpRequest({
+      method: 'GET',
+      path: '/dev/health',
+      rawBody: '',
+      headers: {},
+      query: {},
+    }, {
+      verifyWebhook: () => { throw new Error('verify token missing'); },
+      verifySignature: () => { throw new Error('secrets unavailable'); },
+      processInline: true,
+      processWebhook: () => Promise.reject(new Error('catalog unavailable')),
+      enqueue: () => Promise.reject(new Error('booking unavailable')),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).data).toEqual({ status: 'ok', service: 'whatsapp-channel-service' });
+  });
+
   it('returns health and a validation error for malformed JSON', async () => {
     const health = await handleHttpRequest({ method: 'GET', path: '/health', rawBody: '', headers: {}, query: {} }, runtime());
     expect(health.statusCode).toBe(200);
+    expect(JSON.parse(health.body).data).toEqual({ status: 'ok', service: 'whatsapp-channel-service' });
 
     const body = '{';
     const signature = createHmac('sha256', 'secret').update(body).digest('hex');

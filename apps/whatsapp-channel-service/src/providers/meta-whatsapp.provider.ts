@@ -13,7 +13,7 @@ export interface MetaClientConfig {
   phoneNumberId: string;
   businessAccountId: string;
   accessToken: string;
-  appSecret: string;
+  appSecret?: string;
   verifyToken: string;
   timeoutMs: number;
 }
@@ -46,11 +46,16 @@ export class MetaWhatsAppProvider {
   }
 
   verifySignature(rawBody: string, signatureHeader: string | undefined): boolean {
-    if (!this.config.appSecret || !signatureHeader?.startsWith('sha256=')) return false;
+    const appSecret = this.config.appSecret;
+    if (!appSecret) {
+      logger.warn({ event: 'whatsapp_app_secret_missing' });
+      return false;
+    }
+    if (!signatureHeader?.startsWith('sha256=')) return false;
     const provided = signatureHeader.slice('sha256='.length);
     if (!/^[0-9a-f]+$/i.test(provided) || provided.length % 2 !== 0) return false;
     const actual = Buffer.from(provided, 'hex');
-    const expected = createHmac('sha256', this.config.appSecret).update(rawBody, 'utf8').digest();
+    const expected = createHmac('sha256', appSecret).update(rawBody, 'utf8').digest();
     if (actual.length !== expected.length) return false;
     return timingSafeEqual(actual, expected);
   }

@@ -9,8 +9,8 @@
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health check",
-        "description": "",
+        "summary": "Liveness check",
+        "description": "Returns ok without reading Secrets Manager or calling downstream services.",
         "operationId": "webhook.get./health",
         "consumes": [
           "application/json"

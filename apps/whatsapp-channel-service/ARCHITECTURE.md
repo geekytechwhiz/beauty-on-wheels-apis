@@ -72,7 +72,7 @@ GET retries also emit `UpstreamRetryAttempts`.
 
 ## IAM
 
-The Lambda role can `GetItem`, `PutItem`, `UpdateItem`, and `DeleteItem` on the conversation table only. It can send, receive, delete, and read attributes on the inbound queue and its DLQ. It can `GetSecretValue` on the three named secrets. X-Ray permissions match the other traced services. There is no `dynamodb:*`, `secretsmanager:*`, or `ssm:*`.
+The Lambda role can `GetItem`, `PutItem`, `UpdateItem`, and `DeleteItem` on the conversation table only. It can send, receive, delete, and read attributes on the inbound queue and its DLQ. It can `GetSecretValue` only on the secret named by `WHATSAPP_SECRET_NAME`. X-Ray permissions match the other traced services. There is no `dynamodb:*`, `secretsmanager:*`, or `ssm:*`.
 
 ## What this stack does not create
 

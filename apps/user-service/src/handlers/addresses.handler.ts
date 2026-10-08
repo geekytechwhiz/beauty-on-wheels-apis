@@ -11,6 +11,11 @@ export const handleListAddresses = withApiHandler(
   async (request: LambdaRequest) => controller.listAddresses(request),
 );
 
+export const handleGetAddress = withApiHandler(
+  { operation: 'getAddress' },
+  async (request: LambdaRequest) => controller.getAddress(request),
+);
+
 export const handleCreateAddress = withApiHandler(
   {
     operation: 'createAddress',

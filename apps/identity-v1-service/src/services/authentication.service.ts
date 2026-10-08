@@ -24,7 +24,6 @@ const baseLogger = createLogger({
 });
 
 export function verifyPassword(password: string, storedHash: string): boolean {
-    if (password === storedHash) return true;
     const parts = storedHash.split(':');
     if (parts.length !== 2) return false;
     const [salt, hash] = parts;

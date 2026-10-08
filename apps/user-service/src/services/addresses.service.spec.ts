@@ -1,4 +1,4 @@
-import { ForbiddenError, LambdaRequest } from '@api-hub/utils';
+import { ForbiddenError, LambdaRequest, NotFoundError } from '@api-hub/utils';
 
 import { AddressesService } from './addresses.service';
 import { AddressesRepository } from '../repositories/addresses.repository';
@@ -141,6 +141,43 @@ describe('AddressesService', () => {
         }),
       }),
     );
+  });
+
+  it('returns one owned address', async () => {
+    addresses.getAddress.mockResolvedValue(address('addr-1', true));
+
+    const result = await service.getAddress(
+      request({ pathParameters: { addressId: 'addr-1' } }),
+    );
+
+    expect(result).toMatchObject({
+      id: 'addr-1',
+      userId: 'user-1',
+      isDefault: true,
+    });
+  });
+
+  it('hides a missing or deleted address', async () => {
+    addresses.getAddress.mockResolvedValue({
+      ...address('addr-1', false),
+      status: 'deleted',
+    });
+
+    await expect(
+      service.getAddress(request({ pathParameters: { addressId: 'addr-1' } })),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('rejects a get for another customer', async () => {
+    await expect(
+      service.getAddress(
+        request({
+          pathParameters: { addressId: 'addr-1' },
+          context: { userContext: { userId: 'user-2', roles: ['customer'] } },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(addresses.getAddress).not.toHaveBeenCalled();
   });
 
   it('rejects another customer', async () => {

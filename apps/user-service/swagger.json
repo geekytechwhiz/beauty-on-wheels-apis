@@ -1,1 +1,172 @@
-{}
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Beauty on Wheels - User Service API",
+    "version": "1",
+    "description": "Customer profile and address responses use the platform envelope. The resource is in data. Lists are data.items. Errors set success to false and error.code to VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, or INTERNAL_SERVER_ERROR."
+  },
+  "paths": {
+    "/users/{userId}/addresses/{addressId}": {
+      "get": {
+        "summary": "Get address",
+        "description": "Requires Authorization: Bearer access token. Owner, admin, or service principal. userId in the path must match the authenticated customer unless the caller is an admin or service principal.",
+        "tags": ["Addresses"],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "addressId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform envelope. The address is in data.",
+            "schema": { "$ref": "#/definitions/AddressEnvelope" },
+            "examples": {
+              "application/json": {
+                "success": true,
+                "statusCode": 200,
+                "message": {
+                  "title": "SUCCESS",
+                  "description": "Request processed successfully",
+                  "severity": "SUCCESS"
+                },
+                "data": {
+                  "id": "addr-1",
+                  "userId": "u-1",
+                  "type": "home",
+                  "line1": "12 Palm Street",
+                  "city": "Kochi",
+                  "state": "Kerala",
+                  "country": "India",
+                  "postalCode": "682001",
+                  "isDefault": true,
+                  "createdAt": "2026-10-08T00:00:00.000Z",
+                  "updatedAt": "2026-10-08T00:00:00.000Z"
+                },
+                "error": null,
+                "meta": {
+                  "correlationId": "example",
+                  "timestamp": "2026-10-08T00:00:00.000Z",
+                  "version": "v1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or expired access token",
+            "schema": { "$ref": "#/definitions/GatewayError" }
+          },
+          "403": {
+            "description": "Caller cannot read this address",
+            "schema": { "$ref": "#/definitions/GatewayError" }
+          },
+          "404": {
+            "description": "Address or customer profile not found",
+            "schema": { "$ref": "#/definitions/GatewayError" }
+          }
+        },
+        "security": [{ "bearer": [] }]
+      }
+    }
+  },
+  "definitions": {
+    "AddressEnvelope": {
+      "type": "object",
+      "required": ["success", "statusCode", "data", "error"],
+      "properties": {
+        "success": { "type": "boolean" },
+        "statusCode": { "type": "integer" },
+        "message": { "$ref": "#/definitions/GatewayMessage" },
+        "data": { "$ref": "#/definitions/Address" },
+        "error": { "type": "null" },
+        "meta": { "$ref": "#/definitions/GatewayMeta" }
+      }
+    },
+    "Address": {
+      "type": "object",
+      "required": ["id", "userId", "type", "line1", "city", "isDefault", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["home", "work", "business"] },
+        "line1": { "type": "string" },
+        "line2": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "postalCode": { "type": "string" },
+        "country": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "GatewayMessage": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "severity": { "type": "string" }
+      }
+    },
+    "GatewayMeta": {
+      "type": "object",
+      "properties": {
+        "correlationId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "GatewayError": {
+      "type": "object",
+      "required": ["success", "statusCode", "error"],
+      "properties": {
+        "success": { "type": "boolean", "example": false },
+        "statusCode": { "type": "integer" },
+        "message": { "$ref": "#/definitions/GatewayMessage" },
+        "data": { "type": "null" },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "VALIDATION_ERROR",
+                "UNAUTHORIZED",
+                "FORBIDDEN",
+                "NOT_FOUND",
+                "CONFLICT",
+                "INTERNAL_SERVER_ERROR",
+                "INVALID_CREDENTIALS",
+                "INVALID_REFRESH_TOKEN",
+                "INVALID_OTP"
+              ]
+            },
+            "details": {
+              "type": "array",
+              "items": { "type": "object" }
+            }
+          }
+        },
+        "meta": { "$ref": "#/definitions/GatewayMeta" }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer access token from POST /auth/login or POST /otp/verify"
+    }
+  }
+}

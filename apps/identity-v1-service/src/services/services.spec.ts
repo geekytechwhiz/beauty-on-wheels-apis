@@ -207,6 +207,10 @@ describe('Services Unit Tests', () => {
             expect(mockCognito.issueTokens).toHaveBeenCalledWith('bow_user');
         });
 
+        it('rejects a password that only matches the stored hash text', () => {
+            expect(verifyPassword('plaintext-secret', 'plaintext-secret')).toBe(false);
+        });
+
         it('throws error for invalid password', async () => {
             mockRepo.getUserByEmail.mockResolvedValue({
                 userId: 'u-123',
@@ -256,6 +260,41 @@ describe('Services Unit Tests', () => {
             expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
                 mockCognito.refreshTokens.mock.invocationCallOrder[0],
             );
+        });
+
+        it('rejects an unknown refresh token', async () => {
+            mockRepo.getRefreshToken.mockResolvedValue(null);
+            const service = new AuthenticationService(mockRepo, mockCognito);
+
+            await expect(
+                service.postrefreshtoken({
+                    body: { refreshToken: 'not-a-session' },
+                } as unknown as LambdaRequest),
+            ).rejects.toMatchObject({
+                statusCode: 401,
+                code: 'INVALID_REFRESH_TOKEN',
+            });
+            expect(mockCognito.refreshTokens).not.toHaveBeenCalled();
+        });
+
+        it('rejects an expired refresh token', async () => {
+            mockRepo.getRefreshToken.mockResolvedValue({
+                userId: 'u-123',
+                sessionId: 's-999',
+                status: 'ACTIVE',
+                expiresAt: new Date(Date.now() - 1000).toISOString(),
+            } as any);
+            const service = new AuthenticationService(mockRepo, mockCognito);
+
+            await expect(
+                service.postrefreshtoken({
+                    body: { refreshToken: 'expired-token' },
+                } as unknown as LambdaRequest),
+            ).rejects.toMatchObject({
+                statusCode: 401,
+                code: 'INVALID_REFRESH_TOKEN',
+            });
+            expect(mockCognito.refreshTokens).not.toHaveBeenCalled();
         });
 
         it('logs out and signs the Cognito user out globally', async () => {
@@ -706,6 +745,20 @@ describe('Services Unit Tests', () => {
             expect(result).not.toHaveProperty('passwordHash');
             expect(result).not.toHaveProperty('PK');
             expect(result).not.toHaveProperty('SK');
+        });
+
+        it('rejects /me when the token has no user', async () => {
+            const service = new ProfileService(mockProfileRepo);
+
+            await expect(
+                service.getme({
+                    context: { userContext: {} },
+                } as unknown as LambdaRequest),
+            ).rejects.toMatchObject({
+                statusCode: 401,
+                code: 'UNAUTHORIZED',
+            });
+            expect(mockProfileRepo.getUser).not.toHaveBeenCalled();
         });
     });
 

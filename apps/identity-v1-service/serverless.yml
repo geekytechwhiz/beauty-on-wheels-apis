@@ -140,11 +140,12 @@ functions:
           method: post
           cors: true
           summary: "Register a new user"
+          description: "Public. HTTP 200 platform envelope. The created identity is in data (id, email, phone, status, roles). This call does not return tokens."
           swaggerTags:
             - Registration
           bodyType: RegisterRequest
           responseData:
-            201:
+            200:
               description: "User created"
               bodyType: User
 

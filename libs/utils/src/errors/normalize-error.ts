@@ -74,6 +74,30 @@ type ErrorLike = {
   details?: BaseError['details'];
 };
 
+function validationErrorFromZod(zodError: ZodError): BaseError {
+  return new BaseError(
+    'Validation failed',
+    400,
+    'VALIDATION_ERROR',
+    zodError.issues.map((issue) => ({
+      field: issue.path.join('.'),
+      message: issue.message,
+    })),
+    { retryable: false },
+  );
+}
+
+function readSchemaZodError(error: Error): ZodError | undefined {
+  const withSchema = error as Error & { zodError?: unknown; cause?: unknown };
+  if (withSchema.zodError instanceof ZodError) {
+    return withSchema.zodError;
+  }
+  if (withSchema.cause instanceof ZodError) {
+    return withSchema.cause;
+  }
+  return undefined;
+}
+
 function isErrorLike(error: unknown): error is ErrorLike {
   if (error instanceof Error) {
     return true;
@@ -116,14 +140,19 @@ export function toBaseError(error: unknown): BaseError {
   }
 
   if (error instanceof ZodError) {
+    return validationErrorFromZod(error);
+  }
+
+  if (error instanceof Error && error.name === 'EventSchemaError') {
+    const zodError = readSchemaZodError(error);
+    if (zodError) {
+      return validationErrorFromZod(zodError);
+    }
     return new BaseError(
-      'Validation failed',
+      error.message,
       400,
       'VALIDATION_ERROR',
-      error.issues.map((i) => ({
-        field: i.path.join('.'),
-        message: i.message,
-      })),
+      [{ message: error.message }],
       { retryable: false },
     );
   }

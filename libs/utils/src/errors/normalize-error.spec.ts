@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { BaseError } from './base.error';
 import { toBaseError } from './normalize-error';
 
@@ -9,6 +11,19 @@ function brokenPrototypeError(
 }
 
 describe('toBaseError', () => {
+  it('maps EventSchemaError to a 400 validation error', () => {
+    const parsed = z.object({ line1: z.string().min(1) }).safeParse({});
+    const error = new Error('Request validation failed');
+    error.name = 'EventSchemaError';
+    (error as Error & { zodError?: unknown }).zodError = parsed.error;
+
+    const result = toBaseError(error);
+
+    expect(result.statusCode).toBe(400);
+    expect(result.code).toBe('VALIDATION_ERROR');
+    expect(result.details?.[0]).toMatchObject({ field: 'line1' });
+  });
+
   it('preserves statusCode and code from error-like plain objects', () => {
     const broken = brokenPrototypeError({
       name: 'Error',

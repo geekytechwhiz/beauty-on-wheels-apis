@@ -9,7 +9,7 @@ import { EventSchemaError } from "@api-hub/middleware";
  */
 
 export const SendOtpRequestSchema = z.object({
-destination: z.string()
+destination: z.string().trim().min(1)
 }).strict();
 
 export type SendOtpRequest =
@@ -30,8 +30,8 @@ export const validateSendOtpRequest = (req: LambdaRequest): SendOtpRequest => {
  */
 
 export const VerifyOtpRequestSchema = z.object({
-destination: z.string(),
-otp: z.string()
+destination: z.string().trim().min(1),
+otp: z.string().trim().min(1).max(12)
 }).strict();
 
 export type VerifyOtpRequest =

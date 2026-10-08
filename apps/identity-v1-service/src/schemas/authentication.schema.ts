@@ -9,8 +9,8 @@ import { EventSchemaError } from "@api-hub/middleware";
  */
 
 export const LoginRequestSchema = z.object({
-username: z.string(),
-password: z.string()
+username: z.string().trim().min(1),
+password: z.string().min(1)
 }).strict();
 
 export type LoginRequest =
@@ -31,7 +31,7 @@ export const validateLoginRequest = (req: LambdaRequest): LoginRequest => {
  */
 
 export const RefreshTokenRequestSchema = z.object({
-refreshToken: z.string()
+refreshToken: z.string().trim().min(1)
 }).strict();
 
 export type RefreshTokenRequest =

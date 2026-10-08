@@ -28,7 +28,7 @@
     "/auth/register": {
       "post": {
         "summary": "Register a new user",
-        "description": "",
+        "description": "Public. HTTP 200 platform envelope. The created identity is in data (id, email, phone, status, roles). This call does not return tokens.",
         "tags": [
           "Registration"
         ],
@@ -51,7 +51,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "User created",
             "schema": {
               "$ref": "#/definitions/User"

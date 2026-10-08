@@ -9,7 +9,7 @@
     "/vehicles": {
       "get": {
         "summary": "List my vehicles",
-        "description": "",
+        "description": "Requires a bearer access token. Returns only vehicles owned by the authenticated user. Query status (ACTIVE or INACTIVE) or vehicleType. The platform envelope puts the list at data.items.",
         "tags": [
           "Vehicles"
         ],
@@ -23,13 +23,16 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Vehicle list"
+            "description": "Vehicle list in data.items",
+            "schema": {
+              "$ref": "#/definitions/Vehicle"
+            }
           }
         }
       },
       "post": {
         "summary": "Add vehicle",
-        "description": "",
+        "description": "Requires a bearer access token. The vehicle is stored for the authenticated user. A client-supplied userId is ignored. HTTP 200 platform envelope; the vehicle is in data.",
         "tags": [
           "Vehicles"
         ],
@@ -52,7 +55,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Vehicle created"
           }
         }
@@ -127,7 +130,7 @@
       },
       "delete": {
         "summary": "Delete vehicle",
-        "description": "",
+        "description": "Requires a bearer access token. Deletes a vehicle owned by the authenticated user. Success is HTTP 200 with the platform envelope and data null.",
         "tags": [
           "Vehicles"
         ],
@@ -147,7 +150,7 @@
           }
         ],
         "responses": {
-          "204": {
+          "200": {
             "description": "Deleted"
           }
         }
@@ -185,7 +188,7 @@
     "/vehicle-types": {
       "get": {
         "summary": "List supported vehicle types",
-        "description": "",
+        "description": "Requires a bearer access token. Canonical success body is the platform envelope. data.items is the vehicle type array. Clients must not expect a bare JSON array.",
         "tags": [
           "Vehicles"
         ],
@@ -199,13 +202,42 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Vehicle types"
+            "description": "Vehicle types in data.items",
+            "schema": {
+              "$ref": "#/definitions/VehicleTypeList"
+            }
           }
         }
       }
     }
   },
   "definitions": {
+    "VehicleTypeList": {
+      "properties": {
+        "items": {
+          "items": {
+            "enum": [
+              "HATCHBACK",
+              "SEDAN",
+              "SUV",
+              "MUV",
+              "LUXURY",
+              "BIKE"
+            ],
+            "type": "string"
+          },
+          "title": "VehicleTypeList.items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false,
+      "title": "VehicleTypeList",
+      "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
+      "type": "object"
+    },
     "Vehicle": {
       "properties": {
         "id": {
@@ -234,6 +266,7 @@
         },
         "brand": {
           "title": "Vehicle.brand",
+          "description": "Canonical set lives in `@api-hub/utils` `VEHICLE_TYPE_VALUES`.",
           "type": "string"
         },
         "model": {
@@ -274,7 +307,6 @@
       ],
       "additionalProperties": false,
       "title": "Vehicle",
-      "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
       "type": "object"
     }
   },

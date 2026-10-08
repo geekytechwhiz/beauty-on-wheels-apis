@@ -11,7 +11,7 @@ import { EventSchemaError } from "@api-hub/middleware";
 export const VehicleSchema = z.object({
 id: z.string().optional(),
 userId: z.string().optional(),
-registrationNumber: z.string(),
+registrationNumber: z.string().trim().min(1).max(20),
 vehicleType: z.enum(VEHICLE_TYPE_VALUES),
 brand: z.string().optional(),
 model: z.string().optional(),

@@ -11,6 +11,10 @@ export class AddressesController {
     return this.service.listAddresses(request);
   }
 
+  async getAddress(request: LambdaRequest) {
+    return this.service.getAddress(request);
+  }
+
   async createAddress(request: LambdaRequest) {
     return this.service.createAddress(request);
   }

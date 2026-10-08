@@ -184,6 +184,27 @@ functions:
             404:
               description: "Customer profile not found"
 
+  getAddress:
+    handler: src/handlers/addresses.handler.handleGetAddress
+    events:
+      - http:
+          path: /users/{userId}/addresses/{addressId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get address"
+          description: "Owner, admin, or service principal. Returns one active address owned by userId after the caller is checked against the access token. Response uses the platform envelope; the address is in data."
+          swaggerTags:
+            - Addresses
+          responseData:
+            200:
+              description: "Address"
+              bodyType: Address
+            403:
+              description: "Caller cannot read this address"
+            404:
+              description: "Address or customer profile not found"
+
   createAddress:
     handler: src/handlers/addresses.handler.handleCreateAddress
     events:

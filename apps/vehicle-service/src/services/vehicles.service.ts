@@ -80,10 +80,24 @@ export class VehiclesService {
     }
   }
 
+  private readQuery(request: LambdaRequest, name: string): string | undefined {
+    const sources = [
+      request.query?.[name],
+      request.params?.[name],
+      request.event?.queryStringParameters?.[name],
+    ];
+    for (const value of sources) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  }
+
   async getvehicles(request: LambdaRequest): Promise<Vehicle[]> {
     const userId = this.getAuthenticatedUserId(request);
-    const status = request.query?.status;
-    const vehicleType = request.query?.vehicleType;
+    const status = this.readQuery(request, 'status');
+    const vehicleType = this.readQuery(request, 'vehicleType');
 
     this.logger.info({
       event: 'getvehicles_start',
@@ -422,11 +436,13 @@ export class VehiclesService {
     }
   }
 
-  async getvehicletypes(_request: LambdaRequest): Promise<string[]> {
+  async getvehicletypes(request: LambdaRequest): Promise<{ items: string[] }> {
+    const userId = this.getAuthenticatedUserId(request);
     this.logger.info({
       event: 'getvehicletypes',
+      userId,
     });
-    return [...VALID_VEHICLE_TYPES];
+    return { items: [...VALID_VEHICLE_TYPES] };
   }
 }
 

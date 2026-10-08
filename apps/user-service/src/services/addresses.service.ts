@@ -66,6 +66,22 @@ export class AddressesService {
     return { items };
   }
 
+  async getAddress(request: LambdaRequest): Promise<Address> {
+    const userId = getUserId(request);
+    assertOwnerAdminOrService(request, userId);
+    await this.requireProfile(userId);
+    const addressId = getPathParam(request, 'addressId');
+    const address = await this.requireActiveAddress(userId, addressId);
+
+    this.logger.info({
+      event: 'get_address_success',
+      userId,
+      addressId,
+    });
+
+    return toAddress(address);
+  }
+
   async createAddress(request: LambdaRequest): Promise<Address> {
     const userId = getUserId(request);
     assertOwnerOrAdmin(request, userId);

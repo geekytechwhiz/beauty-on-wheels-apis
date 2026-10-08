@@ -33,19 +33,19 @@ export function createVendorApprovedRoleHandler() {
     events: [
       {
         schema: VendorApprovedEvent,
-        handler: async (event) => {
+        handler: async ({ meta: _meta, ...payload }: any) => {
           const result = await applyVendorApprovalRole(
             {
-              newStatus: event.newStatus,
-              ownerUserId: event.ownerUserId,
-              onboardingStatus: event.onboardingStatus,
+              newStatus: payload.newStatus,
+              ownerUserId: payload.ownerUserId,
+              onboardingStatus: payload.onboardingStatus,
             },
             identityRepositoryInstance,
           );
           logger.info({
             event: 'vendor_application_role',
             result,
-            vendorId: event.vendorId,
+            vendorId: payload.vendorId,
           });
         },
       },

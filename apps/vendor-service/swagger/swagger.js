@@ -9,7 +9,7 @@
     "/vendors": {
       "post": {
         "summary": "Create vendor",
-        "description": "Creates a new Vendor profile with a unique vendorId and the submitted business information. Each POST mints a new vendorId. Progressive section data is saved via PUT /vendors/{vendorId}/onboarding.",
+        "description": "Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor.",
         "tags": [
           "Vendors"
         ],
@@ -127,7 +127,7 @@
       },
       "put": {
         "summary": "Save an onboarding section",
-        "description": "Progressively creates or updates one onboarding section. `section` identifies the domain portion. Repeated PUTs or PATCHes for the same section update in place. The `data` payload is validated against the selected section schema. Vendors may be onboarded by the vendor owner or by platform admin staff.",
+        "description": "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.",
         "tags": [
           "Onboarding"
         ],
@@ -224,6 +224,40 @@
           },
           "404": {
             "description": "404 response"
+          }
+        }
+      }
+    },
+    "/vendors/me": {
+      "get": {
+        "summary": "Get the authenticated user's vendor",
+        "description": "Resolves the canonical application userId from the verified authentication context and loads that user's vendor from GSI1 (OWNER#{userId}). Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "getvendorme.get./vendors/me",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Vendor self lookup",
+            "schema": {
+              "$ref": "#/definitions/VendorSelfLookup"
+            }
+          },
+          "401": {
+            "description": "Missing or invalid authentication, or no canonical application user id"
+          },
+          "403": {
+            "description": "Cognito identity has no application user mapping"
+          },
+          "500": {
+            "description": "500 response"
           }
         }
       }
@@ -329,7 +363,7 @@
     "/vendors/{vendorId}/status": {
       "patch": {
         "summary": "Update vendor lifecycle status",
-        "description": "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved and VendorRejected are published from the vendor table stream.\n",
+        "description": "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.\n",
         "tags": [
           "Vendors"
         ],
@@ -2576,10 +2610,6 @@
         "vendorType": {
           "$ref": "#/definitions/VendorType",
           "title": "CreateVendorRequest.vendorType"
-        },
-        "ownerUserId": {
-          "title": "CreateVendorRequest.ownerUserId",
-          "type": "string"
         }
       },
       "required": [
@@ -2802,7 +2832,6 @@
         }
       },
       "required": [
-        "userId",
         "fullName"
       ],
       "additionalProperties": false,
@@ -3629,6 +3658,74 @@
       ],
       "additionalProperties": false,
       "title": "Vendor",
+      "type": "object"
+    },
+    "VendorNextAction": {
+      "enum": [
+        "START_ONBOARDING",
+        "RESUME_ONBOARDING",
+        "VIEW_APPLICATION_STATUS",
+        "OPEN_VENDOR_DASHBOARD",
+        "COMPLETE_VENDOR_SETUP",
+        "VIEW_ACCOUNT_STATUS",
+        "CORRECT_APPLICATION"
+      ],
+      "title": "VendorNextAction",
+      "type": "string"
+    },
+    "VendorSelfLookup": {
+      "properties": {
+        "hasVendor": {
+          "title": "VendorSelfLookup.hasVendor",
+          "type": "boolean"
+        },
+        "vendorId": {
+          "title": "VendorSelfLookup.vendorId",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VendorStatus",
+              "title": "VendorSelfLookup.status"
+            },
+            {
+              "$ref": "#/definitions/OnboardingStatus",
+              "title": "VendorSelfLookup.status"
+            }
+          ],
+          "title": "VendorSelfLookup.status"
+        },
+        "onboarding": {
+          "properties": {
+            "currentStep": {
+              "$ref": "#/definitions/OnboardingSection",
+              "title": "VendorSelfLookup.onboarding.currentStep"
+            },
+            "completed": {
+              "title": "VendorSelfLookup.onboarding.completed",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "currentStep",
+            "completed"
+          ],
+          "additionalProperties": false,
+          "title": "VendorSelfLookup.onboarding",
+          "type": "object"
+        },
+        "nextAction": {
+          "$ref": "#/definitions/VendorNextAction",
+          "title": "VendorSelfLookup.nextAction"
+        }
+      },
+      "required": [
+        "hasVendor",
+        "nextAction"
+      ],
+      "additionalProperties": false,
+      "title": "VendorSelfLookup",
       "type": "object"
     },
     "VendorResponse": {

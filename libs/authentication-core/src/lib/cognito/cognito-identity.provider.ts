@@ -117,6 +117,7 @@ export class CognitoIdentityService implements CognitoAuthClient {
       new AdminSetUserPasswordCommand({
         UserPoolId: this.config.userPoolId,
         Username: username,
+         
         Password: password,
         Permanent: true,
       }),

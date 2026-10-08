@@ -516,6 +516,8 @@ resources:
               - bounce
               - complaint
               - reject
+              - renderingFailure
+              - deliveryDelay
             EventBridgeDestination:
               EventBusArn: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
 
@@ -633,6 +635,8 @@ resources:
               - Email Bounced
               - Email Complaint
               - Email Rejected
+              - Email Rendering Failed
+              - Email Delivery Delayed
             detail:
               mail:
                 tags:

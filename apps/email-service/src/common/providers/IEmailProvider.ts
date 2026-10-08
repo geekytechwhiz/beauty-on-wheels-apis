@@ -29,6 +29,8 @@ export interface SendTemplatedEmailOptions {
   contactListName?: string | null;
   topicName?: string;
   unsubscribePlaceholderFound?: boolean;
+  configurationSetName?: string;
+  emailTags?: Array<{ name: string; value: string }>;
 }
 
 export interface EmailAttachment {

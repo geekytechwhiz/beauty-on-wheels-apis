@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-import { DELIVERY_STATUS, type DeliveryStatus } from '../domain/delivery-status.js';
+import {
+  DELIVERY_STATUS,
+  type DeliveryStatus,
+} from '../domain/delivery-status.js';
 
 export const SES_LIFECYCLE_EVENT = {
   SEND: 'Send',
@@ -8,6 +11,8 @@ export const SES_LIFECYCLE_EVENT = {
   BOUNCE: 'Bounce',
   COMPLAINT: 'Complaint',
   REJECT: 'Reject',
+  RENDERING_FAILURE: 'Rendering Failure',
+  DELIVERY_DELAY: 'DeliveryDelay',
 } as const;
 
 export const SesLifecycleEventSchema = z
@@ -18,6 +23,8 @@ export const SesLifecycleEventSchema = z
       SES_LIFECYCLE_EVENT.BOUNCE,
       SES_LIFECYCLE_EVENT.COMPLAINT,
       SES_LIFECYCLE_EVENT.REJECT,
+      SES_LIFECYCLE_EVENT.RENDERING_FAILURE,
+      SES_LIFECYCLE_EVENT.DELIVERY_DELAY,
     ]),
     mail: z
       .object({
@@ -29,7 +36,9 @@ export const SesLifecycleEventSchema = z
 
 export type SesLifecycleEvent = z.infer<typeof SesLifecycleEventSchema>;
 
-export function deliveryStatusForSesEvent(eventType: SesLifecycleEvent['eventType']): DeliveryStatus {
+export function deliveryStatusForSesEvent(
+  eventType: SesLifecycleEvent['eventType'],
+): DeliveryStatus {
   switch (eventType) {
     case SES_LIFECYCLE_EVENT.SEND:
       return DELIVERY_STATUS.SENT;
@@ -41,6 +50,10 @@ export function deliveryStatusForSesEvent(eventType: SesLifecycleEvent['eventTyp
       return DELIVERY_STATUS.COMPLAINED;
     case SES_LIFECYCLE_EVENT.REJECT:
       return DELIVERY_STATUS.REJECTED;
+    case SES_LIFECYCLE_EVENT.RENDERING_FAILURE:
+      return DELIVERY_STATUS.RENDERING_FAILED;
+    case SES_LIFECYCLE_EVENT.DELIVERY_DELAY:
+      return DELIVERY_STATUS.DELIVERY_DELAYED;
     default: {
       const unexpected: never = eventType;
       return unexpected;

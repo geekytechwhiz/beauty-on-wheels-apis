@@ -135,6 +135,7 @@ export class MemoryEmailDeliveryStore implements EmailDeliveryStore {
       existing.status === DELIVERY_STATUS.BOUNCED ||
       existing.status === DELIVERY_STATUS.COMPLAINED ||
       existing.status === DELIVERY_STATUS.REJECTED
+      || existing.status === DELIVERY_STATUS.RENDERING_FAILED
     ) {
       return {
         outcome: 'duplicate',

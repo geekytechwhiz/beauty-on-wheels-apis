@@ -1,7 +1,13 @@
 import {
+  BOOKING_CONFIRMED_EVENT_SOURCE,
   BOOKING_CONFIRMED_EVENT_TYPE,
+  VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,
   VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+  VENDOR_ONBOARDING_EVENT_SOURCE,
   VENDOR_ONBOARDING_EVENT_TYPE,
+  bookingConfirmedIdempotencyKey,
+  vendorEmailVerificationRequestedIdempotencyKey,
+  vendorOnboardingSubmittedIdempotencyKey,
 } from '@api-hub/event-platform';
 
 import { IEmailProvider, EmailAttachment } from '../../../common/providers/IEmailProvider.js';
@@ -17,7 +23,15 @@ import {
   VendorEmailVerificationRequestedEmailInput,
   VendorOnboardingSubmittedEmailInput,
 } from '../domain/types.js';
+import {
+  resolveAdhocIdempotencyKey,
+  type AdhocDeliveryContext,
+} from '../domain/adhoc-idempotency.js';
+import { IdempotencyConflictError } from '../domain/errors.js';
+import { recipientHash } from '../domain/template-catalog.js';
 import { resolveNotificationTemplateName } from '../domain/notification-templates.js';
+import { sendWithDeliveryTracking } from '../delivery/send-with-delivery-tracking.js';
+import type { EmailDeliveryStore } from '../idempotency/email-delivery-store.js';
 import { logger } from '../../../common/utils/logger.js';
 import crypto from 'crypto';
 
@@ -27,46 +41,18 @@ export class EmailService {
     private templateRegistry: ITemplateRegistryProvider,
     private storage: IStorageProvider,
     private campaignRepo: ICampaignRepository,
+    private deliveryStore: EmailDeliveryStore,
   ) {}
 
   // 1. Send Individual (Adhoc) Email
-  async sendAdhocEmail(input: AdhocEmailRequest): Promise<{ messageId: string }> {
+  async sendAdhocEmail(
+    input: AdhocEmailRequest,
+    context?: AdhocDeliveryContext,
+  ): Promise<{ messageId: string }> {
     const toAddresses = Array.isArray(input.to) ? input.to : [input.to];
     const ccAddresses = input.cc || undefined;
     const bccAddresses = input.bcc || undefined;
     const replyToAddresses = input.replyTo || undefined;
-
-    // Process attachments
-    const attachments: EmailAttachment[] = [];
-    if (input.attachments && input.attachments.length > 0) {
-      const timestamp = this.getFormattedTimestamp();
-
-      for (const att of input.attachments) {
-        const fileBuffer = Buffer.from(att.content, 'base64');
-        const s3Key = `adhoc/${timestamp}/attachments/${att.filename}`;
-
-        // Upload attachment to S3 for audit log / tracking
-        await this.storage.putObject({
-          bucket: environment.attachmentsBucket,
-          key: s3Key,
-          body: fileBuffer,
-          contentType: att.contentType,
-          metadata: {
-            'original-filename': att.filename,
-            'content-type': att.contentType,
-          },
-        });
-
-        logger.info(`Uploaded adhoc attachment to S3: ${s3Key}`);
-
-        attachments.push({
-          filename: att.filename,
-          contentType: att.contentType,
-          rawContent: fileBuffer,
-          contentDisposition: 'ATTACHMENT',
-        });
-      }
-    }
 
     if (input.templateName) {
       // --- Template-based Sending ---
@@ -90,22 +76,24 @@ export class EmailService {
         logger.warn(`Could not verify template ${input.templateName} placeholder in registry`, { err });
       }
 
-      const result = await this.emailProvider.sendTemplatedEmail({
-        fromEmail: input.from,
-        fromName: input.fromName || 'Email System',
-        toAddresses,
-        ccAddresses,
-        bccAddresses,
-        replyToAddresses,
-        templateName: input.templateName,
-        templateData: input.templateData || {},
-        attachments: attachments.length > 0 ? attachments : undefined,
-        unsubscribePlaceholderFound,
-        contactListName: input.contactListName || environment.contactListName,
-        topicName: input.topicName || environment.topicName,
+      return this.deliverTracked(input, context, input.templateName, async () => {
+        const attachments = await this.prepareAttachments(input);
+        return this.emailProvider.sendTemplatedEmail({
+          fromEmail: input.from,
+          fromName: input.fromName || 'Email System',
+          toAddresses,
+          ccAddresses,
+          bccAddresses,
+          replyToAddresses,
+          templateName: input.templateName!,
+          templateData: input.templateData || {},
+          attachments: attachments.length > 0 ? attachments : undefined,
+          unsubscribePlaceholderFound,
+          contactListName: input.contactListName || environment.contactListName,
+          topicName: input.topicName || environment.topicName,
+          configurationSetName: this.configurationSetName(),
+        });
       });
-
-      return { messageId: result.messageId };
     } else {
       // --- Raw Email Sending ---
       if (!input.subject) {
@@ -131,26 +119,25 @@ export class EmailService {
         embeddedAttachments.push(...parsed.attachments);
       }
 
-      // Combine attachments
-      const allAttachments = [...attachments, ...embeddedAttachments];
-
-      // Trigger SES email send
-      const result = await this.emailProvider.sendEmail({
-        fromEmail: input.from,
-        fromName: input.fromName || 'Email System',
-        toAddresses,
-        ccAddresses,
-        bccAddresses,
-        replyToAddresses,
-        subject: input.subject,
-        htmlBody: htmlBody || undefined,
-        textBody: input.textContent || undefined,
-        attachments: allAttachments.length > 0 ? allAttachments : undefined,
-        contactListName: input.contactListName || environment.contactListName,
-        topicName: input.topicName || environment.topicName,
+      return this.deliverTracked(input, context, 'raw', async () => {
+        const attachments = await this.prepareAttachments(input);
+        const allAttachments = [...attachments, ...embeddedAttachments];
+        return this.emailProvider.sendEmail({
+          fromEmail: input.from,
+          fromName: input.fromName || 'Email System',
+          toAddresses,
+          ccAddresses,
+          bccAddresses,
+          replyToAddresses,
+          subject: input.subject!,
+          htmlBody: htmlBody || undefined,
+          textBody: input.textContent || undefined,
+          attachments: allAttachments.length > 0 ? allAttachments : undefined,
+          contactListName: input.contactListName || environment.contactListName,
+          topicName: input.topicName || environment.topicName,
+          configurationSetName: this.configurationSetName(),
+        });
       });
-
-      return { messageId: result.messageId };
     }
   }
 
@@ -160,6 +147,9 @@ export class EmailService {
     const campaignId = message.campaignId;
     const batchId = message.batchId;
 
+    // Intentionally untracked by EmailDeliveryStore. Campaign recipient tracking
+    // is the bulk idempotency record. Do not attach the SES configuration set:
+    // lifecycle events would have no delivery row and would dead-letter.
     logger.info(`Processing SQS message bulk send for ${email} in campaign ${campaignId}`);
 
     // Check if email already sent (idempotency check)
@@ -335,6 +325,7 @@ export class EmailService {
 
   async sendEventNotificationEmail(
     input: EventNotificationEmailInput,
+    context?: AdhocDeliveryContext,
   ): Promise<{ messageId: string }> {
     const fromEmail = environment.defaultFromEmail;
     if (!fromEmail) {
@@ -347,13 +338,16 @@ export class EmailService {
       templateName,
     });
 
-    return this.sendAdhocEmail({
-      to: input.to,
-      from: fromEmail,
-      fromName: environment.defaultFromName,
-      templateName,
-      templateData: input.templateData,
-    });
+    return this.sendAdhocEmail(
+      {
+        to: input.to,
+        from: fromEmail,
+        fromName: environment.defaultFromName,
+        templateName,
+        templateData: input.templateData,
+      },
+      context,
+    );
   }
 
   async sendVendorOnboardingSubmittedEmail(
@@ -364,15 +358,23 @@ export class EmailService {
       vendorId: input.vendorId,
     });
 
-    return this.sendEventNotificationEmail({
-      eventType: VENDOR_ONBOARDING_EVENT_TYPE,
-      to: input.email,
-      templateData: {
-        applicationId: input.applicationId,
-        vendorId: input.vendorId,
-        businessName: input.businessName || '',
+    return this.sendEventNotificationEmail(
+      {
+        eventType: VENDOR_ONBOARDING_EVENT_TYPE,
+        to: input.email,
+        templateData: {
+          applicationId: input.applicationId,
+          vendorId: input.vendorId,
+          businessName: input.businessName || '',
+        },
       },
-    });
+      {
+        idempotencyKey: vendorOnboardingSubmittedIdempotencyKey(input.applicationId),
+        eventId: input.applicationId,
+        eventType: VENDOR_ONBOARDING_EVENT_TYPE,
+        source: VENDOR_ONBOARDING_EVENT_SOURCE,
+      },
+    );
   }
 
   async sendVendorEmailVerificationRequestedEmail(
@@ -382,15 +384,23 @@ export class EmailService {
       vendorId: input.vendorId,
     });
 
-    return this.sendEventNotificationEmail({
-      eventType: VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
-      to: input.email,
-      templateData: {
-        firstName: input.firstName,
-        otp: input.otp,
-        expiryMinutes: input.expiryMinutes,
+    return this.sendEventNotificationEmail(
+      {
+        eventType: VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+        to: input.email,
+        templateData: {
+          firstName: input.firstName,
+          otp: input.otp,
+          expiryMinutes: input.expiryMinutes,
+        },
       },
-    });
+      {
+        idempotencyKey: vendorEmailVerificationRequestedIdempotencyKey(input.vendorId),
+        eventId: input.vendorId,
+        eventType: VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
+        source: VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,
+      },
+    );
   }
 
   async sendBookingConfirmedEmail(
@@ -401,22 +411,95 @@ export class EmailService {
       vendorId: input.vendorId,
     });
 
-    return this.sendEventNotificationEmail({
-      eventType: BOOKING_CONFIRMED_EVENT_TYPE,
-      to: input.customerEmail,
-      templateData: {
-        bookingId: input.bookingId,
-        vendorId: input.vendorId,
-        bookingDate: input.bookingDate,
-        slotId: input.slotId,
-        totalAmount: input.totalAmount ?? '',
-        customerName: input.customerName || '',
-        vendorName: input.vendorName || '',
+    return this.sendEventNotificationEmail(
+      {
+        eventType: BOOKING_CONFIRMED_EVENT_TYPE,
+        to: input.customerEmail,
+        templateData: {
+          bookingId: input.bookingId,
+          vendorId: input.vendorId,
+          bookingDate: input.bookingDate,
+          slotId: input.slotId,
+          totalAmount: input.totalAmount ?? '',
+          customerName: input.customerName || '',
+          vendorName: input.vendorName || '',
+        },
       },
-    });
+      {
+        idempotencyKey: bookingConfirmedIdempotencyKey(input.bookingId),
+        eventId: input.bookingId,
+        eventType: BOOKING_CONFIRMED_EVENT_TYPE,
+        source: BOOKING_CONFIRMED_EVENT_SOURCE,
+      },
+    );
   }
 
   // --- Helper Methods ---
+  private async prepareAttachments(input: AdhocEmailRequest): Promise<EmailAttachment[]> {
+    const attachments: EmailAttachment[] = [];
+    if (!input.attachments || input.attachments.length === 0) {
+      return attachments;
+    }
+    const timestamp = this.getFormattedTimestamp();
+    for (const att of input.attachments) {
+      const fileBuffer = Buffer.from(att.content, 'base64');
+      const s3Key = `adhoc/${timestamp}/attachments/${att.filename}`;
+      await this.storage.putObject({
+        bucket: environment.attachmentsBucket,
+        key: s3Key,
+        body: fileBuffer,
+        contentType: att.contentType,
+        metadata: {
+          'original-filename': att.filename,
+          'content-type': att.contentType,
+        },
+      });
+      logger.info(`Uploaded adhoc attachment to S3: ${s3Key}`);
+      attachments.push({
+        filename: att.filename,
+        contentType: att.contentType,
+        rawContent: fileBuffer,
+        contentDisposition: 'ATTACHMENT',
+      });
+    }
+    return attachments;
+  }
+
+  private configurationSetName(): string | undefined {
+    const name = environment.sesConfigurationSet.trim();
+    return name.length > 0 ? name : undefined;
+  }
+
+  private async deliverTracked(
+    input: AdhocEmailRequest,
+    context: AdhocDeliveryContext | undefined,
+    templateName: string,
+    dispatch: () => Promise<{ messageId: string }>,
+  ): Promise<{ messageId: string }> {
+    const toAddresses = Array.isArray(input.to) ? input.to : [input.to];
+    const idempotencyKey = resolveAdhocIdempotencyKey(input, context);
+    const tracked = await sendWithDeliveryTracking({
+      store: this.deliveryStore,
+      claim: {
+        idempotencyKey,
+        eventId: context?.eventId ?? idempotencyKey,
+        eventType: context?.eventType ?? 'email.sendAdhoc',
+        source: context?.source ?? 'email-service',
+        correlationId: context?.correlationId,
+        templateName,
+        recipientHash: recipientHash(toAddresses.join(',')),
+      },
+      dispatch,
+    });
+    if (tracked.duplicate && !tracked.messageId) {
+      throw new IdempotencyConflictError(
+        'This email request already failed and will not be sent again',
+        false,
+      );
+    }
+    return { messageId: tracked.messageId };
+  }
+
   private getFormattedTimestamp(): string {
     const d = new Date();
     const year = d.getFullYear();

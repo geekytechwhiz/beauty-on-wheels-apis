@@ -224,7 +224,12 @@ export class OtpService {
         userId: user.userId,
         error: err instanceof Error ? err.message : 'unknown',
       });
-      return updated;
+      // The OTP has been verified, but do not issue a Cognito token until the
+      // application record reflects that verified state. Returning `updated`
+      // here used to let authentication continue after a DynamoDB write
+      // failure, making the persistence failure indistinguishable from a
+      // successful login.
+      throw err;
     }
   }
 

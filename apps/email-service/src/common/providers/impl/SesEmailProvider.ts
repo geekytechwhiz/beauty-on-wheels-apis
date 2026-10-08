@@ -117,7 +117,7 @@ export class SesEmailProvider implements IEmailProvider {
         messageId: response.MessageId,
         requestId: response.$metadata?.requestId,
         httpStatusCode: response.$metadata?.httpStatusCode,
-        retryAttempts: response.$metadata?.attempts,
+        attempts: response.$metadata?.attempts,
         sdkMetadata: response.$metadata,
       });
       return { messageId: response.MessageId || '' };
@@ -180,7 +180,7 @@ export class SesEmailProvider implements IEmailProvider {
           messageId: response.MessageId,
           requestId: response.$metadata?.requestId,
           httpStatusCode: response.$metadata?.httpStatusCode,
-          retryAttempts: response.$metadata?.attempts,
+          attempts: response.$metadata?.attempts,
           sdkMetadata: response.$metadata,
         });
 
@@ -224,6 +224,9 @@ export class SesEmailProvider implements IEmailProvider {
     if (options.replyToAddresses && options.replyToAddresses.length > 0) {
       emailParams.ReplyToAddresses = options.replyToAddresses;
     }
+    if (options.configurationSetName) {
+      emailParams.ConfigurationSetName = options.configurationSetName;
+    }
 
     // Attachments
     if (options.attachments && options.attachments.length > 0) {
@@ -251,6 +254,7 @@ export class SesEmailProvider implements IEmailProvider {
       logger.info('Sending templated email via SES', {
         templateName: options.templateName,
         toCount: options.toAddresses.length,
+        configurationSetName: options.configurationSetName,
       });
       const command = new SendEmailCommand(emailParams);
       const response = await this.client.send(command);
@@ -258,7 +262,7 @@ export class SesEmailProvider implements IEmailProvider {
         messageId: response.MessageId,
         requestId: response.$metadata?.requestId,
         httpStatusCode: response.$metadata?.httpStatusCode,
-        retryAttempts: response.$metadata?.attempts,
+        attempts: response.$metadata?.attempts,
         sdkMetadata: response.$metadata,
       });
       return { messageId: response.MessageId || '' };
@@ -300,7 +304,7 @@ export class SesEmailProvider implements IEmailProvider {
           messageId: response.MessageId,
           requestId: response.$metadata?.requestId,
           httpStatusCode: response.$metadata?.httpStatusCode,
-          retryAttempts: response.$metadata?.attempts,
+          attempts: response.$metadata?.attempts,
           sdkMetadata: response.$metadata,
         });
 

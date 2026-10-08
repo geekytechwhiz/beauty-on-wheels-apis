@@ -8,12 +8,14 @@ import {
 } from '../../../common/providers/container.js';
 import { EmailService } from '../services/EmailService.js';
 import { logger } from '../../../common/utils/logger.js';
+import { getEmailDeliveryStore } from './composition.js';
 
 const emailService = new EmailService(
   getEmailProvider(),
   getTemplateRegistryProvider(),
   getStorageProvider(),
   getCampaignRepository(),
+  getEmailDeliveryStore(),
 );
 
 export const main: SQSHandler = async (event): Promise<SQSBatchResponse> => {

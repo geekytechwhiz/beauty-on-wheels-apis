@@ -3,10 +3,9 @@ import { getLogger } from '@api-hub/observability';
 import type { EmailDeliveryConfig } from '../config/email-delivery-config.js';
 import { readEmailDeliveryConfig } from '../config/email-delivery-config.js';
 import type { EmailNotificationCommand } from '../domain/email-notification-command.js';
-import { DELIVERY_STATUS, FAILURE_CLASS } from '../domain/delivery-status.js';
+import { DELIVERY_STATUS } from '../domain/delivery-status.js';
 import {
   EmailValidationError,
-  IdempotencyConflictError,
   SesPermanentError,
   SesRetryableError,
   TemplateInactiveError,
@@ -15,6 +14,7 @@ import {
   TemplateRenderError,
 } from '../domain/errors.js';
 import { recipientHash } from '../domain/template-catalog.js';
+import { sendWithDeliveryTracking } from '../delivery/send-with-delivery-tracking.js';
 import type { EmailDeliveryStore } from '../idempotency/email-delivery-store.js';
 import { EMAIL_METRIC, type EmailMetrics } from '../observability/email-metrics.js';
 import type { SesEmailSender } from '../ses/ses-email-sender.js';
@@ -78,85 +78,52 @@ export class EmailNotificationProcessor {
         unsubscribeUrl: this.config.unsubscribeUrl,
       });
 
-      const claim = await this.deliveryStore.claim({
-        idempotencyKey: command.idempotencyKey,
-        eventId: command.eventId,
-        eventType: command.eventType,
-        source: command.source,
-        correlationId: command.correlationId,
-        templateName: command.templateName,
-        recipientHash: hash,
+      const tracked = await sendWithDeliveryTracking({
+        store: this.deliveryStore,
+        claim: {
+          idempotencyKey: command.idempotencyKey,
+          eventId: command.eventId,
+          eventType: command.eventType,
+          source: command.source,
+          correlationId: command.correlationId,
+          templateName: command.templateName,
+          recipientHash: hash,
+        },
+        dispatch: async () => {
+          this.metrics.count(EMAIL_METRIC.EMAILS_REQUESTED);
+          return this.sender.dispatch({
+            fromEmail: this.config.fromEmail,
+            fromName: this.config.fromName,
+            replyTo: this.config.replyTo,
+            to: [command.recipient.email],
+            cc: command.cc,
+            bcc: command.bcc,
+            rendered,
+            configurationSetName: this.config.configurationSetName,
+            eventId: command.eventId,
+            idempotencyKey: command.idempotencyKey,
+            templateName: command.templateName,
+          });
+        },
       });
 
-      if (claim.outcome === 'duplicate') {
+      if (tracked.duplicate) {
         this.metrics.count(EMAIL_METRIC.DUPLICATE_SKIPS);
         log.info('email_duplicate_skipped', {
-          status: claim.status,
-          messageId: claim.messageId,
+          status: tracked.status,
+          messageId: tracked.messageId,
           durationMs: Date.now() - started,
         });
-        return { messageId: claim.messageId ?? '', duplicate: true };
-      }
-      if (claim.outcome === 'inProgress') {
-        throw new IdempotencyConflictError(
-          'Email delivery is already in progress for this notification',
-          true,
-        );
-      }
-      if (claim.outcome === 'uncertain') {
-        throw new IdempotencyConflictError(
-          'Email delivery outcome is uncertain after an earlier attempt; not sending again',
-          false,
-        );
-      }
-
-      this.metrics.count(EMAIL_METRIC.EMAILS_REQUESTED);
-      let messageId: string | undefined;
-      try {
-        const sent = await this.sender.dispatch({
-          fromEmail: this.config.fromEmail,
-          fromName: this.config.fromName,
-          replyTo: this.config.replyTo,
-          to: [command.recipient.email],
-          cc: command.cc,
-          bcc: command.bcc,
-          rendered,
-          configurationSetName: this.config.configurationSetName,
-          eventId: command.eventId,
-          idempotencyKey: command.idempotencyKey,
-          templateName: command.templateName,
-        });
-        messageId = sent.messageId;
-        await this.deliveryStore.markSent(command.idempotencyKey, messageId);
-      } catch (error) {
-        if (
-          !messageId &&
-          (error instanceof SesPermanentError || error instanceof SesRetryableError)
-        ) {
-          try {
-            await this.deliveryStore.markFailed(
-              command.idempotencyKey,
-              error instanceof SesPermanentError
-                ? FAILURE_CLASS.PERMANENT
-                : FAILURE_CLASS.RETRYABLE,
-              error.code,
-            );
-          } catch (persistError) {
-            log.error('email_delivery_status_persist_failed', persistError, {
-              errorCode: 'DELIVERY_STORE_ERROR',
-            });
-          }
-        }
-        throw error;
+        return { messageId: tracked.messageId, duplicate: true };
       }
 
       this.metrics.count(EMAIL_METRIC.SES_SUCCESS);
       log.info('email_sent', {
         status: DELIVERY_STATUS.SENT,
-        messageId,
+        messageId: tracked.messageId,
         durationMs: Date.now() - started,
       });
-      return { messageId, duplicate: false };
+      return { messageId: tracked.messageId, duplicate: false };
     } catch (error) {
       this.recordFailureMetric(error);
       const code = errorCode(error);

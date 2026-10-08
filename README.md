@@ -1,12 +1,26 @@
 # ApiHubV1
 
+## Email delivery lifecycle operations
+
+Ad-hoc and event-triggered emails use the SES configuration set and are tracked in
+`EmailDeliveryTable`. Bulk campaign sends intentionally remain outside this model:
+campaign recipient tracking is their idempotency record, so they do not attach the
+configuration set or emit lifecycle records into the ad-hoc delivery queue.
+
+Lifecycle events that arrive before their delivery row is visible are logged as
+`email_delivery_lifecycle_orphan` and retried through the existing delivery SQS
+queue. After the configured retries they land in `EmailDeliveryDlq`. Operators should
+use the log's SES `messageId`, event type, timestamp, and recipient domain to locate
+the corresponding send record and reconcile the delivery row manually; these events
+must never trigger an automatic resend or creation of a synthetic delivery record.
+
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
 ✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
 
 **📖 Full codebase reference** (structure, patterns, serverless, coding standards): [docs/CODEBASE_README.md](docs/CODEBASE_README.md)
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 
 ## Run tasks
 
@@ -91,17 +105,17 @@ Nx Console is an editor extension that enriches your developer experience. It le
 
 Learn more:
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
+- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 - [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
 
 And join the Nx community:
+
 - [Discord](https://go.nx.dev/community)
 - [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
 - [Our Youtube channel](https://www.youtube.com/@nxdevtools)
 - [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
 
 ## NX Commands
 

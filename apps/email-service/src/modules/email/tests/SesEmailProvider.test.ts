@@ -1,5 +1,6 @@
 import { SesEmailProvider } from '../../../common/providers/impl/SesEmailProvider.js';
 import { environment } from '../../../common/config/environment.js';
+import { logger } from '../../../common/utils/logger.js';
 
 jest.mock('@aws-sdk/client-sesv2', () => {
   const mSend = jest.fn();
@@ -224,19 +225,34 @@ describe('SesEmailProvider', () => {
         ],
       };
 
-      const result = await provider.sendTemplatedEmail(options);
+      const info = jest.spyOn(logger, 'info').mockImplementation(() => undefined as never);
+      const result = await provider.sendTemplatedEmail({
+        ...options,
+        toAddresses: ['receiver@example.com', 'other@example.com'],
+        configurationSetName: 'test-email-delivery',
+      });
 
       expect(result.messageId).toBe('msg-template-123');
+      expect(info).toHaveBeenCalledWith('Sending templated email via SES', {
+        templateName: 'simple-test',
+        toCount: 2,
+        configurationSetName: 'test-email-delivery',
+      });
+      const success = info.mock.calls.find((call) => call[0] === 'SES Templated Email Success');
+      expect(success?.[1]).toEqual(expect.objectContaining({ attempts: 1 }));
+      expect(success?.[1]).not.toHaveProperty('retryAttempts');
+      info.mockRestore();
       expect(mockSend).toHaveBeenCalledTimes(1);
 
       const call = mockSend.mock.calls[0][0];
       expect(call.input).toEqual({
         FromEmailAddress: 'sender@example.com',
         Destination: {
-          ToAddresses: ['receiver@example.com'],
+          ToAddresses: ['receiver@example.com', 'other@example.com'],
           CcAddresses: ['cc@example.com'],
           BccAddresses: ['bcc@example.com'],
         },
+        ConfigurationSetName: 'test-email-delivery',
         ReplyToAddresses: ['reply@example.com'],
         Content: {
           Template: {

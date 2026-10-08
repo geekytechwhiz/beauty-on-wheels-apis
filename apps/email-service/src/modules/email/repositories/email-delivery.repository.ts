@@ -309,5 +309,6 @@ function isTerminalSuccess(status: DeliveryStatus): boolean {
     status === DELIVERY_STATUS.BOUNCED ||
     status === DELIVERY_STATUS.COMPLAINED ||
     status === DELIVERY_STATUS.REJECTED
+    || status === DELIVERY_STATUS.RENDERING_FAILED
   );
 }

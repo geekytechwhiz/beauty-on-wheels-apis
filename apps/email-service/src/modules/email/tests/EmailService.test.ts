@@ -4,6 +4,7 @@ import { ITemplateRegistryProvider } from '../../../common/providers/ITemplateRe
 import { IStorageProvider } from '../../../common/providers/IStorageProvider.js';
 import { ICampaignRepository } from '../../../common/providers/ICampaignRepository.js';
 import { environment } from '../../../common/config/environment.js';
+import { MemoryEmailDeliveryStore } from '../idempotency/email-delivery-store.js';
 
 describe('EmailService', () => {
   let emailService: EmailService;
@@ -47,11 +48,13 @@ describe('EmailService', () => {
       getRecipientTracking: jest.fn(),
     };
 
+    environment.sesConfigurationSet = 'test-email-delivery';
     emailService = new EmailService(
       mockEmailProvider,
       mockTemplateRegistry,
       mockStorage,
       mockCampaignRepo,
+      new MemoryEmailDeliveryStore(),
     );
   });
 
@@ -91,6 +94,7 @@ describe('EmailService', () => {
             expect.objectContaining({ filename: 'test.txt' }),
             expect.objectContaining({ contentDisposition: 'INLINE', contentType: 'image/png' }),
           ]),
+          configurationSetName: 'test-email-delivery',
         }),
       );
     });
@@ -182,6 +186,7 @@ describe('EmailService', () => {
         unsubscribePlaceholderFound: true,
         contactListName: null,
         topicName: '',
+        configurationSetName: 'test-email-delivery',
       });
     });
 
@@ -298,6 +303,9 @@ describe('EmailService', () => {
         contactListName: null,
         topicName: '',
       });
+      expect(mockEmailProvider.sendEmail.mock.calls[0][0]).not.toHaveProperty(
+        'configurationSetName',
+      );
 
       // Verify recipient tracking and batch count increments in database
       expect(mockCampaignRepo.createOrUpdateRecipientTracking).toHaveBeenCalledWith(
@@ -350,6 +358,9 @@ describe('EmailService', () => {
           templateData: { firstName: 'Jane', lastName: '' },
           unsubscribePlaceholderFound: true,
         }),
+      );
+      expect(mockEmailProvider.sendTemplatedEmail.mock.calls[0][0]).not.toHaveProperty(
+        'configurationSetName',
       );
     });
 

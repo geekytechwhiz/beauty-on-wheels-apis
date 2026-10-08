@@ -562,6 +562,26 @@ describe('Services Unit Tests', () => {
             expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
                 mockCognito.issueTokens.mock.invocationCallOrder[0],
             );
+            expect(mockRepo.createUser.mock.invocationCallOrder[0]).toBeLessThan(
+                mockCognito.issueTokens.mock.invocationCallOrder[0],
+            );
+        });
+
+        it('does not issue a token when persisting an existing identity verification fails', async () => {
+            mockRepo.verifyOtp.mockResolvedValue(true);
+            mockRepo.getUserByPhone.mockResolvedValue(activeUser as User);
+            mockRepo.updateUser.mockRejectedValue(new Error('DynamoDB unavailable'));
+
+            const service = otpService();
+
+            await expect(
+                service.postverify({
+                    body: { destination: '+1234567890', otp: '123456' },
+                } as LambdaRequest),
+            ).rejects.toThrow('DynamoDB unavailable');
+
+            expect(mockRepo.linkIdentity).not.toHaveBeenCalled();
+            expect(mockCognito.issueTokens).not.toHaveBeenCalled();
         });
 
         it('issues tokens for a valid OTP and existing email identity', async () => {

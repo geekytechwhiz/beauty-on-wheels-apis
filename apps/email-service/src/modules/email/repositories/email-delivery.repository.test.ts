@@ -26,6 +26,14 @@ describe('DynamoDbEmailDeliveryStore', () => {
     expect(send.mock.calls[0][0].input.ConditionExpression).toBe('attribute_not_exists(pk)');
     expect(send.mock.calls[1][0]).toBeInstanceOf(UpdateCommand);
     expect(send.mock.calls[1][0].input.ConditionExpression).toContain('attribute_not_exists(messageId)');
+    expect(send.mock.calls[1][0].input.ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ':sent': DELIVERY_STATUS.SENT,
+        ':messageId': 'ses-1',
+        ':gsi1pk': 'MSG#ses-1',
+        ':gsi1sk': 'STATUS',
+      }),
+    );
   });
 
   it('treats an existing sent record as a duplicate', async () => {

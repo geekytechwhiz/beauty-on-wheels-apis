@@ -231,16 +231,6 @@ export class OnboardingService {
     this.logger.info({ event: 'submitvendorforreview_start', vendorId });
 
     const aggregate = await this.loadAggregate(vendorId);
-    const state = computeStateFromAggregate(aggregate);
-
-    if (state.status !== ONBOARDING_STATUS.PENDING_REVIEW) {
-      const missing = ONBOARDING_SECTION_ORDER.filter(
-        (section) => !state.completedSections.includes(section),
-      );
-      throw new ConflictError(
-        `Vendor onboarding is incomplete: ${missing.join(', ')}`,
-      );
-    }
 
     if (
       profile.onboardingStatus === ONBOARDING_STATUS.PENDING_REVIEW ||
@@ -263,6 +253,17 @@ export class OnboardingService {
       throw new ValidationError(
         `Required onboarding documents are not ready: ${parts.join(', ')}`,
         parts.map((message) => ({ field: 'documents', message })),
+      );
+    }
+
+    const state = computeStateFromAggregate(aggregate);
+
+    if (state.status !== ONBOARDING_STATUS.PENDING_REVIEW) {
+      const missing = ONBOARDING_SECTION_ORDER.filter(
+        (section) => !state.completedSections.includes(section),
+      );
+      throw new ConflictError(
+        `Vendor onboarding is incomplete: ${missing.join(', ')}`,
       );
     }
 

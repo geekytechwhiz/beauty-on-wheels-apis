@@ -444,7 +444,7 @@
     "/vendors/{vendorId}/submit-review": {
       "post": {
         "summary": "Submit vendor for review",
-        "description": "Submits a complete onboarding application for review. Incomplete applications are rejected. Repeating submit after PENDING_REVIEW is idempotent.",
+        "description": "Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent.",
         "tags": [
           "Onboarding"
         ],
@@ -470,6 +470,9 @@
               "$ref": "#/definitions/OnboardingResponse"
             }
           },
+          "400": {
+            "description": "A required document is missing or still uploading"
+          },
           "401": {
             "description": "401 response"
           },
@@ -480,7 +483,7 @@
             "description": "404 response"
           },
           "409": {
-            "description": "Onboarding is incomplete"
+            "description": "Onboarding is incomplete or already in a conflicting state"
           }
         }
       }
@@ -1917,7 +1920,7 @@
     "/vendors/{vendorId}/documents": {
       "get": {
         "summary": "List vendor documents",
-        "description": "",
+        "description": "Returns document metadata for the vendor. Uploaded documents include a short-lived presigned download URL. Presigned URLs are not stored.",
         "tags": [
           "Documents"
         ],
@@ -1938,10 +1941,16 @@
         ],
         "responses": {
           "200": {
-            "description": "Documents retrieved successfully"
+            "description": "Documents retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
           },
           "401": {
             "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
           },
           "404": {
             "description": "404 response"
@@ -1950,7 +1959,7 @@
       },
       "post": {
         "summary": "Create vendor document metadata and upload URL",
-        "description": "",
+        "description": "Same behavior as POST /vendors/{vendorId}/documents/upload-url. One active document is kept per document type. A retry refreshes the presigned URL instead of creating a duplicate.",
         "tags": [
           "Documents"
         ],
@@ -1979,17 +1988,82 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "Document created successfully"
+          "200": {
+            "description": "Upload URL issued and metadata stored with status PENDING_UPLOAD",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
           },
           "400": {
-            "description": "400 response"
+            "description": "Invalid document type, content type, file name, or file size"
           },
           "401": {
             "description": "401 response"
           },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
           "409": {
-            "description": "409 response"
+            "description": "Onboarding is not editable"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/documents/upload-url": {
+      "post": {
+        "summary": "Issue a presigned document upload URL",
+        "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "createvendordocumentuploadurl.post./vendors/{vendorId}/documents/upload-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateDocumentRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Presigned upload URL created",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
+          },
+          "400": {
+            "description": "Invalid document type, content type, file name, or file size"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "Vendor not found"
+          },
+          "409": {
+            "description": "Onboarding status does not allow document changes"
           }
         }
       }
@@ -1997,7 +2071,7 @@
     "/vendors/{vendorId}/documents/{documentId}": {
       "get": {
         "summary": "Get vendor document",
-        "description": "",
+        "description": "Returns document metadata. An UPLOADED document includes a short-lived presigned GET URL. A PENDING_UPLOAD document includes a fresh presigned PUT URL. The S3 object stays private.",
         "tags": [
           "Documents"
         ],
@@ -2024,10 +2098,16 @@
         ],
         "responses": {
           "200": {
-            "description": "Document retrieved successfully"
+            "description": "Document retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
           },
           "401": {
             "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
           },
           "404": {
             "description": "404 response"
@@ -2036,7 +2116,7 @@
       },
       "put": {
         "summary": "Replace vendor document",
-        "description": "",
+        "description": "Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed.",
         "tags": [
           "Documents"
         ],
@@ -2072,7 +2152,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Document updated successfully"
+            "description": "Replacement upload URL issued",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
           },
           "400": {
             "description": "400 response"
@@ -2080,14 +2163,20 @@
           "401": {
             "description": "401 response"
           },
+          "403": {
+            "description": "403 response"
+          },
           "404": {
             "description": "404 response"
+          },
+          "409": {
+            "description": "Onboarding status does not allow document changes"
           }
         }
       },
       "delete": {
         "summary": "Delete vendor document",
-        "description": "",
+        "description": "Deletes document metadata and the private S3 object while onboarding is DRAFT or IN_PROGRESS. Documents are kept after the application is submitted for review.",
         "tags": [
           "Documents"
         ],
@@ -2113,14 +2202,73 @@
           }
         ],
         "responses": {
-          "204": {
+          "200": {
             "description": "Document deleted successfully"
           },
           "401": {
             "description": "401 response"
           },
+          "403": {
+            "description": "403 response"
+          },
           "404": {
             "description": "404 response"
+          },
+          "409": {
+            "description": "Onboarding status does not allow document deletion"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/documents/{documentId}/complete": {
+      "post": {
+        "summary": "Confirm a document upload",
+        "description": "Verifies the private S3 object exists at the server-generated key and that its content type, file size, and file signature match the metadata. On success the document status becomes UPLOADED. Generating a presigned URL does not perform this transition.",
+        "tags": [
+          "Documents"
+        ],
+        "operationId": "completevendordocumentupload.post./vendors/{vendorId}/documents/{documentId}/complete",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document confirmed as UPLOADED",
+            "schema": {
+              "$ref": "#/definitions/VendorDocument"
+            }
+          },
+          "400": {
+            "description": "Uploaded object failed content type, size, or signature verification"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "Document or S3 object was not found"
+          },
+          "409": {
+            "description": "Document or onboarding state does not allow confirmation"
           }
         }
       }
@@ -2250,7 +2398,7 @@
         "SUV",
         "MUV",
         "LUXURY",
-        "OTHER"
+        "BIKE"
       ],
       "title": "VehicleType",
       "type": "string"
@@ -2758,12 +2906,17 @@
         "contentType": {
           "title": "DocumentsData.contentType",
           "type": "string"
+        },
+        "fileSize": {
+          "title": "DocumentsData.fileSize",
+          "type": "number"
         }
       },
       "required": [
         "documentType",
         "fileName",
-        "contentType"
+        "contentType",
+        "fileSize"
       ],
       "additionalProperties": false,
       "title": "DocumentsData",
@@ -3155,6 +3308,10 @@
           "title": "VendorDocument.contentType",
           "type": "string"
         },
+        "fileSize": {
+          "title": "VendorDocument.fileSize",
+          "type": "number"
+        },
         "objectKey": {
           "title": "VendorDocument.objectKey",
           "type": "string"
@@ -3170,6 +3327,10 @@
         "downloadUrl": {
           "title": "VendorDocument.downloadUrl",
           "type": "string"
+        },
+        "expiresIn": {
+          "title": "VendorDocument.expiresIn",
+          "type": "number"
         },
         "createdAt": {
           "title": "VendorDocument.createdAt",
@@ -3208,12 +3369,17 @@
         "contentType": {
           "title": "CreateDocumentRequest.contentType",
           "type": "string"
+        },
+        "fileSize": {
+          "title": "CreateDocumentRequest.fileSize",
+          "type": "number"
         }
       },
       "required": [
         "documentType",
         "fileName",
-        "contentType"
+        "contentType",
+        "fileSize"
       ],
       "additionalProperties": false,
       "title": "CreateDocumentRequest",
@@ -3228,6 +3394,10 @@
         "contentType": {
           "title": "UpdateDocumentRequest.contentType",
           "type": "string"
+        },
+        "fileSize": {
+          "title": "UpdateDocumentRequest.fileSize",
+          "type": "number"
         }
       },
       "additionalProperties": false,

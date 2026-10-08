@@ -4,6 +4,7 @@ import {
   ConditionalWriteConflictError,
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from '@api-hub/utils';
 import { createLogger, createChildLogger, getLoggerContext } from '@api-hub/observability';
 
@@ -23,7 +24,6 @@ import {
   VendorBankDdbItem,
   VendorBranchDdbItem,
   VendorDdbItem,
-  VendorDocumentDdbItem,
 } from '../types/repository.types';
 import {
   VendorsRepository,
@@ -49,6 +49,12 @@ import {
   getDocumentStorage,
 } from '../storage/document-storage';
 import { ONBOARDING_SECTION, ONBOARDING_SECTION_ORDER, ONBOARDING_STATUS } from '../domain/onboarding';
+import {
+  assertDocumentsMutable,
+  createDocumentObjectKey,
+  parseDocumentUploadRequest,
+  requiredDocumentGaps,
+} from '../domain/document-upload';
 import {
   computeStateFromAggregate,
   toVendorAggregate,
@@ -91,7 +97,11 @@ export class OnboardingService {
 
   private toOnboardingResponse(
     aggregate: VendorAggregate,
-    extras?: { documentUploadUrl?: string; documentId?: string },
+    extras?: {
+      documentUploadUrl?: string;
+      documentId?: string;
+      expiresIn?: number;
+    },
   ): OnboardingResponse {
     const profile = aggregate.profile;
     if (!profile) {
@@ -105,6 +115,8 @@ export class OnboardingService {
           extras?.documentId === item.documentId
             ? extras.documentUploadUrl
             : undefined,
+        expiresIn:
+          extras?.documentId === item.documentId ? extras.expiresIn : undefined,
       }),
     );
 
@@ -230,13 +242,28 @@ export class OnboardingService {
       );
     }
 
-    if (profile.onboardingStatus === ONBOARDING_STATUS.PENDING_REVIEW) {
+    if (
+      profile.onboardingStatus === ONBOARDING_STATUS.PENDING_REVIEW ||
+      profile.onboardingStatus === ONBOARDING_STATUS.COMPLETED
+    ) {
       this.logger.info({
         event: 'submitvendorforreview_idempotent',
         vendorId,
         applicationId: profile.applicationId,
       });
       return this.toOnboardingResponse(aggregate);
+    }
+
+    const documentGaps = requiredDocumentGaps(aggregate.documents);
+    if (documentGaps.missing.length > 0 || documentGaps.notUploaded.length > 0) {
+      const parts = [
+        ...documentGaps.missing.map((type) => `${type} is missing`),
+        ...documentGaps.notUploaded.map((type) => `${type} is still uploading`),
+      ];
+      throw new ValidationError(
+        `Required onboarding documents are not ready: ${parts.join(', ')}`,
+        parts.map((message) => ({ field: 'documents', message })),
+      );
     }
 
     const response = await this.persistProfileAndSection(profile, aggregate);
@@ -409,31 +436,45 @@ export class OnboardingService {
     data: DocumentsData,
   ): Promise<OnboardingResponse> {
     const profile = aggregate.profile!;
+    assertDocumentsMutable(profile.onboardingStatus);
+    const parsed = parseDocumentUploadRequest(data);
     const existing =
-      aggregate.documents.find((item) => item.documentType === data.documentType) ??
+      aggregate.documents.find((item) => item.documentType === parsed.documentType) ??
       (await this.documentsRepository.findByDocumentType(
         profile.vendorId,
-        data.documentType,
+        parsed.documentType,
       ));
 
     const documentId = existing?.documentId ?? randomUUID();
-    const objectKey = this.documentStorage.createObjectKey(
+    const objectKey = createDocumentObjectKey(
       profile.vendorId,
       documentId,
-      data.fileName,
+      parsed.contentType,
     );
     const upload = await this.documentStorage.createUploadUrl({
       objectKey,
-      contentType: data.contentType,
+      contentType: parsed.contentType,
+      fileSize: parsed.fileSize,
+    });
+    if (upload.objectKey !== objectKey) {
+      throw new ValidationError('Document object key could not be created');
+    }
+
+    const { item: document, orphanObjectKey } = DocumentsMapper.toPendingUploadItem({
+      request: parsed,
+      vendorId: profile.vendorId,
+      documentId,
+      bucket: upload.bucket,
+      objectKey,
+      existing,
     });
 
-    const document: VendorDocumentDdbItem = DocumentsMapper.toDdbItem(
-      data,
-      profile.vendorId,
-      documentId,
-      { bucket: upload.bucket, objectKey: upload.objectKey },
-      { createdAt: existing?.createdAt, status: 'PENDING_UPLOAD' },
-    );
+    if (orphanObjectKey) {
+      await this.documentStorage.deleteObject({
+        bucket: existing?.bucket || upload.bucket,
+        objectKey: orphanObjectKey,
+      });
+    }
 
     aggregate.documents = [
       ...aggregate.documents.filter((item) => item.documentId !== documentId),
@@ -449,6 +490,7 @@ export class OnboardingService {
     return this.toOnboardingResponse(aggregate, {
       documentId,
       documentUploadUrl: upload.uploadUrl,
+      expiresIn: upload.expiresIn,
     });
   }
 

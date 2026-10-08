@@ -7,6 +7,7 @@ import {
   VendorDocumentDdbItem,
   VendorOwnerDdbItem,
 } from '../types/repository.types';
+import { acceptedDocumentTypes } from './document-upload';
 import {
   computeOnboardingState,
   isAddressComplete,
@@ -70,7 +71,7 @@ export function computeStateFromAggregate(aggregate: VendorAggregate) {
       aggregate.address && isAddressComplete(aggregate.address),
     ),
     hasBranch: aggregate.branches.length > 0,
-    documentTypes: aggregate.documents.map((item) => item.documentType),
+    documentTypes: acceptedDocumentTypes(aggregate.documents),
     hasBankDetails: Boolean(aggregate.bank && isBankComplete(aggregate.bank)),
   });
 }

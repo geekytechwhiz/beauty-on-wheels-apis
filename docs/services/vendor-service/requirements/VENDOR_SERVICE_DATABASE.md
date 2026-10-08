@@ -61,9 +61,15 @@ No additional GSIs: owner lookup reuses GSI1 with a different `GSI1PK` namespace
 - Vendor create: `attribute_not_exists(PK)` on PROFILE; owner uniqueness via pre-query on GSI1 `OWNER#{userId}`.
 - ADDRESS / BANK / OWNER / BUSINESS_INFO: deterministic SKs so repeated PUTs update in place.
 - BRANCH onboarding without `branchId` updates `primaryBranchId` when present; otherwise creates one branch.
-- DOCUMENTS onboarding upserts by `documentType` (one current record per required type).
+- DOCUMENTS onboarding upserts by `documentType` (one current record per required type). A repeated upload for the same type refreshes the pending object instead of inserting another row.
 - Child creates ConditionCheck that PROFILE exists.
 
 ## Binary files
 
-Document bytes are stored in S3 (`DOCUMENTS_BUCKET_NAME`). DynamoDB stores `bucket`, `objectKey`, `contentType`, and `documentType` only.
+Document bytes are stored in a private S3 bucket (`DOCUMENT_BUCKET`, also accepted as `DOCUMENTS_BUCKET_NAME`). DynamoDB stores metadata only:
+
+`documentId`, `vendorId`, `documentType`, `fileName`, `contentType`, `fileSize`, `bucket`, `objectKey`, `status`, `createdAt`, `updatedAt`.
+
+The object key is `vendors/{vendorId}/documents/{documentId}.{extension}`. Presigned URLs are not stored. `PENDING_UPLOAD` means a URL was issued. `UPLOADED` means the object was verified. Required types are `GST_REGISTRATION`, `BUSINESS_REGISTRATION`, and `COMMERCIAL_INSURANCE`. Submit-review accepts a document only when its status is `UPLOADED`.
+
+No migration is required. New attributes are additive on the existing `DOCUMENT#{documentId}` item.

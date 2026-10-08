@@ -38,6 +38,10 @@ tags:
     description: Vendor staff and worker management
   - name: Capabilities
     description: Vendor service and vehicle capabilities
+  - name: Documents
+    description: Vendor onboarding document metadata and private S3 upload URLs
+  - name: Onboarding
+    description: Vendor onboarding progress and review submission
 
 security:
   - bearerAuth: []
@@ -675,6 +679,292 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /vendors/{vendorId}/documents/upload-url:
+    post:
+      tags:
+        - Documents
+      operationId: createVendorDocumentUploadUrl
+      summary: Issue a presigned document upload URL
+      description: |
+        Creates or refreshes the upload session for one onboarding document.
+
+        The server generates `documentId` and the private S3 object key
+        `vendors/{vendorId}/documents/{documentId}.{extension}`.
+        Clients cannot choose the object key.
+
+        Supported document types:
+          - GST_REGISTRATION
+          - BUSINESS_REGISTRATION
+          - COMMERCIAL_INSURANCE
+
+        Supported content types:
+          - application/pdf
+          - image/jpeg
+          - image/png
+
+        Default maximum file size is 10485760 bytes.
+        Default presigned URL expiry is 900 seconds.
+
+        The document is stored as PENDING_UPLOAD. It becomes UPLOADED only
+        after `POST /vendors/{vendorId}/documents/{documentId}/complete`
+        verifies the object. One active document is kept per document type.
+        Repeating this call refreshes the URL instead of creating a duplicate.
+        Document changes are rejected once onboarding is PENDING_REVIEW.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+            example:
+              documentType: GST_REGISTRATION
+              fileName: gst-certificate.pdf
+              contentType: application/pdf
+              fileSize: 245678
+      responses:
+        '200':
+          description: Presigned upload URL created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /vendors/{vendorId}/documents:
+    get:
+      tags:
+        - Documents
+      operationId: listVendorDocuments
+      summary: List vendor documents
+      description: |
+        Returns document metadata. Uploaded documents include a short-lived
+        presigned GET URL. Presigned URLs are not stored.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+      responses:
+        '200':
+          description: Documents retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VendorDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Documents
+      operationId: createVendorDocument
+      summary: Create vendor document metadata and upload URL
+      description: |
+        Same behavior as POST /vendors/{vendorId}/documents/upload-url.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+      responses:
+        '200':
+          description: Upload URL issued and metadata stored with status PENDING_UPLOAD
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /vendors/{vendorId}/documents/{documentId}:
+    get:
+      tags:
+        - Documents
+      operationId: getVendorDocument
+      summary: Get vendor document
+      description: |
+        Returns metadata. UPLOADED documents include a short-lived presigned
+        GET URL. PENDING_UPLOAD documents include a fresh presigned PUT URL.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Documents
+      operationId: updateVendorDocument
+      summary: Replace a vendor document
+      description: |
+        Issues a new presigned PUT URL while onboarding is DRAFT or IN_PROGRESS.
+        Status returns to PENDING_UPLOAD until the replacement is confirmed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDocumentRequest'
+      responses:
+        '200':
+          description: Replacement upload URL issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Documents
+      operationId: deleteVendorDocument
+      summary: Delete a vendor document
+      description: |
+        Deletes metadata and the private S3 object while onboarding is still
+        editable. Submitted or reviewed documents are kept.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /vendors/{vendorId}/documents/{documentId}/complete:
+    post:
+      tags:
+        - Documents
+      operationId: completeVendorDocumentUpload
+      summary: Confirm a document upload
+      description: |
+        Verifies the private S3 object exists at the server-generated key and
+        that its content type, size, and file signature match the metadata.
+        Sets status to UPLOADED. A presigned URL alone does not confirm upload.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document confirmed as UPLOADED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /vendors/{vendorId}/submit-review:
+    post:
+      tags:
+        - Onboarding
+      operationId: submitVendorForReview
+      summary: Submit vendor onboarding for review
+      description: |
+        Requires every onboarding section, including all required documents
+        in UPLOADED status. Missing or still-uploading documents return 400.
+        Other incomplete sections return 409. Repeating the call after
+        PENDING_REVIEW returns the current application.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorId'
+      responses:
+        '200':
+          description: Vendor submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingState'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
 components:
 
@@ -711,6 +1001,14 @@ components:
         type: string
       example: STF_01JXYZ123456789
 
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: 6d8f0c2e-1a2b-4c3d-9e8f-123456789abc
+
 
   schemas:
 
@@ -736,6 +1034,141 @@ components:
       enum:
         - INDIVIDUAL
         - BUSINESS
+
+    DocumentType:
+      type: string
+      description: Required onboarding documents. One active record is kept per type.
+      enum:
+        - GST_REGISTRATION
+        - BUSINESS_REGISTRATION
+        - COMMERCIAL_INSURANCE
+
+    DocumentStatus:
+      type: string
+      description: |
+        PENDING_UPLOAD means a presigned URL was issued and the file is not
+        confirmed. UPLOADED means the private S3 object was verified.
+      enum:
+        - PENDING_UPLOAD
+        - UPLOADED
+
+    CreateDocumentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - documentType
+        - fileName
+        - contentType
+        - fileSize
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Original file name stored as metadata. It is not used as the S3 object key.
+        contentType:
+          type: string
+          enum:
+            - application/pdf
+            - image/jpeg
+            - image/png
+        fileSize:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+          description: Declared size in bytes. The confirmed S3 object must match it.
+
+    UpdateDocumentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        contentType:
+          type: string
+          enum:
+            - application/pdf
+            - image/jpeg
+            - image/png
+        fileSize:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+
+    VendorDocument:
+      type: object
+      required:
+        - documentId
+        - vendorId
+        - documentType
+        - fileName
+        - contentType
+        - objectKey
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        documentId:
+          type: string
+        vendorId:
+          type: string
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        fileName:
+          type: string
+        contentType:
+          type: string
+        fileSize:
+          type: integer
+        objectKey:
+          type: string
+          description: Server-generated private S3 key. Not a public URL.
+          example: vendors/vendor-1/documents/doc-1.pdf
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        uploadUrl:
+          type: string
+          format: uri
+          description: Short-lived presigned PUT URL. Present while status is PENDING_UPLOAD.
+        downloadUrl:
+          type: string
+          format: uri
+          description: Short-lived presigned GET URL. Present when status is UPLOADED.
+        expiresIn:
+          type: integer
+          description: Presigned URL lifetime in seconds.
+          example: 900
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OnboardingState:
+      type: object
+      properties:
+        vendorId:
+          type: string
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - IN_PROGRESS
+            - COMPLETED
+            - PENDING_REVIEW
+        currentSection:
+          type: string
+        completedSections:
+          type: array
+          items:
+            type: string
+        applicationId:
+          type: string
 
     VehicleType:
       type: string

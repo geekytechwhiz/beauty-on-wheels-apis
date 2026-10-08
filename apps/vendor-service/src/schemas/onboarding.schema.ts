@@ -3,7 +3,9 @@ import { LambdaRequest, ValidationError } from '@api-hub/utils';
 import { EventSchemaError } from '@api-hub/middleware';
 
 import { BadRequestError } from '../errors';
+import { env } from '../configs/env.config';
 import {
+  DOCUMENT_TYPE,
   ONBOARDING_SECTION,
   isOnboardingSection,
 } from '../domain/onboarding';
@@ -70,12 +72,15 @@ export const BranchDataSchema = z
 export const DocumentsDataSchema = z
   .object({
     documentType: z.enum([
-      'GST_REGISTRATION',
-      'BUSINESS_REGISTRATION',
-      'COMMERCIAL_INSURANCE',
+      DOCUMENT_TYPE.GST_REGISTRATION,
+      DOCUMENT_TYPE.BUSINESS_REGISTRATION,
+      DOCUMENT_TYPE.COMMERCIAL_INSURANCE,
     ]),
     fileName: z.string().min(1).max(255),
-    contentType: z.string().min(1).max(100),
+    contentType: z.enum(
+      env.DOCUMENT_ALLOWED_CONTENT_TYPES as [string, ...string[]],
+    ),
+    fileSize: z.number().int().positive().max(env.DOCUMENT_MAX_FILE_SIZE),
   })
   .strict();
 

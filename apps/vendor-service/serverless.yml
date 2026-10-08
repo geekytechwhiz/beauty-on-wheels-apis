@@ -22,7 +22,12 @@ provider:
     SERVICE_NAME: vendor-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-vendor
+    DOCUMENT_BUCKET: ${self:service}-${self:provider.stage}-vendor-documents
     DOCUMENTS_BUCKET_NAME: ${self:service}-${self:provider.stage}-vendor-documents
+    DOCUMENT_UPLOAD_URL_EXPIRY: ${env:DOCUMENT_UPLOAD_URL_EXPIRY, '900'}
+    DOCUMENT_DOWNLOAD_URL_EXPIRY: ${env:DOCUMENT_DOWNLOAD_URL_EXPIRY, '900'}
+    DOCUMENT_MAX_FILE_SIZE: ${env:DOCUMENT_MAX_FILE_SIZE, '10485760'}
+    DOCUMENT_ALLOWED_CONTENT_TYPES: ${env:DOCUMENT_ALLOWED_CONTENT_TYPES, 'application/pdf,image/jpeg,image/png'}
     EVENT_BUS_NAME: ${self:custom.vendorEventBusName}
     COGNITO_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
@@ -56,7 +61,7 @@ provider:
             - s3:GetObject
             - s3:DeleteObject
           Resource:
-            - !Join [ "", [ !GetAtt VendorDocumentsBucket.Arn, "/*" ] ]
+            - !Join [ "", [ !GetAtt VendorDocumentsBucket.Arn, "/vendors/*" ] ]
         - Effect: Allow
           Action:
             - xray:PutTraceSegments
@@ -410,13 +415,15 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Submit vendor for review"
-          description: "Submits a complete onboarding application for review. Incomplete applications are rejected. Repeating submit after PENDING_REVIEW is idempotent."
+          description: "Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent."
           swaggerTags:
             - Onboarding
           responseData:
             200:
               description: "Vendor submitted for review"
               bodyType: OnboardingResponse
+            400:
+              description: "A required document is missing or still uploading"
             401:
               description: ""
             403:
@@ -424,7 +431,7 @@ functions:
             404:
               description: ""
             409:
-              description: "Onboarding is incomplete"
+              description: "Onboarding is incomplete or already in a conflicting state"
 
   approvevendor:
     handler: src/handlers/vendors-handler.handleApprovevendor
@@ -1175,12 +1182,16 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor documents"
+          description: "Returns document metadata for the vendor. Uploaded documents include a short-lived presigned download URL. Presigned URLs are not stored."
           swaggerTags:
             - Documents
           responseData:
             200:
               description: "Documents retrieved successfully"
+              bodyType: VendorDocument
             401:
+              description: ""
+            403:
               description: ""
             404:
               description: ""
@@ -1194,18 +1205,52 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor document metadata and upload URL"
+          description: "Same behavior as POST /vendors/{vendorId}/documents/upload-url. One active document is kept per document type. A retry refreshes the presigned URL instead of creating a duplicate."
           swaggerTags:
             - Documents
           bodyType: CreateDocumentRequest
           responseData:
-            201:
-              description: "Document created successfully"
+            200:
+              description: "Upload URL issued and metadata stored with status PENDING_UPLOAD"
+              bodyType: VendorDocument
             400:
-              description: ""
+              description: "Invalid document type, content type, file name, or file size"
             401:
               description: ""
-            409:
+            403:
               description: ""
+            404:
+              description: ""
+            409:
+              description: "Onboarding is not editable"
+
+  createvendordocumentuploadurl:
+    handler: src/handlers/documents-handler.handleCreatevendordocumentuploadurl
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents/upload-url
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Issue a presigned document upload URL"
+          description: "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key."
+          swaggerTags:
+            - Documents
+          bodyType: CreateDocumentRequest
+          responseData:
+            200:
+              description: "Presigned upload URL created"
+              bodyType: VendorDocument
+            400:
+              description: "Invalid document type, content type, file name, or file size"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: "Vendor not found"
+            409:
+              description: "Onboarding status does not allow document changes"
 
   getvendordocument:
     handler: src/handlers/documents-handler.handleGetvendordocument
@@ -1216,15 +1261,46 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor document"
+          description: "Returns document metadata. An UPLOADED document includes a short-lived presigned GET URL. A PENDING_UPLOAD document includes a fresh presigned PUT URL. The S3 object stays private."
           swaggerTags:
             - Documents
           responseData:
             200:
               description: "Document retrieved successfully"
+              bodyType: VendorDocument
             401:
+              description: ""
+            403:
               description: ""
             404:
               description: ""
+
+  completevendordocumentupload:
+    handler: src/handlers/documents-handler.handleCompletevendordocumentupload
+    events:
+      - http:
+          path: /vendors/{vendorId}/documents/{documentId}/complete
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Confirm a document upload"
+          description: "Verifies the private S3 object exists at the server-generated key and that its content type, file size, and file signature match the metadata. On success the document status becomes UPLOADED. Generating a presigned URL does not perform this transition."
+          swaggerTags:
+            - Documents
+          responseData:
+            200:
+              description: "Document confirmed as UPLOADED"
+              bodyType: VendorDocument
+            400:
+              description: "Uploaded object failed content type, size, or signature verification"
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: "Document or S3 object was not found"
+            409:
+              description: "Document or onboarding state does not allow confirmation"
 
   updatevendordocument:
     handler: src/handlers/documents-handler.handleUpdatevendordocument
@@ -1235,18 +1311,24 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor document"
+          description: "Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed."
           swaggerTags:
             - Documents
           bodyType: UpdateDocumentRequest
           responseData:
             200:
-              description: "Document updated successfully"
+              description: "Replacement upload URL issued"
+              bodyType: VendorDocument
             400:
               description: ""
             401:
               description: ""
+            403:
+              description: ""
             404:
               description: ""
+            409:
+              description: "Onboarding status does not allow document changes"
 
   deletevendordocument:
     handler: src/handlers/documents-handler.handleDeletevendordocument
@@ -1257,15 +1339,20 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete vendor document"
+          description: "Deletes document metadata and the private S3 object while onboarding is DRAFT or IN_PROGRESS. Documents are kept after the application is submitted for review."
           swaggerTags:
             - Documents
           responseData:
-            204:
+            200:
               description: "Document deleted successfully"
             401:
               description: ""
+            403:
+              description: ""
             404:
               description: ""
+            409:
+              description: "Onboarding status does not allow document deletion"
 
   getvendorbankdetails:
     handler: src/handlers/bank-details-handler.handleGetvendorbankdetails
@@ -1480,11 +1567,42 @@ resources:
           BlockPublicPolicy: true
           IgnorePublicAcls: true
           RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - HEAD
+              AllowedHeaders:
+                - '*'
+              ExposedHeaders:
+                - ETag
+              MaxAge: 300
         Tags:
           - Key: Service
             Value: vendor
           - Key: Environment
             Value: ${sls:stage}
+
+    VendorDocumentsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref VendorDocumentsBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: DenyInsecureTransport
+              Effect: Deny
+              Principal: '*'
+              Action: 's3:*'
+              Resource:
+                - !GetAtt VendorDocumentsBucket.Arn
+                - !Join [ "", [ !GetAtt VendorDocumentsBucket.Arn, "/*" ] ]
+              Condition:
+                Bool:
+                  aws:SecureTransport: 'false'
 
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse

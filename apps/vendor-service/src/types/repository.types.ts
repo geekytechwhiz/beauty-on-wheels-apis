@@ -126,8 +126,11 @@ export interface VendorDocumentDdbItem {
   documentType: DocumentType;
   fileName: string;
   contentType: string;
+  fileSize?: number;
   bucket: string;
   objectKey: string;
+  /** Previous confirmed object retained until the replacement upload is verified. */
+  supersededObjectKey?: string;
   status: DocumentStatus;
   createdAt: string;
   updatedAt: string;

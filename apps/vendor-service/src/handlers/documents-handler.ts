@@ -25,6 +25,23 @@ export const handleCreatevendordocument = withApiHandler(
     controller.handleCreatevendordocument(request),
 );
 
+export const handleCreatevendordocumentuploadurl = withApiHandler(
+  {
+    operation: 'createvendordocumentuploadurl',
+    validator: (request: LambdaRequest) => {
+      validateCreateDocumentRequest(request);
+    },
+  },
+  async (request: LambdaRequest) =>
+    controller.handleCreatevendordocumentuploadurl(request),
+);
+
+export const handleCompletevendordocumentupload = withApiHandler(
+  { operation: 'completevendordocumentupload' },
+  async (request: LambdaRequest) =>
+    controller.handleCompletevendordocumentupload(request),
+);
+
 export const handleGetvendordocument = withApiHandler(
   { operation: 'getvendordocument' },
   async (request: LambdaRequest) => controller.handleGetvendordocument(request),

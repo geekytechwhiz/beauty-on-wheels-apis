@@ -1,8 +1,10 @@
 import { LambdaRequest } from '@api-hub/utils';
 import {
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
+  ValidationError,
 } from '@api-hub/utils';
 
 import { OnboardingService } from './onboarding.service';
@@ -106,13 +108,16 @@ describe('OnboardingService', () => {
     } as unknown as jest.Mocked<DocumentsRepository>;
 
     documentStorage = {
-      createObjectKey: jest.fn().mockReturnValue('vendors/vendor-1/documents/doc-1/gst.pdf'),
-      createUploadUrl: jest.fn().mockResolvedValue({
+      createUploadUrl: jest.fn().mockImplementation(async (params) => ({
         bucket: 'docs',
-        objectKey: 'vendors/vendor-1/documents/doc-1/gst.pdf',
+        objectKey: params.objectKey,
         uploadUrl: 'https://s3.example/upload',
-      }),
+        expiresIn: 900,
+      })),
       createDownloadUrl: jest.fn(),
+      headObject: jest.fn(),
+      readPrefix: jest.fn(),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new OnboardingService(
@@ -388,6 +393,7 @@ describe('OnboardingService', () => {
             documentType: 'GST_REGISTRATION',
             fileName: 'gst.pdf',
             contentType: 'application/pdf',
+            fileSize: 1200,
           },
         },
       }),
@@ -529,5 +535,214 @@ describe('OnboardingService', () => {
     expect(savedProfile.onboardingStatus).toBe('PENDING_REVIEW');
     expect(savedProfile.applicationId).toBe(result.applicationId);
     expect(savedProfile.email).toBe('priya@example.com');
+  });
+
+  it('rejects submit-review when a required document is missing', async () => {
+    vendorsRepository.queryVendorItems.mockResolvedValue([
+      vendorItem({ onboardingStatus: 'IN_PROGRESS' }),
+      ownerItem(),
+      addressItem(),
+    ]);
+
+    await expect(service.submitvendorforreview(authRequest())).rejects.toThrow(
+      /GST_REGISTRATION is missing/,
+    );
+    expect(vendorsRepository.putSection).not.toHaveBeenCalled();
+  });
+
+  it('rejects submit-review when a required document is still uploading', async () => {
+    vendorsRepository.getVendorById.mockResolvedValue(
+      vendorItem({
+        vendorType: 'BUSINESS',
+        businessName: 'ABC Car Wash',
+        contactName: 'Priya',
+        phoneNumber: '+919876543210',
+        onboardingStatus: 'IN_PROGRESS',
+      }),
+    );
+    vendorsRepository.queryVendorItems.mockResolvedValue([
+      vendorItem({
+        vendorType: 'BUSINESS',
+        businessName: 'ABC Car Wash',
+        contactName: 'Priya',
+        phoneNumber: '+919876543210',
+        onboardingStatus: 'IN_PROGRESS',
+      }),
+      ownerItem(),
+      addressItem(),
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'BRANCH#branch-1',
+        branchId: 'branch-1',
+        vendorId: 'vendor-1',
+        name: 'Main',
+        isPrimary: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorBranch',
+      },
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'DOCUMENT#gst',
+        documentId: 'gst',
+        vendorId: 'vendor-1',
+        documentType: 'GST_REGISTRATION',
+        fileName: 'gst.pdf',
+        contentType: 'application/pdf',
+        bucket: 'docs',
+        objectKey: 'vendors/vendor-1/documents/gst.pdf',
+        status: 'PENDING_UPLOAD',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorDocument',
+      },
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'DOCUMENT#biz',
+        documentId: 'biz',
+        vendorId: 'vendor-1',
+        documentType: 'BUSINESS_REGISTRATION',
+        fileName: 'biz.pdf',
+        contentType: 'application/pdf',
+        bucket: 'docs',
+        objectKey: 'vendors/vendor-1/documents/biz.pdf',
+        status: 'UPLOADED',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorDocument',
+      },
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'DOCUMENT#ins',
+        documentId: 'ins',
+        vendorId: 'vendor-1',
+        documentType: 'COMMERCIAL_INSURANCE',
+        fileName: 'ins.pdf',
+        contentType: 'application/pdf',
+        bucket: 'docs',
+        objectKey: 'vendors/vendor-1/documents/ins.pdf',
+        status: 'UPLOADED',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorDocument',
+      },
+    ]);
+
+    await expect(service.submitvendorforreview(authRequest())).rejects.toThrow(
+      ValidationError,
+    );
+    await expect(service.submitvendorforreview(authRequest())).rejects.toThrow(
+      /GST_REGISTRATION is still uploading/,
+    );
+  });
+
+  it('submits for review when every required document is uploaded', async () => {
+    const profile = vendorItem({
+      vendorType: 'BUSINESS',
+      businessName: 'ABC Car Wash',
+      contactName: 'Priya',
+      phoneNumber: '+919876543210',
+      email: 'priya@example.com',
+      onboardingStatus: 'IN_PROGRESS',
+    });
+    vendorsRepository.getVendorById.mockResolvedValue(profile);
+    vendorsRepository.queryVendorItems.mockResolvedValue([
+      profile,
+      ownerItem(),
+      addressItem(),
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'BRANCH#branch-1',
+        branchId: 'branch-1',
+        vendorId: 'vendor-1',
+        name: 'Main',
+        isPrimary: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorBranch',
+      },
+      ...['GST_REGISTRATION', 'BUSINESS_REGISTRATION', 'COMMERCIAL_INSURANCE'].map(
+        (documentType) => ({
+          PK: 'VENDOR#vendor-1',
+          SK: `DOCUMENT#${documentType}`,
+          documentId: documentType,
+          vendorId: 'vendor-1',
+          documentType,
+          fileName: `${documentType}.pdf`,
+          contentType: 'application/pdf',
+          bucket: 'docs',
+          objectKey: `vendors/vendor-1/documents/${documentType}.pdf`,
+          status: 'UPLOADED' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          entityType: 'VendorDocument' as const,
+        }),
+      ),
+      {
+        PK: 'VENDOR#vendor-1',
+        SK: 'BANK',
+        vendorId: 'vendor-1',
+        accountHolderName: 'Priya',
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'VendorBank' as const,
+      },
+    ]);
+
+    const result = await service.submitvendorforreview(authRequest());
+
+    expect(result.status).toBe('PENDING_REVIEW');
+    expect(vendorsRepository.putSection).toHaveBeenCalled();
+  });
+
+  it('returns the current application when onboarding is already submitted', async () => {
+    vendorsRepository.getVendorById.mockResolvedValue(
+      vendorItem({
+        onboardingStatus: 'PENDING_REVIEW',
+        applicationId: 'app-1',
+      }),
+    );
+    vendorsRepository.queryVendorItems.mockResolvedValue([
+      vendorItem({
+        onboardingStatus: 'PENDING_REVIEW',
+        applicationId: 'app-1',
+      }),
+    ]);
+
+    const result = await service.submitvendorforreview(authRequest());
+
+    expect(result.status).toBe('DRAFT');
+    expect(result.applicationId).toBe('app-1');
+    expect(vendorsRepository.putSection).not.toHaveBeenCalled();
+  });
+
+  it('rejects submit-review for incomplete non-document sections after documents are uploaded', async () => {
+    vendorsRepository.queryVendorItems.mockResolvedValue([
+      vendorItem({ onboardingStatus: 'IN_PROGRESS' }),
+      ...['GST_REGISTRATION', 'BUSINESS_REGISTRATION', 'COMMERCIAL_INSURANCE'].map(
+        (documentType) => ({
+          PK: 'VENDOR#vendor-1',
+          SK: `DOCUMENT#${documentType}`,
+          documentId: documentType,
+          vendorId: 'vendor-1',
+          documentType,
+          fileName: `${documentType}.pdf`,
+          contentType: 'application/pdf',
+          bucket: 'docs',
+          objectKey: `vendors/vendor-1/documents/${documentType}.pdf`,
+          status: 'UPLOADED' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          entityType: 'VendorDocument' as const,
+        }),
+      ),
+    ]);
+
+    await expect(service.submitvendorforreview(authRequest())).rejects.toThrow(
+      ConflictError,
+    );
   });
 });

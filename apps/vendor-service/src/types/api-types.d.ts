@@ -148,6 +148,7 @@ export interface DocumentsData {
   documentType: DocumentType;
   fileName: string;
   contentType: string;
+  fileSize: number;
 }
 
 export interface BankDetailsData {
@@ -245,10 +246,12 @@ export interface VendorDocument {
   documentType: DocumentType;
   fileName: string;
   contentType: string;
+  fileSize?: number;
   objectKey: string;
   status: DocumentStatus;
   uploadUrl?: string;
   downloadUrl?: string;
+  expiresIn?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -257,11 +260,13 @@ export interface CreateDocumentRequest {
   documentType: DocumentType;
   fileName: string;
   contentType: string;
+  fileSize: number;
 }
 
 export interface UpdateDocumentRequest {
   fileName?: string;
   contentType?: string;
+  fileSize?: number;
 }
 
 export interface OnboardingState {

@@ -18,6 +18,14 @@ export class DocumentsController {
     return this.service.createvendordocument(request);
   }
 
+  async handleCreatevendordocumentuploadurl(request: LambdaRequest) {
+    return this.service.createvendordocumentuploadurl(request);
+  }
+
+  async handleCompletevendordocumentupload(request: LambdaRequest) {
+    return this.service.completevendordocumentupload(request);
+  }
+
   async handleGetvendordocument(request: LambdaRequest) {
     return this.service.getvendordocument(request);
   }

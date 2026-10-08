@@ -171,6 +171,47 @@ functions:
             404:
               description: ""
 
+  verifyvendoremail:
+    handler: src/handlers/email-verification-handler.handleVerifyVendorEmail
+    events:
+      - http:
+          path: /vendors/email-verification/verify
+          method: post
+          cors: true
+          summary: "Verify vendor email"
+          description: "Consumes a single-use opaque email verification token and moves the completed onboarding application to PENDING_REVIEW."
+          swaggerTags:
+            - Onboarding
+          responseData:
+            200:
+              description: "Email verified successfully"
+            400:
+              description: "Invalid or expired verification link"
+            409:
+              description: "Verification is already being processed"
+
+  resendvendoremailverification:
+    handler: src/handlers/email-verification-handler.handleResendVendorEmailVerification
+    events:
+      - http:
+          path: /vendors/{vendorId}/email-verification/resend
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Resend vendor email verification"
+          description: "Queues a replacement verification email. The previous link is revoked."
+          swaggerTags:
+            - Onboarding
+          responseData:
+            200:
+              description: "Verification email queued"
+            401:
+              description: ""
+            403:
+              description: ""
+            429:
+              description: "Verification resend cooldown is active"
+
   updatevendoronboarding:
     handler: src/handlers/onboarding-handler.handleUpdatevendoronboarding
     events:
@@ -245,6 +286,19 @@ functions:
       - stream:
           type: dynamodb
           arn: !GetAtt VendorTable.StreamArn
+          # The five-section check is intentionally in the handler: DynamoDB
+          # stream filters cannot safely express unordered typed list membership.
+          filterPatterns:
+            - eventName:
+                - MODIFY
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - Vendor
+                  SK:
+                    S:
+                      - PROFILE
           batchSize: 10
           startingPosition: LATEST
           bisectBatchOnFunctionError: true

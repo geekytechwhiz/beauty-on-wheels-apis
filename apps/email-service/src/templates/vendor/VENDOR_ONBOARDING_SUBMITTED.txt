@@ -1,0 +1,11 @@
+{
+  "templateName": "VENDOR_ONBOARDING_SUBMITTED",
+  "subject": "Registration Received - {{businessName}} | Beauty on Wheels",
+  "htmlContent": "<h2>Hello {{ownerName}},</h2><p>Thank you for registering <strong>{{businessName}}</strong> with Beauty on Wheels.</p><p>We have received your vendor onboarding application and documents successfully.</p><p><strong>Application Status:</strong> Pending Review</p><p>Our team will review your application and notify you once a decision has been made.</p><p>Regards,<br/>Beauty on Wheels Team</p>",
+  "textContent": "Hello {{ownerName}}, thank you for registering {{businessName}} with Beauty on Wheels. Your application has been received and is pending review. We will notify you once reviewed.",
+  "requiredParameters": [
+    "ownerName",
+    "businessName"
+  ],
+  "active": true
+}

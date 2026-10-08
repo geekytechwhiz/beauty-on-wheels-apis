@@ -19,6 +19,28 @@ export const ONBOARDING_SECTION_ORDER: OnboardingSection[] = [
   ONBOARDING_SECTION.BANK_DETAILS,
 ];
 
+/** Sections that make a vendor eligible to request email verification. */
+export const EMAIL_VERIFICATION_REQUIRED_ONBOARDING_SECTIONS = [
+  ONBOARDING_SECTION.BUSINESS_INFO,
+  ONBOARDING_SECTION.OWNER_DETAILS,
+  ONBOARDING_SECTION.ADDRESS,
+  ONBOARDING_SECTION.BRANCH,
+  ONBOARDING_SECTION.BANK_DETAILS,
+] as const satisfies readonly OnboardingSection[];
+
+export function hasCompletedEmailVerificationSections(
+  completedSections: unknown,
+): boolean {
+  if (!Array.isArray(completedSections)) {
+    return false;
+  }
+
+  const completed = new Set(completedSections);
+  return EMAIL_VERIFICATION_REQUIRED_ONBOARDING_SECTIONS.every((section) =>
+    completed.has(section),
+  );
+}
+
 export const ONBOARDING_STATUS = {
   DRAFT: 'DRAFT',
   IN_PROGRESS: 'IN_PROGRESS',

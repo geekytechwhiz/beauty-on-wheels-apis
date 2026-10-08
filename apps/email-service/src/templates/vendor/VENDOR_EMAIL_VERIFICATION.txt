@@ -1,0 +1,13 @@
+
+{
+  "templateName": "VENDOR_EMAIL_VERIFICATION",
+  "subject": "Verify Your Email Address - Beauty on Wheels",
+  "htmlContent": "<!DOCTYPE html><html><body style=\"margin:0;padding:24px;background-color:#f5f7f9;font-family:Arial,sans-serif;color:#222222;\"><div style=\"max-width:560px;margin:0 auto;background-color:#ffffff;padding:32px;border-radius:12px;\"><h2 style=\"color:#176b45;margin-top:0;\">Beauty on Wheels</h2><h2>Verify Your Email Address</h2><p>Hello {{ownerName}},</p><p>Thank you for registering <strong>{{businessName}}</strong> with Beauty on Wheels.</p><p>You're just one step away from completing your vendor registration. Please verify your email address to submit your application for review.</p><div style=\"text-align:center;margin:32px 0;\"><a href=\"{{verificationUrl}}\" style=\"background-color:#176b45;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;\">Verify Email Address</a></div><p style=\"font-size:13px;color:#666666;\">This verification link expires in 24 hours.</p><p>Once verified, your application will be submitted for review. We will notify you when its status changes.</p><p>If you did not initiate this registration, please ignore this email.</p><p>Regards,<br/><strong>Beauty on Wheels Team</strong></p><hr style=\"border:0;border-top:1px solid #eeeeee;margin-top:30px;\"/><p style=\"font-size:12px;color:#888888;text-align:center;\">© Beauty on Wheels. All rights reserved.</p></div></body></html>",
+  "textContent": "Beauty on Wheels - Verify Your Email Address\n\nHello {{ownerName}},\n\nThank you for registering {{businessName}} with Beauty on Wheels.\n\nPlease verify your registered email address to complete your vendor registration and submit your application for review.\n\nVerify here: {{verificationUrl}}\n\nThis verification link expires in 24 hours.\n\nOnce verified, your application will be submitted for review.\n\nIf you did not initiate this registration, please ignore this email.\n\nRegards,\nBeauty on Wheels Team",
+  "requiredParameters": [
+    "ownerName",
+    "businessName",
+    "verificationUrl"
+  ],
+  "active": true
+}

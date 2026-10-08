@@ -1,21 +1,21 @@
 import {
-  CONFIRMED_VENDOR_STATUS,
+  EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
   VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
   firstNameFromContactName,
   generateVendorEmailVerificationOtp,
 } from './email-verification';
 
 describe('vendor email verification helpers', () => {
-  it('uses ACTIVE as the confirmed vendor status', () => {
-    expect(CONFIRMED_VENDOR_STATUS).toBe('ACTIVE');
+  it('uses PENDING_VERIFICATION as the eligible vendor status', () => {
+    expect(EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS).toBe('PENDING_VERIFICATION');
   });
 
-  it('uses a 10-minute verification window', () => {
-    expect(VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES).toBe(10);
+  it('uses a 24-hour verification window', () => {
+    expect(VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES).toBe(24 * 60);
   });
 
   it('generates a 6-digit OTP', () => {
-    expect(generateVendorEmailVerificationOtp()).toMatch(/^\d{6}$/);
+    expect(generateVendorEmailVerificationOtp('vendor-1')).toMatch(/^vendor-1\.[A-Za-z0-9_-]{43}$/);
   });
 
   it('takes the first token of the contact name', () => {

@@ -23,5 +23,6 @@ export const handleAuthorize = async (
   return evaluateApiGatewayAuthorizer(event, {
     userDirectory: getDirectory(),
     requireApplicationUser: true,
+    expectedTokenUse: 'access',
   });
 };

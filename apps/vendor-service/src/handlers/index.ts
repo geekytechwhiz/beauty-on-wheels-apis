@@ -3,6 +3,7 @@ export * from "./branches-handler";
 export * from "./capabilities-handler";
 export * from "./documents-handler";
 export * from "./onboarding-handler";
+export * from './email-verification-handler';
 export * from "./operating-hours-handler";
 export * from "./service-areas-handler";
 export * from "./staff-handler";

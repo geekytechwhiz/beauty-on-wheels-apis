@@ -20,3 +20,10 @@ export class BadRequestError extends BaseError {
     this.name = 'BadRequestError';
   }
 }
+
+export class RateLimitError extends BaseError {
+  constructor(message = 'Too many requests') {
+    super(message, 429, 'RATE_LIMITED', undefined, { retryable: true });
+    this.name = 'RateLimitError';
+  }
+}

@@ -71,7 +71,17 @@ export async function applyApplicationRoles(
   resolveRoles: (identityId: string) => Promise<string[]>,
 ): Promise<PreTokenGenerationEvent> {
   const identityId = event.request?.userAttributes?.sub?.trim();
+  logger.info({
+    event: 'pre_token_generation_invoked',
+    triggerVersion: event.version,
+    triggerSource: event.triggerSource,
+  });
   if (!identityId) {
+    logger.warn({
+      event: 'pre_token_generation_missing_sub',
+      triggerVersion: event.version,
+      triggerSource: event.triggerSource,
+    });
     return event;
   }
 
@@ -84,20 +94,35 @@ export async function applyApplicationRoles(
     // to ADMIN. API authorization re-reads Identity and denies the call when
     // that read fails, so a lookup error cannot grant a privilege.
     logger.warn({
-      event: 'access_token_roles_unresolved',
+      event: 'pre_token_generation_role_lookup_failed',
+      triggerVersion: event.version,
+      triggerSource: event.triggerSource,
       error: err instanceof Error ? err.name : 'unknown',
     });
     return event;
   }
 
   if (roles.length === 0) {
+    logger.info({
+      event: 'pre_token_generation_no_roles',
+      roleCount: 0,
+      triggerVersion: event.version,
+      triggerSource: event.triggerSource,
+    });
     return event;
   }
 
-  return {
+  const result = {
     ...event,
     response: accessTokenRolesResponse(roles, event.response),
   };
+  logger.info({
+    event: 'pre_token_generation_claims_applied',
+    roleCount: roles.length,
+    triggerVersion: event.version,
+    triggerSource: event.triggerSource,
+  });
+  return result;
 }
 
 export async function customizeAccessToken(

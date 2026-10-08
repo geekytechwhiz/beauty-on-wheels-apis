@@ -5,6 +5,7 @@ export * from "./branches.service";
 export * from "./capabilities.service";
 export * from "./documents.service";
 export * from "./onboarding.service";
+export * from './email-verification.service';
 export * from "./operating-hours.service";
 export * from "./service-areas.service";
 export * from "./staff.service";

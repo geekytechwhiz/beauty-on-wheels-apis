@@ -34,6 +34,6 @@ describe('vendor email verification stream infrastructure', () => {
     expect(emailServerless).toContain('VendorEmailVerification.Requested');
     expect(emailServerless).toContain('vendor_email_confirmation');
     expect(emailServerless).toContain('EmailNotificationDlq');
-    expect(emailServerless).toContain('maximumRetryAttempts: 3');
+    expect(emailServerless).toContain('MaximumRetryAttempts: 3');
   });
 });

@@ -40,6 +40,7 @@ function signToken(claims: Record<string, unknown> = {}): string {
       sub: 'cognito-sub-1',
       token_use: 'access',
       client_id: CLIENT_ID,
+      roles: ['VENDOR'],
       ...claims,
     },
     privateKey,
@@ -81,10 +82,10 @@ function directory(overrides?: Partial<AuthUserDirectory>): AuthUserDirectory {
     findUserByIdentityId: jest.fn().mockResolvedValue({
       userId: 'u-1',
       identityId: 'cognito-sub-1',
-      roleId: 'vendor',
+      roleId: 'VENDOR',
       status: 'active',
     }),
-    getUserRoles: jest.fn().mockResolvedValue(['vendor']),
+    getUserRoles: jest.fn().mockResolvedValue(['VENDOR']),
     getPermissionsForRoles: jest.fn().mockResolvedValue([PERMISSION.VENDOR_READ]),
     ...overrides,
   };
@@ -153,15 +154,18 @@ describe('authenticate', () => {
     ).rejects.toThrow('dynamo unavailable');
   });
 
-  it('keeps directory roles when the access token has no application role', async () => {
+  it('grants no roles when the access token has no application role', async () => {
     const userDirectory = directory({
       getUserRoles: jest.fn().mockResolvedValue(['user']),
     });
-    const token = signToken({ scope: 'aws.cognito.signin.user.admin' });
+    const token = signToken({
+      roles: undefined,
+      scope: 'aws.cognito.signin.user.admin',
+    });
     const ctx = await authenticate(requestWithAuth(`Bearer ${token}`), {
       userDirectory,
     });
-    expect(ctx.roles).toEqual(['user']);
+    expect(ctx.roles).toEqual([]);
     expect(ctx.roles).not.toContain('aws.cognito.signin.user.admin');
   });
 
@@ -171,7 +175,7 @@ describe('authenticate', () => {
     const ctx = await authenticate(req, { userDirectory: directory() });
     expect(ctx.identityId).toBe('cognito-sub-1');
     expect(ctx.userId).toBe('u-1');
-    expect(ctx.roles).toEqual(['vendor']);
+    expect(ctx.roles).toEqual(['VENDOR']);
     expect(ctx.permissions).toEqual([PERMISSION.VENDOR_READ]);
     expect(req.context.authContext?.identityId).toBe('cognito-sub-1');
     expect(req.context.userContext?.userId).toBe('u-1');
@@ -209,7 +213,7 @@ describe('authenticate', () => {
 
     const ctx = await authenticate(req, { userDirectory: directory() });
     expect(ctx.userId).toBe('u-1');
-    expect(ctx.roles).toEqual(['vendor']);
+    expect(ctx.roles).toEqual([]);
     expect(req.context.userContext?.userId).toBe('u-1');
   });
 
@@ -231,7 +235,7 @@ describe('authenticate', () => {
 });
 
 describe('authorize', () => {
-  it('uses access-token roles for authorization and still accepts a token without roles', async () => {
+  it('uses access-token roles and grants none when the claim is missing', async () => {
     const withRoles = signToken({
       roles: ['ADMIN'],
       scope: 'aws.cognito.signin.user.admin',
@@ -250,7 +254,7 @@ describe('authorize', () => {
     expect(userDirectory.getPermissionsForRoles).toHaveBeenCalledWith(['ADMIN']);
     expect(ctx.roles).not.toContain('aws.cognito.signin.user.admin');
 
-    const legacy = signToken({ scope: 'openid' });
+    const legacy = signToken({ roles: undefined, scope: 'openid' });
     const legacyDirectory = directory({
       getUserRoles: jest.fn().mockResolvedValue(['user']),
       getPermissionsForRoles: jest.fn().mockResolvedValue([]),
@@ -258,7 +262,7 @@ describe('authorize', () => {
     const legacyCtx = await authenticate(requestWithAuth(`Bearer ${legacy}`), {
       userDirectory: legacyDirectory,
     });
-    expect(legacyCtx.roles).toEqual(['user']);
+    expect(legacyCtx.roles).toEqual([]);
     expect(legacyCtx.roles).not.toContain('CUSTOMER');
     expect(legacyCtx.roles).not.toContain('VENDOR');
     expect(legacyCtx.roles).not.toContain('ADMIN');

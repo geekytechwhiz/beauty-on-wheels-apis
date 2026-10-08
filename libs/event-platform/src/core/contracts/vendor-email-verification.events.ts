@@ -17,12 +17,14 @@ export const VENDOR_EMAIL_VERIFICATION_EVENT_OPERATIONS = {
 export const VendorEmailVerificationRequestedPayloadSchema = z
   .object({
     vendorId: z.string().min(1),
+    verificationRequestId: z.string().min(1),
+    intent: z.literal('VENDOR_EMAIL_VERIFICATION'),
     ownerUserId: z.string().min(1),
     email: z.string().email(),
     firstName: z.string().min(1),
     otp: z.string().min(1),
     expiryMinutes: z.number().int().positive(),
-    vendorStatus: z.literal('ACTIVE'),
+    vendorStatus: z.literal('PENDING_VERIFICATION'),
     applicationId: z.string().min(1).optional(),
   })
   .strict();
@@ -43,10 +45,10 @@ export const VendorEmailVerificationRequestedEvent = defineEvent(
 
 export function vendorEmailVerificationRequestedIdempotencyKey(
   vendorId: string,
-  requestedAt?: string,
+  verificationRequestId?: string,
 ): string {
-  return requestedAt
-    ? `${VENDOR_EMAIL_VERIFICATION_EVENT_TYPE}:${vendorId}:${requestedAt}`
+  return verificationRequestId
+    ? `${VENDOR_EMAIL_VERIFICATION_EVENT_TYPE}:${vendorId}:${verificationRequestId}`
     : `${VENDOR_EMAIL_VERIFICATION_EVENT_TYPE}:${vendorId}`;
 }
 

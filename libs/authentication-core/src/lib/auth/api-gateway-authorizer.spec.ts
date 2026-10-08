@@ -55,6 +55,7 @@ function signToken(
       sub: 'cognito-sub-1',
       token_use: 'access',
       client_id: CLIENT_ID,
+      roles: ['VENDOR'],
       ...claims,
     },
     key,
@@ -73,10 +74,10 @@ function directory(overrides?: Partial<AuthUserDirectory>): AuthUserDirectory {
     findUserByIdentityId: jest.fn().mockResolvedValue({
       userId: 'u-1',
       identityId: 'cognito-sub-1',
-      roleId: 'vendor',
+      roleId: 'VENDOR',
       status: 'active',
     }),
-    getUserRoles: jest.fn().mockResolvedValue(['vendor']),
+    getUserRoles: jest.fn().mockResolvedValue(['VENDOR']),
     getPermissionsForRoles: jest.fn().mockResolvedValue([PERMISSION.VENDOR_READ]),
     ...overrides,
   };
@@ -217,7 +218,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
     expect(result.context).toEqual({
       identityId: 'cognito-sub-1',
       userId: 'u-1',
-      roles: JSON.stringify(['vendor']),
+      roles: JSON.stringify(['VENDOR']),
       permissions: JSON.stringify([PERMISSION.VENDOR_READ]),
     });
   });
@@ -252,7 +253,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
     const token = signToken();
     const result = await evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {
       userDirectory: directory({
-        getUserRoles: jest.fn().mockResolvedValue(['vendor', 'dispatcher']),
+        getUserRoles: jest.fn().mockResolvedValue(['VENDOR', 'dispatcher']),
         getPermissionsForRoles: jest.fn().mockResolvedValue([
           PERMISSION.VENDOR_READ,
           PERMISSION.BOOKING_READ,
@@ -263,7 +264,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
     expect(result.context).toEqual({
       identityId: 'cognito-sub-1',
       userId: 'u-1',
-      roles: JSON.stringify(['vendor', 'dispatcher']),
+      roles: JSON.stringify(['VENDOR']),
       permissions: JSON.stringify([PERMISSION.VENDOR_READ, PERMISSION.BOOKING_READ]),
     });
   });

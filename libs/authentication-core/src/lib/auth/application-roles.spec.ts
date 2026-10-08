@@ -104,12 +104,12 @@ describe('effectiveAccessTokenRoles', () => {
     ).toEqual([]);
   });
 
-  it('keeps directory roles when the token has no application roles claim', () => {
+  it('grants no roles when the token has no application roles claim', () => {
     expect(
       effectiveAccessTokenRoles({
         tokenRoles: undefined,
         directoryRoleIds: ['user'],
       }),
-    ).toEqual(['user']);
+    ).toEqual([]);
   });
 });

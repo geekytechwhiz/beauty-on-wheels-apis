@@ -255,4 +255,39 @@ describe('CognitoIdentityService', () => {
     expect(tokens.accessToken).toBe('new-access');
     expect(tokens.refreshToken).toBe('refresh');
   });
+
+  it('sends the Cognito username SECRET_HASH on a confidential refresh', async () => {
+    const secret = 'app-client-secret';
+    const confidential = new CognitoIdentityService(
+      new CognitoIdentityProviderClient({}),
+      { ...config, appClientSecret: secret },
+    );
+    ddbMock.on(InitiateAuthCommand).resolves({
+      AuthenticationResult: {
+        AccessToken: 'new-access',
+        ExpiresIn: 3600,
+        TokenType: 'Bearer',
+      },
+    });
+
+    await confidential.refreshTokens('refresh', 'existing-user');
+    const parameters = ddbMock.commandCalls(InitiateAuthCommand)[0].args[0]
+      .input.AuthParameters;
+    expect(parameters?.SECRET_HASH).toBe(
+      computeCognitoSecretHash('existing-user', config.appClientId, secret),
+    );
+  });
+
+  it('rejects a confidential refresh that lacks a Cognito username', async () => {
+    const confidential = new CognitoIdentityService(
+      new CognitoIdentityProviderClient({}),
+      { ...config, appClientSecret: 'app-client-secret' },
+    );
+
+    await expect(confidential.refreshTokens('refresh')).rejects.toMatchObject({
+      code: 'COGNITO_USERNAME_MISSING',
+      statusCode: 500,
+    });
+    expect(ddbMock.commandCalls(InitiateAuthCommand)).toHaveLength(0);
+  });
 });

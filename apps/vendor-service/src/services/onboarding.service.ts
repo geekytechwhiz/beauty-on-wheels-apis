@@ -48,7 +48,18 @@ import {
   DocumentStorage,
   getDocumentStorage,
 } from '../storage/document-storage';
-import { ONBOARDING_SECTION, ONBOARDING_SECTION_ORDER, ONBOARDING_STATUS } from '../domain/onboarding';
+import {
+  hasCompletedEmailVerificationSections,
+  ONBOARDING_SECTION,
+  ONBOARDING_SECTION_ORDER,
+  ONBOARDING_STATUS,
+} from '../domain/onboarding';
+import {
+  generateVendorEmailVerificationOtp,
+  hashVendorEmailVerificationToken,
+  hasValidRegisteredEmail,
+  VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+} from '../domain/email-verification';
 import {
   assertDocumentsMutable,
   createDocumentObjectKey,
@@ -174,7 +185,7 @@ export class OnboardingService {
         : undefined);
     const email = profile.email ?? aggregate.owner?.email;
 
-    const updatedProfile = VendorsMapper.applyOnboardingState(profile, {
+    let updatedProfile = VendorsMapper.applyOnboardingState(profile, {
       onboardingStatus: state.status,
       currentSection: state.currentSection,
       completedSections: state.completedSections,
@@ -188,6 +199,33 @@ export class OnboardingService {
           ? { correlationId }
           : undefined,
     });
+    const becameEligible =
+      !hasCompletedEmailVerificationSections(profile.completedSections) &&
+      hasCompletedEmailVerificationSections(state.completedSections);
+    if (
+      becameEligible &&
+      !updatedProfile.emailVerifiedAt &&
+      !updatedProfile.emailVerificationRequestId &&
+      hasValidRegisteredEmail(updatedProfile.email)
+    ) {
+      // Persist the request with the transition. Stream retries then reuse this
+      // immutable credential instead of minting a replacement.
+      const token = generateVendorEmailVerificationOtp(updatedProfile.vendorId);
+      const requestedAt = new Date().toISOString();
+      updatedProfile = {
+        ...updatedProfile,
+        emailVerificationRequestId: randomUUID(),
+        emailVerificationOtp: token,
+        emailVerificationTokenHash: hashVendorEmailVerificationToken(token),
+        emailVerificationEmail: updatedProfile.email,
+        emailVerificationExpiryMinutes: VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+        emailVerificationRequestedAt: requestedAt,
+        emailVerificationExpiresAt: new Date(
+          Date.parse(requestedAt) + VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES * 60_000,
+        ).toISOString(),
+        emailVerificationDispatchPending: true,
+      };
+    }
     aggregate.profile = updatedProfile;
 
     try {

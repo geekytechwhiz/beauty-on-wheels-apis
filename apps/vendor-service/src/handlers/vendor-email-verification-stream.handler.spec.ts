@@ -41,7 +41,14 @@ function vendorImage(
     contactName: attrString('Priya Sharma'),
     businessName: attrString('ABC Car Wash'),
     applicationId: attrString('app-1'),
-    status: attrString('ACTIVE'),
+    status: attrString('PENDING_VERIFICATION'),
+    completedSections: {
+      L: [
+        attrString('BUSINESS_INFO'), attrString('OWNER_DETAILS'),
+        attrString('ADDRESS'), attrString('BRANCH'), attrString('BANK_DETAILS'),
+      ],
+    },
+    emailVerificationRequestId: attrString('verify-1'),
     emailVerificationOtp: attrString('482193'),
     emailVerificationExpiryMinutes: attrNumber(10),
     emailVerificationRequestedAt: attrString('2026-01-01T00:00:00.000Z'),
@@ -53,6 +60,17 @@ function vendorImage(
     },
     ...overrides,
   };
+}
+
+function incompleteVendorImage(): Record<string, AttributeValue> {
+  return vendorImage({
+    completedSections: {
+      L: [
+        attrString('BUSINESS_INFO'), attrString('OWNER_DETAILS'),
+        attrString('ADDRESS'), attrString('BRANCH'),
+      ],
+    },
+  });
 }
 
 function streamRecord(overrides: {
@@ -94,14 +112,14 @@ function handlerWithPublish(publish: jest.Mock) {
 }
 
 describe('vendor email verification requested stream handler', () => {
-  it('publishes VendorEmailVerification.Requested on PENDING_VERIFICATION → ACTIVE', async () => {
+  it('publishes VendorEmailVerification.Requested on onboarding completion', async () => {
     const publish = jest.fn().mockResolvedValue(undefined);
     const handler = handlerWithPublish(publish);
 
     const event: DynamoDBStreamEvent = {
       Records: [
         streamRecord({
-          oldImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
+          oldImage: incompleteVendorImage(),
           newImage: vendorImage(),
         }),
       ],
@@ -114,12 +132,14 @@ describe('vendor email verification requested stream handler', () => {
     expect(publish).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: 'vendor-1',
+        verificationRequestId: 'verify-1',
+        intent: 'VENDOR_EMAIL_VERIFICATION',
         ownerUserId: 'user-1',
         email: 'owner@example.com',
         firstName: 'Priya',
         otp: '482193',
         expiryMinutes: 10,
-        vendorStatus: 'ACTIVE',
+        vendorStatus: 'PENDING_VERIFICATION',
         applicationId: 'app-1',
       }),
       'corr-confirm-1',
@@ -181,7 +201,7 @@ describe('vendor email verification requested stream handler', () => {
       Records: [
         streamRecord({
           eventID: 'eid-missing',
-          oldImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
+          oldImage: incompleteVendorImage(),
           newImage: vendorImage({
             email: attrString(''),
             emailVerificationOtp: attrString(''),
@@ -205,12 +225,12 @@ describe('vendor email verification requested stream handler', () => {
       Records: [
         streamRecord({
           eventID: 'eid-progress',
-          oldImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
-          newImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
+          oldImage: incompleteVendorImage(),
+          newImage: incompleteVendorImage(),
         }),
         streamRecord({
           eventID: 'eid-confirm',
-          oldImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
+          oldImage: incompleteVendorImage(),
           newImage: vendorImage(),
         }),
         streamRecord({
@@ -233,7 +253,7 @@ describe('vendor email verification requested stream handler', () => {
     const handler = handlerWithPublish(publish);
     const record = streamRecord({
       eventID: 'eid-replay',
-      oldImage: vendorImage({ status: attrString('PENDING_VERIFICATION') }),
+      oldImage: incompleteVendorImage(),
       newImage: vendorImage(),
     });
     const event: DynamoDBStreamEvent = { Records: [record] };
@@ -247,8 +267,8 @@ describe('vendor email verification requested stream handler', () => {
     expect(
       vendorEmailVerificationRequestedIdempotencyKey(
         'vendor-1',
-        '2026-01-01T00:00:00.000Z',
+        'verify-1',
       ),
-    ).toBe('VendorEmailVerification.Requested:vendor-1:2026-01-01T00:00:00.000Z');
+    ).toBe('VendorEmailVerification.Requested:vendor-1:verify-1');
   });
 });

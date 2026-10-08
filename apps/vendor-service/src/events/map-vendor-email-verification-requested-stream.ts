@@ -10,22 +10,30 @@ import {
 } from '@api-hub/event-platform';
 
 import {
-  CONFIRMED_VENDOR_STATUS,
+  EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
   VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
   firstNameFromContactName,
+  hasValidRegisteredEmail,
 } from '../domain/email-verification';
+import { hasCompletedEmailVerificationSections } from '../domain/onboarding';
 
-export function isVendorConfirmedTransition(
+export function isVendorEmailVerificationRequestedTransition(
   oldImage: Record<string, unknown> | undefined,
   newImage: Record<string, unknown> | undefined,
 ): boolean {
   if (!newImage || newImage.entityType !== 'Vendor') {
     return false;
   }
-  if (newImage.status !== CONFIRMED_VENDOR_STATUS) {
+  if (newImage.status !== EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS) {
     return false;
   }
-  return oldImage?.status !== CONFIRMED_VENDOR_STATUS;
+  return (
+    !newImage.emailVerifiedAt &&
+    !newImage.emailVerificationConsumedAt &&
+    !newImage.emailVerificationRevokedAt &&
+    !hasCompletedEmailVerificationSections(oldImage?.completedSections) &&
+    hasCompletedEmailVerificationSections(newImage.completedSections)
+  );
 }
 
 export function toVendorEmailVerificationRequestedPayload(
@@ -34,6 +42,8 @@ export function toVendorEmailVerificationRequestedPayload(
   const expiryMinutes = Number(newImage.emailVerificationExpiryMinutes);
   return {
     vendorId: String(newImage.vendorId ?? ''),
+    verificationRequestId: String(newImage.emailVerificationRequestId ?? ''),
+    intent: 'VENDOR_EMAIL_VERIFICATION',
     ownerUserId: String(newImage.ownerUserId ?? ''),
     email: String(newImage.email ?? ''),
     firstName: firstNameFromContactName(newImage.contactName),
@@ -41,7 +51,7 @@ export function toVendorEmailVerificationRequestedPayload(
     expiryMinutes: Number.isFinite(expiryMinutes) && expiryMinutes > 0
       ? expiryMinutes
       : VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
-    vendorStatus: CONFIRMED_VENDOR_STATUS,
+    vendorStatus: EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
     ...(typeof newImage.applicationId === 'string' && newImage.applicationId.trim()
       ? { applicationId: newImage.applicationId }
       : {}),
@@ -67,27 +77,27 @@ export function mapVendorEmailVerificationRequestedStreamRecord(
   const mapped = platformMapper(raw);
   const norm = normalizeDynamoStreamRecord(raw as DynamoDBRecord);
 
-  if (!isVendorConfirmedTransition(norm.oldImage, norm.newImage)) {
+  if (!isVendorEmailVerificationRequestedTransition(norm.oldImage, norm.newImage)) {
     throw new StreamRecordFilteredError();
   }
 
   const payload = toVendorEmailVerificationRequestedPayload(norm.newImage ?? {});
-  if (!payload.email || !payload.firstName || !payload.otp) {
+  if (
+    !hasValidRegisteredEmail(payload.email) ||
+    !payload.verificationRequestId ||
+    !payload.firstName ||
+    !payload.otp
+  ) {
     throw new StreamRecordFilteredError();
   }
-
-  const requestedAt =
-    typeof norm.newImage?.emailVerificationRequestedAt === 'string'
-      ? norm.newImage.emailVerificationRequestedAt
-      : undefined;
 
   return {
     ...mapped,
     payload,
-    idempotencyKey: payload.vendorId
+    idempotencyKey: payload.vendorId && payload.verificationRequestId
       ? vendorEmailVerificationRequestedIdempotencyKey(
           payload.vendorId,
-          requestedAt,
+          payload.verificationRequestId,
         )
       : mapped.idempotencyKey,
   };

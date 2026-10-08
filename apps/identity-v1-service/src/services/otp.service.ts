@@ -151,13 +151,25 @@ export class OtpService {
         : { phoneNumber: destination },
     );
 
-    const user = await this.resolveApplicationUser(
-      destination,
-      cognitoIdentity.sub,
-      cognitoIdentity.username,
-    );
+    let user: User;
+    try {
+      user = await this.resolveApplicationUser(
+        destination,
+        cognitoIdentity.sub,
+        cognitoIdentity.username,
+      );
+    } catch (err) {
+      this.logger.warn({
+        event: 'identity_persistence_failed',
+        error: err instanceof Error ? err.name : 'unknown',
+      });
+      throw err;
+    }
 
-    this.logger.info({ event: 'OTP Verified', userId: user.userId });
+    this.logger.info({
+      event: 'identity_otp_verification_completed',
+      userId: user.userId,
+    });
     return this.authenticationService.authenticateExistingIdentity(
       user,
       request,
@@ -181,23 +193,34 @@ export class OtpService {
   ): Promise<User> {
     const byIdentity = await this.repository.getUserByIdentityId(identityId);
     if (byIdentity) {
+      this.logger.info({
+        event: 'identity_record_resolved',
+        resolution: 'cognito_identity',
+      });
       return this.markDestinationVerified(byIdentity, destination);
     }
 
     const existingUser = await this.findIdentityByDestination(destination);
     if (existingUser) {
       const verified = await this.markDestinationVerified(existingUser, destination);
-      return this.authenticationService.ensureCognitoLink(verified, {
+      const linked = await this.authenticationService.ensureCognitoLink(verified, {
         sub: identityId,
         username: cognitoUsername,
       });
+      this.logger.info({
+        event: 'identity_record_resolved',
+        resolution: 'destination',
+      });
+      return linked;
     }
 
-    return this.createIdentityFromVerifiedDestination(
+    const created = await this.createIdentityFromVerifiedDestination(
       destination,
       identityId,
       cognitoUsername,
     );
+    this.logger.info({ event: 'identity_record_created' });
+    return created;
   }
 
   private async markDestinationVerified(

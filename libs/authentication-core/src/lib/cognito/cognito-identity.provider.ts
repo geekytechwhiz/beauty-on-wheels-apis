@@ -41,7 +41,7 @@ export interface FindOrCreateCognitoUserInput {
 export interface CognitoAuthClient {
   findOrCreateUser(input: FindOrCreateCognitoUserInput): Promise<CognitoIdentity>;
   issueTokens(username: string): Promise<CognitoTokenSet>;
-  refreshTokens(refreshToken: string): Promise<CognitoTokenSet>;
+  refreshTokens(refreshToken: string, username?: string): Promise<CognitoTokenSet>;
   signOut(username: string): Promise<void>;
 }
 
@@ -141,15 +141,37 @@ export class CognitoIdentityService implements CognitoAuthClient {
     }
   }
 
-  async refreshTokens(refreshToken: string): Promise<CognitoTokenSet> {
+  async refreshTokens(
+    refreshToken: string,
+    username?: string,
+  ): Promise<CognitoTokenSet> {
     try {
+      // Cognito requires SECRET_HASH for every app-client auth flow when the
+      // client has a secret, including REFRESH_TOKEN_AUTH. Cognito requires
+      // the original Cognito username for the hash even though it is not an
+      // AuthParameters field for this flow.
+      const refreshParameters: Record<string, string> = {
+        REFRESH_TOKEN: refreshToken,
+      };
+      if (this.config.appClientSecret) {
+        if (!username?.trim()) {
+          throw new BaseError(
+            'Cognito username is required to refresh tokens for a confidential app client',
+            500,
+            'COGNITO_USERNAME_MISSING',
+          );
+        }
+        refreshParameters.SECRET_HASH = computeCognitoSecretHash(
+          username,
+          this.config.appClientId,
+          this.config.appClientSecret,
+        );
+      }
       const result = await this.client.send(
         new InitiateAuthCommand({
           ClientId: this.config.appClientId,
           AuthFlow: AuthFlowType.REFRESH_TOKEN_AUTH,
-          AuthParameters: {
-            REFRESH_TOKEN: refreshToken,
-          },
+          AuthParameters: refreshParameters,
         }),
       );
       return this.toTokenSet(result.AuthenticationResult, refreshToken);

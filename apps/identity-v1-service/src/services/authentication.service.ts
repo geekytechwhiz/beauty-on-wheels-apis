@@ -155,7 +155,10 @@ export class AuthenticationService {
         }
 
         await this.prepareRoles(user);
-        const tokens = await this.cognito.refreshTokens(body.refreshToken);
+        const tokens = await this.cognito.refreshTokens(
+          body.refreshToken,
+          user.cognitoUsername,
+        );
 
         return {
             accessToken: tokens.accessToken,

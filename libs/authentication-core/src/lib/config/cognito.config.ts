@@ -69,7 +69,9 @@ export function getCognitoConfig(): CognitoConfig {
     'us-east-1';
   const userPoolId = requiredEnv('COGNITO_USER_POOL_ID');
   const appClientId = requiredEnv('COGNITO_APP_CLIENT_ID');
-  const appClientSecret = 'o7o6el3parvs7nu5u4lnlu1jtb9udnvf1ea60c8celnssg7l5qp'; //process.env.COGNITO_APP_CLIENT_SECRET?.trim() || undefined;
+  // App-client secrets are deployment configuration, never source code.  The
+  // value is optional because public Cognito clients do not use SECRET_HASH.
+  const appClientSecret = process.env.COGNITO_APP_CLIENT_SECRET?.trim() || undefined;
   const issuer =
     process.env.COGNITO_ISSUER?.trim() ||
     `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`;

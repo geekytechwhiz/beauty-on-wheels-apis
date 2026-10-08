@@ -28,12 +28,14 @@ describe('VendorEmailVerificationRequestedEvent', () => {
   it('accepts the vendor identifiers required by email delivery', () => {
     const parsed = VendorEmailVerificationRequestedEvent.parse({
       vendorId: 'vendor-1',
+      verificationRequestId: 'verify-1',
+      intent: 'VENDOR_EMAIL_VERIFICATION',
       ownerUserId: 'user-1',
       email: 'owner@example.com',
       firstName: 'Priya',
       otp: '482193',
       expiryMinutes: 10,
-      vendorStatus: 'ACTIVE',
+      vendorStatus: 'PENDING_VERIFICATION',
     });
 
     expect(parsed.email).toBe('owner@example.com');
@@ -46,12 +48,14 @@ describe('VendorEmailVerificationRequestedEvent', () => {
     expect(() =>
       VendorEmailVerificationRequestedEvent.parse({
         vendorId: 'vendor-1',
+        verificationRequestId: 'verify-1',
+        intent: 'VENDOR_EMAIL_VERIFICATION',
         ownerUserId: 'user-1',
         email: 'not-an-email',
         firstName: 'Priya',
         otp: '482193',
         expiryMinutes: 10,
-        vendorStatus: 'ACTIVE',
+        vendorStatus: 'PENDING_VERIFICATION',
       }),
     ).toThrow();
   });
@@ -59,12 +63,14 @@ describe('VendorEmailVerificationRequestedEvent', () => {
   it('does not accept a template identifier from producers', () => {
     const parsed = VendorEmailVerificationRequestedEvent.safeParse({
       vendorId: 'vendor-1',
+      verificationRequestId: 'verify-1',
+      intent: 'VENDOR_EMAIL_VERIFICATION',
       ownerUserId: 'user-1',
       email: 'owner@example.com',
       firstName: 'Priya',
       otp: '482193',
       expiryMinutes: 10,
-      vendorStatus: 'ACTIVE',
+      vendorStatus: 'PENDING_VERIFICATION',
       templateId: 'vendor_email_confirmation',
     });
 

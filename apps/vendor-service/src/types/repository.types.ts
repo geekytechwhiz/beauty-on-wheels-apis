@@ -39,9 +39,20 @@ export interface VendorDdbItem {
   communityIds?: string[];
   latestReview?: VendorStatusReviewRecord;
   primaryBranchId?: string;
+  emailVerificationRequestId?: string;
   emailVerificationOtp?: string;
+  /** Hash used by the verification endpoint; `emailVerificationOtp` is retained
+   * temporarily because the existing stream/email event reads the bearer token. */
+  emailVerificationTokenHash?: string;
+  emailVerificationEmail?: string;
   emailVerificationExpiryMinutes?: number;
   emailVerificationRequestedAt?: string;
+  emailVerificationExpiresAt?: string;
+  emailVerificationConsumedAt?: string;
+  emailVerificationRevokedAt?: string;
+  emailVerificationDispatchPending?: boolean;
+  emailVerificationDispatchedAt?: string;
+  emailVerifiedAt?: string;
   createdAt: string;
   updatedAt: string;
   GSI1PK: string;

@@ -390,6 +390,70 @@
           }
         }
       }
+    },
+    "/users/{userId}/roles": {
+      "post": {
+        "summary": "Assign the ADMIN application role",
+        "description": "Caller must already have ADMIN on the access token. The body role must be ADMIN. CUSTOMER and VENDOR are not assigned here.",
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "postUserAdminRole.post./users/{userId}/roles",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ADMIN role stored"
+          }
+        }
+      }
+    },
+    "/users/{userId}/roles/{role}": {
+      "delete": {
+        "summary": "Remove the ADMIN application role",
+        "description": "Caller must already have ADMIN on the access token. Only the ADMIN role can be removed through this route.",
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "deleteUserAdminRole.delete./users/{userId}/roles/{role}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "role",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ADMIN role removed"
+          }
+        }
+      }
     }
   },
   "definitions": {

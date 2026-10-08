@@ -241,6 +241,7 @@ describe('Services Unit Tests', () => {
                 email: 'john@example.com',
                 status: 'ACTIVE',
                 roleId: 'user',
+                cognitoUsername: 'bow_user',
             } as any);
             mockCognito.refreshTokens.mockResolvedValue({
                 accessToken: 'cognito-access',
@@ -260,6 +261,10 @@ describe('Services Unit Tests', () => {
             expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith('u-123', 'CUSTOMER');
             expect(mockRepo.ensureUserRoleMapping.mock.invocationCallOrder[0]).toBeLessThan(
                 mockCognito.refreshTokens.mock.invocationCallOrder[0],
+            );
+            expect(mockCognito.refreshTokens).toHaveBeenCalledWith(
+                'token123',
+                'bow_user',
             );
         });
 

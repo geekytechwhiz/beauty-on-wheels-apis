@@ -52,6 +52,7 @@ describe('handleAuthorize', () => {
     expect(evaluateMock).toHaveBeenCalledWith(event, {
       userDirectory: expect.any(Object),
       requireApplicationUser: true,
+      expectedTokenUse: 'access',
     });
   });
 });

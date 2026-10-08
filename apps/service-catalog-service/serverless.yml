@@ -22,6 +22,8 @@ provider:
     SERVICE_NAME: service-catalog-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-service-catalog
+    # Provider overrides are read from Vendor Service. Leave empty until that API is reachable.
+    VENDOR_SERVICE_URL: ${env:VENDOR_SERVICE_URL, ''}
 
   iam:
     role:
@@ -326,6 +328,41 @@ functions:
           responseData:
             204:
               description: "Deleted"
+
+
+  postpricingcalculate:
+    handler: src/handlers/pricing-handler.handlePostpricingcalculate
+    description: >
+      Server-authoritative price from catalog services, packages, and add-ons.
+      Applies a vendor price override when Vendor Service returns one.
+      Coupon codes are ignored. Coupon support is Phase 2.
+    events:
+      - http:
+          path: /pricing/calculate
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Calculate price"
+          description: >
+            Calculates a deterministic INR total. Does not apply coupons.
+            vehicleType must be a canonical vehicle type. Incompatible
+            services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
+          swaggerTags:
+            - Pricing
+          bodyType: PricingCalculateRequest
+          responseData:
+            200:
+              description: "Price calculated"
+            400:
+              description: "Invalid request or unsupported vehicle type"
+            404:
+              description: "Catalog entity not found"
+            409:
+              description: "Inactive catalog entity or disabled vendor offering"
+            502:
+              description: "Vendor pricing could not be read"
+            503:
+              description: "Vendor pricing URL is not configured"
 
 
   getaddons:

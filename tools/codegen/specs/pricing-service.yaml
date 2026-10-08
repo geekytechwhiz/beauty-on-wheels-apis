@@ -43,6 +43,7 @@ components:
             type: string
         couponCode:
           type: string
+          description: Ignored by service-catalog POST /pricing/calculate. Coupon support is Phase 2.
 
     PriceBreakdown:
       type: object

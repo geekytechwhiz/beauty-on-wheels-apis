@@ -1,12 +1,13 @@
-import { LambdaRequest } from '@api-hub/utils';
-import { createLogger, createChildLogger } from '@api-hub/observability';
-import { randomUUID } from 'crypto';
-
 import {
-  ValidationError,
+  LambdaRequest,
   NotFoundError,
   UnauthorizedError,
+  ValidationError,
+  VEHICLE_TYPE_VALUES,
+  isVehicleType,
 } from '@api-hub/utils';
+import { createLogger, createChildLogger } from '@api-hub/observability';
+import { randomUUID } from 'crypto';
 
 import {
   VehiclesRepository,
@@ -21,14 +22,7 @@ const baseLogger = createLogger({
   redactPII: true,
 });
 
-const VALID_VEHICLE_TYPES = [
-  'HATCHBACK',
-  'SEDAN',
-  'SUV',
-  'MUV',
-  'LUXURY',
-  'BIKE',
-];
+const VALID_VEHICLE_TYPES: readonly string[] = VEHICLE_TYPE_VALUES;
 const VALID_FUEL_TYPES = ['PETROL', 'DIESEL', 'EV', 'HYBRID', 'CNG'];
 
 export class VehiclesService {
@@ -53,7 +47,7 @@ export class VehiclesService {
     if (!body.vehicleType) {
       throw new ValidationError('vehicleType is required');
     }
-    if (!VALID_VEHICLE_TYPES.includes(body.vehicleType)) {
+    if (!isVehicleType(body.vehicleType)) {
       throw new ValidationError(
         `Invalid vehicleType. Supported types: ${VALID_VEHICLE_TYPES.join(', ')}`,
       );
@@ -111,7 +105,7 @@ export class VehiclesService {
         items = await this.repository.listVehiclesByStatus(userId, upperStatus);
       } else if (vehicleType) {
         const upperType = vehicleType.toUpperCase();
-        if (!VALID_VEHICLE_TYPES.includes(upperType)) {
+        if (!isVehicleType(upperType)) {
           throw new ValidationError(
             `Invalid vehicleType query parameter. Supported: ${VALID_VEHICLE_TYPES.join(', ')}`,
           );
@@ -428,11 +422,11 @@ export class VehiclesService {
     }
   }
 
-  async getvehicletypes(request: LambdaRequest): Promise<string[]> {
+  async getvehicletypes(_request: LambdaRequest): Promise<string[]> {
     this.logger.info({
       event: 'getvehicletypes',
     });
-    return VALID_VEHICLE_TYPES;
+    return [...VALID_VEHICLE_TYPES];
   }
 }
 

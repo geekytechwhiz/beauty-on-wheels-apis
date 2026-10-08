@@ -23,6 +23,21 @@ export const CatalogKeyBuilder = {
 
     serviceSkPrefix: () => `SERVICE#`,
 
+    /** Direct lookup so pricing and packages can resolve a service without its category. */
+    serviceLookupPk: (serviceId: string) => `SERVICE#${serviceId}`,
+
+    serviceLookupSk: () => `META`,
+
+    /**
+     * One applicability row per vehicle type under the category partition.
+     * A single service item cannot be indexed under every type on LSI4.
+     */
+    vehicleApplicabilitySk: (vehicleType: string, serviceId: string) =>
+        `VEHICLE#${vehicleType}#SERVICE#${serviceId}`,
+
+    vehicleApplicabilityPrefix: (vehicleType: string) =>
+        `VEHICLE#${vehicleType}#SERVICE#`,
+
     /* --------------------------------
        ADDON (child of Service)
     -------------------------------- */
@@ -32,6 +47,10 @@ export const CatalogKeyBuilder = {
 
     addonSkPrefix: (serviceId: string) =>
         `SERVICE#${serviceId}#ADDON#`,
+
+    addonLookupPk: (addonId: string) => `ADDON#${addonId}`,
+
+    addonLookupSk: () => `META`,
 
     /* --------------------------------
        PACKAGE

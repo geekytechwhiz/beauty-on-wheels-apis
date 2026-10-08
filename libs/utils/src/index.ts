@@ -25,6 +25,7 @@ export * from './repository/key-builder';
 // export * from './templates/template.registry';
 export * from './helper/domain.helper';
 export * from './enums/core';
+export * from './domain/vehicle-type';
 export * from './helper/date.helper';
 export * from './helper/phone_helper';
 export * from './helper/jwt.helpers';

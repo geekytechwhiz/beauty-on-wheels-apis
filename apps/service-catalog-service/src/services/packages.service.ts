@@ -1,8 +1,10 @@
+import { randomUUID } from "crypto";
+
 import { LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
-    BusinessRuleError,
+    BaseError,
     ConditionalWriteConflictError,
 } from "@api-hub/utils";
 import {
@@ -18,6 +20,10 @@ import {
     ServicesRepository,
     getServicesRepository
 } from "../repositories/services.repository";
+import {
+    AddOnsRepository,
+    getAddOnsRepository
+} from "../repositories/add-ons.repository";
 import {
     CreatePackageInput,
     UpdatePackageInput,
@@ -49,12 +55,12 @@ export class PackagesService {
             getPackagesRepository(),
 
         private readonly servicesRepository: ServicesRepository =
-            getServicesRepository()
+            getServicesRepository(),
 
-    ) {
-        this.repository;
-        this.servicesRepository;
-    }
+        private readonly addOnsRepository: AddOnsRepository =
+            getAddOnsRepository()
+
+    ) {}
 
 
 
@@ -116,7 +122,7 @@ export class PackagesService {
         await this.validatePackageItems(body.items);
 
         const now = new Date().toISOString();
-        const packageId = crypto.randomUUID();
+        const packageId = randomUUID();
 
         const entity = buildPackageEntity(packageId, body, now);
         const itemEntities = buildPackageItemEntities(packageId, body.items, now);
@@ -338,19 +344,58 @@ export class PackagesService {
     }
 
     private async validatePackageItems(items: PackageItemInput[]): Promise<void> {
-        for (const _item of items) {
-            // We validate services exist but don't enforce category here —
-            // caller is responsible for supplying valid serviceIds.
-            // A full validation would require knowing the categoryId per service,
-            // which the package schema doesn't include by design.
-            // We do a lightweight existence check via GSI if needed.
-            // For now, enforce uniqueness of serviceIds within a package.
+        const serviceIds = items.map((item) => item.serviceId);
+        if (new Set(serviceIds).size !== serviceIds.length) {
+            throw new BaseError(
+                "Duplicate service references are not allowed within a package",
+                400,
+                "INVALID_PACKAGE",
+            );
         }
 
-        const serviceIds = items.map(i => i.serviceId);
-        const uniqueServiceIds = new Set(serviceIds);
-        if (uniqueServiceIds.size !== serviceIds.length) {
-            throw new BusinessRuleError("Duplicate service references are not allowed within a package");
+        const addonIds = items.flatMap((item) => item.addons ?? []);
+        if (new Set(addonIds).size !== addonIds.length) {
+            throw new BaseError(
+                "Duplicate add-on references are not allowed within a package",
+                400,
+                "INVALID_PACKAGE",
+            );
+        }
+
+        for (const item of items) {
+            const service = await this.servicesRepository.findByServiceId(item.serviceId);
+            if (!service) {
+                throw new BaseError(
+                    `Service not found: ${item.serviceId}`,
+                    404,
+                    "SERVICE_NOT_FOUND",
+                );
+            }
+            if (!service.active) {
+                throw new BaseError(
+                    `Inactive service cannot be included in a package: ${item.serviceId}`,
+                    400,
+                    "INVALID_PACKAGE",
+                );
+            }
+
+            for (const addonId of item.addons ?? []) {
+                const addon = await this.addOnsRepository.findByAddonId(addonId);
+                if (!addon || addon.serviceId !== item.serviceId) {
+                    throw new BaseError(
+                        `Add-on not found: ${addonId}`,
+                        404,
+                        "ADDON_NOT_FOUND",
+                    );
+                }
+                if (!addon.active) {
+                    throw new BaseError(
+                        `Inactive add-on cannot be included in a package: ${addonId}`,
+                        400,
+                        "INVALID_PACKAGE",
+                    );
+                }
+            }
         }
     }
 

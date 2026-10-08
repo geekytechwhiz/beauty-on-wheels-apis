@@ -9,6 +9,7 @@ import { PackageEntity, PackageItemEntity } from "../utils/types/catalog-domain.
 const TABLE = () => env.DYNAMODB_TABLE_NAME;
 
 const GSI1_INDEX = "GSI1";
+const LSI2_INDEX = "LSI2";
 
 export class PackagesRepository extends BaseRepository {
 
@@ -30,18 +31,41 @@ export class PackagesRepository extends BaseRepository {
     }
 
     /**
-     * List all packages with optional pagination.
+     * List package index rows.
+     *
+     * The aggregate partition key is CATALOG#PACKAGES and the sort key is
+     * META#PACKAGE#<id> on the base table. LSI3's range key is LSI3SK, so a
+     * condition on SK cannot be sent to that index.
+     *
+     * Active packages use LSI2 (PK + LSI2SK = ACTIVE#1), which is populated on
+     * the same index rows.
      */
     async listPackages(params?: {
         activeOnly?: boolean;
         limit?: number;
         lastEvaluatedKey?: Record<string, unknown>;
     }): Promise<{ items: PackageEntity[]; lastEvaluatedKey?: Record<string, unknown> }> {
-        const queryParams: any = {
+        if (params?.activeOnly) {
+            return this.queryPage<PackageEntity>({
+                TableName: TABLE(),
+                IndexName: LSI2_INDEX,
+                KeyConditionExpression: "#pk = :pk AND #lsi2sk = :lsi2sk",
+                ExpressionAttributeNames: {
+                    "#pk": "PK",
+                    "#lsi2sk": "LSI2SK",
+                },
+                ExpressionAttributeValues: {
+                    ":pk": PACKAGES_AGGREGATE_PK,
+                    ":lsi2sk": CatalogKeyBuilder.lsi2sk(true),
+                },
+                Limit: params.limit,
+                ExclusiveStartKey: params.lastEvaluatedKey as any,
+            });
+        }
+
+        return this.queryPage<PackageEntity>({
             TableName: TABLE(),
-            IndexName: PACKAGES_AGGREGATE_INDEX,
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
-            FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
                 "#pk": "PK",
                 "#sk": "SK",
@@ -49,19 +73,10 @@ export class PackagesRepository extends BaseRepository {
             ExpressionAttributeValues: {
                 ":pk": PACKAGES_AGGREGATE_PK,
                 ":skPrefix": "META#PACKAGE#",
-                ":et": "PACKAGE",
             },
             Limit: params?.limit,
             ExclusiveStartKey: params?.lastEvaluatedKey as any,
-        };
-
-        if (params?.activeOnly) {
-            queryParams.FilterExpression += " AND #active = :active";
-            queryParams.ExpressionAttributeNames["#active"] = "active";
-            queryParams.ExpressionAttributeValues[":active"] = true;
-        }
-
-        return this.queryPage<PackageEntity>(queryParams);
+        });
     }
 
     /**
@@ -271,7 +286,6 @@ export class PackagesRepository extends BaseRepository {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 const PACKAGES_AGGREGATE_PK = "CATALOG#PACKAGES";
-const PACKAGES_AGGREGATE_INDEX = "LSI3";
 
 function buildPackageIndexEntry(entity: PackageEntity): Record<string, unknown> {
     return {

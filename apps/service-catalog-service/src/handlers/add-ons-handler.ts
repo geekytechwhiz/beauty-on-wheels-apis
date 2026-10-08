@@ -9,6 +9,7 @@ import {
     validateAddOn,
     validateAddOnUpdate,
 } from "../schemas/add-ons.schema";
+import { assertCatalogAdmin } from "../utils/helpers/catalog-admin";
 
 const controller =
     getAddOnsController();
@@ -26,7 +27,10 @@ export const handlePostaddons =
     withApiHandler(
         {
             operation: "postaddons",
-            validator: (request: LambdaRequest) => { validateAddOn(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateAddOn(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePostaddons(request)
@@ -45,7 +49,10 @@ export const handlePutaddonid =
     withApiHandler(
         {
             operation: "putaddonid",
-            validator: (request: LambdaRequest) => { validateAddOnUpdate(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateAddOnUpdate(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePutaddonid(request)
@@ -55,6 +62,9 @@ export const handleDeleteaddonid =
     withApiHandler(
         {
             operation: "deleteaddonid",
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+            },
         },
         async (request: LambdaRequest) =>
             controller.handleDeleteaddonid(request)

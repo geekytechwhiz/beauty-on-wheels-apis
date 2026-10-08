@@ -8,6 +8,7 @@ export interface Vehicle {
   userId?: string;
   registrationNumber: string;
   vehicleType: 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BIKE';
+  /** Canonical set lives in `@api-hub/utils` `VEHICLE_TYPE_VALUES`. */
   brand?: string;
   model?: string;
   variant?: string;

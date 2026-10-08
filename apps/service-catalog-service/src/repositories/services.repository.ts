@@ -4,13 +4,16 @@ import {
 
 import { env } from "../configs/env.config";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
-import { ServiceEntity } from "../utils/types/catalog-domain.types";
+import {
+    ServiceEntity,
+    ServiceLookupEntity,
+    ServiceVehicleEntity,
+} from "../utils/types/catalog-domain.types";
 
 const TABLE = () => env.DYNAMODB_TABLE_NAME;
 
 const GSI1_INDEX = "GSI1";
 const LSI1_INDEX = "LSI1";
-const LSI4_INDEX = "LSI4";
 const LSI5_INDEX = "LSI5";
 
 export class ServicesRepository extends BaseRepository {
@@ -30,6 +33,18 @@ export class ServicesRepository extends BaseRepository {
             PK: CatalogKeyBuilder.categoryPk(categoryId),
             SK: CatalogKeyBuilder.serviceSk(serviceId),
         });
+    }
+
+    async findByServiceId(serviceId: string): Promise<ServiceEntity | null> {
+        const lookup = await this.get<ServiceLookupEntity>(TABLE(), {
+            PK: CatalogKeyBuilder.serviceLookupPk(serviceId),
+            SK: CatalogKeyBuilder.serviceLookupSk(),
+        });
+        if (!lookup?.categoryId) {
+            return null;
+        }
+        const service = await this.findById(lookup.categoryId, serviceId);
+        return service?.entityType === "SERVICE" ? service : null;
     }
 
     /**
@@ -93,26 +108,33 @@ export class ServicesRepository extends BaseRepository {
     }
 
     /**
-     * List all services under a category filtered by vehicleType (LSI4).
+     * Services in a category that apply to one vehicle type.
+     * Applicability rows are one item per type, queried on the base table.
      */
     async listByVehicleType(
         categoryId: string,
         vehicleType: string
     ): Promise<ServiceEntity[]> {
-        return this.queryAll<ServiceEntity>({
+        const links = await this.queryAll<ServiceVehicleEntity>({
             TableName: TABLE(),
-            IndexName: LSI4_INDEX,
-            KeyConditionExpression: "#pk = :pk AND #lsi4sk = :lsi4sk",
+            KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :prefix)",
             ExpressionAttributeNames: {
                 "#pk": "PK",
-                "#lsi4sk": "LSI4SK",
+                "#sk": "SK",
             },
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
-                ":lsi4sk": CatalogKeyBuilder.lsi4sk(vehicleType),
+                ":prefix": CatalogKeyBuilder.vehicleApplicabilityPrefix(vehicleType),
             },
-            FilterExpression: "entityType = :et",
-        }).then(items => items.filter(i => i.entityType === "SERVICE"));
+        });
+
+        const services = await Promise.all(
+            links.map((link) => this.findById(categoryId, link.serviceId)),
+        );
+        return services.filter(
+            (service): service is ServiceEntity =>
+                service?.entityType === "SERVICE",
+        );
     }
 
     /**
@@ -126,6 +148,7 @@ export class ServicesRepository extends BaseRepository {
             TableName: TABLE(),
             IndexName: LSI5_INDEX,
             KeyConditionExpression: "#pk = :pk AND #lsi5sk = :lsi5sk",
+            FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
                 "#pk": "PK",
                 "#lsi5sk": "LSI5SK",
@@ -133,9 +156,9 @@ export class ServicesRepository extends BaseRepository {
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
                 ":lsi5sk": CatalogKeyBuilder.lsi5sk(durationMinutes),
+                ":et": "SERVICE",
             },
-            FilterExpression: "entityType = :et",
-        }).then(items => items.filter(i => i.entityType === "SERVICE"));
+        });
     }
 
     /**
@@ -186,50 +209,146 @@ export class ServicesRepository extends BaseRepository {
     // ── Write operations ─────────────────────────────────────────────────────
 
     async createService(entity: ServiceEntity): Promise<void> {
+        const now = entity.updatedAt;
         await this.transactWrite({
             TransactItems: [
-                {
-                    Put: {
-                        TableName: TABLE(),
-                        Item: entity as any,
-                        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
-                    },
-                },
+                putNew(entity),
+                putNew(buildServiceLookup(entity, now)),
+                ...entity.vehicleTypes.map((vehicleType) =>
+                    putNew(buildVehicleLink(entity, vehicleType, now)),
+                ),
             ],
         });
     }
 
-    async updateService(entity: ServiceEntity): Promise<void> {
+    async updateService(
+        entity: ServiceEntity,
+        previousVehicleTypes: readonly string[],
+    ): Promise<void> {
+        const now = entity.updatedAt;
+        const next = new Set(entity.vehicleTypes);
+        const previous = new Set(previousVehicleTypes);
+        const removed = [...previous].filter((vehicleType) => !next.has(vehicleType));
+        const added = [...next].filter((vehicleType) => !previous.has(vehicleType));
+        const kept = [...next].filter((vehicleType) => previous.has(vehicleType));
+
         await this.transactWrite({
             TransactItems: [
-                {
-                    Put: {
-                        TableName: TABLE(),
-                        Item: entity as any,
-                        ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
-                    },
-                },
+                putExisting(entity),
+                putUpsert(buildServiceLookup(entity, now)),
+                ...removed.map((vehicleType) =>
+                    deleteKey(
+                        CatalogKeyBuilder.categoryPk(entity.categoryId),
+                        CatalogKeyBuilder.vehicleApplicabilitySk(vehicleType, entity.serviceId),
+                    ),
+                ),
+                ...[...added, ...kept].map((vehicleType) =>
+                    putUpsert(buildVehicleLink(entity, vehicleType, now)),
+                ),
             ],
         });
     }
 
-    async deleteService(categoryId: string, serviceId: string): Promise<void> {
+    async deleteService(entity: ServiceEntity): Promise<void> {
         await this.transactWrite({
             TransactItems: [
                 {
                     Delete: {
                         TableName: TABLE(),
                         Key: {
-                            PK: CatalogKeyBuilder.categoryPk(categoryId),
-                            SK: CatalogKeyBuilder.serviceSk(serviceId),
+                            PK: entity.PK,
+                            SK: entity.SK,
                         },
                         ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
+                deleteKey(
+                    CatalogKeyBuilder.serviceLookupPk(entity.serviceId),
+                    CatalogKeyBuilder.serviceLookupSk(),
+                ),
+                ...entity.vehicleTypes.map((vehicleType) =>
+                    deleteKey(
+                        CatalogKeyBuilder.categoryPk(entity.categoryId),
+                        CatalogKeyBuilder.vehicleApplicabilitySk(
+                            vehicleType,
+                            entity.serviceId,
+                        ),
+                    ),
+                ),
             ],
         });
     }
 
+}
+
+function putNew(item: object) {
+    return {
+        Put: {
+            TableName: TABLE(),
+            Item: item,
+            ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+        },
+    };
+}
+
+function putExisting(item: object) {
+    return {
+        Put: {
+            TableName: TABLE(),
+            Item: item,
+            ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
+        },
+    };
+}
+
+function putUpsert(item: object) {
+    return {
+        Put: {
+            TableName: TABLE(),
+            Item: item,
+        },
+    };
+}
+
+function deleteKey(pk: string, sk: string) {
+    return {
+        Delete: {
+            TableName: TABLE(),
+            Key: { PK: pk, SK: sk },
+        },
+    };
+}
+
+function buildServiceLookup(entity: ServiceEntity, now: string): ServiceLookupEntity {
+    return {
+        PK: CatalogKeyBuilder.serviceLookupPk(entity.serviceId),
+        SK: CatalogKeyBuilder.serviceLookupSk(),
+        entityType: "SERVICE_LOOKUP",
+        categoryId: entity.categoryId,
+        serviceId: entity.serviceId,
+        active: entity.active,
+        createdAt: entity.createdAt,
+        updatedAt: now,
+    };
+}
+
+function buildVehicleLink(
+    entity: ServiceEntity,
+    vehicleType: string,
+    now: string,
+): ServiceVehicleEntity {
+    return {
+        PK: CatalogKeyBuilder.categoryPk(entity.categoryId),
+        SK: CatalogKeyBuilder.vehicleApplicabilitySk(vehicleType, entity.serviceId),
+        entityType: "SERVICE_VEHICLE",
+        categoryId: entity.categoryId,
+        serviceId: entity.serviceId,
+        vehicleType,
+        active: entity.active,
+        LSI4SK: CatalogKeyBuilder.lsi4sk(vehicleType),
+        createdAt: entity.createdAt,
+        updatedAt: now,
+    };
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────

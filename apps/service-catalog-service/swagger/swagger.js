@@ -3,7 +3,8 @@
   "swagger": "2.0",
   "info": {
     "title": "Beauty on Wheels - Service Catalog Service API",
-    "version": "1"
+    "version": "1.0.0",
+    "description": "Catalog source of truth for categories, services, packages, add-ons, and server-authoritative pricing. Coupon application is Phase 2 and is not implemented. Catalog writes require a catalog administrator (permission catalog:write or an admin role). Reads require the existing API authorizer. Provider price overrides are read from Vendor Service and are not stored in the catalog table."
   },
   "paths": {
     "/categories": {
@@ -59,6 +60,16 @@
       }
     },
     "/categories/{categoryId}": {
+      "parameters": [
+        {
+          "name": "categoryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "summary": "Get category",
         "description": "",
@@ -203,6 +214,16 @@
       }
     },
     "/services/{serviceId}": {
+      "parameters": [
+        {
+          "name": "serviceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "summary": "Get service",
         "description": "",
@@ -347,6 +368,16 @@
       }
     },
     "/packages/{packageId}": {
+      "parameters": [
+        {
+          "name": "packageId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "summary": "Get package",
         "description": "",
@@ -491,6 +522,16 @@
       }
     },
     "/addons/{addonId}": {
+      "parameters": [
+        {
+          "name": "addonId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "summary": "Get add-on",
         "description": "",
@@ -581,6 +622,53 @@
           }
         }
       }
+    },
+    "/pricing/calculate": {
+      "post": {
+        "summary": "Calculate price",
+        "description": "Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.\n",
+        "tags": [
+          "Pricing"
+        ],
+        "operationId": "postpricingcalculate.post./pricing/calculate",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PricingCalculateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Price calculated"
+          },
+          "400": {
+            "description": "Invalid request or unsupported vehicle type"
+          },
+          "404": {
+            "description": "Catalog entity not found"
+          },
+          "409": {
+            "description": "Inactive catalog entity or disabled vendor offering"
+          },
+          "502": {
+            "description": "Vendor pricing could not be read"
+          },
+          "503": {
+            "description": "Vendor pricing URL is not configured"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -605,12 +693,28 @@
         "active": {
           "title": "Category.active",
           "type": "boolean"
+        },
+        "serviceCount": {
+          "title": "Category.serviceCount",
+          "type": "number"
         }
       },
       "additionalProperties": false,
       "title": "Category",
       "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
       "type": "object"
+    },
+    "VehicleType": {
+      "enum": [
+        "HATCHBACK",
+        "SEDAN",
+        "SUV",
+        "MUV",
+        "LUXURY",
+        "BIKE"
+      ],
+      "title": "VehicleType",
+      "type": "string"
     },
     "Service": {
       "properties": {
@@ -636,8 +740,8 @@
         },
         "vehicleTypes": {
           "items": {
-            "title": "Service.vehicleTypes.[]",
-            "type": "string"
+            "$ref": "#/definitions/VehicleType",
+            "title": "Service.vehicleTypes.[]"
           },
           "title": "Service.vehicleTypes",
           "type": "array"
@@ -708,6 +812,115 @@
       "additionalProperties": false,
       "title": "AddOn",
       "type": "object"
+    },
+    "PricingCalculateRequest": {
+      "properties": {
+        "vehicleType": {
+          "$ref": "#/definitions/VehicleType",
+          "title": "PricingCalculateRequest.vehicleType"
+        },
+        "vendorId": {
+          "title": "PricingCalculateRequest.vendorId",
+          "type": "string"
+        },
+        "serviceIds": {
+          "items": {
+            "title": "PricingCalculateRequest.serviceIds.[]",
+            "type": "string"
+          },
+          "title": "PricingCalculateRequest.serviceIds",
+          "type": "array"
+        },
+        "packageIds": {
+          "items": {
+            "title": "PricingCalculateRequest.packageIds.[]",
+            "type": "string"
+          },
+          "title": "PricingCalculateRequest.packageIds",
+          "type": "array"
+        },
+        "addOnIds": {
+          "items": {
+            "title": "PricingCalculateRequest.addOnIds.[]",
+            "type": "string"
+          },
+          "title": "PricingCalculateRequest.addOnIds",
+          "type": "array"
+        },
+        "addonIds": {
+          "items": {
+            "title": "PricingCalculateRequest.addonIds.[]",
+            "type": "string"
+          },
+          "title": "PricingCalculateRequest.addonIds",
+          "type": "array"
+        },
+        "items": {
+          "items": {
+            "anyOf": [
+              {
+                "properties": {
+                  "type": {
+                    "title": "type",
+                    "enum": [
+                      "SERVICE"
+                    ],
+                    "type": "string"
+                  },
+                  "serviceId": {
+                    "title": "serviceId",
+                    "type": "string"
+                  },
+                  "categoryId": {
+                    "title": "categoryId",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "serviceId"
+                ],
+                "additionalProperties": false,
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "title": "type",
+                    "enum": [
+                      "PACKAGE"
+                    ],
+                    "type": "string"
+                  },
+                  "packageId": {
+                    "title": "packageId",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "packageId"
+                ],
+                "additionalProperties": false,
+                "type": "object"
+              }
+            ]
+          },
+          "title": "PricingCalculateRequest.items",
+          "type": "array"
+        },
+        "couponCode": {
+          "title": "PricingCalculateRequest.couponCode",
+          "description": "Ignored. Coupon support is Phase 2.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vehicleType"
+      ],
+      "additionalProperties": false,
+      "title": "PricingCalculateRequest",
+      "type": "object"
     }
   },
   "securityDefinitions": {},
@@ -715,5 +928,421 @@
   "schemes": [
     "https",
     "http"
+  ],
+  "openapi": "3.0.3",
+  "tags": [
+    {
+      "name": "Categories"
+    },
+    {
+      "name": "Services"
+    },
+    {
+      "name": "Packages"
+    },
+    {
+      "name": "Add-ons"
+    },
+    {
+      "name": "Pricing"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "VehicleType": {
+        "type": "string",
+        "description": "Canonical vehicle types shared with Vehicle Service and Vendor Service.",
+        "enum": [
+          "HATCHBACK",
+          "SEDAN",
+          "SUV",
+          "MUV",
+          "LUXURY",
+          "BIKE"
+        ]
+      },
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "object"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Examples: VALIDATION_ERROR, INVALID_VEHICLE_TYPE, VEHICLE_TYPE_NOT_SUPPORTED, INVALID_PRICE, INVALID_PACKAGE, SERVICE_NOT_FOUND, PACKAGE_NOT_FOUND, ADDON_NOT_FOUND, CATEGORY_NOT_FOUND, CONFLICT, FORBIDDEN, UNAUTHORIZED, VENDOR_PRICING_UNAVAILABLE, VENDOR_SERVICE_DISABLED, CATALOG_ENTITY_INACTIVE."
+              }
+            }
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "serviceCount": {
+            "type": "integer",
+            "description": "Number of services in the category. Counted with DynamoDB Query Count across all pages, filtered to entityType SERVICE."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Service": {
+        "type": "object",
+        "required": [
+          "categoryId",
+          "name",
+          "durationMinutes",
+          "vehicleTypes",
+          "basePrice"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "vehicleTypes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/VehicleType"
+            }
+          },
+          "basePrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "INR with at most two decimal places. Stored and calculated in integer paise."
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PackageItem": {
+        "type": "object",
+        "required": [
+          "serviceId"
+        ],
+        "properties": {
+          "serviceId": {
+            "type": "string"
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Package": {
+        "type": "object",
+        "required": [
+          "name",
+          "discountedPrice",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "discountedPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Package charge in INR. Pricing uses this value and does not recompute a discount."
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/PackageItem"
+            }
+          }
+        }
+      },
+      "AddOn": {
+        "type": "object",
+        "required": [
+          "serviceId",
+          "categoryId",
+          "name",
+          "price",
+          "durationMinutes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PricingCalculateRequest": {
+        "type": "object",
+        "required": [
+          "vehicleType"
+        ],
+        "description": "Select services by serviceIds and/or items, and packages by packageIds and/or items. couponCode is ignored. Coupons are Phase 2.",
+        "properties": {
+          "vehicleType": {
+            "$ref": "#/components/schemas/VehicleType"
+          },
+          "vendorId": {
+            "type": "string",
+            "description": "When present, provider overrides are read from Vendor Service. When omitted, catalog prices are used."
+          },
+          "serviceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "packageIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addOnIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addonIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Alias of addOnIds."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "serviceId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SERVICE"
+                      ]
+                    },
+                    "serviceId": {
+                      "type": "string"
+                    },
+                    "categoryId": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "packageId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "PACKAGE"
+                      ]
+                    },
+                    "packageId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "couponCode": {
+            "type": "string",
+            "description": "Accepted for backward compatibility and ignored. Coupons are not applied."
+          }
+        }
+      },
+      "PricingLine": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "SERVICE",
+              "PACKAGE",
+              "ADD_ON"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "number"
+          },
+          "catalogUnitPrice": {
+            "type": "number"
+          },
+          "providerUnitPrice": {
+            "type": "number"
+          }
+        }
+      },
+      "PricingBreakdown": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "example": "INR"
+          },
+          "vehicleType": {
+            "$ref": "#/components/schemas/VehicleType"
+          },
+          "vendorId": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number",
+            "description": "Always 0 in MVP. Coupons are Phase 2. Package discountedPrice is the package unit price."
+          },
+          "addOnTotal": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number",
+            "description": "subtotal + addOnTotal - discount, computed in integer paise."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingLine"
+            }
+          },
+          "pricingVersion": {
+            "type": "string",
+            "example": "catalog-mvp-1"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "couponsApplied": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
   ]
 };

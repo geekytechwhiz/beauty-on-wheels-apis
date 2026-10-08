@@ -4,7 +4,15 @@
  * Never expose these outside the repository layer.
  */
 
-export type EntityType = 'CATEGORY' | 'SERVICE' | 'ADDON' | 'PACKAGE' | 'PACKAGE_ITEM';
+export type EntityType =
+    | 'CATEGORY'
+    | 'SERVICE'
+    | 'ADDON'
+    | 'PACKAGE'
+    | 'PACKAGE_ITEM'
+    | 'SERVICE_LOOKUP'
+    | 'SERVICE_VEHICLE'
+    | 'ADDON_LOOKUP';
 
 export interface CatalogBaseEntity {
     /** DynamoDB partition key */
@@ -76,6 +84,29 @@ export interface PackageEntity extends CatalogBaseEntity {
     discountedPrice: number;
     active: boolean;
     displayOrder: number;
+}
+
+export interface ServiceLookupEntity extends CatalogBaseEntity {
+    entityType: 'SERVICE_LOOKUP';
+    categoryId: string;
+    serviceId: string;
+    active: boolean;
+}
+
+export interface ServiceVehicleEntity extends CatalogBaseEntity {
+    entityType: 'SERVICE_VEHICLE';
+    categoryId: string;
+    serviceId: string;
+    vehicleType: string;
+    active: boolean;
+}
+
+export interface AddonLookupEntity extends CatalogBaseEntity {
+    entityType: 'ADDON_LOOKUP';
+    categoryId: string;
+    serviceId: string;
+    addonId: string;
+    active: boolean;
 }
 
 export interface PackageItemEntity extends CatalogBaseEntity {

@@ -9,6 +9,7 @@ import {
     validateCategory,
     validateCategoryUpdate,
 } from "../schemas/categories.schema";
+import { assertCatalogAdmin } from "../utils/helpers/catalog-admin";
 
 const controller =
     getCategoriesController();
@@ -26,7 +27,10 @@ export const handlePostcategories =
     withApiHandler(
         {
             operation: "postcategories",
-            validator: (request: LambdaRequest) => { validateCategory(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateCategory(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePostcategories(request)
@@ -45,7 +49,10 @@ export const handlePutcategoryid =
     withApiHandler(
         {
             operation: "putcategoryid",
-            validator: (request: LambdaRequest) => { validateCategoryUpdate(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateCategoryUpdate(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePutcategoryid(request)
@@ -55,6 +62,9 @@ export const handleDeletecategoryid =
     withApiHandler(
         {
             operation: "deletecategoryid",
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+            },
         },
         async (request: LambdaRequest) =>
             controller.handleDeletecategoryid(request)

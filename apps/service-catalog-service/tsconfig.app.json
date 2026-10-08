@@ -30,6 +30,9 @@
     },
     {
       "path": "../../libs/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/authentication-core/tsconfig.lib.json"
     }
   ]
 }

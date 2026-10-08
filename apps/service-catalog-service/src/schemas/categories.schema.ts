@@ -2,6 +2,8 @@ import { z } from "zod";
 import { LambdaRequest } from "@api-hub/utils";
 import { EventSchemaError } from "@api-hub/middleware";
 
+import { assertCatalogName } from "../domain/catalog-validation";
+
 /**
  * ---------------------------------------------------------
  * Category
@@ -36,7 +38,7 @@ export const validateCategory = (req: LambdaRequest): CreateCategoryInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
-    return result.data;
+    return { ...result.data, name: assertCatalogName(result.data.name) };
 };
 
 export const validateCategoryUpdate = (req: LambdaRequest): UpdateCategoryInput => {
@@ -44,5 +46,11 @@ export const validateCategoryUpdate = (req: LambdaRequest): UpdateCategoryInput 
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
-    return result.data;
+    const name = result.data.name === undefined
+        ? undefined
+        : assertCatalogName(result.data.name);
+    return {
+        ...result.data,
+        ...(name === undefined ? {} : { name }),
+    };
 };

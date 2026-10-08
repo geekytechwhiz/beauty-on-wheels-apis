@@ -9,7 +9,7 @@ export type OperationalStatus = 'ONLINE' | 'OFFLINE' | 'BUSY' | 'TEMPORARILY_UNA
 
 export type VendorType = 'INDIVIDUAL' | 'BUSINESS';
 
-export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'OTHER';
+export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BIKE';
 
 export type StaffStatus = 'ACTIVE' | 'INACTIVE';
 

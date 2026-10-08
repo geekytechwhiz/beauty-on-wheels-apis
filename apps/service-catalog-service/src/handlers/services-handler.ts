@@ -9,6 +9,7 @@ import {
     validateService,
     validateServiceUpdate,
 } from "../schemas/services.schema";
+import { assertCatalogAdmin } from "../utils/helpers/catalog-admin";
 
 const controller =
     getServicesController();
@@ -26,7 +27,10 @@ export const handlePostservices =
     withApiHandler(
         {
             operation: "postservices",
-            validator: (request: LambdaRequest) => { validateService(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateService(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePostservices(request)
@@ -45,7 +49,10 @@ export const handlePutserviceid =
     withApiHandler(
         {
             operation: "putserviceid",
-            validator: (request: LambdaRequest) => { validateServiceUpdate(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validateServiceUpdate(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePutserviceid(request)
@@ -55,6 +62,9 @@ export const handleDeleteserviceid =
     withApiHandler(
         {
             operation: "deleteserviceid",
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+            },
         },
         async (request: LambdaRequest) =>
             controller.handleDeleteserviceid(request)

@@ -9,6 +9,7 @@ import {
     validatePackage,
     validatePackageUpdate,
 } from "../schemas/packages.schema";
+import { assertCatalogAdmin } from "../utils/helpers/catalog-admin";
 
 const controller =
     getPackagesController();
@@ -26,7 +27,10 @@ export const handlePostpackages =
     withApiHandler(
         {
             operation: "postpackages",
-            validator: (request: LambdaRequest) => { validatePackage(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validatePackage(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePostpackages(request)
@@ -45,7 +49,10 @@ export const handlePutpackageid =
     withApiHandler(
         {
             operation: "putpackageid",
-            validator: (request: LambdaRequest) => { validatePackageUpdate(request); }
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+                validatePackageUpdate(request);
+            }
         },
         async (request: LambdaRequest) =>
             controller.handlePutpackageid(request)
@@ -55,6 +62,9 @@ export const handleDeletepackageid =
     withApiHandler(
         {
             operation: "deletepackageid",
+            validator: (request: LambdaRequest) => {
+                assertCatalogAdmin(request);
+            },
         },
         async (request: LambdaRequest) =>
             controller.handleDeletepackageid(request)

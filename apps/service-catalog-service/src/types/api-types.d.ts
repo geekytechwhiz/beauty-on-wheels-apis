@@ -9,7 +9,10 @@ export interface Category {
   description?: string;
   displayOrder?: number;
   active?: boolean;
+  serviceCount?: number;
 }
+
+export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BIKE';
 
 export interface Service {
   id?: string;
@@ -17,7 +20,7 @@ export interface Service {
   name?: string;
   description?: string;
   durationMinutes?: number;
-  vehicleTypes?: string[];
+  vehicleTypes?: VehicleType[];
   basePrice?: number;
   active?: boolean;
 }
@@ -35,5 +38,20 @@ export interface AddOn {
   name?: string;
   price?: number;
   durationMinutes?: number;
+}
+
+export interface PricingCalculateRequest {
+  vehicleType: VehicleType;
+  vendorId?: string;
+  serviceIds?: string[];
+  packageIds?: string[];
+  addOnIds?: string[];
+  addonIds?: string[];
+  items?: Array<
+    | { type: 'SERVICE'; serviceId: string; categoryId?: string }
+    | { type: 'PACKAGE'; packageId: string }
+  >;
+  /** Ignored. Coupon support is Phase 2. */
+  couponCode?: string;
 }
 

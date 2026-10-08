@@ -22,6 +22,13 @@ export const PERMISSION = {
 
   PRICING_READ: 'pricing:read',
   PRICING_UPDATE: 'pricing:update',
+
+  /**
+   * Catalog mutations. Identity must grant this permission or an admin role
+   * before service-catalog write handlers allow the call.
+   */
+  CATALOG_READ: 'catalog:read',
+  CATALOG_WRITE: 'catalog:write',
 } as const;
 
 export type PermissionId = (typeof PERMISSION)[keyof typeof PERMISSION];

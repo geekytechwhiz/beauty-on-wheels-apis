@@ -3,6 +3,7 @@ import {
 } from "@api-hub/utils";
 
 import { env } from "../configs/env.config";
+import { queryCount } from "./query-count";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { CategoryEntity } from "../utils/types/catalog-domain.types";
 
@@ -128,12 +129,15 @@ export class CategoriesRepository extends BaseRepository {
     }
 
     /**
-     * Count how many services exist under a category (to enforce delete constraint).
+     * Count services under a category.
+     * Uses Query Count and follows LastEvaluatedKey. Add-on rows share the
+     * SERVICE# sort-key prefix, so entityType is part of the count filter.
      */
     async countServices(categoryId: string): Promise<number> {
-        const items = await this.query<{ PK: string; SK: string }>({
+        return queryCount({
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
+            FilterExpression: "entityType = :et",
             ExpressionAttributeNames: {
                 "#pk": "PK",
                 "#sk": "SK",
@@ -141,17 +145,16 @@ export class CategoriesRepository extends BaseRepository {
             ExpressionAttributeValues: {
                 ":pk": CatalogKeyBuilder.categoryPk(categoryId),
                 ":skPrefix": CatalogKeyBuilder.serviceSkPrefix(),
+                ":et": "SERVICE",
             },
-            Select: "COUNT",
-        } as any);
-        return (items as any).length ?? 0;
+        });
     }
 
     /**
      * Count active services under a category (for deactivation guard).
      */
     async countActiveServices(categoryId: string): Promise<number> {
-        const services = await this.queryAll<any>({
+        return queryCount({
             TableName: TABLE(),
             KeyConditionExpression: "#pk = :pk AND begins_with(#sk, :skPrefix)",
             FilterExpression: "#active = :active AND entityType = :et",
@@ -167,7 +170,6 @@ export class CategoriesRepository extends BaseRepository {
                 ":et": "SERVICE",
             },
         });
-        return services.length;
     }
 
     // ── Write operations ─────────────────────────────────────────────────────

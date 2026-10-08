@@ -1,8 +1,9 @@
+import { randomUUID } from "crypto";
+
 import { LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
-    BusinessRuleError,
     ConditionalWriteConflictError,
 } from "@api-hub/utils";
 import {
@@ -43,9 +44,7 @@ export class CategoriesService {
         private readonly repository: CategoriesRepository =
             getCategoriesRepository()
 
-    ) {
-        this.repository;
-    }
+    ) {}
 
 
 
@@ -71,7 +70,14 @@ export class CategoriesService {
             lastEvaluatedKey,
         });
 
-        const items = result.items.map(mapCategoryEntityToResponse);
+        const items = await Promise.all(
+            result.items.map(async (entity) =>
+                mapCategoryEntityToResponse(
+                    entity,
+                    await this.repository.countServices(entity.categoryId),
+                ),
+            ),
+        );
 
         this.logger.info({
             event: "getcategories_success",
@@ -103,7 +109,7 @@ export class CategoriesService {
         await this.assertCategoryNameUnique(body.name);
 
         const now = new Date().toISOString();
-        const categoryId = crypto.randomUUID();
+        const categoryId = randomUUID();
 
         const entity = buildCategoryEntity(categoryId, body, now);
 
@@ -134,7 +140,7 @@ export class CategoriesService {
             categoryId,
         });
 
-        return mapCategoryEntityToResponse(entity);
+        return mapCategoryEntityToResponse(entity, 0);
 
     }
 
@@ -162,7 +168,10 @@ export class CategoriesService {
             categoryId,
         });
 
-        return mapCategoryEntityToResponse(entity);
+        return mapCategoryEntityToResponse(
+            entity,
+            await this.repository.countServices(categoryId),
+        );
 
     }
 
@@ -191,7 +200,7 @@ export class CategoriesService {
         if (body.active === false && existing.active === true) {
             const activeServiceCount = await this.repository.countActiveServices(categoryId);
             if (activeServiceCount > 0) {
-                throw new BusinessRuleError(
+                throw new ConflictError(
                     `Cannot deactivate category: ${activeServiceCount} active service(s) still exist under this category`
                 );
             }
@@ -232,7 +241,10 @@ export class CategoriesService {
             categoryId,
         });
 
-        return mapCategoryEntityToResponse(updated);
+        return mapCategoryEntityToResponse(
+            updated,
+            await this.repository.countServices(categoryId),
+        );
 
     }
 
@@ -258,7 +270,7 @@ export class CategoriesService {
         // Business rule: cannot delete if services exist
         const serviceCount = await this.repository.countServices(categoryId);
         if (serviceCount > 0) {
-            throw new BusinessRuleError(
+            throw new ConflictError(
                 `Cannot delete category: ${serviceCount} service(s) are still linked to this category`
             );
         }
@@ -309,13 +321,14 @@ export class CategoriesService {
 
 // ── Mapper ─────────────────────────────────────────────────────────────────────
 
-function mapCategoryEntityToResponse(entity: CategoryEntity) {
+function mapCategoryEntityToResponse(entity: CategoryEntity, serviceCount: number) {
     return {
         id: entity.categoryId,
         name: entity.name,
         description: entity.description,
         displayOrder: entity.displayOrder,
         active: entity.active,
+        serviceCount,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };

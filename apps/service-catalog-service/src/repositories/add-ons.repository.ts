@@ -4,7 +4,7 @@ import {
 
 import { env } from "../configs/env.config";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
-import { AddonEntity } from "../utils/types/catalog-domain.types";
+import { AddonEntity, AddonLookupEntity } from "../utils/types/catalog-domain.types";
 
 const TABLE = () => env.DYNAMODB_TABLE_NAME;
 
@@ -31,6 +31,22 @@ export class AddOnsRepository extends BaseRepository {
             PK: CatalogKeyBuilder.categoryPk(categoryId),
             SK: CatalogKeyBuilder.addonSk(serviceId, addonId),
         });
+    }
+
+    async findByAddonId(addonId: string): Promise<AddonEntity | null> {
+        const lookup = await this.get<AddonLookupEntity>(TABLE(), {
+            PK: CatalogKeyBuilder.addonLookupPk(addonId),
+            SK: CatalogKeyBuilder.addonLookupSk(),
+        });
+        if (!lookup?.categoryId || !lookup.serviceId) {
+            return null;
+        }
+        const addon = await this.findById(
+            lookup.categoryId,
+            lookup.serviceId,
+            addonId,
+        );
+        return addon?.entityType === "ADDON" ? addon : null;
     }
 
     /**
@@ -136,6 +152,13 @@ export class AddOnsRepository extends BaseRepository {
                         ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
                     },
                 },
+                {
+                    Put: {
+                        TableName: TABLE(),
+                        Item: buildAddonLookup(entity) as any,
+                        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+                    },
+                },
             ],
         });
     }
@@ -148,6 +171,12 @@ export class AddOnsRepository extends BaseRepository {
                         TableName: TABLE(),
                         Item: entity as any,
                         ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
+                    },
+                },
+                {
+                    Put: {
+                        TableName: TABLE(),
+                        Item: buildAddonLookup(entity) as any,
                     },
                 },
             ],
@@ -171,10 +200,33 @@ export class AddOnsRepository extends BaseRepository {
                         ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
                     },
                 },
+                {
+                    Delete: {
+                        TableName: TABLE(),
+                        Key: {
+                            PK: CatalogKeyBuilder.addonLookupPk(addonId),
+                            SK: CatalogKeyBuilder.addonLookupSk(),
+                        },
+                    },
+                },
             ],
         });
     }
 
+}
+
+function buildAddonLookup(entity: AddonEntity): AddonLookupEntity {
+    return {
+        PK: CatalogKeyBuilder.addonLookupPk(entity.addonId),
+        SK: CatalogKeyBuilder.addonLookupSk(),
+        entityType: "ADDON_LOOKUP",
+        categoryId: entity.categoryId,
+        serviceId: entity.serviceId,
+        addonId: entity.addonId,
+        active: entity.active,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+    };
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────

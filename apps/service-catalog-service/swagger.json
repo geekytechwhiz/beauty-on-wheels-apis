@@ -1,1 +1,344 @@
-{}
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Beauty on Wheels - Service Catalog Service API",
+    "version": "1.0.0",
+    "description": "Catalog source of truth for categories, services, packages, add-ons, and server-authoritative pricing. Coupon application is Phase 2 and is not implemented. Catalog writes require a catalog administrator (permission catalog:write or an admin role). Reads require the existing API authorizer. Provider price overrides are read from Vendor Service and are not stored in the catalog table."
+  },
+  "tags": [
+    { "name": "Categories" },
+    { "name": "Services" },
+    { "name": "Packages" },
+    { "name": "Add-ons" },
+    { "name": "Pricing" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "VehicleType": {
+        "type": "string",
+        "description": "Canonical vehicle types shared with Vehicle Service and Vendor Service.",
+        "enum": ["HATCHBACK", "SEDAN", "SUV", "MUV", "LUXURY", "BIKE"]
+      },
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "statusCode": { "type": "integer" },
+          "message": { "type": "object" },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Examples: VALIDATION_ERROR, INVALID_VEHICLE_TYPE, VEHICLE_TYPE_NOT_SUPPORTED, INVALID_PRICE, INVALID_PACKAGE, SERVICE_NOT_FOUND, PACKAGE_NOT_FOUND, ADDON_NOT_FOUND, CATEGORY_NOT_FOUND, CONFLICT, FORBIDDEN, UNAUTHORIZED, VENDOR_PRICING_UNAVAILABLE, VENDOR_SERVICE_DISABLED, CATALOG_ENTITY_INACTIVE."
+              }
+            }
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "displayOrder": { "type": "integer" },
+          "active": { "type": "boolean" },
+          "serviceCount": {
+            "type": "integer",
+            "description": "Number of services in the category. Counted with DynamoDB Query Count across all pages, filtered to entityType SERVICE."
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Service": {
+        "type": "object",
+        "required": ["categoryId", "name", "durationMinutes", "vehicleTypes", "basePrice"],
+        "properties": {
+          "id": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "durationMinutes": { "type": "integer", "minimum": 1 },
+          "vehicleTypes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/components/schemas/VehicleType" }
+          },
+          "basePrice": { "type": "number", "minimum": 0, "description": "INR with at most two decimal places. Stored and calculated in integer paise." },
+          "displayOrder": { "type": "integer" },
+          "active": { "type": "boolean" }
+        }
+      },
+      "PackageItem": {
+        "type": "object",
+        "required": ["serviceId"],
+        "properties": {
+          "serviceId": { "type": "string" },
+          "addons": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Package": {
+        "type": "object",
+        "required": ["name", "discountedPrice", "items"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "discountedPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Package charge in INR. Pricing uses this value and does not recompute a discount."
+          },
+          "displayOrder": { "type": "integer" },
+          "active": { "type": "boolean" },
+          "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/PackageItem" } }
+        }
+      },
+      "AddOn": {
+        "type": "object",
+        "required": ["serviceId", "categoryId", "name", "price", "durationMinutes"],
+        "properties": {
+          "id": { "type": "string" },
+          "serviceId": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "price": { "type": "number", "minimum": 0 },
+          "durationMinutes": { "type": "integer", "minimum": 1 },
+          "displayOrder": { "type": "integer" },
+          "active": { "type": "boolean" }
+        }
+      },
+      "PricingCalculateRequest": {
+        "type": "object",
+        "required": ["vehicleType"],
+        "description": "Select services by serviceIds and/or items, and packages by packageIds and/or items. couponCode is ignored. Coupons are Phase 2.",
+        "properties": {
+          "vehicleType": { "$ref": "#/components/schemas/VehicleType" },
+          "vendorId": {
+            "type": "string",
+            "description": "When present, provider overrides are read from Vendor Service. When omitted, catalog prices are used."
+          },
+          "serviceIds": { "type": "array", "items": { "type": "string" } },
+          "packageIds": { "type": "array", "items": { "type": "string" } },
+          "addOnIds": { "type": "array", "items": { "type": "string" } },
+          "addonIds": { "type": "array", "items": { "type": "string" }, "description": "Alias of addOnIds." },
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": ["type", "serviceId"],
+                  "properties": {
+                    "type": { "type": "string", "enum": ["SERVICE"] },
+                    "serviceId": { "type": "string" },
+                    "categoryId": { "type": "string" }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": ["type", "packageId"],
+                  "properties": {
+                    "type": { "type": "string", "enum": ["PACKAGE"] },
+                    "packageId": { "type": "string" }
+                  }
+                }
+              ]
+            }
+          },
+          "couponCode": {
+            "type": "string",
+            "description": "Accepted for backward compatibility and ignored. Coupons are not applied."
+          }
+        }
+      },
+      "PricingLine": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["SERVICE", "PACKAGE", "ADD_ON"] },
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "unitPrice": { "type": "number" },
+          "quantity": { "type": "integer" },
+          "total": { "type": "number" },
+          "catalogUnitPrice": { "type": "number" },
+          "providerUnitPrice": { "type": "number" }
+        }
+      },
+      "PricingBreakdown": {
+        "type": "object",
+        "properties": {
+          "currency": { "type": "string", "example": "INR" },
+          "vehicleType": { "$ref": "#/components/schemas/VehicleType" },
+          "vendorId": { "type": "string" },
+          "subtotal": { "type": "number" },
+          "discount": { "type": "number", "description": "Always 0 in MVP. Coupons are Phase 2. Package discountedPrice is the package unit price." },
+          "addOnTotal": { "type": "number" },
+          "total": { "type": "number", "description": "subtotal + addOnTotal - discount, computed in integer paise." },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/PricingLine" } },
+          "pricingVersion": { "type": "string", "example": "catalog-mvp-1" },
+          "calculatedAt": { "type": "string", "format": "date-time" },
+          "couponsApplied": { "type": "boolean", "example": false }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List categories",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "nextToken", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Category page. Each item includes serviceCount." } }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Create category",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. 401 unauthenticated, 403 authenticated non-admin.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } },
+        "responses": {
+          "200": { "description": "Created" },
+          "401": { "description": "Unauthenticated" },
+          "403": { "description": "Not a catalog administrator" }
+        }
+      }
+    },
+    "/categories/{categoryId}": {
+      "parameters": [{ "name": "categoryId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Get category",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Category including serviceCount" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update category",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. Deactivating a category that still has active services returns 409.",
+        "responses": { "200": { "description": "Updated" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" }, "409": { "description": "Category still has active services" } }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Delete category",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. Returns 409 when the category still contains services.",
+        "responses": { "200": { "description": "Deleted" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" }, "404": { "description": "Not found" }, "409": { "description": "Category contains services" } }
+      }
+    },
+    "/services": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "List services",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "categoryId", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "vehicleType", "in": "query", "schema": { "$ref": "#/components/schemas/VehicleType" }, "description": "Matches every indexed vehicle type, not only the first." },
+          { "name": "active", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Services" } }
+      },
+      "post": {
+        "tags": ["Services"],
+        "summary": "Create service",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. Category must exist and be active. Vehicle types must be canonical and unique. basePrice cannot be negative.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Service" } } } },
+        "responses": { "200": { "description": "Created" }, "400": { "description": "Invalid price, duration, or vehicle type" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" }, "404": { "description": "Category not found" }, "409": { "description": "Category inactive or name conflict" } }
+      }
+    },
+    "/services/{serviceId}": {
+      "parameters": [{ "name": "serviceId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": { "tags": ["Services"], "summary": "Get service", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "categoryId", "in": "query", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Service" }, "404": { "description": "Not found" } } },
+      "put": { "tags": ["Services"], "summary": "Update service", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Updated" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } },
+      "delete": { "tags": ["Services"], "summary": "Delete service", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Deleted" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } }
+    },
+    "/packages": {
+      "get": {
+        "tags": ["Packages"],
+        "summary": "List packages",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Queries the base-table aggregate partition CATALOG#PACKAGES / META#PACKAGE#. Active filtering uses LSI2 (LSI2SK = ACTIVE#1).",
+        "parameters": [
+          { "name": "active", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "nextToken", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Package page" } }
+      },
+      "post": {
+        "tags": ["Packages"],
+        "summary": "Create package",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. Every service and add-on reference must exist and be active. Package stores references, not copied service documents.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Package" } } } },
+        "responses": { "200": { "description": "Created" }, "400": { "description": "Invalid package" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" }, "404": { "description": "Referenced service or add-on not found" } }
+      }
+    },
+    "/packages/{packageId}": {
+      "parameters": [{ "name": "packageId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": { "tags": ["Packages"], "summary": "Get package", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Package" }, "404": { "description": "Not found" } } },
+      "put": { "tags": ["Packages"], "summary": "Update package", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Updated" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } },
+      "delete": { "tags": ["Packages"], "summary": "Delete package", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Deleted" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } }
+    },
+    "/addons": {
+      "get": { "tags": ["Add-ons"], "summary": "List add-ons", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Add-ons" } } },
+      "post": {
+        "tags": ["Add-ons"],
+        "summary": "Create add-on",
+        "security": [{ "bearerAuth": [] }],
+        "description": "Catalog administrator only. Price must be non-negative. Duration must be positive.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AddOn" } } } },
+        "responses": { "200": { "description": "Created" }, "400": { "description": "Invalid price or duration" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } }
+      }
+    },
+    "/addons/{addonId}": {
+      "parameters": [{ "name": "addonId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": { "tags": ["Add-ons"], "summary": "Get add-on", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Add-on" }, "404": { "description": "Not found" } } },
+      "put": { "tags": ["Add-ons"], "summary": "Update add-on", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Updated" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } },
+      "delete": { "tags": ["Add-ons"], "summary": "Delete add-on", "security": [{ "bearerAuth": [] }], "description": "Catalog administrator only.", "responses": { "200": { "description": "Deleted" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" } } }
+    },
+    "/pricing/calculate": {
+      "post": {
+        "tags": ["Pricing"],
+        "summary": "Calculate price",
+        "description": "Server-authoritative MVP price. Uses catalog basePrice or package discountedPrice, selected add-on prices, and an optional vendor override from Vendor Service. Every selected service, including services inside a package, must support vehicleType. No coupon logic is applied. A partial price is not returned when a service is incompatible.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PricingCalculateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Price calculated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PricingBreakdown" } } }
+          },
+          "400": { "description": "Invalid request, invalid price, or VEHICLE_TYPE_NOT_SUPPORTED", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorBody" } } } },
+          "404": { "description": "SERVICE_NOT_FOUND, PACKAGE_NOT_FOUND, or ADDON_NOT_FOUND" },
+          "409": { "description": "Inactive catalog entity or vendor offering disabled" },
+          "500": { "description": "Unexpected error" },
+          "502": { "description": "VENDOR_PRICING_UNAVAILABLE. Vendor Service denied or failed the override read. Catalog does not fall back to a silent price when vendorId was supplied." },
+          "503": { "description": "VENDOR_SERVICE_URL is not configured" }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

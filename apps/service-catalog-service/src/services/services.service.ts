@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import { LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
@@ -50,9 +52,7 @@ export class ServicesService {
         private readonly categoriesRepository: CategoriesRepository =
             getCategoriesRepository()
 
-    ) {
-        this.repository;
-    }
+    ) {}
 
 
 
@@ -146,12 +146,17 @@ export class ServicesService {
         if (!category) {
             throw new NotFoundError(`Category not found: ${body.categoryId}`);
         }
+        if (!category.active) {
+            throw new ConflictError(
+                `Category is not active: ${body.categoryId}`,
+            );
+        }
 
         // Service name unique within category
         await this.assertServiceNameUnique(body.name, body.categoryId);
 
         const now = new Date().toISOString();
-        const serviceId = crypto.randomUUID();
+        const serviceId = randomUUID();
 
         const entity = buildServiceEntity(serviceId, body, now);
 
@@ -252,12 +257,24 @@ export class ServicesService {
             await this.assertServiceNameUnique(body.name, categoryId);
         }
 
+        if (body.active === true && existing.active === false) {
+            const category = await this.categoriesRepository.findById(categoryId);
+            if (!category) {
+                throw new NotFoundError(`Category not found: ${categoryId}`);
+            }
+            if (!category.active) {
+                throw new ConflictError(
+                    `Category is not active: ${categoryId}`,
+                );
+            }
+        }
+
         const now = new Date().toISOString();
         const updated = mergeServiceEntity(existing, body, now);
 
         try {
 
-            await this.repository.updateService(updated);
+            await this.repository.updateService(updated, existing.vehicleTypes);
 
         } catch (err) {
 
@@ -321,7 +338,7 @@ export class ServicesService {
 
         try {
 
-            await this.repository.deleteService(categoryId, serviceId);
+            await this.repository.deleteService(existing);
 
         } catch (err) {
 
@@ -393,9 +410,6 @@ function buildServiceEntity(
     const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
     const lsi3Val = CatalogKeyBuilder.lsi3sk("SERVICE");
-    const lsi4Val = input.vehicleTypes.length > 0
-        ? CatalogKeyBuilder.lsi4sk(input.vehicleTypes[0])
-        : undefined;
     const lsi5Val = CatalogKeyBuilder.lsi5sk(input.durationMinutes);
 
     return {
@@ -416,7 +430,6 @@ function buildServiceEntity(
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI3SK: lsi3Val,
-        LSI4SK: lsi4Val,
         LSI5SK: lsi5Val,
         createdAt: now,
         updatedAt: now,
@@ -436,12 +449,9 @@ function mergeServiceEntity(
 
     const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
-    const lsi4Val = vehicleTypes.length > 0
-        ? CatalogKeyBuilder.lsi4sk(vehicleTypes[0])
-        : existing.LSI4SK;
     const lsi5Val = CatalogKeyBuilder.lsi5sk(durationMinutes);
 
-    return {
+    const next: ServiceEntity = {
         ...existing,
         name,
         description: updates.description ?? existing.description,
@@ -454,10 +464,11 @@ function mergeServiceEntity(
         GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
-        LSI4SK: lsi4Val,
         LSI5SK: lsi5Val,
         updatedAt: now,
     };
+    delete next.LSI4SK;
+    return next;
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────

@@ -745,7 +745,7 @@ components:
         - SUV
         - MUV
         - LUXURY
-        - OTHER
+        - BIKE
 
     StaffStatus:
       type: string

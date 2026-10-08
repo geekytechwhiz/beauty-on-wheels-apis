@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { LambdaRequest } from "@api-hub/utils";
 import { EventSchemaError } from "@api-hub/middleware";
+import {
+    assertCatalogAmount,
+    assertCatalogName,
+    assertPositiveDuration,
+} from "../domain/catalog-validation";
 
 /**
  * ---------------------------------------------------------
@@ -13,8 +18,8 @@ export const CreateAddOnSchema = z.object({
     categoryId: z.string().min(1, "categoryId is required"),
     name: z.string().min(1, "name is required").max(100),
     description: z.string().max(500).optional(),
-    price: z.number().min(0, "price must be non-negative"),
-    durationMinutes: z.number().int().min(1, "durationMinutes must be at least 1"),
+    price: z.number(),
+    durationMinutes: z.number(),
     displayOrder: z.number().int().min(0).optional().default(0),
     active: z.boolean().optional().default(true),
 }).strict();
@@ -22,8 +27,8 @@ export const CreateAddOnSchema = z.object({
 export const UpdateAddOnSchema = z.object({
     name: z.string().min(1).max(100).optional(),
     description: z.string().max(500).optional(),
-    price: z.number().min(0).optional(),
-    durationMinutes: z.number().int().min(1).optional(),
+    price: z.number().optional(),
+    durationMinutes: z.number().optional(),
     displayOrder: z.number().int().min(0).optional(),
     active: z.boolean().optional(),
 }).strict();
@@ -42,7 +47,10 @@ export const validateAddOn = (req: LambdaRequest): CreateAddOnInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
-    return result.data;
+    const name = assertCatalogName(result.data.name);
+    assertCatalogAmount(result.data.price, "price");
+    assertPositiveDuration(result.data.durationMinutes);
+    return { ...result.data, name };
 };
 
 export const validateAddOnUpdate = (req: LambdaRequest): UpdateAddOnInput => {
@@ -50,5 +58,17 @@ export const validateAddOnUpdate = (req: LambdaRequest): UpdateAddOnInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
-    return result.data;
+    const name = result.data.name === undefined
+        ? undefined
+        : assertCatalogName(result.data.name);
+    if (result.data.price !== undefined) {
+        assertCatalogAmount(result.data.price, "price");
+    }
+    if (result.data.durationMinutes !== undefined) {
+        assertPositiveDuration(result.data.durationMinutes);
+    }
+    return {
+        ...result.data,
+        ...(name === undefined ? {} : { name }),
+    };
 };

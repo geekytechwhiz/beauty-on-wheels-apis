@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import { LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
@@ -57,9 +59,7 @@ export class AddOnsService {
         private readonly categoriesRepository: CategoriesRepository =
             getCategoriesRepository()
 
-    ) {
-        this.repository;
-    }
+    ) {}
 
 
 
@@ -137,12 +137,17 @@ export class AddOnsService {
         if (!service) {
             throw new NotFoundError(`Service not found: ${body.serviceId}`);
         }
+        if (!category.active || !service.active) {
+            throw new ConflictError(
+                "Add-ons can only be created for an active category and service",
+            );
+        }
 
         // Addon name unique within service
         await this.assertAddonNameUnique(body.name, body.categoryId, body.serviceId);
 
         const now = new Date().toISOString();
-        const addonId = crypto.randomUUID();
+        const addonId = randomUUID();
 
         const entity = buildAddonEntity(addonId, body, now);
 

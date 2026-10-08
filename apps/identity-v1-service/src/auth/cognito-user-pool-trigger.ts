@@ -70,6 +70,8 @@ export function lambdaConfigWithoutAccessTokenRoles(
 /**
  * Builds an UpdateUserPool request that copies the live pool settings and only
  * changes the pre-token generation trigger. Omitted fields reset to Cognito defaults.
+ * SmsConfiguration must be copied so phone verification stays intact. Cognito then
+ * requires iam:PassRole on SmsConfiguration.SnsCallerArn.
  */
 export function buildUpdateUserPoolInput(
   pool: UserPoolType,

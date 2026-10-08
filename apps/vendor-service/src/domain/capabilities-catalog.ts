@@ -1,4 +1,4 @@
-import { VehicleType } from '../types/api-types';
+import { VEHICLE_TYPE_VALUES, type VehicleType } from '@api-hub/utils';
 
 export const CAPABILITY_CATEGORY = {
   VEHICLE_TYPE: 'vehicleType',
@@ -14,44 +14,23 @@ export interface CapabilityDefinition {
   name: string;
 }
 
-const VEHICLE_TYPE_CAPABILITIES: CapabilityDefinition[] = [
-  {
-    capabilityId: 'vehicle:HATCHBACK',
+const VEHICLE_TYPE_NAMES: Record<VehicleType, string> = {
+  HATCHBACK: 'Hatchback',
+  SEDAN: 'Sedan',
+  SUV: 'SUV',
+  MUV: 'MUV',
+  LUXURY: 'Luxury',
+  BIKE: 'Bike',
+};
+
+const VEHICLE_TYPE_CAPABILITIES: CapabilityDefinition[] = VEHICLE_TYPE_VALUES.map(
+  (code) => ({
+    capabilityId: `vehicle:${code}`,
     category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'HATCHBACK',
-    name: 'Hatchback',
-  },
-  {
-    capabilityId: 'vehicle:SEDAN',
-    category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'SEDAN',
-    name: 'Sedan',
-  },
-  {
-    capabilityId: 'vehicle:SUV',
-    category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'SUV',
-    name: 'SUV',
-  },
-  {
-    capabilityId: 'vehicle:MUV',
-    category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'MUV',
-    name: 'MUV',
-  },
-  {
-    capabilityId: 'vehicle:LUXURY',
-    category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'LUXURY',
-    name: 'Luxury',
-  },
-  {
-    capabilityId: 'vehicle:OTHER',
-    category: CAPABILITY_CATEGORY.VEHICLE_TYPE,
-    code: 'OTHER',
-    name: 'Other',
-  },
-];
+    code,
+    name: VEHICLE_TYPE_NAMES[code],
+  }),
+);
 
 export const CAPABILITY_CATALOG_SOURCE = {
   services: 'service-catalog-service',

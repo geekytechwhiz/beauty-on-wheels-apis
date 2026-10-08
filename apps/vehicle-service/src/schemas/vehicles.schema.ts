@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest, VEHICLE_TYPE_VALUES } from "@api-hub/utils";
 import { EventSchemaError } from "@api-hub/middleware";
 
 /**
@@ -12,7 +12,7 @@ export const VehicleSchema = z.object({
 id: z.string().optional(),
 userId: z.string().optional(),
 registrationNumber: z.string(),
-vehicleType: z.enum(["HATCHBACK", "SEDAN", "SUV", "MUV", "LUXURY", "BIKE"]),
+vehicleType: z.enum(VEHICLE_TYPE_VALUES),
 brand: z.string().optional(),
 model: z.string().optional(),
 variant: z.string().optional(),

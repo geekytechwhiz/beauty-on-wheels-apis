@@ -70,6 +70,17 @@ export interface VendorOwnerDdbItem {
   entityType: 'VendorOwner';
 }
 
+/** Conditional-write lock. One item per application user. Not projected onto GSI1. */
+export interface VendorOwnershipDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  ownerUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  entityType: 'VendorOwnership';
+}
+
 export interface VendorAddressDdbItem {
   PK: string;
   SK: string;

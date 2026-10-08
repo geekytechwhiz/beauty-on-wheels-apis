@@ -59,6 +59,10 @@ export class VendorsController {
 
     }
 
+    async handleGetMyVendor(request: LambdaRequest) {
+        return this.service.getMyVendor(request);
+    }
+
 
 
     async handleUpdatevendor(

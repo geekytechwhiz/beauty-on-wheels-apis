@@ -6,7 +6,10 @@ import {
 } from '@api-hub/utils';
 
 import type { AuthContext, AuthenticateOptions } from './auth-context';
-import { parseAccessTokenRolesClaim } from './application-roles';
+import {
+  effectiveAccessTokenRoles,
+  parseAccessTokenRolesClaim,
+} from './application-roles';
 import { readAuthorizerContextFromEvent } from './authorizer-context';
 import { readBearerToken, validateAccessToken } from './token-validator';
 import { USER_STATUS } from '../constants/identity.constants';
@@ -83,16 +86,17 @@ async function resolveApplicationUser(
 
   ctx.userId = user.userId;
   const tokenRoles = parseAccessTokenRolesClaim(ctx.claims.roles);
-  const applicationRoles =
-    tokenRoles.ok && tokenRoles.roles && tokenRoles.roles.length > 0
-      ? tokenRoles.roles
-      : undefined;
-  if (applicationRoles) {
-    ctx.roles = applicationRoles;
-  } else {
-    const roles = await directory.getUserRoles(user.userId);
-    ctx.roles = roles.length > 0 ? roles : user.roleId ? [user.roleId] : [];
+  if (!tokenRoles.ok) {
+    throw new UnauthorizedError('Invalid roles claim');
   }
+  // Always re-read Identity. A still-valid access token must not keep a role
+  // that has been revoked. Directory failures propagate and deny the request.
+  const directoryRoleIds = await directory.getUserRoles(user.userId);
+  ctx.roles = effectiveAccessTokenRoles({
+    tokenRoles: tokenRoles.roles,
+    directoryRoleIds,
+    profileRoleId: user.roleId,
+  });
   ctx.permissions = await directory.getPermissionsForRoles(ctx.roles);
   return ctx;
 }

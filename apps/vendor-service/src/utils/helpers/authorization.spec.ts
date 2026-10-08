@@ -34,6 +34,25 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
     ).toThrow(UnauthorizedError);
   });
 
+  it('does not treat Cognito identityId as the application user id', () => {
+    expect(() =>
+      assertVendorAccess(
+        request({
+          context: {
+            authContext: {
+              identityId: 'cognito-sub-1',
+              roles: [],
+              permissions: [],
+              claims: {},
+            },
+            userContext: { userId: 'cognito-sub-1', identityId: 'cognito-sub-1' },
+          },
+        }),
+        vendor,
+      ),
+    ).toThrow(UnauthorizedError);
+  });
+
   it('forbids a caller who does not own the vendor', () => {
     expect(() =>
       assertVendorAccess(

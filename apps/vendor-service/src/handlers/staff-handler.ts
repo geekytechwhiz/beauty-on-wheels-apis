@@ -1,4 +1,4 @@
-import { withApiHandler } from "@api-hub/middleware";
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from "@api-hub/utils";
 
 import {
@@ -14,7 +14,7 @@ const controller =
     getStaffController();
 
 export const handleListvendorstaff =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "listvendorstaff",
         },
@@ -23,7 +23,7 @@ export const handleListvendorstaff =
     );
 
 export const handleCreatevendorstaff =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "createvendorstaff",
             validator: (request: LambdaRequest) => { validateCreateStaffRequest(request); }
@@ -33,7 +33,7 @@ export const handleCreatevendorstaff =
     );
 
 export const handleGetvendorstaff =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "getvendorstaff",
         },
@@ -42,7 +42,7 @@ export const handleGetvendorstaff =
     );
 
 export const handleUpdatevendorstaff =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendorstaff",
             validator: (request: LambdaRequest) => { validateUpdateStaffRequest(request); }
@@ -52,7 +52,7 @@ export const handleUpdatevendorstaff =
     );
 
 export const handleDeactivatevendorstaff =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "deactivatevendorstaff",
         },

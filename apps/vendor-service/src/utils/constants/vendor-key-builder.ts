@@ -2,6 +2,7 @@ import { OperationalStatus, VendorStatus } from '../../types/api-types';
 
 export const VENDOR_ENTITY_TYPE = 'Vendor' as const;
 export const VENDOR_OWNER_ENTITY_TYPE = 'VendorOwner' as const;
+export const VENDOR_OWNERSHIP_ENTITY_TYPE = 'VendorOwnership' as const;
 export const VENDOR_ADDRESS_ENTITY_TYPE = 'VendorAddress' as const;
 export const VENDOR_BANK_ENTITY_TYPE = 'VendorBank' as const;
 export const VENDOR_BRANCH_ENTITY_TYPE = 'VendorBranch' as const;
@@ -15,6 +16,7 @@ export const VENDOR_COMMUNITY_ENTITY_TYPE = 'VendorCommunity' as const;
 
 export const VENDOR_PROFILE_SK = 'PROFILE';
 export const VENDOR_OWNER_SK = 'OWNER';
+export const VENDOR_OWNERSHIP_SK = 'VENDOR';
 export const VENDOR_ADDRESS_SK = 'ADDRESS';
 export const VENDOR_BANK_SK = 'BANK';
 export const VENDOR_CAPABILITIES_SK = 'CAPABILITIES';
@@ -83,6 +85,16 @@ export const VendorKeyBuilder = {
   ownerGsi1Pk: (userId: string) => `OWNER#${userId}`,
 
   ownerGsi1Sk: (vendorId: string) => `VENDOR#${vendorId}`,
+
+  ownerGsi1SkPrefix: () => 'VENDOR#',
+
+  /**
+   * Base-table uniqueness key for one vendor application per user.
+   * Distinct from the owner item, which keeps GSI1 = OWNER#{userId}.
+   */
+  ownershipPk: (userId: string) => `OWNER#${userId}`,
+
+  ownershipSk: () => VENDOR_OWNERSHIP_SK,
 
   normalizeCity: (city: string) => city.trim().toUpperCase(),
 

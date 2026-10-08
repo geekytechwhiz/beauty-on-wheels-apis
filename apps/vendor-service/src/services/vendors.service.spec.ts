@@ -1,5 +1,10 @@
 import { LambdaRequest } from '@api-hub/utils';
-import { ConflictError, ForbiddenError, UnauthorizedError } from '@api-hub/utils';
+import {
+  ConditionalWriteConflictError,
+  ConflictError,
+  ForbiddenError,
+  UnauthorizedError,
+} from '@api-hub/utils';
 
 import { VendorsService } from './vendors.service';
 import { VendorsRepository } from '../repositories/vendors.repository';
@@ -51,6 +56,9 @@ describe('VendorsService', () => {
     repository = {
       getVendorById: jest.fn().mockResolvedValue(vendorItem()),
       getVendorIdByOwnerUserId: jest.fn().mockResolvedValue(null),
+      listOwnersByUserId: jest.fn().mockResolvedValue([]),
+      getOwnershipVendorId: jest.fn().mockResolvedValue(null),
+      putOwnershipIfAbsent: jest.fn().mockResolvedValue(undefined),
       createVendor: jest.fn().mockResolvedValue(undefined),
       getAddress: jest.fn().mockResolvedValue(null),
       updateVendor: jest.fn().mockResolvedValue(undefined),
@@ -95,21 +103,54 @@ describe('VendorsService', () => {
     expect(result.onboardingStatus).toBe('IN_PROGRESS');
     expect(result.status).toBe('PENDING_VERIFICATION');
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
-    const [profile, owner] = repository.createVendor.mock.calls[0];
+    const [profile, owner, ownership] = repository.createVendor.mock.calls[0];
     expect(profile.SK).toBe('PROFILE');
+    expect(profile.ownerUserId).toBe('user-1');
     expect(profile.vendorId).toBe(result.vendorId);
     expect(owner.SK).toBe('OWNER');
     expect(owner.userId).toBe('user-1');
     expect(owner.GSI1PK).toBe('OWNER#user-1');
+    expect(owner.GSI1SK).toBe(`VENDOR#${result.vendorId}`);
+    expect(ownership.PK).toBe('OWNER#user-1');
+    expect(ownership.SK).toBe('VENDOR');
+    expect(ownership.vendorId).toBe(result.vendorId);
+    expect(ownership.GSI1PK).toBeUndefined();
   });
 
-  it('mints a unique vendorId on every POST for the same owner', async () => {
-    const first = await service.createvendor(authRequest({ body: createBody }));
-    const second = await service.createvendor(authRequest({ body: createBody }));
+  it('returns the existing vendor when the same user creates again', async () => {
+    repository.getOwnershipVendorId.mockResolvedValue('vendor-1');
 
-    expect(first.vendorId).not.toBe(second.vendorId);
-    expect(repository.createVendor).toHaveBeenCalledTimes(2);
-    expect(repository.getVendorIdByOwnerUserId).not.toHaveBeenCalled();
+    const result = await service.createvendor(authRequest({ body: createBody }));
+
+    expect(result.vendorId).toBe('vendor-1');
+    expect(result.ownerUserId).toBe('user-1');
+    expect(repository.createVendor).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing vendor when a concurrent create loses the ownership lock', async () => {
+    repository.getOwnershipVendorId
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('vendor-1');
+    repository.createVendor.mockRejectedValue(
+      new ConditionalWriteConflictError(new Error('conflict')),
+    );
+
+    const result = await service.createvendor(authRequest({ body: createBody }));
+
+    expect(result.vendorId).toBe('vendor-1');
+    expect(repository.createVendor).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores the authenticated user id when the body supplies a different ownerUserId', async () => {
+    const result = await service.createvendor(
+      authRequest({
+        body: { ...createBody, ownerUserId: 'user_1791439785533' },
+      }),
+    );
+
+    expect(result.ownerUserId).toBe('user-1');
+    const [, owner] = repository.createVendor.mock.calls[0];
+    expect(owner.GSI1PK).toBe('OWNER#user-1');
   });
 
   it('rejects vendor creation when the caller is unauthenticated', async () => {
@@ -295,5 +336,118 @@ describe('VendorsService', () => {
     await expect(service.listvendors(authRequest())).rejects.toThrow(
       ForbiddenError,
     );
+  });
+
+  it('rejects creation when the context only has a Cognito identity id', async () => {
+    await expect(
+      service.createvendor(
+        authRequest({
+          context: {
+            userContext: {
+              userId: 'cognito-sub-1',
+              identityId: 'cognito-sub-1',
+            },
+          },
+          body: createBody,
+        }),
+      ),
+    ).rejects.toThrow('Authenticated user id is required');
+    expect(repository.createVendor).not.toHaveBeenCalled();
+  });
+
+  it('forbids a caller from reading another user vendor', async () => {
+    await expect(
+      service.getvendor(
+        authRequest({
+          context: { userContext: { userId: 'other-user' } },
+        }),
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  describe('getMyVendor', () => {
+    function owned(overrides: Partial<VendorDdbItem> = {}) {
+      const item = { ...vendorItem(), ...overrides };
+      repository.listOwnersByUserId.mockResolvedValue([
+        {
+          PK: 'VENDOR#vendor-1',
+          SK: 'OWNER',
+          vendorId: item.vendorId,
+          userId: 'user-1',
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          GSI1PK: 'OWNER#user-1',
+          GSI1SK: `VENDOR#${item.vendorId}`,
+          entityType: 'VendorOwner',
+        },
+      ]);
+      repository.getVendorsByIds.mockResolvedValue([item]);
+      return item;
+    }
+
+    it('returns start onboarding when the user has no vendor', async () => {
+      const result = await service.getMyVendor(authRequest());
+      expect(result).toEqual({
+        hasVendor: false,
+        nextAction: 'START_ONBOARDING',
+      });
+      expect(repository.listOwnersByUserId).toHaveBeenCalledWith('user-1');
+    });
+
+    it('returns a draft vendor for resume', async () => {
+      owned();
+      const result = await service.getMyVendor(authRequest());
+      expect(result).toMatchObject({
+        hasVendor: true,
+        vendorId: 'vendor-1',
+        status: 'DRAFT',
+        onboarding: { currentStep: 'BUSINESS_INFO', completed: false },
+        nextAction: 'RESUME_ONBOARDING',
+      });
+    });
+
+    it('returns an application that is under review', async () => {
+      owned({ onboardingStatus: 'PENDING_REVIEW', currentSection: 'BANK_DETAILS' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.nextAction).toBe('VIEW_APPLICATION_STATUS');
+      expect(result.status).toBe('PENDING_REVIEW');
+      expect(result.onboarding?.completed).toBe(true);
+    });
+
+    it('returns the dashboard action for an approved operational vendor', async () => {
+      owned({ status: 'ACTIVE', onboardingStatus: 'PENDING_REVIEW' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.status).toBe('ACTIVE');
+      expect(result.nextAction).toBe('OPEN_VENDOR_DASHBOARD');
+    });
+
+    it('returns setup when an approved vendor is not operationally eligible', async () => {
+      owned({ status: 'ACTIVE', onboardingStatus: 'IN_PROGRESS' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.nextAction).toBe('COMPLETE_VENDOR_SETUP');
+    });
+
+    it('returns a correction action for a rejected vendor', async () => {
+      owned({ status: 'REJECTED', onboardingStatus: 'PENDING_REVIEW' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.status).toBe('REJECTED');
+      expect(result.nextAction).toBe('CORRECT_APPLICATION');
+    });
+
+    it('returns an account-status action for a suspended vendor', async () => {
+      owned({ status: 'SUSPENDED', onboardingStatus: 'COMPLETED' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.status).toBe('SUSPENDED');
+      expect(result.nextAction).toBe('VIEW_ACCOUNT_STATUS');
+    });
+
+    it('does not return a vendor indexed to this user when the profile owner differs', async () => {
+      owned({ ownerUserId: 'someone-else' });
+      const result = await service.getMyVendor(authRequest());
+      expect(result).toEqual({
+        hasVendor: false,
+        nextAction: 'START_ONBOARDING',
+      });
+    });
   });
 });

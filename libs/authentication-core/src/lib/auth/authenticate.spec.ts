@@ -103,7 +103,7 @@ describe('authenticate', () => {
     });
   });
 
-  it('uses application roles from the access token instead of the directory role', async () => {
+  it('keeps access-token roles that Identity still stores', async () => {
     const userDirectory = directory({
       findUserByIdentityId: jest.fn().mockResolvedValue({
         userId: 'u-1',
@@ -111,7 +111,7 @@ describe('authenticate', () => {
         roleId: 'user',
         status: 'active',
       }),
-      getUserRoles: jest.fn().mockResolvedValue(['user']),
+      getUserRoles: jest.fn().mockResolvedValue(['CUSTOMER', 'VENDOR']),
       getPermissionsForRoles: jest.fn().mockResolvedValue([PERMISSION.VENDOR_READ]),
     });
     const token = signToken({
@@ -123,11 +123,34 @@ describe('authenticate', () => {
     });
     expect(ctx.identityId).toBe('cognito-sub-1');
     expect(ctx.roles).toEqual(['CUSTOMER', 'VENDOR']);
-    expect(userDirectory.getUserRoles).not.toHaveBeenCalled();
+    expect(userDirectory.getUserRoles).toHaveBeenCalledWith('u-1');
     expect(userDirectory.getPermissionsForRoles).toHaveBeenCalledWith([
       'CUSTOMER',
       'VENDOR',
     ]);
+    expect(ctx.roles).not.toContain('aws.cognito.signin.user.admin');
+  });
+
+  it('drops a revoked role even when the access token still lists it', async () => {
+    const userDirectory = directory({
+      getUserRoles: jest.fn().mockResolvedValue(['CUSTOMER']),
+      getPermissionsForRoles: jest.fn().mockResolvedValue([]),
+    });
+    const token = signToken({ roles: ['CUSTOMER', 'VENDOR'] });
+    const ctx = await authenticate(requestWithAuth(`Bearer ${token}`), {
+      userDirectory,
+    });
+    expect(ctx.roles).toEqual(['CUSTOMER']);
+  });
+
+  it('does not keep a token role when the directory lookup fails', async () => {
+    const userDirectory = directory({
+      getUserRoles: jest.fn().mockRejectedValue(new Error('dynamo unavailable')),
+    });
+    const token = signToken({ roles: ['ADMIN'] });
+    await expect(
+      authenticate(requestWithAuth(`Bearer ${token}`), { userDirectory }),
+    ).rejects.toThrow('dynamo unavailable');
   });
 
   it('keeps directory roles when the access token has no application role', async () => {
@@ -214,7 +237,7 @@ describe('authorize', () => {
       scope: 'aws.cognito.signin.user.admin',
     });
     const userDirectory = directory({
-      getUserRoles: jest.fn().mockResolvedValue(['user']),
+      getUserRoles: jest.fn().mockResolvedValue(['ADMIN']),
       getPermissionsForRoles: jest.fn().mockResolvedValue([PERMISSION.VENDOR_READ]),
     });
     const ctx = await authorize(
@@ -223,7 +246,7 @@ describe('authorize', () => {
       { userDirectory },
     );
     expect(ctx.roles).toEqual(['ADMIN']);
-    expect(userDirectory.getUserRoles).not.toHaveBeenCalled();
+    expect(userDirectory.getUserRoles).toHaveBeenCalledWith('u-1');
     expect(userDirectory.getPermissionsForRoles).toHaveBeenCalledWith(['ADMIN']);
     expect(ctx.roles).not.toContain('aws.cognito.signin.user.admin');
 

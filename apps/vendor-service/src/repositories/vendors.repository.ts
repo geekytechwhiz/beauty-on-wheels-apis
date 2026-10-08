@@ -10,11 +10,13 @@ import {
   VendorCommunityDdbItem,
   VendorDdbItem,
   VendorOwnerDdbItem,
+  VendorOwnershipDdbItem,
   VendorStatusHistoryDdbItem,
 } from '../types/repository.types';
 import {
   GSI1_INDEX,
   GSI2_INDEX,
+  VENDOR_OWNER_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 
@@ -55,9 +57,18 @@ export class VendorsRepository extends BaseRepository {
   async createVendor(
     profile: VendorDdbItem,
     owner: VendorOwnerDdbItem,
+    ownership: VendorOwnershipDdbItem,
   ): Promise<void> {
     await this.transactWrite({
       TransactItems: [
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: ownership,
+            ConditionExpression:
+              'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
         {
           Put: {
             TableName: this.getTableName(),
@@ -107,16 +118,41 @@ export class VendorsRepository extends BaseRepository {
   }
 
   async getVendorIdByOwnerUserId(userId: string): Promise<string | null> {
-    const item = await this.queryOne<VendorOwnerDdbItem>({
+    const owners = await this.listOwnersByUserId(userId);
+    return owners[0]?.vendorId ?? null;
+  }
+
+  async listOwnersByUserId(userId: string): Promise<VendorOwnerDdbItem[]> {
+    const items = await this.queryAll<VendorOwnerDdbItem>({
       TableName: this.getTableName(),
       IndexName: GSI1_INDEX,
-      KeyConditionExpression: 'GSI1PK = :gsi1pk',
+      KeyConditionExpression:
+        'GSI1PK = :gsi1pk AND begins_with(GSI1SK, :gsi1skPrefix)',
       ExpressionAttributeValues: {
         ':gsi1pk': VendorKeyBuilder.ownerGsi1Pk(userId),
+        ':gsi1skPrefix': VendorKeyBuilder.ownerGsi1SkPrefix(),
       },
     });
 
+    return items.filter(
+      (item) => item.entityType === VENDOR_OWNER_ENTITY_TYPE && item.vendorId,
+    );
+  }
+
+  async getOwnershipVendorId(userId: string): Promise<string | null> {
+    const item = await this.get<VendorOwnershipDdbItem>(this.getTableName(), {
+      PK: VendorKeyBuilder.ownershipPk(userId),
+      SK: VendorKeyBuilder.ownershipSk(),
+    });
     return item?.vendorId ?? null;
+  }
+
+  async putOwnershipIfAbsent(item: VendorOwnershipDdbItem): Promise<void> {
+    await this.put(
+      this.getTableName(),
+      item,
+      'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+    );
   }
 
   async queryVendorItems(vendorId: string): Promise<VendorChildDdbItem[]> {

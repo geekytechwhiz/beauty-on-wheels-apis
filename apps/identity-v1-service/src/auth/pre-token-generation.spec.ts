@@ -65,6 +65,66 @@ describe('applyApplicationRoles', () => {
     expect(serialized).not.toContain('scope');
   });
 
+  it('deduplicates roles and drops values that are not application roles', async () => {
+    const result = await applyApplicationRoles(event(), async () => [
+      'VENDOR',
+      'CUSTOMER',
+      'CUSTOMER',
+      'user',
+      'aws.cognito.signin.user.admin',
+    ]);
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            roles: ['CUSTOMER', 'VENDOR'],
+          },
+        },
+      },
+    });
+  });
+
+  it('keeps an existing ID-token override and does not copy roles onto it', async () => {
+    const result = await applyApplicationRoles(
+      event({
+        response: {
+          claimsAndScopeOverrideDetails: {
+            idTokenGeneration: {
+              claimsToAddOrOverride: { locale: 'en' },
+            },
+            accessTokenGeneration: {
+              claimsToAddOrOverride: { locale: 'en' },
+              scopesToSuppress: ['unused'],
+            },
+          },
+        },
+      }),
+      async () => ['ADMIN'],
+    );
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        idTokenGeneration: {
+          claimsToAddOrOverride: { locale: 'en' },
+        },
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            locale: 'en',
+            roles: ['ADMIN'],
+          },
+          scopesToSuppress: ['unused'],
+        },
+      },
+    });
+    const idToken = (
+      result.response as {
+        claimsAndScopeOverrideDetails: {
+          idTokenGeneration: { claimsToAddOrOverride: Record<string, unknown> };
+        };
+      }
+    ).claimsAndScopeOverrideDetails.idTokenGeneration.claimsToAddOrOverride;
+    expect(idToken).not.toHaveProperty('roles');
+  });
+
   it('adds a single admin role', async () => {
     const result = await applyApplicationRoles(event(), async () => ['ADMIN']);
     expect(result.response).toEqual({
@@ -101,5 +161,7 @@ describe('applyApplicationRoles', () => {
       throw new Error('dynamo unavailable');
     });
     expect(result).toBe(source);
+    expect(JSON.stringify(result.response)).not.toContain('ADMIN');
+    expect(JSON.stringify(result.response)).not.toContain('roles');
   });
 });

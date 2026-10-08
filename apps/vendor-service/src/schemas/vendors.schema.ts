@@ -31,7 +31,6 @@ export const CreateVendorRequestSchema = z.object({
   panNumber: optionalTrimmedString(20),
   profileImageUrl: optionalTrimmedString(2048),
   vendorType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
-  ownerUserId: z.string().min(1).optional(),
 });
 
 export const RegisterVendorRequestSchema = z.object({ 

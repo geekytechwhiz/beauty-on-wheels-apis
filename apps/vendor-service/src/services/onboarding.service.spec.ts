@@ -212,7 +212,7 @@ describe('OnboardingService', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('saves OWNER_DETAILS for a different userId when the caller already has vendor access', async () => {
+  it('keeps the profile ownerUserId when OWNER_DETAILS sends a generated user id', async () => {
     const result = await service.updatevendoronboarding(
       authRequest({
         body: {
@@ -230,12 +230,16 @@ describe('OnboardingService', () => {
 
     const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
       userId: string;
+      GSI1PK: string;
+      GSI1SK: string;
     };
-    expect(sectionItem.userId).toBe('user_1788582970668');
-    expect(result.sections.OWNER_DETAILS?.userId).toBe('user_1788582970668');
+    expect(sectionItem.userId).toBe('user-1');
+    expect(sectionItem.GSI1PK).toBe('OWNER#user-1');
+    expect(sectionItem.GSI1SK).toBe('VENDOR#vendor-1');
+    expect(result.sections.OWNER_DETAILS?.userId).toBe('user-1');
   });
 
-  it('allows an admin caller to set OWNER_DETAILS for a different userId', async () => {
+  it('keeps the existing profile owner when an admin saves OWNER_DETAILS', async () => {
     vendorsRepository.getVendorById.mockResolvedValue(
       vendorItem({ ownerUserId: 'other-owner' }),
     );
@@ -261,9 +265,11 @@ describe('OnboardingService', () => {
 
     const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
       userId: string;
+      GSI1PK: string;
     };
-    expect(sectionItem.userId).toBe('user_1788582970668');
-    expect(result.sections.OWNER_DETAILS?.userId).toBe('user_1788582970668');
+    expect(sectionItem.userId).toBe('other-owner');
+    expect(sectionItem.GSI1PK).toBe('OWNER#other-owner');
+    expect(result.sections.OWNER_DETAILS?.userId).toBe('other-owner');
   });
 
   it('updates BUSINESS_INFO in place and marks the section complete', async () => {

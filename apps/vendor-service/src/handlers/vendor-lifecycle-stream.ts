@@ -3,6 +3,7 @@ import {
   publishEvent,
   VendorApprovedEvent,
   VendorRejectedEvent,
+  VendorSuspendedEvent,
   VENDOR_LIFECYCLE_EVENT_OPERATIONS,
   vendorLifecycleIdempotencyKey,
   type EventConsumerDeps,
@@ -13,14 +14,20 @@ import { ensureVendorEventPlatform } from '../events/configure-vendor-event-plat
 import { mapVendorLifecycleStreamRecord } from '../events/map-vendor-lifecycle-stream';
 
 async function publishLifecycleEvent(
-  schema: typeof VendorApprovedEvent | typeof VendorRejectedEvent,
+  schema:
+    | typeof VendorApprovedEvent
+    | typeof VendorRejectedEvent
+    | typeof VendorSuspendedEvent,
   payload: VendorLifecyclePayload,
   correlationId: string,
 ): Promise<void> {
   ensureVendorEventPlatform();
   await publishEvent(schema, payload, {
     idempotencyKey: vendorLifecycleIdempotencyKey(
-      schema.__meta.eventType as 'VendorApproved' | 'VendorRejected',
+      schema.__meta.eventType as
+        | 'VendorApproved'
+        | 'VendorRejected'
+        | 'VendorSuspended',
       payload.vendorId,
       payload.reviewedAt,
     ),
@@ -59,6 +66,19 @@ export function createVendorLifecycleStreamHandler(deps?: {
           const { meta, ...payload } = event;
           await publishLifecycleEvent(
             VendorRejectedEvent,
+            payload as VendorLifecyclePayload,
+            meta.correlationId,
+          );
+        },
+      },
+      {
+        table: 'vendor',
+        eventName: ['MODIFY'],
+        schema: VendorSuspendedEvent,
+        handler: async (event) => {
+          const { meta, ...payload } = event;
+          await publishLifecycleEvent(
+            VendorSuspendedEvent,
             payload as VendorLifecyclePayload,
             meta.correlationId,
           );

@@ -3,6 +3,7 @@ import { APPLICATION_ROLE } from '@api-hub/authentication-core';
 import { applyApplicationRoles } from './pre-token-generation';
 import {
   backfillApplicationRoles,
+  decideAdminRoleChange,
   planApplicationRoleBackfill,
   prepareApplicationRolesForToken,
   type ApplicationRoleRepository,
@@ -29,6 +30,14 @@ function memoryRepository(
       current.add(roleId);
       mappings.set(userId, current);
       return 'created';
+    },
+    async deleteUserRoleMapping(userId: string, roleId: string) {
+      const current = mappings.get(userId);
+      if (!current?.has(roleId)) {
+        return 'missing';
+      }
+      current.delete(roleId);
+      return 'deleted';
     },
     async listUserMetaPage() {
       return { users };
@@ -160,6 +169,72 @@ describe('application role token flow', () => {
         memoryRepository([]),
       ),
     ).toBe('skipped');
+  });
+
+  it('removes VENDOR on suspension and keeps CUSTOMER', async () => {
+    const repository = memoryRepository([]);
+    repository.mappings.set('u-1', new Set(['CUSTOMER', 'VENDOR']));
+    await expect(
+      applyVendorApprovalRole(
+        {
+          newStatus: 'SUSPENDED',
+          ownerUserId: 'u-1',
+          onboardingStatus: 'COMPLETED',
+        },
+        repository,
+      ),
+    ).resolves.toBe('revoked');
+    expect([...(repository.mappings.get('u-1') ?? [])]).toEqual(['CUSTOMER']);
+
+    const token = await applyApplicationRoles(
+      {
+        triggerSource: 'TokenGeneration_RefreshTokens',
+        request: { userAttributes: { sub: 'cognito-sub-1' } },
+      },
+      async () => [...(repository.mappings.get('u-1') ?? [])],
+    );
+    expect(token.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: { roles: ['CUSTOMER'] },
+        },
+      },
+    });
+  });
+});
+
+describe('decideAdminRoleChange', () => {
+  it('allows an ADMIN caller to assign ADMIN', () => {
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['CUSTOMER', 'ADMIN'],
+        requestedRole: 'ADMIN',
+      }),
+    ).toEqual({ ok: true, role: 'ADMIN' });
+  });
+
+  it('rejects a caller that does not already have ADMIN', () => {
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['CUSTOMER', 'VENDOR'],
+        requestedRole: 'ADMIN',
+      }),
+    ).toEqual({ ok: false, reason: 'forbidden' });
+  });
+
+  it('rejects VENDOR and CUSTOMER assignment through the admin operation', () => {
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['ADMIN'],
+        requestedRole: 'VENDOR',
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported_role' });
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['ADMIN'],
+        requestedRole: 'CUSTOMER',
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported_role' });
   });
 });
 

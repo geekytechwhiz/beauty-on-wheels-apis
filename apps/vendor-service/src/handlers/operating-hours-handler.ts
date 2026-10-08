@@ -1,4 +1,4 @@
-import { withApiHandler } from "@api-hub/middleware";
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from "@api-hub/utils";
 
 import {
@@ -13,7 +13,7 @@ const controller =
     getOperatingHoursController();
 
 export const handleGetvendoroperatinghours =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "getvendoroperatinghours",
         },
@@ -22,7 +22,7 @@ export const handleGetvendoroperatinghours =
     );
 
 export const handleUpdatevendoroperatinghours =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendoroperatinghours",
             validator: (request: LambdaRequest) => { validateUpdateVendorOperatingHoursRequest(request); }

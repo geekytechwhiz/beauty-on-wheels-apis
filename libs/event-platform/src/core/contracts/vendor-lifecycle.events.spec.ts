@@ -1,9 +1,11 @@
 import {
   VendorApprovedEvent,
   VendorRejectedEvent,
+  VendorSuspendedEvent,
   VENDOR_APPROVED_EVENT_TYPE,
   VENDOR_LIFECYCLE_EVENT_VERSION,
   VENDOR_REJECTED_EVENT_TYPE,
+  VENDOR_SUSPENDED_EVENT_TYPE,
   vendorLifecycleIdempotencyKey,
 } from './vendor-lifecycle.events';
 import { getRegisteredEventDefinition } from '../../governance/event-registry';
@@ -19,7 +21,10 @@ const payload = {
 };
 
 describe('Vendor lifecycle events', () => {
-  it('registers VendorApproved and VendorRejected', () => {
+  it('registers VendorApproved, VendorRejected, and VendorSuspended', () => {
+    expect(getSchemaMeta(VendorSuspendedEvent).eventType).toBe(
+      VENDOR_SUSPENDED_EVENT_TYPE,
+    );
     expect(getSchemaMeta(VendorApprovedEvent).eventType).toBe(
       VENDOR_APPROVED_EVENT_TYPE,
     );

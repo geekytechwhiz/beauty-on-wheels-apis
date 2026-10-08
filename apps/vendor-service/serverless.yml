@@ -22,6 +22,7 @@ provider:
     SERVICE_NAME: vendor-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-vendor
+    IDENTITY_TABLE: identity-table-${self:provider.stage}
     DOCUMENT_BUCKET: ${self:service}-${self:provider.stage}-vendor-documents
     DOCUMENTS_BUCKET_NAME: ${self:service}-${self:provider.stage}-vendor-documents
     DOCUMENT_UPLOAD_URL_EXPIRY: ${env:DOCUMENT_UPLOAD_URL_EXPIRY, '900'}
@@ -55,6 +56,11 @@ provider:
           Resource:
             - !GetAtt VendorTable.Arn
             - !Join [ "/", [ !GetAtt VendorTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/identity-table-${self:provider.stage}
         - Effect: Allow
           Action:
             - s3:PutObject
@@ -125,7 +131,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor"
-          description: "Creates a new Vendor profile with a unique vendorId and the submitted business information. Each POST mints a new vendorId. Progressive section data is saved via PUT /vendors/{vendorId}/onboarding."
+          description: "Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor."
           swaggerTags:
             - Vendors
           bodyType: CreateVendorRequest
@@ -174,7 +180,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Save an onboarding section"
-          description: "Progressively creates or updates one onboarding section. `section` identifies the domain portion. Repeated PUTs or PATCHes for the same section update in place. The `data` payload is validated against the selected section schema. Vendors may be onboarded by the vendor owner or by platform admin staff."
+          description: "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff."
           swaggerTags:
             - Onboarding
           bodyType: UpdateOnboardingRequest
@@ -291,6 +297,29 @@ functions:
               description: ""
 
 
+  getvendorme:
+    handler: src/handlers/vendors-handler.handleGetMyVendor
+    events:
+      - http:
+          path: /vendors/me
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get the authenticated user's vendor"
+          description: "Resolves the canonical application userId from the verified authentication context and loads that user's vendor from GSI1 (OWNER#{userId}). Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor."
+          swaggerTags:
+            - Vendors
+          responseData:
+            200:
+              description: "Vendor self lookup"
+              bodyType: VendorSelfLookup
+            401:
+              description: "Missing or invalid authentication, or no canonical application user id"
+            403:
+              description: "Cognito identity has no application user mapping"
+            500:
+              description: ""
+
   getvendor:
     handler: src/handlers/vendors-handler.handleGetvendor
     events:
@@ -355,7 +384,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor lifecycle status"
-          description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved and VendorRejected are published from the vendor table stream.\n"
+          description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.\n"
           swaggerTags:
             - Vendors
           bodyType: UpdateVendorStatusRequest

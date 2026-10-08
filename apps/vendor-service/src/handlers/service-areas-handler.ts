@@ -1,4 +1,4 @@
-import { withApiHandler } from "@api-hub/middleware";
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from "@api-hub/utils";
 
 import {
@@ -14,7 +14,7 @@ const controller =
     getServiceAreasController();
 
 export const handleListvendorserviceareas =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "listvendorserviceareas",
         },
@@ -23,7 +23,7 @@ export const handleListvendorserviceareas =
     );
 
 export const handleAddvendorservicearea =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "addvendorservicearea",
             validator: (request: LambdaRequest) => { validateCreateServiceAreaRequest(request); }
@@ -33,7 +33,7 @@ export const handleAddvendorservicearea =
     );
 
 export const handleGetvendorservicearea =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "getvendorservicearea",
         },
@@ -42,7 +42,7 @@ export const handleGetvendorservicearea =
     );
 
 export const handleUpdatevendorservicearea =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendorservicearea",
             validator: (request: LambdaRequest) => { validateUpdateServiceAreaRequest(request); }
@@ -52,7 +52,7 @@ export const handleUpdatevendorservicearea =
     );
 
 export const handleDeletevendorservicearea =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "deletevendorservicearea",
         },

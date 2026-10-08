@@ -1,5 +1,6 @@
 import {
   APPLICATION_ROLE,
+  effectiveAccessTokenRoles,
   parseAccessTokenRolesClaim,
   resolveApplicationRoles,
 } from './application-roles';
@@ -71,5 +72,44 @@ describe('parseAccessTokenRolesClaim', () => {
     expect(
       parseAccessTokenRolesClaim('[{"status":"ACTIVE"}]'),
     ).toEqual({ ok: false });
+  });
+});
+
+describe('effectiveAccessTokenRoles', () => {
+  it('drops a revoked role before the access token expires', () => {
+    expect(
+      effectiveAccessTokenRoles({
+        tokenRoles: ['CUSTOMER', 'VENDOR'],
+        directoryRoleIds: ['CUSTOMER'],
+      }),
+    ).toEqual(['CUSTOMER']);
+  });
+
+  it('does not grant a role that is only on the directory until the next token', () => {
+    expect(
+      effectiveAccessTokenRoles({
+        tokenRoles: ['CUSTOMER'],
+        directoryRoleIds: ['CUSTOMER', 'VENDOR'],
+      }),
+    ).toEqual(['CUSTOMER']);
+  });
+
+  it('does not keep a token role the directory no longer stores', () => {
+    expect(
+      effectiveAccessTokenRoles({
+        tokenRoles: ['ADMIN'],
+        directoryRoleIds: ['user'],
+        profileRoleId: 'user',
+      }),
+    ).toEqual([]);
+  });
+
+  it('keeps directory roles when the token has no application roles claim', () => {
+    expect(
+      effectiveAccessTokenRoles({
+        tokenRoles: undefined,
+        directoryRoleIds: ['user'],
+      }),
+    ).toEqual(['user']);
   });
 });

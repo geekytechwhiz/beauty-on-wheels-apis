@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getCommunitiesController } from '../controllers/communities.controller';
@@ -9,13 +9,13 @@ import {
 
 const controller = getCommunitiesController();
 
-export const handleListvendorcommunities = withApiHandler(
+export const handleListvendorcommunities = withVendorApiHandler(
   { operation: 'listvendorcommunities' },
   async (request: LambdaRequest) =>
     controller.handleListvendorcommunities(request),
 );
 
-export const handleReplacevendorcommunities = withApiHandler(
+export const handleReplacevendorcommunities = withVendorApiHandler(
   {
     operation: 'replacevendorcommunities',
     validator: (request: LambdaRequest) => {
@@ -26,7 +26,7 @@ export const handleReplacevendorcommunities = withApiHandler(
     controller.handleReplacevendorcommunities(request),
 );
 
-export const handleAddvendorcommunity = withApiHandler(
+export const handleAddvendorcommunity = withVendorApiHandler(
   {
     operation: 'addvendorcommunity',
     validator: (request: LambdaRequest) => {
@@ -36,7 +36,7 @@ export const handleAddvendorcommunity = withApiHandler(
   async (request: LambdaRequest) => controller.handleAddvendorcommunity(request),
 );
 
-export const handleRemovevendorcommunity = withApiHandler(
+export const handleRemovevendorcommunity = withVendorApiHandler(
   { operation: 'removevendorcommunity' },
   async (request: LambdaRequest) =>
     controller.handleRemovevendorcommunity(request),

@@ -5,13 +5,14 @@ import {
   VENDOR_LIFECYCLE_EVENT_VERSION,
   VENDOR_LIFECYCLE_EVENT_SOURCE,
   VENDOR_REJECTED_EVENT_TYPE,
+  VENDOR_SUSPENDED_EVENT_TYPE,
   normalizeDynamoStreamRecord,
   vendorLifecycleIdempotencyKey,
   type BaseEvent,
   type VendorLifecyclePayload,
 } from '@api-hub/event-platform';
 
-export type VendorLifecycleKind = 'approved' | 'rejected';
+export type VendorLifecycleKind = 'approved' | 'rejected' | 'suspended';
 
 export function classifyVendorLifecycleTransition(
   oldImage: Record<string, unknown> | undefined,
@@ -25,11 +26,20 @@ export function classifyVendorLifecycleTransition(
   if (typeof previous !== 'string' || typeof next !== 'string' || previous === next) {
     return undefined;
   }
-  if (previous === 'PENDING_VERIFICATION' && next === 'ACTIVE') {
+  if (
+    (previous === 'PENDING_VERIFICATION' || previous === 'SUSPENDED') &&
+    next === 'ACTIVE'
+  ) {
     return 'approved';
   }
   if (next === 'REJECTED') {
     return 'rejected';
+  }
+  if (
+    (previous === 'ACTIVE' || previous === 'SUSPENDED') &&
+    (next === 'SUSPENDED' || next === 'INACTIVE')
+  ) {
+    return 'suspended';
   }
   return undefined;
 }
@@ -89,7 +99,11 @@ export function mapVendorLifecycleStreamRecord(
   }
 
   const eventType =
-    kind === 'approved' ? VENDOR_APPROVED_EVENT_TYPE : VENDOR_REJECTED_EVENT_TYPE;
+    kind === 'approved'
+      ? VENDOR_APPROVED_EVENT_TYPE
+      : kind === 'suspended'
+        ? VENDOR_SUSPENDED_EVENT_TYPE
+        : VENDOR_REJECTED_EVENT_TYPE;
   const correlationId =
     payload.vendorId &&
     typeof (norm.newImage.meta as { correlationId?: string } | undefined)

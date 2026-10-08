@@ -5,6 +5,7 @@ import {
   sendDoc,
 } from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
+import { resolveApplicationRoles } from '@api-hub/authentication-core';
 import {
   TABLE_NAME,
   GSI_INDEX_NAMES,
@@ -947,6 +948,58 @@ export class IdentityRepository extends BaseRepository {
     ];
 
     await this.transactWrite({ TransactItems: transactItems });
+  }
+
+  /**
+   * Deletes USER#{userId} / ROLE#{roleId} without removing other mappings.
+   * When the profile `roleId` is that same application role, it is reset to
+   * `user` so the next token does not restore the revoked role.
+   */
+  async deleteUserRoleMapping(
+    userId: string,
+    roleId: string,
+  ): Promise<'deleted' | 'missing'> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new UserAlreadyExistsException(`User ${userId} not found.`);
+    }
+
+    const timestamp = new Date().toISOString();
+    const userRoleKeys = IdentityKeyBuilder.userRole(userId, roleId);
+    const transactItems: any[] = [
+      {
+        Delete: {
+          TableName: TABLE_NAME,
+          Key: userRoleKeys,
+        },
+      },
+    ];
+
+    const [requested] = resolveApplicationRoles([roleId]);
+    const profileMatches =
+      requested !== undefined &&
+      resolveApplicationRoles([user.roleId]).includes(requested);
+    if (profileMatches) {
+      const userKeys = IdentityKeyBuilder.userMeta(userId);
+      transactItems.push({
+        Update: {
+          TableName: TABLE_NAME,
+          Key: userKeys,
+          UpdateExpression:
+            'SET roleId = :roleId, version = :nextVersion, updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':roleId': 'user',
+            ':nextVersion': user.version + 1,
+            ':expectedVersion': user.version,
+            ':updatedAt': timestamp,
+          },
+          ConditionExpression: 'version = :expectedVersion',
+        },
+      });
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
+    return 'deleted';
   }
 
   /**

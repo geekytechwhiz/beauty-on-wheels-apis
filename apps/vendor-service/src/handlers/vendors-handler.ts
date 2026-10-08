@@ -1,4 +1,4 @@
-import { withApiHandler } from "@api-hub/middleware";
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from "@api-hub/utils";
 
 import {
@@ -18,7 +18,7 @@ import {
 const controller =
     getVendorsController();
 
-    export const handleRegisterVendor = withApiHandler(
+    export const handleRegisterVendor = withVendorApiHandler(
       {
         operation: 'registervendor',
         validator: (request: LambdaRequest) => {
@@ -29,7 +29,7 @@ const controller =
     );
 
 export const handleCreatevendor =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "createvendor",
             validator: (request: LambdaRequest) => { validateCreateVendorRequest(request); }
@@ -39,7 +39,7 @@ export const handleCreatevendor =
     );
 
 export const handleListvendors =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "listvendors",
         },
@@ -48,7 +48,7 @@ export const handleListvendors =
     );
 
 export const handleGetvendor =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "getvendor",
         },
@@ -56,8 +56,15 @@ export const handleGetvendor =
             controller.handleGetvendor(request)
     );
 
+export const handleGetMyVendor = withVendorApiHandler(
+  {
+    operation: 'getvendorme',
+  },
+  async (request: LambdaRequest) => controller.handleGetMyVendor(request),
+);
+
 export const handleUpdatevendor =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendor",
             validator: (request: LambdaRequest) => { validateUpdateVendorRequest(request); }
@@ -67,7 +74,7 @@ export const handleUpdatevendor =
     );
 
 export const handleUpdatevendorstatus =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendorstatus",
             validator: (request: LambdaRequest) => { validateUpdateVendorStatusRequest(request); }
@@ -77,7 +84,7 @@ export const handleUpdatevendorstatus =
     );
 
 export const handleUpdatevendoroperationalstatus =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendoroperationalstatus",
             validator: (request: LambdaRequest) => { validateUpdateOperationalStatusRequest(request); }
@@ -86,7 +93,7 @@ export const handleUpdatevendoroperationalstatus =
             controller.handleUpdatevendoroperationalstatus(request)
     );
 
-export const handleApprovevendor = withApiHandler(
+export const handleApprovevendor = withVendorApiHandler(
   {
     operation: 'approvevendor',
     validator: (request: LambdaRequest) => {
@@ -96,7 +103,7 @@ export const handleApprovevendor = withApiHandler(
   async (request: LambdaRequest) => controller.handleApprovevendor(request),
 );
 
-export const handleRejectvendor = withApiHandler(
+export const handleRejectvendor = withVendorApiHandler(
   {
     operation: 'rejectvendor',
     validator: (request: LambdaRequest) => {
@@ -106,7 +113,7 @@ export const handleRejectvendor = withApiHandler(
   async (request: LambdaRequest) => controller.handleRejectvendor(request),
 );
 
-export const handleGetvendorstatushistory = withApiHandler(
+export const handleGetvendorstatushistory = withVendorApiHandler(
   {
     operation: 'getvendorstatushistory',
   },

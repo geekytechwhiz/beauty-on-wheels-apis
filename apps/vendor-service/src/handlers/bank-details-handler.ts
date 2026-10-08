@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getBankDetailsController } from '../controllers/bank-details.controller';
@@ -6,13 +6,13 @@ import { validateBankDetailsRequest } from '../schemas/bank-details.schema';
 
 const controller = getBankDetailsController();
 
-export const handleGetvendorbankdetails = withApiHandler(
+export const handleGetvendorbankdetails = withVendorApiHandler(
   { operation: 'getvendorbankdetails' },
   async (request: LambdaRequest) =>
     controller.handleGetvendorbankdetails(request),
 );
 
-export const handleUpdatevendorbankdetails = withApiHandler(
+export const handleUpdatevendorbankdetails = withVendorApiHandler(
   {
     operation: 'updatevendorbankdetails',
     validator: (request: LambdaRequest) => {

@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getOnboardingController } from '../controllers/onboarding.controller';
@@ -6,14 +6,14 @@ import { validateUpdateOnboardingRequest } from '../schemas/onboarding.schema';
 
 const controller = getOnboardingController();
 
-export const handleGetvendoronboarding = withApiHandler(
+export const handleGetvendoronboarding = withVendorApiHandler(
   {
     operation: 'getvendoronboarding',
   },
   async (request: LambdaRequest) => controller.handleGetvendoronboarding(request),
 );
 
-export const handleUpdatevendoronboarding = withApiHandler(
+export const handleUpdatevendoronboarding = withVendorApiHandler(
   {
     operation: 'updatevendoronboarding',
     validator: (request: LambdaRequest) => {
@@ -24,7 +24,7 @@ export const handleUpdatevendoronboarding = withApiHandler(
     controller.handleUpdatevendoronboarding(request),
 );
 
-export const handleSubmitvendorforreview = withApiHandler(
+export const handleSubmitvendorforreview = withVendorApiHandler(
   {
     operation: 'submitvendorforreview',
   },

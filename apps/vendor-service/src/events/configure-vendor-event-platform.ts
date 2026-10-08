@@ -5,6 +5,7 @@ import {
   VendorEmailVerificationRequestedEvent,
   VendorOnboardingSubmittedEvent,
   VendorRejectedEvent,
+  VendorSuspendedEvent,
   VENDOR_APPROVED_EVENT_TYPE,
   VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
   VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
@@ -12,6 +13,7 @@ import {
   VENDOR_ONBOARDING_EVENT_TYPE,
   VENDOR_ONBOARDING_EVENT_VERSION,
   VENDOR_REJECTED_EVENT_TYPE,
+  VENDOR_SUSPENDED_EVENT_TYPE,
 } from '@api-hub/event-platform';
 
 import { env } from '../configs/env.config';
@@ -48,6 +50,9 @@ export function ensureVendorEventPlatform(): void {
       },
       [VENDOR_REJECTED_EVENT_TYPE]: {
         [VENDOR_LIFECYCLE_EVENT_VERSION]: VendorRejectedEvent,
+      },
+      [VENDOR_SUSPENDED_EVENT_TYPE]: {
+        [VENDOR_LIFECYCLE_EVENT_VERSION]: VendorSuspendedEvent,
       },
     },
   });

@@ -15,6 +15,10 @@ export interface ApplicationRoleRepository {
     userId: string,
     roleId: string,
   ): Promise<'created' | 'exists'>;
+  deleteUserRoleMapping(
+    userId: string,
+    roleId: string,
+  ): Promise<'deleted' | 'missing'>;
   listUserMetaPage?(exclusiveStartKey?: Record<string, unknown>): Promise<{
     users: Array<{ userId: string; roleId?: string | null }>;
     lastEvaluatedKey?: Record<string, unknown>;
@@ -88,6 +92,55 @@ export async function grantVendorApplicationRole(
   userId: string,
 ): Promise<'created' | 'exists'> {
   return repository.ensureUserRoleMapping(userId, APPLICATION_ROLE.VENDOR);
+}
+
+/**
+ * Removes VENDOR only. CUSTOMER and ADMIN mappings are left in place.
+ * Onboarding status is not a role and is ignored.
+ */
+export async function revokeVendorApplicationRole(
+  repository: ApplicationRoleRepository,
+  userId: string,
+): Promise<'deleted' | 'missing'> {
+  return repository.deleteUserRoleMapping(userId, APPLICATION_ROLE.VENDOR);
+}
+
+export type AdminRoleChangeDecision =
+  | { ok: true; role: typeof APPLICATION_ROLE.ADMIN }
+  | { ok: false; reason: 'forbidden' | 'unsupported_role' };
+
+/**
+ * ADMIN is assigned or removed only when the caller already has ADMIN on the
+ * verified access token. The requested value must be the ADMIN role code.
+ * CUSTOMER and VENDOR are not accepted here.
+ */
+export function decideAdminRoleChange(input: {
+  callerRoles: readonly string[] | undefined;
+  requestedRole: string;
+}): AdminRoleChangeDecision {
+  const caller = resolveApplicationRoles(input.callerRoles ?? []);
+  if (!caller.includes(APPLICATION_ROLE.ADMIN)) {
+    return { ok: false, reason: 'forbidden' };
+  }
+  const [requested] = resolveApplicationRoles([input.requestedRole]);
+  if (requested !== APPLICATION_ROLE.ADMIN) {
+    return { ok: false, reason: 'unsupported_role' };
+  }
+  return { ok: true, role: APPLICATION_ROLE.ADMIN };
+}
+
+export async function grantAdminApplicationRole(
+  repository: ApplicationRoleRepository,
+  userId: string,
+): Promise<'created' | 'exists'> {
+  return repository.ensureUserRoleMapping(userId, APPLICATION_ROLE.ADMIN);
+}
+
+export async function revokeAdminApplicationRole(
+  repository: ApplicationRoleRepository,
+  userId: string,
+): Promise<'deleted' | 'missing'> {
+  return repository.deleteUserRoleMapping(userId, APPLICATION_ROLE.ADMIN);
 }
 
 export interface RoleBackfillSummary {

@@ -306,7 +306,7 @@ functions:
     name: ${self:custom.resourcePrefix}-email-notification
     description: Consumes email notification events from SQS and sends them through SES.
     timeout: 30
-    reservedConcurrency: 5
+    
     events:
       - sqs:
           arn: !GetAtt EmailNotificationQueue.Arn
@@ -319,7 +319,7 @@ functions:
     name: ${self:custom.resourcePrefix}-email-delivery
     description: Records SES delivery, bounce, complaint, and reject events.
     timeout: 15
-    reservedConcurrency: 2
+    
     events:
       - sqs:
           arn: !GetAtt EmailDeliveryQueue.Arn

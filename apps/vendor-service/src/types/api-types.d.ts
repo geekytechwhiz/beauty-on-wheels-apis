@@ -61,7 +61,6 @@ export interface CreateVendorRequest {
   panNumber?: string;
   profileImageUrl?: string;
   vendorType?: VendorType;
-  ownerUserId?: string;
 }
 
 export interface UpdateVendorRequest {
@@ -116,7 +115,7 @@ export interface BusinessInfoData {
 }
 
 export interface OwnerDetailsData {
-  userId: string;
+  userId?: string;
   fullName: string;
   designation?: string;
   phoneNumber?: string;
@@ -316,6 +315,26 @@ export interface Vendor {
   latestReview?: VendorStatusReview;
   createdAt: string;
   updatedAt: string;
+}
+
+export type VendorNextAction =
+  | 'START_ONBOARDING'
+  | 'RESUME_ONBOARDING'
+  | 'VIEW_APPLICATION_STATUS'
+  | 'OPEN_VENDOR_DASHBOARD'
+  | 'COMPLETE_VENDOR_SETUP'
+  | 'VIEW_ACCOUNT_STATUS'
+  | 'CORRECT_APPLICATION';
+
+export interface VendorSelfLookup {
+  hasVendor: boolean;
+  vendorId?: string;
+  status?: VendorStatus | OnboardingStatus;
+  onboarding?: {
+    currentStep: OnboardingSection;
+    completed: boolean;
+  };
+  nextAction: VendorNextAction;
 }
 
 export interface VendorResponse {

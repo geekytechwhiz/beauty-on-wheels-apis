@@ -95,3 +95,35 @@ export function parseAccessTokenRolesClaim(
     roles: resolveApplicationRoles(values as string[]),
   };
 }
+
+/**
+ * Roles an API may act on for this request.
+ *
+ * A verified access token can only keep application roles that Identity still
+ * stores. Revocation therefore applies on the next request, before `exp`.
+ * A newly granted role is omitted until the next access token is issued.
+ * When the token has no application `roles` claim, the directory result is kept
+ * so legacy tokens continue to work.
+ */
+export function effectiveAccessTokenRoles(input: {
+  tokenRoles: readonly string[] | undefined;
+  directoryRoleIds: readonly string[];
+  profileRoleId?: string | null;
+}): string[] {
+  if (input.tokenRoles !== undefined) {
+    const fromToken = resolveApplicationRoles(input.tokenRoles);
+    if (fromToken.length > 0) {
+      const current = new Set(resolveApplicationRoles(input.directoryRoleIds));
+      return fromToken.filter((role) => current.has(role));
+    }
+  }
+
+  const stored = input.directoryRoleIds
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+  if (stored.length > 0) {
+    return stored;
+  }
+  const profile = input.profileRoleId?.trim();
+  return profile ? [profile] : [];
+}

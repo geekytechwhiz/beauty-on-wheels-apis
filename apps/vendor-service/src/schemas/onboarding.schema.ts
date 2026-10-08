@@ -45,7 +45,7 @@ export const BusinessInfoDataSchema = z
 
 export const OwnerDetailsDataSchema = z
   .object({
-    userId: z.string().min(1),
+    userId: z.string().min(1).optional(),
     fullName: z.string().min(2).max(100),
     designation: z.string().max(100).optional(),
     phoneNumber: z.string().max(20).optional(),

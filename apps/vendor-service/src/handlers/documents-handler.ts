@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getDocumentsController } from '../controllers/documents.controller';
@@ -9,12 +9,12 @@ import {
 
 const controller = getDocumentsController();
 
-export const handleListvendordocuments = withApiHandler(
+export const handleListvendordocuments = withVendorApiHandler(
   { operation: 'listvendordocuments' },
   async (request: LambdaRequest) => controller.handleListvendordocuments(request),
 );
 
-export const handleCreatevendordocument = withApiHandler(
+export const handleCreatevendordocument = withVendorApiHandler(
   {
     operation: 'createvendordocument',
     validator: (request: LambdaRequest) => {
@@ -25,7 +25,7 @@ export const handleCreatevendordocument = withApiHandler(
     controller.handleCreatevendordocument(request),
 );
 
-export const handleCreatevendordocumentuploadurl = withApiHandler(
+export const handleCreatevendordocumentuploadurl = withVendorApiHandler(
   {
     operation: 'createvendordocumentuploadurl',
     validator: (request: LambdaRequest) => {
@@ -36,18 +36,18 @@ export const handleCreatevendordocumentuploadurl = withApiHandler(
     controller.handleCreatevendordocumentuploadurl(request),
 );
 
-export const handleCompletevendordocumentupload = withApiHandler(
+export const handleCompletevendordocumentupload = withVendorApiHandler(
   { operation: 'completevendordocumentupload' },
   async (request: LambdaRequest) =>
     controller.handleCompletevendordocumentupload(request),
 );
 
-export const handleGetvendordocument = withApiHandler(
+export const handleGetvendordocument = withVendorApiHandler(
   { operation: 'getvendordocument' },
   async (request: LambdaRequest) => controller.handleGetvendordocument(request),
 );
 
-export const handleUpdatevendordocument = withApiHandler(
+export const handleUpdatevendordocument = withVendorApiHandler(
   {
     operation: 'updatevendordocument',
     validator: (request: LambdaRequest) => {
@@ -58,7 +58,7 @@ export const handleUpdatevendordocument = withApiHandler(
     controller.handleUpdatevendordocument(request),
 );
 
-export const handleDeletevendordocument = withApiHandler(
+export const handleDeletevendordocument = withVendorApiHandler(
   { operation: 'deletevendordocument' },
   async (request: LambdaRequest) =>
     controller.handleDeletevendordocument(request),

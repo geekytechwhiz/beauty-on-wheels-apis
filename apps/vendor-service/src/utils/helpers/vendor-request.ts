@@ -8,23 +8,64 @@ function asNonEmpty(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-export function getOptionalAuthenticatedUserId(
+export function getRequestIdentityId(
   request: LambdaRequest,
 ): string | undefined {
   return (
-    asNonEmpty(request.context.authContext?.userId) ??
-    asNonEmpty(request.context.userContext?.userId) ??
     asNonEmpty(request.context.authContext?.identityId) ??
     asNonEmpty(request.context.userContext?.identityId)
   );
 }
 
+/**
+ * Application user id from the verified authorizer context.
+ * Cognito `sub` / identityId is not an application user id. Request-context
+ * copies identityId into userContext.userId when the authorizer omitted userId;
+ * that copy is ignored here.
+ */
+export function getOptionalAuthenticatedUserId(
+  request: LambdaRequest,
+): string | undefined {
+  const identityId = getRequestIdentityId(request);
+  const authorizerUserId = asNonEmpty(request.context.authContext?.userId);
+  if (authorizerUserId) {
+    return authorizerUserId;
+  }
+
+  const contextUserId = asNonEmpty(request.context.userContext?.userId);
+  if (contextUserId && contextUserId !== identityId) {
+    return contextUserId;
+  }
+
+  return undefined;
+}
+
 export function getAuthenticatedUserId(request: LambdaRequest): string {
   const userId = getOptionalAuthenticatedUserId(request);
-  if (!userId) {
-    throw new UnauthorizedError('Unauthorized');
+  if (userId) {
+    return userId;
   }
-  return userId;
+  if (getRequestIdentityId(request)) {
+    throw new UnauthorizedError('Authenticated user id is required');
+  }
+  throw new UnauthorizedError('Unauthorized');
+}
+
+export function assignCanonicalUserId(
+  request: LambdaRequest,
+  userId: string,
+): void {
+  const currentUser = request.context.userContext ?? {};
+  request.context.userContext = {
+    ...currentUser,
+    userId,
+  };
+  if (request.context.authContext) {
+    request.context.authContext = {
+      ...request.context.authContext,
+      userId,
+    };
+  }
 }
 
 export function getPathParam(request: LambdaRequest, name: string): string {

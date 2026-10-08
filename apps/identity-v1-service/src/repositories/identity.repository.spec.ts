@@ -456,6 +456,36 @@ describe('IdentityRepository', () => {
       expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
     });
 
+    it('deletes one role mapping and clears a matching profile role', async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: { ...mockUser, roleId: 'ADMIN', version: 2 },
+      });
+      ddbMock.on(TransactWriteCommand).resolves({});
+
+      await expect(repository.deleteUserRoleMapping('u-123', 'ADMIN')).resolves.toBe(
+        'deleted',
+      );
+
+      const items = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems;
+      expect(items?.[0]?.Delete?.Key).toEqual({
+        PK: 'USER#u-123',
+        SK: 'ROLE#ADMIN',
+      });
+      expect(items?.[1]?.Update?.ExpressionAttributeValues?.[':roleId']).toBe('user');
+    });
+
+    it('deletes VENDOR without clearing a CUSTOMER profile role', async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: { ...mockUser, roleId: 'user', version: 1 },
+      });
+      ddbMock.on(TransactWriteCommand).resolves({});
+
+      await repository.deleteUserRoleMapping('u-123', 'VENDOR');
+      const items = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems;
+      expect(items).toHaveLength(1);
+      expect(items?.[0]?.Delete?.Key?.SK).toBe('ROLE#VENDOR');
+    });
+
     it('does not create a duplicate role mapping', async () => {
       ddbMock.on(GetCommand).resolves({ Item: mockUser });
       const conflict = new Error('The conditional request failed');

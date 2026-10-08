@@ -30,6 +30,7 @@ import {
   UpdateVendorStatusRequest,
   Vendor,
   VendorListResponse,
+  VendorSelfLookup,
   VendorStatus,
   VendorStatusHistoryEntry,
 } from '../types/api-types';
@@ -50,6 +51,13 @@ import {
   isVendorRejection,
 } from '../domain/lifecycle';
 import { isCommunityId, normalizeCommunityId } from '../domain/community';
+import {
+  isOnboardingComplete,
+  resolveVendorNextAction,
+  resolveVendorSelfStatus,
+  VENDOR_NEXT_ACTION,
+} from '../domain/vendor-self';
+import { VendorDdbItem } from '../types/repository.types';
 
 const baseLogger = createLogger({
   service: 'vendors-service',
@@ -104,25 +112,95 @@ export class VendorsService {
   async registerVendor(request: LambdaRequest): Promise<Vendor> {
     const userId = getAuthenticatedUserId(request);
     const body = (request.body ?? {}) as RegisterVendorRequest;
+    return this.createOwnedVendor(userId, {
+      email: body.email,
+      phoneNumber: body.phoneNumber,
+    });
+  }
 
+  async createvendor(request: LambdaRequest): Promise<Vendor> {
+    const userId = getAuthenticatedUserId(request);
+    const body = (request.body ?? {}) as CreateVendorRequest;
+    return this.createOwnedVendor(userId, {
+      vendorType: body.vendorType,
+      businessName: body.businessName,
+      contactName: body.contactName,
+      phoneNumber: body.phoneNumber,
+      email: body.email,
+      description: body.description,
+      gstNumber: body.gstNumber,
+      panNumber: body.panNumber,
+      profileImageUrl: body.profileImageUrl,
+    });
+  }
+
+  async getMyVendor(request: LambdaRequest): Promise<VendorSelfLookup> {
+    const userId = getAuthenticatedUserId(request);
+    const vendor = await this.lookupOwnedVendor(userId);
+
+    if (!vendor) {
+      return {
+        hasVendor: false,
+        nextAction: VENDOR_NEXT_ACTION.START_ONBOARDING,
+      };
+    }
+
+    return {
+      hasVendor: true,
+      vendorId: vendor.vendorId,
+      status: resolveVendorSelfStatus(vendor),
+      onboarding: {
+        currentStep: vendor.currentSection,
+        completed: isOnboardingComplete(vendor.onboardingStatus),
+      },
+      nextAction: resolveVendorNextAction(vendor),
+    };
+  }
+
+  private async createOwnedVendor(
+    userId: string,
+    input: Omit<
+      Parameters<typeof VendorsMapper.toInitialDdbItem>[0],
+      'vendorId' | 'ownerUserId'
+    >,
+  ): Promise<Vendor> {
     this.logger.info({
       event: 'createvendor_start',
       userId,
     });
 
+    const existing = await this.findOwnedVendor(userId);
+    if (existing) {
+      this.logger.info({
+        event: 'createvendor_existing',
+        userId,
+        vendorId: existing.vendorId,
+      });
+      return VendorsMapper.toDomain(existing);
+    }
+
     const vendorId = randomUUID();
     const profile = VendorsMapper.toInitialDdbItem({
+      ...input,
       vendorId,
       ownerUserId: userId,
-      email: body.email,
-      phoneNumber: body.phoneNumber,
     });
     const owner = OwnerMapper.initialOwner(vendorId, userId);
+    const ownership = OwnerMapper.ownershipClaim(vendorId, userId);
 
     try {
-      await this.repository.createVendor(profile, owner);
+      await this.repository.createVendor(profile, owner, ownership);
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
+        const raced = await this.findOwnedVendor(userId);
+        if (raced) {
+          this.logger.info({
+            event: 'createvendor_existing',
+            userId,
+            vendorId: raced.vendorId,
+          });
+          return VendorsMapper.toDomain(raced);
+        }
         throw new ConflictError('Vendor already exists');
       }
       throw err;
@@ -137,47 +215,104 @@ export class VendorsService {
     return VendorsMapper.toDomain(profile);
   }
 
-  async createvendor(request: LambdaRequest): Promise<Vendor> {
-    const userId = getAuthenticatedUserId(request);
-    const body = (request.body ?? {}) as CreateVendorRequest;
-
-    this.logger.info({
-      event: 'createvendor_start',
-      userId,
-    });
-
-    const vendorId = randomUUID();
-    const profile = VendorsMapper.toInitialDdbItem({
-      vendorId,
-      ownerUserId: userId,
-      vendorType: body.vendorType,
-      businessName: body.businessName,
-      contactName: body.contactName,
-      phoneNumber: body.phoneNumber,
-      email: body.email,
-      description: body.description,
-      gstNumber: body.gstNumber,
-      panNumber: body.panNumber,
-      profileImageUrl: body.profileImageUrl,
-    });
-    const owner = OwnerMapper.initialOwner(vendorId, userId);
-
-    try {
-      await this.repository.createVendor(profile, owner);
-    } catch (err) {
-      if (err instanceof ConditionalWriteConflictError) {
-        throw new ConflictError('Vendor already exists');
-      }
-      throw err;
+  private async lookupOwnedVendor(userId: string): Promise<VendorDdbItem | null> {
+    const owners = await this.repository.listOwnersByUserId(userId);
+    const indexedIds = [
+      ...new Set(
+        owners
+          .filter((item) => item.userId === userId)
+          .map((item) => item.vendorId),
+      ),
+    ];
+    const indexed = await this.profilesOwnedBy(userId, indexedIds);
+    if (indexed.length > 0) {
+      return this.earliestVendor(indexed);
     }
 
-    this.logger.info({
-      event: 'createvendor_success',
-      userId,
-      vendorId,
-    });
+    const lockedVendorId = await this.repository.getOwnershipVendorId(userId);
+    if (!lockedVendorId) {
+      return null;
+    }
+    const locked = await this.repository.getVendorById(lockedVendorId);
+    if (locked?.ownerUserId === userId) {
+      return locked;
+    }
+    return null;
+  }
 
-    return VendorsMapper.toDomain(profile);
+  private async findOwnedVendor(userId: string): Promise<VendorDdbItem | null> {
+    const lockedVendorId = await this.repository.getOwnershipVendorId(userId);
+    if (lockedVendorId) {
+      const locked = await this.repository.getVendorById(lockedVendorId);
+      if (locked?.ownerUserId === userId) {
+        return locked;
+      }
+      throw new ConflictError('Vendor ownership record is inconsistent');
+    }
+
+    const owners = await this.repository.listOwnersByUserId(userId);
+    const vendorIds = [
+      ...new Set(
+        owners
+          .filter((item) => item.userId === userId)
+          .map((item) => item.vendorId),
+      ),
+    ];
+    if (vendorIds.length === 0) {
+      return null;
+    }
+
+    const profiles = (
+      await this.repository.getVendorsByIds(vendorIds)
+    ).filter((item) => item.ownerUserId === userId);
+    if (profiles.length === 0) {
+      return null;
+    }
+    if (profiles.length > 1) {
+      this.logger.warn({
+        event: 'vendor_ownership_duplicates',
+        userId,
+        vendorIds: profiles.map((item) => item.vendorId),
+      });
+      return this.earliestVendor(profiles);
+    }
+
+    const vendor = profiles[0];
+    try {
+      await this.repository.putOwnershipIfAbsent(
+        OwnerMapper.ownershipClaim(vendor.vendorId, userId),
+      );
+    } catch (err) {
+      if (!(err instanceof ConditionalWriteConflictError)) {
+        throw err;
+      }
+    }
+    return vendor;
+  }
+
+  private async profilesOwnedBy(
+    userId: string,
+    vendorIds: string[],
+  ): Promise<VendorDdbItem[]> {
+    if (vendorIds.length === 0) {
+      return [];
+    }
+    const profiles = await this.repository.getVendorsByIds(vendorIds);
+    const owned = profiles.filter((item) => item.ownerUserId === userId);
+    if (owned.length > 1) {
+      this.logger.warn({
+        event: 'vendor_ownership_duplicates',
+        userId,
+        vendorIds: owned.map((item) => item.vendorId),
+      });
+    }
+    return owned;
+  }
+
+  private earliestVendor(items: VendorDdbItem[]): VendorDdbItem {
+    return [...items].sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt),
+    )[0];
   }
 
   async listvendors(request: LambdaRequest): Promise<VendorListResponse> {

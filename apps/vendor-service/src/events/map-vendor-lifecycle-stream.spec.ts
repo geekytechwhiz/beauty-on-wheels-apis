@@ -20,10 +20,16 @@ const image = {
 };
 
 describe('vendor lifecycle stream mapping', () => {
-  it('classifies approval and rejection only', () => {
+  it('classifies approval, rejection, suspension, and reactivation', () => {
     expect(
       classifyVendorLifecycleTransition(
         { entityType: 'Vendor', status: 'PENDING_VERIFICATION' },
+        { entityType: 'Vendor', status: 'ACTIVE' },
+      ),
+    ).toBe('approved');
+    expect(
+      classifyVendorLifecycleTransition(
+        { entityType: 'Vendor', status: 'SUSPENDED' },
         { entityType: 'Vendor', status: 'ACTIVE' },
       ),
     ).toBe('approved');
@@ -37,6 +43,18 @@ describe('vendor lifecycle stream mapping', () => {
       classifyVendorLifecycleTransition(
         { entityType: 'Vendor', status: 'ACTIVE' },
         { entityType: 'Vendor', status: 'SUSPENDED' },
+      ),
+    ).toBe('suspended');
+    expect(
+      classifyVendorLifecycleTransition(
+        { entityType: 'Vendor', status: 'ACTIVE' },
+        { entityType: 'Vendor', status: 'INACTIVE' },
+      ),
+    ).toBe('suspended');
+    expect(
+      classifyVendorLifecycleTransition(
+        { entityType: 'Vendor', status: 'PENDING_VERIFICATION' },
+        { entityType: 'Vendor', status: 'PENDING_VERIFICATION' },
       ),
     ).toBeUndefined();
   });
@@ -94,6 +112,44 @@ describe('vendor lifecycle stream mapping', () => {
     expect(event.meta.correlationId).toBe('corr-1');
     expect(event.idempotencyKey).toBe(
       'VendorApproved:vendor-1:2026-01-02T00:00:00.000Z',
+    );
+  });
+
+  it('maps suspension to VendorSuspended', () => {
+    const event = mapVendorLifecycleStreamRecord({
+      eventID: 'evt-2',
+      eventName: 'MODIFY',
+      eventSource: 'aws:dynamodb',
+      awsRegion: 'us-east-1',
+      dynamodb: {
+        Keys: { PK: { S: 'VENDOR#vendor-1' }, SK: { S: 'PROFILE' } },
+        OldImage: {
+          entityType: { S: 'Vendor' },
+          status: { S: 'ACTIVE' },
+        },
+        NewImage: {
+          entityType: { S: 'Vendor' },
+          vendorId: { S: 'vendor-1' },
+          ownerUserId: { S: 'user-1' },
+          status: { S: 'SUSPENDED' },
+          onboardingStatus: { S: 'COMPLETED' },
+          latestReview: {
+            M: {
+              reviewerUserId: { S: 'admin-1' },
+              reviewedAt: { S: '2026-02-02T00:00:00.000Z' },
+              previousStatus: { S: 'ACTIVE' },
+              newStatus: { S: 'SUSPENDED' },
+            },
+          },
+        },
+      },
+    });
+
+    expect(event.eventType).toBe('VendorSuspended');
+    expect(event.payload.newStatus).toBe('SUSPENDED');
+    expect(event.payload.ownerUserId).toBe('user-1');
+    expect(event.idempotencyKey).toBe(
+      'VendorSuspended:vendor-1:2026-02-02T00:00:00.000Z',
     );
   });
 });

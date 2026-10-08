@@ -2,6 +2,7 @@ import {
   createDefaultSqsDlqStrategy,
   onEvent,
   VendorApprovedEvent,
+  VendorSuspendedEvent,
   type EventConsumerDeps,
 } from '@api-hub/event-platform';
 import { createLogger } from '@api-hub/observability';
@@ -13,6 +14,27 @@ const logger = createLogger({
   service: 'identity-vendor-approved-role',
   redactPII: true,
 });
+
+async function applyVendorRoleEvent(payload: {
+  newStatus?: string;
+  ownerUserId?: string;
+  onboardingStatus?: string;
+  vendorId?: string;
+}): Promise<void> {
+  const result = await applyVendorApprovalRole(
+    {
+      newStatus: payload.newStatus,
+      ownerUserId: payload.ownerUserId,
+      onboardingStatus: payload.onboardingStatus,
+    },
+    identityRepositoryInstance,
+  );
+  logger.info({
+    event: 'vendor_application_role',
+    result,
+    vendorId: payload.vendorId,
+  });
+}
 
 function consumerDeps(): Partial<EventConsumerDeps> {
   const strategy = createDefaultSqsDlqStrategy();
@@ -34,19 +56,13 @@ export function createVendorApprovedRoleHandler() {
       {
         schema: VendorApprovedEvent,
         handler: async ({ meta: _meta, ...payload }: any) => {
-          const result = await applyVendorApprovalRole(
-            {
-              newStatus: payload.newStatus,
-              ownerUserId: payload.ownerUserId,
-              onboardingStatus: payload.onboardingStatus,
-            },
-            identityRepositoryInstance,
-          );
-          logger.info({
-            event: 'vendor_application_role',
-            result,
-            vendorId: payload.vendorId,
-          });
+          await applyVendorRoleEvent(payload);
+        },
+      },
+      {
+        schema: VendorSuspendedEvent,
+        handler: async ({ meta: _meta, ...payload }: any) => {
+          await applyVendorRoleEvent(payload);
         },
       },
     ],

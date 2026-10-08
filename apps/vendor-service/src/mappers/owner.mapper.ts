@@ -1,7 +1,11 @@
 import { VendorOwner } from '../types/api-types';
-import { VendorOwnerDdbItem } from '../types/repository.types';
+import {
+  VendorOwnerDdbItem,
+  VendorOwnershipDdbItem,
+} from '../types/repository.types';
 import {
   VENDOR_OWNER_ENTITY_TYPE,
+  VENDOR_OWNERSHIP_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 
@@ -52,5 +56,26 @@ export class OwnerMapper {
 
   static initialOwner(vendorId: string, userId: string): VendorOwnerDdbItem {
     return OwnerMapper.toDdbItem(vendorId, { userId });
+  }
+
+  /**
+   * Uniqueness item keyed by the application user. GSI attributes are omitted so
+   * owner lookup stays on the VendorOwner item's existing GSI1 keys.
+   */
+  static ownershipClaim(
+    vendorId: string,
+    userId: string,
+    options?: { createdAt?: string },
+  ): VendorOwnershipDdbItem {
+    const timestamp = new Date().toISOString();
+    return {
+      PK: VendorKeyBuilder.ownershipPk(userId),
+      SK: VendorKeyBuilder.ownershipSk(),
+      vendorId,
+      ownerUserId: userId,
+      createdAt: options?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      entityType: VENDOR_OWNERSHIP_ENTITY_TYPE,
+    };
   }
 }

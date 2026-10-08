@@ -224,9 +224,10 @@ export class AuthenticationService {
     }
 
     /**
-     * Persists the default CUSTOMER mapping, or an existing VENDOR/ADMIN mapping,
-     * before Cognito issues a token. A write failure does not block sign-in;
-     * the pre-token trigger omits `roles` when no mapping is available.
+     * Persists the registration default CUSTOMER mapping, or an existing
+     * VENDOR/ADMIN mapping, before Cognito issues a token. Login parameters are
+     * not a role source. A write failure does not block sign-in; the pre-token
+     * trigger then omits `roles` instead of inventing one.
      */
     private async prepareRoles(user: User): Promise<void> {
         try {

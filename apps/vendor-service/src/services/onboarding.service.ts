@@ -358,9 +358,25 @@ export class OnboardingService {
     aggregate: VendorAggregate,
     data: OwnerDetailsData,
   ): Promise<OnboardingResponse> {
+    const ownerUserId = aggregate.profile?.ownerUserId?.trim();
+    if (!ownerUserId) {
+      throw new ValidationError('Vendor owner is not set');
+    }
+    if (data.userId && data.userId !== ownerUserId) {
+      this.logger.info({
+        event: 'owner_details_user_id_ignored',
+        vendorId: aggregate.profile?.vendorId,
+      });
+    }
     const owner = OwnerMapper.toDdbItem(
       aggregate.profile!.vendorId,
-      data,
+      {
+        userId: ownerUserId,
+        fullName: data.fullName,
+        designation: data.designation,
+        phoneNumber: data.phoneNumber,
+        email: data.email,
+      },
       { createdAt: aggregate.owner?.createdAt },
     );
     aggregate.owner = owner;

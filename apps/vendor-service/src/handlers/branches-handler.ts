@@ -1,4 +1,4 @@
-import { withApiHandler } from '@api-hub/middleware';
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getBranchesController } from '../controllers/branches.controller';
@@ -9,12 +9,12 @@ import {
 
 const controller = getBranchesController();
 
-export const handleListvendorbranches = withApiHandler(
+export const handleListvendorbranches = withVendorApiHandler(
   { operation: 'listvendorbranches' },
   async (request: LambdaRequest) => controller.handleListvendorbranches(request),
 );
 
-export const handleCreatevendorbranch = withApiHandler(
+export const handleCreatevendorbranch = withVendorApiHandler(
   {
     operation: 'createvendorbranch',
     validator: (request: LambdaRequest) => {
@@ -24,12 +24,12 @@ export const handleCreatevendorbranch = withApiHandler(
   async (request: LambdaRequest) => controller.handleCreatevendorbranch(request),
 );
 
-export const handleGetvendorbranch = withApiHandler(
+export const handleGetvendorbranch = withVendorApiHandler(
   { operation: 'getvendorbranch' },
   async (request: LambdaRequest) => controller.handleGetvendorbranch(request),
 );
 
-export const handleUpdatevendorbranch = withApiHandler(
+export const handleUpdatevendorbranch = withVendorApiHandler(
   {
     operation: 'updatevendorbranch',
     validator: (request: LambdaRequest) => {
@@ -39,7 +39,7 @@ export const handleUpdatevendorbranch = withApiHandler(
   async (request: LambdaRequest) => controller.handleUpdatevendorbranch(request),
 );
 
-export const handleDeletevendorbranch = withApiHandler(
+export const handleDeletevendorbranch = withVendorApiHandler(
   { operation: 'deletevendorbranch' },
   async (request: LambdaRequest) => controller.handleDeletevendorbranch(request),
 );

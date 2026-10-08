@@ -192,13 +192,16 @@ export {
 export {
   VendorApprovedEvent,
   VendorRejectedEvent,
+  VendorSuspendedEvent,
   VendorLifecyclePayloadSchema,
   VENDOR_APPROVED_EVENT_TYPE,
   VENDOR_REJECTED_EVENT_TYPE,
+  VENDOR_SUSPENDED_EVENT_TYPE,
   VENDOR_LIFECYCLE_EVENT_VERSION,
   VENDOR_LIFECYCLE_EVENT_SOURCE,
   VENDOR_LIFECYCLE_EVENT_OPERATIONS,
   vendorLifecycleIdempotencyKey,
+  type VendorLifecycleEventType,
   type VendorLifecyclePayload,
 } from './core/contracts/vendor-lifecycle.events';
 export {

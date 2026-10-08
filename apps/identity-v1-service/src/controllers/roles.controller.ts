@@ -26,6 +26,14 @@ export class RolesController {
 
     }
 
+    async handleAssignAdminRole(request: LambdaRequest) {
+        return this.service.assignAdminRole(request);
+    }
+
+    async handleRevokeAdminRole(request: LambdaRequest) {
+        return this.service.revokeAdminRole(request);
+    }
+
 }
 
 let controller: RolesController;

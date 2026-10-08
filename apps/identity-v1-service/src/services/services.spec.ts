@@ -50,6 +50,7 @@ describe('Services Unit Tests', () => {
             removeRole: jest.fn(),
             getUserRoles: jest.fn().mockResolvedValue([]),
             ensureUserRoleMapping: jest.fn().mockResolvedValue('created'),
+            deleteUserRoleMapping: jest.fn().mockResolvedValue('deleted'),
             listRoles: jest.fn(),
             listPermissions: jest.fn(),
             hasPermission: jest.fn(),
@@ -773,6 +774,51 @@ describe('Services Unit Tests', () => {
 
             const result = await service.getsessions(req);
             expect(result).toHaveLength(1);
+        });
+    });
+
+    describe('RolesService admin assignment', () => {
+        function request(roles: string[], body: unknown): LambdaRequest {
+            return {
+                params: { userId: 'u-123' },
+                body,
+                context: { authContext: { identityId: 'sub-1', roles } },
+            } as unknown as LambdaRequest;
+        }
+
+        it('stores ADMIN only when the caller already has ADMIN', async () => {
+            mockRepo.getUserRoles.mockResolvedValue(['CUSTOMER', 'ADMIN']);
+            const service = new RolesService(mockRepo as any);
+            const result = await service.assignAdminRole(request(['ADMIN'], { role: 'ADMIN' }));
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith('u-123', 'ADMIN');
+            expect(result.roles).toEqual(['CUSTOMER', 'ADMIN']);
+        });
+
+        it('rejects a customer assigning ADMIN', async () => {
+            const service = new RolesService(mockRepo as any);
+            await expect(
+                service.assignAdminRole(request(['CUSTOMER'], { role: 'ADMIN' })),
+            ).rejects.toMatchObject({ statusCode: 403 });
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalled();
+        });
+
+        it('rejects assigning VENDOR through the admin operation', async () => {
+            const service = new RolesService(mockRepo as any);
+            await expect(
+                service.assignAdminRole(request(['ADMIN'], { role: 'VENDOR' })),
+            ).rejects.toMatchObject({ statusCode: 400, code: 'ROLE_NOT_ASSIGNABLE' });
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalled();
+        });
+
+        it('removes ADMIN and leaves other mappings', async () => {
+            mockRepo.getUserRoles.mockResolvedValue(['CUSTOMER']);
+            const service = new RolesService(mockRepo as any);
+            const result = await service.revokeAdminRole({
+                params: { userId: 'u-123', role: 'ADMIN' },
+                context: { authContext: { identityId: 'sub-1', roles: ['ADMIN'] } },
+            } as unknown as LambdaRequest);
+            expect(mockRepo.deleteUserRoleMapping).toHaveBeenCalledWith('u-123', 'ADMIN');
+            expect(result.roles).toEqual(['CUSTOMER']);
         });
     });
 });

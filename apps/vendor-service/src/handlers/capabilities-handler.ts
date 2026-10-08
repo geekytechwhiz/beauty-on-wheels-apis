@@ -1,4 +1,4 @@
-import { withApiHandler } from "@api-hub/middleware";
+import { withVendorApiHandler } from "./with-vendor-handler";
 import { LambdaRequest } from "@api-hub/utils";
 
 import {
@@ -15,7 +15,7 @@ const controller =
     getCapabilitiesController();
 
 export const handleGetvendorcapabilities =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "getvendorcapabilities",
         },
@@ -24,7 +24,7 @@ export const handleGetvendorcapabilities =
     );
 
 export const handleListavailablecapabilities =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "listavailablecapabilities",
         },
@@ -33,7 +33,7 @@ export const handleListavailablecapabilities =
     );
 
 export const handleUpdatevendorcapabilities =
-    withApiHandler(
+    withVendorApiHandler(
         {
             operation: "updatevendorcapabilities",
             validator: (request: LambdaRequest) => { validateUpdateVendorCapabilitiesRequest(request); }
@@ -42,12 +42,12 @@ export const handleUpdatevendorcapabilities =
             controller.handleUpdatevendorcapabilities(request)
     );
 
-export const handleGetvendorservices = withApiHandler(
+export const handleGetvendorservices = withVendorApiHandler(
   { operation: 'getvendorservices' },
   async (request: LambdaRequest) => controller.handleGetvendorservices(request),
 );
 
-export const handleUpdatevendorservices = withApiHandler(
+export const handleUpdatevendorservices = withVendorApiHandler(
   {
     operation: 'updatevendorservices',
     validator: (request: LambdaRequest) => {
@@ -58,12 +58,12 @@ export const handleUpdatevendorservices = withApiHandler(
     controller.handleUpdatevendorservices(request),
 );
 
-export const handleGetvendorpackages = withApiHandler(
+export const handleGetvendorpackages = withVendorApiHandler(
   { operation: 'getvendorpackages' },
   async (request: LambdaRequest) => controller.handleGetvendorpackages(request),
 );
 
-export const handleUpdatevendorpackages = withApiHandler(
+export const handleUpdatevendorpackages = withVendorApiHandler(
   {
     operation: 'updatevendorpackages',
     validator: (request: LambdaRequest) => {

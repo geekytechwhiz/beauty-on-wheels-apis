@@ -97,6 +97,7 @@ custom:
     production: true
 
   # Public routes (health, register, login, refresh, OTP) omit the authorizer.
+  resourcePrefix: nv${self:provider.stage}-bw
   esbuild:
     bundle: true
     minify: false
@@ -334,9 +335,178 @@ functions:
             200:
               description: "Permissions list"
 
+  # Cognito Pre Token Generation V2_0. Access-token `roles` requires a paid
+  # Cognito feature plan (Essentials or Plus). This function does not replace
+  # the user pool or any other trigger.
+  preTokenGeneration:
+    handler: src/handlers/pre-token-generation.handler
+    description: Adds the Identity roles array to Cognito access tokens.
+    timeout: 5
+    memorySize: 256
+
+  attachPreTokenGeneration:
+    handler: src/handlers/attach-pre-token-generation.handler
+    description: Points the existing user pool pre-token trigger at V2_0.
+    timeout: 60
+    memorySize: 256
+    role: !GetAtt AttachPreTokenGenerationRole.Arn
+
+  backfillCustomerRoles:
+    handler: src/handlers/backfill-customer-roles.handler
+    description: One-shot backfill of CUSTOMER mappings for legacy users.
+    timeout: 300
+    memorySize: 256
+
+  vendorApprovedRole:
+    handler: src/handlers/vendor-approved-role.handler
+    description: Grants or revokes VENDOR from vendor lifecycle events.
+    timeout: 30
+    memorySize: 256
+
+  postUserAdminRole:
+    handler: src/handlers/roles.handleAssignAdminRole
+    events:
+      - http:
+          path: /users/{userId}/roles
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Assign the ADMIN application role"
+          description: "Caller must already have ADMIN on the access token. The body role must be ADMIN. CUSTOMER and VENDOR are not assigned here."
+          swaggerTags:
+            - Roles
+          responseData:
+            200:
+              description: "ADMIN role stored"
+
+  deleteUserAdminRole:
+    handler: src/handlers/roles.handleRevokeAdminRole
+    events:
+      - http:
+          path: /users/{userId}/roles/{role}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Remove the ADMIN application role"
+          description: "Caller must already have ADMIN on the access token. Only the ADMIN role can be removed through this route."
+          swaggerTags:
+            - Roles
+          responseData:
+            200:
+              description: "ADMIN role removed"
+
 resources:
   Resources:
     IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}
+
+    AttachPreTokenGenerationRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: attach-pre-token-generation
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cognito-idp:DescribeUserPool
+                    - cognito-idp:UpdateUserPool
+                  Resource:
+                    - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+                - Effect: Allow
+                  Action: iam:PassRole
+                  Resource: arn:aws:iam::${aws:accountId}:role/*
+                  Condition:
+                    StringEquals:
+                      iam:PassedToService: cognito-idp.amazonaws.com
+                - Effect: Allow
+                  Action:
+                    - xray:PutTraceSegments
+                    - xray:PutTelemetryRecords
+                  Resource: "*"
+
+    PreTokenGenerationCognitoPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt PreTokenGenerationLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: cognito-idp.amazonaws.com
+        SourceArn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+
+    AttachPreTokenGenerationTrigger:
+      Type: AWS::CloudFormation::CustomResource
+      DependsOn:
+        - PreTokenGenerationCognitoPermission
+      Properties:
+        ServiceToken: !GetAtt AttachPreTokenGenerationLambdaFunction.Arn
+        UserPoolId: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+        FunctionArn: !GetAtt PreTokenGenerationLambdaFunction.Arn
+
+    VendorRoleDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-identity-vendor-role-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    VendorRoleDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref VendorRoleDlq
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: AllowEventBridgeSendToVendorRoleDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt VendorRoleDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+    VendorRoleLifecycleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - VendorRoleDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-vendor-role
+        Description: Grants or revokes the VENDOR application role
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source:
+            - vendor-service
+          detail-type:
+            - VendorApproved
+            - VendorSuspended
+        State: ENABLED
+        Targets:
+          - Id: IdentityVendorRole
+            Arn: !GetAtt VendorApprovedRoleLambdaFunction.Arn
+            DeadLetterConfig:
+              Arn: !GetAtt VendorRoleDlq.Arn
+            RetryPolicy:
+              MaximumRetryAttempts: 3
+
+    VendorRoleEventPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt VendorApprovedRoleLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt VendorRoleLifecycleRule.Arn
 
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse

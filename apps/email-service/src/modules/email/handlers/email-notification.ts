@@ -1,51 +1,48 @@
 import {
-  onEvent,
   createDefaultSqsDlqStrategy,
+  onQueue,
+  type BaseEvent,
+  type BookingConfirmedPayload,
+  type EmailNotificationRequestedPayload,
+  type EventConsumerDeps,
+  type VendorEmailVerificationRequestedPayload,
+  type VendorOnboardingSubmittedPayload,
   BookingConfirmedEvent,
+  EmailNotificationRequestedEvent,
   VendorEmailVerificationRequestedEvent,
   VendorOnboardingSubmittedEvent,
-  type EventConsumerDeps,
 } from '@api-hub/event-platform';
 
-import {
-  getCampaignRepository,
-  getEmailProvider,
-  getStorageProvider,
-  getTemplateRegistryProvider,
-} from '../../../common/providers/container.js';
 import { EMAIL_NOTIFICATION_EVENT_OPERATIONS } from '../domain/notification-templates.js';
-import { EmailService } from '../services/EmailService.js';
-
-function defaultEmailService(): EmailService {
-  return new EmailService(
-    getEmailProvider(),
-    getTemplateRegistryProvider(),
-    getStorageProvider(),
-    getCampaignRepository(),
-  );
-}
+import {
+  adaptBookingConfirmed,
+  adaptVendorEmailVerificationRequested,
+  adaptVendorOnboardingSubmitted,
+  asEnvelope,
+  commandFromEmailNotification,
+} from '../domain/legacy-event-adapter.js';
+import type { EmailNotificationProcessor } from '../services/EmailNotificationProcessor.js';
+import { createDefaultEmailNotifier } from './composition.js';
 
 function defaultConsumerDeps(): Partial<EventConsumerDeps> {
   const strategy = createDefaultSqsDlqStrategy();
   return {
     retry: {
-      maxAttempts: 3,
+      maxAttempts: 5,
       strategy: 'exponential',
       delayMs: 200,
     },
-    dlq: strategy
-      ? { enabled: true, strategy }
-      : { enabled: false },
+    dlq: strategy ? { enabled: true, strategy } : { enabled: false },
   };
 }
 
 export function createEmailNotificationConsumer(deps?: {
-  emailService?: EmailService;
+  processor?: EmailNotificationProcessor;
   consumer?: Partial<EventConsumerDeps>;
 }) {
-  const emailService = deps?.emailService ?? defaultEmailService();
+  const processor = deps?.processor ?? createDefaultEmailNotifier();
 
-  return onEvent({
+  return onQueue({
     operation: EMAIL_NOTIFICATION_EVENT_OPERATIONS.CONSUME,
     consumer: {
       ...defaultConsumerDeps(),
@@ -53,48 +50,55 @@ export function createEmailNotificationConsumer(deps?: {
     },
     events: [
       {
+        schema: EmailNotificationRequestedEvent,
+        handler: async (payload, envelope) => {
+          await processor.deliver(
+            commandFromEmailNotification(
+              payload as EmailNotificationRequestedPayload & {
+                meta?: { correlationId?: string };
+              },
+              asEnvelope(envelope),
+            ),
+          );
+        },
+      },
+      {
         schema: VendorOnboardingSubmittedEvent,
-        handler: async (event) => {
-          await emailService.sendVendorOnboardingSubmittedEmail({
-            applicationId: event.applicationId,
-            vendorId: event.vendorId,
-            ownerUserId: event.ownerUserId,
-            email: event.email,
-            onboardingStatus: event.onboardingStatus,
-            businessName: event.businessName,
-          });
+        handler: async (payload, envelope) => {
+          await processor.deliver(
+            adaptVendorOnboardingSubmitted(
+              payload as VendorOnboardingSubmittedPayload & {
+                meta?: { correlationId?: string };
+              },
+              asEnvelope(envelope),
+            ),
+          );
         },
       },
       {
         schema: VendorEmailVerificationRequestedEvent,
-        handler: async (event) => {
-          await emailService.sendVendorEmailVerificationRequestedEmail({
-            vendorId: event.vendorId,
-            ownerUserId: event.ownerUserId,
-            email: event.email,
-            firstName: event.firstName,
-            otp: event.otp,
-            expiryMinutes: event.expiryMinutes,
-            vendorStatus: event.vendorStatus,
-            applicationId: event.applicationId,
-          });
+        handler: async (payload, envelope) => {
+          await processor.deliver(
+            adaptVendorEmailVerificationRequested(
+              payload as VendorEmailVerificationRequestedPayload & {
+                meta?: { correlationId?: string };
+              },
+              asEnvelope(envelope),
+            ),
+          );
         },
       },
       {
         schema: BookingConfirmedEvent,
-        handler: async (event) => {
-          await emailService.sendBookingConfirmedEmail({
-            bookingId: event.bookingId,
-            customerId: event.customerId,
-            vendorId: event.vendorId,
-            customerEmail: event.customerEmail,
-            bookingDate: event.bookingDate,
-            slotId: event.slotId,
-            bookingStatus: event.bookingStatus,
-            totalAmount: event.totalAmount,
-            customerName: event.customerName,
-            vendorName: event.vendorName,
-          });
+        handler: async (payload, envelope) => {
+          await processor.deliver(
+            adaptBookingConfirmed(
+              payload as BookingConfirmedPayload & {
+                meta?: { correlationId?: string };
+              },
+              asEnvelope(envelope),
+            ),
+          );
         },
       },
     ],
@@ -102,3 +106,5 @@ export function createEmailNotificationConsumer(deps?: {
 }
 
 export const main = createEmailNotificationConsumer();
+
+export type { BaseEvent };

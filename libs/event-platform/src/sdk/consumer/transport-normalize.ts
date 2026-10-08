@@ -49,7 +49,7 @@ export function normalizeTransportToPayloadCandidate(raw: unknown): unknown {
   ) {
     try {
       const parsed = JSON.parse(o.body) as unknown;
-      return unwrapSnsNotificationPayload(parsed);
+      return unwrapEventBridgeDetail(unwrapSnsNotificationPayload(parsed));
     } catch (cause) {
       throw new EventValidationError('SQS message body is not valid JSON', { cause });
     }
@@ -59,20 +59,28 @@ export function normalizeTransportToPayloadCandidate(raw: unknown): unknown {
     const sns = o.Sns as Record<string, unknown>;
     if (typeof sns.Message === 'string') {
       try {
-        return JSON.parse(sns.Message) as unknown;
+        return unwrapEventBridgeDetail(JSON.parse(sns.Message) as unknown);
       } catch (cause) {
         throw new EventValidationError('SNS message is not valid JSON', { cause });
       }
     }
   }
 
-  if (
-    'detail' in o &&
-    typeof o.source === 'string' &&
-    (typeof o['detail-type'] === 'string' || typeof o.detailType === 'string')
-  ) {
-    return o.detail;
-  }
+  return unwrapEventBridgeDetail(raw);
+}
 
-  return raw;
+/**
+ * EventBridge targets deliver the full event (`source`, `detail-type`, `detail`).
+ * Consumers validate {@link BaseEvent}, which is stored on `detail`.
+ */
+export function unwrapEventBridgeDetail(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  const envelope = value as Record<string, unknown>;
+  const detailType = envelope['detail-type'] ?? envelope.detailType;
+  if ('detail' in envelope && typeof envelope.source === 'string' && typeof detailType === 'string') {
+    return envelope.detail;
+  }
+  return value;
 }

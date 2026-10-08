@@ -9,9 +9,11 @@ export interface SendEmailOptions {
   htmlBody?: string;
   textBody?: string;
   attachments?: EmailAttachment[];
-  contactListName?: string;
+  contactListName?: string | null;
   topicName?: string;
   unsubscribePlaceholderFound?: boolean;
+  configurationSetName?: string;
+  emailTags?: Array<{ name: string; value: string }>;
 }
 
 export interface SendTemplatedEmailOptions {
@@ -24,7 +26,7 @@ export interface SendTemplatedEmailOptions {
   templateName: string;
   templateData: Record<string, any>;
   attachments?: EmailAttachment[];
-  contactListName?: string;
+  contactListName?: string | null;
   topicName?: string;
   unsubscribePlaceholderFound?: boolean;
 }

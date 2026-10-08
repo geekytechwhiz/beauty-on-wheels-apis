@@ -1,10 +1,10 @@
 import { getContext } from '@api-hub/observability';
 import type { LambdaInvocationContext } from '@api-hub/observability';
-import { BaseError } from '@api-hub/utils';
 import type { IdempotencyStrategy } from '@api-hub/event-platform';
 
-import { EmailService } from '../services/EmailService.js';
 import { createVendorEmailVerificationRequestedConsumer } from '../handlers/vendor-email-verification-requested.js';
+import type { EmailNotificationProcessor } from '../services/EmailNotificationProcessor.js';
+import { eventBridgeOnSqs } from './sqs-fixture.js';
 
 jest.mock('../../../common/config/environment.js', () => ({
   environment: {
@@ -30,6 +30,11 @@ jest.mock('../../../common/config/environment.js', () => ({
     bookingConfirmedTemplateName: 'BookingConfirmed',
     emailNotificationQueueUrl: '',
     emailNotificationDlqUrl: '',
+    emailDeliveryTable: 'email-delivery',
+    sesConfigurationSet: 'email-delivery',
+    sesReplyTo: '',
+    sesUnsubscribeUrl: '',
+    emailDeliveryLockMs: 150000,
     isOffline: true,
   },
 }));
@@ -67,66 +72,58 @@ const verificationDetail = {
   meta: { correlationId: 'corr-confirm-1' },
 };
 
-const eventBridgeEvent = {
-  source: 'vendor-service',
-  'detail-type': 'VendorEmailVerification.Requested',
-  detail: verificationDetail,
-};
-
-function consumerWithEmailService(emailService: EmailService, extra?: {
-  idempotencyStrategy?: IdempotencyStrategy;
-}) {
+function consumerWithProcessor(
+  processor: EmailNotificationProcessor,
+  extra?: { idempotencyStrategy?: IdempotencyStrategy },
+) {
   return createVendorEmailVerificationRequestedConsumer({
-    emailService,
+    processor,
     consumer: {
       retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
       dlq: { enabled: false },
-      ...(extra?.idempotencyStrategy
-        ? { idempotencyStrategy: extra.idempotencyStrategy }
-        : {}),
+      ...(extra?.idempotencyStrategy ? { idempotencyStrategy: extra.idempotencyStrategy } : {}),
     },
   });
 }
 
 describe('vendor email verification requested email consumer', () => {
-  let emailService: { sendVendorEmailVerificationRequestedEmail: jest.Mock };
+  let processor: { deliver: jest.Mock };
 
   beforeEach(() => {
-    emailService = {
-      sendVendorEmailVerificationRequestedEmail: jest.fn().mockResolvedValue({
-        messageId: 'ses-1',
-      }),
+    processor = {
+      deliver: jest.fn().mockResolvedValue({ messageId: 'ses-1', duplicate: false }),
     };
   });
 
   it('resolves vendor_email_confirmation from the event type', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorEmailVerification.Requested',
+        detail: verificationDetail,
+      }),
+      lambdaContext,
     );
-
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorEmailVerificationRequestedEmail).toHaveBeenCalledWith({
-      vendorId: 'vendor-1',
-      ownerUserId: 'user-1',
-      email: 'owner@example.com',
-      firstName: 'Priya',
-      otp: '482193',
-      expiryMinutes: 10,
-      vendorStatus: 'ACTIVE',
-      applicationId: 'app-1',
-    });
+    expect(processor.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateName: 'vendor_email_confirmation',
+        recipient: { email: 'owner@example.com', name: 'Priya' },
+        parameters: {
+          firstName: 'Priya',
+          otp: '482193',
+          expiryMinutes: 10,
+        },
+      }),
+    );
   });
 
   it('does not accept a template id from the vendor producer', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
-
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
     await handler(
-      {
+      eventBridgeOnSqs({
         source: 'vendor-service',
-        'detail-type': 'VendorEmailVerification.Requested',
+        detailType: 'VendorEmailVerification.Requested',
         detail: {
           ...verificationDetail,
           eventId: 'evt-verify-template',
@@ -135,11 +132,10 @@ describe('vendor email verification requested email consumer', () => {
             templateId: 'vendor_email_confirmation',
           },
         },
-      },
+      }),
       lambdaContext,
     );
-
-    expect(emailService.sendVendorEmailVerificationRequestedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
   it('does not send again for a duplicate event', async () => {
@@ -148,64 +144,65 @@ describe('vendor email verification requested email consumer', () => {
       afterSuccess: async () => undefined,
       onError: async () => undefined,
     };
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-      { idempotencyStrategy: duplicateStrategy },
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor, {
+      idempotencyStrategy: duplicateStrategy,
+    });
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorEmailVerification.Requested',
+        detail: verificationDetail,
+      }),
+      lambdaContext,
     );
-
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorEmailVerificationRequestedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
   it('follows Event Platform validation when the event is invalid', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
-
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
     await handler(
-      {
+      eventBridgeOnSqs({
         source: 'vendor-service',
-        'detail-type': 'VendorEmailVerification.Requested',
+        detailType: 'VendorEmailVerification.Requested',
         detail: {
           ...verificationDetail,
           eventId: 'evt-invalid',
-          payload: {
-            ...verificationDetail.payload,
-            email: 'not-an-email',
-          },
+          payload: { ...verificationDetail.payload, email: 'not-an-email' },
         },
-      },
+      }),
       lambdaContext,
     );
-
-    expect(emailService.sendVendorEmailVerificationRequestedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
-  it('propagates email provider failures for retry', async () => {
-    emailService.sendVendorEmailVerificationRequestedEmail.mockRejectedValue(
-      new Error('SES unavailable'),
+  it('returns the SQS message for retry when delivery fails', async () => {
+    processor.deliver.mockRejectedValue(new Error('SES unavailable'));
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    const result = await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorEmailVerification.Requested',
+        detail: verificationDetail,
+      }),
+      lambdaContext,
     );
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
-
-    await expect(handler(eventBridgeEvent, lambdaContext)).rejects.toBeInstanceOf(
-      BaseError,
-    );
+    expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'mid-1' }]);
   });
 
   it('preserves the correlation ID in Event Platform context', async () => {
-    emailService.sendVendorEmailVerificationRequestedEmail.mockImplementation(async () => {
+    processor.deliver.mockImplementation(async () => {
       expect(getContext().correlationId).toBe('corr-confirm-1');
-      return { messageId: 'ses-1' };
+      return { messageId: 'ses-1', duplicate: false };
     });
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorEmailVerification.Requested',
+        detail: verificationDetail,
+      }),
+      lambdaContext,
     );
-
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorEmailVerificationRequestedEmail).toHaveBeenCalledTimes(1);
+    expect(processor.deliver).toHaveBeenCalledTimes(1);
   });
 });

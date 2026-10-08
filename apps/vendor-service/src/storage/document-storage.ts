@@ -1,3 +1,4 @@
+/* eslint-disable mvrx/no-direct-dynamodb */
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -48,12 +49,17 @@ function isMissingObject(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false;
   }
+
   const name = 'name' in error ? String(error.name) : '';
   const status =
     '$metadata' in error
-      ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata
-          ?.httpStatusCode
+      ? (
+          error as {
+            $metadata?: { httpStatusCode?: number };
+          }
+        ).$metadata?.httpStatusCode
       : undefined;
+
   return name === 'NotFound' || name === 'NoSuchKey' || status === 404;
 }
 
@@ -62,7 +68,13 @@ export class S3DocumentStorage implements DocumentStorage {
     private readonly bucket = env.DOCUMENT_BUCKET,
     private readonly uploadExpiresIn = env.DOCUMENT_UPLOAD_URL_EXPIRY,
     private readonly downloadExpiresIn = env.DOCUMENT_DOWNLOAD_URL_EXPIRY,
-    private readonly client = new S3Client({ region: env.AWS_REGION }),
+    private readonly client = new S3Client({
+      region: env.AWS_REGION,
+
+      // Prevent optional SDK-generated CRC32 checksums
+      // from being added to presigned upload requests.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+    }),
   ) {}
 
   private requireBucket(bucket = this.bucket): string {
@@ -78,18 +90,21 @@ export class S3DocumentStorage implements DocumentStorage {
     fileSize?: number;
   }): Promise<PresignedUpload> {
     const bucket = this.requireBucket();
-    const uploadUrl = await getSignedUrl(
-      this.client,
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: params.objectKey,
-        ContentType: params.contentType,
-        ...(params.fileSize !== undefined
-          ? { ContentLength: params.fileSize }
-          : {}),
-      }),
-      { expiresIn: this.uploadExpiresIn },
-    );
+
+    // File size must be validated by the application
+    // before generating the presigned URL.
+    // Do not sign ContentLength because it can cause
+    // SignatureDoesNotMatch during direct uploads.
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: params.objectKey,
+      ContentType: params.contentType,
+    });
+
+    const uploadUrl = await getSignedUrl(this.client, command, {
+      expiresIn: this.uploadExpiresIn,
+    });
 
     return {
       bucket,
@@ -122,6 +137,7 @@ export class S3DocumentStorage implements DocumentStorage {
     objectKey: string;
   }): Promise<StoredObjectHead | null> {
     const bucket = this.requireBucket(params.bucket);
+
     try {
       const result = await this.client.send(
         new HeadObjectCommand({
@@ -129,6 +145,7 @@ export class S3DocumentStorage implements DocumentStorage {
           Key: params.objectKey,
         }),
       );
+
       return {
         contentType: result.ContentType,
         contentLength: result.ContentLength,
@@ -137,6 +154,7 @@ export class S3DocumentStorage implements DocumentStorage {
       if (isMissingObject(error)) {
         return null;
       }
+
       throw new DocumentStorageError('Unable to verify the uploaded document');
     }
   }
@@ -147,6 +165,7 @@ export class S3DocumentStorage implements DocumentStorage {
     bytes: number;
   }): Promise<Uint8Array> {
     const bucket = this.requireBucket(params.bucket);
+
     try {
       const result = await this.client.send(
         new GetObjectCommand({
@@ -155,17 +174,21 @@ export class S3DocumentStorage implements DocumentStorage {
           Range: `bytes=0-${Math.max(params.bytes - 1, 0)}`,
         }),
       );
+
       if (!result.Body) {
         throw new DocumentStorageError('Uploaded document has no content');
       }
+
       return result.Body.transformToByteArray();
     } catch (error) {
       if (error instanceof DocumentStorageError) {
         throw error;
       }
+
       if (isMissingObject(error)) {
         throw new DocumentStorageError('Uploaded document was not found');
       }
+
       throw new DocumentStorageError('Unable to inspect the uploaded document');
     }
   }
@@ -175,6 +198,7 @@ export class S3DocumentStorage implements DocumentStorage {
     objectKey: string;
   }): Promise<void> {
     const bucket = this.requireBucket(params.bucket);
+
     try {
       await this.client.send(
         new DeleteObjectCommand({
@@ -186,6 +210,7 @@ export class S3DocumentStorage implements DocumentStorage {
       if (isMissingObject(error)) {
         return;
       }
+
       throw new DocumentStorageError('Unable to remove the stored document');
     }
   }
@@ -197,5 +222,6 @@ export function getDocumentStorage(): DocumentStorage {
   if (!storage) {
     storage = new S3DocumentStorage();
   }
+
   return storage;
 }

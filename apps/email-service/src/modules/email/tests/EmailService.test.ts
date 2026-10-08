@@ -180,7 +180,7 @@ describe('EmailService', () => {
           expect.objectContaining({ filename: 'doc.pdf', contentType: 'application/pdf' }),
         ]),
         unsubscribePlaceholderFound: true,
-        // contactListName: 'email-system-contacts',
+        contactListName: null,
         topicName: '',
       });
     });
@@ -295,7 +295,7 @@ describe('EmailService', () => {
           expect.objectContaining({ filename: 'invoice.pdf', contentType: 'application/pdf' }),
           expect.objectContaining({ contentDisposition: 'INLINE', contentType: 'image/png' }),
         ]),
-        contactListName: expect.any(String),
+        contactListName: null,
         topicName: '',
       });
 

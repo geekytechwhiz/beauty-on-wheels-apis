@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import { BaseError } from '@api-hub/utils';
 import { EventSchemaError } from '@api-hub/middleware';
 
+import { EventValidationError } from '../core/event-envelope/validate-base-event';
 import { DependencyError, NonRetryableError, RetryableError, SchemaError } from './errors';
 
 export function classifyFailure(error: unknown): 'retryable' | 'non_retryable' {
@@ -24,7 +25,7 @@ export function classifyFailure(error: unknown): 'retryable' | 'non_retryable' {
       return 'retryable';
     }
   }
-  if (error instanceof ZodError) {
+  if (error instanceof ZodError || error instanceof EventValidationError) {
     return 'non_retryable';
   }
   if (error instanceof Error) {

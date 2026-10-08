@@ -326,7 +326,11 @@ export class EmailService {
 
   // 4. List Topics of a Contact List
   async listTopics(): Promise<any[]> {
-    return this.emailProvider.listTopics(environment.contactListName);
+    const contactListName = environment.contactListName;
+    if (!contactListName) {
+      return [];
+    }
+    return this.emailProvider.listTopics(contactListName);
   }
 
   async sendEventNotificationEmail(

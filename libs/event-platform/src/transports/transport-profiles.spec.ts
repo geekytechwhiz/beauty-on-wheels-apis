@@ -46,4 +46,29 @@ describe('transport profile contracts', () => {
     expect(baseEvent.eventType).toBe('Alert.Created');
     expect(envelope.attributes.messageId).toBe('mid-1');
   });
+
+  it('unwraps an EventBridge event delivered through SQS', () => {
+    const envelope = sqsTransportProfile.parseInbound({
+      messageId: 'mid-eb',
+      receiptHandle: 'rh-eb',
+      body: JSON.stringify({
+        source: 'booking-service',
+        'detail-type': 'Booking.Confirmed',
+        detail: {
+          eventId: 'evt-1',
+          eventType: 'Booking.Confirmed',
+          eventVersion: '1.0.0',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          source: 'booking-service',
+          idempotencyKey: 'idem-1',
+          payload: { bookingId: 'bkg-1' },
+          meta: { correlationId: 'corr-1' },
+        },
+      }),
+    });
+
+    const baseEvent = sqsTransportProfile.mapToBaseEvent(envelope);
+    expect(baseEvent.eventType).toBe('Booking.Confirmed');
+    expect(baseEvent.meta.correlationId).toBe('corr-1');
+  });
 });

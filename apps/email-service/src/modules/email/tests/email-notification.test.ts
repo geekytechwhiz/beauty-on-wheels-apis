@@ -1,10 +1,10 @@
 import { getContext } from '@api-hub/observability';
 import type { LambdaInvocationContext } from '@api-hub/observability';
-import { BaseError } from '@api-hub/utils';
 import type { IdempotencyStrategy } from '@api-hub/event-platform';
 
-import { EmailService } from '../services/EmailService.js';
 import { createEmailNotificationConsumer } from '../handlers/email-notification.js';
+import type { EmailNotificationProcessor } from '../services/EmailNotificationProcessor.js';
+import { eventBridgeOnSqs } from './sqs-fixture.js';
 
 jest.mock('../../../common/config/environment.js', () => ({
   environment: {
@@ -30,6 +30,11 @@ jest.mock('../../../common/config/environment.js', () => ({
     bookingConfirmedTemplateName: 'BookingConfirmed',
     emailNotificationQueueUrl: '',
     emailNotificationDlqUrl: '',
+    emailDeliveryTable: 'email-delivery',
+    sesConfigurationSet: 'email-delivery',
+    sesReplyTo: '',
+    sesUnsubscribeUrl: '',
+    emailDeliveryLockMs: 150000,
     isOffline: true,
   },
 }));
@@ -69,18 +74,12 @@ const bookingDetail = {
   meta: { correlationId: 'corr-booking-1' },
 };
 
-const bookingEventBridgeEvent = {
-  source: 'booking-service',
-  'detail-type': 'Booking.Confirmed',
-  detail: bookingDetail,
-};
-
-function consumerWithEmailService(
-  emailService: EmailService,
+function consumerWithProcessor(
+  processor: EmailNotificationProcessor,
   extra?: { idempotencyStrategy?: IdempotencyStrategy },
 ) {
   return createEmailNotificationConsumer({
-    emailService,
+    processor,
     consumer: {
       retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
       dlq: { enabled: false },
@@ -92,53 +91,50 @@ function consumerWithEmailService(
 }
 
 describe('email notification consumer', () => {
-  let emailService: {
-    sendVendorOnboardingSubmittedEmail: jest.Mock;
-    sendBookingConfirmedEmail: jest.Mock;
-  };
+  let processor: { deliver: jest.Mock };
 
   beforeEach(() => {
-    emailService = {
-      sendVendorOnboardingSubmittedEmail: jest.fn().mockResolvedValue({
-        messageId: 'ses-vendor-1',
-      }),
-      sendBookingConfirmedEmail: jest.fn().mockResolvedValue({
-        messageId: 'ses-booking-1',
-      }),
+    processor = {
+      deliver: jest.fn().mockResolvedValue({ messageId: 'ses-booking-1', duplicate: false }),
     };
   });
 
-  it('resolves the booking confirmed template from the event type', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+  it('adapts a booking event from SQS into a generic email command', async () => {
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+
+    const result = await handler(
+      eventBridgeOnSqs({
+        source: 'booking-service',
+        detailType: 'Booking.Confirmed',
+        detail: bookingDetail,
+      }),
+      lambdaContext,
     );
 
-    await handler(bookingEventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendBookingConfirmedEmail).toHaveBeenCalledWith({
-      bookingId: 'bkg-1',
-      customerId: 'cust-1',
-      vendorId: 'vendor-1',
-      customerEmail: 'customer@example.com',
-      bookingDate: '2026-09-20',
-      slotId: 'slot-1',
-      bookingStatus: 'confirmed',
-      totalAmount: 149.5,
-      customerName: 'Ada',
-      vendorName: 'ABC Car Wash',
-    });
-    expect(emailService.sendVendorOnboardingSubmittedEmail).not.toHaveBeenCalled();
+    expect(result.batchItemFailures).toEqual([]);
+    expect(processor.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt-booking-1',
+        idempotencyKey: 'Booking.Confirmed:bkg-1',
+        correlationId: 'corr-booking-1',
+        templateName: 'BookingConfirmed',
+        recipient: { email: 'customer@example.com', name: 'Ada' },
+        parameters: expect.objectContaining({
+          bookingId: 'bkg-1',
+          bookingDate: '2026-09-20',
+          totalAmount: 149.5,
+        }),
+      }),
+    );
   });
 
   it('does not accept a template id from the booking producer', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
 
     await handler(
-      {
+      eventBridgeOnSqs({
         source: 'booking-service',
-        'detail-type': 'Booking.Confirmed',
+        detailType: 'Booking.Confirmed',
         detail: {
           ...bookingDetail,
           eventId: 'evt-booking-template',
@@ -147,11 +143,11 @@ describe('email notification consumer', () => {
             templateId: 'SomeProducerTemplate',
           },
         },
-      },
+      }),
       lambdaContext,
     );
 
-    expect(emailService.sendBookingConfirmedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
   it('does not send again for a duplicate booking event', async () => {
@@ -160,25 +156,29 @@ describe('email notification consumer', () => {
       afterSuccess: async () => undefined,
       onError: async () => undefined,
     };
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-      { idempotencyStrategy: duplicateStrategy },
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor, {
+      idempotencyStrategy: duplicateStrategy,
+    });
+
+    await handler(
+      eventBridgeOnSqs({
+        source: 'booking-service',
+        detailType: 'Booking.Confirmed',
+        detail: bookingDetail,
+      }),
+      lambdaContext,
     );
 
-    await handler(bookingEventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendBookingConfirmedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
   it('follows Event Platform validation when the booking event is invalid', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
 
     await handler(
-      {
+      eventBridgeOnSqs({
         source: 'booking-service',
-        'detail-type': 'Booking.Confirmed',
+        detailType: 'Booking.Confirmed',
         detail: {
           ...bookingDetail,
           eventId: 'evt-booking-invalid',
@@ -187,37 +187,90 @@ describe('email notification consumer', () => {
             customerEmail: 'not-an-email',
           },
         },
-      },
+      }),
       lambdaContext,
     );
 
-    expect(emailService.sendBookingConfirmedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
-  it('propagates email provider failures for retry', async () => {
-    emailService.sendBookingConfirmedEmail.mockRejectedValue(
-      new Error('SES unavailable'),
-    );
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+  it('returns the message for retry when delivery fails', async () => {
+    processor.deliver.mockRejectedValue(new Error('SES unavailable'));
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+
+    const result = await handler(
+      eventBridgeOnSqs({
+        source: 'booking-service',
+        detailType: 'Booking.Confirmed',
+        detail: bookingDetail,
+      }),
+      lambdaContext,
     );
 
-    await expect(
-      handler(bookingEventBridgeEvent, lambdaContext),
-    ).rejects.toBeInstanceOf(BaseError);
+    expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'mid-1' }]);
   });
 
   it('preserves the correlation ID in Event Platform context', async () => {
-    emailService.sendBookingConfirmedEmail.mockImplementation(async () => {
+    processor.deliver.mockImplementation(async () => {
       expect(getContext().correlationId).toBe('corr-booking-1');
-      return { messageId: 'ses-booking-1' };
+      return { messageId: 'ses-booking-1', duplicate: false };
     });
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+
+    await handler(
+      eventBridgeOnSqs({
+        source: 'booking-service',
+        detailType: 'Booking.Confirmed',
+        detail: bookingDetail,
+      }),
+      lambdaContext,
     );
 
-    await handler(bookingEventBridgeEvent, lambdaContext);
+    expect(processor.deliver).toHaveBeenCalledTimes(1);
+  });
 
-    expect(emailService.sendBookingConfirmedEmail).toHaveBeenCalledTimes(1);
+  it('accepts a generic email notification without business branching', async () => {
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    const detail = {
+      eventId: 'evt-123',
+      eventType: 'Email.NotificationRequested',
+      eventVersion: '1.0.0',
+      timestamp: '2026-10-08T09:30:00.000Z',
+      source: 'appointment-service',
+      idempotencyKey: 'Email.NotificationRequested:ntf-1',
+      payload: {
+        channel: 'EMAIL',
+        templateName: 'appointment-confirmation',
+        locale: 'en-IN',
+        notificationId: 'ntf-1',
+        recipient: { email: 'customer@example.com', name: 'John' },
+        parameters: {
+          patientName: 'John',
+          doctorName: 'Dr Smith',
+          appointmentDate: '10 Oct 2026',
+          appointmentTime: '10:00 AM',
+        },
+      },
+      meta: { correlationId: 'corr-123' },
+    };
+
+    await handler(
+      eventBridgeOnSqs({
+        source: 'appointment-service',
+        detailType: 'Email.NotificationRequested',
+        detail,
+      }),
+      lambdaContext,
+    );
+
+    expect(processor.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt-123',
+        templateName: 'appointment-confirmation',
+        locale: 'en-IN',
+        correlationId: 'corr-123',
+        recipient: { email: 'customer@example.com', name: 'John' },
+      }),
+    );
   });
 });

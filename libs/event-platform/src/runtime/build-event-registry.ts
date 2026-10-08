@@ -11,7 +11,7 @@ export type EventHandlerEntry<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
     input: z.infer<TSchema> & {
       meta: BaseEvent['meta'];
     },
-    context: unknown,
+    context: BaseEvent,
   ) => Promise<void>;
 };
 
@@ -37,7 +37,7 @@ export function buildEventRegistry(
           ...(event.payload as object),
           meta: event.meta,
         } as z.infer<typeof entry.schema> & { meta: BaseEvent['meta'] },
-        {},
+        event,
       );
     };
   }

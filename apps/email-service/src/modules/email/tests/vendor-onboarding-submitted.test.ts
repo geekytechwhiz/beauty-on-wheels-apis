@@ -1,10 +1,10 @@
 import { getContext } from '@api-hub/observability';
 import type { LambdaInvocationContext } from '@api-hub/observability';
-import { BaseError } from '@api-hub/utils';
 import type { IdempotencyStrategy } from '@api-hub/event-platform';
 
-import { EmailService } from '../services/EmailService.js';
 import { createVendorOnboardingSubmittedConsumer } from '../handlers/vendor-onboarding-submitted.js';
+import type { EmailNotificationProcessor } from '../services/EmailNotificationProcessor.js';
+import { eventBridgeOnSqs } from './sqs-fixture.js';
 
 jest.mock('../../../common/config/environment.js', () => ({
   environment: {
@@ -30,6 +30,11 @@ jest.mock('../../../common/config/environment.js', () => ({
     bookingConfirmedTemplateName: 'BookingConfirmed',
     emailNotificationQueueUrl: '',
     emailNotificationDlqUrl: '',
+    emailDeliveryTable: 'email-delivery',
+    sesConfigurationSet: 'email-delivery',
+    sesReplyTo: '',
+    sesUnsubscribeUrl: '',
+    emailDeliveryLockMs: 150000,
     isOffline: true,
   },
 }));
@@ -65,53 +70,51 @@ const submittedDetail = {
   meta: { correlationId: 'corr-submit-1' },
 };
 
-const eventBridgeEvent = {
-  source: 'vendor-service',
-  'detail-type': 'VendorOnboarding.Submitted',
-  detail: submittedDetail,
-};
-
-function consumerWithEmailService(emailService: EmailService, extra?: {
-  idempotencyStrategy?: IdempotencyStrategy;
-}) {
+function consumerWithProcessor(
+  processor: EmailNotificationProcessor,
+  extra?: { idempotencyStrategy?: IdempotencyStrategy },
+) {
   return createVendorOnboardingSubmittedConsumer({
-    emailService,
+    processor,
     consumer: {
       retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
       dlq: { enabled: false },
-      ...(extra?.idempotencyStrategy
-        ? { idempotencyStrategy: extra.idempotencyStrategy }
-        : {}),
+      ...(extra?.idempotencyStrategy ? { idempotencyStrategy: extra.idempotencyStrategy } : {}),
     },
   });
 }
 
 describe('vendor onboarding submitted email consumer', () => {
-  let emailService: { sendVendorOnboardingSubmittedEmail: jest.Mock };
+  let processor: { deliver: jest.Mock };
 
   beforeEach(() => {
-    emailService = {
-      sendVendorOnboardingSubmittedEmail: jest.fn().mockResolvedValue({
-        messageId: 'ses-1',
-      }),
+    processor = {
+      deliver: jest.fn().mockResolvedValue({ messageId: 'ses-1', duplicate: false }),
     };
   });
 
   it('resolves the vendor onboarding template and sends the email', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorOnboarding.Submitted',
+        detail: submittedDetail,
+      }),
+      lambdaContext,
     );
 
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorOnboardingSubmittedEmail).toHaveBeenCalledWith({
-      applicationId: 'app-1',
-      vendorId: 'vendor-1',
-      ownerUserId: 'user-1',
-      email: 'owner@example.com',
-      onboardingStatus: 'PENDING_REVIEW',
-      businessName: 'ABC Car Wash',
-    });
+    expect(processor.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateName: 'VendorOnboardingSubmitted',
+        recipient: { email: 'owner@example.com' },
+        parameters: {
+          applicationId: 'app-1',
+          vendorId: 'vendor-1',
+          businessName: 'ABC Car Wash',
+        },
+      }),
+    );
   });
 
   it('does not send again for a duplicate event', async () => {
@@ -120,25 +123,26 @@ describe('vendor onboarding submitted email consumer', () => {
       afterSuccess: async () => undefined,
       onError: async () => undefined,
     };
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-      { idempotencyStrategy: duplicateStrategy },
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor, {
+      idempotencyStrategy: duplicateStrategy,
+    });
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorOnboarding.Submitted',
+        detail: submittedDetail,
+      }),
+      lambdaContext,
     );
-
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorOnboardingSubmittedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
   it('follows Event Platform validation when the event is invalid', async () => {
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
-
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
     await handler(
-      {
+      eventBridgeOnSqs({
         source: 'vendor-service',
-        'detail-type': 'VendorOnboarding.Submitted',
+        detailType: 'VendorOnboarding.Submitted',
         detail: {
           ...submittedDetail,
           eventId: 'evt-invalid',
@@ -150,37 +154,40 @@ describe('vendor onboarding submitted email consumer', () => {
             onboardingStatus: 'PENDING_REVIEW',
           },
         },
-      },
+      }),
       lambdaContext,
     );
-
-    expect(emailService.sendVendorOnboardingSubmittedEmail).not.toHaveBeenCalled();
+    expect(processor.deliver).not.toHaveBeenCalled();
   });
 
-  it('propagates email provider failures for retry', async () => {
-    emailService.sendVendorOnboardingSubmittedEmail.mockRejectedValue(
-      new Error('SES unavailable'),
+  it('returns the SQS message for retry when delivery fails', async () => {
+    processor.deliver.mockRejectedValue(new Error('SES unavailable'));
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    const result = await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorOnboarding.Submitted',
+        detail: submittedDetail,
+      }),
+      lambdaContext,
     );
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
-    );
-
-    await expect(handler(eventBridgeEvent, lambdaContext)).rejects.toBeInstanceOf(
-      BaseError,
-    );
+    expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'mid-1' }]);
   });
 
   it('preserves the correlation ID in Event Platform context', async () => {
-    emailService.sendVendorOnboardingSubmittedEmail.mockImplementation(async () => {
+    processor.deliver.mockImplementation(async () => {
       expect(getContext().correlationId).toBe('corr-submit-1');
-      return { messageId: 'ses-1' };
+      return { messageId: 'ses-1', duplicate: false };
     });
-    const handler = consumerWithEmailService(
-      emailService as unknown as EmailService,
+    const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
+    await handler(
+      eventBridgeOnSqs({
+        source: 'vendor-service',
+        detailType: 'VendorOnboarding.Submitted',
+        detail: submittedDetail,
+      }),
+      lambdaContext,
     );
-
-    await handler(eventBridgeEvent, lambdaContext);
-
-    expect(emailService.sendVendorOnboardingSubmittedEmail).toHaveBeenCalledTimes(1);
+    expect(processor.deliver).toHaveBeenCalledTimes(1);
   });
 });

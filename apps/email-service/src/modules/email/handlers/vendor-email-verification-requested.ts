@@ -1,10 +1,10 @@
 import type { EventConsumerDeps } from '@api-hub/event-platform';
 
-import { EmailService } from '../services/EmailService.js';
+import type { EmailNotificationProcessor } from '../services/EmailNotificationProcessor.js';
 import { createEmailNotificationConsumer } from './email-notification.js';
 
 export function createVendorEmailVerificationRequestedConsumer(deps?: {
-  emailService?: EmailService;
+  processor?: EmailNotificationProcessor;
   consumer?: Partial<EventConsumerDeps>;
 }) {
   return createEmailNotificationConsumer(deps);

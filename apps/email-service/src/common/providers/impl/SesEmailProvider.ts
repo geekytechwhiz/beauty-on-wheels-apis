@@ -58,6 +58,16 @@ export class SesEmailProvider implements IEmailProvider {
       emailParams.ReplyToAddresses = options.replyToAddresses;
     }
 
+    if (options.configurationSetName) {
+      emailParams.ConfigurationSetName = options.configurationSetName;
+    }
+    if (options.emailTags && options.emailTags.length > 0) {
+      emailParams.EmailTags = options.emailTags.map((tag) => ({
+        Name: tag.name,
+        Value: tag.value,
+      }));
+    }
+
     if (options.htmlBody) {
       emailParams.Content!.Simple!.Body!.Html = {
         Data: options.htmlBody,
@@ -96,8 +106,10 @@ export class SesEmailProvider implements IEmailProvider {
 
     try {
       logger.info('Sending simple email via SES', {
-        options,
-        emailParams,
+        toCount: options.toAddresses.length,
+        hasHtml: Boolean(options.htmlBody),
+        hasText: Boolean(options.textBody),
+        configurationSetName: options.configurationSetName,
       });
       const command = new SendEmailCommand(emailParams);
       const response = await this.client.send(command);
@@ -160,9 +172,7 @@ export class SesEmailProvider implements IEmailProvider {
         };
         delete retryParams.ListManagementOptions;
 
-        logger.info('Retrying SES Simple Email Send', {
-          emailParams: retryParams,
-        });
+        logger.info('Retrying SES simple email without list management');
 
         const command = new SendEmailCommand(retryParams);
         const response = await this.client.send(command);
@@ -178,8 +188,7 @@ export class SesEmailProvider implements IEmailProvider {
       }
 
       logger.error('Error sending simple email via SES', {
-        error,
-        options,
+        errorName: error?.name,
         requestId: error.$metadata?.requestId,
         httpStatusCode: error.$metadata?.httpStatusCode,
         attempts: error.$metadata?.attempts,
@@ -240,8 +249,8 @@ export class SesEmailProvider implements IEmailProvider {
 
     try {
       logger.info('Sending templated email via SES', {
-        options,
-        emailParams,
+        templateName: options.templateName,
+        toCount: options.toAddresses.length,
       });
       const command = new SendEmailCommand(emailParams);
       const response = await this.client.send(command);
@@ -280,8 +289,8 @@ export class SesEmailProvider implements IEmailProvider {
         const retryParams = { ...emailParams };
         delete retryParams.ListManagementOptions;
 
-        logger.info('Retrying SES Templated Email Send', {
-          emailParams: retryParams,
+        logger.info('Retrying SES templated email without list management', {
+          templateName: options.templateName,
         });
 
         const command = new SendEmailCommand(retryParams);
@@ -299,8 +308,8 @@ export class SesEmailProvider implements IEmailProvider {
       }
 
       logger.error('Error sending templated email via SES', {
-        error,
-        options,
+        errorName: error?.name,
+        templateName: options.templateName,
         requestId: error.$metadata?.requestId,
         httpStatusCode: error.$metadata?.httpStatusCode,
         attempts: error.$metadata?.attempts,

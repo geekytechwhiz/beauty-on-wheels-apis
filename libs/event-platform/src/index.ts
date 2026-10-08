@@ -6,6 +6,12 @@ export {
   type OnEventOptions,
 } from './lib/create-event-handler';
 export {
+  createSqsEventHandler,
+  onQueue,
+  type CreateSqsEventHandlerOptions,
+  type OnQueueOptions,
+} from './lib/create-sqs-event-handler';
+export {
   correlationHintFromEventBridge,
 } from './lib/event-bridge-per-message-context';
    
@@ -73,6 +79,12 @@ export type { PublishRoutingConfig, PublishPlan } from './publishing/routing';
  
  
 export { classifyFailure, isNonRetryableFailure } from './reliability/failure-classifier';
+export {
+  RetryableError,
+  NonRetryableError,
+  SchemaError,
+  DependencyError,
+} from './reliability/errors';
 export {
   registerEventDefinition,
   getRegisteredEventDefinition,
@@ -199,6 +211,19 @@ export {
   vendorEmailVerificationRequestedIdempotencyKey,
   type VendorEmailVerificationRequestedPayload,
 } from './core/contracts/vendor-email-verification.events';
+export {
+  EmailNotificationRequestedEvent,
+  EmailNotificationRequestedPayloadSchema,
+  EMAIL_NOTIFICATION_EVENT_TYPE,
+  EMAIL_NOTIFICATION_EVENT_VERSION,
+  EMAIL_NOTIFICATION_EVENT_SOURCE,
+  EMAIL_NOTIFICATION_EVENT_OPERATIONS,
+  EMAIL_NOTIFICATION_CHANNEL,
+  emailNotificationIdempotencyKey,
+  createEmailNotificationEvent,
+  type EmailNotificationRequestedPayload,
+  type CreateEmailNotificationEventInput,
+} from './core/contracts/email-notification.events';
 export {
   BookingConfirmedEvent,
   BookingConfirmedPayloadSchema,

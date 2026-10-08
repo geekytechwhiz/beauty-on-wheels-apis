@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SchemaError } from '../../reliability/errors';
+
 export type ResolveSchemaOptions = {
   /** Default `throw` preserves strict registry validation. */
   onMissingSchema?: 'throw' | 'noop';
@@ -18,7 +20,7 @@ export function resolveSchema(
     if (onMissing === 'noop') {
       return z.any();
     }
-    throw new Error(`No schemas found for ${eventType}`);
+    throw new SchemaError(`No schemas found for ${eventType}`);
   }
 
   const schema = eventSchemas[version];
@@ -27,7 +29,7 @@ export function resolveSchema(
     if (onMissing === 'noop') {
       return z.any();
     }
-    throw new Error(`No schema for ${eventType} version ${version}`);
+    throw new SchemaError(`No schema for ${eventType} version ${version}`);
   }
 
   return schema;

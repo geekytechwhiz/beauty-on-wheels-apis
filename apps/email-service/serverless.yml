@@ -24,8 +24,14 @@ provider:
   environment:
     ALLOWED_ORIGIN: ${self:custom.allowedOrigin}
     SERVICE_NAME: ${self:service}
-    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, 'prasanthms.dev@gmail.com'}
+    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, ''}
     DEFAULT_FROM_NAME: ${env:DEFAULT_FROM_NAME, 'Beauty on Wheels'}
+    SES_REPLY_TO: ${env:SES_REPLY_TO, ''}
+    SES_UNSUBSCRIBE_URL: ${env:SES_UNSUBSCRIBE_URL, ''}
+    SES_CONFIGURATION_SET: !Ref EmailConfigurationSet
+    LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
+    METRICS_NAMESPACE: ApiHub
+    REDACT_PII: 'true'
     VENDOR_ONBOARDING_TEMPLATE_NAME: ${env:VENDOR_ONBOARDING_TEMPLATE_NAME, 'VendorOnboardingSubmitted'}
     VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME: ${env:VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME, 'vendor_email_confirmation'}
     BOOKING_CONFIRMED_TEMPLATE_NAME: ${env:BOOKING_CONFIRMED_TEMPLATE_NAME, 'BookingConfirmed'}
@@ -37,6 +43,8 @@ provider:
     EMAIL_NOTIFICATION_QUEUE_URL: !Ref EmailNotificationQueue
     EMAIL_NOTIFICATION_DLQ_URL: !Ref EmailNotificationDlq
     DLQ_QUEUE_URL: !Ref EmailNotificationDlq
+    EMAIL_DELIVERY_TABLE: !Ref EmailDeliveryTable
+    EMAIL_DELIVERY_LOCK_MS: '150000'
 
   iam:
     role:
@@ -44,21 +52,44 @@ provider:
         - Effect: Allow
           Action:
             - ses:SendEmail
-            - ses:SendTemplatedEmail
-            - ses:GetEmailIdentity
-            - ses:ListEmailIdentities
+            - ses:SendRawEmail
+          Resource:
+            - !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*
+            - !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${self:custom.sesConfigurationSetName}
+        - Effect: Allow
+          Action:
             - ses:CreateEmailTemplate
             - ses:GetEmailTemplate
+            - ses:UpdateEmailTemplate
             - ses:DeleteEmailTemplate
+          Resource:
+            - !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:template/*
+        - Effect: Allow
+          Action:
             - ses:ListEmailTemplates
           Resource: '*'
         - Effect: Allow
           Action:
             - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
             - sqs:GetQueueAttributes
+            - sqs:ChangeMessageVisibility
           Resource:
             - !GetAtt EmailNotificationQueue.Arn
             - !GetAtt EmailNotificationDlq.Arn
+            - !GetAtt EmailDeliveryQueue.Arn
+            - !GetAtt EmailDeliveryDlq.Arn
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt EmailDeliveryTable.Arn
+            - !Sub ${EmailDeliveryTable.Arn}/index/*
+        - ${file(../../infra/serverless/permissions/xray.yml)}
 
 plugins:
   - serverless-esbuild
@@ -74,6 +105,13 @@ custom:
   vendorEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
   emailNotificationQueueName: ${self:custom.resourcePrefix}-email-notification-queue
   emailNotificationDlqName: ${self:custom.resourcePrefix}-email-notification-dlq
+  emailDeliveryQueueName: ${self:custom.resourcePrefix}-email-delivery-queue
+  emailDeliveryDlqName: ${self:custom.resourcePrefix}-email-delivery-dlq
+  emailDeliveryTableName: ${self:custom.resourcePrefix}-email-delivery
+  sesConfigurationSetName: ${self:custom.resourcePrefix}-email-delivery
+  dlqAlarm:
+    alarmName: ${self:custom.resourcePrefix}-email-notification-dlq-depth
+    queueName: ${self:custom.emailNotificationDlqName}
 
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
   allowedOrigin: ${opt:allowed-origin, '*'}
@@ -266,124 +304,367 @@ functions:
   emailNotification:
     handler: src/modules/email/handlers/email-notification.main
     name: ${self:custom.resourcePrefix}-email-notification
+    description: Consumes email notification events from SQS and sends them through SES.
     timeout: 30
+    reservedConcurrency: 5
     events:
-      # Serverless logical IDs are event-index based (rule1, rule2, ...).
-      # Keep existing deployed order: do not insert events ahead of these rules.
-      - eventBridge:
-          eventBus:
+      - sqs:
+          arn: !GetAtt EmailNotificationQueue.Arn
+          batchSize: 5
+          maximumConcurrency: 5
+          functionResponseType: ReportBatchItemFailures
+
+  emailDelivery:
+    handler: src/modules/email/handlers/email-delivery.main
+    name: ${self:custom.resourcePrefix}-email-delivery
+    description: Records SES delivery, bounce, complaint, and reject events.
+    timeout: 15
+    reservedConcurrency: 2
+    events:
+      - sqs:
+          arn: !GetAtt EmailDeliveryQueue.Arn
+          batchSize: 5
+          maximumConcurrency: 2
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  - ${file(../../infra/serverless/resources/alarms/dlq-depth.yml)}
+  - Resources:
+      EmailNotificationDlq:
+        Type: AWS::SQS::Queue
+        Properties:
+          QueueName: ${self:custom.emailNotificationDlqName}
+          MessageRetentionPeriod: 1209600
+          SqsManagedSseEnabled: true
+          Tags:
+            - Key: Service
+              Value: email
+            - Key: Environment
+              Value: ${self:provider.stage}
+
+      EmailNotificationQueue:
+        Type: AWS::SQS::Queue
+        Properties:
+          QueueName: ${self:custom.emailNotificationQueueName}
+          MessageRetentionPeriod: 345600
+          VisibilityTimeout: 180
+          SqsManagedSseEnabled: true
+          RedrivePolicy:
+            deadLetterTargetArn: !GetAtt EmailNotificationDlq.Arn
+            maxReceiveCount: 5
+          Tags:
+            - Key: Service
+              Value: email
+            - Key: Environment
+              Value: ${self:provider.stage}
+
+      EmailDeliveryDlq:
+        Type: AWS::SQS::Queue
+        Properties:
+          QueueName: ${self:custom.emailDeliveryDlqName}
+          MessageRetentionPeriod: 1209600
+          SqsManagedSseEnabled: true
+          Tags:
+            - Key: Service
+              Value: email
+            - Key: Environment
+              Value: ${self:provider.stage}
+
+      EmailDeliveryQueue:
+        Type: AWS::SQS::Queue
+        Properties:
+          QueueName: ${self:custom.emailDeliveryQueueName}
+          MessageRetentionPeriod: 345600
+          VisibilityTimeout: 90
+          SqsManagedSseEnabled: true
+          RedrivePolicy:
+            deadLetterTargetArn: !GetAtt EmailDeliveryDlq.Arn
+            maxReceiveCount: 5
+          Tags:
+            - Key: Service
+              Value: email
+            - Key: Environment
+              Value: ${self:provider.stage}
+
+      EmailDeliveryDlqAlarm:
+        Type: AWS::CloudWatch::Alarm
+        Properties:
+          AlarmName: ${self:custom.resourcePrefix}-email-delivery-dlq-depth
+          AlarmDescription: Email delivery DLQ has one or more visible messages
+          MetricName: ApproximateNumberOfMessagesVisible
+          Namespace: AWS/SQS
+          Dimensions:
+            - Name: QueueName
+              Value: ${self:custom.emailDeliveryDlqName}
+          Statistic: Sum
+          Period: 300
+          EvaluationPeriods: 1
+          Threshold: 1
+          ComparisonOperator: GreaterThanOrEqualToThreshold
+          TreatMissingData: notBreaching
+
+      EmailNotificationQueuePolicy:
+        Type: AWS::SQS::QueuePolicy
+        Properties:
+          Queues:
+            - !Ref EmailNotificationQueue
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowEventBridgeSendToNotificationQueue
+                Effect: Allow
+                Principal:
+                  Service: events.amazonaws.com
+                Action: sqs:SendMessage
+                Resource: !GetAtt EmailNotificationQueue.Arn
+                Condition:
+                  StringEquals:
+                    aws:SourceAccount: !Ref AWS::AccountId
+
+      EmailNotificationDlqPolicy:
+        Type: AWS::SQS::QueuePolicy
+        Properties:
+          Queues:
+            - !Ref EmailNotificationDlq
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowEventBridgeSendToNotificationDlq
+                Effect: Allow
+                Principal:
+                  Service: events.amazonaws.com
+                Action: sqs:SendMessage
+                Resource: !GetAtt EmailNotificationDlq.Arn
+                Condition:
+                  StringEquals:
+                    aws:SourceAccount: !Ref AWS::AccountId
+
+      EmailDeliveryQueuePolicy:
+        Type: AWS::SQS::QueuePolicy
+        Properties:
+          Queues:
+            - !Ref EmailDeliveryQueue
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowEventBridgeSendToDeliveryQueue
+                Effect: Allow
+                Principal:
+                  Service: events.amazonaws.com
+                Action: sqs:SendMessage
+                Resource: !GetAtt EmailDeliveryQueue.Arn
+                Condition:
+                  StringEquals:
+                    aws:SourceAccount: !Ref AWS::AccountId
+
+      EmailDeliveryTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+          TableName: ${self:custom.emailDeliveryTableName}
+          BillingMode: PAY_PER_REQUEST
+          AttributeDefinitions:
+            - AttributeName: pk
+              AttributeType: S
+            - AttributeName: sk
+              AttributeType: S
+            - AttributeName: gsi1pk
+              AttributeType: S
+            - AttributeName: gsi1sk
+              AttributeType: S
+          KeySchema:
+            - AttributeName: pk
+              KeyType: HASH
+            - AttributeName: sk
+              KeyType: RANGE
+          GlobalSecondaryIndexes:
+            - IndexName: gsi1
+              KeySchema:
+                - AttributeName: gsi1pk
+                  KeyType: HASH
+                - AttributeName: gsi1sk
+                  KeyType: RANGE
+              Projection:
+                ProjectionType: ALL
+          TimeToLiveSpecification:
+            AttributeName: ttl
+            Enabled: true
+          PointInTimeRecoverySpecification:
+            PointInTimeRecoveryEnabled: true
+          SSESpecification:
+            SSEEnabled: true
+          Tags:
+            - Key: Service
+              Value: email
+            - Key: Environment
+              Value: ${self:provider.stage}
+
+      EmailConfigurationSet:
+        Type: AWS::SES::ConfigurationSet
+        Properties:
+          Name: ${self:custom.sesConfigurationSetName}
+
+      EmailConfigurationSetEventDestination:
+        Type: AWS::SES::ConfigurationSetEventDestination
+        Properties:
+          ConfigurationSetName: !Ref EmailConfigurationSet
+          EventDestination:
+            Name: email-lifecycle
+            Enabled: true
+            MatchingEventTypes:
+              - send
+              - delivery
+              - bounce
+              - complaint
+              - reject
+            EventBridgeDestination:
+              EventBusArn: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+      VendorOnboardingEmailRule:
+        Type: AWS::Events::Rule
+        DependsOn:
+          - EmailNotificationQueuePolicy
+        Properties:
+          Name: ${self:custom.resourcePrefix}-email-vendor-onboarding-to-queue
+          Description: Vendor onboarding submitted emails
+          EventBusName:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-          name: ${self:custom.resourcePrefix}-email-vendor-onboarding-submitted
-          description: Vendor onboarding submitted to email notification
-          pattern:
+          EventPattern:
             source:
               - vendor-service
             detail-type:
               - VendorOnboarding.Submitted
-          retryPolicy:
-            maximumRetryAttempts: 3
-          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
-      - eventBridge:
-          eventBus:
+          State: ENABLED
+          Targets:
+            - Id: EmailNotificationQueue
+              Arn: !GetAtt EmailNotificationQueue.Arn
+              DeadLetterConfig:
+                Arn: !GetAtt EmailNotificationDlq.Arn
+              RetryPolicy:
+                MaximumRetryAttempts: 3
+
+      BookingConfirmedEmailRule:
+        Type: AWS::Events::Rule
+        DependsOn:
+          - EmailNotificationQueuePolicy
+        Properties:
+          Name: ${self:custom.resourcePrefix}-email-booking-confirmed-to-queue
+          Description: Booking confirmed emails
+          EventBusName:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-          name: ${self:custom.resourcePrefix}-email-booking-confirmed
-          description: Booking confirmed to email notification
-          pattern:
+          EventPattern:
             source:
               - booking-service
             detail-type:
               - Booking.Confirmed
-          retryPolicy:
-            maximumRetryAttempts: 3
-          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
-      - eventBridge:
-          eventBus:
+          State: ENABLED
+          Targets:
+            - Id: EmailNotificationQueue
+              Arn: !GetAtt EmailNotificationQueue.Arn
+              DeadLetterConfig:
+                Arn: !GetAtt EmailNotificationDlq.Arn
+              RetryPolicy:
+                MaximumRetryAttempts: 3
+
+      VendorEmailVerificationRule:
+        Type: AWS::Events::Rule
+        DependsOn:
+          - EmailNotificationQueuePolicy
+        Properties:
+          Name: ${self:custom.resourcePrefix}-email-vendor-verification-to-queue
+          Description: Vendor email verification emails
+          EventBusName:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-          name: ${self:custom.resourcePrefix}-email-vendor-email-verification-requested
-          description: Vendor email verification requested to email notification
-          pattern:
+          EventPattern:
             source:
               - vendor-service
             detail-type:
               - VendorEmailVerification.Requested
-          retryPolicy:
-            maximumRetryAttempts: 3
-          deadLetterQueueArn: !GetAtt EmailNotificationDlq.Arn
+          State: ENABLED
+          Targets:
+            - Id: EmailNotificationQueue
+              Arn: !GetAtt EmailNotificationQueue.Arn
+              DeadLetterConfig:
+                Arn: !GetAtt EmailNotificationDlq.Arn
+              RetryPolicy:
+                MaximumRetryAttempts: 3
 
-resources:
-  Resources:
-    EmailNotificationDlq:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:custom.emailNotificationDlqName}
-        MessageRetentionPeriod: 1209600
-        SqsManagedSseEnabled: true
-        Tags:
-          - Key: Service
-            Value: email
-          - Key: Environment
-            Value: ${self:provider.stage}
+      EmailNotificationRequestedRule:
+        Type: AWS::Events::Rule
+        DependsOn:
+          - EmailNotificationQueuePolicy
+        Properties:
+          Name: ${self:custom.resourcePrefix}-email-notification-requested-to-queue
+          Description: Generic email notification requests
+          EventBusName:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+          EventPattern:
+            detail-type:
+              - Email.NotificationRequested
+            detail:
+              eventType:
+                - Email.NotificationRequested
+              payload:
+                channel:
+                  - email
+                  - EMAIL
+          State: ENABLED
+          Targets:
+            - Id: EmailNotificationQueue
+              Arn: !GetAtt EmailNotificationQueue.Arn
+              DeadLetterConfig:
+                Arn: !GetAtt EmailNotificationDlq.Arn
+              RetryPolicy:
+                MaximumRetryAttempts: 3
 
-    EmailNotificationQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:custom.emailNotificationQueueName}
-        MessageRetentionPeriod: 1209600
-        VisibilityTimeout: 90
-        SqsManagedSseEnabled: true
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt EmailNotificationDlq.Arn
-          maxReceiveCount: 3
-        Tags:
-          - Key: Service
-            Value: email
-          - Key: Environment
-            Value: ${self:provider.stage}
+      SesEmailLifecycleRule:
+        Type: AWS::Events::Rule
+        DependsOn:
+          - EmailDeliveryQueuePolicy
+        Properties:
+          Name: ${self:custom.resourcePrefix}-ses-email-lifecycle
+          Description: SES delivery lifecycle for the email configuration set
+          EventBusName: default
+          EventPattern:
+            source:
+              - aws.ses
+            detail-type:
+              - Email Sent
+              - Email Delivered
+              - Email Bounced
+              - Email Complaint
+              - Email Rejected
+            detail:
+              mail:
+                tags:
+                  "ses:configuration-set":
+                    - ${self:custom.sesConfigurationSetName}
+          State: ENABLED
+          Targets:
+            - Id: EmailDeliveryQueue
+              Arn: !GetAtt EmailDeliveryQueue.Arn
+              DeadLetterConfig:
+                Arn: !GetAtt EmailDeliveryDlq.Arn
+              RetryPolicy:
+                MaximumRetryAttempts: 3
 
-    EmailNotificationQueuePolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        Queues:
-          - !Ref EmailNotificationQueue
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Sid: AllowEventBridgeSendToNotificationQueue
-              Effect: Allow
-              Principal:
-                Service: events.amazonaws.com
-              Action: sqs:SendMessage
-              Resource: !GetAtt EmailNotificationQueue.Arn
-              Condition:
-                StringEquals:
-                  aws:SourceAccount: !Ref AWS::AccountId
-
-    EmailNotificationDlqPolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        Queues:
-          - !Ref EmailNotificationDlq
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Sid: AllowEventBridgeSendToNotificationDlq
-              Effect: Allow
-              Principal:
-                Service: events.amazonaws.com
-              Action: sqs:SendMessage
-              Resource: !GetAtt EmailNotificationDlq.Arn
-              Condition:
-                StringEquals:
-                  aws:SourceAccount: !Ref AWS::AccountId
-
-  Outputs:
-    EmailNotificationQueueUrl:
-      Description: Email notification SQS queue URL
-      Value: !Ref EmailNotificationQueue
-      Export:
-        Name: ${self:custom.resourcePrefix}-email-notification-queue-url
-    EmailNotificationDlqUrl:
-      Description: Email notification SQS DLQ URL
-      Value: !Ref EmailNotificationDlq
-      Export:
-        Name: ${self:custom.resourcePrefix}-email-notification-dlq-url
+    Outputs:
+      EmailNotificationQueueUrl:
+        Description: Email notification SQS queue URL
+        Value: !Ref EmailNotificationQueue
+        Export:
+          Name: ${self:custom.resourcePrefix}-email-notification-queue-url
+      EmailNotificationDlqUrl:
+        Description: Email notification SQS DLQ URL
+        Value: !Ref EmailNotificationDlq
+        Export:
+          Name: ${self:custom.resourcePrefix}-email-notification-dlq-url
+      EmailDeliveryQueueUrl:
+        Description: SES lifecycle SQS queue URL
+        Value: !Ref EmailDeliveryQueue
+        Export:
+          Name: ${self:custom.resourcePrefix}-email-delivery-queue-url
+      EmailDeliveryTableName:
+        Description: Email delivery idempotency table
+        Value: !Ref EmailDeliveryTable
+        Export:
+          Name: ${self:custom.resourcePrefix}-email-delivery-table

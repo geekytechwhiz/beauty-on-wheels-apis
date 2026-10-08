@@ -27,6 +27,11 @@ export interface EnvironmentConfig {
   sqsEndpoint?: string;
   sesEndpoint?: string;
   sfnEndpoint?: string;
+  emailDeliveryTable: string;
+  sesConfigurationSet: string;
+  sesReplyTo: string;
+  sesUnsubscribeUrl: string;
+  emailDeliveryLockMs: number;
 }
 
 export const environment: EnvironmentConfig = {
@@ -63,4 +68,9 @@ export const environment: EnvironmentConfig = {
   sqsEndpoint: process.env.SQS_ENDPOINT || 'http://localhost:9324',
   sesEndpoint: process.env.SES_ENDPOINT || 'http://localhost:8005',
   sfnEndpoint: process.env.SFN_ENDPOINT || 'http://localhost:8083',
+  emailDeliveryTable: process.env.EMAIL_DELIVERY_TABLE || '',
+  sesConfigurationSet: process.env.SES_CONFIGURATION_SET || '',
+  sesReplyTo: process.env.SES_REPLY_TO || '',
+  sesUnsubscribeUrl: process.env.SES_UNSUBSCRIBE_URL || '',
+  emailDeliveryLockMs: parseInt(process.env.EMAIL_DELIVERY_LOCK_MS || '150000', 10),
 };

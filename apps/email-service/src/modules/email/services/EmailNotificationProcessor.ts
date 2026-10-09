@@ -57,6 +57,10 @@ export class EmailNotificationProcessor {
         locale: command.locale,
         templateVersion: command.templateVersion,
       });
+      log.info('email_template_resolved', {
+        vendorId: command.parameters.vendorId,
+        templateName: command.templateName,
+      });
       this.parameterValidator.validate({
         templateName: command.templateName,
         subject: template.subject,
@@ -90,6 +94,10 @@ export class EmailNotificationProcessor {
           recipientHash: hash,
         },
         dispatch: async () => {
+          log.info('email_send_started', {
+            vendorId: command.parameters.vendorId,
+            templateName: command.templateName,
+          });
           this.metrics.count(EMAIL_METRIC.EMAILS_REQUESTED);
           return this.sender.dispatch({
             fromEmail: this.config.fromEmail,
@@ -118,7 +126,7 @@ export class EmailNotificationProcessor {
       }
 
       this.metrics.count(EMAIL_METRIC.SES_SUCCESS);
-      log.info('email_sent', {
+      log.info('email_send_succeeded', {
         status: DELIVERY_STATUS.SENT,
         messageId: tracked.messageId,
         durationMs: Date.now() - started,
@@ -138,6 +146,11 @@ export class EmailNotificationProcessor {
         status: 'failed',
         errorCode: code,
         durationMs: Date.now() - started,
+      });
+      log.error('email_send_failed', error, {
+        vendorId: command.parameters.vendorId,
+        templateName: command.templateName,
+        errorCode: code,
       });
       throw error;
     } finally {

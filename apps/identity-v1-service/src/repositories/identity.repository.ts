@@ -46,7 +46,7 @@ import {
 
 const baseLogger = createLogger({
   service: 'identity-repository',
-  redactPII: true,
+  redactPII: false,
 });
 
 export class IdentityRepository extends BaseRepository {
@@ -828,33 +828,97 @@ export class IdentityRepository extends BaseRepository {
     purpose: string,
     codeHash: string,
   ): Promise<boolean> {
+     const log = createChildLogger(this.repoLogger, {
+       operation: 'verifyOtp',
+       purpose,
+     });
     const latest = await this.getLatestOtp(destination, purpose);
-    if (!latest || new Date(latest.expiresAt) < new Date()) {
+
+    if (!latest) {
       return false;
     }
 
-    if (latest.codeHash !== codeHash) {
+    const now = new Date().toISOString();
+    const maxAttempts = 5;
+
+    if (latest.expiresAt <= now || latest.verified) {
       return false;
     }
 
-    if (latest.verified) {
-      return true;
+    if (latest.attempts >= maxAttempts) {
+      return false;
     }
 
-    const timestamp = new Date().toISOString();
-    const keys = IdentityKeyBuilder.otp(destination, purpose);
+    const hashMatched = latest.codeHash === codeHash;
 
-    await this.update({
-      TableName: TABLE_NAME,
-      Key: keys,
-      UpdateExpression: 'SET verified = :verified, updatedAt = :updatedAt',
-      ExpressionAttributeValues: {
-        ':verified': true,
-        ':updatedAt': timestamp,
-      },
+    log.info({
+      event: 'otp_verification_validation',
+      hashMatched,
+      challengeExpired: latest.expiresAt <= now,
+      challengeConsumed: latest.verified,
+      attemptLimitReached: latest.attempts >= maxAttempts,
+      maxAttempts,
     });
 
-    return true;
+    const keys = IdentityKeyBuilder.otp(destination, purpose);
+
+    if (!hashMatched) {
+      try {
+        await this.update({
+          TableName: TABLE_NAME,
+          Key: keys,
+          UpdateExpression:
+            'SET attempts = attempts + :one, updatedAt = :updatedAt',
+          ConditionExpression:
+            'attempts < :maxAttempts AND expiresAt > :now AND verified = :unverified',
+          ExpressionAttributeValues: {
+            ':one': 1,
+            ':maxAttempts': maxAttempts,
+            ':now': now,
+            ':unverified': false,
+            ':updatedAt': now,
+          },
+        });
+      } catch (error) {
+        log.warn({
+          event: 'otp_attempt_update_failed',
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        });
+      }
+
+      return false;
+    }
+
+    try {
+      await this.update({
+        TableName: TABLE_NAME,
+        Key: keys,
+        UpdateExpression: 'SET verified = :verified, updatedAt = :updatedAt',
+        ConditionExpression: [
+          'verified = :unverified',
+          'expiresAt > :now',
+          'codeHash = :codeHash',
+          'attempts < :maxAttempts',
+        ].join(' AND '),
+        ExpressionAttributeValues: {
+          ':verified': true,
+          ':unverified': false,
+          ':now': now,
+          ':updatedAt': now,
+          ':codeHash': codeHash,
+          ':maxAttempts': maxAttempts,
+        },
+      });
+
+      return true;
+    } catch (error) {
+      log.error({
+        event: 'otp_verification_update_failed',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
+
+      return false;
+    }
   }
 
   async deleteOtp(destination: string, purpose: string): Promise<void> {
@@ -862,7 +926,10 @@ export class IdentityRepository extends BaseRepository {
     await this.delete(TABLE_NAME, keys);
   }
 
-  async getLatestOtp(destination: string, purpose: string): Promise<Otp | null> {
+  async getLatestOtp(
+    destination: string,
+    purpose: string,
+  ): Promise<Otp | null> {
     const keys = IdentityKeyBuilder.otp(destination, purpose);
     const item = await this.get<OtpDdbItem>(TABLE_NAME, keys);
     return item ? IdentityMapper.toOtpDomain(item) : null;

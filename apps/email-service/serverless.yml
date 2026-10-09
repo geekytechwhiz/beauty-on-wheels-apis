@@ -24,7 +24,7 @@ provider:
   environment:
     ALLOWED_ORIGIN: ${self:custom.allowedOrigin}
     SERVICE_NAME: ${self:service}
-    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, ''}
+    DEFAULT_FROM_EMAIL: ${env:DEFAULT_FROM_EMAIL, 'prasanth@yopmail.com'}
     DEFAULT_FROM_NAME: ${env:DEFAULT_FROM_NAME, 'Beauty on Wheels'}
     SES_REPLY_TO: ${env:SES_REPLY_TO, ''}
     SES_UNSUBSCRIBE_URL: ${env:SES_UNSUBSCRIBE_URL, ''}
@@ -33,7 +33,11 @@ provider:
     METRICS_NAMESPACE: ApiHub
     REDACT_PII: 'true'
     VENDOR_ONBOARDING_TEMPLATE_NAME: ${env:VENDOR_ONBOARDING_TEMPLATE_NAME, 'VendorOnboardingSubmitted'}
-    VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME: ${env:VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME, 'vendor_email_confirmation'}
+    # This is the provisioned verification template.  The event consumer owns
+    # this mapping; vendor-service deliberately never sends a template name.
+    VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME: VENDOR_EMAIL_VERIFICATION
+    # Stage-specific frontend route. The email adapter validates this before use.
+    VENDOR_EMAIL_VERIFICATION_URL: ${env:VENDOR_EMAIL_VERIFICATION_URL, 'https://lustroluxe.com/verify-emil'}
     BOOKING_CONFIRMED_TEMPLATE_NAME: ${env:BOOKING_CONFIRMED_TEMPLATE_NAME, 'BookingConfirmed'}
     # Consume the vendor-owned bus (producer stack exports this name).
     EVENT_BUS_NAME:

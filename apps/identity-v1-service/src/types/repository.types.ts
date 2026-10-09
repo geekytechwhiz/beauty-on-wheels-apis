@@ -1,5 +1,12 @@
 import { BaseError } from '@api-hub/utils';
 
+/**
+ * Identity classification. Public self-registration is restricted to CUSTOMER
+ * and VENDOR by the OTP schema; ADMIN is reserved for trusted administrative
+ * provisioning and is never accepted from a public request.
+ */
+export type UserType = 'CUSTOMER' | 'VENDOR' | 'ADMIN';
+
 export interface User {
   userId: string;
   email: string;
@@ -14,6 +21,7 @@ export interface User {
   /** Cognito `sub`. Primary link between Cognito and the application user. */
   identityId?: string;
   cognitoUsername?: string;
+  userType?: UserType;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -27,6 +35,8 @@ export interface Profile {
   timezone?: string;
   email?: string;
   phoneNumber?: string;
+  identityId?: string;
+  userType?: UserType;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,6 +58,7 @@ export interface MeResponse {
   profileImageUrl?: string;
   language?: string;
   timezone?: string;
+  userType?: UserType;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -76,6 +87,8 @@ export interface Otp {
   expiresAt: string;
   ttl?: number;
   otpCode?: string;
+  /** The registration intent captured when the OTP was requested. */
+  userType?: UserType;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -35,7 +35,7 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
     COGNITO_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '2npl84o4lc11hd3ras553u71o3'}
     COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
     COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
 

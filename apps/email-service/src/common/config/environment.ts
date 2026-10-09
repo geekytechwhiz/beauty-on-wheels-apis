@@ -18,6 +18,7 @@ export interface EnvironmentConfig {
   defaultFromName: string;
   vendorOnboardingTemplateName: string;
   vendorEmailConfirmationTemplateName: string;
+  vendorEmailVerificationUrl: string;
   bookingConfirmedTemplateName: string;
   emailNotificationQueueUrl: string;
   emailNotificationDlqUrl: string;
@@ -56,7 +57,8 @@ export const environment: EnvironmentConfig = {
     process.env.VENDOR_ONBOARDING_TEMPLATE_NAME || 'VendorOnboardingSubmitted',
   vendorEmailConfirmationTemplateName:
     process.env.VENDOR_EMAIL_CONFIRMATION_TEMPLATE_NAME ||
-    'vendor_email_confirmation',
+    'VENDOR_EMAIL_VERIFICATION',
+  vendorEmailVerificationUrl: process.env.VENDOR_EMAIL_VERIFICATION_URL || '',
   bookingConfirmedTemplateName:
     process.env.BOOKING_CONFIRMED_TEMPLATE_NAME || 'BookingConfirmed',
   emailNotificationQueueUrl: process.env.EMAIL_NOTIFICATION_QUEUE_URL || '',

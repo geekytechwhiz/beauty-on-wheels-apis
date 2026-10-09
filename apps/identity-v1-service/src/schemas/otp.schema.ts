@@ -8,8 +8,11 @@ import { EventSchemaError } from "@api-hub/middleware";
  * ---------------------------------------------------------
  */
 
+export const RegistrationUserTypeSchema = z.enum(["CUSTOMER", "VENDOR"]);
+
 export const SendOtpRequestSchema = z.object({
-destination: z.string().trim().min(1)
+destination: z.string().trim().min(1),
+userType: RegistrationUserTypeSchema.default("CUSTOMER"),
 }).strict();
 
 export type SendOtpRequest =

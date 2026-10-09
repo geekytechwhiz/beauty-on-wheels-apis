@@ -32,7 +32,7 @@ describe('vendor email verification stream infrastructure', () => {
 
   it('routes VendorEmailVerification.Requested on the vendor bus to Email Service', () => {
     expect(emailServerless).toContain('VendorEmailVerification.Requested');
-    expect(emailServerless).toContain('vendor_email_confirmation');
+    expect(emailServerless).toContain('VENDOR_EMAIL_VERIFICATION');
     expect(emailServerless).toContain('EmailNotificationDlq');
     expect(emailServerless).toContain('MaximumRetryAttempts: 3');
   });

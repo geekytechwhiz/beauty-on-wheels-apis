@@ -12,6 +12,7 @@ import {
   VendorEmailVerificationRequestedEvent,
   VendorOnboardingSubmittedEvent,
 } from '@api-hub/event-platform';
+import { getLogger } from '@api-hub/observability';
 
 import { EMAIL_NOTIFICATION_EVENT_OPERATIONS } from '../domain/notification-templates.js';
 import {
@@ -78,11 +79,20 @@ export function createEmailNotificationConsumer(deps?: {
       {
         schema: VendorEmailVerificationRequestedEvent,
         handler: async (payload, envelope) => {
+          const vendorPayload = payload as VendorEmailVerificationRequestedPayload & {
+            meta?: { correlationId?: string };
+          };
+          const fields = {
+            eventId: envelope.eventId,
+            eventName: envelope.eventType,
+            vendorId: vendorPayload.vendorId,
+            correlationId: vendorPayload.meta?.correlationId ?? envelope.meta?.correlationId,
+          };
+          getLogger().info('email_event_received', fields);
+          getLogger().info('email_event_matched', fields);
           await processor.deliver(
             adaptVendorEmailVerificationRequested(
-              payload as VendorEmailVerificationRequestedPayload & {
-                meta?: { correlationId?: string };
-              },
+              vendorPayload,
               asEnvelope(envelope),
             ),
           );

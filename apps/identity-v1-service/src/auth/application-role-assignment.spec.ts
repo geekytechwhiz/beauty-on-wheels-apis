@@ -6,6 +6,7 @@ import {
   decideAdminRoleChange,
   planApplicationRoleBackfill,
   prepareApplicationRolesForToken,
+  initializeApplicationRoleForNewIdentity,
   type ApplicationRoleRepository,
 } from './application-role-assignment';
 import { applyVendorApprovalRole } from './vendor-approval-role';
@@ -81,6 +82,15 @@ describe('planApplicationRoleBackfill', () => {
 });
 
 describe('application role token flow', () => {
+  it('initializes a VENDOR role only while a new identity is created', async () => {
+    const repository = memoryRepository([]);
+    await initializeApplicationRoleForNewIdentity(repository, {
+      userId: 'u-vendor',
+      userType: 'VENDOR',
+    });
+    expect(repository.mappings.get('u-vendor')).toEqual(new Set(['VENDOR']));
+  });
+
   it('creates a CUSTOMER mapping for a new registration and puts it on the access token', async () => {
     const repository = memoryRepository([]);
     await prepareApplicationRolesForToken(repository, {

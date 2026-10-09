@@ -389,13 +389,13 @@ export class EmailService {
         eventType: VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
         to: input.email,
         templateData: {
-          firstName: input.firstName,
-          otp: input.otp,
-          expiryMinutes: input.expiryMinutes,
+          ownerName: input.ownerName,
+          businessName: input.businessName,
+          verificationUrl: input.verificationUrl,
         },
       },
       {
-        idempotencyKey: vendorEmailVerificationRequestedIdempotencyKey(input.vendorId),
+        idempotencyKey: vendorEmailVerificationRequestedIdempotencyKey(input.vendorId, input.verificationRequestId),
         eventId: input.vendorId,
         eventType: VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
         source: VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,

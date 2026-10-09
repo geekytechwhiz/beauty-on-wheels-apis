@@ -49,7 +49,6 @@ import {
   getDocumentStorage,
 } from '../storage/document-storage';
 import {
-  hasCompletedEmailVerificationSections,
   ONBOARDING_SECTION,
   ONBOARDING_SECTION_ORDER,
   ONBOARDING_STATUS,
@@ -175,6 +174,7 @@ export class OnboardingService {
     aggregate: VendorAggregate,
     sectionItem?: Record<string, unknown>,
   ): Promise<OnboardingResponse> {
+    const previousOnboardingStatus = profile.onboardingStatus;
     aggregate.profile = profile;
     const state = computeStateFromAggregate(aggregate);
     const correlationId = getLoggerContext()?.correlationId;
@@ -199,14 +199,18 @@ export class OnboardingService {
           ? { correlationId }
           : undefined,
     });
-    const becameEligible =
-      !hasCompletedEmailVerificationSections(profile.completedSections) &&
-      hasCompletedEmailVerificationSections(state.completedSections);
+    // Verification becomes available when its persisted email and template
+    // data are complete; bank/address/onboarding submission remain separate.
+    const becameVerificationReady = Boolean(
+      !profile.emailVerificationRequestId &&
+      hasValidRegisteredEmail(updatedProfile.email) &&
+      updatedProfile.contactName?.trim() &&
+      updatedProfile.businessName?.trim(),
+    );
     if (
-      becameEligible &&
+      becameVerificationReady &&
       !updatedProfile.emailVerifiedAt &&
-      !updatedProfile.emailVerificationRequestId &&
-      hasValidRegisteredEmail(updatedProfile.email)
+      !updatedProfile.emailVerificationRequestId
     ) {
       // Persist the request with the transition. Stream retries then reuse this
       // immutable credential instead of minting a replacement.
@@ -235,6 +239,19 @@ export class OnboardingService {
         throw new NotFoundError('Vendor not found');
       }
       throw err;
+    }
+
+    if (
+      previousOnboardingStatus !== ONBOARDING_STATUS.PENDING_REVIEW &&
+      updatedProfile.onboardingStatus === ONBOARDING_STATUS.PENDING_REVIEW
+    ) {
+      this.logger.info({
+        event: 'vendor_onboarding_submitted',
+        vendorId: updatedProfile.vendorId,
+        applicationId: updatedProfile.applicationId,
+        correlationId,
+        onboardingStatus: updatedProfile.onboardingStatus,
+      });
     }
 
     return this.toOnboardingResponse(aggregate);

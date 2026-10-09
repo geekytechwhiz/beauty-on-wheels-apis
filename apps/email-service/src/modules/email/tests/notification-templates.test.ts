@@ -10,7 +10,8 @@ import { resolveNotificationTemplateName } from '../domain/notification-template
 jest.mock('../../../common/config/environment.js', () => ({
   environment: {
     vendorOnboardingTemplateName: 'VendorOnboardingSubmitted',
-    vendorEmailConfirmationTemplateName: 'vendor_email_confirmation',
+    vendorEmailConfirmationTemplateName: 'VENDOR_EMAIL_VERIFICATION',
+    vendorEmailVerificationUrl: 'https://app.beautyonwheels.test/vendor/email-verification',
     bookingConfirmedTemplateName: 'BookingConfirmed',
   },
 }));
@@ -27,7 +28,7 @@ describe('resolveNotificationTemplateName', () => {
       resolveNotificationTemplateName(VENDOR_EMAIL_VERIFICATION_EVENT_TYPE),
     ).toBe(environment.vendorEmailConfirmationTemplateName);
     expect(environment.vendorEmailConfirmationTemplateName).toBe(
-      'vendor_email_confirmation',
+      'VENDOR_EMAIL_VERIFICATION',
     );
   });
 

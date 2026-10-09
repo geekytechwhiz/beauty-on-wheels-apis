@@ -627,6 +627,15 @@
         "destination": {
           "title": "SendOtpRequest.destination",
           "type": "string"
+        },
+        "userType": {
+          "enum": [
+            "CUSTOMER",
+            "VENDOR"
+          ],
+          "title": "SendOtpRequest.userType",
+          "description": "Defaults to CUSTOMER. ADMIN cannot be self-registered.",
+          "type": "string"
         }
       },
       "required": [

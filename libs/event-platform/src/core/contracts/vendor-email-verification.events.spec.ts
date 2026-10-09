@@ -1,9 +1,11 @@
 import {
   VendorEmailVerificationRequestedEvent,
+  VendorEmailVerifiedEvent,
   VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
   VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
   VENDOR_EMAIL_VERIFICATION_EVENT_SOURCE,
   vendorEmailVerificationRequestedIdempotencyKey,
+  vendorEmailVerifiedIdempotencyKey,
 } from './vendor-email-verification.events';
 import { getRegisteredEventDefinition } from '../../governance/event-registry';
 import { getSchemaMeta } from '../schema/schema-meta';
@@ -32,15 +34,16 @@ describe('VendorEmailVerificationRequestedEvent', () => {
       intent: 'VENDOR_EMAIL_VERIFICATION',
       ownerUserId: 'user-1',
       email: 'owner@example.com',
-      firstName: 'Priya',
-      otp: '482193',
+      ownerName: 'Priya',
+      businessName: 'ABC Car Wash',
+      verificationToken: 'vendor-1.token',
       expiryMinutes: 10,
       vendorStatus: 'PENDING_VERIFICATION',
     });
 
     expect(parsed.email).toBe('owner@example.com');
-    expect(parsed.firstName).toBe('Priya');
-    expect(parsed.otp).toBe('482193');
+    expect(parsed.ownerName).toBe('Priya');
+    expect(parsed.businessName).toBe('ABC Car Wash');
     expect(parsed.expiryMinutes).toBe(10);
   });
 
@@ -52,8 +55,7 @@ describe('VendorEmailVerificationRequestedEvent', () => {
         intent: 'VENDOR_EMAIL_VERIFICATION',
         ownerUserId: 'user-1',
         email: 'not-an-email',
-        firstName: 'Priya',
-        otp: '482193',
+        ownerName: 'Priya', businessName: 'ABC Car Wash', verificationToken: 'vendor-1.token',
         expiryMinutes: 10,
         vendorStatus: 'PENDING_VERIFICATION',
       }),
@@ -67,11 +69,10 @@ describe('VendorEmailVerificationRequestedEvent', () => {
       intent: 'VENDOR_EMAIL_VERIFICATION',
       ownerUserId: 'user-1',
       email: 'owner@example.com',
-      firstName: 'Priya',
-      otp: '482193',
+      ownerName: 'Priya', businessName: 'ABC Car Wash', verificationToken: 'vendor-1.token',
       expiryMinutes: 10,
       vendorStatus: 'PENDING_VERIFICATION',
-      templateId: 'vendor_email_confirmation',
+      templateId: 'untrusted-template',
     });
 
     expect(parsed.success).toBe(false);
@@ -86,5 +87,23 @@ describe('VendorEmailVerificationRequestedEvent', () => {
     ).toBe(
       'VendorEmailVerification.Requested:vendor-1:2026-01-01T00:00:00.000Z',
     );
+  });
+});
+
+describe('VendorEmailVerifiedEvent', () => {
+  it('accepts only the trusted role-assignment payload', () => {
+    expect(VendorEmailVerifiedEvent.parse({
+      vendorId: 'vendor-1',
+      userId: 'user-1',
+      emailVerified: true,
+    })).toEqual({ vendorId: 'vendor-1', userId: 'user-1', emailVerified: true });
+    expect(VendorEmailVerifiedEvent.safeParse({
+      vendorId: 'vendor-1', userId: 'user-1', emailVerified: false,
+    }).success).toBe(false);
+  });
+
+  it('uses the verification transition timestamp as its idempotency boundary', () => {
+    expect(vendorEmailVerifiedIdempotencyKey('vendor-1', '2026-10-09T00:00:00.000Z'))
+      .toBe('Vendor.EmailVerified:vendor-1:2026-10-09T00:00:00.000Z');
   });
 });

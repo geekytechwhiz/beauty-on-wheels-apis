@@ -401,7 +401,28 @@ describe('IdentityRepository', () => {
       expect(verified).toBe(false);
     });
 
-    it('allows idempotent re-verify of a matching unexpired OTP', async () => {
+    it('enforces the OTP attempt limit and records a failed attempt', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: { ...mockOtp, attempts: 4 } });
+      ddbMock.on(UpdateCommand).resolves({});
+
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'wrong-code');
+
+      expect(verified).toBe(false);
+      expect(ddbMock.commandCalls(UpdateCommand)[0]?.args[0].input).toMatchObject({
+        ConditionExpression: expect.stringContaining('attempts < :maxAttempts'),
+      });
+    });
+
+    it('rejects an OTP after the maximum number of attempts', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: { ...mockOtp, attempts: 5 } });
+
+      const verified = await repository.verifyOtp('+1234567890', 'login', 'code-hash');
+
+      expect(verified).toBe(false);
+      expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
+    });
+
+    it('rejects a verified OTP', async () => {
       ddbMock.on(GetCommand).resolves({
         Item: {
           ...mockOtp,
@@ -410,7 +431,7 @@ describe('IdentityRepository', () => {
       });
 
       const verified = await repository.verifyOtp('+1234567890', 'login', 'code-hash');
-      expect(verified).toBe(true);
+      expect(verified).toBe(false);
     });
 
     it('deletes OTP record', async () => {

@@ -64,12 +64,13 @@ export interface VendorOnboardingSubmittedEmailInput {
 
 export interface VendorEmailVerificationRequestedEmailInput {
   vendorId: string;
+  verificationRequestId: string;
   ownerUserId: string;
   email: string;
-  firstName: string;
-  otp: string;
-  expiryMinutes: number;
-  vendorStatus: 'ACTIVE';
+  ownerName: string;
+  businessName: string;
+  verificationUrl: string;
+  vendorStatus: 'PENDING_VERIFICATION';
   applicationId?: string;
 }
 

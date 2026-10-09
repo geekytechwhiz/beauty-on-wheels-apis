@@ -84,6 +84,25 @@ export async function prepareApplicationRolesForToken(
 }
 
 /**
+ * Initializes the first application role for a just-created identity. This is
+ * deliberately separate from legacy backfill: a persisted userType must never
+ * be used to promote or replace roles on an existing identity.
+ */
+export async function initializeApplicationRoleForNewIdentity(
+  repository: ApplicationRoleRepository,
+  user: { userId: string; userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN' },
+): Promise<'created' | 'exists'> {
+  // ADMIN is not a public registration value. Retaining this branch makes the
+  // trusted provisioning path explicit without exposing it through OTP.
+  const role = user.userType === 'VENDOR'
+    ? APPLICATION_ROLE.VENDOR
+    : user.userType === 'ADMIN'
+      ? APPLICATION_ROLE.ADMIN
+      : APPLICATION_ROLE.CUSTOMER;
+  return repository.ensureUserRoleMapping(user.userId, role);
+}
+
+/**
  * Adds VENDOR for an approved vendor owner. CUSTOMER is not removed.
  * Onboarding status is not a role and is ignored.
  */
@@ -91,7 +110,20 @@ export async function grantVendorApplicationRole(
   repository: ApplicationRoleRepository,
   userId: string,
 ): Promise<'created' | 'exists'> {
-  return repository.ensureUserRoleMapping(userId, APPLICATION_ROLE.VENDOR);
+  return grantUserRole(repository, userId, APPLICATION_ROLE.VENDOR);
+}
+
+/**
+ * The single persistence path for role grants.  Callers are responsible for
+ * their own authorization and authoritative business-state checks; this
+ * function keeps grants idempotent and never replaces existing mappings.
+ */
+export async function grantUserRole(
+  repository: ApplicationRoleRepository,
+  userId: string,
+  role: ApplicationRole,
+): Promise<'created' | 'exists'> {
+  return repository.ensureUserRoleMapping(userId, role);
 }
 
 /**
@@ -133,7 +165,7 @@ export async function grantAdminApplicationRole(
   repository: ApplicationRoleRepository,
   userId: string,
 ): Promise<'created' | 'exists'> {
-  return repository.ensureUserRoleMapping(userId, APPLICATION_ROLE.ADMIN);
+  return grantUserRole(repository, userId, APPLICATION_ROLE.ADMIN);
 }
 
 export async function revokeAdminApplicationRole(

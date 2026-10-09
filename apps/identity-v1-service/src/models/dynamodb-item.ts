@@ -25,6 +25,7 @@ export interface UserDdbItem extends BaseDdbItem {
   version: number;
   identityId?: string;
   cognitoUsername?: string;
+  userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
   tenantId?: string; // used for listUsersByTenant access pattern
 }
 
@@ -37,6 +38,8 @@ export interface ProfileDdbItem extends BaseDdbItem {
   timezone?: string;
   email?: string;
   phoneNumber?: string;
+  identityId?: string;
+  userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
 }
 
 export interface LookupDdbItem extends BaseDdbItem {
@@ -76,6 +79,7 @@ export interface OtpDdbItem extends BaseDdbItem {
   verified: boolean;
   expiresAt: string;
   ttl?: number;
+  userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
 }
 
 export interface RoleDdbItem extends BaseDdbItem {

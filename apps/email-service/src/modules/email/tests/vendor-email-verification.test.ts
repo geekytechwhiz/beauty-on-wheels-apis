@@ -26,7 +26,8 @@ jest.mock('../../../common/config/environment.js', () => ({
     defaultFromEmail: 'noreply@beautyonwheels.test',
     defaultFromName: 'Beauty on Wheels',
     vendorOnboardingTemplateName: 'VendorOnboardingSubmitted',
-    vendorEmailConfirmationTemplateName: 'vendor_email_confirmation',
+    vendorEmailConfirmationTemplateName: 'VENDOR_EMAIL_VERIFICATION',
+    vendorEmailVerificationUrl: 'https://app.beautyonwheels.test/vendor/email-verification',
     bookingConfirmedTemplateName: 'BookingConfirmed',
     emailNotificationQueueUrl: '',
     emailNotificationDlqUrl: '',
@@ -65,8 +66,9 @@ const verificationDetail = {
     intent: 'VENDOR_EMAIL_VERIFICATION' as const,
     ownerUserId: 'user-1',
     email: 'owner@example.com',
-    firstName: 'Priya',
-    otp: '482193',
+    ownerName: 'Priya',
+    businessName: 'ABC Car Wash',
+    verificationToken: 'vendor-1.token',
     expiryMinutes: 10,
     vendorStatus: 'PENDING_VERIFICATION' as const,
     applicationId: 'app-1',
@@ -97,7 +99,7 @@ describe('vendor email verification requested email consumer', () => {
     };
   });
 
-  it('resolves vendor_email_confirmation from the event type', async () => {
+  it('resolves VENDOR_EMAIL_VERIFICATION from the event type', async () => {
     const handler = consumerWithProcessor(processor as unknown as EmailNotificationProcessor);
     await handler(
       eventBridgeOnSqs({
@@ -109,12 +111,13 @@ describe('vendor email verification requested email consumer', () => {
     );
     expect(processor.deliver).toHaveBeenCalledWith(
       expect.objectContaining({
-        templateName: 'vendor_email_confirmation',
+        templateName: 'VENDOR_EMAIL_VERIFICATION',
         recipient: { email: 'owner@example.com', name: 'Priya' },
         parameters: {
-          firstName: 'Priya',
-          otp: '482193',
-          expiryMinutes: 10,
+          vendorId: 'vendor-1',
+          ownerName: 'Priya',
+          businessName: 'ABC Car Wash',
+          verificationUrl: 'https://app.beautyonwheels.test/vendor/email-verification?token=vendor-1.token',
         },
       }),
     );
@@ -131,7 +134,7 @@ describe('vendor email verification requested email consumer', () => {
           eventId: 'evt-verify-template',
           payload: {
             ...verificationDetail.payload,
-            templateId: 'vendor_email_confirmation',
+            templateId: 'VENDOR_EMAIL_VERIFICATION',
           },
         },
       }),

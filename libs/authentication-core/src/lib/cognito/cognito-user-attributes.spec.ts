@@ -54,6 +54,21 @@ describe('resolveCognitoCreateUserAttributes', () => {
     expect(values.name).toBe('Ada Lovelace');
   });
 
+  it('does not mark a fixed-development OTP phone number as Cognito-verified', () => {
+    const attributes = resolveCognitoCreateUserAttributes(
+      {
+        phoneNumber: '+15551234567',
+        markDestinationVerified: false,
+      },
+      defaults,
+      username,
+    );
+    const values = attrMap(attributes);
+
+    expect(values.phone_number).toBe('+15551234567');
+    expect(values.phone_number_verified).toBeUndefined();
+  });
+
   it('treats blank input as missing and applies defaults', () => {
     const attributes = resolveCognitoCreateUserAttributes(
       { email: '  ', phoneNumber: '', name: '\t' },

@@ -5,10 +5,6 @@ import {
   NotFoundError,
   ValidationError,
 } from '@api-hub/utils';
-import { getLoggerContext } from '@api-hub/observability';
-
-import { toVendorEmailVerificationRequestedPayload } from '../events/map-vendor-email-verification-requested-stream';
-import { publishVendorEmailVerificationRequested } from '../events/publish-vendor-email-verification';
 import {
   EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
   generateVendorEmailVerificationOtp,
@@ -18,7 +14,7 @@ import {
   vendorIdFromVerificationToken,
   VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
 } from '../domain/email-verification';
-import { hasCompletedEmailVerificationSections, ONBOARDING_STATUS } from '../domain/onboarding';
+import { ONBOARDING_SECTION_ORDER, ONBOARDING_STATUS } from '../domain/onboarding';
 import { VendorsRepository, getVendorsRepository } from '../repositories/vendors.repository';
 import { VendorDdbItem } from '../types/repository.types';
 import { assertVendorAccess, getVendorId } from '../utils/helpers';
@@ -50,14 +46,14 @@ function verificationResponse(profile: VendorDdbItem): VerifyEmailResponse {
 export class EmailVerificationService {
   constructor(
     private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
-    private readonly publish = publishVendorEmailVerificationRequested,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   private assertEligible(profile: VendorDdbItem): void {
+    const completed = new Set(profile.completedSections);
     if (
       profile.status !== EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS ||
-      !hasCompletedEmailVerificationSections(profile.completedSections) ||
+      !ONBOARDING_SECTION_ORDER.every((section) => completed.has(section)) ||
       !hasValidRegisteredEmail(profile.email)
     ) {
       throw new ValidationError('Email verification is not available for this vendor');
@@ -169,28 +165,9 @@ export class EmailVerificationService {
       });
     }
 
-    const payload = toVendorEmailVerificationRequestedPayload(current as unknown as Record<string, unknown>);
-    // Pending is deliberately retained if this throws. A client retry uses this
-    // same token, request ID, and EventBridge idempotency key.
-    await this.publish(payload, getLoggerContext()?.correlationId ?? randomUUID());
-
-    const dispatched: VendorDdbItem = {
-      ...current,
-      emailVerificationOtp: undefined,
-      emailVerificationDispatchPending: false,
-      emailVerificationDispatchedAt: this.now().toISOString(),
-      updatedAt: this.now().toISOString(),
-    };
-    try {
-      await this.vendorsRepository.transactVendorProfile({
-        profile: dispatched,
-        expectedUpdatedAt: current.updatedAt,
-        expectedStatus: EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
-      });
-    } catch {
-      // The event was accepted; a repeated resend remains deduplicated by its
-      // stable request ID rather than issuing another notification.
-    }
+    // The existing DynamoDB Stream handler is the only publisher. Keeping the
+    // request pending lets its retry/DLQ path preserve the same logical ID and
+    // token without creating a parallel synchronous publishing path.
     return { vendorId, verificationRequestId: current.emailVerificationRequestId!, queued: true };
   }
 }

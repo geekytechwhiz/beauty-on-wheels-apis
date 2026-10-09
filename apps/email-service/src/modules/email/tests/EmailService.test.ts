@@ -457,14 +457,14 @@ describe('EmailService', () => {
     beforeEach(() => {
       environment.defaultFromEmail = 'noreply@beautyonwheels.test';
       environment.defaultFromName = 'Beauty on Wheels';
-      environment.vendorEmailConfirmationTemplateName = 'vendor_email_confirmation';
+      environment.vendorEmailConfirmationTemplateName = 'VENDOR_EMAIL_VERIFICATION';
     });
 
     it('maps the event to the existing /send-email contract', async () => {
       mockTemplateRegistry.getTemplate.mockResolvedValue({
-        templateName: 'vendor_email_confirmation',
+        templateName: 'VENDOR_EMAIL_VERIFICATION',
         subject: 'Confirm your email',
-        htmlContent: '<p>Hello {{firstName}}</p>',
+        htmlContent: '<p>Hello {{ownerName}}</p>',
         textContent: 'Hello',
       });
       mockEmailProvider.sendTemplatedEmail.mockResolvedValue({
@@ -473,12 +473,11 @@ describe('EmailService', () => {
 
       const result = await emailService.sendVendorEmailVerificationRequestedEmail({
         vendorId: 'vendor-1',
+        verificationRequestId: 'verify-1',
         ownerUserId: 'user-1',
         email: 'owner@example.com',
-        firstName: 'Priya',
-        otp: '482193',
-        expiryMinutes: 10,
-        vendorStatus: 'ACTIVE',
+        ownerName: 'Priya', businessName: 'ABC Car Wash', verificationUrl: 'https://app.test/verify?token=opaque',
+        vendorStatus: 'PENDING_VERIFICATION',
         applicationId: 'app-1',
       });
 
@@ -487,11 +486,9 @@ describe('EmailService', () => {
         expect.objectContaining({
           fromEmail: 'noreply@beautyonwheels.test',
           toAddresses: ['owner@example.com'],
-          templateName: 'vendor_email_confirmation',
+          templateName: 'VENDOR_EMAIL_VERIFICATION',
           templateData: {
-            firstName: 'Priya',
-            otp: '482193',
-            expiryMinutes: 10,
+            ownerName: 'Priya', businessName: 'ABC Car Wash', verificationUrl: 'https://app.test/verify?token=opaque',
           },
         }),
       );
@@ -499,7 +496,7 @@ describe('EmailService', () => {
 
     it('propagates provider failures', async () => {
       mockTemplateRegistry.getTemplate.mockResolvedValue({
-        templateName: 'vendor_email_confirmation',
+        templateName: 'VENDOR_EMAIL_VERIFICATION',
         subject: 'Confirm your email',
         htmlContent: '<p>Hello</p>',
         textContent: 'Hello',
@@ -511,12 +508,11 @@ describe('EmailService', () => {
       await expect(
         emailService.sendVendorEmailVerificationRequestedEmail({
           vendorId: 'vendor-1',
+          verificationRequestId: 'verify-1',
           ownerUserId: 'user-1',
           email: 'owner@example.com',
-          firstName: 'Priya',
-          otp: '482193',
-          expiryMinutes: 10,
-          vendorStatus: 'ACTIVE',
+          ownerName: 'Priya', businessName: 'ABC Car Wash', verificationUrl: 'https://app.test/verify?token=opaque',
+          vendorStatus: 'PENDING_VERIFICATION',
         }),
       ).rejects.toThrow('SES unavailable');
     });

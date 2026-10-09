@@ -228,6 +228,72 @@
         }
       }
     },
+    "/vendors/email-verification/verify": {
+      "post": {
+        "summary": "Verify vendor email",
+        "description": "Consumes a single-use opaque email verification token and moves the completed onboarding application to PENDING_REVIEW.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "verifyvendoremail.post./vendors/email-verification/verify",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Email verified successfully"
+          },
+          "400": {
+            "description": "Invalid or expired verification link"
+          },
+          "409": {
+            "description": "Verification is already being processed"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/email-verification/resend": {
+      "post": {
+        "summary": "Resend vendor email verification",
+        "description": "Queues a replacement verification email. The previous link is revoked.",
+        "tags": [
+          "Onboarding"
+        ],
+        "operationId": "resendvendoremailverification.post./vendors/{vendorId}/email-verification/resend",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification email queued"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "429": {
+            "description": "Verification resend cooldown is active"
+          }
+        }
+      }
+    },
     "/vendors/me": {
       "get": {
         "summary": "Get the authenticated user's vendor",

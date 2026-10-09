@@ -17,6 +17,7 @@ import type {
   EnvelopeIdentity,
 } from '../domain/email-notification-command.js';
 import { EmailValidationError } from '../domain/errors.js';
+import { environment } from '../../../common/config/environment.js';
 
 export function asEnvelope(value: unknown): EnvelopeIdentity {
   if (!value || typeof value !== 'object') {
@@ -65,11 +66,31 @@ export function adaptVendorEmailVerificationRequested(
   payload: VendorEmailVerificationRequestedPayload & { meta?: { correlationId?: string } },
   envelope: EnvelopeIdentity,
 ): EmailNotificationCommand {
-  return baseCommand(envelope, payload.meta?.correlationId, payload.email, payload.firstName, {
-    firstName: payload.firstName,
-    otp: payload.otp,
-    expiryMinutes: payload.expiryMinutes,
+  return baseCommand(envelope, payload.meta?.correlationId, payload.email, payload.ownerName, {
+    vendorId: payload.vendorId,
+    ownerName: payload.ownerName,
+    businessName: payload.businessName,
+    verificationUrl: vendorVerificationUrl(payload.verificationToken),
   }, VENDOR_EMAIL_VERIFICATION_EVENT_TYPE);
+}
+
+/** Builds the frontend link without ever logging its opaque bearer token. */
+function vendorVerificationUrl(token: string): string {
+  const configured = environment.vendorEmailVerificationUrl.trim();
+  if (!configured) {
+    throw new EmailValidationError('VENDOR_EMAIL_VERIFICATION_URL is not configured');
+  }
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw new EmailValidationError('VENDOR_EMAIL_VERIFICATION_URL is not a valid URL');
+  }
+  if (!['https:', 'http:'].includes(url.protocol)) {
+    throw new EmailValidationError('VENDOR_EMAIL_VERIFICATION_URL must use HTTP(S)');
+  }
+  url.searchParams.set('token', token);
+  return url.toString();
 }
 
 export function adaptBookingConfirmed(

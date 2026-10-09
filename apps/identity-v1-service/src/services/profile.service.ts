@@ -61,6 +61,8 @@ export class ProfileService {
             userId,
             firstName: profile?.firstName ?? '',
             lastName: profile?.lastName ?? '',
+            // Legacy identities predate userType and remain customers.
+            userType: user?.userType ?? 'CUSTOMER',
         };
     }
 

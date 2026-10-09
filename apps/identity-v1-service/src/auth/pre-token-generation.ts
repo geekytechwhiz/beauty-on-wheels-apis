@@ -1,7 +1,10 @@
 import { resolveApplicationRoles } from '@api-hub/authentication-core';
 import { createLogger } from '@api-hub/observability';
 
-import { loadApplicationRolesForIdentity } from './access-token-roles';
+import {
+  loadApplicationTokenClaimsForIdentity,
+  type ApplicationTokenClaims,
+} from './access-token-roles';
 
 const logger = createLogger({
   service: 'identity-pre-token-generation',
@@ -37,11 +40,11 @@ type ClaimsAndScopeOverrideDetails = {
 
 /**
  * Cognito Pre Token Generation V2_0 response fragment.
- * `roles` is added only to the access token. Existing overrides, including any
- * ID-token overrides, are kept. `sub` is left untouched.
+ * Application claims are added only to the access token. Existing overrides,
+ * including any ID-token overrides, are kept. Cognito's `sub` is left untouched.
  */
-export function accessTokenRolesResponse(
-  roles: string[],
+export function accessTokenClaimsResponse(
+  claims: ApplicationTokenClaims,
   existing?: PreTokenGenerationEvent['response'],
 ): PreTokenGenerationEvent['response'] {
   const current = (existing ?? {}) as {
@@ -49,7 +52,16 @@ export function accessTokenRolesResponse(
   };
   const details = current.claimsAndScopeOverrideDetails ?? {};
   const access = details.accessTokenGeneration ?? {};
-  const canonical = resolveApplicationRoles(roles);
+  const roles = resolveApplicationRoles(claims.roles);
+  // A scalar role is retained for existing frontend consumers. Prefer the
+  // most privileged persisted role while `roles` preserves the full set.
+  const role = roles.includes('ADMIN')
+    ? 'ADMIN'
+    : roles.includes('VENDOR')
+      ? 'VENDOR'
+      : roles.includes('CUSTOMER')
+        ? 'CUSTOMER'
+        : undefined;
 
   return {
     ...current,
@@ -59,7 +71,35 @@ export function accessTokenRolesResponse(
         ...access,
         claimsToAddOrOverride: {
           ...(access.claimsToAddOrOverride ?? {}),
-          roles: canonical,
+          ...(claims.identityId ? { identityId: claims.identityId } : {}),
+          ...(claims.userType ? { userType: claims.userType } : {}),
+          ...(role ? { role } : {}),
+          ...(roles.length > 0 ? { roles } : {}),
+        },
+      },
+    },
+  };
+}
+
+/** @deprecated Use accessTokenClaimsResponse with persisted userType. */
+export function accessTokenRolesResponse(
+  roles: string[],
+  existing?: PreTokenGenerationEvent['response'],
+): PreTokenGenerationEvent['response'] {
+  const current = (existing ?? {}) as {
+    claimsAndScopeOverrideDetails?: ClaimsAndScopeOverrideDetails;
+  };
+  const details = current.claimsAndScopeOverrideDetails ?? {};
+  const access = details.accessTokenGeneration ?? {};
+  return {
+    ...current,
+    claimsAndScopeOverrideDetails: {
+      ...details,
+      accessTokenGeneration: {
+        ...access,
+        claimsToAddOrOverride: {
+          ...(access.claimsToAddOrOverride ?? {}),
+          roles: resolveApplicationRoles(roles),
         },
       },
     },
@@ -68,7 +108,9 @@ export function accessTokenRolesResponse(
 
 export async function applyApplicationRoles(
   event: PreTokenGenerationEvent,
-  resolveRoles: (identityId: string) => Promise<string[]>,
+  resolveClaims: (
+    identityId: string,
+  ) => Promise<ApplicationTokenClaims | string[]>,
 ): Promise<PreTokenGenerationEvent> {
   const identityId = event.request?.userAttributes?.sub?.trim();
   logger.info({
@@ -85,9 +127,18 @@ export async function applyApplicationRoles(
     return event;
   }
 
-  let roles: string[] = [];
+  let claims: ApplicationTokenClaims;
+  let usingLegacyRoleResolver = false;
   try {
-    roles = resolveApplicationRoles(await resolveRoles(identityId));
+    const resolved = await resolveClaims(identityId);
+    // Keep this narrow compatibility shim for direct callers of the original
+    // helper. Production issuance always resolves the richer persisted shape.
+    if (Array.isArray(resolved)) {
+      usingLegacyRoleResolver = true;
+      claims = { roles: resolved };
+    } else {
+      claims = resolved;
+    }
   } catch (err) {
     // Fail open for issuance: Cognito still returns a token, but without an
     // application `roles` claim. The claim is never defaulted and is never set
@@ -102,7 +153,8 @@ export async function applyApplicationRoles(
     return event;
   }
 
-  if (roles.length === 0) {
+  const roles = resolveApplicationRoles(claims.roles);
+  if (roles.length === 0 && !claims.userType) {
     logger.info({
       event: 'pre_token_generation_no_roles',
       roleCount: 0,
@@ -114,7 +166,9 @@ export async function applyApplicationRoles(
 
   const result = {
     ...event,
-    response: accessTokenRolesResponse(roles, event.response),
+    response: usingLegacyRoleResolver
+      ? accessTokenRolesResponse(roles, event.response)
+      : accessTokenClaimsResponse({ ...claims, roles }, event.response),
   };
   logger.info({
     event: 'pre_token_generation_claims_applied',
@@ -129,6 +183,6 @@ export async function customizeAccessToken(
   event: PreTokenGenerationEvent,
 ): Promise<PreTokenGenerationEvent> {
   return applyApplicationRoles(event, (identityId) =>
-    loadApplicationRolesForIdentity(identityId),
+    loadApplicationTokenClaimsForIdentity(identityId),
   );
 }

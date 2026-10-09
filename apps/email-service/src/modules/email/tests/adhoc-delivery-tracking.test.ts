@@ -100,7 +100,7 @@ describe('ad-hoc delivery tracking', () => {
     environment.bookingConfirmedTemplateName = 'BookingConfirmed';
     environment.vendorOnboardingTemplateName = 'VendorOnboardingSubmitted';
     environment.vendorEmailConfirmationTemplateName =
-      'vendor_email_confirmation';
+      'VENDOR_EMAIL_VERIFICATION';
   });
 
   it('claims, sends, markSent, and returns the SES message id', async () => {
@@ -303,6 +303,7 @@ describe('ad-hoc delivery tracking', () => {
       bookingId: 'bkg-1',
       customerId: 'cust-1',
       vendorId: 'vendor-1',
+      verificationRequestId: 'verify-1',
       customerEmail: 'customer@example.com',
       bookingDate: '2026-09-20',
       slotId: 'slot-1',
@@ -338,14 +339,12 @@ describe('ad-hoc delivery tracking', () => {
       vendorId: 'vendor-1',
       ownerUserId: 'user-1',
       email: 'owner@example.com',
-      firstName: 'Priya',
-      otp: '482193',
-      expiryMinutes: 10,
-      vendorStatus: 'ACTIVE',
+      ownerName: 'Priya', businessName: 'ABC Car Wash', verificationUrl: 'https://app.test/verify?token=opaque',
+      vendorStatus: 'PENDING_VERIFICATION',
     });
     expect(claim).toHaveBeenCalledWith(
       expect.objectContaining({
-        idempotencyKey: 'VendorEmailVerification.Requested:vendor-1',
+        idempotencyKey: 'VendorEmailVerification.Requested:vendor-1:verify-1',
       }),
     );
 

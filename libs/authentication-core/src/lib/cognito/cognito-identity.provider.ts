@@ -1,3 +1,4 @@
+/* eslint-disable mvrx/enforce-platform-logger */
 /* eslint-disable mvrx/no-direct-dynamodb */
 import {
   AdminCreateUserCommand,
@@ -36,6 +37,11 @@ export interface FindOrCreateCognitoUserInput {
   email?: string;
   phoneNumber?: string;
   name?: string;
+  /**
+   * OTP-based development sign-in may create a Cognito identity, but must not
+   * claim that the phone number has been genuinely verified.
+   */
+  markDestinationVerified?: boolean;
 }
 
 export interface CognitoAuthClient {
@@ -127,18 +133,11 @@ export class CognitoIdentityService implements CognitoAuthClient {
       PASSWORD: password,
     });
 
-    try {
-      return await this.adminPasswordAuth(authParameters);
-    } catch (err) {
-      if (isAuthFlowDisabled(err)) {
-        try {
-          return await this.userPasswordAuth(authParameters);
-        } catch (fallbackErr) {
-          this.rethrowTokenIssueFailure(fallbackErr);
-        }
-      }
-      this.rethrowTokenIssueFailure(err);
-    }
+   try {
+     return await this.userPasswordAuth(authParameters);
+   } catch (err) {
+     this.rethrowTokenIssueFailure(err);
+   }
   }
 
   async refreshTokens(
@@ -316,6 +315,14 @@ export class CognitoIdentityService implements CognitoAuthClient {
   private rethrowTokenIssueFailure(err: unknown): never {
     const cognitoMessage = errorMessage(err);
     const lower = cognitoMessage.toLowerCase();
+console.error('cognito_token_issue_failed', {
+  errorName: errorName(err),
+  errorCategory: isNotAuthorized(err)
+    ? 'NOT_AUTHORIZED'
+    : isAuthFlowDisabled(err)
+      ? 'AUTH_FLOW_DISABLED'
+      : 'OTHER',
+});
 
     if (lower.includes('secret hash')) {
       throw new BaseError(

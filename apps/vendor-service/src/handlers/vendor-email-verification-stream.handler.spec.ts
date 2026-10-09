@@ -50,6 +50,7 @@ function vendorImage(
     },
     emailVerificationRequestId: attrString('verify-1'),
     emailVerificationOtp: attrString('482193'),
+    emailVerificationDispatchPending: { BOOL: true },
     emailVerificationExpiryMinutes: attrNumber(10),
     emailVerificationRequestedAt: attrString('2026-01-01T00:00:00.000Z'),
     entityType: attrString('Vendor'),
@@ -112,7 +113,7 @@ function handlerWithPublish(publish: jest.Mock) {
 }
 
 describe('vendor email verification requested stream handler', () => {
-  it('publishes VendorEmailVerification.Requested on onboarding completion', async () => {
+  it('publishes VendorEmailVerification.Requested for a persisted request', async () => {
     const publish = jest.fn().mockResolvedValue(undefined);
     const handler = handlerWithPublish(publish);
 
@@ -136,8 +137,9 @@ describe('vendor email verification requested stream handler', () => {
         intent: 'VENDOR_EMAIL_VERIFICATION',
         ownerUserId: 'user-1',
         email: 'owner@example.com',
-        firstName: 'Priya',
-        otp: '482193',
+        ownerName: 'Priya',
+        businessName: 'ABC Car Wash',
+        verificationToken: '482193',
         expiryMinutes: 10,
         vendorStatus: 'PENDING_VERIFICATION',
         applicationId: 'app-1',

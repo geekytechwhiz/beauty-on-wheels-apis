@@ -3,12 +3,15 @@ import {
   EventBridgeAdapter,
   VendorApprovedEvent,
   VendorEmailVerificationRequestedEvent,
+  VendorEmailVerifiedEvent,
   VendorOnboardingSubmittedEvent,
   VendorRejectedEvent,
   VendorSuspendedEvent,
   VENDOR_APPROVED_EVENT_TYPE,
   VENDOR_EMAIL_VERIFICATION_EVENT_TYPE,
   VENDOR_EMAIL_VERIFICATION_EVENT_VERSION,
+  VENDOR_EMAIL_VERIFIED_EVENT_TYPE,
+  VENDOR_EMAIL_VERIFIED_EVENT_VERSION,
   VENDOR_LIFECYCLE_EVENT_VERSION,
   VENDOR_ONBOARDING_EVENT_TYPE,
   VENDOR_ONBOARDING_EVENT_VERSION,
@@ -44,6 +47,9 @@ export function ensureVendorEventPlatform(): void {
       [VENDOR_EMAIL_VERIFICATION_EVENT_TYPE]: {
         [VENDOR_EMAIL_VERIFICATION_EVENT_VERSION]:
           VendorEmailVerificationRequestedEvent,
+      },
+      [VENDOR_EMAIL_VERIFIED_EVENT_TYPE]: {
+        [VENDOR_EMAIL_VERIFIED_EVENT_VERSION]: VendorEmailVerifiedEvent,
       },
       [VENDOR_APPROVED_EVENT_TYPE]: {
         [VENDOR_LIFECYCLE_EVENT_VERSION]: VendorApprovedEvent,

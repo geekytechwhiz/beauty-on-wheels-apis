@@ -18,6 +18,47 @@ function event(overrides: Partial<PreTokenGenerationEvent> = {}): PreTokenGenera
 }
 
 describe('applyApplicationRoles', () => {
+  it('adds persisted userType, primary role, and every role to an access token', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userType: 'VENDOR',
+      roles: ['VENDOR'],
+    }));
+
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userType: 'VENDOR',
+            role: 'VENDOR',
+            roles: ['VENDOR'],
+          },
+        },
+      },
+    });
+  });
+
+  it('keeps every persisted role and selects ADMIN as the compatible scalar role', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userType: 'CUSTOMER',
+      roles: ['CUSTOMER', 'VENDOR', 'ADMIN'],
+    }));
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userType: 'CUSTOMER',
+            role: 'ADMIN',
+            roles: ['CUSTOMER', 'VENDOR', 'ADMIN'],
+          },
+        },
+      },
+    });
+  });
+
   it('adds application roles to the access token and keeps sub', async () => {
     const source = event();
     const result = await applyApplicationRoles(source, async () => [

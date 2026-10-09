@@ -8,6 +8,7 @@ import {
   type BaseEvent,
   type VendorEmailVerificationRequestedPayload,
 } from '@api-hub/event-platform';
+import { getLogger } from '@api-hub/observability';
 
 import {
   EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS,
@@ -15,7 +16,6 @@ import {
   firstNameFromContactName,
   hasValidRegisteredEmail,
 } from '../domain/email-verification';
-import { hasCompletedEmailVerificationSections } from '../domain/onboarding';
 
 export function isVendorEmailVerificationRequestedTransition(
   oldImage: Record<string, unknown> | undefined,
@@ -27,12 +27,17 @@ export function isVendorEmailVerificationRequestedTransition(
   if (newImage.status !== EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS) {
     return false;
   }
-  return (
+  // A persisted request is the business transition.  It may happen on vendor
+  // creation, when business details make the template renderable, or on resend.
+  // Do not tie it to the later onboarding-submission gate.
+  return Boolean(
     !newImage.emailVerifiedAt &&
     !newImage.emailVerificationConsumedAt &&
     !newImage.emailVerificationRevokedAt &&
-    !hasCompletedEmailVerificationSections(oldImage?.completedSections) &&
-    hasCompletedEmailVerificationSections(newImage.completedSections)
+    newImage.emailVerificationDispatchPending &&
+    newImage.emailVerificationRequestId &&
+    newImage.emailVerificationOtp &&
+    newImage.emailVerificationRequestId !== oldImage?.emailVerificationRequestId,
   );
 }
 
@@ -46,8 +51,9 @@ export function toVendorEmailVerificationRequestedPayload(
     intent: 'VENDOR_EMAIL_VERIFICATION',
     ownerUserId: String(newImage.ownerUserId ?? ''),
     email: String(newImage.email ?? ''),
-    firstName: firstNameFromContactName(newImage.contactName),
-    otp: String(newImage.emailVerificationOtp ?? ''),
+    ownerName: firstNameFromContactName(newImage.contactName),
+    businessName: String(newImage.businessName ?? '').trim(),
+    verificationToken: String(newImage.emailVerificationOtp ?? ''),
     expiryMinutes: Number.isFinite(expiryMinutes) && expiryMinutes > 0
       ? expiryMinutes
       : VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
@@ -77,6 +83,14 @@ export function mapVendorEmailVerificationRequestedStreamRecord(
   const mapped = platformMapper(raw);
   const norm = normalizeDynamoStreamRecord(raw as DynamoDBRecord);
 
+  getLogger().info('vendor_stream_record_received', {
+    vendorId: norm.newImage?.vendorId ?? norm.oldImage?.vendorId,
+    eventName: norm.eventName,
+    eventId: norm.eventID,
+    oldOnboardingStatus: norm.oldImage?.onboardingStatus,
+    newOnboardingStatus: norm.newImage?.onboardingStatus,
+  });
+
   if (!isVendorEmailVerificationRequestedTransition(norm.oldImage, norm.newImage)) {
     throw new StreamRecordFilteredError();
   }
@@ -85,11 +99,21 @@ export function mapVendorEmailVerificationRequestedStreamRecord(
   if (
     !hasValidRegisteredEmail(payload.email) ||
     !payload.verificationRequestId ||
-    !payload.firstName ||
-    !payload.otp
+    !payload.ownerName ||
+    !payload.businessName ||
+    !payload.verificationToken
   ) {
     throw new StreamRecordFilteredError();
   }
+
+  getLogger().info('vendor_email_verification_request_detected', {
+    vendorId: payload.vendorId,
+    eventName: VendorEmailVerificationRequestedEvent.__meta.eventType,
+    eventId: norm.eventID,
+    correlationId: mapped.meta.correlationId,
+    oldOnboardingStatus: norm.oldImage?.onboardingStatus,
+    newOnboardingStatus: norm.newImage?.onboardingStatus,
+  });
 
   return {
     ...mapped,

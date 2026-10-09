@@ -1,10 +1,8 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { serializeError } from '@api-hub/observability';
+import { APIGatewayProxyResult } from 'aws-lambda';
 
 import { toBaseError } from '../errors/normalize-error';
-import { ErrorHandlerOptions, Message } from '../types/core-types';
-import { ApiResponse } from '../helper/http-response.helpers';
-import { resolveMessage } from '../helper/message.helpers';
+import { ErrorHandlerOptions } from '../types/core-types';
 
 /**
  * Local fallback titles used when the CDN does not contain the error key.
@@ -85,8 +83,8 @@ export async function handleError(
   }
 
   // Local fallback title/description used when CDN has no entry for this code
-  const localTitle       = ERROR_TITLES[errorCode] ?? errorCode;
-  const localDescription = rawDescription;
+  // const localTitle       = ERROR_TITLES[errorCode] ?? errorCode;
+  // const localDescription = rawDescription;
 
   /**
    * Resolve title / description from CDN using the error code as the key.
@@ -94,100 +92,107 @@ export async function handleError(
    * If CDN is unreachable or key is missing, localTitle/localDescription are
    * used so the response title is always human-readable.
    */
-  const cdnMessage = await resolveMessage(
-    (options.event ?? {}) as APIGatewayProxyEvent,
-    errorCode,
-    {
-      title: localTitle,
-      description: localDescription,
-      severity: 'ERROR',
-    },
-  ).catch(() => ({
-    title: localTitle,
-    description: localDescription,
-    severity: 'ERROR' as const,
-  }  ));
+  // const cdnMessage = await resolveMessage(
+  //   (options.event ?? {}) as APIGatewayProxyEvent,
+  //   errorCode,
+  //   {
+  //     title: localTitle,
+  //     description: localDescription,
+  //     severity: 'ERROR',
+  //   },
+  // ).catch(() => ({
+  //   title: localTitle,
+  //   description: localDescription,
+  //   severity: 'ERROR' as const,
+  // }  ));
   // For INTERNAL_SERVER_ERROR, prefer the thrown error message so AWS/DynamoDB details are not replaced by CDN copy.
-  const descriptionForClient =
-    errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;
-  const message: Message = {
-    title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
-    description: descriptionForClient,
-    severity: cdnMessage.severity,
-  };
+  // const descriptionForClient =
+  //   errorCode === 'INTERNAL_SERVER_ERROR' ? localDescription : cdnMessage.description;
+  // const message: Message = {
+  //   title: errorCode === 'INVITE_UPDATE_TOO_SOON' ? cdnMessage.description : cdnMessage.title,
+  //   description: descriptionForClient,
+  //   severity: cdnMessage.severity,
+  // };
 
-  const errorPayload = {
-    code: errorCode,
-    details: resolved.details ?? [{ message: rawDescription }],
-  };
+  // const errorPayload = {
+  //   code: errorCode,
+  //   details: resolved.details ?? [{ message: rawDescription }],
+  // };
 
-  const optionsPayload = { correlationId: correlationId ?? 'unknown' };
+  // const optionsPayload = { correlationId: correlationId ?? 'unknown' };
 
-  switch (statusCode) {
+  // switch (statusCode) {
 
-    case 400:
-      return ApiResponse.badRequest(
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 400:
+  //     return ApiResponse.badRequest(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 401:
-      return ApiResponse.unauthorized(
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 401:
+  //     return ApiResponse.unauthorized(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 403:
-      return ApiResponse.forbidden(
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 403:
+  //     return ApiResponse.forbidden(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 404:
-      return ApiResponse.notFound(
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 404:
+  //     return ApiResponse.notFound(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 409:
-      return ApiResponse.conflict(
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 409:
+  //     return ApiResponse.conflict(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 422:
-      return ApiResponse.error(422, message, optionsPayload, errorPayload);
+  //   case 422:
+  //     return ApiResponse.error(422, message, optionsPayload, errorPayload);
 
-    case 429:
-      return ApiResponse.error(
-        429,
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 429:
+  //     return ApiResponse.error(
+  //       429,
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    case 502:
-      return ApiResponse.error(
-        502,
-        message,
-        optionsPayload,
-        errorPayload
-      );
+  //   case 502:
+  //     return ApiResponse.error(
+  //       502,
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
 
-    default:
-      return ApiResponse.internalServerError(
-        message,
-        optionsPayload,
-        errorPayload
-      );
-  }
-}
-
+  //   default:
+  //     return ApiResponse.internalServerError(
+  //       message,
+  //       optionsPayload,
+  //       errorPayload
+  //     );
+  // }
+ 
+        return  {
+            statusCode: 400,
+            body: JSON.stringify({
+              title: 'Bad request',
+              description: 'Invalid request',
+              severity: 'ERROR',
+            }),
+          }
 /**
  * Default mapping when error does not provide a code
  */
@@ -216,4 +221,5 @@ function mapStatusToCode(statusCode: number): string {
     default:
       return 'INTERNAL_SERVER_ERROR';
   }
+}
 }

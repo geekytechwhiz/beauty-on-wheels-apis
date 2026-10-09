@@ -5,6 +5,7 @@ import {
   type EventConsumerDeps,
   type VendorEmailVerificationRequestedPayload,
 } from '@api-hub/event-platform';
+import { getLogger } from '@api-hub/observability';
 
 import {
   markVendorEmailVerificationDispatched,
@@ -41,14 +42,24 @@ export function createVendorEmailVerificationRequestedStreamHandler(deps?: {
         schema: VendorEmailVerificationRequestedEvent,
         handler: async (event) => {
           const { meta, ...payload } = event;
-          await publish(
-            payload as VendorEmailVerificationRequestedPayload,
-            meta.correlationId,
-          );
           const requestPayload = payload as VendorEmailVerificationRequestedPayload & {
             verificationRequestId: string;
           };
-          await markDispatched(requestPayload.vendorId, requestPayload.verificationRequestId);
+          const fields = {
+            vendorId: requestPayload.vendorId,
+            eventName: VendorEmailVerificationRequestedEvent.__meta.eventType,
+            eventId: event.eventId,
+            correlationId: meta.correlationId,
+          };
+          getLogger().info('vendor_email_event_publish_started', fields);
+          try {
+            await publish(requestPayload, meta.correlationId);
+            await markDispatched(requestPayload.vendorId, requestPayload.verificationRequestId);
+            getLogger().info('vendor_email_event_publish_succeeded', fields);
+          } catch (error) {
+            getLogger().error('vendor_email_event_publish_failed', error, fields);
+            throw error;
+          }
         },
       },
     ],

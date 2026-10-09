@@ -215,6 +215,15 @@ export {
   type VendorEmailVerificationRequestedPayload,
 } from './core/contracts/vendor-email-verification.events';
 export {
+  VendorEmailVerifiedEvent,
+  VendorEmailVerifiedPayloadSchema,
+  VENDOR_EMAIL_VERIFIED_EVENT_TYPE,
+  VENDOR_EMAIL_VERIFIED_EVENT_VERSION,
+  VENDOR_EMAIL_VERIFIED_EVENT_SOURCE,
+  vendorEmailVerifiedIdempotencyKey,
+  type VendorEmailVerifiedPayload,
+} from './core/contracts/vendor-email-verification.events';
+export {
   EmailNotificationRequestedEvent,
   EmailNotificationRequestedPayloadSchema,
   EMAIL_NOTIFICATION_EVENT_TYPE,

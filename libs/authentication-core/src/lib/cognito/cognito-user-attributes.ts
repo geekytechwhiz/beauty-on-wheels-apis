@@ -15,6 +15,7 @@ export interface CognitoCreateUserAttributeInput {
   email?: string;
   phoneNumber?: string;
   name?: string;
+  markDestinationVerified?: boolean;
 }
 
 /**
@@ -73,12 +74,16 @@ export function resolveCognitoCreateUserAttributes(
 
   if (email) {
     attributes.push({ Name: 'email', Value: email });
-    attributes.push({ Name: 'email_verified', Value: 'true' });
+    if (input.markDestinationVerified !== false) {
+      attributes.push({ Name: 'email_verified', Value: 'true' });
+    }
     provided.add(INPUT_TO_SCHEMA.email);
   }
   if (phoneNumber) {
     attributes.push({ Name: 'phone_number', Value: phoneNumber });
-    attributes.push({ Name: 'phone_number_verified', Value: 'true' });
+    if (input.markDestinationVerified !== false) {
+      attributes.push({ Name: 'phone_number_verified', Value: 'true' });
+    }
     provided.add(INPUT_TO_SCHEMA.phoneNumber);
   }
   if (name) {

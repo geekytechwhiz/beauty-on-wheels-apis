@@ -11,11 +11,12 @@ import {
     IdentityRepository,
     identityRepositoryInstance
 } from "../repositories/identity.repository";
-import { Otp, User, UserAlreadyExistsException } from "../types/repository.types";
+import { Otp, User, UserAlreadyExistsException, UserType } from "../types/repository.types";
 import { SendOtpRequest, VerifyOtpRequest } from "../schemas/otp.schema";
 import { env } from "../configs/env.config";
 import { AuthenticationService } from "./authentication.service";
 import { RegistrationService } from "./registration.service";
+import { IdentityKeyBuilder } from '../keys/identity-key.builder';
 
 const baseLogger = createLogger({
     service: "otp-service",
@@ -23,31 +24,19 @@ const baseLogger = createLogger({
 });
 
 const OTP_PURPOSE = 'verification';
-const FIXED_DEV_OTP_STAGES = new Set(['dev', 'development', 'test']);
-const NEVER_FIXED_OTP_STAGES = new Set(['staging', 'stage', 'prod', 'production']);
+const DEVELOPMENT_OTP_VALUE = '123456';
 
 function resolveOtpStage(): string {
   return (env.STAGE || env.NODE_ENV).trim().toLowerCase();
 }
 
-function shouldUseFixedDevOtp(): boolean {
-  const stage = resolveOtpStage();
-  if (NEVER_FIXED_OTP_STAGES.has(stage)) {
-    return false;
-  }
-  return FIXED_DEV_OTP_STAGES.has(stage);
-}
-
 function generateOtpCode(): string {
-  if (shouldUseFixedDevOtp()) {
-    return env.OTP_DEV_CODE;
-  }
   return crypto.randomInt(100000, 1000000).toString();
 }
 
 export class OtpService {
   private readonly logger = createChildLogger(baseLogger, {
-    service: 'OtpService',
+    component: 'OtpService',
   });
 
   private readonly authenticationService: AuthenticationService;
@@ -80,19 +69,30 @@ export class OtpService {
       );
     }
 
-    const otpCode = generateOtpCode();
+    const normalizedDestination = this.normalizeDestination(destination);
+    // The request validator restricts public registration to CUSTOMER/VENDOR.
+    // Store the resolved value on the server-side challenge; verification never
+    // trusts a role value supplied after the challenge was issued.
+    const userType: UserType = body.userType ?? 'CUSTOMER';
+    const useFixedOtp = resolveOtpStage() === 'dev' && env.FIXED_OTP_ENABLED;
+    this.logger.info({
+      event: 'otp_challenge_mode_resolved',
+      otpMode: useFixedOtp ? 'FIXED' : 'NORMAL',
+    });
+    const otpCode = useFixedOtp ? DEVELOPMENT_OTP_VALUE : generateOtpCode();
     const codeHash = crypto.createHash('sha256').update(otpCode).digest('hex');
     const otpId = `o-${crypto.randomUUID()}`;
     const referenceId = crypto.randomBytes(16).toString('hex');
 
     const otp: Otp = {
       otpId,
-      destination,
+      destination: normalizedDestination,
       purpose: OTP_PURPOSE,
       referenceId,
       codeHash,
       attempts: 0,
       verified: false,
+      userType,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       ttl: Math.floor((Date.now() + 5 * 60 * 1000) / 1000),
     };
@@ -100,12 +100,15 @@ export class OtpService {
     await this.repository.createOtp(otp);
 
     this.logger.info({
-      event: 'OTP Sent',
+      event: 'otp_challenge_created',
       referenceId,
-      destinationType: this.isEmailDestination(destination) ? 'email' : 'phone',
+      destinationType: this.isEmailDestination(normalizedDestination) ? 'email' : 'phone',
+      otpMode: useFixedOtp ? 'FIXED' : 'NORMAL',
     });
 
-    // TODO: Notification Service Integration — never log the OTP value.
+    // Fixed challenges intentionally do not invoke SMS delivery. Normal OTP
+    // delivery remains handled by the notification integration (and neither
+    // path logs or returns the OTP value).
 
     return {
       success: true,
@@ -134,29 +137,64 @@ export class OtpService {
       throw new BaseError('OTP is required', 400, 'OTP_REQUIRED');
     }
 
+    const normalizedDestination = this.normalizeDestination(destination);
+    const challenge = await this.repository.getLatestOtp(normalizedDestination, OTP_PURPOSE);
+
+    const useFixedOtp = resolveOtpStage() === 'dev' && env.FIXED_OTP_ENABLED;
+    const challengeExpired = Boolean(
+      challenge && new Date(challenge.expiresAt).getTime() <= Date.now(),
+    );
+    const challengeConsumed = Boolean(challenge?.verified);
+
+    this.logger.info({
+      event: 'otp_verification',
+      otpMode: useFixedOtp ? 'FIXED' : 'NORMAL',
+      challengeFound: Boolean(challenge),
+      challengeExpired,
+      challengeConsumed,
+    });
+
     const codeHash = crypto.createHash('sha256').update(otp).digest('hex');
     const isVerified = await this.repository.verifyOtp(
-      destination,
+      normalizedDestination,
       OTP_PURPOSE,
       codeHash,
     );
 
     if (!isVerified) {
+      this.logger.info({
+        event: 'otp_verification',
+        otpMode: useFixedOtp ? 'FIXED' : 'NORMAL',
+        challengeFound: Boolean(challenge),
+        verificationResult: 'REJECTED',
+      });
       throw new BaseError('Invalid or expired OTP', 400, 'INVALID_OTP');
     }
 
+    this.logger.info({
+      event: 'otp_verification',
+      otpMode: useFixedOtp ? 'FIXED' : 'NORMAL',
+      challengeFound: true,
+      verificationResult: 'SUCCESS',
+    });
+
     const cognitoIdentity = await this.cognito.findOrCreateUser(
-      this.isEmailDestination(destination)
-        ? { email: destination }
-        : { phoneNumber: destination },
+      this.isEmailDestination(normalizedDestination)
+        ? { email: normalizedDestination }
+        : {
+            phoneNumber: normalizedDestination,
+            ...(useFixedOtp ? { markDestinationVerified: false } : {}),
+          },
     );
 
     let user: User;
     try {
       user = await this.resolveApplicationUser(
-        destination,
+        normalizedDestination,
         cognitoIdentity.sub,
         cognitoIdentity.username,
+        useFixedOtp,
+        challenge?.userType ?? 'CUSTOMER',
       );
     } catch (err) {
       this.logger.warn({
@@ -180,6 +218,10 @@ export class OtpService {
     return destination.includes('@');
   }
 
+  private normalizeDestination(destination: string): string {
+    return IdentityKeyBuilder.normalizeDestination(destination);
+  }
+
   private async findIdentityByDestination(destination: string): Promise<User | null> {
     return this.isEmailDestination(destination)
       ? this.repository.getUserByEmail(destination)
@@ -190,6 +232,8 @@ export class OtpService {
     destination: string,
     identityId: string,
     cognitoUsername: string,
+    useFixedOtp: boolean,
+    userType: UserType,
   ): Promise<User> {
     const byIdentity = await this.repository.getUserByIdentityId(identityId);
     if (byIdentity) {
@@ -197,12 +241,12 @@ export class OtpService {
         event: 'identity_record_resolved',
         resolution: 'cognito_identity',
       });
-      return this.markDestinationVerified(byIdentity, destination);
+      return this.markDestinationVerified(byIdentity, destination, useFixedOtp);
     }
 
     const existingUser = await this.findIdentityByDestination(destination);
     if (existingUser) {
-      const verified = await this.markDestinationVerified(existingUser, destination);
+      const verified = await this.markDestinationVerified(existingUser, destination, useFixedOtp);
       const linked = await this.authenticationService.ensureCognitoLink(verified, {
         sub: identityId,
         username: cognitoUsername,
@@ -218,6 +262,8 @@ export class OtpService {
       destination,
       identityId,
       cognitoUsername,
+      useFixedOtp,
+      userType,
     );
     this.logger.info({ event: 'identity_record_created' });
     return created;
@@ -226,7 +272,13 @@ export class OtpService {
   private async markDestinationVerified(
     user: User,
     destination: string,
+    useFixedOtp: boolean,
   ): Promise<User> {
+    // A fixed development OTP authenticates the test flow only; it is never
+    // evidence that the developer controls the telephone number.
+    if (useFixedOtp) {
+      return user;
+    }
     const isEmail = this.isEmailDestination(destination);
     const alreadyVerified = isEmail ? user.emailVerified : user.phoneVerified;
     if (alreadyVerified) {
@@ -260,6 +312,8 @@ export class OtpService {
     destination: string,
     identityId: string,
     cognitoUsername: string,
+    useFixedOtp: boolean,
+    userType: UserType,
   ): Promise<User> {
     const isEmail = this.isEmailDestination(destination);
 
@@ -268,9 +322,10 @@ export class OtpService {
         email: isEmail ? destination : undefined,
         phoneNumber: isEmail ? undefined : destination,
         emailVerified: isEmail,
-        phoneVerified: !isEmail,
+        phoneVerified: useFixedOtp ? false : !isEmail,
         identityId,
         cognitoUsername,
+        userType,
       });
     } catch (err) {
       if (err instanceof UserAlreadyExistsException) {

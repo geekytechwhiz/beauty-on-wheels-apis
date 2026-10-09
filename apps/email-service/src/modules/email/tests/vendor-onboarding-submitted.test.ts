@@ -26,7 +26,7 @@ jest.mock('../../../common/config/environment.js', () => ({
     defaultFromEmail: 'noreply@beautyonwheels.test',
     defaultFromName: 'Beauty on Wheels',
     vendorOnboardingTemplateName: 'VendorOnboardingSubmitted',
-    vendorEmailConfirmationTemplateName: 'vendor_email_confirmation',
+    vendorEmailConfirmationTemplateName: 'VENDOR_EMAIL_VERIFICATION',
     bookingConfirmedTemplateName: 'BookingConfirmed',
     emailNotificationQueueUrl: '',
     emailNotificationDlqUrl: '',

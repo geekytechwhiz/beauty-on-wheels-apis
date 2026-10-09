@@ -4,10 +4,9 @@ import { OtpService } from './otp.service';
 import { ProfileService } from './profile.service';
 import { SessionsService } from './sessions.service';
 import { RolesService } from './roles.service';
-import { PermissionsService } from './permissions.service';
 import { IdentityRepository } from '../repositories/identity.repository';
 import { ProfileRepository } from '../repositories/profile.repository';
-import { User, Profile, Session, Otp, Role, Permission, UserAlreadyExistsException, InvalidRefreshTokenException } from '../types/repository.types';
+import { User, Session, Otp, UserAlreadyExistsException } from '../types/repository.types';
 import { LambdaRequest, BaseError } from '@api-hub/utils';
 import type { CognitoAuthClient } from '@api-hub/authentication-core';
 import crypto from 'crypto';
@@ -45,6 +44,7 @@ describe('Services Unit Tests', () => {
             changePassword: jest.fn(),
             saveLoginHistory: jest.fn(),
             createOtp: jest.fn(),
+            getLatestOtp: jest.fn().mockResolvedValue(null),
             verifyOtp: jest.fn(),
             assignRole: jest.fn(),
             removeRole: jest.fn(),
@@ -378,10 +378,11 @@ describe('Services Unit Tests', () => {
             crypto.createHash('sha256').update(code).digest('hex');
 
         const originalStage = process.env.STAGE;
-        const originalOtpDevCode = process.env.OTP_DEV_CODE;
+        const originalFixedOtpEnabled = process.env.FIXED_OTP_ENABLED;
         let randomIntSpy: jest.SpyInstance | undefined;
 
         beforeEach(() => {
+            delete process.env.FIXED_OTP_ENABLED;
             mockRepo.createSession.mockResolvedValue({} as Session);
             mockRepo.saveLoginHistory.mockResolvedValue(undefined);
             mockRepo.getUserByIdentityId.mockResolvedValue(null);
@@ -406,11 +407,8 @@ describe('Services Unit Tests', () => {
             } else {
                 process.env.STAGE = originalStage;
             }
-            if (originalOtpDevCode === undefined) {
-                delete process.env.OTP_DEV_CODE;
-            } else {
-                process.env.OTP_DEV_CODE = originalOtpDevCode;
-            }
+            if (originalFixedOtpEnabled === undefined) delete process.env.FIXED_OTP_ENABLED;
+            else process.env.FIXED_OTP_ENABLED = originalFixedOtpEnabled;
         });
 
         it('sends OTP successfully without persisting the code', async () => {
@@ -427,30 +425,23 @@ describe('Services Unit Tests', () => {
             const saved = mockRepo.createOtp.mock.calls[0][0] as Otp;
             expect(saved.otpCode).toBeUndefined();
             expect(saved.codeHash).toBeDefined();
+            expect(saved.userType).toBe('CUSTOMER');
         });
 
-        it('hashes OTP_DEV_CODE in the dev stage instead of generating a random OTP', async () => {
-            process.env.STAGE = 'dev';
-            process.env.OTP_DEV_CODE = '123456';
-            randomIntSpy = jest.spyOn(crypto, 'randomInt');
-            mockRepo.createOtp.mockResolvedValue({} as any);
+        it('persists the requested VENDOR type on the OTP challenge', async () => {
+            mockRepo.createOtp.mockResolvedValue({} as Otp);
 
-            const service = otpService();
-            await service.postsend({
-                body: { destination: 'john@example.com' },
+            await otpService().postsend({
+                body: { destination: '+1234567890', userType: 'VENDOR' },
             } as unknown as LambdaRequest);
 
-            expect(randomIntSpy).not.toHaveBeenCalled();
-            const saved = mockRepo.createOtp.mock.calls[0][0] as Otp;
-            expect(saved.otpCode).toBeUndefined();
-            expect(saved.codeHash).toBe(hashOtp('123456'));
-            expect(saved.expiresAt).toBeDefined();
-            expect(saved.ttl).toBeDefined();
+            expect(mockRepo.createOtp).toHaveBeenCalledWith(expect.objectContaining({
+                userType: 'VENDOR',
+            }));
         });
 
-        it('hashes a custom OTP_DEV_CODE in the test stage', async () => {
-            process.env.STAGE = 'test';
-            process.env.OTP_DEV_CODE = '999111';
+        it('uses the fixed OTP by default in local development without exposing it', async () => {
+            process.env.STAGE = 'dev';
             randomIntSpy = jest.spyOn(crypto, 'randomInt');
             mockRepo.createOtp.mockResolvedValue({} as any);
 
@@ -461,13 +452,47 @@ describe('Services Unit Tests', () => {
 
             expect(randomIntSpy).not.toHaveBeenCalled();
             const saved = mockRepo.createOtp.mock.calls[0][0] as Otp;
-            expect(saved.codeHash).toBe(hashOtp('999111'));
-            expect(saved.codeHash).not.toBe(hashOtp('123456'));
+            expect(saved.otpCode).toBeUndefined();
+            expect(saved.codeHash).toBe(hashOtp('123456'));
+            expect(saved.expiresAt).toBeDefined();
+            expect(saved.ttl).toBeDefined();
         });
 
-        it('generates a random OTP in production even when OTP_DEV_CODE is set', async () => {
+        it('uses a fixed OTP for every destination when enabled in dev', async () => {
+            process.env.STAGE = 'dev';
+            process.env.FIXED_OTP_ENABLED = 'true';
+            mockRepo.createOtp.mockResolvedValue({} as Otp);
+
+            await otpService().postsend({
+                body: { destination: '+91 98765 43210' },
+            } as unknown as LambdaRequest);
+
+            expect(mockRepo.createOtp).toHaveBeenCalledWith(expect.objectContaining({
+                destination: '+919876543210',
+                codeHash: hashOtp('123456'),
+            }));
+        });
+
+        it('uses a random OTP when disabled in dev', async () => {
+            process.env.STAGE = 'dev';
+            process.env.FIXED_OTP_ENABLED = 'false';
+            randomIntSpy = jest.spyOn(crypto, 'randomInt');
+            randomIntSpy.mockReturnValue(999111 as never);
+            mockRepo.createOtp.mockResolvedValue({} as any);
+
+            const service = otpService();
+            await service.postsend({
+                body: { destination: '+1234567890' },
+            } as unknown as LambdaRequest);
+
+            expect(randomIntSpy).toHaveBeenCalledWith(100000, 1000000);
+            const saved = mockRepo.createOtp.mock.calls[0][0] as Otp;
+            expect(saved.codeHash).toBe(hashOtp('999111'));
+        });
+
+        it('generates a random OTP in production even when fixed OTP is enabled', async () => {
             process.env.STAGE = 'prod';
-            process.env.OTP_DEV_CODE = '123456';
+            process.env.FIXED_OTP_ENABLED = 'true';
             randomIntSpy = jest.spyOn(crypto, 'randomInt').mockReturnValue(654321 as never);
             mockRepo.createOtp.mockResolvedValue({} as any);
 
@@ -483,9 +508,9 @@ describe('Services Unit Tests', () => {
             expect(saved.codeHash).not.toBe(hashOtp('123456'));
         });
 
-        it('generates a random OTP in staging and never uses OTP_DEV_CODE', async () => {
+        it('generates a random OTP in staging and never uses the fixed code', async () => {
             process.env.STAGE = 'staging';
-            process.env.OTP_DEV_CODE = '123456';
+            process.env.FIXED_OTP_ENABLED = 'true';
             randomIntSpy = jest.spyOn(crypto, 'randomInt').mockReturnValue(111222 as never);
             mockRepo.createOtp.mockResolvedValue({} as any);
 
@@ -570,6 +595,50 @@ describe('Services Unit Tests', () => {
             expect(mockRepo.createUser.mock.invocationCallOrder[0]).toBeLessThan(
                 mockCognito.issueTokens.mock.invocationCallOrder[0],
             );
+        });
+
+        it('uses the challenge userType for a new identity and never makes it an authorization role', async () => {
+            mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
+            mockRepo.verifyOtp.mockResolvedValue(true);
+            mockRepo.getUserByPhone.mockResolvedValue(null);
+
+            await otpService().postverify({
+                body: { destination: '+1234567890', otp: '123456', userType: 'CUSTOMER' },
+            } as unknown as LambdaRequest);
+
+            expect(mockRepo.createUser).toHaveBeenCalledWith(
+                expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
+                expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
+            );
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                expect.any(String),
+                'CUSTOMER',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.any(String),
+                'VENDOR',
+            );
+        });
+
+        it('does not overwrite an existing user type with a new challenge', async () => {
+            mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
+            mockRepo.verifyOtp.mockResolvedValue(true);
+            mockRepo.getUserByPhone.mockResolvedValue({
+                ...activeUser,
+                email: '',
+                username: '+1234567890',
+                userType: 'CUSTOMER',
+            } as User);
+
+            await otpService().postverify({
+                body: { destination: '+1234567890', otp: '123456' },
+            } as unknown as LambdaRequest);
+
+            expect(mockRepo.updateUser).toHaveBeenCalledWith(
+                expect.objectContaining({ userType: 'CUSTOMER' }),
+                1,
+            );
+            expect(mockRepo.createUser).not.toHaveBeenCalled();
         });
 
         it('does not issue a token when persisting an existing identity verification fails', async () => {
@@ -672,6 +741,65 @@ describe('Services Unit Tests', () => {
                 code: 'INVALID_OTP',
             });
             expect(mockRepo.createUser).not.toHaveBeenCalled();
+        });
+
+        it('accepts a fixed OTP through Cognito without verifying the phone', async () => {
+            process.env.STAGE = 'dev';
+            process.env.FIXED_OTP_ENABLED = 'true';
+            mockRepo.getLatestOtp.mockResolvedValue({} as Otp);
+            mockRepo.verifyOtp.mockResolvedValue(true);
+            mockRepo.getUserByPhone.mockResolvedValue({
+                ...activeUser,
+                email: '',
+                username: '+1234567890',
+                phoneVerified: false,
+            } as User);
+
+            const result = await otpService().postverify({
+                body: { destination: '+1234567890', otp: '123456' },
+                event: { requestContext: { identity: { sourceIp: '127.0.0.1' } }, headers: {} },
+            } as unknown as LambdaRequest);
+
+            expect(result.accessToken).toBe('cognito-access');
+            expect(mockRepo.verifyOtp).toHaveBeenCalledWith(
+                '+1234567890',
+                'verification',
+                hashOtp('123456'),
+            );
+            expect(mockCognito.findOrCreateUser).toHaveBeenCalledWith({
+                phoneNumber: '+1234567890',
+                markDestinationVerified: false,
+            });
+            expect(mockRepo.updateUser).not.toHaveBeenCalled();
+            expect(mockCognito.issueTokens).toHaveBeenCalledWith('bow_user');
+        });
+
+        it('rejects an invalid fixed OTP before Cognito authentication', async () => {
+            process.env.STAGE = 'dev';
+            process.env.FIXED_OTP_ENABLED = 'true';
+            mockRepo.getLatestOtp.mockResolvedValue({} as Otp);
+            mockRepo.verifyOtp.mockResolvedValue(false);
+
+            await expect(otpService().postverify({
+                body: { destination: '+1234567890', otp: '000000' },
+            } as unknown as LambdaRequest)).rejects.toMatchObject({ code: 'INVALID_OTP' });
+            expect(mockCognito.findOrCreateUser).not.toHaveBeenCalled();
+        });
+
+        it('rejects a fixed OTP when no challenge was created', async () => {
+            process.env.STAGE = 'dev';
+            process.env.FIXED_OTP_ENABLED = 'true';
+            mockRepo.getLatestOtp.mockResolvedValue(null);
+
+            await expect(otpService().postverify({
+                body: { destination: '+1234567890', otp: '123456' },
+            } as unknown as LambdaRequest)).rejects.toMatchObject({ code: 'INVALID_OTP' });
+            expect(mockRepo.verifyOtp).toHaveBeenCalledWith(
+                '+1234567890',
+                'verification',
+                hashOtp('123456'),
+            );
+            expect(mockCognito.findOrCreateUser).not.toHaveBeenCalled();
         });
 
         it('authenticates the existing identity when concurrent create races', async () => {

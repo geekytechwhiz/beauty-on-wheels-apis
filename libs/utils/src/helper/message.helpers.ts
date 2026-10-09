@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as https from 'https';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 
@@ -109,48 +110,7 @@ export function normalizeMessage(rawMessage: RawMessage | undefined, defaults: R
 
   return { title, description, severity };
 }
-
-/**
- * Resolves a message by key from CDN, with language detection and fallback to English
- */
-export async function resolveMessage(
-  event: APIGatewayProxyEvent,
-  key: string,
-  defaults: ResolvedMessage,
-): Promise<ResolvedMessage> {
-  try {
-    const language = getLanguageFromHeaders(event);
-
-    // Fetch messages for the requested language if not cached
-    if (!messageCache[language]) {
-      try {
-        messageCache[language] = await fetchMessagesFromCloudFront(language);
-      } catch (error) {
-        console.warn(`Failed to fetch messages for language '${language}', falling back to 'en':`, error);
-        
-        // Fallback to English if primary language fetch fails
-        if (language !== 'en' && !messageCache['en']) {
-          try {
-            messageCache['en'] = await fetchMessagesFromCloudFront('en');
-          } catch (enError) {
-            console.error('Failed to fetch English fallback messages:', enError);
-            // Return defaults if even English fetch fails
-            return { ...defaults, severity: normalizeSeverity(undefined, defaults.severity) };
-          }
-        }
-        
-        const messages = messageCache['en'] || {};
-        return normalizeMessage(messages[key], defaults);
-      }
-    }
-
-    const messages = messageCache[language] || {};
-    return normalizeMessage(messages[key], defaults);
-  } catch (error) {
-    console.error('Error resolving message from CloudFront:', error);
-    return { ...defaults, severity: normalizeSeverity(undefined, defaults.severity) };
-  }
-}
+ 
 
 /**
  * Gets an error message by key from CDN (ERROR_MESSAGES_CDN_URL/error-messages/{lang}.json).
@@ -163,7 +123,8 @@ export async function getErrorMessage(event: APIGatewayProxyEvent, errorKey: str
     severity: 'ERROR',
   };
   // Use the existing resolveMessage which handles CDN fetching and language detection
-  return resolveMessage(event, errorKey, defaults);
+  // return resolveMessage(event, errorKey, defaults);
+  return defaults;
 }
 
 /**
@@ -176,7 +137,8 @@ export async function getMessage(event: APIGatewayProxyEvent, messageKey: string
     description: 'Request processed successfully',
     severity: 'SUCCESS',
   };
-  return resolveMessage(event, messageKey, defaults);
+  // return resolveMessage(event, messageKey, defaults);
+  return defaults;
 }
 
 /**

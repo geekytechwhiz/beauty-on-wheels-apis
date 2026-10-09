@@ -6,7 +6,8 @@ import {
 /**
  * Cognito Pre Token Generation trigger.
  * The user pool must invoke this function with LambdaVersion V2_0 so the
- * `roles` array is written onto the access token. `sub` stays the Cognito id.
+ * Persisted identityId, userType, compatible role, and roles claims are added
+ * to the access token. Cognito's `sub` stays the Cognito identity id.
  */
 export async function handler(
   event: PreTokenGenerationEvent,

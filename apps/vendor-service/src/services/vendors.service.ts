@@ -58,6 +58,12 @@ import {
   VENDOR_NEXT_ACTION,
 } from '../domain/vendor-self';
 import { VendorDdbItem } from '../types/repository.types';
+import {
+  generateVendorEmailVerificationOtp,
+  hasValidRegisteredEmail,
+  hashVendorEmailVerificationToken,
+  VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+} from '../domain/email-verification';
 
 const baseLogger = createLogger({
   service: 'vendors-service',
@@ -180,11 +186,35 @@ export class VendorsService {
     }
 
     const vendorId = randomUUID();
-    const profile = VendorsMapper.toInitialDdbItem({
+    let profile = VendorsMapper.toInitialDdbItem({
       ...input,
       vendorId,
       ownerUserId: userId,
     });
+    // A verification request belongs to the vendor profile and can be sent as
+    // soon as every value required by its template is persisted. It is not an
+    // onboarding-submission signal.
+    if (
+      hasValidRegisteredEmail(profile.email) &&
+      profile.contactName?.trim() &&
+      profile.businessName?.trim()
+    ) {
+      const requestedAt = new Date().toISOString();
+      const token = generateVendorEmailVerificationOtp(vendorId);
+      profile = {
+        ...profile,
+        emailVerificationRequestId: randomUUID(),
+        emailVerificationOtp: token,
+        emailVerificationTokenHash: hashVendorEmailVerificationToken(token),
+        emailVerificationEmail: profile.email,
+        emailVerificationExpiryMinutes: VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+        emailVerificationRequestedAt: requestedAt,
+        emailVerificationExpiresAt: new Date(
+          Date.parse(requestedAt) + VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES * 60_000,
+        ).toISOString(),
+        emailVerificationDispatchPending: true,
+      };
+    }
     const owner = OwnerMapper.initialOwner(vendorId, userId);
     const ownership = OwnerMapper.ownershipClaim(vendorId, userId);
 

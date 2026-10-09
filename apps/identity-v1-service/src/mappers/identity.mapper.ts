@@ -42,6 +42,7 @@ export class IdentityMapper {
       version: item.version,
       identityId: item.identityId,
       cognitoUsername: item.cognitoUsername,
+      userType: item.userType,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -66,6 +67,7 @@ export class IdentityMapper {
       version: user.version,
       identityId: user.identityId,
       cognitoUsername: user.cognitoUsername,
+      userType: user.userType,
       tenantId,
       createdAt: user.createdAt || timestamp,
       updatedAt: timestamp,
@@ -95,6 +97,8 @@ export class IdentityMapper {
       timezone: profile.timezone,
       email: profile.email,
       phoneNumber: profile.phoneNumber,
+      identityId: profile.identityId,
+      userType: profile.userType,
       createdAt: profile.createdAt || timestamp,
       updatedAt: timestamp,
     };
@@ -148,6 +152,7 @@ export class IdentityMapper {
       verified: item.verified,
       expiresAt: item.expiresAt,
       ttl: item.ttl,
+      userType: item.userType,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -170,6 +175,7 @@ export class IdentityMapper {
       verified: otp.verified,
       expiresAt: otp.expiresAt,
       ttl: otp.ttl,
+      userType: otp.userType,
       createdAt: otp.createdAt || timestamp,
       updatedAt: timestamp,
       GSI1PK: `OTP_REF#${otp.referenceId}`,

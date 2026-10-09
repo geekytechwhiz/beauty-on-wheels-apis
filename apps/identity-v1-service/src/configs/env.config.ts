@@ -1,4 +1,6 @@
-const DEFAULT_OTP_DEV_CODE = '123456';
+function parseBoolean(value?: string): boolean {
+  return value?.trim().toLowerCase() === 'true';
+}
 
 export const env = {
   SERVICE_NAME: process.env.SERVICE_NAME || '',
@@ -10,9 +12,8 @@ export const env = {
   get NODE_ENV() {
     return process.env.NODE_ENV || '';
   },
-  get OTP_DEV_CODE() {
-    const configured = (process.env.OTP_DEV_CODE || DEFAULT_OTP_DEV_CODE).trim();
-    return configured || DEFAULT_OTP_DEV_CODE;
+  get FIXED_OTP_ENABLED() {
+    return parseBoolean(process.env.FIXED_OTP_ENABLED ?? 'true');
   },
   COGNITO_REGION: process.env.COGNITO_REGION || process.env.REGION || '',
   COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID || '',

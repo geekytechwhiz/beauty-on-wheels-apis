@@ -3,12 +3,12 @@ import { createLogger, createChildLogger } from '@api-hub/observability';
 import { APPLICATION_ROLE } from '@api-hub/authentication-core';
 import crypto from 'crypto';
 
-import { prepareApplicationRolesForToken } from '../auth/application-role-assignment';
+import { initializeApplicationRoleForNewIdentity } from '../auth/application-role-assignment';
 import {
   IdentityRepository,
   identityRepositoryInstance,
 } from '../repositories/identity.repository';
-import { User, Profile, UserAlreadyExistsException } from '../types/repository.types';
+import { User, Profile, UserAlreadyExistsException, UserType } from '../types/repository.types';
 import { RegisterRequest } from '../schemas/registration.schema';
 
 const baseLogger = createLogger({
@@ -32,6 +32,7 @@ export type CreateIdentityInput = {
   phoneVerified?: boolean;
   identityId?: string;
   cognitoUsername?: string;
+  userType?: UserType;
 };
 
 export class RegistrationService {
@@ -128,16 +129,21 @@ export class RegistrationService {
       roleId: 'user',
       identityId: input.identityId,
       cognitoUsername: input.cognitoUsername,
+      userType: input.userType ?? 'CUSTOMER',
     };
 
     const newProfile: Profile = {
       userId,
       firstName: input.firstName ?? '',
       lastName: input.lastName ?? '',
+      identityId: input.identityId,
+      userType: input.userType ?? 'CUSTOMER',
     };
 
     await this.repository.createUser(newUser, newProfile);
-    await prepareApplicationRolesForToken(this.repository, newUser);
+    // This is creation-only. Subsequent logins only resolve persisted mappings
+    // and therefore cannot change a user's authority from a selected userType.
+    await initializeApplicationRoleForNewIdentity(this.repository, newUser);
     return newUser;
   }
 

@@ -11,4 +11,5 @@ export * from "./vendors-handler";
 export * from "./communities-handler";
 export { handler as vendorOnboardingStreamHandler } from "./vendor-onboarding-stream";
 export { handler as vendorEmailVerificationStreamHandler } from "./vendor-email-verification-stream";
+export { handler as vendorEmailVerifiedStreamHandler } from "./vendor-email-verified-stream";
 export { handler as vendorLifecycleStreamHandler } from "./vendor-lifecycle-stream";

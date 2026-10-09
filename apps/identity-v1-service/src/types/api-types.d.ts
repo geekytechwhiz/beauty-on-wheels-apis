@@ -48,10 +48,11 @@ export interface VerifyOtpRequest {
 
 export interface SendOtpRequest {
   destination: string;
+  /** Defaults to CUSTOMER. ADMIN cannot be self-registered. */
+  userType?: 'CUSTOMER' | 'VENDOR';
 }
 
 export interface ChangePasswordRequest {
   oldPassword: string;
   newPassword: string;
 }
-

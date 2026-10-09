@@ -1,32 +1,27 @@
-service: identity-v1-service
-
+service: identity-service
 frameworkVersion: "3"
-
 plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-
+  - ./serverless.fixed-otp-plugin.js
 provider:
   name: aws
   runtime: nodejs22.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
   versionFunctions: false
-
   # Native Serverless deployment bucket (not serverless-deployment-bucket plugin).
   # The existing stack already deploys artifacts here; naming it skips the
   # TemplateBody bucket-injection path that exceeds the 51,200-byte limit.
-  deploymentBucket:
-    name: ${self:provider.stage}-mvx-identity-service-bucket-${aws:accountId}
-    serverSideEncryption: AES256
-
+  # deploymentBucket:
+  #   name: ${self:provider.stage}-mvx-identity-service-bucket-${aws:accountId}
+  #   serverSideEncryption: AES256
   tracing:
     lambda: true
     apiGateway: true
   logRetentionInDays: 14
-
   tags:
     Service: ${self:service}
     Stage: ${self:provider.stage}
@@ -35,20 +30,20 @@ provider:
     Service: ${self:service}
     Stage: ${self:provider.stage}
     ManagedBy: serverless
-
   environment:
     SERVICE_NAME: identity-v1-service
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
-    OTP_DEV_CODE: ${env:OTP_DEV_CODE, '123456'}
+    # Development-only fixed OTP; deployment is rejected outside dev when enabled.
+    FIXED_OTP_ENABLED: ${env:FIXED_OTP_ENABLED, 'true'}
     LOG_LEVEL: info
     DYNAMODB_TABLE_NAME: identity-table-${self:provider.stage}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
     COGNITO_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '2npl84o4lc11hd3ras553u71o3'}
     # Required when the Cognito app client has a secret; used to compute SECRET_HASH.
-    COGNITO_APP_CLIENT_SECRET: ${env:COGNITO_APP_CLIENT_SECRET, ''}
+    COGNITO_APP_CLIENT_SECRET: ''
     COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
     COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
     # Required bw-user-pool attributes: email, phone_number, name. Applied only when input is missing.
@@ -56,7 +51,6 @@ provider:
     COGNITO_DEFAULT_EMAIL: ${env:COGNITO_DEFAULT_EMAIL, 'dev+{username}@beautyonwheels.test'}
     COGNITO_DEFAULT_PHONE_NUMBER: ${env:COGNITO_DEFAULT_PHONE_NUMBER, '+1{digits}'}
     COGNITO_DEFAULT_NAME: ${env:COGNITO_DEFAULT_NAME, 'Beauty On Wheels User'}
-
   iam:
     role:
       statements:
@@ -88,14 +82,11 @@ provider:
             - cognito-idp:InitiateAuth
           Resource:
             - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-
 custom:
-
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
   deletionProtectionEnabled:
     prod: true
     production: true
-
   # Public routes (health, register, login, refresh, OTP) omit the authorizer.
   resourcePrefix: nv${self:provider.stage}-bw
   esbuild:
@@ -106,7 +97,6 @@ custom:
     platform: node
     concurrency: 10
     plugins: ./esbuild-plugins.js
-
   autoswagger:
     title: "Beauty on Wheels - Identity Service API"
     apiType: http
@@ -123,7 +113,6 @@ custom:
       - ./src/types/api-types.d.ts
     excludeStages:
       - production
-
 functions:
   health:
     handler: src/handlers/health.handler
@@ -132,7 +121,6 @@ functions:
           path: /health
           method: get
           cors: true
-
   postregister:
     handler: src/handlers/registration.handler
     events:
@@ -149,7 +137,6 @@ functions:
             200:
               description: "User created"
               bodyType: User
-
   postlogin:
     handler: src/handlers/authentication.login
     events:
@@ -165,7 +152,6 @@ functions:
             200:
               description: "Login successful"
               bodyType: TokenResponse
-
   postrefreshtoken:
     handler: src/handlers/authentication.refreshToken
     events:
@@ -181,7 +167,6 @@ functions:
             200:
               description: "Token refreshed"
               bodyType: TokenResponse
-
   postlogout:
     handler: src/handlers/authentication.logout
     events:
@@ -196,7 +181,6 @@ functions:
           responseData:
             204:
               description: "Logged out"
-
   postchangepassword:
     handler: src/handlers/authentication.changePassword
     events:
@@ -212,7 +196,6 @@ functions:
           responseData:
             204:
               description: "Password changed"
-
   postsend:
     handler: src/handlers/otpHandler.handlePostsend
     events:
@@ -227,7 +210,6 @@ functions:
           responseData:
             202:
               description: "OTP sent"
-
   postverify:
     handler: src/handlers/otpHandler.handlePostverify
     events:
@@ -243,7 +225,6 @@ functions:
             200:
               description: "OTP verified"
               bodyType: TokenResponse
-
   getme:
     handler: src/handlers/profile.handler
     events:
@@ -259,7 +240,6 @@ functions:
             200:
               description: "Profile"
               bodyType: User
-
   getsessions:
     handler: src/handlers/sessions.handleGetsessions
     events:
@@ -274,7 +254,6 @@ functions:
           responseData:
             200:
               description: "Sessions"
-
   deletesessions:
     handler: src/handlers/sessions.handleDeletesessions
     events:
@@ -289,7 +268,6 @@ functions:
           responseData:
             204:
               description: "All sessions revoked"
-
   deletesessionid:
     handler: src/handlers/sessions.handleDeletesessionid
     events:
@@ -304,7 +282,6 @@ functions:
           responseData:
             204:
               description: "Session revoked"
-
   getroles:
     handler: src/handlers/roles.handleGetroles
     events:
@@ -319,7 +296,6 @@ functions:
           responseData:
             200:
               description: "Roles list"
-
   getpermissions:
     handler: src/handlers/permissions.handleGetpermissions
     events:
@@ -334,35 +310,30 @@ functions:
           responseData:
             200:
               description: "Permissions list"
-
-  # Cognito Pre Token Generation V2_0. Access-token `roles` requires a paid
+  # Cognito Pre Token Generation V2_0. Access-token \`roles\` requires a paid
   # Cognito feature plan (Essentials or Plus). This function does not replace
   # the user pool or any other trigger.
   preTokenGeneration:
     handler: src/handlers/pre-token-generation.handler
-    description: Adds the Identity roles array to Cognito access tokens.
+    description: Adds persisted identity classification and application role claims to Cognito access tokens.
     timeout: 5
     memorySize: 256
-
   attachPreTokenGeneration:
     handler: src/handlers/attach-pre-token-generation.handler
     description: Points the existing user pool pre-token trigger at V2_0.
     timeout: 60
     memorySize: 256
     role: !GetAtt AttachPreTokenGenerationRole.Arn
-
   backfillCustomerRoles:
     handler: src/handlers/backfill-customer-roles.handler
     description: One-shot backfill of CUSTOMER mappings for legacy users.
     timeout: 300
     memorySize: 256
-
-  vendorApprovedRole:
-    handler: src/handlers/vendor-approved-role.handler
-    description: Grants or revokes VENDOR from vendor lifecycle events.
+  vendorEmailVerifiedRole:
+    handler: src/handlers/vendor-email-verified-role.handler
+    description: Grants VENDOR after Vendor Service has verified a completed vendor onboarding email.
     timeout: 30
     memorySize: 256
-
   postUserAdminRole:
     handler: src/handlers/roles.handleAssignAdminRole
     events:
@@ -378,7 +349,6 @@ functions:
           responseData:
             200:
               description: "ADMIN role stored"
-
   deleteUserAdminRole:
     handler: src/handlers/roles.handleRevokeAdminRole
     events:
@@ -394,11 +364,9 @@ functions:
           responseData:
             200:
               description: "ADMIN role removed"
-
 resources:
   Resources:
     IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}
-
     AttachPreTokenGenerationRole:
       Type: AWS::IAM::Role
       Properties:
@@ -424,16 +392,13 @@ resources:
                     - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
                 - Effect: Allow
                   Action: iam:PassRole
-                  Resource: arn:aws:iam::${aws:accountId}:role/*
-                  Condition:
-                    StringEquals:
-                      iam:PassedToService: cognito-idp.amazonaws.com
+                  # Pass only the existing Cognito SMS role
+                  Resource: arn:aws:iam::${aws:accountId}:role/service-role/CognitoIdpSNSServiceRole
                 - Effect: Allow
                   Action:
                     - xray:PutTraceSegments
                     - xray:PutTelemetryRecords
                   Resource: "*"
-
     PreTokenGenerationCognitoPermission:
       Type: AWS::Lambda::Permission
       Properties:
@@ -441,7 +406,6 @@ resources:
         Action: lambda:InvokeFunction
         Principal: cognito-idp.amazonaws.com
         SourceArn: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-
     AttachPreTokenGenerationTrigger:
       Type: AWS::CloudFormation::CustomResource
       DependsOn:
@@ -450,14 +414,12 @@ resources:
         ServiceToken: !GetAtt AttachPreTokenGenerationLambdaFunction.Arn
         UserPoolId: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
         FunctionArn: !GetAtt PreTokenGenerationLambdaFunction.Arn
-
     VendorRoleDlq:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:custom.resourcePrefix}-identity-vendor-role-dlq
         MessageRetentionPeriod: 1209600
         SqsManagedSseEnabled: true
-
     VendorRoleDlqPolicy:
       Type: AWS::SQS::QueuePolicy
       Properties:
@@ -475,39 +437,35 @@ resources:
               Condition:
                 StringEquals:
                   aws:SourceAccount: !Ref AWS::AccountId
-
     VendorRoleLifecycleRule:
       Type: AWS::Events::Rule
       DependsOn:
         - VendorRoleDlqPolicy
       Properties:
         Name: ${self:custom.resourcePrefix}-identity-vendor-role
-        Description: Grants or revokes the VENDOR application role
+        Description: Grants the VENDOR application role after authoritative vendor email verification
         EventBusName:
           Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
         EventPattern:
           source:
             - vendor-service
           detail-type:
-            - VendorApproved
-            - VendorSuspended
+            - Vendor.EmailVerified
         State: ENABLED
         Targets:
           - Id: IdentityVendorRole
-            Arn: !GetAtt VendorApprovedRoleLambdaFunction.Arn
+            Arn: !GetAtt VendorEmailVerifiedRoleLambdaFunction.Arn
             DeadLetterConfig:
               Arn: !GetAtt VendorRoleDlq.Arn
             RetryPolicy:
               MaximumRetryAttempts: 3
-
     VendorRoleEventPermission:
       Type: AWS::Lambda::Permission
       Properties:
-        FunctionName: !GetAtt VendorApprovedRoleLambdaFunction.Arn
+        FunctionName: !GetAtt VendorEmailVerifiedRoleLambdaFunction.Arn
         Action: lambda:InvokeFunction
         Principal: events.amazonaws.com
         SourceArn: !GetAtt VendorRoleLifecycleRule.Arn
-
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -519,7 +477,6 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-
     GatewayResponseDefault5XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -531,7 +488,6 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-
     GatewayResponseUnauthorized:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -543,7 +499,6 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-
     GatewayResponseAccessDenied:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -555,7 +510,6 @@ resources:
           gatewayresponse.header.Access-Control-Allow-Headers: >-
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-
   Outputs:
     IdentityTableName:
       Description: Name of the Identity Service DynamoDB table

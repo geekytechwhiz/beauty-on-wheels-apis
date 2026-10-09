@@ -18,11 +18,10 @@ describe('identity role infrastructure', () => {
     expect(template).not.toContain('AWS::Cognito::UserPool');
   });
 
-  it('subscribes identity to vendor approval and suspension events', () => {
-    expect(template).toContain('handler: src/handlers/vendor-approved-role.handler');
+  it('subscribes identity to vendor email verification events', () => {
+    expect(template).toContain('handler: src/handlers/vendor-email-verified-role.handler');
     expect(template).toContain('AWS::Events::Rule');
-    expect(template).toContain('- VendorApproved');
-    expect(template).toContain('- VendorSuspended');
+    expect(template).toContain('- Vendor.EmailVerified');
     expect(template).toContain('vendor-event-bus-name');
   });
 });

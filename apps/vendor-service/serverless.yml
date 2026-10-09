@@ -84,6 +84,7 @@ provider:
           Resource:
             - !GetAtt VendorOnboardingStreamDlq.Arn
             - !GetAtt VendorEmailVerificationStreamDlq.Arn
+            - !GetAtt VendorEmailVerifiedStreamDlq.Arn
             - !GetAtt VendorLifecycleStreamDlq.Arn 
 
 custom:
@@ -286,10 +287,9 @@ functions:
       - stream:
           type: dynamodb
           arn: !GetAtt VendorTable.StreamArn
-          # The five-section check is intentionally in the handler: DynamoDB
-          # stream filters cannot safely express unordered typed list membership.
           filterPatterns:
             - eventName:
+                - INSERT
                 - MODIFY
               dynamodb:
                 NewImage:
@@ -325,6 +325,35 @@ functions:
           destinations:
             onFailure:
               arn: !GetAtt VendorLifecycleStreamDlq.Arn
+              type: sqs
+
+  onVendorEmailVerified:
+    handler: src/handlers/vendor-email-verified-stream.handler
+    name: ${self:custom.resourcePrefix}-vendor-email-verified-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          filterPatterns:
+            - eventName:
+                - MODIFY
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - Vendor
+                  SK:
+                    S:
+                      - PROFILE
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorEmailVerifiedStreamDlq.Arn
               type: sqs
 
   listvendors:
@@ -1619,6 +1648,17 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:custom.resourcePrefix}-vendor-email-verification-stream-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
+    VendorEmailVerifiedStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-email-verified-stream-dlq
         MessageRetentionPeriod: 1209600
         Tags:
           - Key: Service

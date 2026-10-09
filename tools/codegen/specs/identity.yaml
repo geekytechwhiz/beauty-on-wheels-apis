@@ -90,6 +90,11 @@ components:
       required: [destination]
       properties:
         destination: { type: string }
+        userType:
+          type: string
+          enum: [CUSTOMER, VENDOR]
+          default: CUSTOMER
+          description: Registration type. ADMIN cannot be self-registered.
 
     ChangePasswordRequest:
       type: object

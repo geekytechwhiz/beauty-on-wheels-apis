@@ -11,7 +11,7 @@ import {
   StaffStatus,
   VehicleType,
   VendorStatus,
-  VendorType,
+   businessType,
 } from './api-types';
 
 export interface VendorDdbItem {
@@ -19,7 +19,7 @@ export interface VendorDdbItem {
   SK: string;
   vendorId: string;
   ownerUserId: string;
-  vendorType?: VendorType;
+   businessType?:  businessType;
   businessName?: string;
   contactName?: string;
   phoneNumber?: string;

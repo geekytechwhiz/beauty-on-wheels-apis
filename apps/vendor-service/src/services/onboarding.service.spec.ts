@@ -37,7 +37,7 @@ function vendorItem(overrides: Partial<VendorDdbItem> = {}): VendorDdbItem {
     SK: 'PROFILE',
     vendorId: 'vendor-1',
     ownerUserId: 'user-1',
-    vendorType: 'BUSINESS',
+     businessType: 'BUSINESS',
     status: 'PENDING_VERIFICATION',
     operationalStatus: 'OFFLINE',
     onboardingStatus: 'DRAFT',
@@ -161,38 +161,56 @@ describe('OnboardingService', () => {
 
     expect(result.vendorId).toBe('vendor-1');
     expect(result.status).toBe('DRAFT');
-    expect(result.currentSection).toBe('BUSINESS_INFO');
+    expect(result.currentSection).toBe('BUSINESS_INFO_AND_OWNER');
     expect(result.completedSections).toEqual([]);
   });
 
-  it('saves OWNER_DETAILS when the owner userId matches the caller', async () => {
+  function businessInfoAndOwner(owner: Record<string, unknown> = {}) {
+    return {
+      section: 'BUSINESS_INFO_AND_OWNER',
+      data: {
+        businessInfo: {
+          businessType: 'BUSINESS',
+          businessName: 'ABC Car Wash',
+          contactName: 'Priya',
+          phoneNumber: '+919876543210',
+        },
+        ownerDetails: {
+          fullName: 'Priya Sharma',
+          designation: 'Founder',
+          email: 'priya@example.com',
+          phoneNumber: '+919037243199',
+          ...owner,
+        },
+      },
+    };
+  }
+
+  it('writes business info and owner as separate records in one transact', async () => {
     const result = await service.updatevendoronboarding(
       authRequest({
-        body: {
-          section: 'OWNER_DETAILS',
-          data: {
-            userId: 'user-1',
-            fullName: 'Priya Sharma',
-            designation: 'Founder',
-            email: 'priya@example.com',
-            phoneNumber: '+919037243199',
-          },
-        },
+        body: businessInfoAndOwner({ userId: 'user-1' }),
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    expect(vendorsRepository.putSection).toHaveBeenCalledTimes(1);
+    const savedProfile = vendorsRepository.putSection.mock.calls[0][0];
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       SK: string;
       userId: string;
       fullName: string;
-    };
-    expect(sectionItem.SK).toBe('OWNER');
-    expect(sectionItem.userId).toBe('user-1');
-    expect(sectionItem.fullName).toBe('Priya Sharma');
-    expect(result.completedSections).toContain('OWNER_DETAILS');
+    }>;
+    expect(savedProfile.SK).toBe('PROFILE');
+    expect(savedProfile.businessName).toBe('ABC Car Wash');
+    expect(sectionItems).toHaveLength(1);
+    expect(sectionItems[0].SK).toBe('OWNER');
+    expect(sectionItems[0].userId).toBe('user-1');
+    expect(sectionItems[0].fullName).toBe('Priya Sharma');
+    expect(result.completedSections).toContain('BUSINESS_INFO_AND_OWNER');
+    expect(result.status).toBe('IN_PROGRESS');
   });
 
-  it('still forbids OWNER_DETAILS updates from a caller who does not own the vendor', async () => {
+  it('still forbids business info and owner updates from a caller who does not own the vendor', async () => {
     vendorsRepository.getVendorById.mockResolvedValue(
       vendorItem({ ownerUserId: 'other-user' }),
     );
@@ -200,46 +218,34 @@ describe('OnboardingService', () => {
     await expect(
       service.updatevendoronboarding(
         authRequest({
-          body: {
-            section: 'OWNER_DETAILS',
-            data: {
-              userId: 'user_1788582970668',
-              fullName: 'Priya Sharma',
-            },
-          },
+          body: businessInfoAndOwner({ userId: 'user_1788582970668' }),
         }),
       ),
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('keeps the profile ownerUserId when OWNER_DETAILS sends a generated user id', async () => {
+  it('keeps the profile ownerUserId when owner details send a generated user id', async () => {
     const result = await service.updatevendoronboarding(
       authRequest({
-        body: {
-          section: 'OWNER_DETAILS',
-          data: {
-            userId: 'user_1788582970668',
-            fullName: 'Priya Sharma',
-            designation: 'Founder',
-            email: 'prasanth4@yopmail.com',
-            phoneNumber: '+919037243199',
-          },
-        },
+        body: businessInfoAndOwner({
+          userId: 'user_1788582970668',
+          email: 'prasanth4@yopmail.com',
+        }),
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       userId: string;
       GSI1PK: string;
       GSI1SK: string;
-    };
-    expect(sectionItem.userId).toBe('user-1');
-    expect(sectionItem.GSI1PK).toBe('OWNER#user-1');
-    expect(sectionItem.GSI1SK).toBe('VENDOR#vendor-1');
+    }>;
+    expect(sectionItems[0].userId).toBe('user-1');
+    expect(sectionItems[0].GSI1PK).toBe('OWNER#user-1');
+    expect(sectionItems[0].GSI1SK).toBe('VENDOR#vendor-1');
     expect(result.sections.OWNER_DETAILS?.userId).toBe('user-1');
   });
 
-  it('keeps the existing profile owner when an admin saves OWNER_DETAILS', async () => {
+  it('keeps the existing profile owner when an admin saves owner details', async () => {
     vendorsRepository.getVendorById.mockResolvedValue(
       vendorItem({ ownerUserId: 'other-owner' }),
     );
@@ -252,56 +258,26 @@ describe('OnboardingService', () => {
         context: {
           userContext: { userId: 'admin-1', roles: ['ADMIN'] },
         },
-        body: {
-          section: 'OWNER_DETAILS',
-          data: {
-            userId: 'user_1788582970668',
-            fullName: 'Priya Sharma',
-            designation: 'Founder',
-          },
-        },
+        body: businessInfoAndOwner({ userId: 'user_1788582970668' }),
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       userId: string;
       GSI1PK: string;
-    };
-    expect(sectionItem.userId).toBe('other-owner');
-    expect(sectionItem.GSI1PK).toBe('OWNER#other-owner');
+    }>;
+    expect(sectionItems[0].userId).toBe('other-owner');
+    expect(sectionItems[0].GSI1PK).toBe('OWNER#other-owner');
     expect(result.sections.OWNER_DETAILS?.userId).toBe('other-owner');
   });
 
-  it('updates BUSINESS_INFO in place and marks the section complete', async () => {
-    const result = await service.updatevendoronboarding(
-      authRequest({
-        body: {
-          section: 'BUSINESS_INFO',
-          data: {
-            vendorType: 'BUSINESS',
-            businessName: 'ABC Car Wash',
-            contactName: 'Priya',
-            phoneNumber: '+919876543210',
-          },
-        },
-      }),
-    );
-
-    expect(vendorsRepository.putSection).toHaveBeenCalledTimes(1);
-    const savedProfile = vendorsRepository.putSection.mock.calls[0][0];
-    expect(savedProfile.SK).toBe('PROFILE');
-    expect(savedProfile.businessName).toBe('ABC Car Wash');
-    expect(result.completedSections).toContain('BUSINESS_INFO');
-    expect(result.status).toBe('IN_PROGRESS');
-  });
-
-  it('upserts ADDRESS on the deterministic ADDRESS sort key', async () => {
+  it('writes address and branch as separate records in one transact', async () => {
     vendorsRepository.queryVendorItems.mockResolvedValue([
       vendorItem({
         businessName: 'ABC Car Wash',
         contactName: 'Priya',
         phoneNumber: '+919876543210',
-        vendorType: 'BUSINESS',
+         businessType: 'BUSINESS',
       }),
       ownerItem(),
       addressItem(),
@@ -310,27 +286,34 @@ describe('OnboardingService', () => {
     await service.updatevendoronboarding(
       authRequest({
         body: {
-          section: 'ADDRESS',
+          section: 'SERVICE_LOCATION_AND_COVERAGE',
           data: {
-            addressLine1: '22 Residency',
-            city: 'Kochi',
-            state: 'KL',
-            country: 'IN',
-            postalCode: '682001',
+            address: {
+              addressLine1: '22 Residency',
+              city: 'Kochi',
+              state: 'KL',
+              country: 'IN',
+              postalCode: '682001',
+            },
+            branch: { name: 'Main' },
           },
         },
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       SK: string;
-      city: string;
-    };
-    expect(sectionItem.SK).toBe('ADDRESS');
-    expect(sectionItem.city).toBe('Kochi');
+      city?: string;
+      name?: string;
+    }>;
+    expect(sectionItems).toHaveLength(2);
+    expect(sectionItems[0].SK).toBe('ADDRESS');
+    expect(sectionItems[0].city).toBe('Kochi');
+    expect(sectionItems[1].SK).toMatch(/^BRANCH#/);
+    expect(sectionItems[1].name).toBe('Main');
   });
 
-  it('does not create a second branch when BRANCH is saved again without branchId', async () => {
+  it('does not create a second branch when coverage is saved again without branchId', async () => {
     const existingBranch = {
       PK: 'VENDOR#vendor-1',
       SK: 'BRANCH#branch-1',
@@ -354,20 +337,29 @@ describe('OnboardingService', () => {
     await service.updatevendoronboarding(
       authRequest({
         body: {
-          section: 'BRANCH',
-          data: { name: 'Updated Main' },
+          section: 'SERVICE_LOCATION_AND_COVERAGE',
+          data: {
+            address: {
+              addressLine1: '22 Residency',
+              city: 'Kochi',
+              state: 'KL',
+              country: 'IN',
+              postalCode: '682001',
+            },
+            branch: { name: 'Updated Main' },
+          },
         },
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       SK: string;
-      branchId: string;
-      name: string;
-    };
-    expect(sectionItem.SK).toBe('BRANCH#branch-1');
-    expect(sectionItem.branchId).toBe('branch-1');
-    expect(sectionItem.name).toBe('Updated Main');
+      branchId?: string;
+      name?: string;
+    }>;
+    expect(sectionItems[1].SK).toBe('BRANCH#branch-1');
+    expect(sectionItems[1].branchId).toBe('branch-1');
+    expect(sectionItems[1].name).toBe('Updated Main');
   });
 
   it('upserts DOCUMENTS by type instead of creating duplicates', async () => {
@@ -394,7 +386,7 @@ describe('OnboardingService', () => {
     const result = await service.updatevendoronboarding(
       authRequest({
         body: {
-          section: 'DOCUMENTS',
+          section: 'BUSINESS_VERIFICATION',
           data: {
             documentType: 'GST_REGISTRATION',
             fileName: 'gst.pdf',
@@ -405,12 +397,12 @@ describe('OnboardingService', () => {
       }),
     );
 
-    const sectionItem = vendorsRepository.putSection.mock.calls[0][1] as {
+    const sectionItems = vendorsRepository.putSection.mock.calls[0][1] as Array<{
       documentId: string;
       fileName: string;
-    };
-    expect(sectionItem.documentId).toBe('doc-1');
-    expect(sectionItem.fileName).toBe('gst.pdf');
+    }>;
+    expect(sectionItems[0].documentId).toBe('doc-1');
+    expect(sectionItems[0].fileName).toBe('gst.pdf');
     expect(result.sections.DOCUMENTS?.[0].uploadUrl).toBe(
       'https://s3.example/upload',
     );
@@ -442,7 +434,7 @@ describe('OnboardingService', () => {
   it('persists PENDING_REVIEW and applicationId when the last required section is saved', async () => {
     vendorsRepository.getVendorById.mockResolvedValue(
       vendorItem({
-        vendorType: 'BUSINESS',
+         businessType: 'BUSINESS',
         businessName: 'ABC Car Wash',
         contactName: 'Priya',
         phoneNumber: '+919876543210',
@@ -451,7 +443,7 @@ describe('OnboardingService', () => {
     );
     vendorsRepository.queryVendorItems.mockResolvedValue([
       vendorItem({
-        vendorType: 'BUSINESS',
+         businessType: 'BUSINESS',
         businessName: 'ABC Car Wash',
         contactName: 'Priya',
         phoneNumber: '+919876543210',
@@ -524,7 +516,7 @@ describe('OnboardingService', () => {
           correlationId: 'corr-onboarding-1',
         },
         body: {
-          section: 'BANK_DETAILS',
+          section: 'BANK_AND_PAYOUT_DETAILS',
           data: {
             accountHolderName: 'Priya',
             accountNumber: '123456789012',
@@ -559,7 +551,7 @@ describe('OnboardingService', () => {
   it('rejects submit-review when a required document is still uploading', async () => {
     vendorsRepository.getVendorById.mockResolvedValue(
       vendorItem({
-        vendorType: 'BUSINESS',
+         businessType: 'BUSINESS',
         businessName: 'ABC Car Wash',
         contactName: 'Priya',
         phoneNumber: '+919876543210',
@@ -568,7 +560,7 @@ describe('OnboardingService', () => {
     );
     vendorsRepository.queryVendorItems.mockResolvedValue([
       vendorItem({
-        vendorType: 'BUSINESS',
+         businessType: 'BUSINESS',
         businessName: 'ABC Car Wash',
         contactName: 'Priya',
         phoneNumber: '+919876543210',
@@ -644,7 +636,7 @@ describe('OnboardingService', () => {
 
   it('submits for review when every required document is uploaded', async () => {
     const profile = vendorItem({
-      vendorType: 'BUSINESS',
+       businessType: 'BUSINESS',
       businessName: 'ABC Car Wash',
       contactName: 'Priya',
       phoneNumber: '+919876543210',

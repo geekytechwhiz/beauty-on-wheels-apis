@@ -172,6 +172,8 @@ custom:
               properties:
                 id:
                   type: string
+                vendorId:
+                  type: string
                 categoryId:
                   type: string
                 name:
@@ -209,6 +211,8 @@ custom:
                     properties:
                       id:
                         type: string
+                      vendorId:
+                        type: string
                       categoryId:
                         type: string
                       name:
@@ -241,6 +245,8 @@ custom:
               properties:
                 id:
                   type: string
+                vendorId:
+                  type: string
                 name:
                   type: string
                 description:
@@ -265,6 +271,8 @@ custom:
                     properties:
                       id:
                         type: string
+                      vendorId:
+                        type: string
                       name:
                         type: string
                       description:
@@ -283,6 +291,8 @@ custom:
               type: object
               properties:
                 id:
+                  type: string
+                vendorId:
                   type: string
                 name:
                   type: string
@@ -303,6 +313,8 @@ custom:
                     type: object
                     properties:
                       id:
+                        type: string
+                      vendorId:
                         type: string
                       name:
                         type: string
@@ -639,8 +651,19 @@ functions:
             200:
               description: "OK"
           documentation:
-            summary: List services
-            description: List services
+            summary: List services for a vendor
+            description: Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the services
+                required: true
+                schema:
+                  type: string
+              - name: categoryId
+                description: Optional master category
+                required: false
+                schema:
+                  type: string
             tags:
               - Services
             methodResponses:
@@ -672,8 +695,8 @@ functions:
             201:
               description: "Created"
           documentation:
-            summary: Create service
-            description: Create service
+            summary: Create a vendor service
+            description: Creates a service for vendorId under a master category. vendorId is stored on the service and cannot be changed later.
             tags:
               - Services
             methodResponses:
@@ -710,7 +733,18 @@ functions:
               description: "OK"
           documentation:
             summary: Get service
-            description: Get a catalog service. categoryId is optional; when omitted the service is resolved by service id.
+            description: Gets one service owned by vendorId. categoryId is optional.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the service
+                required: true
+                schema:
+                  type: string
+              - name: categoryId
+                description: Optional parent category
+                required: false
+                schema:
+                  type: string
             tags:
               - Services
             methodResponses:
@@ -747,8 +781,19 @@ functions:
             200:
               description: "Updated"
           documentation:
-            summary: Update service
-            description: Update service
+            summary: Update a vendor service
+            description: Updates a service owned by vendorId. vendorId and categoryId cannot be changed.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the service
+                required: true
+                schema:
+                  type: string
+              - name: categoryId
+                description: Optional parent category
+                required: false
+                schema:
+                  type: string
             tags:
               - Services
             methodResponses:
@@ -789,8 +834,19 @@ functions:
             204:
               description: "Deleted"
           documentation:
-            summary: Delete service
-            description: Delete service
+            summary: Delete a vendor service
+            description: Deletes a service owned by vendorId when no add-ons remain.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the service
+                required: true
+                schema:
+                  type: string
+              - name: categoryId
+                description: Optional parent category
+                required: false
+                schema:
+                  type: string
             tags:
               - Services
             methodResponses:
@@ -824,8 +880,14 @@ functions:
             200:
               description: "OK"
           documentation:
-            summary: List packages
-            description: List packages
+            summary: List packages for a vendor
+            description: Lists packages owned by vendorId.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the packages
+                required: true
+                schema:
+                  type: string
             tags:
               - Packages
             methodResponses:
@@ -857,8 +919,8 @@ functions:
             201:
               description: "Created"
           documentation:
-            summary: Create package
-            description: Create package
+            summary: Create a vendor package
+            description: Creates a package for vendorId. Referenced services and add-ons must belong to the same vendor.
             tags:
               - Packages
             methodResponses:
@@ -894,8 +956,14 @@ functions:
             200:
               description: "OK"
           documentation:
-            summary: Get package
-            description: Get package
+            summary: Get a vendor package
+            description: Gets one package owned by vendorId.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the package
+                required: true
+                schema:
+                  type: string
             tags:
               - Packages
             methodResponses:
@@ -932,8 +1000,14 @@ functions:
             200:
               description: "Updated"
           documentation:
-            summary: Update package
-            description: Update package
+            summary: Update a vendor package
+            description: Updates a package owned by vendorId. vendorId cannot be changed.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the package
+                required: true
+                schema:
+                  type: string
             tags:
               - Packages
             methodResponses:
@@ -974,8 +1048,14 @@ functions:
             204:
               description: "Deleted"
           documentation:
-            summary: Delete package
-            description: Delete package
+            summary: Delete a vendor package
+            description: Deletes a package owned by vendorId.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the package
+                required: true
+                schema:
+                  type: string
             tags:
               - Packages
             methodResponses:
@@ -1082,8 +1162,19 @@ functions:
             200:
               description: "OK"
           documentation:
-            summary: List add-ons
-            description: List add-ons
+            summary: List add-ons for a vendor
+            description: Lists add-ons owned by vendorId. serviceId and categoryId are optional filters.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the add-ons
+                required: true
+                schema:
+                  type: string
+              - name: serviceId
+                description: Optional parent service
+                required: false
+                schema:
+                  type: string
             tags:
               - Add-ons
             methodResponses:
@@ -1115,8 +1206,8 @@ functions:
             201:
               description: "Created"
           documentation:
-            summary: Create add-on
-            description: Create add-on
+            summary: Create a vendor add-on
+            description: Creates an add-on for vendorId on a service owned by the same vendor.
             tags:
               - Add-ons
             methodResponses:
@@ -1152,8 +1243,14 @@ functions:
             200:
               description: "OK"
           documentation:
-            summary: Get add-on
-            description: Get add-on
+            summary: Get a vendor add-on
+            description: Gets one add-on owned by vendorId.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the add-on
+                required: true
+                schema:
+                  type: string
             tags:
               - Add-ons
             methodResponses:
@@ -1190,8 +1287,14 @@ functions:
             200:
               description: "Updated"
           documentation:
-            summary: Update add-on
-            description: Update add-on
+            summary: Update a vendor add-on
+            description: Updates an add-on owned by vendorId. vendorId cannot be changed.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the add-on
+                required: true
+                schema:
+                  type: string
             tags:
               - Add-ons
             methodResponses:
@@ -1232,8 +1335,14 @@ functions:
             204:
               description: "Deleted"
           documentation:
-            summary: Delete add-on
-            description: Delete add-on
+            summary: Delete a vendor add-on
+            description: Deletes an add-on owned by vendorId.
+            queryParams:
+              - name: vendorId
+                description: Vendor that owns the add-on
+                required: true
+                schema:
+                  type: string
             tags:
               - Add-ons
             methodResponses:
@@ -1288,6 +1397,12 @@ resources:
             AttributeType: S
 
           - AttributeName: GSI1SK
+            AttributeType: S
+
+          - AttributeName: GSI2PK
+            AttributeType: S
+
+          - AttributeName: GSI2SK
             AttributeType: S
 
         KeySchema:
@@ -1348,6 +1463,15 @@ resources:
               - AttributeName: GSI1PK
                 KeyType: HASH
               - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+          - IndexName: GSI2
+            KeySchema:
+              - AttributeName: GSI2PK
+                KeyType: HASH
+              - AttributeName: GSI2SK
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL

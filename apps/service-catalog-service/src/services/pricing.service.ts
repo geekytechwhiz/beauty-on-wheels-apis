@@ -152,8 +152,8 @@ export class PricingService {
     vehicleType: string,
   ): Promise<PricedSelection> {
     const services = await this.loadServices(selection);
-    const packages = await this.loadPackages(selection.packageIds);
-    const addOns = await this.loadAddOns(selection.addOnIds);
+    const packages = await this.loadPackages(selection.packageIds, selection.vendorId);
+    const addOns = await this.loadAddOns(selection.addOnIds, selection.vendorId);
     this.assertVehicleCompatibility(vehicleType, services, packages);
     const vendorPrices = selection.vendorId
       ? await this.vendorPricing.getPricing(selection.vendorId)
@@ -326,6 +326,13 @@ export class PricingService {
           "SERVICE_NOT_FOUND",
         );
       }
+      this.assertOwnedByVendor(
+        service.vendorId,
+        selection.vendorId,
+        "Service",
+        item.serviceId,
+        "SERVICE_NOT_FOUND",
+      );
       if (!service.active) {
         throw new BaseError(
           `Service is not active: ${item.serviceId}`,
@@ -338,7 +345,10 @@ export class PricingService {
     return services;
   }
 
-  private async loadPackages(packageIds: readonly string[]): Promise<Array<{
+  private async loadPackages(
+    packageIds: readonly string[],
+    vendorId?: string,
+  ): Promise<Array<{
     packageEntity: PackageEntity;
     services: ServiceEntity[];
   }>> {
@@ -362,6 +372,13 @@ export class PricingService {
           "CATALOG_ENTITY_INACTIVE",
         );
       }
+      this.assertOwnedByVendor(
+        packageEntity.vendorId,
+        vendorId,
+        "Package",
+        packageId,
+        "PACKAGE_NOT_FOUND",
+      );
       const itemRefs = await this.packagesRepository.listPackageServiceItems(packageId);
       if (itemRefs.length === 0) {
         throw new BaseError(
@@ -373,7 +390,7 @@ export class PricingService {
       const services: ServiceEntity[] = [];
       for (const item of itemRefs) {
         const service = await this.servicesRepository.findByServiceId(item.refId);
-        if (!service || !service.active) {
+        if (!service || !service.active || service.vendorId !== packageEntity.vendorId) {
           throw new BaseError(
             `Package references an unavailable service: ${item.refId}`,
             400,
@@ -390,7 +407,10 @@ export class PricingService {
     return packages;
   }
 
-  private async loadAddOns(addOnIds: readonly string[]): Promise<AddonEntity[]> {
+  private async loadAddOns(
+    addOnIds: readonly string[],
+    vendorId?: string,
+  ): Promise<AddonEntity[]> {
     const addOns: AddonEntity[] = [];
     for (const addonId of addOnIds) {
       const addon = await this.addOnsRepository.findByAddonId(addonId);
@@ -408,9 +428,25 @@ export class PricingService {
           "CATALOG_ENTITY_INACTIVE",
         );
       }
+      this.assertOwnedByVendor(addon.vendorId, vendorId, "Add-on", addonId, "ADDON_NOT_FOUND");
       addOns.push(await this.addOnsRepository.ensureAddonVersion(addon));
     }
     return addOns;
+  }
+
+  private assertOwnedByVendor(
+    ownerId: string | undefined,
+    vendorId: string | undefined,
+    label: string,
+    id: string,
+    code: string,
+  ): void {
+    if (!vendorId) {
+      return;
+    }
+    if (ownerId !== vendorId) {
+      throw new BaseError(`${label} not found: ${id}`, 404, code);
+    }
   }
 
   private assertVehicleCompatibility(

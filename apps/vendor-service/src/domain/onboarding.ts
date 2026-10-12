@@ -1,31 +1,26 @@
 export const ONBOARDING_SECTION = {
-  BUSINESS_INFO: 'BUSINESS_INFO',
-  OWNER_DETAILS: 'OWNER_DETAILS',
-  ADDRESS: 'ADDRESS',
-  BRANCH: 'BRANCH',
-  DOCUMENTS: 'DOCUMENTS',
-  BANK_DETAILS: 'BANK_DETAILS',
+  BUSINESS_INFO_AND_OWNER: 'BUSINESS_INFO_AND_OWNER',
+  SERVICE_LOCATION_AND_COVERAGE: 'SERVICE_LOCATION_AND_COVERAGE',
+  BUSINESS_VERIFICATION: 'BUSINESS_VERIFICATION',
+  BANK_AND_PAYOUT_DETAILS: 'BANK_AND_PAYOUT_DETAILS',
 } as const;
 
 export type OnboardingSection =
   (typeof ONBOARDING_SECTION)[keyof typeof ONBOARDING_SECTION];
 
 export const ONBOARDING_SECTION_ORDER: OnboardingSection[] = [
-  ONBOARDING_SECTION.BUSINESS_INFO,
-  ONBOARDING_SECTION.OWNER_DETAILS,
-  ONBOARDING_SECTION.ADDRESS,
-  ONBOARDING_SECTION.BRANCH,
-  ONBOARDING_SECTION.DOCUMENTS,
-  ONBOARDING_SECTION.BANK_DETAILS,
+  ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER,
+  ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE,
+  ONBOARDING_SECTION.BUSINESS_VERIFICATION,
+  ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS,
 ];
 
 /** Sections that make a vendor eligible to request email verification. */
 export const EMAIL_VERIFICATION_REQUIRED_ONBOARDING_SECTIONS = [
-  ONBOARDING_SECTION.BUSINESS_INFO,
-  ONBOARDING_SECTION.OWNER_DETAILS,
-  ONBOARDING_SECTION.ADDRESS,
-  ONBOARDING_SECTION.BRANCH,
-  ONBOARDING_SECTION.BANK_DETAILS,
+  ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER   ,
+  ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE,
+  ONBOARDING_SECTION.BUSINESS_VERIFICATION,
+  ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS,
 ] as const satisfies readonly OnboardingSection[];
 
 export function hasCompletedEmailVerificationSections(
@@ -104,13 +99,13 @@ export interface ComputedOnboardingState {
 }
 
 export function isBusinessInfoComplete(input: {
-  vendorType?: string;
+   businessType?: string;
   businessName?: string;
   contactName?: string;
   phoneNumber?: string;
 }): boolean {
   return Boolean(
-    input.vendorType?.trim() &&
+    input. businessType?.trim() &&
       input.businessName?.trim() &&
       input.contactName?.trim() &&
       input.phoneNumber?.trim(),
@@ -166,29 +161,23 @@ export function computeOnboardingState(
 ): ComputedOnboardingState {
   const completedSections: OnboardingSection[] = [];
 
-  if (input.hasBusinessInfo) {
-    completedSections.push(ONBOARDING_SECTION.BUSINESS_INFO);
+  if (input.hasBusinessInfo && input.hasOwner) {
+    completedSections.push(ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER);
   }
-  if (input.hasOwner) {
-    completedSections.push(ONBOARDING_SECTION.OWNER_DETAILS);
-  }
-  if (input.hasAddress) {
-    completedSections.push(ONBOARDING_SECTION.ADDRESS);
-  }
-  if (input.hasBranch) {
-    completedSections.push(ONBOARDING_SECTION.BRANCH);
+  if (input.hasAddress && input.hasBranch) {
+    completedSections.push(ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE);
   }
   if (areRequiredDocumentsComplete(input.documentTypes)) {
-    completedSections.push(ONBOARDING_SECTION.DOCUMENTS);
+    completedSections.push(ONBOARDING_SECTION.BUSINESS_VERIFICATION);
   }
   if (input.hasBankDetails) {
-    completedSections.push(ONBOARDING_SECTION.BANK_DETAILS);
+    completedSections.push(ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS);
   }
 
   const currentSection =
     ONBOARDING_SECTION_ORDER.find(
       (section) => !completedSections.includes(section),
-    ) ?? ONBOARDING_SECTION.BANK_DETAILS;
+    ) ?? ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS;
 
   let status: OnboardingStatus = ONBOARDING_STATUS.DRAFT;
   if (completedSections.length === ONBOARDING_SECTION_ORDER.length) {

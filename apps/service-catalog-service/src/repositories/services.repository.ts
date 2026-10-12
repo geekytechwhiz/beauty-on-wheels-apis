@@ -9,6 +9,7 @@ import {
     isConditionalWriteFailure,
 } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
+import { vendorCatalogQuery } from "./vendor-index-query";
 import {
     ServiceEntity,
     ServiceLookupEntity,
@@ -50,6 +51,47 @@ export class ServicesRepository extends BaseRepository {
         }
         const service = await this.findById(lookup.categoryId, serviceId);
         return service?.entityType === "SERVICE" ? service : null;
+    }
+
+    /**
+     * Every service owned by one vendor. Optional category narrows the sort-key prefix.
+     * Vehicle type and duration are filters on that vendor partition.
+     */
+    async listByVendor(
+        vendorId: string,
+        params?: {
+            categoryId?: string;
+            activeOnly?: boolean;
+            vehicleType?: string;
+            durationMinutes?: number;
+            limit?: number;
+            lastEvaluatedKey?: Record<string, unknown>;
+        }
+    ): Promise<{ items: ServiceEntity[]; lastEvaluatedKey?: Record<string, unknown> }> {
+        const extraFilters: string[] = [];
+        const extraValues: Record<string, unknown> = {};
+        if (params?.vehicleType) {
+            extraFilters.push("contains(vehicleTypes, :vehicleType)");
+            extraValues[":vehicleType"] = params.vehicleType;
+        }
+        if (params?.durationMinutes !== undefined) {
+            extraFilters.push("durationMinutes = :durationMinutes");
+            extraValues[":durationMinutes"] = params.durationMinutes;
+        }
+
+        return this.queryPage<ServiceEntity>(vendorCatalogQuery({
+            tableName: TABLE(),
+            vendorId,
+            sortKeyPrefix: params?.categoryId
+                ? CatalogKeyBuilder.vendorServiceCategoryPrefix(params.categoryId)
+                : CatalogKeyBuilder.vendorServicePrefix(),
+            entityType: "SERVICE",
+            activeOnly: params?.activeOnly,
+            extraFilters,
+            extraValues,
+            limit: params?.limit,
+            lastEvaluatedKey: params?.lastEvaluatedKey,
+        }));
     }
 
     /**
@@ -169,8 +211,12 @@ export class ServicesRepository extends BaseRepository {
     /**
      * Search by name within a category (GSI1 — global name search).
      */
-    async findByName(name: string, categoryId?: string): Promise<ServiceEntity | null> {
-        const queryParams: any = {
+    async findByName(
+        name: string,
+        categoryId: string,
+        vendorId: string,
+    ): Promise<ServiceEntity | null> {
+        return this.queryOne<ServiceEntity>({
             TableName: TABLE(),
             IndexName: GSI1_INDEX,
             KeyConditionExpression: "#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk",
@@ -180,16 +226,9 @@ export class ServicesRepository extends BaseRepository {
             },
             ExpressionAttributeValues: {
                 ":gsi1pk": CatalogKeyBuilder.gsi1pk(name),
-                ":gsi1sk": CatalogKeyBuilder.gsi1sk("SERVICE"),
+                ":gsi1sk": CatalogKeyBuilder.gsi1VendorCategorySk("SERVICE", vendorId, categoryId),
             },
-        };
-
-        if (categoryId) {
-            queryParams.FilterExpression = "categoryId = :catId";
-            queryParams.ExpressionAttributeValues[":catId"] = categoryId;
-        }
-
-        return this.queryOne<ServiceEntity>(queryParams);
+        });
     }
 
     /**
@@ -350,6 +389,7 @@ function buildServiceLookup(entity: ServiceEntity, now: string): ServiceLookupEn
         PK: CatalogKeyBuilder.serviceLookupPk(entity.serviceId),
         SK: CatalogKeyBuilder.serviceLookupSk(),
         entityType: "SERVICE_LOOKUP",
+        vendorId: entity.vendorId,
         categoryId: entity.categoryId,
         serviceId: entity.serviceId,
         active: entity.active,

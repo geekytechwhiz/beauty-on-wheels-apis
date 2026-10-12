@@ -31,7 +31,7 @@ function vendorItem(): VendorDdbItem {
     SK: 'PROFILE',
     vendorId: 'vendor-1',
     ownerUserId: 'user-1',
-    vendorType: 'BUSINESS',
+     businessType: 'BUSINESS',
     status: 'PENDING_VERIFICATION',
     operationalStatus: 'OFFLINE',
     onboardingStatus: 'DRAFT',
@@ -100,7 +100,7 @@ describe('VendorsService', () => {
     expect(result.contactName).toBe('Priya Sharma');
     expect(result.gstNumber).toBe('29ABCDE1234F1Z5');
     expect(result.panNumber).toBe('ABCDE1234F');
-    expect(result.onboardingStatus).toBe('IN_PROGRESS');
+    expect(result.onboardingStatus).toBe('DRAFT');
     expect(result.status).toBe('PENDING_VERIFICATION');
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
     const [profile, owner, ownership] = repository.createVendor.mock.calls[0];
@@ -200,7 +200,7 @@ describe('VendorsService', () => {
     expect(result.panNumber).toBe('KL-401-0104');
     expect(result.profileImageUrl).toBe('prasanth@gmail.com');
     expect(result.onboardingStatus).toBe('DRAFT');
-    expect(result.currentSection).toBe('BUSINESS_INFO');
+    expect(result.currentSection).toBe('BUSINESS_INFO_AND_OWNER');
   });
 
   it('accepts blank optional fields on the create vendor request body', () => {

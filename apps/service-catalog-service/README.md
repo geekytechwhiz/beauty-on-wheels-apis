@@ -12,7 +12,9 @@ Bootstrap Completed
 
 ## Checkout pricing
 
-`offeringId` in a booking is a Service Catalog service id. Vendor Service does not create a second offering id. A vendor offering is the enabled flag and optional `priceOverride` for that same id.
+Master categories are platform data and are created by script. Services, packages, and add-ons belong to a vendor. Create sends `vendorId` in the body. List, get, update, and delete require the `vendorId` query parameter and only touch that vendor's rows. `vendorId` is stored on the row and is not changed by update.
+
+`offeringId` in a booking is a Service Catalog service id. Vendor Service does not create a second offering id. A vendor offering is the enabled flag and optional `priceOverride` for that same id. Pricing rejects a service, package, or add-on owned by a different vendor.
 
 `POST /pricing/calculate` returns `offeringVersion` when the request prices one service or one package for a vendor. That integer is the effective revision. It increments when the catalog input version, the applicable vendor overlay version, or a dependency version changes. It is not the sum or maximum of those versions. `pricingVersion` (`catalog-mvp-1`) identifies the calculator and is not the booking version.
 

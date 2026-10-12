@@ -17,8 +17,23 @@ describe('computeOnboardingState', () => {
     });
 
     expect(state.status).toBe(ONBOARDING_STATUS.DRAFT);
-    expect(state.currentSection).toBe(ONBOARDING_SECTION.BUSINESS_INFO);
+    expect(state.currentSection).toBe(ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER);
     expect(state.completedSections).toEqual([]);
+  });
+
+  it('keeps business info and owner incomplete until both records exist', () => {
+    const state = computeOnboardingState({
+      hasBusinessInfo: true,
+      hasOwner: false,
+      hasAddress: false,
+      hasBranch: false,
+      documentTypes: [],
+      hasBankDetails: false,
+    });
+
+    expect(state.status).toBe(ONBOARDING_STATUS.DRAFT);
+    expect(state.completedSections).toEqual([]);
+    expect(state.currentSection).toBe(ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER);
   });
 
   it('returns IN_PROGRESS and the next incomplete section', () => {
@@ -32,15 +47,15 @@ describe('computeOnboardingState', () => {
     });
 
     expect(state.status).toBe(ONBOARDING_STATUS.IN_PROGRESS);
-    expect(state.currentSection).toBe(ONBOARDING_SECTION.BRANCH);
+    expect(state.currentSection).toBe(
+      ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE,
+    );
     expect(state.completedSections).toEqual([
-      ONBOARDING_SECTION.BUSINESS_INFO,
-      ONBOARDING_SECTION.OWNER_DETAILS,
-      ONBOARDING_SECTION.ADDRESS,
+      ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER,
     ]);
   });
 
-  it('requires all three document types before DOCUMENTS is complete', () => {
+  it('requires all three document types before business verification is complete', () => {
     const incomplete = computeOnboardingState({
       hasBusinessInfo: true,
       hasOwner: true,
@@ -51,9 +66,9 @@ describe('computeOnboardingState', () => {
     });
 
     expect(incomplete.completedSections).not.toContain(
-      ONBOARDING_SECTION.DOCUMENTS,
+      ONBOARDING_SECTION.BUSINESS_VERIFICATION,
     );
-    expect(incomplete.currentSection).toBe(ONBOARDING_SECTION.DOCUMENTS);
+    expect(incomplete.currentSection).toBe(ONBOARDING_SECTION.BUSINESS_VERIFICATION);
   });
 
   it('returns PENDING_REVIEW only when every mandatory section is present', () => {
@@ -71,7 +86,12 @@ describe('computeOnboardingState', () => {
     });
 
     expect(state.status).toBe(ONBOARDING_STATUS.PENDING_REVIEW);
-    expect(state.completedSections).toHaveLength(6);
+    expect(state.completedSections).toEqual([
+      ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER,
+      ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE,
+      ONBOARDING_SECTION.BUSINESS_VERIFICATION,
+      ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS,
+    ]);
   });
 });
 

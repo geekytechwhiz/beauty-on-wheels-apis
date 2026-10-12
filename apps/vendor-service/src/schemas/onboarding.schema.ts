@@ -31,7 +31,7 @@ const AddressSchema = z
 
 export const BusinessInfoDataSchema = z
   .object({
-    vendorType: z.enum(['INDIVIDUAL', 'BUSINESS']),
+     businessType: z.enum(['INDIVIDUAL', 'BUSINESS']),
     businessName: z.string().min(2).max(150),
     contactName: z.string().min(2).max(100),
     phoneNumber: z.string().min(5).max(20),
@@ -97,13 +97,26 @@ export const BankDetailsDataSchema = z
   })
   .strict();
 
+export const BusinessInfoAndOwnerDataSchema = z
+  .object({
+    businessInfo: BusinessInfoDataSchema,
+    ownerDetails: OwnerDetailsDataSchema,
+  })
+  .strict();
+
+export const ServiceLocationAndCoverageDataSchema = z
+  .object({
+    address: AddressDataSchema,
+    branch: BranchDataSchema,
+  })
+  .strict();
+
 const SECTION_DATA_SCHEMAS = {
-  [ONBOARDING_SECTION.BUSINESS_INFO]: BusinessInfoDataSchema,
-  [ONBOARDING_SECTION.OWNER_DETAILS]: OwnerDetailsDataSchema,
-  [ONBOARDING_SECTION.ADDRESS]: AddressDataSchema,
-  [ONBOARDING_SECTION.BRANCH]: BranchDataSchema,
-  [ONBOARDING_SECTION.DOCUMENTS]: DocumentsDataSchema,
-  [ONBOARDING_SECTION.BANK_DETAILS]: BankDetailsDataSchema,
+  [ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER]: BusinessInfoAndOwnerDataSchema,
+  [ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE]:
+    ServiceLocationAndCoverageDataSchema,
+  [ONBOARDING_SECTION.BUSINESS_VERIFICATION]: DocumentsDataSchema,
+  [ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS]: BankDetailsDataSchema,
 } as const;
 
 export function validateUpdateOnboardingRequest(req: LambdaRequest) {

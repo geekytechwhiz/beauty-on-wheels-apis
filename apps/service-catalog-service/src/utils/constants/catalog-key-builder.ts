@@ -115,4 +115,40 @@ export const CatalogKeyBuilder = {
     /** GSI1 sk — entity type discriminator so name lookups can be scoped per type */
     gsi1sk: (entityType: string) => `TYPE#${entityType}`,
 
+    /**
+     * GSI1 sk for a vendor-owned name. Same display name may exist for another vendor.
+     * Packages use this key. Categories stay on `gsi1sk`.
+     */
+    gsi1VendorSk: (entityType: string, vendorId: string) =>
+        `TYPE#${entityType}#VENDOR#${vendorId}`,
+
+    /** Service names are unique per vendor and master category. */
+    gsi1VendorCategorySk: (entityType: string, vendorId: string, categoryId: string) =>
+        `TYPE#${entityType}#VENDOR#${vendorId}#CAT#${categoryId}`,
+
+    /* --------------------------------
+       GSI2 — vendor catalog
+    -------------------------------- */
+
+    /** GSI2 pk — every service, package, and add-on owned by one vendor. */
+    vendorPk: (vendorId: string) => `VENDOR#${vendorId}`,
+
+    vendorServiceSk: (categoryId: string, serviceId: string) =>
+        `SERVICE#${categoryId}#${serviceId}`,
+
+    vendorServicePrefix: () => `SERVICE#`,
+
+    vendorServiceCategoryPrefix: (categoryId: string) => `SERVICE#${categoryId}#`,
+
+    vendorPackageSk: (packageId: string) => `PACKAGE#${packageId}`,
+
+    vendorPackagePrefix: () => `PACKAGE#`,
+
+    vendorAddonSk: (serviceId: string, addonId: string) =>
+        `ADDON#${serviceId}#${addonId}`,
+
+    vendorAddonPrefix: () => `ADDON#`,
+
+    vendorAddonServicePrefix: (serviceId: string) => `ADDON#${serviceId}#`,
+
 };

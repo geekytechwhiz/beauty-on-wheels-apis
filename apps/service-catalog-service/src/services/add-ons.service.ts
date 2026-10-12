@@ -31,6 +31,7 @@ import {
     validateAddOnUpdate,
 } from "../schemas/add-ons.schema";
 import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
+import { assertVendorOwner, requireVendorId } from "../domain/vendor-scope";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { AddonEntity } from "../utils/types/catalog-domain.types";
 
@@ -72,6 +73,7 @@ export class AddOnsService {
             event: "getaddons_start",
         });
 
+        const vendorId = requireVendorId(request.params?.vendorId);
         const categoryId = request.params?.categoryId as string | undefined;
         const serviceId = request.params?.serviceId as string | undefined;
         const activeOnly = request.params?.active === "true";
@@ -82,17 +84,18 @@ export class AddOnsService {
             ? JSON.parse(Buffer.from(request.params.nextToken as string, "base64").toString())
             : undefined;
 
-        if (!categoryId || !serviceId) {
-            throw new BusinessRuleError("Both categoryId and serviceId query parameters are required");
+        if (serviceId) {
+            const service = categoryId
+                ? await this.servicesRepository.findById(categoryId, serviceId)
+                : await this.servicesRepository.findByServiceId(serviceId);
+            if (!service || service.vendorId !== vendorId) {
+                throw new NotFoundError(`Service not found: ${serviceId}`);
+            }
         }
 
-        // Validate parent hierarchy
-        const service = await this.servicesRepository.findById(categoryId, serviceId);
-        if (!service) {
-            throw new NotFoundError(`Service not found: ${serviceId}`);
-        }
-
-        const result = await this.repository.listByService(categoryId, serviceId, {
+        const result = await this.repository.listByVendor(vendorId, {
+            serviceId,
+            categoryId,
             activeOnly,
             limit,
             lastEvaluatedKey,
@@ -102,6 +105,7 @@ export class AddOnsService {
 
         this.logger.info({
             event: "getaddons_success",
+            vendorId,
             serviceId,
             count: items.length,
         });
@@ -135,7 +139,7 @@ export class AddOnsService {
         }
 
         const service = await this.servicesRepository.findById(body.categoryId, body.serviceId);
-        if (!service) {
+        if (!service || service.vendorId !== body.vendorId) {
             throw new NotFoundError(`Service not found: ${body.serviceId}`);
         }
         if (!category.active || !service.active) {
@@ -190,25 +194,19 @@ export class AddOnsService {
     ) {
 
         const addonId = request.params?.addonId as string;
-        const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const serviceId = request.params?.serviceId as string | undefined;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "getaddonid_start",
             addonId,
             serviceId,
             categoryId,
+            vendorId,
         });
 
-        if (!categoryId || !serviceId) {
-            throw new BusinessRuleError("Both categoryId and serviceId query parameters are required");
-        }
-
-        const entity = await this.repository.findById(categoryId, serviceId, addonId);
-
-        if (!entity) {
-            throw new NotFoundError(`Add-on not found: ${addonId}`);
-        }
+        const entity = await this.loadOwnedAddon(addonId, vendorId, categoryId, serviceId);
 
         this.logger.info({
             event: "getaddonid_success",
@@ -226,31 +224,24 @@ export class AddOnsService {
     ) {
 
         const addonId = request.params?.addonId as string;
-        const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const serviceId = request.params?.serviceId as string | undefined;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "putaddonid_start",
             addonId,
             serviceId,
             categoryId,
+            vendorId,
         });
-
-        if (!categoryId || !serviceId) {
-            throw new BusinessRuleError("Both categoryId and serviceId query parameters are required");
-        }
 
         const body = validateAddOnUpdate(request);
 
-        // Verify addon exists
-        const existing = await this.repository.findById(categoryId, serviceId, addonId);
-        if (!existing) {
-            throw new NotFoundError(`Add-on not found: ${addonId}`);
-        }
+        const existing = await this.loadOwnedAddon(addonId, vendorId, categoryId, serviceId);
 
-        // Name uniqueness check (only if name is changing)
         if (body.name && body.name.toLowerCase() !== existing.name.toLowerCase()) {
-            await this.assertAddonNameUnique(body.name, categoryId, serviceId);
+            await this.assertAddonNameUnique(body.name, existing.categoryId, existing.serviceId);
         }
 
         const now = new Date().toISOString();
@@ -294,29 +285,23 @@ export class AddOnsService {
     ) {
 
         const addonId = request.params?.addonId as string;
-        const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const serviceId = request.params?.serviceId as string | undefined;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "deleteaddonid_start",
             addonId,
             serviceId,
             categoryId,
+            vendorId,
         });
 
-        if (!categoryId || !serviceId) {
-            throw new BusinessRuleError("Both categoryId and serviceId query parameters are required");
-        }
-
-        // Verify addon exists
-        const existing = await this.repository.findById(categoryId, serviceId, addonId);
-        if (!existing) {
-            throw new NotFoundError(`Add-on not found: ${addonId}`);
-        }
+        const existing = await this.loadOwnedAddon(addonId, vendorId, categoryId, serviceId);
 
         try {
 
-            await this.repository.deleteAddon(categoryId, serviceId, addonId);
+            await this.repository.deleteAddon(existing.categoryId, existing.serviceId, addonId);
 
         } catch (err) {
 
@@ -347,6 +332,27 @@ export class AddOnsService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    private async loadOwnedAddon(
+        addonId: string,
+        vendorId: string,
+        categoryId?: string,
+        serviceId?: string,
+    ): Promise<AddonEntity> {
+        if ((categoryId && !serviceId) || (!categoryId && serviceId)) {
+            throw new BusinessRuleError(
+                "categoryId and serviceId must be supplied together",
+            );
+        }
+        const entity = categoryId && serviceId
+            ? await this.repository.findById(categoryId, serviceId, addonId)
+            : await this.repository.findByAddonId(addonId);
+        if (!entity) {
+            throw new NotFoundError(`Add-on not found: ${addonId}`);
+        }
+        assertVendorOwner(entity.vendorId, vendorId, "Add-on", addonId);
+        return entity;
+    }
+
     private async assertAddonNameUnique(
         name: string,
         categoryId: string,
@@ -367,6 +373,7 @@ export class AddOnsService {
 function mapAddonEntityToResponse(entity: AddonEntity) {
     return {
         id: entity.addonId,
+        vendorId: entity.vendorId,
         serviceId: entity.serviceId,
         categoryId: entity.categoryId,
         name: entity.name,
@@ -399,6 +406,7 @@ function buildAddonEntity(
         PK: pkVal,
         SK: skVal,
         entityType: "ADDON",
+        vendorId: input.vendorId,
         categoryId: input.categoryId,
         serviceId: input.serviceId,
         addonId,
@@ -411,6 +419,8 @@ function buildAddonEntity(
         version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
+        GSI2PK: CatalogKeyBuilder.vendorPk(input.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorAddonSk(input.serviceId, addonId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI3SK: lsi3Val,
@@ -447,6 +457,8 @@ function mergeAddonEntity(
         version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
+        GSI2PK: CatalogKeyBuilder.vendorPk(existing.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorAddonSk(existing.serviceId, existing.addonId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI5SK: lsi5Val,

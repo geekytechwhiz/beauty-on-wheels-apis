@@ -29,7 +29,7 @@
           "profileImageUrl": {
             "type": "string"
           },
-          "vendorType": {
+          "businessType": {
             "type": "string",
             "enum": [
               "INDIVIDUAL",
@@ -134,7 +134,7 @@
               "ownerUserId": {
                 "type": "string"
               },
-              "vendorType": {
+              "businessType": {
                 "type": "string",
                 "enum": [
                   "INDIVIDUAL",
@@ -299,7 +299,7 @@
                 "ownerUserId": {
                   "type": "string"
                 },
-                "vendorType": {
+                "businessType": {
                   "type": "string",
                   "enum": [
                     "INDIVIDUAL",
@@ -539,7 +539,7 @@
           "data": {
             "type": "object",
             "properties": {
-              "vendorType": {
+              "businessType": {
                 "type": "string",
                 "enum": [
                   "INDIVIDUAL",
@@ -2664,7 +2664,7 @@
       "patch": {
         "summary": "Save an onboarding section",
         "description": "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.",
-        "operationId": "updatevendoronboarding-ca54ec2a-2426-4be5-aaa0-fcff9ed839e6",
+        "operationId": "updatevendoronboarding-229b1130-7eab-4c47-8c6c-6d27fcfcdca0",
         "parameters": [
           {
             "name": "vendorId",
@@ -6460,7 +6460,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-6e06f845-71aa-413f-92e5-c89bce0bbe7e",
+        "operationId": "updatevendorstaff-7d458229-f54b-46c5-8647-a3e8d543a13c",
         "parameters": [
           {
             "name": "vendorId",

@@ -45,6 +45,7 @@ function service(): ServiceEntity {
     PK: 'CAT#cat-1',
     SK: 'SERVICE#svc-1',
     entityType: 'SERVICE',
+    vendorId: 'vendor-1',
     categoryId: 'cat-1',
     serviceId: 'svc-1',
     name: 'Premium Wash',

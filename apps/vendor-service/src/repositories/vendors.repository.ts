@@ -182,7 +182,7 @@ export class VendorsRepository extends BaseRepository {
 
   async putSection(
     profile: VendorDdbItem,
-    sectionItem?: Record<string, unknown>,
+    sectionItems: Array<Record<string, unknown>> = [],
   ): Promise<void> {
     const transactItems: Array<Record<string, unknown>> = [
       {
@@ -192,16 +192,13 @@ export class VendorsRepository extends BaseRepository {
           ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
         },
       },
-    ];
-
-    if (sectionItem) {
-      transactItems.push({
+      ...sectionItems.map((sectionItem) => ({
         Put: {
           TableName: this.getTableName(),
           Item: sectionItem,
         },
-      });
-    }
+      })),
+    ];
 
     await this.transactWrite({
       TransactItems: transactItems as never,

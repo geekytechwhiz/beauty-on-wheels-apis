@@ -8,7 +8,7 @@ import {
   VendorAddress,
   VendorStatus,
   VendorStatusReview,
-  VendorType,
+   businessType,
 } from '../types/api-types';
 import {
   VendorAddressDdbItem,
@@ -42,7 +42,7 @@ export class VendorsMapper {
     return {
       vendorId: item.vendorId,
       ownerUserId: item.ownerUserId,
-      vendorType: item.vendorType,
+       businessType: item. businessType,
       businessName: item.businessName,
       contactName: item.contactName,
       phoneNumber: item.phoneNumber,
@@ -85,7 +85,7 @@ export class VendorsMapper {
   static toInitialDdbItem(input: {
     vendorId: string;
     ownerUserId: string;
-    vendorType?: VendorType;
+     businessType?:  businessType;
     businessName?: string;
     contactName?: string;
     phoneNumber?: string;
@@ -98,10 +98,10 @@ export class VendorsMapper {
     const timestamp = new Date().toISOString();
     const status = DEFAULT_STATUS;
     const operationalStatus = DEFAULT_OPERATIONAL_STATUS;
-    const vendorType = input.vendorType ?? 'BUSINESS';
+    const  businessType = input. businessType ?? 'BUSINESS';
     const onboarding = computeOnboardingState({
       hasBusinessInfo: isBusinessInfoComplete({
-        vendorType,
+         businessType,
         businessName: input.businessName,
         contactName: input.contactName,
         phoneNumber: input.phoneNumber,
@@ -118,7 +118,7 @@ export class VendorsMapper {
       SK: VendorKeyBuilder.vendorSk(),
       vendorId: input.vendorId,
       ownerUserId: input.ownerUserId,
-      vendorType,
+       businessType,
       businessName: input.businessName,
       contactName: input.contactName,
       phoneNumber: input.phoneNumber,
@@ -149,7 +149,7 @@ export class VendorsMapper {
   static applyBusinessInfo(
     existing: VendorDdbItem,
     data: {
-      vendorType: VendorType;
+       businessType:  businessType;
       businessName: string;
       contactName: string;
       phoneNumber: string;
@@ -162,7 +162,7 @@ export class VendorsMapper {
   ): VendorDdbItem {
     return {
       ...existing,
-      vendorType: data.vendorType,
+       businessType: data. businessType,
       businessName: data.businessName,
       contactName: data.contactName,
       phoneNumber: data.phoneNumber,

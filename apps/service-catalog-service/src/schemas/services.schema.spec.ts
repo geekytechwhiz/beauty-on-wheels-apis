@@ -8,6 +8,7 @@ function request(body: unknown): LambdaRequest {
 
 describe('service validation', () => {
   const valid = {
+    vendorId: 'vendor-1',
     categoryId: 'cat-1',
     name: 'Premium Wash',
     durationMinutes: 45,

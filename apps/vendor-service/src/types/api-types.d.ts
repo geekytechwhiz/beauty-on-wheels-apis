@@ -7,7 +7,7 @@ export type VendorStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'IN
 
 export type OperationalStatus = 'ONLINE' | 'OFFLINE' | 'BUSY' | 'TEMPORARILY_UNAVAILABLE';
 
-export type VendorType = 'INDIVIDUAL' | 'BUSINESS';
+export type  businessType = 'INDIVIDUAL' | 'BUSINESS';
 
 export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BIKE';
 
@@ -16,12 +16,10 @@ export type StaffStatus = 'ACTIVE' | 'INACTIVE';
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 export type OnboardingSection =
-  | 'BUSINESS_INFO'
-  | 'OWNER_DETAILS'
-  | 'ADDRESS'
-  | 'BRANCH'
-  | 'DOCUMENTS'
-  | 'BANK_DETAILS';
+  | 'BUSINESS_INFO_AND_OWNER'
+  | 'SERVICE_LOCATION_AND_COVERAGE'
+  | 'BUSINESS_VERIFICATION'
+  | 'BANK_AND_PAYOUT_DETAILS';
 
 export type OnboardingStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'PENDING_REVIEW';
 
@@ -60,7 +58,7 @@ export interface CreateVendorRequest {
   gstNumber?: string;
   panNumber?: string;
   profileImageUrl?: string;
-  vendorType?: VendorType;
+   businessType?:  businessType;
 }
 
 export interface UpdateVendorRequest {
@@ -103,7 +101,7 @@ export interface UpdateOperationalStatusRequest {
 }
 
 export interface BusinessInfoData {
-  vendorType: VendorType;
+   businessType:  businessType;
   businessName: string;
   contactName: string;
   phoneNumber: string;
@@ -159,13 +157,21 @@ export interface BankDetailsData {
   accountType?: BankAccountType;
 }
 
+export interface BusinessInfoAndOwnerData {
+  businessInfo: BusinessInfoData;
+  ownerDetails: OwnerDetailsData;
+}
+
+export interface ServiceLocationAndCoverageData {
+  address: AddressData;
+  branch: BranchData;
+}
+
 export interface UpdateOnboardingRequest {
   section: OnboardingSection;
   data:
-    | BusinessInfoData
-    | OwnerDetailsData
-    | AddressData
-    | BranchData
+    | BusinessInfoAndOwnerData
+    | ServiceLocationAndCoverageData
     | DocumentsData
     | BankDetailsData;
 }
@@ -294,7 +300,7 @@ export interface OnboardingResponse {
 export interface Vendor {
   vendorId: string;
   ownerUserId: string;
-  vendorType?: VendorType;
+   businessType?:  businessType;
   businessName?: string;
   contactName?: string;
   phoneNumber?: string;

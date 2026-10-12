@@ -12,11 +12,13 @@ import {
   AddressData,
   BankDetailsData,
   BranchData,
+  BusinessInfoAndOwnerData,
   BusinessInfoData,
   DocumentsData,
   OnboardingResponse,
   OnboardingSection,
   OwnerDetailsData,
+  ServiceLocationAndCoverageData,
   Vendor,
 } from '../types/api-types';
 import {
@@ -141,7 +143,7 @@ export class OnboardingService {
           ? {
               BUSINESS_INFO: aggregate.profile.businessName
                 ? {
-                    vendorType: aggregate.profile.vendorType ?? 'BUSINESS',
+                     businessType: aggregate.profile. businessType ?? 'BUSINESS',
                     businessName: aggregate.profile.businessName,
                     contactName: aggregate.profile.contactName ?? '',
                     phoneNumber: aggregate.profile.phoneNumber ?? '',
@@ -172,7 +174,7 @@ export class OnboardingService {
   private async persistProfileAndSection(
     profile: VendorDdbItem,
     aggregate: VendorAggregate,
-    sectionItem?: Record<string, unknown>,
+    sectionItems: Array<Record<string, unknown>> = [],
   ): Promise<OnboardingResponse> {
     const previousOnboardingStatus = profile.onboardingStatus;
     aggregate.profile = profile;
@@ -233,7 +235,7 @@ export class OnboardingService {
     aggregate.profile = updatedProfile;
 
     try {
-      await this.vendorsRepository.putSection(updatedProfile, sectionItem);
+      await this.vendorsRepository.putSection(updatedProfile, sectionItems);
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         throw new NotFoundError('Vendor not found');
@@ -356,31 +358,36 @@ export class OnboardingService {
     let response: OnboardingResponse;
 
     switch (body.section) {
-      case ONBOARDING_SECTION.BUSINESS_INFO:
-        response = await this.saveBusinessInfo(
+      case ONBOARDING_SECTION.BUSINESS_INFO_AND_OWNER: {
+        const data = body.data as BusinessInfoAndOwnerData;
+        const profile = this.saveBusinessInfo(aggregate, data.businessInfo);
+        const owner = this.saveOwnerDetails(aggregate, data.ownerDetails);
+        response = await this.persistProfileAndSection(profile, aggregate, [
+          owner as unknown as Record<string, unknown>,
+        ]);
+        break;
+      }
+      case ONBOARDING_SECTION.SERVICE_LOCATION_AND_COVERAGE: {
+        const data = body.data as ServiceLocationAndCoverageData;
+        const address = this.saveAddress(aggregate, data.address);
+        const branch = await this.saveBranch(aggregate, data.branch);
+        response = await this.persistProfileAndSection(
+          aggregate.profile!,
           aggregate,
-          body.data as BusinessInfoData,
+          [
+            address as unknown as Record<string, unknown>,
+            branch as unknown as Record<string, unknown>,
+          ],
         );
         break;
-      case ONBOARDING_SECTION.OWNER_DETAILS:
-        response = await this.saveOwnerDetails(
-          aggregate,
-          body.data as OwnerDetailsData,
-        );
-        break;
-      case ONBOARDING_SECTION.ADDRESS:
-        response = await this.saveAddress(aggregate, body.data as AddressData);
-        break;
-      case ONBOARDING_SECTION.BRANCH:
-        response = await this.saveBranch(aggregate, body.data as BranchData);
-        break;
-      case ONBOARDING_SECTION.DOCUMENTS:
+      }
+      case ONBOARDING_SECTION.BUSINESS_VERIFICATION:
         response = await this.saveDocument(
           aggregate,
           body.data as DocumentsData,
         );
         break;
-      case ONBOARDING_SECTION.BANK_DETAILS:
+      case ONBOARDING_SECTION.BANK_AND_PAYOUT_DETAILS:
         response = await this.saveBank(
           aggregate,
           body.data as BankDetailsData,
@@ -400,19 +407,19 @@ export class OnboardingService {
     return response;
   }
 
-  private async saveBusinessInfo(
+  private saveBusinessInfo(
     aggregate: VendorAggregate,
     data: BusinessInfoData,
-  ): Promise<OnboardingResponse> {
+  ): VendorDdbItem {
     const profile = VendorsMapper.applyBusinessInfo(aggregate.profile!, data);
     aggregate.profile = profile;
-    return this.persistProfileAndSection(profile, aggregate);
+    return profile;
   }
 
-  private async saveOwnerDetails(
+  private saveOwnerDetails(
     aggregate: VendorAggregate,
     data: OwnerDetailsData,
-  ): Promise<OnboardingResponse> {
+  ) {
     const ownerUserId = aggregate.profile?.ownerUserId?.trim();
     if (!ownerUserId) {
       throw new ValidationError('Vendor owner is not set');
@@ -435,34 +442,26 @@ export class OnboardingService {
       { createdAt: aggregate.owner?.createdAt },
     );
     aggregate.owner = owner;
-    return this.persistProfileAndSection(
-      aggregate.profile!,
-      aggregate,
-      owner as unknown as Record<string, unknown>,
-    );
+    return owner;
   }
 
-  private async saveAddress(
+  private saveAddress(
     aggregate: VendorAggregate,
     data: AddressData,
-  ): Promise<OnboardingResponse> {
+  ): VendorAddressDdbItem {
     const address: VendorAddressDdbItem = VendorsMapper.toAddressDdbItem(
       aggregate.profile!.vendorId,
       data,
       { createdAt: aggregate.address?.createdAt },
     );
     aggregate.address = address;
-    return this.persistProfileAndSection(
-      aggregate.profile!,
-      aggregate,
-      address as unknown as Record<string, unknown>,
-    );
+    return address;
   }
 
   private async saveBranch(
     aggregate: VendorAggregate,
     data: BranchData,
-  ): Promise<OnboardingResponse> {
+  ): Promise<VendorBranchDdbItem> {
     const profile = aggregate.profile!;
     const existingId =
       data.branchId ??
@@ -495,12 +494,7 @@ export class OnboardingService {
     ];
     aggregate.branches = nextBranches;
     aggregate.profile = profile;
-
-    return this.persistProfileAndSection(
-      profile,
-      aggregate,
-      branch as unknown as Record<string, unknown>,
-    );
+    return branch;
   }
 
   private async saveDocument(
@@ -553,11 +547,9 @@ export class OnboardingService {
       document,
     ];
 
-    await this.persistProfileAndSection(
-      profile,
-      aggregate,
+    await this.persistProfileAndSection(profile, aggregate, [
       document as unknown as Record<string, unknown>,
-    );
+    ]);
 
     return this.toOnboardingResponse(aggregate, {
       documentId,
@@ -576,11 +568,9 @@ export class OnboardingService {
       { createdAt: aggregate.bank?.createdAt },
     );
     aggregate.bank = bank;
-    return this.persistProfileAndSection(
-      aggregate.profile!,
-      aggregate,
+    return this.persistProfileAndSection(aggregate.profile!, aggregate, [
       bank as unknown as Record<string, unknown>,
-    );
+    ]);
   }
 
   toVendorView(profile: VendorDdbItem, address?: VendorAddressDdbItem | null): Vendor {

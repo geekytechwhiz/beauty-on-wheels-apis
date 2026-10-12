@@ -81,6 +81,7 @@ export class CategoriesService {
 
         this.logger.info({
             event: "getcategories_success",
+            data: items,
             count: items.length,
         });
 

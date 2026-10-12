@@ -62,6 +62,9 @@
           "id": {
             "type": "string"
           },
+          "vendorId": {
+            "type": "string"
+          },
           "categoryId": {
             "type": "string"
           },
@@ -107,6 +110,9 @@
                 "id": {
                   "type": "string"
                 },
+                "vendorId": {
+                  "type": "string"
+                },
                 "categoryId": {
                   "type": "string"
                 },
@@ -150,6 +156,9 @@
           "id": {
             "type": "string"
           },
+          "vendorId": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -178,6 +187,9 @@
                 "id": {
                   "type": "string"
                 },
+                "vendorId": {
+                  "type": "string"
+                },
                 "name": {
                   "type": "string"
                 },
@@ -204,6 +216,9 @@
           "id": {
             "type": "string"
           },
+          "vendorId": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -224,6 +239,9 @@
               "type": "object",
               "properties": {
                 "id": {
+                  "type": "string"
+                },
+                "vendorId": {
                   "type": "string"
                 },
                 "name": {
@@ -422,6 +440,9 @@
         "default": true
       },
       "categoryId": {
+        "type": "string"
+      },
+      "vendorId": {
         "type": "string"
       },
       "serviceId": {
@@ -799,10 +820,29 @@
     },
     "/services": {
       "get": {
-        "summary": "List services",
-        "description": "List services",
+        "summary": "List services for a vendor",
+        "description": "Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters.",
         "operationId": "getservices",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the services",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "Optional master category",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/categoryId"
+            }
+          }
+        ],
         "tags": [
           "Services"
         ],
@@ -858,8 +898,8 @@
         }
       },
       "post": {
-        "summary": "Create service",
-        "description": "Create service",
+        "summary": "Create a vendor service",
+        "description": "Creates a service for vendorId under a master category. vendorId is stored on the service and cannot be changed later.",
         "operationId": "postservices",
         "parameters": [],
         "tags": [
@@ -931,7 +971,7 @@
     "/services/{serviceId}": {
       "get": {
         "summary": "Get service",
-        "description": "Get a catalog service. categoryId is optional; when omitted the service is resolved by service id.",
+        "description": "Gets one service owned by vendorId. categoryId is optional.",
         "operationId": "getserviceid",
         "parameters": [
           {
@@ -941,6 +981,24 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/serviceId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the service",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "Optional parent category",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/categoryId"
             }
           }
         ],
@@ -999,8 +1057,8 @@
         }
       },
       "put": {
-        "summary": "Update service",
-        "description": "Update service",
+        "summary": "Update a vendor service",
+        "description": "Updates a service owned by vendorId. vendorId and categoryId cannot be changed.",
         "operationId": "putserviceid",
         "parameters": [
           {
@@ -1010,6 +1068,24 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/serviceId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the service",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "Optional parent category",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/categoryId"
             }
           }
         ],
@@ -1079,8 +1155,8 @@
         }
       },
       "delete": {
-        "summary": "Delete service",
-        "description": "Delete service",
+        "summary": "Delete a vendor service",
+        "description": "Deletes a service owned by vendorId when no add-ons remain.",
         "operationId": "deleteserviceid",
         "parameters": [
           {
@@ -1090,6 +1166,24 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/serviceId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the service",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "Optional parent category",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/categoryId"
             }
           }
         ],
@@ -1143,10 +1237,20 @@
     },
     "/packages": {
       "get": {
-        "summary": "List packages",
-        "description": "List packages",
+        "summary": "List packages for a vendor",
+        "description": "Lists packages owned by vendorId.",
         "operationId": "getpackages",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the packages",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          }
+        ],
         "tags": [
           "Packages"
         ],
@@ -1202,8 +1306,8 @@
         }
       },
       "post": {
-        "summary": "Create package",
-        "description": "Create package",
+        "summary": "Create a vendor package",
+        "description": "Creates a package for vendorId. Referenced services and add-ons must belong to the same vendor.",
         "operationId": "postpackages",
         "parameters": [],
         "tags": [
@@ -1274,8 +1378,8 @@
     },
     "/packages/{packageId}": {
       "get": {
-        "summary": "Get package",
-        "description": "Get package",
+        "summary": "Get a vendor package",
+        "description": "Gets one package owned by vendorId.",
         "operationId": "getpackageid",
         "parameters": [
           {
@@ -1285,6 +1389,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/packageId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the package",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],
@@ -1343,8 +1456,8 @@
         }
       },
       "put": {
-        "summary": "Update package",
-        "description": "Update package",
+        "summary": "Update a vendor package",
+        "description": "Updates a package owned by vendorId. vendorId cannot be changed.",
         "operationId": "putpackageid",
         "parameters": [
           {
@@ -1354,6 +1467,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/packageId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the package",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],
@@ -1423,8 +1545,8 @@
         }
       },
       "delete": {
-        "summary": "Delete package",
-        "description": "Delete package",
+        "summary": "Delete a vendor package",
+        "description": "Deletes a package owned by vendorId.",
         "operationId": "deletepackageid",
         "parameters": [
           {
@@ -1434,6 +1556,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/packageId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the package",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],
@@ -1655,10 +1786,29 @@
     },
     "/addons": {
       "get": {
-        "summary": "List add-ons",
-        "description": "List add-ons",
+        "summary": "List add-ons for a vendor",
+        "description": "Lists add-ons owned by vendorId. serviceId and categoryId are optional filters.",
         "operationId": "getaddons",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the add-ons",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "description": "Optional parent service",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/serviceId"
+            }
+          }
+        ],
         "tags": [
           "Add-ons"
         ],
@@ -1714,8 +1864,8 @@
         }
       },
       "post": {
-        "summary": "Create add-on",
-        "description": "Create add-on",
+        "summary": "Create a vendor add-on",
+        "description": "Creates an add-on for vendorId on a service owned by the same vendor.",
         "operationId": "postaddons",
         "parameters": [],
         "tags": [
@@ -1786,8 +1936,8 @@
     },
     "/addons/{addonId}": {
       "get": {
-        "summary": "Get add-on",
-        "description": "Get add-on",
+        "summary": "Get a vendor add-on",
+        "description": "Gets one add-on owned by vendorId.",
         "operationId": "getaddonid",
         "parameters": [
           {
@@ -1797,6 +1947,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/addonId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the add-on",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],
@@ -1855,8 +2014,8 @@
         }
       },
       "put": {
-        "summary": "Update add-on",
-        "description": "Update add-on",
+        "summary": "Update a vendor add-on",
+        "description": "Updates an add-on owned by vendorId. vendorId cannot be changed.",
         "operationId": "putaddonid",
         "parameters": [
           {
@@ -1866,6 +2025,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/addonId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the add-on",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],
@@ -1935,8 +2103,8 @@
         }
       },
       "delete": {
-        "summary": "Delete add-on",
-        "description": "Delete add-on",
+        "summary": "Delete a vendor add-on",
+        "description": "Deletes an add-on owned by vendorId.",
         "operationId": "deleteaddonid",
         "parameters": [
           {
@@ -1946,6 +2114,15 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/addonId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "Vendor that owns the add-on",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
             }
           }
         ],

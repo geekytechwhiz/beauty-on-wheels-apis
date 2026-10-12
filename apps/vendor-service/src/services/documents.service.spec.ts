@@ -42,7 +42,7 @@ function vendorItem(overrides: Partial<VendorDdbItem> = {}): VendorDdbItem {
     SK: 'PROFILE',
     vendorId: 'vendor-1',
     ownerUserId: 'user-1',
-    vendorType: 'BUSINESS',
+     businessType: 'BUSINESS',
     businessName: 'Glow',
     contactName: 'Priya',
     phoneNumber: '+919876543210',

@@ -27,6 +27,7 @@ function service(partial: Partial<ServiceEntity> = {}): ServiceEntity {
     PK: 'CAT#cat-1',
     SK: 'SERVICE#svc-1',
     entityType: 'SERVICE',
+    vendorId: 'vendor-1',
     categoryId: 'cat-1',
     serviceId: 'svc-1',
     name: 'Premium Wash',
@@ -46,6 +47,7 @@ function addon(partial: Partial<AddonEntity> = {}): AddonEntity {
     PK: 'CAT#cat-1',
     SK: 'SERVICE#svc-1#ADDON#addon-1',
     entityType: 'ADDON',
+    vendorId: 'vendor-1',
     categoryId: 'cat-1',
     serviceId: 'svc-1',
     addonId: 'addon-1',
@@ -65,6 +67,7 @@ function packageEntity(partial: Partial<PackageEntity> = {}): PackageEntity {
     PK: 'PACKAGE#pkg-1',
     SK: 'META',
     entityType: 'PACKAGE',
+    vendorId: 'vendor-1',
     packageId: 'pkg-1',
     name: 'Premium Complete',
     discountedPrice: 800,
@@ -455,5 +458,14 @@ describe('PricingService', () => {
       request({ vehicleType: 'SUV', vendorId: 'vendor-1', serviceIds: ['svc-1'] }),
     )).rejects.toMatchObject({ code: 'VENDOR_PRICING_UNAVAILABLE' });
     expect(serviceRevisions.rows.size).toBe(0);
+  });
+
+  it('rejects a service owned by another vendor', async () => {
+    services.findByServiceId.mockResolvedValue(service({ vendorId: 'vendor-2', version: 1 }));
+
+    await expect(pricing.calculate(
+      request({ vehicleType: 'SUV', vendorId: 'vendor-1', serviceIds: ['svc-1'] }),
+    )).rejects.toMatchObject({ code: 'SERVICE_NOT_FOUND', statusCode: 404 });
+    expect(vendorPricing.getPricing).not.toHaveBeenCalled();
   });
 });

@@ -16,6 +16,7 @@ import {
  */
 
 export const CreateServiceSchema = z.object({
+    vendorId: z.string().min(1, "vendorId is required"),
     categoryId: z.string().min(1, "categoryId is required"),
     name: z.string().min(1, "name is required").max(100),
     description: z.string().max(500).optional(),
@@ -50,12 +51,14 @@ export const validateService = (req: LambdaRequest): CreateServiceInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
+    const vendorId = result.data.vendorId.trim();
     const name = assertCatalogName(result.data.name);
     assertPositiveDuration(result.data.durationMinutes);
     assertCatalogAmount(result.data.basePrice, "basePrice");
     const vehicleTypes = assertVehicleTypes(result.data.vehicleTypes);
     return {
         ...result.data,
+        vendorId,
         name,
         vehicleTypes,
     };

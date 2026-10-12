@@ -129,7 +129,7 @@ export class VendorsService {
     const userId = getAuthenticatedUserId(request);
     const body = (request.body ?? {}) as CreateVendorRequest;
     return this.createOwnedVendor(userId, {
-      vendorType: body.vendorType,
+       businessType: body. businessType,
       businessName: body.businessName,
       contactName: body.contactName,
       phoneNumber: body.phoneNumber,

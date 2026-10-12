@@ -1,7 +1,10 @@
 import { mapVendorEmailVerifiedStreamRecord } from './map-vendor-email-verified-stream';
 
 const complete = [
-  'BUSINESS_INFO', 'OWNER_DETAILS', 'ADDRESS', 'BRANCH', 'DOCUMENTS', 'BANK_DETAILS',
+  'BUSINESS_INFO_AND_OWNER',
+  'SERVICE_LOCATION_AND_COVERAGE',
+  'BUSINESS_VERIFICATION',
+  'BANK_AND_PAYOUT_DETAILS',
 ];
 
 function record(overrides: Record<string, unknown> = {}) {

@@ -15,6 +15,7 @@ function catalogService(id: string, active = true): ServiceEntity {
     PK: 'CAT#cat-1',
     SK: `SERVICE#${id}`,
     entityType: 'SERVICE',
+    vendorId: 'vendor-1',
     categoryId: 'cat-1',
     serviceId: id,
     name: id,
@@ -52,6 +53,7 @@ describe('PackagesService validation', () => {
     await expect(
       service.postpackages(
         request({
+          vendorId: 'vendor-1',
           name: 'Premium Complete',
           discountedPrice: 500,
           items: [{ serviceId: 'missing' }],
@@ -67,6 +69,7 @@ describe('PackagesService validation', () => {
     await expect(
       service.postpackages(
         request({
+          vendorId: 'vendor-1',
           name: 'Premium Complete',
           discountedPrice: 500,
           items: [{ serviceId: 'svc-1' }],
@@ -77,6 +80,7 @@ describe('PackagesService validation', () => {
     await expect(
       service.postpackages(
         request({
+          vendorId: 'vendor-1',
           name: 'Premium Complete',
           discountedPrice: 500,
           items: [{ serviceId: 'svc-1' }, { serviceId: 'svc-1' }],
@@ -91,6 +95,7 @@ describe('PackagesService validation', () => {
 
     await service.postpackages(
       request({
+        vendorId: 'vendor-1',
         name: 'Premium Complete',
         discountedPrice: 800,
         items: [{ serviceId: 'wash' }, { serviceId: 'wax' }],
@@ -100,6 +105,27 @@ describe('PackagesService validation', () => {
     const items = packages.createPackage.mock.calls[0][1];
     expect(items.map((item: { refId: string }) => item.refId)).toEqual(['wash', 'wax']);
     expect(items[0]).not.toHaveProperty('basePrice');
+    expect(packages.createPackage.mock.calls[0][0]).toMatchObject({
+      vendorId: 'vendor-1',
+      GSI2PK: 'VENDOR#vendor-1',
+      GSI2SK: expect.stringMatching(/^PACKAGE#/),
+    });
+  });
+
+  it('rejects a service owned by another vendor', async () => {
+    services.findByServiceId.mockResolvedValue(catalogService('svc-1'));
+
+    await expect(
+      service.postpackages(
+        request({
+          vendorId: 'vendor-2',
+          name: 'Premium Complete',
+          discountedPrice: 500,
+          items: [{ serviceId: 'svc-1' }],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'SERVICE_NOT_FOUND', statusCode: 404 });
+    expect(packages.createPackage).not.toHaveBeenCalled();
   });
 });
 

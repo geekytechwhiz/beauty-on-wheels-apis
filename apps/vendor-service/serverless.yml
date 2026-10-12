@@ -188,7 +188,7 @@ custom:
                   type: string
                 profileImageUrl:
                   type: string
-                vendorType:
+                businessType:
                   type: string
                   enum:
                     - INDIVIDUAL
@@ -284,7 +284,7 @@ custom:
                       type: string
                     ownerUserId:
                       type: string
-                    vendorType:
+                    businessType:
                       type: string
                       enum:
                         - INDIVIDUAL
@@ -406,7 +406,7 @@ custom:
                         type: string
                       ownerUserId:
                         type: string
-                      vendorType:
+                      businessType:
                         type: string
                         enum:
                           - INDIVIDUAL
@@ -585,7 +585,7 @@ custom:
                 data:
                   type: object
                   properties:
-                    vendorType:
+                    businessType:
                       type: string
                       enum:
                         - INDIVIDUAL

@@ -19,6 +19,7 @@ const PackageItemSchema = z.object({
 });
 
 export const CreatePackageSchema = z.object({
+    vendorId: z.string().min(1, "vendorId is required"),
     name: z.string().min(1, "name is required").max(100),
     description: z.string().max(500).optional(),
     discountedPrice: z.number(),
@@ -51,9 +52,10 @@ export const validatePackage = (req: LambdaRequest): CreatePackageInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
+    const vendorId = result.data.vendorId.trim();
     const name = assertCatalogName(result.data.name);
     assertCatalogAmount(result.data.discountedPrice, "discountedPrice");
-    return { ...result.data, name };
+    return { ...result.data, vendorId, name };
 };
 
 export const validatePackageUpdate = (req: LambdaRequest): UpdatePackageInput => {

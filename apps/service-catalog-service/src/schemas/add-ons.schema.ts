@@ -14,6 +14,7 @@ import {
  */
 
 export const CreateAddOnSchema = z.object({
+    vendorId: z.string().min(1, "vendorId is required"),
     serviceId: z.string().min(1, "serviceId is required"),
     categoryId: z.string().min(1, "categoryId is required"),
     name: z.string().min(1, "name is required").max(100),
@@ -47,10 +48,11 @@ export const validateAddOn = (req: LambdaRequest): CreateAddOnInput => {
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
+    const vendorId = result.data.vendorId.trim();
     const name = assertCatalogName(result.data.name);
     assertCatalogAmount(result.data.price, "price");
     assertPositiveDuration(result.data.durationMinutes);
-    return { ...result.data, name };
+    return { ...result.data, vendorId, name };
 };
 
 export const validateAddOnUpdate = (req: LambdaRequest): UpdateAddOnInput => {

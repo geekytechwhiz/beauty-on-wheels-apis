@@ -30,7 +30,7 @@ export const CreateVendorRequestSchema = z.object({
   gstNumber: optionalTrimmedString(50),
   panNumber: optionalTrimmedString(20),
   profileImageUrl: optionalTrimmedString(2048),
-  vendorType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
+   businessType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
 });
 
 export const RegisterVendorRequestSchema = z.object({ 

@@ -73,10 +73,9 @@ export class BankDetailsService {
     });
 
     try {
-      await this.vendorsRepository.putSection(
-        updatedProfile,
+      await this.vendorsRepository.putSection(updatedProfile, [
         item as unknown as Record<string, unknown>,
-      );
+      ]);
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         throw new NotFoundError('Vendor not found');

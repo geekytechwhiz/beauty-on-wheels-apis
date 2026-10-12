@@ -32,6 +32,7 @@ import {
     validatePackageUpdate,
 } from "../schemas/packages.schema";
 import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
+import { assertVendorOwner, requireVendorId } from "../domain/vendor-scope";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { PackageEntity, PackageItemEntity } from "../utils/types/catalog-domain.types";
 
@@ -73,6 +74,7 @@ export class PackagesService {
             event: "getpackages_start",
         });
 
+        const vendorId = requireVendorId(request.params?.vendorId);
         const activeOnly = request.params?.active === "true";
         const limit = request.params?.limit
             ? parseInt(request.params.limit as string, 10)
@@ -81,7 +83,7 @@ export class PackagesService {
             ? JSON.parse(Buffer.from(request.params.nextToken as string, "base64").toString())
             : undefined;
 
-        const result = await this.repository.listPackages({
+        const result = await this.repository.listByVendor(vendorId, {
             activeOnly,
             limit,
             lastEvaluatedKey,
@@ -91,6 +93,7 @@ export class PackagesService {
 
         this.logger.info({
             event: "getpackages_success",
+            vendorId,
             count: items.length,
         });
 
@@ -116,11 +119,8 @@ export class PackagesService {
 
         const body = validatePackage(request);
 
-        // Package name unique
-        await this.assertPackageNameUnique(body.name);
-
-        // Validate that all referenced services exist
-        await this.validatePackageItems(body.items);
+        await this.assertPackageNameUnique(body.name, body.vendorId);
+        await this.validatePackageItems(body.vendorId, body.items);
 
         const now = new Date().toISOString();
         const packageId = randomUUID();
@@ -166,17 +166,15 @@ export class PackagesService {
     ) {
 
         const packageId = request.params?.packageId as string;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "getpackageid_start",
             packageId,
+            vendorId,
         });
 
-        const entity = await this.repository.findById(packageId);
-
-        if (!entity) {
-            throw new NotFoundError(`Package not found: ${packageId}`);
-        }
+        const entity = await this.loadOwnedPackage(packageId, vendorId);
 
         // Enrich with items
         const items = await this.repository.listPackageItems(packageId);
@@ -200,28 +198,24 @@ export class PackagesService {
     ) {
 
         const packageId = request.params?.packageId as string;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "putpackageid_start",
             packageId,
+            vendorId,
         });
 
         const body = validatePackageUpdate(request);
 
-        // Verify package exists
-        const existing = await this.repository.findById(packageId);
-        if (!existing) {
-            throw new NotFoundError(`Package not found: ${packageId}`);
-        }
+        const existing = await this.loadOwnedPackage(packageId, vendorId);
 
-        // Name uniqueness check (only if name is changing)
         if (body.name && body.name.toLowerCase() !== existing.name.toLowerCase()) {
-            await this.assertPackageNameUnique(body.name);
+            await this.assertPackageNameUnique(body.name, vendorId);
         }
 
-        // Validate new items if provided
         if (body.items && body.items.length > 0) {
-            await this.validatePackageItems(body.items);
+            await this.validatePackageItems(vendorId, body.items);
         }
 
         const now = new Date().toISOString();
@@ -274,17 +268,15 @@ export class PackagesService {
     ) {
 
         const packageId = request.params?.packageId as string;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "deletepackageid_start",
             packageId,
+            vendorId,
         });
 
-        // Verify package exists
-        const existing = await this.repository.findById(packageId);
-        if (!existing) {
-            throw new NotFoundError(`Package not found: ${packageId}`);
-        }
+        await this.loadOwnedPackage(packageId, vendorId);
 
         // Remove all package items first (DynamoDB transaction handles this atomically)
         const existingItems = await this.repository.listPackageItems(packageId);
@@ -335,16 +327,25 @@ export class PackagesService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private async assertPackageNameUnique(name: string): Promise<void> {
-        const duplicate = await this.repository.findByName(name);
+    private async loadOwnedPackage(packageId: string, vendorId: string): Promise<PackageEntity> {
+        const entity = await this.repository.findById(packageId);
+        if (!entity) {
+            throw new NotFoundError(`Package not found: ${packageId}`);
+        }
+        assertVendorOwner(entity.vendorId, vendorId, "Package", packageId);
+        return entity;
+    }
+
+    private async assertPackageNameUnique(name: string, vendorId: string): Promise<void> {
+        const duplicate = await this.repository.findByName(name, vendorId);
         if (duplicate) {
             throw new ConflictError(
-                `A package named "${name}" already exists`
+                `A package named "${name}" already exists for this vendor`
             );
         }
     }
 
-    private async validatePackageItems(items: PackageItemInput[]): Promise<void> {
+    private async validatePackageItems(vendorId: string, items: PackageItemInput[]): Promise<void> {
         const serviceIds = items.map((item) => item.serviceId);
         if (new Set(serviceIds).size !== serviceIds.length) {
             throw new BaseError(
@@ -365,7 +366,7 @@ export class PackagesService {
 
         for (const item of items) {
             const service = await this.servicesRepository.findByServiceId(item.serviceId);
-            if (!service) {
+            if (!service || service.vendorId !== vendorId) {
                 throw new BaseError(
                     `Service not found: ${item.serviceId}`,
                     404,
@@ -382,7 +383,7 @@ export class PackagesService {
 
             for (const addonId of item.addons ?? []) {
                 const addon = await this.addOnsRepository.findByAddonId(addonId);
-                if (!addon || addon.serviceId !== item.serviceId) {
+                if (!addon || addon.vendorId !== vendorId || addon.serviceId !== item.serviceId) {
                     throw new BaseError(
                         `Add-on not found: ${addonId}`,
                         404,
@@ -411,6 +412,7 @@ export class PackagesService {
 function mapPackageEntityToResponse(entity: PackageEntity) {
     return {
         id: entity.packageId,
+        vendorId: entity.vendorId,
         name: entity.name,
         description: entity.description,
         discountedPrice: entity.discountedPrice,
@@ -446,6 +448,7 @@ function buildPackageEntity(
         PK: pkVal,
         SK: skVal,
         entityType: "PACKAGE",
+        vendorId: input.vendorId,
         packageId,
         name: input.name,
         description: input.description,
@@ -454,7 +457,9 @@ function buildPackageEntity(
         active: input.active ?? true,
         version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
-        GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
+        GSI1SK: CatalogKeyBuilder.gsi1VendorSk("PACKAGE", input.vendorId),
+        GSI2PK: CatalogKeyBuilder.vendorPk(input.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorPackageSk(packageId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI3SK: lsi3Val,
@@ -536,7 +541,9 @@ function mergePackageEntity(
         active,
         version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
-        GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
+        GSI1SK: CatalogKeyBuilder.gsi1VendorSk("PACKAGE", existing.vendorId),
+        GSI2PK: CatalogKeyBuilder.vendorPk(existing.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorPackageSk(existing.packageId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         updatedAt: now,

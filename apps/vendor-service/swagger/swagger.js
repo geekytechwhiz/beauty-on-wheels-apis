@@ -2483,12 +2483,12 @@
       "title": "OperationalStatus",
       "type": "string"
     },
-    "VendorType": {
+    "businessType": {
       "enum": [
         "INDIVIDUAL",
         "BUSINESS"
       ],
-      "title": "VendorType",
+      "title": "businessType",
       "type": "string"
     },
     "VehicleType": {
@@ -2526,12 +2526,10 @@
     },
     "OnboardingSection": {
       "enum": [
-        "BUSINESS_INFO",
-        "OWNER_DETAILS",
-        "ADDRESS",
-        "BRANCH",
-        "DOCUMENTS",
-        "BANK_DETAILS"
+        "BUSINESS_INFO_AND_OWNER",
+        "SERVICE_LOCATION_AND_COVERAGE",
+        "BUSINESS_VERIFICATION",
+        "BANK_AND_PAYOUT_DETAILS"
       ],
       "title": "OnboardingSection",
       "type": "string"
@@ -2673,9 +2671,9 @@
           "title": "CreateVendorRequest.profileImageUrl",
           "type": "string"
         },
-        "vendorType": {
-          "$ref": "#/definitions/VendorType",
-          "title": "CreateVendorRequest.vendorType"
+        "businessType": {
+          "$ref": "#/definitions/businessType",
+          "title": "CreateVendorRequest.businessType"
         }
       },
       "required": [
@@ -2827,9 +2825,9 @@
     },
     "BusinessInfoData": {
       "properties": {
-        "vendorType": {
-          "$ref": "#/definitions/VendorType",
-          "title": "BusinessInfoData.vendorType"
+        "businessType": {
+          "$ref": "#/definitions/businessType",
+          "title": "BusinessInfoData.businessType"
         },
         "businessName": {
           "title": "BusinessInfoData.businessName",
@@ -2865,7 +2863,7 @@
         }
       },
       "required": [
-        "vendorType",
+        "businessType",
         "businessName",
         "contactName",
         "phoneNumber"
@@ -3054,6 +3052,44 @@
       "title": "BankDetailsData",
       "type": "object"
     },
+    "BusinessInfoAndOwnerData": {
+      "properties": {
+        "businessInfo": {
+          "$ref": "#/definitions/BusinessInfoData",
+          "title": "BusinessInfoAndOwnerData.businessInfo"
+        },
+        "ownerDetails": {
+          "$ref": "#/definitions/OwnerDetailsData",
+          "title": "BusinessInfoAndOwnerData.ownerDetails"
+        }
+      },
+      "required": [
+        "businessInfo",
+        "ownerDetails"
+      ],
+      "additionalProperties": false,
+      "title": "BusinessInfoAndOwnerData",
+      "type": "object"
+    },
+    "ServiceLocationAndCoverageData": {
+      "properties": {
+        "address": {
+          "$ref": "#/definitions/AddressData",
+          "title": "ServiceLocationAndCoverageData.address"
+        },
+        "branch": {
+          "$ref": "#/definitions/BranchData",
+          "title": "ServiceLocationAndCoverageData.branch"
+        }
+      },
+      "required": [
+        "address",
+        "branch"
+      ],
+      "additionalProperties": false,
+      "title": "ServiceLocationAndCoverageData",
+      "type": "object"
+    },
     "UpdateOnboardingRequest": {
       "properties": {
         "section": {
@@ -3063,19 +3099,11 @@
         "data": {
           "anyOf": [
             {
-              "$ref": "#/definitions/BusinessInfoData",
+              "$ref": "#/definitions/BusinessInfoAndOwnerData",
               "title": "UpdateOnboardingRequest.data"
             },
             {
-              "$ref": "#/definitions/OwnerDetailsData",
-              "title": "UpdateOnboardingRequest.data"
-            },
-            {
-              "$ref": "#/definitions/AddressData",
-              "title": "UpdateOnboardingRequest.data"
-            },
-            {
-              "$ref": "#/definitions/BranchData",
+              "$ref": "#/definitions/ServiceLocationAndCoverageData",
               "title": "UpdateOnboardingRequest.data"
             },
             {
@@ -3619,9 +3647,9 @@
           "title": "Vendor.ownerUserId",
           "type": "string"
         },
-        "vendorType": {
-          "$ref": "#/definitions/VendorType",
-          "title": "Vendor.vendorType"
+        "businessType": {
+          "$ref": "#/definitions/businessType",
+          "title": "Vendor.businessType"
         },
         "businessName": {
           "title": "Vendor.businessName",

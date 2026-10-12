@@ -65,3 +65,24 @@ describe('PackagesRepository.listPackages', () => {
     });
   });
 });
+
+describe('PackagesRepository.listByVendor', () => {
+  it('queries GSI2 by vendor and package prefix', async () => {
+    const repository = new ProbePackagesRepository();
+
+    await repository.listByVendor('vendor-1', { activeOnly: true, limit: 5 });
+
+    expect(repository.queries[0].IndexName).toBe('GSI2');
+    expect(repository.queries[0].KeyConditionExpression).toBe(
+      '#gsi2pk = :gsi2pk AND begins_with(#gsi2sk, :skPrefix)',
+    );
+    expect(repository.queries[0].ExpressionAttributeValues).toEqual(
+      expect.objectContaining({
+        ':gsi2pk': 'VENDOR#vendor-1',
+        ':skPrefix': 'PACKAGE#',
+        ':et': 'PACKAGE',
+        ':active': true,
+      }),
+    );
+  });
+});

@@ -9,6 +9,7 @@ import {
     isConditionalWriteFailure,
 } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
+import { vendorCatalogQuery } from "./vendor-index-query";
 import { AddonEntity, AddonLookupEntity } from "../utils/types/catalog-domain.types";
 
 const TABLE = () => env.DYNAMODB_TABLE_NAME;
@@ -52,6 +53,41 @@ export class AddOnsRepository extends BaseRepository {
             addonId,
         );
         return addon?.entityType === "ADDON" ? addon : null;
+    }
+
+    /**
+     * Add-ons owned by one vendor. `serviceId` narrows the sort key to that service.
+     */
+    async listByVendor(
+        vendorId: string,
+        params?: {
+            serviceId?: string;
+            categoryId?: string;
+            activeOnly?: boolean;
+            limit?: number;
+            lastEvaluatedKey?: Record<string, unknown>;
+        }
+    ): Promise<{ items: AddonEntity[]; lastEvaluatedKey?: Record<string, unknown> }> {
+        const extraFilters: string[] = [];
+        const extraValues: Record<string, unknown> = {};
+        if (params?.categoryId) {
+            extraFilters.push("categoryId = :categoryId");
+            extraValues[":categoryId"] = params.categoryId;
+        }
+
+        return this.queryPage<AddonEntity>(vendorCatalogQuery({
+            tableName: TABLE(),
+            vendorId,
+            sortKeyPrefix: params?.serviceId
+                ? CatalogKeyBuilder.vendorAddonServicePrefix(params.serviceId)
+                : CatalogKeyBuilder.vendorAddonPrefix(),
+            entityType: "ADDON",
+            activeOnly: params?.activeOnly,
+            extraFilters,
+            extraValues,
+            limit: params?.limit,
+            lastEvaluatedKey: params?.lastEvaluatedKey,
+        }));
     }
 
     /**
@@ -245,6 +281,7 @@ function buildAddonLookup(entity: AddonEntity): AddonLookupEntity {
         PK: CatalogKeyBuilder.addonLookupPk(entity.addonId),
         SK: CatalogKeyBuilder.addonLookupSk(),
         entityType: "ADDON_LOOKUP",
+        vendorId: entity.vendorId,
         categoryId: entity.categoryId,
         serviceId: entity.serviceId,
         addonId: entity.addonId,

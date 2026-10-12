@@ -27,6 +27,7 @@ import {
     validateServiceUpdate,
 } from "../schemas/services.schema";
 import { INITIAL_CATALOG_VERSION, nextCatalogVersion, sameMembers } from "../domain/catalog-version";
+import { assertVendorOwner, requireVendorId } from "../domain/vendor-scope";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { ServiceEntity } from "../utils/types/catalog-domain.types";
 
@@ -65,6 +66,7 @@ export class ServicesService {
             event: "getservices_start",
         });
 
+        const vendorId = requireVendorId(request.params?.vendorId);
         const categoryId = request.params?.categoryId as string | undefined;
         const activeOnly = request.params?.active === "true";
         const vehicleType = request.params?.vehicleType as string | undefined;
@@ -78,36 +80,18 @@ export class ServicesService {
             ? JSON.parse(Buffer.from(request.params.nextToken as string, "base64").toString())
             : undefined;
 
-        if (!categoryId) {
-            throw new BusinessRuleError("categoryId query parameter is required");
+        if (categoryId) {
+            const category = await this.categoriesRepository.findById(categoryId);
+            if (!category) {
+                throw new NotFoundError(`Category not found: ${categoryId}`);
+            }
         }
 
-        // Validate that the parent category exists
-        const category = await this.categoriesRepository.findById(categoryId);
-        if (!category) {
-            throw new NotFoundError(`Category not found: ${categoryId}`);
-        }
-
-        if (vehicleType) {
-            const items = await this.repository.listByVehicleType(categoryId, vehicleType);
-            const filtered = activeOnly ? items.filter(s => s.active) : items;
-            return {
-                items: filtered.map(mapServiceEntityToResponse),
-                total: filtered.length,
-            };
-        }
-
-        if (durationMinutes !== undefined) {
-            const items = await this.repository.listByDuration(categoryId, durationMinutes);
-            const filtered = activeOnly ? items.filter(s => s.active) : items;
-            return {
-                items: filtered.map(mapServiceEntityToResponse),
-                total: filtered.length,
-            };
-        }
-
-        const result = await this.repository.listByCategory(categoryId, {
+        const result = await this.repository.listByVendor(vendorId, {
+            categoryId,
             activeOnly,
+            vehicleType,
+            durationMinutes,
             limit,
             lastEvaluatedKey,
         });
@@ -116,6 +100,7 @@ export class ServicesService {
 
         this.logger.info({
             event: "getservices_success",
+            vendorId,
             categoryId,
             count: items.length,
         });
@@ -153,8 +138,7 @@ export class ServicesService {
             );
         }
 
-        // Service name unique within category
-        await this.assertServiceNameUnique(body.name, body.categoryId);
+        await this.assertServiceNameUnique(body.name, body.categoryId, body.vendorId);
 
         const now = new Date().toISOString();
         const serviceId = randomUUID();
@@ -199,21 +183,17 @@ export class ServicesService {
     ) {
 
         const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "getserviceid_start",
             serviceId,
             categoryId,
+            vendorId,
         });
 
-        const entity = categoryId
-            ? await this.repository.findById(categoryId, serviceId)
-            : await this.repository.findByServiceId(serviceId);
-
-        if (!entity) {
-            throw new NotFoundError(`Service not found: ${serviceId}`);
-        }
+        const entity = await this.loadOwnedService(serviceId, vendorId, categoryId);
 
         this.logger.info({
             event: "getserviceid_success",
@@ -231,39 +211,32 @@ export class ServicesService {
     ) {
 
         const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "putserviceid_start",
             serviceId,
             categoryId,
+            vendorId,
         });
-
-        if (!categoryId) {
-            throw new BusinessRuleError("categoryId query parameter is required");
-        }
 
         const body = validateServiceUpdate(request);
 
-        // Verify service exists
-        const existing = await this.repository.findById(categoryId, serviceId);
-        if (!existing) {
-            throw new NotFoundError(`Service not found: ${serviceId}`);
-        }
+        const existing = await this.loadOwnedService(serviceId, vendorId, categoryId);
 
-        // Name uniqueness check (only if name is changing)
         if (body.name && body.name.toLowerCase() !== existing.name.toLowerCase()) {
-            await this.assertServiceNameUnique(body.name, categoryId);
+            await this.assertServiceNameUnique(body.name, existing.categoryId, vendorId);
         }
 
         if (body.active === true && existing.active === false) {
-            const category = await this.categoriesRepository.findById(categoryId);
+            const category = await this.categoriesRepository.findById(existing.categoryId);
             if (!category) {
-                throw new NotFoundError(`Category not found: ${categoryId}`);
+                throw new NotFoundError(`Category not found: ${existing.categoryId}`);
             }
             if (!category.active) {
                 throw new ConflictError(
-                    `Category is not active: ${categoryId}`,
+                    `Category is not active: ${existing.categoryId}`,
                 );
             }
         }
@@ -309,26 +282,19 @@ export class ServicesService {
     ) {
 
         const serviceId = request.params?.serviceId as string;
-        const categoryId = request.params?.categoryId as string;
+        const categoryId = request.params?.categoryId as string | undefined;
+        const vendorId = requireVendorId(request.params?.vendorId);
 
         this.logger.info({
             event: "deleteserviceid_start",
             serviceId,
             categoryId,
+            vendorId,
         });
 
-        if (!categoryId) {
-            throw new BusinessRuleError("categoryId query parameter is required");
-        }
+        const existing = await this.loadOwnedService(serviceId, vendorId, categoryId);
 
-        // Verify service exists
-        const existing = await this.repository.findById(categoryId, serviceId);
-        if (!existing) {
-            throw new NotFoundError(`Service not found: ${serviceId}`);
-        }
-
-        // Business rule: cannot delete if addons exist
-        const addonCount = await this.repository.countAddons(categoryId, serviceId);
+        const addonCount = await this.repository.countAddons(existing.categoryId, serviceId);
         if (addonCount > 0) {
             throw new BusinessRuleError(
                 `Cannot delete service: ${addonCount} add-on(s) are still linked to this service`
@@ -368,11 +334,30 @@ export class ServicesService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private async assertServiceNameUnique(name: string, categoryId: string): Promise<void> {
-        const duplicate = await this.repository.findByName(name, categoryId);
+    private async loadOwnedService(
+        serviceId: string,
+        vendorId: string,
+        categoryId?: string,
+    ): Promise<ServiceEntity> {
+        const entity = categoryId
+            ? await this.repository.findById(categoryId, serviceId)
+            : await this.repository.findByServiceId(serviceId);
+        if (!entity) {
+            throw new NotFoundError(`Service not found: ${serviceId}`);
+        }
+        assertVendorOwner(entity.vendorId, vendorId, "Service", serviceId);
+        return entity;
+    }
+
+    private async assertServiceNameUnique(
+        name: string,
+        categoryId: string,
+        vendorId: string,
+    ): Promise<void> {
+        const duplicate = await this.repository.findByName(name, categoryId, vendorId);
         if (duplicate) {
             throw new ConflictError(
-                `A service named "${name}" already exists in this category`
+                `A service named "${name}" already exists in this category for this vendor`
             );
         }
     }
@@ -384,6 +369,7 @@ export class ServicesService {
 function mapServiceEntityToResponse(entity: ServiceEntity) {
     return {
         id: entity.serviceId,
+        vendorId: entity.vendorId,
         categoryId: entity.categoryId,
         name: entity.name,
         description: entity.description,
@@ -416,6 +402,7 @@ function buildServiceEntity(
         PK: pkVal,
         SK: skVal,
         entityType: "SERVICE",
+        vendorId: input.vendorId,
         categoryId: input.categoryId,
         serviceId,
         name: input.name,
@@ -427,7 +414,9 @@ function buildServiceEntity(
         active: input.active ?? true,
         version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
-        GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
+        GSI1SK: CatalogKeyBuilder.gsi1VendorCategorySk("SERVICE", input.vendorId, input.categoryId),
+        GSI2PK: CatalogKeyBuilder.vendorPk(input.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorServiceSk(input.categoryId, serviceId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI3SK: lsi3Val,
@@ -466,7 +455,13 @@ function mergeServiceEntity(
         active,
         version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
-        GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
+        GSI1SK: CatalogKeyBuilder.gsi1VendorCategorySk(
+            "SERVICE",
+            existing.vendorId,
+            existing.categoryId,
+        ),
+        GSI2PK: CatalogKeyBuilder.vendorPk(existing.vendorId),
+        GSI2SK: CatalogKeyBuilder.vendorServiceSk(existing.categoryId, existing.serviceId),
         LSI1SK: lsi1Val,
         LSI2SK: lsi2Val,
         LSI5SK: lsi5Val,

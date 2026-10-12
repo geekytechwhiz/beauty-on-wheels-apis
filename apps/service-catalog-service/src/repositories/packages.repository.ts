@@ -9,6 +9,7 @@ import {
     isConditionalWriteFailure,
 } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
+import { vendorCatalogQuery } from "./vendor-index-query";
 import { PackageEntity, PackageItemEntity } from "../utils/types/catalog-domain.types";
 
 const TABLE = () => env.DYNAMODB_TABLE_NAME;
@@ -33,6 +34,29 @@ export class PackagesRepository extends BaseRepository {
             PK: CatalogKeyBuilder.packagePk(packageId),
             SK: CatalogKeyBuilder.packageSk(),
         });
+    }
+
+    /**
+     * Packages owned by one vendor. Reads the canonical package item on GSI2,
+     * not the global CATALOG#PACKAGES aggregate.
+     */
+    async listByVendor(
+        vendorId: string,
+        params?: {
+            activeOnly?: boolean;
+            limit?: number;
+            lastEvaluatedKey?: Record<string, unknown>;
+        }
+    ): Promise<{ items: PackageEntity[]; lastEvaluatedKey?: Record<string, unknown> }> {
+        return this.queryPage<PackageEntity>(vendorCatalogQuery({
+            tableName: TABLE(),
+            vendorId,
+            sortKeyPrefix: CatalogKeyBuilder.vendorPackagePrefix(),
+            entityType: "PACKAGE",
+            activeOnly: params?.activeOnly,
+            limit: params?.limit,
+            lastEvaluatedKey: params?.lastEvaluatedKey,
+        }));
     }
 
     /**
@@ -145,7 +169,7 @@ export class PackagesRepository extends BaseRepository {
     /**
      * Check if a package name is already taken (GSI1 — global name search).
      */
-    async findByName(name: string): Promise<PackageEntity | null> {
+    async findByName(name: string, vendorId: string): Promise<PackageEntity | null> {
         return this.queryOne<PackageEntity>({
             TableName: TABLE(),
             IndexName: GSI1_INDEX,
@@ -156,7 +180,7 @@ export class PackagesRepository extends BaseRepository {
             },
             ExpressionAttributeValues: {
                 ":gsi1pk": CatalogKeyBuilder.gsi1pk(name),
-                ":gsi1sk": CatalogKeyBuilder.gsi1sk("PACKAGE"),
+                ":gsi1sk": CatalogKeyBuilder.gsi1VendorSk("PACKAGE", vendorId),
             },
         });
     }
@@ -317,6 +341,7 @@ function buildPackageIndexEntry(entity: PackageEntity): Record<string, unknown> 
         PK: PACKAGES_AGGREGATE_PK,
         SK: `META#PACKAGE#${entity.packageId}`,
         entityType: entity.entityType,
+        vendorId: entity.vendorId,
         packageId: entity.packageId,
         name: entity.name,
         discountedPrice: entity.discountedPrice,

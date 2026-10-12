@@ -9,8 +9,8 @@ function profile(overrides: Partial<VendorDdbItem> = {}): VendorDdbItem {
   return {
     PK: 'VENDOR#vendor-1', SK: 'PROFILE', vendorId: 'vendor-1', ownerUserId: 'user-1',
     email: 'owner@example.com', contactName: 'Priya Sharma', status: 'PENDING_VERIFICATION',
-    operationalStatus: 'OFFLINE', onboardingStatus: 'IN_PROGRESS', currentSection: 'BANK_DETAILS',
-    completedSections: ['BUSINESS_INFO', 'OWNER_DETAILS', 'ADDRESS', 'BRANCH', 'DOCUMENTS', 'BANK_DETAILS'],
+    operationalStatus: 'OFFLINE', onboardingStatus: 'IN_PROGRESS', currentSection: 'BANK_AND_PAYOUT_DETAILS',
+    completedSections: ['BUSINESS_INFO_AND_OWNER', 'SERVICE_LOCATION_AND_COVERAGE', 'BUSINESS_VERIFICATION', 'BANK_AND_PAYOUT_DETAILS'],
     emailVerificationRequestId: 'request-1', emailVerificationOtp: token,
     emailVerificationTokenHash: createHash('sha256').update(token).digest('hex'),
     emailVerificationEmail: 'owner@example.com', emailVerificationRequestedAt: '2026-01-01T00:00:00.000Z',
@@ -48,7 +48,7 @@ describe('EmailVerificationService', () => {
 
   it('rejects verification until vendor onboarding is complete', async () => {
     repository.getVendorById.mockResolvedValue(profile({
-      completedSections: ['BUSINESS_INFO', 'OWNER_DETAILS', 'ADDRESS', 'BRANCH', 'BANK_DETAILS'],
+      completedSections: ['BUSINESS_INFO_AND_OWNER', 'SERVICE_LOCATION_AND_COVERAGE', 'BUSINESS_VERIFICATION'],
     }));
     const service = new EmailVerificationService(repository, () => new Date('2026-01-01T12:00:00.000Z'));
 

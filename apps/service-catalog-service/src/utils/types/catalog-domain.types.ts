@@ -35,6 +35,10 @@ export interface CatalogBaseEntity {
     GSI1PK?: string;
     /** GSI1 sk — entity type discriminator (`TYPE#<entityType>`) */
     GSI1SK?: string;
+    /** GSI2 pk — `VENDOR#<vendorId>` for vendor-owned catalog rows */
+    GSI2PK?: string;
+    /** GSI2 sk — `SERVICE#`, `PACKAGE#`, or `ADDON#` prefix */
+    GSI2SK?: string;
     createdAt: string;
     updatedAt: string;
     /** Soft-delete flag */
@@ -52,6 +56,7 @@ export interface CategoryEntity extends CatalogBaseEntity {
 
 export interface ServiceEntity extends CatalogBaseEntity {
     entityType: 'SERVICE';
+    vendorId: string;
     categoryId: string;
     serviceId: string;
     name: string;
@@ -67,6 +72,7 @@ export interface ServiceEntity extends CatalogBaseEntity {
 
 export interface AddonEntity extends CatalogBaseEntity {
     entityType: 'ADDON';
+    vendorId: string;
     categoryId: string;
     serviceId: string;
     addonId: string;
@@ -82,6 +88,7 @@ export interface AddonEntity extends CatalogBaseEntity {
 
 export interface PackageEntity extends CatalogBaseEntity {
     entityType: 'PACKAGE';
+    vendorId: string;
     packageId: string;
     name: string;
     description?: string;
@@ -94,6 +101,7 @@ export interface PackageEntity extends CatalogBaseEntity {
 
 export interface ServiceLookupEntity extends CatalogBaseEntity {
     entityType: 'SERVICE_LOOKUP';
+    vendorId: string;
     categoryId: string;
     serviceId: string;
     active: boolean;
@@ -109,6 +117,7 @@ export interface ServiceVehicleEntity extends CatalogBaseEntity {
 
 export interface AddonLookupEntity extends CatalogBaseEntity {
     entityType: 'ADDON_LOOKUP';
+    vendorId: string;
     categoryId: string;
     serviceId: string;
     addonId: string;

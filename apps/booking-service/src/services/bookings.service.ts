@@ -17,6 +17,29 @@ import {
     ConditionalWriteConflictError
 } from "@api-hub/utils";
 import { Booking } from "../types/api-types";
+import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
+import {
+    assertBranch,
+    assertHold,
+    assertLocation,
+    assertOffering,
+    assertSlot,
+    assertVehicleOwnership,
+    assertVendorEligible,
+    authoritativeOfferingVersion,
+    buildPricingSnapshot,
+    payableAmount,
+    requestFingerprint,
+} from "../domain/create-booking";
+import { BookingError } from "../errors";
+import { AvailabilityGateway, getAvailabilityGateway } from "../integrations/availability.client";
+import { CatalogGateway, getCatalogGateway } from "../integrations/catalog.client";
+import { UserGateway, getUserGateway } from "../integrations/user.client";
+import { VehicleGateway, getVehicleGateway } from "../integrations/vehicle.client";
+import { VendorGateway, getVendorGateway } from "../integrations/vendor.client";
+import { BookingsMapper } from "../mappers/bookings.mapper";
+import { validateCreateBooking } from "../schemas/bookings.schema";
+import { BookingDdbItem, BookingIdempotencyItem } from "../types/repository.types";
 
 const baseLogger = createLogger({
     service: "bookings-service",
@@ -44,8 +67,13 @@ export class BookingsService {
         );
 
     constructor(
-        private readonly repository: BookingsRepository =
-            getBookingsRepository()
+        private readonly repository: BookingsRepository = getBookingsRepository(),
+        private readonly catalog: CatalogGateway = getCatalogGateway(),
+        private readonly vehicles: VehicleGateway = getVehicleGateway(),
+        private readonly vendors: VendorGateway = getVendorGateway(),
+        private readonly availability: AvailabilityGateway = getAvailabilityGateway(),
+        private readonly users: UserGateway = getUserGateway(),
+        private readonly now: () => Date = () => new Date(),
     ) {}
 
     async getbookings(filters: {
@@ -93,64 +121,124 @@ export class BookingsService {
 
     async postbookings(request: LambdaRequest) {
         const correlationId = (request.context as any)?.correlationId || "unknown";
+        const customerId = requireCustomerId(request);
+        const command = validateCreateBooking(request);
+        const idempotencyKey = headerValue(request, "Idempotency-Key");
+        if (!idempotencyKey || idempotencyKey.length > 128) {
+            throw new ValidationError("Idempotency-Key header is required");
+        }
+        const hash = requestFingerprint(command);
+        const authHeader = authorizationHeader(request);
+
         this.logger.info({
             event: "postbookings_start",
-            body: request.body,
-            correlationId
+            vendorId: command.vendorId,
+            branchId: command.branchId,
+            offeringId: command.offeringId,
+            slotId: command.slotId,
+            holdId: command.holdId,
+            correlationId,
         });
 
-        const body = request.body as Booking;
-
-        // Validation
-        if (!body.customerId) {
-            throw new ValidationError("customerId is required");
-        }
-        if (!body.vendorId) {
-            throw new ValidationError("vendorId is required");
-        }
-        if (!body.bookingDate) {
-            throw new ValidationError("bookingDate is required");
-        }
-        if (!body.slotId) {
-            throw new ValidationError("slotId is required");
-        }
-        if (!body.serviceIds || body.serviceIds.length === 0) {
-            throw new ValidationError("At least one serviceId is required");
-        }
-        if (body.totalAmount === undefined || body.totalAmount < 0) {
-            throw new ValidationError("totalAmount must be a non-negative number");
+        const existing = await this.repository.getIdempotency(customerId, idempotencyKey);
+        if (existing) {
+            return this.resume(existing, hash, correlationId);
         }
 
-        const id = body.id || randomUUID();
-        const newBooking: Booking = {
-            ...body,
-            id,
-            bookingStatus: 'CREATED',
-            paymentStatus: 'PENDING'
+        const [vehicle, eligibility, slot, hold, profile, offering] = await Promise.all([
+            this.vehicles.getVehicle(command.vehicleId, authHeader),
+            this.vendors.getCheckoutEligibility(command.vendorId, command.branchId),
+            this.availability.getSlot(command.slotId, authHeader),
+            this.availability.getHold(command.holdId, authHeader),
+            this.users.getProfile(customerId, authHeader),
+            this.catalog.getOffering(command.offeringId, authHeader),
+        ]);
+
+        assertVehicleOwnership(vehicle, customerId, command.vehicleId);
+        assertVendorEligible(eligibility.vendor, command.vendorId);
+        assertBranch(eligibility.branch, command);
+        assertOffering(offering, command, vehicle.vehicleType);
+        assertSlot(slot, command, vehicle.vehicleType);
+        assertHold(hold, command, customerId, this.now());
+        assertLocation(command, eligibility.vendor, profile);
+        if (command.location.addressId) {
+            await this.users.assertAddress(customerId, command.location.addressId, authHeader);
+        }
+
+        const price = await this.catalog.priceOffering({
+            offeringId: command.offeringId,
+            vendorId: command.vendorId,
+            vehicleType: vehicle.vehicleType,
+            authorizationHeader: authHeader,
+        });
+        const resolved = authoritativeOfferingVersion(price);
+        if (resolved.offeringVersion !== command.offeringVersion) {
+            throw new BookingError(
+                "OFFERING_VERSION_MISMATCH",
+                "Offering version does not match the current offering revision",
+                409,
+                "offeringVersion",
+            );
+        }
+        const pricingSnapshot = buildPricingSnapshot({
+            offeringId: command.offeringId,
+            offeringVersion: resolved.offeringVersion,
+            catalogVersion: resolved.catalogVersion,
+            vendorPricingVersion: resolved.vendorPricingVersion,
+            price,
+        });
+
+        const booking: Booking = {
+            id: randomUUID(),
+            customerId,
+            vendorId: command.vendorId,
+            branchId: command.branchId,
+            vehicleId: command.vehicleId,
+            vehicleDetails: {
+                bodyCategory: vehicle.vehicleType,
+                ...([vehicle.brand, vehicle.model].filter(Boolean).length
+                    ? { makeModel: [vehicle.brand, vehicle.model].filter(Boolean).join(" ") }
+                    : {}),
+            },
+            serviceIds: [command.offeringId],
+            offeringId: command.offeringId,
+            offeringVersion: resolved.offeringVersion,
+            bookingDate: slot.date,
+            slotId: command.slotId,
+            holdId: command.holdId,
+            location: command.location,
+            pricingSnapshot,
+            totalAmount: pricingSnapshot.totalAmount,
+            paymentStatus: "PENDING",
+            bookingStatus: "PENDING",
         };
 
         try {
-            const created = await this.repository.createBooking(newBooking);
-
-            this.logger.info({
-                event: "postbookings_success",
-                bookingId: id,
-                correlationId
+            await this.repository.createBooking(booking, {
+                idempotencyKey,
+                requestHash: hash,
             });
-
-            return created;
-        } catch (error: any) {
-            this.logger.error({
-                event: "postbookings_failed",
-                error: error.message,
-                correlationId
-            });
-
+        } catch (error) {
             if (error instanceof ConditionalWriteConflictError) {
-                throw new ConflictError("The selected slot is already booked for this vendor on this date/time.");
+                return this.resumeAfterConflict(customerId, idempotencyKey, hash, command.holdId, correlationId);
             }
+            this.logger.error({
+                event: "postbookings_persist_failed",
+                bookingId: booking.id,
+                correlationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
             throw error;
         }
+
+        const secured = await this.secureAllocation(booking.id!, correlationId);
+        this.logger.info({
+            event: "postbookings_success",
+            bookingId: secured.id,
+            payableAmount: payableAmount(secured),
+            correlationId,
+        });
+        return secured;
     }
 
     async getbookingid(request: LambdaRequest) {
@@ -267,7 +355,7 @@ export class BookingsService {
         }
 
         try {
-            await this.repository.cancelBooking(original);
+            await this.cancelAndRelease(original);
 
             this.logger.info({
                 event: "deletebookingid_success",
@@ -326,7 +414,7 @@ export class BookingsService {
         this.validateStateTransition(original.bookingStatus, 'CANCELLED');
 
         try {
-            await this.repository.cancelBooking(original);
+            await this.cancelAndRelease(original);
 
             this.logger.info({
                 event: "postcancel_success",
@@ -393,6 +481,107 @@ export class BookingsService {
             }
             throw error;
         }
+    }
+
+    private async resume(
+        record: BookingIdempotencyItem,
+        hash: string,
+        correlationId: string,
+    ): Promise<Booking> {
+        if (record.requestHash !== hash) {
+            throw new BookingError(
+                "IDEMPOTENCY_CONFLICT",
+                "Idempotency key was already used for a different booking request",
+                409,
+                "Idempotency-Key",
+            );
+        }
+        const item = await this.repository.getBookingDetailsItem(record.bookingId);
+        if (!item) {
+            throw new NotFoundError(`Booking with ID ${record.bookingId} not found`);
+        }
+        if (item.bookingStatus === "PENDING") {
+            return this.secureAllocation(item.id, correlationId);
+        }
+        if (item.bookingStatus === "CANCELLED") {
+            throw new BookingError(
+                "ALLOCATION_FAILED",
+                "Booking allocation was not secured. Start again with a new hold and idempotency key.",
+                409,
+                "holdId",
+            );
+        }
+        return BookingsMapper.toDomain(item);
+    }
+
+    private async resumeAfterConflict(
+        customerId: string,
+        idempotencyKey: string,
+        hash: string,
+        holdId: string,
+        correlationId: string,
+    ): Promise<Booking> {
+        const existing = await this.repository.getIdempotency(customerId, idempotencyKey);
+        if (existing) {
+            return this.resume(existing, hash, correlationId);
+        }
+        const holdBooking = await this.repository.getHoldBooking(holdId);
+        if (holdBooking && holdBooking.customerId !== customerId) {
+            throw new BookingError("HOLD_ALREADY_CONSUMED", "Hold is already consumed", 409, "holdId");
+        }
+        throw new ConflictError("The selected hold is already reserved");
+    }
+
+    private async secureAllocation(bookingId: string, correlationId: string): Promise<Booking> {
+        const original = await this.repository.getBookingDetailsItem(bookingId);
+        if (!original) {
+            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        }
+        if (original.bookingStatus !== "PENDING") {
+            return BookingsMapper.toDomain(original);
+        }
+        if (!original.holdId) {
+            throw new BookingError("HOLD_NOT_FOUND", "Booking has no hold to consume", 409, "holdId");
+        }
+        try {
+            await this.availability.consumeHold({
+                holdId: original.holdId,
+                bookingId,
+            });
+        } catch (error) {
+            this.logger.error({
+                event: "hold_consume_failed",
+                bookingId,
+                holdId: original.holdId,
+                correlationId,
+                code: error instanceof BookingError ? error.code : undefined,
+            });
+            if (this.isTerminalAllocationFailure(error)) {
+                await this.repository.cancelBooking(original);
+            }
+            throw error;
+        }
+        const current = await this.repository.getBookingDetailsItem(bookingId);
+        if (!current) {
+            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        }
+        await this.repository.updateBookingStatus("CREATED", current);
+        const secured = await this.repository.getBookingById(bookingId);
+        if (!secured) {
+            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        }
+        return secured;
+    }
+
+    private isTerminalAllocationFailure(error: unknown): boolean {
+        return error instanceof BookingError && !error.retryable && (error.statusCode ?? 500) < 500;
+    }
+
+    private async cancelAndRelease(original: BookingDdbItem): Promise<void> {
+        if (original.holdId) {
+            await this.availability.releaseAllocation(original.id);
+        }
+        await this.repository.cancelBooking(original);
     }
 
     private validateStateTransition(currentStatus: string, targetStatus: string) {

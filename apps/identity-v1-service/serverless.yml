@@ -5,6 +5,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - serverless-openapi-documenter
   - ./serverless.fixed-otp-plugin.js
 provider:
   name: aws
@@ -113,6 +114,326 @@ custom:
       - ./src/types/api-types.d.ts
     excludeStages:
       - production
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Identity Service API
+    description: Registration, login, OTP, sessions, profile, and application roles.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Health
+        description: Service health
+      - name: Registration
+        description: Public registration
+      - name: Authentication
+        description: Login, refresh, logout, and password change
+      - name: OTP
+        description: One-time passwords
+      - name: Profile
+        description: Current user profile
+      - name: Sessions
+        description: Refresh sessions
+      - name: Roles
+        description: Application roles
+      - name: Permissions
+        description: Application permissions
+    models:
+      - name: RegisterRequest
+        description: Public registration
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                password:
+                  type: string
+              required:
+                - firstName
+                - lastName
+                - email
+                - password
+      - name: LoginRequest
+        description: Username and password
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      - name: TokenResponse
+        description: Access and refresh tokens
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+                refreshToken:
+                  type: string
+                expiresIn:
+                  type: integer
+                tokenType:
+                  type: string
+      - name: RefreshTokenRequest
+        description: Refresh token
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+              required:
+                - refreshToken
+      - name: SendOtpRequest
+        description: Send an OTP. userType defaults to CUSTOMER. ADMIN cannot be self-registered.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                destination:
+                  type: string
+                userType:
+                  type: string
+                  enum:
+                    - CUSTOMER
+                    - VENDOR
+              required:
+                - destination
+      - name: VerifyOtpRequest
+        description: Verify an OTP
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                destination:
+                  type: string
+                otp:
+                  type: string
+              required:
+                - destination
+                - otp
+      - name: ChangePasswordRequest
+        description: Change the current password
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oldPassword:
+                  type: string
+                newPassword:
+                  type: string
+              required:
+                - oldPassword
+                - newPassword
+      - name: User
+        description: Identity user
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - PENDING_VERIFICATION
+                    - ACTIVE
+                    - LOCKED
+                    - DISABLED
+                roles:
+                  type: array
+                  items:
+                    type: string
+      - name: AssignAdminRoleRequest
+        description: Role assignment. Only ADMIN is accepted.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum:
+                    - ADMIN
+              required:
+                - role
+      - name: Session
+        description: Refresh session
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                createdAt:
+                  type: string
+                expiresAt:
+                  type: string
+      - name: SessionList
+        description: Refresh sessions
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      createdAt:
+                        type: string
+                      expiresAt:
+                        type: string
+      - name: RoleList
+        description: Application roles
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      description:
+                        type: string
+      - name: PermissionList
+        description: Application permissions
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      permission:
+                        type: string
+                      description:
+                        type: string
+      - name: RoleAssignment
+        description: Stored application role
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                role:
+                  type: string
+      - name: HealthStatus
+        description: Service health
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+      - name: MessageResponse
+        description: Acknowledgement
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
   health:
     handler: src/handlers/health.handler
@@ -121,6 +442,22 @@ functions:
           path: /health
           method: get
           cors: true
+          documentation:
+            summary: GET /health
+            description: GET /health
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: GET /health
+                responseModels:
+                  application/json: HealthStatus
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            security: []
   postregister:
     handler: src/handlers/registration.handler
     events:
@@ -137,6 +474,28 @@ functions:
             200:
               description: "User created"
               bodyType: User
+          documentation:
+            summary: Register a new user
+            description: Public. HTTP 200 platform envelope. The created identity is in data (id, email, phone, status, roles). This call does not return tokens.
+            tags:
+              - Registration
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: User created
+                responseModels:
+                  application/json: User
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Public. HTTP 200 platform envelope. The created identity is in data (id, email, phone, status, roles). This call does not return tokens.
+              required: true
+            requestModels:
+              application/json: RegisterRequest
+            security: []
   postlogin:
     handler: src/handlers/authentication.login
     events:
@@ -152,6 +511,28 @@ functions:
             200:
               description: "Login successful"
               bodyType: TokenResponse
+          documentation:
+            summary: Login
+            description: Login
+            tags:
+              - Authentication
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Login successful
+                responseModels:
+                  application/json: TokenResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Login
+              required: true
+            requestModels:
+              application/json: LoginRequest
+            security: []
   postrefreshtoken:
     handler: src/handlers/authentication.refreshToken
     events:
@@ -167,6 +548,28 @@ functions:
             200:
               description: "Token refreshed"
               bodyType: TokenResponse
+          documentation:
+            summary: Refresh access token
+            description: Refresh access token
+            tags:
+              - Authentication
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Token refreshed
+                responseModels:
+                  application/json: TokenResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Refresh access token
+              required: true
+            requestModels:
+              application/json: RefreshTokenRequest
+            security: []
   postlogout:
     handler: src/handlers/authentication.logout
     events:
@@ -181,6 +584,20 @@ functions:
           responseData:
             204:
               description: "Logged out"
+          documentation:
+            summary: Logout current session
+            description: Logout current session
+            tags:
+              - Authentication
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Logged out
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   postchangepassword:
     handler: src/handlers/authentication.changePassword
     events:
@@ -196,6 +613,25 @@ functions:
           responseData:
             204:
               description: "Password changed"
+          documentation:
+            summary: Change password
+            description: Change password
+            tags:
+              - Authentication
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Password changed
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Change password
+              required: true
+            requestModels:
+              application/json: ChangePasswordRequest
   postsend:
     handler: src/handlers/otpHandler.handlePostsend
     events:
@@ -210,6 +646,28 @@ functions:
           responseData:
             202:
               description: "OTP sent"
+          documentation:
+            summary: Send OTP
+            description: Send OTP
+            tags:
+              - OTP
+            methodResponses:
+              - statusCode: "202"
+                responseBody:
+                  description: OTP sent
+                responseModels:
+                  application/json: MessageResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Send OTP
+              required: true
+            requestModels:
+              application/json: SendOtpRequest
+            security: []
   postverify:
     handler: src/handlers/otpHandler.handlePostverify
     events:
@@ -225,6 +683,28 @@ functions:
             200:
               description: "OTP verified"
               bodyType: TokenResponse
+          documentation:
+            summary: Verify OTP
+            description: Verify OTP
+            tags:
+              - OTP
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OTP verified
+                responseModels:
+                  application/json: TokenResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Verify OTP
+              required: true
+            requestModels:
+              application/json: VerifyOtpRequest
+            security: []
   getme:
     handler: src/handlers/profile.handler
     events:
@@ -240,6 +720,22 @@ functions:
             200:
               description: "Profile"
               bodyType: User
+          documentation:
+            summary: Current authenticated user
+            description: Current authenticated user
+            tags:
+              - Profile
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Profile
+                responseModels:
+                  application/json: User
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   getsessions:
     handler: src/handlers/sessions.handleGetsessions
     events:
@@ -254,6 +750,22 @@ functions:
           responseData:
             200:
               description: "Sessions"
+          documentation:
+            summary: List active sessions
+            description: List active sessions
+            tags:
+              - Sessions
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Sessions
+                responseModels:
+                  application/json: SessionList
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   deletesessions:
     handler: src/handlers/sessions.handleDeletesessions
     events:
@@ -268,6 +780,20 @@ functions:
           responseData:
             204:
               description: "All sessions revoked"
+          documentation:
+            summary: Logout from all devices
+            description: Logout from all devices
+            tags:
+              - Sessions
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: All sessions revoked
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   deletesessionid:
     handler: src/handlers/sessions.handleDeletesessionid
     events:
@@ -282,6 +808,25 @@ functions:
           responseData:
             204:
               description: "Session revoked"
+          documentation:
+            summary: Revoke a session
+            description: Revoke a session
+            tags:
+              - Sessions
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Session revoked
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: sessionId
+                description: sessionId
+                schema:
+                  type: string
   getroles:
     handler: src/handlers/roles.handleGetroles
     events:
@@ -296,6 +841,22 @@ functions:
           responseData:
             200:
               description: "Roles list"
+          documentation:
+            summary: List roles
+            description: List roles
+            tags:
+              - Roles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Roles list
+                responseModels:
+                  application/json: RoleList
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   getpermissions:
     handler: src/handlers/permissions.handleGetpermissions
     events:
@@ -310,6 +871,22 @@ functions:
           responseData:
             200:
               description: "Permissions list"
+          documentation:
+            summary: List permissions
+            description: List permissions
+            tags:
+              - Permissions
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Permissions list
+                responseModels:
+                  application/json: PermissionList
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
   # Cognito Pre Token Generation V2_0. Access-token \`roles\` requires a paid
   # Cognito feature plan (Essentials or Plus). This function does not replace
   # the user pool or any other trigger.
@@ -349,6 +926,32 @@ functions:
           responseData:
             200:
               description: "ADMIN role stored"
+          documentation:
+            summary: Assign the ADMIN application role
+            description: Caller must already have ADMIN on the access token. The body role must be ADMIN. CUSTOMER and VENDOR are not assigned here.
+            tags:
+              - Roles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: ADMIN role stored
+                responseModels:
+                  application/json: RoleAssignment
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Caller must already have ADMIN on the access token. The body role must be ADMIN. CUSTOMER and VENDOR are not assigned here.
+              required: true
+            requestModels:
+              application/json: AssignAdminRoleRequest
   deleteUserAdminRole:
     handler: src/handlers/roles.handleRevokeAdminRole
     events:
@@ -364,6 +967,31 @@ functions:
           responseData:
             200:
               description: "ADMIN role removed"
+          documentation:
+            summary: Remove the ADMIN application role
+            description: Caller must already have ADMIN on the access token. Only the ADMIN role can be removed through this route.
+            tags:
+              - Roles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: ADMIN role removed
+                responseModels:
+                  application/json: RoleAssignment
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+              - name: role
+                description: role
+                schema:
+                  type: string
 resources:
   Resources:
     IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}

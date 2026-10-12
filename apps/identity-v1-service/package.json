@@ -9,5 +9,8 @@
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-auto-swagger": "^3.1.0",
     "serverless-offline": "13.9.0"
+  },
+  "scripts": {
+    "openapi": "serverless openapi generate -o openapi.json -f json -p postman.json"
   }
 }

@@ -597,7 +597,7 @@ describe('Services Unit Tests', () => {
             );
         });
 
-        it('uses the challenge userType for a new identity and never makes it an authorization role', async () => {
+        it('stores the challenge userType and assigns that application role on a new identity', async () => {
             mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
             mockRepo.verifyOtp.mockResolvedValue(true);
             mockRepo.getUserByPhone.mockResolvedValue(null);
@@ -611,10 +611,6 @@ describe('Services Unit Tests', () => {
                 expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
             );
             expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
-                expect.any(String),
-                'CUSTOMER',
-            );
-            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
                 expect.any(String),
                 'VENDOR',
             );
@@ -895,10 +891,42 @@ describe('Services Unit Tests', () => {
                 emailVerified: false,
                 phoneVerified: false,
                 version: 1,
+                roles: [],
             });
             expect(result).not.toHaveProperty('passwordHash');
             expect(result).not.toHaveProperty('PK');
             expect(result).not.toHaveProperty('SK');
+        });
+
+        it('returns application roles and omits the legacy roleId from that list', async () => {
+            mockProfileRepo.getProfile.mockResolvedValue({
+                userId: 'u-123',
+                firstName: 'Priya',
+                lastName: 'Nair',
+            });
+            mockProfileRepo.getUser.mockResolvedValue({
+                userId: 'u-123',
+                email: 'priya@example.com',
+                username: 'priya@example.com',
+                phoneNumber: '+919876543210',
+                passwordHash: 'secret:hash',
+                status: 'ACTIVE',
+                emailVerified: true,
+                phoneVerified: true,
+                version: 2,
+                roleId: 'user',
+                userType: 'VENDOR',
+            } as User);
+            mockProfileRepo.getUserRoles.mockResolvedValue(['VENDOR', 'user', 'CUSTOMER']);
+
+            const service = new ProfileService(mockProfileRepo);
+            const result = await service.getme({
+                context: { userContext: { userId: 'u-123' } },
+            } as unknown as LambdaRequest);
+
+            expect(result.roles).toEqual(['CUSTOMER', 'VENDOR']);
+            expect(result.userType).toBe('VENDOR');
+            expect(result).not.toHaveProperty('passwordHash');
         });
 
         it('rejects /me when the token has no user', async () => {

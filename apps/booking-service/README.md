@@ -10,11 +10,13 @@ booking
 
 Bootstrap Completed
 
-## Next Step
+## Checkout
 
-Run
+Create booking reads vendor eligibility from `getCheckoutEligibility` and the payable amount from Service Catalog `POST /pricing/calculate`. `offeringId` is the catalog service id. `offeringVersion` must equal the `offeringVersion` in that pricing response.
 
-```bash
-node tools/codegen/02-create-folder-structure.js booking
-```
+A mismatch returns `409 OFFERING_VERSION_MISMATCH` before the booking is written and before its hold is consumed. A missing authoritative version returns `502 CATALOG_PRICING_UNAVAILABLE`. The booking stores the server revision, `catalogVersion`, `vendorPricingVersion`, currency, and the price breakdown. An idempotent retry returns the original snapshot and does not reprice.
+
+Deploy Vendor Service and Service Catalog before this service. `VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION` is `vendor-service-api-<stage>-getCheckoutEligibility`. The booking role may invoke that function and the existing availability consume and release functions. Do not send a customer token to the vendor internal functions.
+
+Existing bookings keep the snapshot they were created with. No backfill of those items is required.
 

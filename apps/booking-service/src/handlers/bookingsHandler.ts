@@ -6,7 +6,8 @@ import {
 } from "../controllers/bookings.controller";
 
 import {
-    validateBooking
+    validateBooking,
+    validateCreateBooking,
 } from "../schemas/bookings.schema";
 
 const controller =
@@ -25,7 +26,7 @@ export const handlePostbookings =
     withApiHandler(
         {
             operation: "postbookings",
-            validator: (request: LambdaRequest) => { validateBooking(request); },
+            validator: (request: LambdaRequest) => { validateCreateBooking(request); },
             useLegacyResponseFormat: true
         },
         async (request: LambdaRequest) => {

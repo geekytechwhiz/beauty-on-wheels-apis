@@ -7,6 +7,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - serverless-openapi-documenter
 
 provider:
   name: aws
@@ -81,6 +82,140 @@ custom:
       - production
 
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Vehicle Service API
+    description: Customer garage vehicles and the canonical vehicle-type list.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Vehicles
+        description: Vehicles owned by the authenticated customer
+    models:
+      - name: Vehicle
+        description: Customer vehicle
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                userId:
+                  type: string
+                registrationNumber:
+                  type: string
+                vehicleType:
+                  type: string
+                  enum:
+                    - HATCHBACK
+                    - SEDAN
+                    - SUV
+                    - MUV
+                    - LUXURY
+                    - BIKE
+                brand:
+                  type: string
+                model:
+                  type: string
+                variant:
+                  type: string
+                color:
+                  type: string
+                fuelType:
+                  type: string
+                  enum:
+                    - PETROL
+                    - DIESEL
+                    - EV
+                    - HYBRID
+                    - CNG
+                manufactureYear:
+                  type: integer
+                defaultVehicle:
+                  type: boolean
+              required:
+                - registrationNumber
+                - vehicleType
+      - name: VehicleTypeList
+        description: Canonical vehicle types. The HTTP body is the platform envelope and data.items is this list.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - HATCHBACK
+                      - SEDAN
+                      - SUV
+                      - MUV
+                      - LUXURY
+                      - BIKE
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
 
 
@@ -100,6 +235,22 @@ functions:
             200:
               description: "Vehicle list in data.items"
               bodyType: Vehicle
+          documentation:
+            summary: List my vehicles
+            description: Requires a bearer access token. Returns only vehicles owned by the authenticated user. Query status (ACTIVE or INACTIVE) or vehicleType. The platform envelope puts the list at data.items.
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vehicle list in data.items
+                responseModels:
+                  application/json: Vehicle
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
 
   postvehicles:
@@ -118,6 +269,25 @@ functions:
           responseData:
             200:
               description: "Vehicle created"
+          documentation:
+            summary: Add vehicle
+            description: Requires a bearer access token. The vehicle is stored for the authenticated user. A client-supplied userId is ignored. HTTP 200 platform envelope; the vehicle is in data.
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vehicle created
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Requires a bearer access token. The vehicle is stored for the authenticated user. A client-supplied userId is ignored. HTTP 200 platform envelope; the vehicle is in data.
+              required: true
+            requestModels:
+              application/json: Vehicle
 
 
   getvehicleid:
@@ -135,6 +305,27 @@ functions:
             200:
               description: "Vehicle"
               bodyType: Vehicle
+          documentation:
+            summary: Get vehicle
+            description: Get vehicle
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vehicle
+                responseModels:
+                  application/json: Vehicle
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vehicleId
+                description: vehicleId
+                schema:
+                  type: string
 
 
   putvehicleid:
@@ -152,6 +343,30 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update vehicle
+            description: Update vehicle
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vehicleId
+                description: vehicleId
+                schema:
+                  type: string
+            requestBody:
+              description: Update vehicle
+              required: true
+            requestModels:
+              application/json: Vehicle
 
 
   deletevehicleid:
@@ -169,6 +384,25 @@ functions:
           responseData:
             200:
               description: "Deleted"
+          documentation:
+            summary: Delete vehicle
+            description: Requires a bearer access token. Deletes a vehicle owned by the authenticated user. Success is HTTP 200 with the platform envelope and data null.
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Deleted
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vehicleId
+                description: vehicleId
+                schema:
+                  type: string
 
 
   putdefault:
@@ -185,6 +419,27 @@ functions:
           responseData:
             200:
               description: "Default vehicle updated"
+          documentation:
+            summary: Set default vehicle
+            description: Set default vehicle
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Default vehicle updated
+                responseModels:
+                  application/json: Vehicle
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vehicleId
+                description: vehicleId
+                schema:
+                  type: string
 
 
   getvehicletypes:
@@ -203,6 +458,22 @@ functions:
             200:
               description: "Vehicle types in data.items"
               bodyType: VehicleTypeList
+          documentation:
+            summary: List supported vehicle types
+            description: Requires a bearer access token. Canonical success body is the platform envelope. data.items is the vehicle type array. Clients must not expect a bare JSON array.
+            tags:
+              - Vehicles
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vehicle types in data.items
+                responseModels:
+                  application/json: VehicleTypeList
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 # Deleted legacy root-level iamRoleStatements
 
 resources:

@@ -3,6 +3,11 @@ import {
 } from "@api-hub/utils";
 
 import { env } from "../configs/env.config";
+import {
+    INITIAL_CATALOG_VERSION,
+    isAuthoritativeCatalogVersion,
+    isConditionalWriteFailure,
+} from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { AddonEntity, AddonLookupEntity } from "../utils/types/catalog-domain.types";
 
@@ -211,6 +216,26 @@ export class AddOnsRepository extends BaseRepository {
                 },
             ],
         });
+    }
+
+    async ensureAddonVersion(entity: AddonEntity): Promise<AddonEntity> {
+        if (isAuthoritativeCatalogVersion(entity.version)) {
+            return entity;
+        }
+        try {
+            await this.update({
+                TableName: TABLE(),
+                Key: { PK: entity.PK, SK: entity.SK },
+                UpdateExpression: "SET version = :initialVersion",
+                ConditionExpression: "attribute_not_exists(version)",
+                ExpressionAttributeValues: { ":initialVersion": INITIAL_CATALOG_VERSION },
+            });
+        } catch (error) {
+            if (!isConditionalWriteFailure(error)) {
+                throw error;
+            }
+        }
+        return (await this.findById(entity.categoryId, entity.serviceId, entity.addonId)) ?? entity;
     }
 
 }

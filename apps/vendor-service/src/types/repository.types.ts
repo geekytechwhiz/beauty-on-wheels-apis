@@ -229,12 +229,16 @@ export interface VendorServiceOfferingRecord {
   categoryId?: string;
   enabled: boolean;
   priceOverride?: number;
+  /** Server-owned. Increments when enabled or priceOverride changes. */
+  version?: number;
 }
 
 export interface VendorPackageOfferingRecord {
   packageId: string;
   enabled: boolean;
   priceOverride?: number;
+  /** Server-owned. Increments when enabled or priceOverride changes. */
+  version?: number;
 }
 
 export interface VendorCapabilitiesDdbItem {
@@ -246,6 +250,8 @@ export interface VendorCapabilitiesDdbItem {
   packageIds: string[];
   services?: VendorServiceOfferingRecord[];
   packages?: VendorPackageOfferingRecord[];
+  /** Server-owned. Increments when any pricing input on this item changes. */
+  configurationVersion?: number;
   createdAt: string;
   updatedAt: string;
   entityType: 'VendorCapabilities';

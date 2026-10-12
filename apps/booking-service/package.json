@@ -107,5 +107,8 @@
     ]
   },
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {},
+  "scripts": {
+    "openapi": "serverless openapi generate -o openapi.json -f json -p postman.json"
+  }
 }

@@ -1,0 +1,755 @@
+openapi: 3.0.3
+info:
+  title: Partner session workflow
+  version: 2026-10-11
+  description: |
+    Authoritative contract for the Partner sign-in sequence, taken from the
+    identity-v1 and vendor service implementations. Examples are test-backed
+    illustrations. They are not captured responses from a deployed stage.
+
+    Identity and Vendor are separate services. One response never contains both
+    the session and the vendor membership.
+
+    Call order:
+    1. POST {identity}/otp/send
+    2. POST {identity}/otp/verify
+    3. GET {identity}/me with the access token
+    4. GET {vendor}/vendors/me with the same access token
+    5. GET {vendor}/vendors/{vendorId}/branches
+
+    Protected operations use the platform token authorizer. Send
+    `Authorization: Bearer <accessToken>`.
+
+    Success and error bodies use the platform envelope. Inner `data` is the
+    operation payload. Branch list payloads are `{ data: Branch[] }`, so the
+    HTTP body is `envelope.data.data`.
+
+    There is no pagination on these operations.
+servers:
+  - url: https://identity.example/{stage}
+    description: Identity service. Replace the host with the deployed identity base URL.
+    variables:
+      stage:
+        default: dev
+  - url: https://vendor.example/{stage}
+    description: Vendor service. Replace the host with the deployed vendor base URL.
+    variables:
+      stage:
+        default: dev
+tags:
+  - name: Identity
+  - name: Vendor
+security: []
+paths:
+  /otp/send:
+    post:
+      tags: [Identity]
+      operationId: sendOtp
+      summary: Start or resend an OTP challenge
+      description: |
+        Public. Creates a 5-minute challenge and returns a reference id.
+        The OTP value is not returned. In dev, a fixed OTP may be used and is
+        still not returned. `userType` is stored with the challenge and is not
+        accepted again at verification.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOtpRequest'
+            example:
+              destination: '+919876543210'
+              userType: VENDOR
+      responses:
+        '200':
+          description: Challenge created. Not HTTP 202, despite older swagger notes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendOtpEnvelope'
+              example:
+                success: true
+                statusCode: 200
+                message:
+                  title: SUCCESS
+                  description: Request processed successfully
+                  severity: SUCCESS
+                data:
+                  success: true
+                  referenceId: 4f0c2a6b1d9e4a7c8b0d1e2f3a4b5c6d
+                error: null
+                meta:
+                  correlationId: test-corr
+                  timestamp: '2026-10-11T00:00:00.000Z'
+                  version: v1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /otp/verify:
+    post:
+      tags: [Identity]
+      operationId: verifyOtp
+      summary: Verify OTP and establish a session
+      description: |
+        Public. Returns Cognito tokens and stores a server session keyed by the
+        refresh-token hash. Does not return vendor id, membership, or branches.
+        A new identity receives the application role that matches the challenge
+        userType (VENDOR or CUSTOMER). ADMIN cannot be requested.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+            example:
+              destination: '+919876543210'
+              otp: '123456'
+      responses:
+        '200':
+          description: Tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+              example:
+                success: true
+                statusCode: 200
+                message:
+                  title: SUCCESS
+                  description: Request processed successfully
+                  severity: SUCCESS
+                data:
+                  accessToken: test-access-token
+                  refreshToken: test-refresh-token
+                  expiresIn: 3600
+                  tokenType: Bearer
+                error: null
+                meta:
+                  correlationId: test-corr
+                  timestamp: '2026-10-11T00:00:00.000Z'
+                  version: v1
+        '400':
+          description: Validation failure or invalid/expired OTP (`INVALID_OTP`, `DESTINATION_REQUIRED`, `OTP_REQUIRED`, `VALIDATION_ERROR`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Account is not active (`ACCOUNT_NOT_ACTIVE`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /auth/refresh-token:
+    post:
+      tags: [Identity]
+      operationId: refreshToken
+      summary: Refresh the access token
+      description: |
+        Public. Body carries the refresh token. The server session must be
+        active and unexpired. The new access token includes current application
+        roles via the pre-token trigger.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: test-refresh-token
+      responses:
+        '200':
+          description: Tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid, inactive, or expired refresh token, or inactive user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /me:
+    get:
+      tags: [Identity]
+      operationId: getCurrentIdentity
+      summary: Current identity
+      description: |
+        Requires a bearer access token that resolves to an application user id.
+        Returns identity fields only. Vendor membership is GET /vendors/me.
+        `roles` are application role codes. `roleId` is the legacy profile role
+        and is not an application role. `capabilities` is not a field.
+        `passwordHash` is omitted. `cognitoUsername` may be present.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current identity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityEnvelope'
+              example:
+                success: true
+                statusCode: 200
+                message:
+                  title: SUCCESS
+                  description: Request processed successfully
+                  severity: SUCCESS
+                data:
+                  userId: u-123
+                  firstName: Priya
+                  lastName: Nair
+                  email: priya@example.com
+                  phoneNumber: '+919876543210'
+                  username: priya@example.com
+                  status: ACTIVE
+                  roleId: user
+                  emailVerified: true
+                  phoneVerified: true
+                  version: 2
+                  userType: VENDOR
+                  roles:
+                    - CUSTOMER
+                    - VENDOR
+                error: null
+                meta:
+                  correlationId: test-corr
+                  timestamp: '2026-10-11T00:00:00.000Z'
+                  version: v1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No user and no profile (`USER_NOT_FOUND`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /vendors/me:
+    get:
+      tags: [Vendor]
+      operationId: getMyVendor
+      summary: Current owner membership
+      description: |
+        Requires a bearer access token. Resolves the vendor owned by the
+        application user id. Does not accept vendorId, userId, or phone.
+        Staff records are not consulted. When `hasVendor` is false, `membership`
+        is absent. When true, `membership.role` is `owner`.
+        Permitted branches are the following branch list, not this payload.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Owner membership, or a prompt to start onboarding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorSelfEnvelope'
+              examples:
+                owner:
+                  summary: Test-backed owner membership
+                  value:
+                    success: true
+                    statusCode: 200
+                    message:
+                      title: SUCCESS
+                      description: Request processed successfully
+                      severity: SUCCESS
+                    data:
+                      hasVendor: true
+                      vendorId: vendor-1
+                      status: DRAFT
+                      onboarding:
+                        currentStep: BUSINESS_INFO
+                        completed: false
+                      nextAction: RESUME_ONBOARDING
+                      membership:
+                        role: owner
+                    error: null
+                    meta:
+                      correlationId: test-corr
+                      timestamp: '2026-10-11T00:00:00.000Z'
+                      version: v1
+                noVendor:
+                  summary: Test-backed caller with no owned vendor
+                  value:
+                    success: true
+                    statusCode: 200
+                    message:
+                      title: SUCCESS
+                      description: Request processed successfully
+                      severity: SUCCESS
+                    data:
+                      hasVendor: false
+                      nextAction: START_ONBOARDING
+                    error: null
+                    meta:
+                      correlationId: test-corr
+                      timestamp: '2026-10-11T00:00:00.000Z'
+                      version: v1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /vendors/{vendorId}/branches:
+    get:
+      tags: [Vendor]
+      operationId: listPermittedBranches
+      summary: Branches the caller may use
+      description: |
+        Requires a bearer access token. The owner receives every branch of that
+        vendor. A platform administrator may list a vendor they do not own.
+        Any other caller receives 403. There is no staff branch filter because
+        staff records do not store branch assignments. No query parameters and
+        no pagination. `timeZone` is not a branch field.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Branch list inside the envelope `data` object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchListEnvelope'
+              example:
+                success: true
+                statusCode: 200
+                message:
+                  title: SUCCESS
+                  description: Request processed successfully
+                  severity: SUCCESS
+                data:
+                  data:
+                    - branchId: branch-1
+                      vendorId: vendor-1
+                      name: Koramangala
+                      isPrimary: true
+                      createdAt: '2026-01-02T00:00:00.000Z'
+                      updatedAt: '2026-01-02T00:00:00.000Z'
+                error: null
+                meta:
+                  correlationId: test-corr
+                  timestamp: '2026-10-11T00:00:00.000Z'
+                  version: v1
+        '400':
+          description: Missing vendorId (`VALIDATION_ERROR`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Vendor does not exist (`NOT_FOUND`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito access token from POST /otp/verify or POST /auth/refresh-token. tokenType is Bearer.
+  responses:
+    ValidationError:
+      description: Request validation failed (`VALIDATION_ERROR`). Zod failures use HTTP 400.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Missing or unusable bearer token (`UNAUTHORIZED`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Authenticated caller cannot access this vendor (`FORBIDDEN`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    Message:
+      type: object
+      required: [title, description, severity]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [SUCCESS, INFO, WARNING, ERROR]
+    Meta:
+      type: object
+      required: [correlationId, timestamp, version]
+      properties:
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          enum: [v1]
+    ErrorDetail:
+      type: object
+      required: [message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        statusCode:
+          type: integer
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SendOtpRequest:
+      type: object
+      additionalProperties: false
+      required: [destination]
+      properties:
+        destination:
+          type: string
+          minLength: 1
+          description: Phone or email. Phone is normalized to E.164 when valid. Email is trimmed and lowercased.
+        userType:
+          type: string
+          enum: [CUSTOMER, VENDOR]
+          default: CUSTOMER
+          description: Registration intent stored on the challenge. ADMIN is rejected.
+    SendOtpResult:
+      type: object
+      required: [success, referenceId]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        referenceId:
+          type: string
+          description: Challenge reference. Not an OTP and not a session id.
+    SendOtpEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+          enum: [200]
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          $ref: '#/components/schemas/SendOtpResult'
+        error:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+    VerifyOtpRequest:
+      type: object
+      additionalProperties: false
+      required: [destination, otp]
+      properties:
+        destination:
+          type: string
+          minLength: 1
+        otp:
+          type: string
+          minLength: 1
+          maxLength: 12
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+    TokenResult:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, tokenType]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access-token lifetime in seconds.
+        tokenType:
+          type: string
+          enum: [Bearer]
+    TokenEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+          enum: [200]
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          $ref: '#/components/schemas/TokenResult'
+        error:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+    CurrentIdentity:
+      type: object
+      required: [userId, firstName, lastName, userType, roles]
+      properties:
+        userId:
+          type: string
+          description: Application user id. Map to a client `id` locally if needed.
+        identityId:
+          type: string
+          description: Cognito sub. Not the application user id.
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phoneNumber:
+          type: string
+          description: Map to a client `phone` locally if needed.
+        username:
+          type: string
+        status:
+          type: string
+        roleId:
+          type: string
+          description: Legacy profile role, often `user`. Not an application role.
+        emailVerified:
+          type: boolean
+        phoneVerified:
+          type: boolean
+        version:
+          type: integer
+        profileImageUrl:
+          type: string
+        language:
+          type: string
+        timezone:
+          type: string
+        userType:
+          type: string
+          enum: [CUSTOMER, VENDOR, ADMIN]
+          description: Registration classification. Not a substitute for `roles`.
+        roles:
+          type: array
+          description: Application roles. Order is CUSTOMER, VENDOR, ADMIN. May be empty.
+          items:
+            type: string
+            enum: [CUSTOMER, VENDOR, ADMIN]
+        cognitoUsername:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    IdentityEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+          enum: [200]
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          $ref: '#/components/schemas/CurrentIdentity'
+        error:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+    VendorMembership:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [owner]
+          description: Only owner is returned. Staff is not a value of this API.
+    VendorSelfLookup:
+      type: object
+      required: [hasVendor, nextAction]
+      properties:
+        hasVendor:
+          type: boolean
+        vendorId:
+          type: string
+          description: Present when hasVendor is true.
+        status:
+          type: string
+          description: Onboarding status while pending verification, otherwise the vendor lifecycle status.
+          enum:
+            - DRAFT
+            - IN_PROGRESS
+            - PENDING_REVIEW
+            - COMPLETED
+            - PENDING_VERIFICATION
+            - ACTIVE
+            - SUSPENDED
+            - INACTIVE
+            - REJECTED
+        onboarding:
+          type: object
+          required: [currentStep, completed]
+          properties:
+            currentStep:
+              type: string
+              enum: [BUSINESS_INFO, OWNER_DETAILS, ADDRESS, BRANCH, DOCUMENTS, BANK_DETAILS]
+            completed:
+              type: boolean
+        nextAction:
+          type: string
+          enum:
+            - START_ONBOARDING
+            - RESUME_ONBOARDING
+            - VIEW_APPLICATION_STATUS
+            - OPEN_VENDOR_DASHBOARD
+            - COMPLETE_VENDOR_SETUP
+            - VIEW_ACCOUNT_STATUS
+            - CORRECT_APPLICATION
+        membership:
+          $ref: '#/components/schemas/VendorMembership'
+          description: Absent when hasVendor is false.
+    VendorSelfEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+          enum: [200]
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          $ref: '#/components/schemas/VendorSelfLookup'
+        error:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+    Address:
+      type: object
+      required: [addressLine1, city, state, country, postalCode]
+      properties:
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        landmark:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        postalCode:
+          type: string
+    GeoLocation:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+    Branch:
+      type: object
+      required: [branchId, vendorId, name, isPrimary, createdAt, updatedAt]
+      properties:
+        branchId:
+          type: string
+          description: Map to a client `id` locally if needed.
+        vendorId:
+          type: string
+        name:
+          type: string
+        phoneNumber:
+          type: string
+        email:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+        isPrimary:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BranchListEnvelope:
+      type: object
+      required: [success, statusCode, message, data, error, meta]
+      properties:
+        success:
+          type: boolean
+        statusCode:
+          type: integer
+          enum: [200]
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Branch'
+        error:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/Meta'

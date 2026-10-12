@@ -6,7 +6,10 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
+  - serverless-openapi-documenter
   - serverless-offline
+
+
 provider:
   name: aws
   runtime: nodejs22.x
@@ -23,6 +26,14 @@ provider:
     # LOG_LEVEL: ${ssm:/common/log-level}
     DYNAMODB_TABLE_NAME: ${self:provider.environment.BOOKING_TABLE}
     BOOKING_TABLE: booking-table-${self:provider.stage}
+    CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
+    VEHICLE_SERVICE_URL: ${env:VEHICLE_SERVICE_URL, ''}
+    VENDOR_SERVICE_URL: ${env:VENDOR_SERVICE_URL, ''}
+    VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: vendor-service-api-${self:provider.stage}-getCheckoutEligibility
+    USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
+    AVAILABILITY_SERVICE_URL: ${env:AVAILABILITY_SERVICE_URL, ''}
+    AVAILABILITY_CONSUME_HOLD_FUNCTION: availability-service-${self:provider.stage}-consumeHold
+    AVAILABILITY_RELEASE_ALLOCATION_FUNCTION: availability-service-${self:provider.stage}-releaseAllocation
     # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
   iam:
@@ -44,6 +55,13 @@ provider:
           Resource:
             - !GetAtt BookingTable.Arn
             - !Join [ "/", [ !GetAtt BookingTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_CONSUME_HOLD_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RELEASE_ALLOCATION_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION}
 
 custom:
 
@@ -77,6 +95,292 @@ custom:
       - production
 
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Booking Service API
+    description: Create and manage customer bookings and booking lifecycle transitions.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Bookings
+        description: Customer and vendor bookings
+    models:
+      - name: VehicleDetails
+        description: Vehicle snapshot stored on a booking
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bodyCategory:
+                  type: string
+                makeModel:
+                  type: string
+                saveToGarage:
+                  type: boolean
+      - name: CreateBookingRequest
+        description: Create booking. Price and customer identity are server-assigned.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - vendorId
+                - branchId
+                - vehicleId
+                - offeringId
+                - offeringVersion
+                - slotId
+                - holdId
+                - location
+              properties:
+                vendorId:
+                  type: string
+                branchId:
+                  type: string
+                vehicleId:
+                  type: string
+                offeringId:
+                  type: string
+                offeringVersion:
+                  type: integer
+                  minimum: 1
+                slotId:
+                  type: string
+                holdId:
+                  type: string
+                location:
+                  type: object
+                  required:
+                    - fulfilmentType
+                  properties:
+                    fulfilmentType:
+                      type: string
+                      enum:
+                        - community
+                        - address
+                        - COMMUNITY
+                        - ADDRESS
+                    communityId:
+                      type: string
+                    addressId:
+                      type: string
+      - name: Booking
+        description: Customer booking
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                customerId:
+                  type: string
+                vendorId:
+                  type: string
+                vehicleId:
+                  type: string
+                vehicleDetails:
+                  type: object
+                  properties:
+                    bodyCategory:
+                      type: string
+                    makeModel:
+                      type: string
+                    saveToGarage:
+                      type: boolean
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                bookingDate:
+                  type: string
+                slotId:
+                  type: string
+                branchId:
+                  type: string
+                offeringId:
+                  type: string
+                offeringVersion:
+                  type: integer
+                holdId:
+                  type: string
+                location:
+                  type: object
+                  properties:
+                    fulfilmentType:
+                      type: string
+                      enum:
+                        - community
+                        - address
+                    communityId:
+                      type: string
+                    addressId:
+                      type: string
+                pricingSnapshot:
+                  type: object
+                  properties:
+                    offeringId:
+                      type: string
+                    offeringVersion:
+                      type: integer
+                      description: Effective offering revision returned by Service Catalog pricing.
+                    catalogVersion:
+                      type: integer
+                      description: Catalog service version captured with the price.
+                    vendorPricingVersion:
+                      type: integer
+                      minimum: 0
+                      description: Vendor overlay version captured with the price. Zero means no overlay.
+                    baseAmount:
+                      type: number
+                    discountAmount:
+                      type: number
+                    taxAmount:
+                      type: number
+                    totalAmount:
+                      type: number
+                    currency:
+                      type: string
+                totalAmount:
+                  type: number
+                paymentMethod:
+                  type: string
+                paymentStatus:
+                  type: string
+                  enum:
+                    - PENDING
+                    - PAID
+                    - REFUNDED
+                bookingStatus:
+                  type: string
+                  enum:
+                    - CREATED
+                    - PENDING
+                    - CONFIRMED
+                    - CHECKED_IN
+                    - IN_PROGRESS
+                    - COMPLETED
+                    - CANCELLED
+      - name: BookingPage
+        description: Page of bookings
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      customerId:
+                        type: string
+                      vendorId:
+                        type: string
+                      vehicleId:
+                        type: string
+                      vehicleDetails:
+                        type: object
+                        properties:
+                          bodyCategory:
+                            type: string
+                          makeModel:
+                            type: string
+                          saveToGarage:
+                            type: boolean
+                      serviceIds:
+                        type: array
+                        items:
+                          type: string
+                      bookingDate:
+                        type: string
+                      slotId:
+                        type: string
+                      totalAmount:
+                        type: number
+                      paymentMethod:
+                        type: string
+                      paymentStatus:
+                        type: string
+                        enum:
+                          - PENDING
+                          - PAID
+                          - REFUNDED
+                      bookingStatus:
+                        type: string
+                        enum:
+                          - CREATED
+                          - PENDING
+                          - CONFIRMED
+                          - CHECKED_IN
+                          - IN_PROGRESS
+                          - COMPLETED
+                          - CANCELLED
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
 
 
@@ -104,6 +408,33 @@ functions:
           responseData:
             200:
               description: "Booking list"
+          documentation:
+            summary: List bookings
+            description: List all bookings, or filter by customerId or vendorId query param
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Booking list
+                responseModels:
+                  application/json: BookingPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            queryParams:
+              - name: customerId
+                description: Filter bookings by customer ID
+                required: false
+                schema:
+                  type: string
+              - name: vendorId
+                description: Filter bookings by vendor ID
+                required: false
+                schema:
+                  type: string
 
 
   postbookings:
@@ -115,12 +446,34 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create booking"
+          description: "Creates a booking from an availability hold. The customer comes from the access token. Price is snapshotted from Service Catalog and is not accepted from the client. Idempotency-Key is required."
           swaggerTags:
             - Bookings
-          bodyType: Booking
+          bodyType: CreateBookingRequest
           responseData:
             201:
               description: "Booking created"
+          documentation:
+            summary: Create booking
+            description: Creates a booking from an availability hold. Customer identity comes from the access token. quoteId and totalAmount are not accepted. Idempotency-Key is required.
+            requestModels:
+              application/json: CreateBookingRequest
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Booking created
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Create booking request. Does not accept quoteId or totalAmount.
+              required: true
 
 
   getbookingid:
@@ -138,6 +491,27 @@ functions:
             200:
               description: "Booking"
               bodyType: Booking
+          documentation:
+            summary: Get booking
+            description: Get booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Booking
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   putbookingid:
@@ -155,6 +529,32 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update booking
+            description: Update booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+            requestBody:
+              description: Update booking
+              required: true
+            requestModels:
+              application/json: Booking
 
 
   deletebookingid:
@@ -171,6 +571,25 @@ functions:
           responseData:
             204:
               description: "Cancelled"
+          documentation:
+            summary: Cancel booking
+            description: Cancel booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Cancelled
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   postconfirm:
@@ -187,6 +606,27 @@ functions:
           responseData:
             200:
               description: "Confirmed"
+          documentation:
+            summary: Confirm booking
+            description: Confirm booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Confirmed
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   postcheckin:
@@ -203,6 +643,27 @@ functions:
           responseData:
             200:
               description: "Checked in"
+          documentation:
+            summary: Customer check-in
+            description: Customer check-in
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Checked in
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   poststart:
@@ -219,6 +680,27 @@ functions:
           responseData:
             200:
               description: "In progress"
+          documentation:
+            summary: Start service
+            description: Start service
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: In progress
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   postcomplete:
@@ -235,6 +717,27 @@ functions:
           responseData:
             200:
               description: "Completed"
+          documentation:
+            summary: Complete booking
+            description: Complete booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Completed
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   postcancel:
@@ -251,6 +754,27 @@ functions:
           responseData:
             200:
               description: "Cancelled"
+          documentation:
+            summary: Cancel booking
+            description: Cancel booking
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Cancelled
+                responseModels:
+                  application/json: Booking
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
 
 
   getcustomerbookings:
@@ -267,6 +791,27 @@ functions:
           responseData:
             200:
               description: "History"
+          documentation:
+            summary: Customer booking history
+            description: Customer booking history
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: History
+                responseModels:
+                  application/json: BookingPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: customerId
+                description: customerId
+                schema:
+                  type: string
 
 
   getvendorbookings:
@@ -283,6 +828,27 @@ functions:
           responseData:
             200:
               description: "Vendor bookings"
+          documentation:
+            summary: Vendor bookings
+            description: Vendor bookings
+            tags:
+              - Bookings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor bookings
+                responseModels:
+                  application/json: BookingPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
 resources:

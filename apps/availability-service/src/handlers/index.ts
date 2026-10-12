@@ -1,5 +1,6 @@
 // Auto-generated exports
 
-export * from "./availability.handler";
-export * from "./holidays.handler";
-export * from "./slots.handler";
+export * from "./availability";
+export * from "./holidays";
+export * from "./internal";
+export * from "./slots";

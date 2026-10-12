@@ -7,29 +7,54 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-tools/codegen/create-microservice.js
+  - serverless-openapi-documenter
+
 provider:
   name: aws
   runtime: nodejs22.x
-
   stage: ${opt:stage,'dev'}
-
   region: ${opt:region,'us-east-1'}
-
   versionFunctions: false
-
   environment:
-
     SERVICE_NAME: availability-service
-    LOG_LEVEL: ${ssm:/common/log-level}
-    DYNAMODB_TABLE_NAME: ${ssm:/common/dynamodb/table}
-    EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    LOG_LEVEL: INFO
+    DYNAMODB_TABLE_NAME: availability-table-${self:provider.stage}
+    SLOT_HOLD_TTL_SECONDS: "600"
+    EXPIRY_LOOKBACK_HOURS: "48"
+    EVENT_BUS_NAME: ""
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:TransactWriteItems
+            - dynamodb:TransactGetItems
+            - dynamodb:DescribeTable
+          Resource:
+            - !GetAtt AvailabilityTable.Arn
+            - !Join ["/", [!GetAtt AvailabilityTable.Arn, "index", "*"]]
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource:
+            - arn:aws:logs:${aws:region}:${aws:accountId}:*
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: "*"
 
 custom:
-
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
-
-
   esbuild:
     bundle: true
     minify: false
@@ -38,7 +63,6 @@ custom:
     platform: node
     concurrency: 10
     plugins: ./esbuild-plugins.js
-
   autoswagger:
     title: "Beauty on Wheels - Availability Service API"
     apiType: http
@@ -55,46 +79,317 @@ custom:
       - ./src/types/api-types.d.ts
     excludeStages:
       - production
-
+  documentation:
+    version: "1.0.0"
+    title: "Beauty on Wheels - Availability Service API"
+    description: "Manage vendor schedules, slots, holidays, and slot holidays."
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Holds
+        description: Temporary slot holds
+      - name: Slots
+        description: Generated bookable slots
+      - name: Holidays
+        description: Vendor holiday dates
+      - name: Availability
+        description: Weekly working hours
+    models:
+      - name: Slot
+        description: Bookable slot
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                vendorId:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                capacity:
+                  type: integer
+                available:
+                  type: integer
+                status:
+                  type: string
+                  enum:
+                    - available
+                    - full
+                    - blocked
+      - name: SlotPage
+        description: Page of slots
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      vendorId:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      startTime:
+                        type: string
+                      endTime:
+                        type: string
+                      capacity:
+                        type: integer
+                      available:
+                        type: integer
+                      status:
+                        type: string
+                        enum:
+                          - available
+                          - full
+                          - blocked
+      - name: SlotHold
+        description: Temporary hold on a slot
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                vendorId:
+                  type: string
+                slotId:
+                  type: string
+      - name: Holiday
+        description: Vendor holiday
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                vendorId:
+                  type: string
+                date:
+                  type: string
+                  format: date
+      - name: HolidayPage
+        description: Page of holidays
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      vendorId:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  nullable: true
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: WorkingHours
+        description: Weekly working hours
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                dayOfWeek:
+                  type: string
+                  enum:
+                    - MON
+                    - TUE
+                    - WED
+                    - THU
+                    - FRI
+                    - SAT
+                    - SUN
+                openTime:
+                  type: string
+                closeTime:
+                  type: string
 
 functions:
-
-
-  getworkinghours:
-    handler: src/handlers/availability.handler.handleGetworkinghours
+  postslotholds:
+    handler: src/handlers/holidays.handlePostslotholds
     events:
       - http:
-          path: /vendors/{vendorId}/working-hours
+          path: /slot-holds
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create slot hold"
+          swaggerTags:
+            - Holds
+          responseData:
+            201:
+              description: "Hold created"
+              bodyType: SlotHold
+          documentation:
+            summary: "Create slot hold"
+            tags:
+              - Holds
+            requestBody:
+              description: "Slot hold to create"
+              required: true
+            requestModels:
+              application/json: SlotHold
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: "Hold created"
+                responseModels:
+                  application/json: SlotHold
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
+
+  deleteslothold:
+    handler: src/handlers/holidays.handleDeleteslothold
+    events:
+      - http:
+          path: /slot-holds/{holdId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Release slot hold"
+          swaggerTags:
+            - Holds
+          responseData:
+            204:
+              description: "Hold released"
+          documentation:
+            summary: "Release slot hold"
+            tags:
+              - Holds
+            pathParams:
+              - name: holdId
+                description: "Slot hold id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: "Hold released"
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
+
+  getslothold:
+    handler: src/handlers/holidays.handleGetslothold
+    events:
+      - http:
+          path: /slot-holds/{holdId}
           method: get
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get working hours"
+          summary: "Get slot hold"
           swaggerTags:
-            - Availability
+            - Holds
           responseData:
             200:
-              description: "Working hours"
-
-
-  putworkinghours:
-    handler: src/handlers/availability.handler.handlePutworkinghours
-    events:
-      - http:
-          path: /vendors/{vendorId}/working-hours
-          method: put
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update working hours"
-          swaggerTags:
-            - Availability
-          bodyType: WorkingHours
-          responseData:
-            200:
-              description: "Updated"
-
+              description: "Hold"
+              bodyType: SlotHold
+          documentation:
+            summary: "Get slot hold"
+            tags:
+              - Holds
+            pathParams:
+              - name: holdId
+                description: "Slot hold id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Hold"
+                responseModels:
+                  application/json: SlotHold
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   getslots:
-    handler: src/handlers/slots.handler.handleGetslots
+    handler: src/handlers/slots.handleGetslots
     events:
       - http:
           path: /vendors/{vendorId}/slots
@@ -107,10 +402,30 @@ functions:
           responseData:
             200:
               description: "Slots"
-
+              bodyType: SlotPage
+          documentation:
+            summary: "List slots"
+            tags:
+              - Slots
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Slots"
+                responseModels:
+                  application/json: SlotPage
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   postslots:
-    handler: src/handlers/slots.handler.handlePostslots
+    handler: src/handlers/slots.handlePostslots
     events:
       - http:
           path: /vendors/{vendorId}/slots
@@ -121,12 +436,32 @@ functions:
           swaggerTags:
             - Slots
           responseData:
-            201:
+            200:
               description: "Slots generated"
-
+              bodyType: SlotPage
+          documentation:
+            summary: "Generate slots"
+            tags:
+              - Slots
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Slots generated"
+                responseModels:
+                  application/json: SlotPage
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   getslotid:
-    handler: src/handlers/slots.handler.handleGetslotid
+    handler: src/handlers/slots.handleGetslotid
     events:
       - http:
           path: /slots/{slotId}
@@ -140,10 +475,29 @@ functions:
             200:
               description: "Slot"
               bodyType: Slot
-
+          documentation:
+            summary: "Get slot"
+            tags:
+              - Slots
+            pathParams:
+              - name: slotId
+                description: "Slot id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Slot"
+                responseModels:
+                  application/json: Slot
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   postblock:
-    handler: src/handlers/slots.handler.handlePostblock
+    handler: src/handlers/slots.handlePostblock
     events:
       - http:
           path: /slots/{slotId}/block
@@ -156,10 +510,30 @@ functions:
           responseData:
             200:
               description: "Blocked"
-
+              bodyType: Slot
+          documentation:
+            summary: "Block slot"
+            tags:
+              - Slots
+            pathParams:
+              - name: slotId
+                description: "Slot id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Blocked"
+                responseModels:
+                  application/json: Slot
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   postunblock:
-    handler: src/handlers/slots.handler.handlePostunblock
+    handler: src/handlers/slots.handlePostunblock
     events:
       - http:
           path: /slots/{slotId}/unblock
@@ -172,10 +546,30 @@ functions:
           responseData:
             200:
               description: "Unblocked"
-
+              bodyType: Slot
+          documentation:
+            summary: "Unblock slot"
+            tags:
+              - Slots
+            pathParams:
+              - name: slotId
+                description: "Slot id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Unblocked"
+                responseModels:
+                  application/json: Slot
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   getholidays:
-    handler: src/handlers/holidays.handler.handleGetholidays
+    handler: src/handlers/holidays.handleGetholidays
     events:
       - http:
           path: /vendors/{vendorId}/holidays
@@ -188,10 +582,30 @@ functions:
           responseData:
             200:
               description: "Holiday list"
-
+              bodyType: HolidayPage
+          documentation:
+            summary: "List holidays"
+            tags:
+              - Holidays
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Holiday list"
+                responseModels:
+                  application/json: HolidayPage
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
   postholidays:
-    handler: src/handlers/holidays.handler.handlePostholidays
+    handler: src/handlers/holidays.handlePostholidays
     events:
       - http:
           path: /vendors/{vendorId}/holidays
@@ -202,44 +616,309 @@ functions:
           swaggerTags:
             - Holidays
           responseData:
-            201:
+            200:
               description: "Holiday added"
+              bodyType: Holiday
+          documentation:
+            summary: "Add holiday"
+            tags:
+              - Holidays
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            requestBody:
+              description: "Holiday to add"
+              required: true
+            requestModels:
+              application/json: Holiday
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Holiday added"
+                responseModels:
+                  application/json: Holiday
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
+  patchholiday:
+    handler: src/handlers/holidays.handlePatchholiday
+    events:
+      - http:
+          path: /vendors/{vendorId}/holidays/{holidayId}
+          method: patch
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Update holiday"
+          swaggerTags:
+            - Holidays
+          responseData:
+            200:
+              description: "Holiday updated"
+              bodyType: Holiday
+          documentation:
+            summary: "Update holiday"
+            tags:
+              - Holidays
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+              - name: holidayId
+                description: "Holiday id"
+                schema:
+                  type: string
+            requestBody:
+              description: "Holiday fields to update"
+              required: true
+            requestModels:
+              application/json: Holiday
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Holiday updated"
+                responseModels:
+                  application/json: Holiday
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
-iamRoleStatements:
+  deleteholiday:
+    handler: src/handlers/holidays.handleDeleteholiday
+    events:
+      - http:
+          path: /vendors/{vendorId}/holidays/{holidayId}
+          method: delete
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Remove holiday"
+          swaggerTags:
+            - Holidays
+          responseData:
+            204:
+              description: "Holiday removed"
+          documentation:
+            summary: "Remove holiday"
+            tags:
+              - Holidays
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+              - name: holidayId
+                description: "Holiday id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: "Holiday removed"
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
-  - Effect: Allow
-    Action:
-      - logs:CreateLogGroup
-      - logs:CreateLogStream
-      - logs:PutLogEvents
-    Resource:
-      - arn:aws:logs:${aws:region}:${aws:accountId}:*
-  - Effect: Allow
-    Action:
-      - xray:PutTraceSegments
-      - xray:PutTelemetryRecords
-    Resource: '*'
-  - Effect: Allow
-    Action:
-      - dynamodb:GetItem
-      - dynamodb:PutItem
-      - dynamodb:UpdateItem
-      - dynamodb:DeleteItem
-      - dynamodb:Query
-      - dynamodb:BatchGetItem
-      - dynamodb:BatchWriteItem
+  getavailability:
+    handler: src/handlers/availability.handleGetavailability
+    events:
+      - http:
+          path: /vendors/{vendorId}/availability
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List bookable availability"
+          swaggerTags:
+            - Availability
+          responseData:
+            200:
+              description: "Bookable slots"
+              bodyType: SlotPage
+          documentation:
+            summary: "List bookable slots for a vendor branch and date"
+            tags:
+              - Availability
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            queryParams:
+              - name: branchId
+                required: true
+                schema:
+                  type: string
+              - name: date
+                required: true
+                schema:
+                  type: string
+              - name: serviceId
+                schema:
+                  type: string
+              - name: vehicleTypeId
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Bookable slots"
+                responseModels:
+                  application/json: SlotPage
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
-      - dynamodb:TransactWriteItems
-      - dynamodb:TransactGetItems
-      - dynamodb:DescribeTable
-    Resource:
-      - !GetAtt AvailabilityTable.Arn
-      - !Join [ "/", [ !GetAtt AvailabilityTable.Arn, "index", "*" ] ]
+  expireHolds:
+    handler: src/handlers/internal.expireHolds
+    description: "Release capacity for holds whose expiresAt has passed"
+    events:
+      - schedule:
+          rate: rate(1 minute)
+          enabled: true
 
+  consumeHold:
+    handler: src/handlers/internal.consumeHold
+    description: "Internal invoke. Booking confirmation consumes an active hold and creates an allocation."
+
+  releaseAllocation:
+    handler: src/handlers/internal.releaseAllocation
+    description: "Internal invoke. Booking cancellation releases a confirmed allocation and restores capacity."
+
+  getworkinghours:
+    handler: src/handlers/availability.handleGetworkinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/working-hours
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get working hours"
+          swaggerTags:
+            - Availability
+          responseData:
+            200:
+              description: "Working hours"
+              bodyType: WorkingHours
+          documentation:
+            summary: "Get working hours"
+            tags:
+              - Availability
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Working hours"
+                responseModels:
+                  application/json: WorkingHours
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
+
+  putworkinghours:
+    handler: src/handlers/availability.handlePutworkinghours
+    events:
+      - http:
+          path: /vendors/{vendorId}/working-hours
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Update working hours"
+          swaggerTags:
+            - Availability
+          bodyType: WorkingHours
+          responseData:
+            200:
+              description: "Updated"
+              bodyType: WorkingHours
+          documentation:
+            summary: "Update working hours"
+            tags:
+              - Availability
+            pathParams:
+              - name: vendorId
+                description: "Vendor id"
+                schema:
+                  type: string
+            requestBody:
+              description: "Working hours to store"
+              required: true
+            requestModels:
+              application/json: WorkingHours
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Updated"
+                responseModels:
+                  application/json: WorkingHours
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
 
 resources:
   Resources:
+    AvailabilityTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        TableName: availability-table-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: ManagedBy
+            Value: Serverless
+
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -249,7 +928,7 @@ resources:
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
 
     GatewayResponseDefault5XX:
@@ -261,7 +940,7 @@ resources:
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
 
     GatewayResponseUnauthorized:
@@ -273,7 +952,7 @@ resources:
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
 
     GatewayResponseAccessDenied:
@@ -285,5 +964,5 @@ resources:
         ResponseParameters:
           gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
           gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
+            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"

@@ -391,7 +391,19 @@ describe('VendorsService', () => {
         hasVendor: false,
         nextAction: 'START_ONBOARDING',
       });
+      expect(result).not.toHaveProperty('membership');
       expect(repository.listOwnersByUserId).toHaveBeenCalledWith('user-1');
+    });
+
+    it('rejects an unauthenticated membership lookup', async () => {
+      await expect(
+        service.getMyVendor(
+          authRequest({
+            context: { userContext: {} },
+          }),
+        ),
+      ).rejects.toThrow(UnauthorizedError);
+      expect(repository.listOwnersByUserId).not.toHaveBeenCalled();
     });
 
     it('returns a draft vendor for resume', async () => {
@@ -403,6 +415,7 @@ describe('VendorsService', () => {
         status: 'DRAFT',
         onboarding: { currentStep: 'BUSINESS_INFO', completed: false },
         nextAction: 'RESUME_ONBOARDING',
+        membership: { role: 'owner' },
       });
     });
 

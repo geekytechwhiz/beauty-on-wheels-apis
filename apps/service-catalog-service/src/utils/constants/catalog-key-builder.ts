@@ -72,6 +72,15 @@ export const CatalogKeyBuilder = {
 
     packageItemPrefix: () => `ITEM#`,
 
+    /**
+     * Offering revision. `kind` keeps a service id distinct from a package id.
+     * Booking's offeringId is the service id; its revision key uses SERVICE.
+     */
+    offeringRevisionPk: (kind: "SERVICE" | "PACKAGE", offeringId: string) =>
+        `OFFERING#${kind}#${offeringId}`,
+
+    offeringRevisionSk: (vendorId: string) => `VENDOR#${vendorId}`,
+
     /* --------------------------------
        LSI SORT KEYS
     -------------------------------- */

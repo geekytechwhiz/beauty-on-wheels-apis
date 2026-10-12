@@ -6,7 +6,8 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
-  - serverless-offline 
+  - serverless-offline
+  - serverless-openapi-documenter 
 provider:
   name: aws
   runtime: nodejs22.x
@@ -121,6 +122,1641 @@ custom:
       - production
 
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Vendor Service API
+    description: Vendor profiles, onboarding, communities, service areas, staff, capabilities, branches, documents, and bank details.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Vendors
+        description: Vendor profile and lifecycle
+      - name: Onboarding
+        description: Vendor onboarding
+      - name: Communities
+        description: Vendor community assignment
+      - name: Service Areas
+        description: Geographic service areas
+      - name: Operating Hours
+        description: Weekly operating hours
+      - name: Staff
+        description: Vendor staff
+      - name: Capabilities
+        description: Vehicle types, services, and packages the vendor offers
+      - name: Branches
+        description: Vendor branches
+      - name: Documents
+        description: Onboarding documents
+      - name: Bank Details
+        description: Payout bank account
+    models:
+      - name: CreateVendorRequest
+        description: Create a vendor
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                businessName:
+                  type: string
+                contactName:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                description:
+                  type: string
+                gstNumber:
+                  type: string
+                panNumber:
+                  type: string
+                profileImageUrl:
+                  type: string
+                vendorType:
+                  type: string
+                  enum:
+                    - INDIVIDUAL
+                    - BUSINESS
+              required:
+                - businessName
+                - contactName
+      - name: UpdateVendorRequest
+        description: Patch vendor profile fields
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                businessName:
+                  type: string
+                contactName:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                description:
+                  type: string
+                profileImageUrl:
+                  type: string
+      - name: UpdateVendorStatusRequest
+        description: Admin vendor status change
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - PENDING_VERIFICATION
+                    - ACTIVE
+                    - SUSPENDED
+                    - INACTIVE
+                    - REJECTED
+                reason:
+                  type: string
+              required:
+                - status
+      - name: ApproveVendorRequest
+        description: Approve a vendor
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      - name: RejectVendorRequest
+        description: Reject a vendor
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+              required:
+                - reason
+      - name: UpdateOperationalStatusRequest
+        description: Vendor operational status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operationalStatus:
+                  type: string
+                  enum:
+                    - ONLINE
+                    - OFFLINE
+                    - BUSY
+                    - TEMPORARILY_UNAVAILABLE
+              required:
+                - operationalStatus
+      - name: VendorResponse
+        description: Vendor profile
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    vendorId:
+                      type: string
+                    ownerUserId:
+                      type: string
+                    vendorType:
+                      type: string
+                      enum:
+                        - INDIVIDUAL
+                        - BUSINESS
+                    businessName:
+                      type: string
+                    contactName:
+                      type: string
+                    phoneNumber:
+                      type: string
+                    email:
+                      type: string
+                    description:
+                      type: string
+                    profileImageUrl:
+                      type: string
+                    gstNumber:
+                      type: string
+                    panNumber:
+                      type: string
+                    address:
+                      type: object
+                      properties:
+                        addressLine1:
+                          type: string
+                        addressLine2:
+                          type: string
+                        landmark:
+                          type: string
+                        city:
+                          type: string
+                        state:
+                          type: string
+                        country:
+                          type: string
+                        postalCode:
+                          type: string
+                      required:
+                        - addressLine1
+                        - city
+                        - state
+                        - country
+                        - postalCode
+                    geoLocation:
+                      type: object
+                      properties:
+                        latitude:
+                          type: number
+                        longitude:
+                          type: number
+                      required:
+                        - latitude
+                        - longitude
+                    status:
+                      type: string
+                      enum:
+                        - PENDING_VERIFICATION
+                        - ACTIVE
+                        - SUSPENDED
+                        - INACTIVE
+                        - REJECTED
+                    operationalStatus:
+                      type: string
+                      enum:
+                        - ONLINE
+                        - OFFLINE
+                        - BUSY
+                        - TEMPORARILY_UNAVAILABLE
+                    onboardingStatus:
+                      type: string
+                      enum:
+                        - DRAFT
+                        - IN_PROGRESS
+                        - COMPLETED
+                        - PENDING_REVIEW
+                    currentSection:
+                      type: string
+                      enum:
+                        - BUSINESS_INFO
+                        - OWNER_DETAILS
+                        - ADDRESS
+                        - BRANCH
+                        - DOCUMENTS
+                        - BANK_DETAILS
+                    completedSections:
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - BUSINESS_INFO
+                          - OWNER_DETAILS
+                          - ADDRESS
+                          - BRANCH
+                          - DOCUMENTS
+                          - BANK_DETAILS
+                    applicationId:
+                      type: string
+                    communityIds:
+                      type: array
+                      items:
+                        type: string
+                    createdAt:
+                      type: string
+                    updatedAt:
+                      type: string
+      - name: VendorListResponse
+        description: Vendor page
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      vendorId:
+                        type: string
+                      ownerUserId:
+                        type: string
+                      vendorType:
+                        type: string
+                        enum:
+                          - INDIVIDUAL
+                          - BUSINESS
+                      businessName:
+                        type: string
+                      contactName:
+                        type: string
+                      phoneNumber:
+                        type: string
+                      email:
+                        type: string
+                      description:
+                        type: string
+                      profileImageUrl:
+                        type: string
+                      gstNumber:
+                        type: string
+                      panNumber:
+                        type: string
+                      address:
+                        type: object
+                        properties:
+                          addressLine1:
+                            type: string
+                          addressLine2:
+                            type: string
+                          landmark:
+                            type: string
+                          city:
+                            type: string
+                          state:
+                            type: string
+                          country:
+                            type: string
+                          postalCode:
+                            type: string
+                        required:
+                          - addressLine1
+                          - city
+                          - state
+                          - country
+                          - postalCode
+                      geoLocation:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                        required:
+                          - latitude
+                          - longitude
+                      status:
+                        type: string
+                        enum:
+                          - PENDING_VERIFICATION
+                          - ACTIVE
+                          - SUSPENDED
+                          - INACTIVE
+                          - REJECTED
+                      operationalStatus:
+                        type: string
+                        enum:
+                          - ONLINE
+                          - OFFLINE
+                          - BUSY
+                          - TEMPORARILY_UNAVAILABLE
+                      onboardingStatus:
+                        type: string
+                        enum:
+                          - DRAFT
+                          - IN_PROGRESS
+                          - COMPLETED
+                          - PENDING_REVIEW
+                      currentSection:
+                        type: string
+                        enum:
+                          - BUSINESS_INFO
+                          - OWNER_DETAILS
+                          - ADDRESS
+                          - BRANCH
+                          - DOCUMENTS
+                          - BANK_DETAILS
+                      completedSections:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - BUSINESS_INFO
+                            - OWNER_DETAILS
+                            - ADDRESS
+                            - BRANCH
+                            - DOCUMENTS
+                            - BANK_DETAILS
+                      applicationId:
+                        type: string
+                      communityIds:
+                        type: array
+                        items:
+                          type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                pagination:
+                  type: object
+                  properties:
+                    nextCursor:
+                      type: string
+                    hasMore:
+                      type: boolean
+      - name: VendorSelfLookup
+        description: Whether the caller owns a vendor and what to do next
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hasVendor:
+                  type: boolean
+                vendorId:
+                  type: string
+                status:
+                  type: string
+                onboarding:
+                  type: object
+                  properties:
+                    currentStep:
+                      type: string
+                      enum:
+                        - BUSINESS_INFO
+                        - OWNER_DETAILS
+                        - ADDRESS
+                        - BRANCH
+                        - DOCUMENTS
+                        - BANK_DETAILS
+                    completed:
+                      type: boolean
+                nextAction:
+                  type: string
+                  enum:
+                    - START_ONBOARDING
+                    - RESUME_ONBOARDING
+                    - VIEW_APPLICATION_STATUS
+                    - OPEN_VENDOR_DASHBOARD
+                    - COMPLETE_VENDOR_SETUP
+                    - VIEW_ACCOUNT_STATUS
+                    - CORRECT_APPLICATION
+                membership:
+                  type: object
+                  properties:
+                    role:
+                      type: string
+                      enum:
+                        - owner
+              required:
+                - hasVendor
+                - nextAction
+      - name: UpdateOnboardingRequest
+        description: Save one onboarding section
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                section:
+                  type: string
+                  enum:
+                    - BUSINESS_INFO
+                    - OWNER_DETAILS
+                    - ADDRESS
+                    - BRANCH
+                    - DOCUMENTS
+                    - BANK_DETAILS
+                data:
+                  type: object
+                  properties:
+                    vendorType:
+                      type: string
+                      enum:
+                        - INDIVIDUAL
+                        - BUSINESS
+                    businessName:
+                      type: string
+                    contactName:
+                      type: string
+                    phoneNumber:
+                      type: string
+                    email:
+                      type: string
+                    fullName:
+                      type: string
+                    designation:
+                      type: string
+                    addressLine1:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
+                    name:
+                      type: string
+                    documentType:
+                      type: string
+                      enum:
+                        - GST_REGISTRATION
+                        - BUSINESS_REGISTRATION
+                        - COMMERCIAL_INSURANCE
+                    fileName:
+                      type: string
+                    contentType:
+                      type: string
+                    fileSize:
+                      type: integer
+                    accountHolderName:
+                      type: string
+                    accountNumber:
+                      type: string
+                    ifscCode:
+                      type: string
+                    bankName:
+                      type: string
+                    accountType:
+                      type: string
+                      enum:
+                        - SAVINGS
+                        - CURRENT
+              required:
+                - section
+                - data
+      - name: OnboardingResponse
+        description: Onboarding progress and saved sections
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - DRAFT
+                    - IN_PROGRESS
+                    - COMPLETED
+                    - PENDING_REVIEW
+                currentSection:
+                  type: string
+                  enum:
+                    - BUSINESS_INFO
+                    - OWNER_DETAILS
+                    - ADDRESS
+                    - BRANCH
+                    - DOCUMENTS
+                    - BANK_DETAILS
+                completedSections:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - BUSINESS_INFO
+                      - OWNER_DETAILS
+                      - ADDRESS
+                      - BRANCH
+                      - DOCUMENTS
+                      - BANK_DETAILS
+                applicationId:
+                  type: string
+                sections:
+                  type: object
+                  properties: {}
+      - name: VendorStatusHistoryList
+        description: Vendor status review history
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      vendorId:
+                        type: string
+                      previousStatus:
+                        type: string
+                        enum:
+                          - PENDING_VERIFICATION
+                          - ACTIVE
+                          - SUSPENDED
+                          - INACTIVE
+                          - REJECTED
+                      newStatus:
+                        type: string
+                        enum:
+                          - PENDING_VERIFICATION
+                          - ACTIVE
+                          - SUSPENDED
+                          - INACTIVE
+                          - REJECTED
+                      reviewerUserId:
+                        type: string
+                      reason:
+                        type: string
+                      reviewedAt:
+                        type: string
+                      correlationId:
+                        type: string
+      - name: ReplaceVendorCommunitiesRequest
+        description: Replace vendor communities
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - communityIds
+      - name: AddVendorCommunityRequest
+        description: Assign one community
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communityId:
+                  type: string
+              required:
+                - communityId
+      - name: VendorCommunityAssignment
+        description: Vendor community assignment
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                communityId:
+                  type: string
+                assignedBy:
+                  type: string
+                assignedAt:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - PENDING_VERIFICATION
+                    - ACTIVE
+                    - SUSPENDED
+                    - INACTIVE
+                    - REJECTED
+                operationalStatus:
+                  type: string
+                  enum:
+                    - ONLINE
+                    - OFFLINE
+                    - BUSY
+                    - TEMPORARILY_UNAVAILABLE
+      - name: VendorCommunityList
+        description: Vendor communities
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      vendorId:
+                        type: string
+                      communityId:
+                        type: string
+                      assignedAt:
+                        type: string
+      - name: CreateServiceAreaRequest
+        description: Create a service area
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                serviceAreaId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                postalCodes:
+                  type: array
+                  items:
+                    type: string
+                center:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                radiusKm:
+                  type: number
+                active:
+                  type: boolean
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - name
+                - city
+      - name: UpdateServiceAreaRequest
+        description: Patch a service area
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                postalCodes:
+                  type: array
+                  items:
+                    type: string
+                center:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                radiusKm:
+                  type: number
+                active:
+                  type: boolean
+      - name: ServiceArea
+        description: Service area
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                serviceAreaId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                postalCodes:
+                  type: array
+                  items:
+                    type: string
+                center:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                radiusKm:
+                  type: number
+                active:
+                  type: boolean
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - name
+                - city
+      - name: ServiceAreaList
+        description: Service areas
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceAreaId:
+                        type: string
+                      vendorId:
+                        type: string
+                      name:
+                        type: string
+                      city:
+                        type: string
+                      state:
+                        type: string
+                      postalCodes:
+                        type: array
+                        items:
+                          type: string
+                      center:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                        required:
+                          - latitude
+                          - longitude
+                      radiusKm:
+                        type: number
+                      active:
+                        type: boolean
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                    required:
+                      - name
+                      - city
+      - name: UpdateVendorOperatingHoursRequest
+        description: Replace weekly operating hours
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operatingHours:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      dayOfWeek:
+                        type: string
+                        enum:
+                          - MONDAY
+                          - TUESDAY
+                          - WEDNESDAY
+                          - THURSDAY
+                          - FRIDAY
+                          - SATURDAY
+                          - SUNDAY
+                      closed:
+                        type: boolean
+                      openTime:
+                        type: string
+                      closeTime:
+                        type: string
+                    required:
+                      - dayOfWeek
+                      - closed
+              required:
+                - operatingHours
+      - name: CreateStaffRequest
+        description: Create a staff member
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                staffId:
+                  type: string
+                vendorId:
+                  type: string
+                userId:
+                  type: string
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                role:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - name
+                - phoneNumber
+      - name: UpdateStaffRequest
+        description: Patch a staff member
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                role:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+      - name: StaffResponse
+        description: Staff member
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    staffId:
+                      type: string
+                    vendorId:
+                      type: string
+                    userId:
+                      type: string
+                    name:
+                      type: string
+                    phoneNumber:
+                      type: string
+                    email:
+                      type: string
+                    role:
+                      type: string
+                    status:
+                      type: string
+                      enum:
+                        - ACTIVE
+                        - INACTIVE
+                    createdAt:
+                      type: string
+                    updatedAt:
+                      type: string
+                  required:
+                    - name
+                    - phoneNumber
+      - name: StaffListResponse
+        description: Staff page
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      staffId:
+                        type: string
+                      vendorId:
+                        type: string
+                      userId:
+                        type: string
+                      name:
+                        type: string
+                      phoneNumber:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INACTIVE
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                    required:
+                      - name
+                      - phoneNumber
+                pagination:
+                  type: object
+                  properties:
+                    nextCursor:
+                      type: string
+                    hasMore:
+                      type: boolean
+      - name: AvailableCapabilities
+        description: Capability catalog the vendor can enable
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicleTypes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      capabilityId:
+                        type: string
+                      category:
+                        type: string
+                        enum:
+                          - vehicleType
+                      code:
+                        type: string
+                        enum:
+                          - HATCHBACK
+                          - SEDAN
+                          - SUV
+                          - MUV
+                          - LUXURY
+                          - BIKE
+                      name:
+                        type: string
+                catalogSources:
+                  type: object
+                  properties:
+                    services:
+                      type: string
+                    packages:
+                      type: string
+      - name: VendorCapabilities
+        description: Enabled vendor capabilities
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                vehicleTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - HATCHBACK
+                      - SEDAN
+                      - SUV
+                      - MUV
+                      - LUXURY
+                      - BIKE
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                packageIds:
+                  type: array
+                  items:
+                    type: string
+                services:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+                packages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+                updatedAt:
+                  type: string
+      - name: UpdateVendorCapabilitiesRequest
+        description: Replace vendor capabilities
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicleTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - HATCHBACK
+                      - SEDAN
+                      - SUV
+                      - MUV
+                      - LUXURY
+                      - BIKE
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                packageIds:
+                  type: array
+                  items:
+                    type: string
+                services:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+                packages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+              required:
+                - vehicleTypes
+      - name: ReplaceVendorServicesRequest
+        description: Replace vendor service offerings
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                services:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+              required:
+                - services
+      - name: ReplaceVendorPackagesRequest
+        description: Replace vendor package offerings
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                packages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      packageId:
+                        type: string
+                      categoryId:
+                        type: string
+                      enabled:
+                        type: boolean
+                      priceOverride:
+                        type: number
+              required:
+                - packages
+      - name: CreateBranchRequest
+        description: Create a branch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                branchId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                address:
+                  type: object
+                  properties:
+                    addressLine1:
+                      type: string
+                    addressLine2:
+                      type: string
+                    landmark:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
+                  required:
+                    - addressLine1
+                    - city
+                    - state
+                    - country
+                    - postalCode
+                geoLocation:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                isPrimary:
+                  type: boolean
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - name
+      - name: UpdateBranchRequest
+        description: Update a branch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                address:
+                  type: object
+                  properties:
+                    addressLine1:
+                      type: string
+                    addressLine2:
+                      type: string
+                    landmark:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
+                  required:
+                    - addressLine1
+                    - city
+                    - state
+                    - country
+                    - postalCode
+                geoLocation:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                isPrimary:
+                  type: boolean
+      - name: VendorBranch
+        description: Vendor branch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                branchId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                phoneNumber:
+                  type: string
+                email:
+                  type: string
+                address:
+                  type: object
+                  properties:
+                    addressLine1:
+                      type: string
+                    addressLine2:
+                      type: string
+                    landmark:
+                      type: string
+                    city:
+                      type: string
+                    state:
+                      type: string
+                    country:
+                      type: string
+                    postalCode:
+                      type: string
+                  required:
+                    - addressLine1
+                    - city
+                    - state
+                    - country
+                    - postalCode
+                geoLocation:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                  required:
+                    - latitude
+                    - longitude
+                isPrimary:
+                  type: boolean
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - name
+      - name: VendorBranchList
+        description: Vendor branches
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      branchId:
+                        type: string
+                      vendorId:
+                        type: string
+                      name:
+                        type: string
+                      phoneNumber:
+                        type: string
+                      email:
+                        type: string
+                      address:
+                        type: object
+                        properties:
+                          addressLine1:
+                            type: string
+                          addressLine2:
+                            type: string
+                          landmark:
+                            type: string
+                          city:
+                            type: string
+                          state:
+                            type: string
+                          country:
+                            type: string
+                          postalCode:
+                            type: string
+                        required:
+                          - addressLine1
+                          - city
+                          - state
+                          - country
+                          - postalCode
+                      geoLocation:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                        required:
+                          - latitude
+                          - longitude
+                      isPrimary:
+                        type: boolean
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                    required:
+                      - name
+      - name: VendorDocument
+        description: Vendor document and optional presigned URL
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentId:
+                  type: string
+                vendorId:
+                  type: string
+                documentType:
+                  type: string
+                  enum:
+                    - GST_REGISTRATION
+                    - BUSINESS_REGISTRATION
+                    - COMMERCIAL_INSURANCE
+                fileName:
+                  type: string
+                contentType:
+                  type: string
+                fileSize:
+                  type: integer
+                objectKey:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - PENDING_UPLOAD
+                    - UPLOADED
+                uploadUrl:
+                  type: string
+                downloadUrl:
+                  type: string
+                expiresIn:
+                  type: integer
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+      - name: CreateDocumentRequest
+        description: Document metadata used to issue an upload URL
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentType:
+                  type: string
+                  enum:
+                    - GST_REGISTRATION
+                    - BUSINESS_REGISTRATION
+                    - COMMERCIAL_INSURANCE
+                fileName:
+                  type: string
+                contentType:
+                  type: string
+                fileSize:
+                  type: integer
+              required:
+                - documentType
+                - fileName
+                - contentType
+                - fileSize
+      - name: UpdateDocumentRequest
+        description: Replacement document metadata
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileName:
+                  type: string
+                contentType:
+                  type: string
+                fileSize:
+                  type: integer
+      - name: BankDetails
+        description: Masked bank account
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                accountHolderName:
+                  type: string
+                accountNumber:
+                  type: string
+                accountNumberLast4:
+                  type: string
+                accountNumberMasked:
+                  type: string
+                ifscCode:
+                  type: string
+                bankName:
+                  type: string
+                branchName:
+                  type: string
+                accountType:
+                  type: string
+                  enum:
+                    - SAVINGS
+                    - CURRENT
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - accountHolderName
+                - accountNumber
+                - ifscCode
+                - bankName
+      - name: BankDetailsData
+        description: Bank account to save
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorId:
+                  type: string
+                accountHolderName:
+                  type: string
+                accountNumber:
+                  type: string
+                accountNumberLast4:
+                  type: string
+                accountNumberMasked:
+                  type: string
+                ifscCode:
+                  type: string
+                bankName:
+                  type: string
+                branchName:
+                  type: string
+                accountType:
+                  type: string
+                  enum:
+                    - SAVINGS
+                    - CURRENT
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - accountHolderName
+                - accountNumber
+                - ifscCode
+                - bankName
+      - name: MessageResponse
+        description: Acknowledgement
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
 
   createvendor:
@@ -148,6 +1784,42 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Create vendor
+            description: Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Vendor created successfully
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Create vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Create vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Create vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Create vendor
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor.
+              required: true
+            requestModels:
+              application/json: CreateVendorRequest
 
   getvendoronboarding:
     handler: src/handlers/onboarding-handler.handleGetvendoronboarding
@@ -171,6 +1843,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor onboarding state
+            description: Returns backend-authoritative onboarding progress and persisted section data so the frontend can resume.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Onboarding state retrieved
+                responseModels:
+                  application/json: OnboardingResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor onboarding state
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Get vendor onboarding state
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor onboarding state
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   verifyvendoremail:
     handler: src/handlers/email-verification-handler.handleVerifyVendorEmail
@@ -190,6 +1893,28 @@ functions:
               description: "Invalid or expired verification link"
             409:
               description: "Verification is already being processed"
+          documentation:
+            summary: Verify vendor email
+            description: Consumes a single-use opaque email verification token and moves the completed onboarding application to PENDING_REVIEW.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Email verified successfully
+                responseModels:
+                  application/json: MessageResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid or expired verification link
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Verification is already being processed
+                responseModels:
+                  application/json: ErrorResponse
+            security: []
 
   resendvendoremailverification:
     handler: src/handlers/email-verification-handler.handleResendVendorEmailVerification
@@ -212,6 +1937,37 @@ functions:
               description: ""
             429:
               description: "Verification resend cooldown is active"
+          documentation:
+            summary: Resend vendor email verification
+            description: Queues a replacement verification email. The previous link is revoked.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Verification email queued
+                responseModels:
+                  application/json: MessageResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Resend vendor email verification
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Resend vendor email verification
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "429"
+                responseBody:
+                  description: Verification resend cooldown is active
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   updatevendoronboarding:
     handler: src/handlers/onboarding-handler.handleUpdatevendoronboarding
@@ -238,6 +1994,47 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Save an onboarding section
+            description: Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Onboarding section saved
+                responseModels:
+                  application/json: OnboardingResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid section or section payload
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.
+              required: true
+            requestModels:
+              application/json: UpdateOnboardingRequest
       - http:
           path: /vendors/{vendorId}/onboarding
           method: patch
@@ -260,6 +2057,47 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Save an onboarding section
+            description: Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Onboarding section saved
+                responseModels:
+                  application/json: OnboardingResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid section or section payload
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Save an onboarding section
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.
+              required: true
+            requestModels:
+              application/json: UpdateOnboardingRequest
 
   onVendorOnboardingSubmitted:
     handler: src/handlers/vendor-onboarding-stream.handler
@@ -378,6 +2216,32 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: List vendors
+            description: Lists vendors using optional filters. Intended primarily for admin and operational use.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendors retrieved successfully
+                responseModels:
+                  application/json: VendorListResponse
+              - statusCode: "400"
+                responseBody:
+                  description: List vendors
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: List vendors
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: List vendors
+                responseModels:
+                  application/json: ErrorResponse
 
 
   getvendorme:
@@ -389,7 +2253,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get the authenticated user's vendor"
-          description: "Resolves the canonical application userId from the verified authentication context and loads that user's vendor from GSI1 (OWNER#{userId}). Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor."
+          description: "Resolves the canonical application userId from the verified authentication context and loads that user's owned vendor. Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor. When a vendor exists, membership.role is owner. Staff membership is not resolved."
           swaggerTags:
             - Vendors
           responseData:
@@ -402,6 +2266,32 @@ functions:
               description: "Cognito identity has no application user mapping"
             500:
               description: ""
+          documentation:
+            summary: Get the authenticated user's vendor
+            description: Resolves the canonical application userId from the verified authentication context and loads that user's owned vendor. Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor. When a vendor exists, membership.role is owner. Staff membership is not resolved.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor self lookup
+                responseModels:
+                  application/json: VendorSelfLookup
+              - statusCode: "401"
+                responseBody:
+                  description: Missing or invalid authentication, or no canonical application user id
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Cognito identity has no application user mapping
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Get the authenticated user's vendor
+                responseModels:
+                  application/json: ErrorResponse
 
   getvendor:
     handler: src/handlers/vendors-handler.handleGetvendor
@@ -427,6 +2317,42 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Get vendor
+            description: Returns the vendor profile and primary address. Bank details are omitted.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor retrieved successfully
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Get vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Get vendor
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
   updatevendor:
@@ -456,6 +2382,52 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Update vendor
+            description: Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor updated successfully
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Update vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Update vendor
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs.
+              required: true
+            requestModels:
+              application/json: UpdateVendorRequest
 
 
   updatevendorstatus:
@@ -487,6 +2459,57 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Update vendor lifecycle status
+            description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream."
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor status updated successfully
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Update vendor lifecycle status
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream."
+              required: true
+            requestModels:
+              application/json: UpdateVendorStatusRequest
 
 
   updatevendoroperationalstatus:
@@ -516,6 +2539,52 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Update vendor operational status
+            description: Controls whether a vendor is currently accepting work. This is different from the administrative vendor lifecycle status.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operational status updated successfully
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor operational status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor operational status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor operational status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Update vendor operational status
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Update vendor operational status
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Controls whether a vendor is currently accepting work. This is different from the administrative vendor lifecycle status.
+              required: true
+            requestModels:
+              application/json: UpdateOperationalStatusRequest
 
 
   submitvendorforreview:
@@ -544,6 +2613,47 @@ functions:
               description: ""
             409:
               description: "Onboarding is incomplete or already in a conflicting state"
+          documentation:
+            summary: Submit vendor for review
+            description: Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent.
+            tags:
+              - Onboarding
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor submitted for review
+                responseModels:
+                  application/json: OnboardingResponse
+              - statusCode: "400"
+                responseBody:
+                  description: A required document is missing or still uploading
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Submit vendor for review
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Submit vendor for review
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Submit vendor for review
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding is incomplete or already in a conflicting state
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   approvevendor:
     handler: src/handlers/vendors-handler.handleApprovevendor
@@ -572,6 +2682,52 @@ functions:
               description: ""
             409:
               description: "Invalid status transition"
+          documentation:
+            summary: Approve vendor
+            description: Approves a vendor whose onboarding status is PENDING_REVIEW. Allowed only from PENDING_VERIFICATION. Approving an already ACTIVE vendor is idempotent.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor approved
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Approve vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Approve vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Approve vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Approve vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Invalid status transition
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Approves a vendor whose onboarding status is PENDING_REVIEW. Allowed only from PENDING_VERIFICATION. Approving an already ACTIVE vendor is idempotent.
+              required: true
+            requestModels:
+              application/json: ApproveVendorRequest
 
   rejectvendor:
     handler: src/handlers/vendors-handler.handleRejectvendor
@@ -600,6 +2756,52 @@ functions:
               description: ""
             409:
               description: "Invalid status transition"
+          documentation:
+            summary: Reject vendor
+            description: Rejects a vendor that is PENDING_VERIFICATION. A reason is required. Rejecting an already REJECTED vendor is idempotent.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor rejected
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Reject vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Reject vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Reject vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Reject vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Invalid status transition
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Rejects a vendor that is PENDING_VERIFICATION. A reason is required. Rejecting an already REJECTED vendor is idempotent.
+              required: true
+            requestModels:
+              application/json: RejectVendorRequest
 
   getvendorstatushistory:
     handler: src/handlers/vendors-handler.handleGetvendorstatushistory
@@ -622,6 +2824,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor status history
+            description: Returns approval and lifecycle transition history, newest first.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Status history retrieved
+                responseModels:
+                  application/json: VendorStatusHistoryList
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor status history
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Get vendor status history
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor status history
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   listvendorcommunities:
     handler: src/handlers/communities-handler.handleListvendorcommunities
@@ -644,6 +2877,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor communities
+            description: Returns business community assignments for the vendor. This is not the geographic service-area list.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Communities retrieved
+                responseModels:
+                  application/json: VendorCommunityList
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: List vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   replacevendorcommunities:
     handler: src/handlers/communities-handler.handleReplacevendorcommunities
@@ -671,6 +2935,52 @@ functions:
               description: ""
             409:
               description: ""
+          documentation:
+            summary: Replace vendor communities
+            description: Admin replacement of the vendor community set. Duplicate ids are ignored. Community existence is owned by User Service and is not checked here.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Communities replaced
+                responseModels:
+                  application/json: VendorCommunityList
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Replace vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Replace vendor communities
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Admin replacement of the vendor community set. Duplicate ids are ignored. Community existence is owned by User Service and is not checked here.
+              required: true
+            requestModels:
+              application/json: ReplaceVendorCommunitiesRequest
 
   addvendorcommunity:
     handler: src/handlers/communities-handler.handleAddvendorcommunity
@@ -698,6 +3008,52 @@ functions:
               description: ""
             409:
               description: ""
+          documentation:
+            summary: Add vendor community
+            description: Admin assignment of one community. Adding an existing assignment is idempotent.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community assigned
+                responseModels:
+                  application/json: VendorCommunityAssignment
+              - statusCode: "400"
+                responseBody:
+                  description: Add vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Add vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Add vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Add vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Add vendor community
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Admin assignment of one community. Adding an existing assignment is idempotent.
+              required: true
+            requestModels:
+              application/json: AddVendorCommunityRequest
 
   removevendorcommunity:
     handler: src/handlers/communities-handler.handleRemovevendorcommunity
@@ -724,6 +3080,51 @@ functions:
               description: ""
             409:
               description: ""
+          documentation:
+            summary: Remove vendor community
+            description: Admin removal of one community assignment. Removing a missing assignment is idempotent.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community removed
+                responseModels:
+                  application/json: MessageResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Remove vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Remove vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Remove vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Remove vendor community
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Remove vendor community
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: communityId
+                description: communityId
+                schema:
+                  type: string
 
 
   listvendorserviceareas:
@@ -746,6 +3147,37 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: List vendor service areas
+            description: List vendor service areas
+            tags:
+              - Service Areas
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Service areas retrieved successfully
+                responseModels:
+                  application/json: ServiceAreaList
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor service areas
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor service areas
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: List vendor service areas
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
   addvendorservicearea:
@@ -773,6 +3205,52 @@ functions:
               description: ""
             500:
               description: ""
+          documentation:
+            summary: Add vendor service area
+            description: Add vendor service area
+            tags:
+              - Service Areas
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Service area created successfully
+                responseModels:
+                  application/json: ServiceArea
+              - statusCode: "400"
+                responseBody:
+                  description: Add vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Add vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Add vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Add vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "500"
+                responseBody:
+                  description: Add vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Add vendor service area
+              required: true
+            requestModels:
+              application/json: CreateServiceAreaRequest
 
 
   getvendorservicearea:
@@ -793,6 +3271,36 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor service area
+            description: Get vendor service area
+            tags:
+              - Service Areas
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Service area retrieved successfully
+                responseModels:
+                  application/json: ServiceArea
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: serviceAreaId
+                description: serviceAreaId
+                schema:
+                  type: string
 
 
   updatevendorservicearea:
@@ -816,6 +3324,46 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Update vendor service area
+            description: Update vendor service area
+            tags:
+              - Service Areas
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Service area updated successfully
+                responseModels:
+                  application/json: ServiceArea
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: serviceAreaId
+                description: serviceAreaId
+                schema:
+                  type: string
+            requestBody:
+              description: Update vendor service area
+              required: true
+            requestModels:
+              application/json: UpdateServiceAreaRequest
 
 
   deletevendorservicearea:
@@ -836,6 +3384,34 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Remove vendor service area
+            description: Remove vendor service area
+            tags:
+              - Service Areas
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Service area removed successfully
+              - statusCode: "401"
+                responseBody:
+                  description: Remove vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Remove vendor service area
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: serviceAreaId
+                description: serviceAreaId
+                schema:
+                  type: string
 
 
   getvendoroperatinghours:
@@ -856,6 +3432,32 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor operating hours
+            description: Get vendor operating hours
+            tags:
+              - Operating Hours
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operating hours retrieved successfully
+                responseModels:
+                  application/json: UpdateVendorOperatingHoursRequest
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor operating hours
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor operating hours
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
   updatevendoroperatinghours:
@@ -880,6 +3482,42 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Replace vendor operating hours
+            description: Replaces the vendor's standard weekly operating schedule. Availability Service may use this schedule as an input when generating or validating bookable slots. Holiday dates and slot blocks are owned by Availability Service and are not stored here.
+            tags:
+              - Operating Hours
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operating hours updated successfully
+                responseModels:
+                  application/json: UpdateVendorOperatingHoursRequest
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor operating hours
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor operating hours
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor operating hours
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Replaces the vendor's standard weekly operating schedule. Availability Service may use this schedule as an input when generating or validating bookable slots. Holiday dates and slot blocks are owned by Availability Service and are not stored here.
+              required: true
+            requestModels:
+              application/json: UpdateVendorOperatingHoursRequest
 
 
   listvendorstaff:
@@ -901,6 +3539,32 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor staff
+            description: List vendor staff
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Staff retrieved successfully
+                responseModels:
+                  application/json: StaffListResponse
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor staff
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor staff
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
   createvendorstaff:
@@ -927,6 +3591,47 @@ functions:
               description: ""
             409:
               description: ""
+          documentation:
+            summary: Add vendor staff member
+            description: Add vendor staff member
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Staff member created successfully
+                responseModels:
+                  application/json: StaffResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Add vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Add vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Add vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Add vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Add vendor staff member
+              required: true
+            requestModels:
+              application/json: CreateStaffRequest
 
 
   getvendorstaff:
@@ -948,6 +3653,36 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor staff member
+            description: Get vendor staff member
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Staff member retrieved successfully
+                responseModels:
+                  application/json: StaffResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: staffId
+                description: staffId
+                schema:
+                  type: string
 
 
   updatevendorstaff:
@@ -972,6 +3707,46 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Update vendor staff member
+            description: Update vendor staff member
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Staff member updated successfully
+                responseModels:
+                  application/json: StaffResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: staffId
+                description: staffId
+                schema:
+                  type: string
+            requestBody:
+              description: Update vendor staff member
+              required: true
+            requestModels:
+              application/json: UpdateStaffRequest
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: put
@@ -991,6 +3766,46 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Replace vendor staff member
+            description: Replace vendor staff member
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Staff member updated successfully
+                responseModels:
+                  application/json: StaffResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: staffId
+                description: staffId
+                schema:
+                  type: string
+            requestBody:
+              description: Replace vendor staff member
+              required: true
+            requestModels:
+              application/json: UpdateStaffRequest
 
 
   deactivatevendorstaff:
@@ -1012,6 +3827,34 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Deactivate vendor staff member
+            description: Deactivates the staff member. Historical booking/job references should remain intact.
+            tags:
+              - Staff
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Staff member deactivated successfully
+              - statusCode: "401"
+                responseBody:
+                  description: Deactivate vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Deactivate vendor staff member
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: staffId
+                description: staffId
+                schema:
+                  type: string
 
 
   listavailablecapabilities:
@@ -1032,6 +3875,22 @@ functions:
               bodyType: AvailableCapabilities
             401:
               description: ""
+          documentation:
+            summary: List available capabilities
+            description: Returns capability master data. Vendor assignments store IDs only; service and package definitions remain in Service Catalog.
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Available capabilities retrieved
+                responseModels:
+                  application/json: AvailableCapabilities
+              - statusCode: "401"
+                responseBody:
+                  description: List available capabilities
+                responseModels:
+                  application/json: ErrorResponse
 
 
   getvendorcapabilities:
@@ -1052,6 +3911,32 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor capabilities
+            description: Get vendor capabilities
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor capabilities retrieved successfully
+                responseModels:
+                  application/json: VendorCapabilities
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
 
   updatevendorcapabilities:
@@ -1078,6 +3963,47 @@ functions:
               description: ""
             409:
               description: ""
+          documentation:
+            summary: Replace vendor capabilities
+            description: Updates the services, packages and vehicle types that the vendor is capable of supporting. Service mappings require catalog serviceId and categoryId so Vendor Service can confirm the entity with Service Catalog. Package ids are confirmed the same way. Optional priceOverride is provider configuration only. Checkout price is not calculated here.
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor capabilities updated successfully
+                responseModels:
+                  application/json: VendorCapabilities
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Replace vendor capabilities
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Updates the services, packages and vehicle types that the vendor is capable of supporting. Service mappings require catalog serviceId and categoryId so Vendor Service can confirm the entity with Service Catalog. Package ids are confirmed the same way. Optional priceOverride is provider configuration only. Checkout price is not calculated here.
+              required: true
+            requestModels:
+              application/json: UpdateVendorCapabilitiesRequest
 
 
   getvendorservices:
@@ -1101,6 +4027,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor catalog services
+            description: Returns provider-specific catalog service mappings, including disabled offerings and optional price overrides.
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor services retrieved
+                responseModels:
+                  application/json: ReplaceVendorServicesRequest
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: List vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   updatevendorservices:
     handler: src/handlers/capabilities-handler.handleUpdatevendorservices
@@ -1130,6 +4087,57 @@ functions:
               description: ""
             502:
               description: "Catalog service unavailable"
+          documentation:
+            summary: Replace vendor catalog services
+            description: Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price.
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor services replaced
+                responseModels:
+                  application/json: ReplaceVendorServicesRequest
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Replace vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Replace vendor catalog services
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "502"
+                responseBody:
+                  description: Catalog service unavailable
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price.
+              required: true
+            requestModels:
+              application/json: ReplaceVendorServicesRequest
 
   getvendorpackages:
     handler: src/handlers/capabilities-handler.handleGetvendorpackages
@@ -1151,6 +4159,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor catalog packages
+            description: List vendor catalog packages
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor packages retrieved
+                responseModels:
+                  application/json: ReplaceVendorPackagesRequest
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: List vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   updatevendorpackages:
     handler: src/handlers/capabilities-handler.handleUpdatevendorpackages
@@ -1180,6 +4219,57 @@ functions:
               description: ""
             502:
               description: "Catalog service unavailable"
+          documentation:
+            summary: Replace vendor catalog packages
+            description: Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only.
+            tags:
+              - Capabilities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor packages replaced
+                responseModels:
+                  application/json: ReplaceVendorPackagesRequest
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Replace vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Replace vendor catalog packages
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "502"
+                responseBody:
+                  description: Catalog service unavailable
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only.
+              required: true
+            requestModels:
+              application/json: ReplaceVendorPackagesRequest
 
 
   listvendorbranches:
@@ -1202,6 +4292,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor branches
+            description: List vendor branches
+            tags:
+              - Branches
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Branches retrieved successfully
+                responseModels:
+                  application/json: VendorBranchList
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor branches
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: List vendor branches
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor branches
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   createvendorbranch:
     handler: src/handlers/branches-handler.handleCreatevendorbranch
@@ -1224,6 +4345,42 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Create vendor branch
+            description: Create vendor branch
+            tags:
+              - Branches
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Branch created successfully
+                responseModels:
+                  application/json: VendorBranch
+              - statusCode: "400"
+                responseBody:
+                  description: Create vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Create vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Create vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Create vendor branch
+              required: true
+            requestModels:
+              application/json: CreateBranchRequest
 
   getvendorbranch:
     handler: src/handlers/branches-handler.handleGetvendorbranch
@@ -1243,6 +4400,36 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor branch
+            description: Get vendor branch
+            tags:
+              - Branches
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Branch retrieved successfully
+                responseModels:
+                  application/json: VendorBranch
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: branchId
+                description: branchId
+                schema:
+                  type: string
 
   updatevendorbranch:
     handler: src/handlers/branches-handler.handleUpdatevendorbranch
@@ -1265,6 +4452,46 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Update vendor branch
+            description: Update vendor branch
+            tags:
+              - Branches
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Branch updated successfully
+                responseModels:
+                  application/json: VendorBranch
+              - statusCode: "400"
+                responseBody:
+                  description: Update vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Update vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Update vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: branchId
+                description: branchId
+                schema:
+                  type: string
+            requestBody:
+              description: Update vendor branch
+              required: true
+            requestModels:
+              application/json: UpdateBranchRequest
 
   deletevendorbranch:
     handler: src/handlers/branches-handler.handleDeletevendorbranch
@@ -1284,6 +4511,34 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Delete vendor branch
+            description: Delete vendor branch
+            tags:
+              - Branches
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Branch deleted successfully
+              - statusCode: "401"
+                responseBody:
+                  description: Delete vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Delete vendor branch
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: branchId
+                description: branchId
+                schema:
+                  type: string
 
   listvendordocuments:
     handler: src/handlers/documents-handler.handleListvendordocuments
@@ -1307,6 +4562,37 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: List vendor documents
+            description: Returns document metadata for the vendor. Uploaded documents include a short-lived presigned download URL. Presigned URLs are not stored.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Documents retrieved successfully
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "401"
+                responseBody:
+                  description: List vendor documents
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: List vendor documents
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: List vendor documents
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   createvendordocument:
     handler: src/handlers/documents-handler.handleCreatevendordocument
@@ -1335,6 +4621,52 @@ functions:
               description: ""
             409:
               description: "Onboarding is not editable"
+          documentation:
+            summary: Create vendor document metadata and upload URL
+            description: Same behavior as POST /vendors/{vendorId}/documents/upload-url. One active document is kept per document type. A retry refreshes the presigned URL instead of creating a duplicate.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Upload URL issued and metadata stored with status PENDING_UPLOAD
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid document type, content type, file name, or file size
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Create vendor document metadata and upload URL
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Create vendor document metadata and upload URL
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Create vendor document metadata and upload URL
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding is not editable
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Same behavior as POST /vendors/{vendorId}/documents/upload-url. One active document is kept per document type. A retry refreshes the presigned URL instead of creating a duplicate.
+              required: true
+            requestModels:
+              application/json: CreateDocumentRequest
 
   createvendordocumentuploadurl:
     handler: src/handlers/documents-handler.handleCreatevendordocumentuploadurl
@@ -1363,6 +4695,52 @@ functions:
               description: "Vendor not found"
             409:
               description: "Onboarding status does not allow document changes"
+          documentation:
+            summary: Issue a presigned document upload URL
+            description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Presigned upload URL created
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid document type, content type, file name, or file size
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Issue a presigned document upload URL
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Issue a presigned document upload URL
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Vendor not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding status does not allow document changes
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
+              required: true
+            requestModels:
+              application/json: CreateDocumentRequest
 
   getvendordocument:
     handler: src/handlers/documents-handler.handleGetvendordocument
@@ -1386,6 +4764,41 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor document
+            description: Returns document metadata. An UPLOADED document includes a short-lived presigned GET URL. A PENDING_UPLOAD document includes a fresh presigned PUT URL. The S3 object stays private.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Document retrieved successfully
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Get vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor document
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: documentId
+                description: documentId
+                schema:
+                  type: string
 
   completevendordocumentupload:
     handler: src/handlers/documents-handler.handleCompletevendordocumentupload
@@ -1413,6 +4826,51 @@ functions:
               description: "Document or S3 object was not found"
             409:
               description: "Document or onboarding state does not allow confirmation"
+          documentation:
+            summary: Confirm a document upload
+            description: Verifies the private S3 object exists at the server-generated key and that its content type, file size, and file signature match the metadata. On success the document status becomes UPLOADED. Generating a presigned URL does not perform this transition.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Document confirmed as UPLOADED
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "400"
+                responseBody:
+                  description: Uploaded object failed content type, size, or signature verification
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Confirm a document upload
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Confirm a document upload
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Document or S3 object was not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Document or onboarding state does not allow confirmation
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: documentId
+                description: documentId
+                schema:
+                  type: string
 
   updatevendordocument:
     handler: src/handlers/documents-handler.handleUpdatevendordocument
@@ -1441,6 +4899,56 @@ functions:
               description: ""
             409:
               description: "Onboarding status does not allow document changes"
+          documentation:
+            summary: Replace vendor document
+            description: Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Replacement upload URL issued
+                responseModels:
+                  application/json: VendorDocument
+              - statusCode: "400"
+                responseBody:
+                  description: Replace vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Replace vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Replace vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Replace vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding status does not allow document changes
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: documentId
+                description: documentId
+                schema:
+                  type: string
+            requestBody:
+              description: Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed.
+              required: true
+            requestModels:
+              application/json: UpdateDocumentRequest
 
   deletevendordocument:
     handler: src/handlers/documents-handler.handleDeletevendordocument
@@ -1465,6 +4973,46 @@ functions:
               description: ""
             409:
               description: "Onboarding status does not allow document deletion"
+          documentation:
+            summary: Delete vendor document
+            description: Deletes document metadata and the private S3 object while onboarding is DRAFT or IN_PROGRESS. Documents are kept after the application is submitted for review.
+            tags:
+              - Documents
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Document deleted successfully
+                responseModels:
+                  application/json: MessageResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Delete vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Delete vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Delete vendor document
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding status does not allow document deletion
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: documentId
+                description: documentId
+                schema:
+                  type: string
 
   getvendorbankdetails:
     handler: src/handlers/bank-details-handler.handleGetvendorbankdetails
@@ -1486,6 +5034,32 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Get vendor bank details
+            description: Returns masked banking information. Full account numbers are never returned.
+            tags:
+              - Bank Details
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Bank details retrieved successfully
+                responseModels:
+                  application/json: BankDetails
+              - statusCode: "401"
+                responseBody:
+                  description: Get vendor bank details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Get vendor bank details
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
 
   updatevendorbankdetails:
     handler: src/handlers/bank-details-handler.handleUpdatevendorbankdetails
@@ -1509,6 +5083,50 @@ functions:
               description: ""
             404:
               description: ""
+          documentation:
+            summary: Create or update vendor bank details
+            description: Create or update vendor bank details
+            tags:
+              - Bank Details
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Bank details saved successfully
+                responseModels:
+                  application/json: BankDetails
+              - statusCode: "400"
+                responseBody:
+                  description: Create or update vendor bank details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Create or update vendor bank details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Create or update vendor bank details
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Create or update vendor bank details
+              required: true
+            requestModels:
+              application/json: BankDetailsData
+
+  getCheckoutEligibility:
+    handler: src/handlers/internal.getCheckoutEligibility
+    description: Internal IAM invoke for vendor and branch checkout eligibility. No HTTP route.
+
+  getPricingConfiguration:
+    handler: src/handlers/internal.getPricingConfiguration
+    description: Internal IAM invoke for vendor pricing configuration and versions. No HTTP route.
 
 
 resources:
@@ -1763,6 +5381,20 @@ resources:
             'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
           gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
 
+    CheckoutEligibilityInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref GetCheckoutEligibilityLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: !Ref AWS::AccountId
+
+    PricingConfigurationInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref GetPricingConfigurationLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: !Ref AWS::AccountId
+
     GatewayResponseAccessDenied:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -1786,3 +5418,4 @@ resources:
       Value: !GetAtt VendorEventBus.Arn
       Export:
         Name: ${self:custom.resourcePrefix}-vendor-event-bus-arn
+

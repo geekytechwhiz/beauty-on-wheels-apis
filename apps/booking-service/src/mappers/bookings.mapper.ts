@@ -1,17 +1,36 @@
 import { Booking } from '../types/api-types';
 import { BookingDdbItem, BookingLookupDdbItem } from '../types/repository.types';
 
+function snapshotFields(booking: Booking) {
+  return {
+    ...(booking.branchId ? { branchId: booking.branchId } : {}),
+    ...(booking.offeringId ? { offeringId: booking.offeringId } : {}),
+    ...(booking.offeringVersion !== undefined ? { offeringVersion: booking.offeringVersion } : {}),
+    ...(booking.holdId ? { holdId: booking.holdId } : {}),
+    ...(booking.location ? { location: booking.location } : {}),
+    ...(booking.pricingSnapshot ? { pricingSnapshot: booking.pricingSnapshot } : {}),
+    ...(booking.quoteId ? { quoteId: booking.quoteId } : {}),
+  };
+}
+
 export class BookingsMapper {
   static toDomain(item: BookingDdbItem | BookingLookupDdbItem): Booking {
     return {
       id: item.id,
       customerId: item.customerId,
       vendorId: item.vendorId,
+      branchId: item.branchId,
       vehicleId: item.vehicleId,
       vehicleDetails: item.vehicleDetails,
       serviceIds: item.serviceIds,
+      offeringId: item.offeringId,
+      offeringVersion: item.offeringVersion,
       bookingDate: item.bookingDate,
       slotId: item.slotId,
+      holdId: item.holdId,
+      location: item.location,
+      pricingSnapshot: item.pricingSnapshot,
+      quoteId: item.quoteId,
       totalAmount: item.totalAmount,
       paymentMethod: item.paymentMethod,
       paymentStatus: item.paymentStatus,
@@ -33,9 +52,10 @@ export class BookingsMapper {
       vehicleId: booking.vehicleId,
       vehicleDetails: booking.vehicleDetails,
       serviceIds: booking.serviceIds || [],
+      ...snapshotFields(booking),
       bookingDate: booking.bookingDate!,
       slotId: booking.slotId!,
-      totalAmount: booking.totalAmount || 0,
+      totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
       bookingStatus: booking.bookingStatus || 'CREATED',
@@ -61,9 +81,10 @@ export class BookingsMapper {
       vehicleId: booking.vehicleId,
       vehicleDetails: booking.vehicleDetails,
       serviceIds: booking.serviceIds || [],
+      ...snapshotFields(booking),
       bookingDate: booking.bookingDate!,
       slotId: booking.slotId!,
-      totalAmount: booking.totalAmount || 0,
+      totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
       bookingStatus: booking.bookingStatus || 'CREATED',
@@ -88,9 +109,10 @@ export class BookingsMapper {
       vehicleId: booking.vehicleId,
       vehicleDetails: booking.vehicleDetails,
       serviceIds: booking.serviceIds || [],
+      ...snapshotFields(booking),
       bookingDate: booking.bookingDate!,
       slotId: booking.slotId!,
-      totalAmount: booking.totalAmount || 0,
+      totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
       bookingStatus: booking.bookingStatus || 'CREATED',

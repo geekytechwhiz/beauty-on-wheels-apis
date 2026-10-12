@@ -1,5 +1,5 @@
 import { LambdaRequest } from '@api-hub/utils';
-import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
 
 import { CapabilitiesService } from './capabilities.service';
 import { CapabilitiesRepository } from '../repositories/capabilities.repository';
@@ -138,6 +138,15 @@ describe('CapabilitiesService', () => {
         ),
       ).rejects.toThrow(UnauthorizedError);
     });
+
+    it('rejects a customer who is not the vendor owner or an admin', async () => {
+      await expect(
+        service.getvendorcapabilities(
+          authRequest({ context: { userContext: { userId: 'customer-2', roles: ['customer'] } } }),
+        ),
+      ).rejects.toThrow(ForbiddenError);
+      expect(repository.getCapabilities).not.toHaveBeenCalled();
+    });
   });
 
   describe('updatevendorcapabilities', () => {
@@ -186,6 +195,9 @@ describe('CapabilitiesService', () => {
       expect(saved.PK).toBe('VENDOR#vendor-1');
       expect(saved.SK).toBe('CAPABILITIES');
       expect(saved.services?.[0].priceOverride).toBe(550);
+      expect(saved.services?.[0].version).toBe(1);
+      expect(saved.configurationVersion).toBe(1);
+      expect(saved.services?.[1].version).toBe(1);
       expect(saved).not.toHaveProperty('name');
       expect(saved).not.toHaveProperty('durationMinutes');
       expect(saved).not.toHaveProperty('basePrice');

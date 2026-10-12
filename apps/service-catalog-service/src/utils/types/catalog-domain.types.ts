@@ -61,6 +61,8 @@ export interface ServiceEntity extends CatalogBaseEntity {
     basePrice: number;
     displayOrder: number;
     active: boolean;
+    /** Server-owned catalog input version for price and booking eligibility. */
+    version?: number;
 }
 
 export interface AddonEntity extends CatalogBaseEntity {
@@ -72,6 +74,8 @@ export interface AddonEntity extends CatalogBaseEntity {
     description?: string;
     price: number;
     durationMinutes: number;
+    /** Server-owned catalog input version for add-on price and active state. */
+    version?: number;
     displayOrder: number;
     active: boolean;
 }
@@ -83,6 +87,8 @@ export interface PackageEntity extends CatalogBaseEntity {
     description?: string;
     discountedPrice: number;
     active: boolean;
+    /** Server-owned catalog input version for package price, active state, and composition. */
+    version?: number;
     displayOrder: number;
 }
 

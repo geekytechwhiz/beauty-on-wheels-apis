@@ -31,6 +31,7 @@ import {
     validatePackage,
     validatePackageUpdate,
 } from "../schemas/packages.schema";
+import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { PackageEntity, PackageItemEntity } from "../utils/types/catalog-domain.types";
 
@@ -224,13 +225,13 @@ export class PackagesService {
         }
 
         const now = new Date().toISOString();
-        const updated = mergePackageEntity(existing, body, now);
-
-        // Fetch existing items for replacement
         const existingItems = await this.repository.listPackageItems(packageId);
         const newItems = body.items
             ? buildPackageItemEntities(packageId, body.items, now)
             : existingItems;
+        const itemsChanged = Boolean(body.items)
+            && itemSignature(existingItems) !== itemSignature(newItems);
+        const updated = mergePackageEntity(existing, body, now, itemsChanged);
 
         try {
 
@@ -415,6 +416,7 @@ function mapPackageEntityToResponse(entity: PackageEntity) {
         discountedPrice: entity.discountedPrice,
         displayOrder: entity.displayOrder,
         active: entity.active,
+        ...(entity.version !== undefined ? { version: entity.version } : {}),
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };
@@ -450,6 +452,7 @@ function buildPackageEntity(
         discountedPrice: input.discountedPrice,
         displayOrder: input.displayOrder ?? 0,
         active: input.active ?? true,
+        version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
         LSI1SK: lsi1Val,
@@ -501,14 +504,25 @@ function buildPackageItemEntities(
     return entities;
 }
 
+function itemSignature(items: readonly { itemType: string; refId: string }[]): string {
+    return items
+        .map((item) => `${item.itemType}#${item.refId}`)
+        .sort()
+        .join("|");
+}
+
 function mergePackageEntity(
     existing: PackageEntity,
     updates: UpdatePackageInput,
-    now: string
+    now: string,
+    itemsChanged: boolean
 ): PackageEntity {
     const name = updates.name ?? existing.name;
     const displayOrder = updates.displayOrder ?? existing.displayOrder;
     const active = updates.active ?? existing.active;
+    const pricingChanged = itemsChanged
+        || (updates.discountedPrice !== undefined && updates.discountedPrice !== existing.discountedPrice)
+        || (updates.active !== undefined && updates.active !== existing.active);
 
     const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
@@ -520,6 +534,7 @@ function mergePackageEntity(
         discountedPrice: updates.discountedPrice ?? existing.discountedPrice,
         displayOrder,
         active,
+        version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("PACKAGE"),
         LSI1SK: lsi1Val,

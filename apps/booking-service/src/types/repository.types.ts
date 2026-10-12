@@ -5,6 +5,24 @@ export interface VehicleDetailsDdb {
   saveToGarage?: boolean;
 }
 
+export interface PricingSnapshotDdb {
+  offeringId: string;
+  offeringVersion: number;
+  catalogVersion?: number;
+  vendorPricingVersion?: number;
+  baseAmount: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  currency: string;
+}
+
+export interface BookingLocationDdb {
+  fulfilmentType: 'community' | 'address';
+  communityId?: string;
+  addressId?: string;
+}
+
 export interface BookingDdbItem {
   PK: string;
   SK: string;
@@ -13,11 +31,18 @@ export interface BookingDdbItem {
   id: string;
   customerId: string;
   vendorId: string;
+  branchId?: string;
   vehicleId?: string;
   vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
+  offeringId?: string;
+  offeringVersion?: number;
   bookingDate: string;
   slotId: string;
+  holdId?: string;
+  location?: BookingLocationDdb;
+  pricingSnapshot?: PricingSnapshotDdb;
+  quoteId?: string;
   totalAmount: number;
   paymentMethod?: string;
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
@@ -36,11 +61,18 @@ export interface BookingLookupDdbItem {
   id: string;
   customerId: string;
   vendorId: string;
+  branchId?: string;
   vehicleId?: string;
   vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
+  offeringId?: string;
+  offeringVersion?: number;
   bookingDate: string;
   slotId: string;
+  holdId?: string;
+  location?: BookingLocationDdb;
+  pricingSnapshot?: PricingSnapshotDdb;
+  quoteId?: string;
   totalAmount: number;
   paymentMethod?: string;
   paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
@@ -48,6 +80,25 @@ export interface BookingLookupDdbItem {
   createdAt: string;
   updatedAt: string;
   entityType: 'CustomerBooking' | 'VendorBooking';
+}
+
+export interface BookingIdempotencyItem {
+  PK: string;
+  SK: string;
+  bookingId: string;
+  customerId: string;
+  holdId: string;
+  requestHash: string;
+  entityType: 'BookingIdempotency';
+}
+
+export interface HoldBookingItem {
+  PK: string;
+  SK: string;
+  bookingId: string;
+  customerId: string;
+  holdId: string;
+  entityType: 'HoldBooking';
 }
 
 export interface SlotReservationDdbItem {

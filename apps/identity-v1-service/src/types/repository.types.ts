@@ -59,6 +59,12 @@ export interface MeResponse {
   language?: string;
   timezone?: string;
   userType?: UserType;
+  /**
+   * Application roles from USER#/ROLE# mappings.
+   * Existing codes: CUSTOMER, VENDOR, ADMIN. Empty when none are mapped.
+   * Legacy roleId is not copied into this array.
+   */
+  roles: Array<'CUSTOMER' | 'VENDOR' | 'ADMIN'>;
   createdAt?: string;
   updatedAt?: string;
 }

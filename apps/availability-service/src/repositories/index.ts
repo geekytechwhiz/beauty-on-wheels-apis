@@ -1,5 +1,5 @@
-// Auto-generated exports
-
-export * from "./availability.repository";
-export * from "./holidays.repository";
-export * from "./slots.repository";
+export * from './availability.repository';
+export * from './allocations.repository';
+export * from './holds.repository';
+export * from './holidays.repository';
+export * from './slots.repository';

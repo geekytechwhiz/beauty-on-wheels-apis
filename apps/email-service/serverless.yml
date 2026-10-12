@@ -100,6 +100,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - serverless-openapi-documenter
 
   # - '@myvitalrx/mvrx-resource-registry' 
 
@@ -172,6 +173,414 @@ custom:
       - '.json'
  
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Email Service API
+    description: Email templates and ad-hoc send HTTP API.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Health
+        description: Service health
+      - name: Templates
+        description: SES email templates
+      - name: Email
+        description: Ad-hoc email send
+    models:
+      - name: CreateTemplateRequest
+        description: Create an SES email template. Provide htmlContent or textContent.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateName:
+                  type: string
+                subject:
+                  type: string
+                htmlContent:
+                  type: string
+                textContent:
+                  type: string
+              required:
+                - templateName
+                - subject
+      - name: CreateMultipleTemplatesRequest
+        description: Array of SES email templates to create.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  templateName:
+                    type: string
+                  subject:
+                    type: string
+                  htmlContent:
+                    type: string
+                  textContent:
+                    type: string
+                required:
+                  - templateName
+                  - subject
+      - name: AdhocAttachment
+        description: Base64-encoded file attachment
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename:
+                  type: string
+                content:
+                  type: string
+                contentType:
+                  type: string
+              required:
+                - filename
+                - content
+                - contentType
+      - name: SendAdhocEmailRequest
+        description: Ad-hoc email. Raw send needs subject plus htmlContent or textContent. Templated send uses templateName.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to:
+                  type: string
+                from:
+                  type: string
+                fromName:
+                  type: string
+                subject:
+                  type: string
+                htmlContent:
+                  type: string
+                textContent:
+                  type: string
+                templateName:
+                  type: string
+                templateData:
+                  type: object
+                  properties: {}
+                cc:
+                  type: array
+                  items:
+                    type: string
+                bcc:
+                  type: array
+                  items:
+                    type: string
+                replyTo:
+                  type: array
+                  items:
+                    type: string
+                attachments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      filename:
+                        type: string
+                      content:
+                        type: string
+                      contentType:
+                        type: string
+                    required:
+                      - filename
+                      - content
+                      - contentType
+                contactListName:
+                  type: string
+                topicName:
+                  type: string
+              required:
+                - to
+                - from
+      - name: ErrorEnvelope
+        description: Standard error response
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: SuccessEnvelopeTemplateList
+        description: Template metadata list in data.templates
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties:
+                    templates:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          Name:
+                            type: string
+                          CreatedTimestamp:
+                            type: string
+                        required:
+                          - Name
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: SuccessEnvelopeTemplateDetail
+        description: SES template parts in data.template
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties:
+                    template:
+                      type: object
+                      properties:
+                        TemplateName:
+                          type: string
+                        SubjectPart:
+                          type: string
+                        HtmlPart:
+                          type: string
+                        TextPart:
+                          type: string
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: SuccessEnvelopeTemplateMutation
+        description: Created or deleted template name in data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                    templateName:
+                      type: string
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: SuccessEnvelopeCreateMultipleTemplates
+        description: Bulk create result in data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                    successList:
+                      type: array
+                      items:
+                        type: string
+                    failedList:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          templateName:
+                            type: string
+                          message:
+                            type: string
+                          code:
+                            type: string
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: SuccessEnvelopeSendAdhocEmail
+        description: SES message id in data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties:
+                    messageId:
+                      type: string
+                  required:
+                    - messageId
+                error:
+                  type: object
+                  properties: {}
+                meta:
+                  type: object
+                  properties:
+                    requestId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
+      - name: HealthStatus
+        description: Service health
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
 functions:
   health:
     handler: src/handlers/health.main
@@ -180,6 +589,22 @@ functions:
           path: /health
           method: get
           cors: true
+          documentation:
+            summary: GET /health
+            description: GET /health
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: GET /health
+                responseModels:
+                  application/json: HealthStatus
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorEnvelope
+            security: []
 
   templateManager:
     handler: src/modules/template/handlers/template-manager.main
@@ -198,6 +623,26 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: List email templates
+            description: Lists SES email templates (name + created timestamp).
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — template metadata list in data.templates
+                responseModels:
+                  application/json: SuccessEnvelopeTemplateList
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorEnvelope
       - http:
           path: templates
           method: post
@@ -219,6 +664,36 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: Create an email template
+            description: Creates an SES email template. Unsubscribe placeholder is auto-injected into html/text when missing.
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — created template name in data
+                responseModels:
+                  application/json: SuccessEnvelopeTemplateMutation
+              - statusCode: "400"
+                responseBody:
+                  description: Validation error
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "409"
+                responseBody:
+                  description: Template already exists
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+            requestBody:
+              description: Creates an SES email template. Unsubscribe placeholder is auto-injected into html/text when missing.
+              required: true
+            requestModels:
+              application/json: CreateTemplateRequest
       - http:
           path: templates/{templateName}
           method: get
@@ -236,6 +711,31 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: Get email template by name
+            description: Returns SES-shaped template parts (TemplateName, SubjectPart, HtmlPart, TextPart) inside data.template.
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — template parts in data.template
+                responseModels:
+                  application/json: SuccessEnvelopeTemplateDetail
+              - statusCode: "404"
+                responseBody:
+                  description: Template not found
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+            pathParams:
+              - name: templateName
+                description: templateName
+                schema:
+                  type: string
       - http:
           path: templates/{templateName}
           method: delete
@@ -256,6 +756,36 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: Delete email template
+            description: Deletes an SES email template by name.
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — deleted template name in data
+                responseModels:
+                  application/json: SuccessEnvelopeTemplateMutation
+              - statusCode: "400"
+                responseBody:
+                  description: Missing template name
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "404"
+                responseBody:
+                  description: Template not found
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+            pathParams:
+              - name: templateName
+                description: templateName
+                schema:
+                  type: string
 
   createMultipleTemplates:
     handler: src/modules/template/handlers/create-multiple-templates.main
@@ -280,6 +810,31 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: Create multiple email templates
+            description: Creates multiple SES email templates in one request. Each item is processed independently; successful names are returned in successList and failures in failedList.
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — successList and failedList in data
+                responseModels:
+                  application/json: SuccessEnvelopeCreateMultipleTemplates
+              - statusCode: "400"
+                responseBody:
+                  description: Validation error
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+            requestBody:
+              description: Creates multiple SES email templates in one request. Each item is processed independently; successful names are returned in successList and failures in failedList.
+              required: true
+            requestModels:
+              application/json: CreateMultipleTemplatesRequest
 
   sendAdhocEmail:
     handler: src/modules/email/handlers/send-adhoc.main
@@ -304,6 +859,31 @@ functions:
             500:
               description: Server error
               bodyType: ErrorEnvelope
+          documentation:
+            summary: Send an ad-hoc email
+            description: Sends a one-off email via SES. Use raw content (subject + htmlContent/textContent) or a named SES template (templateName + optional templateData).
+            tags: []
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK — SES messageId in data
+                responseModels:
+                  application/json: SuccessEnvelopeSendAdhocEmail
+              - statusCode: "400"
+                responseBody:
+                  description: Validation or business rule error
+                responseModels:
+                  application/json: ErrorEnvelope
+              - statusCode: "500"
+                responseBody:
+                  description: Server error
+                responseModels:
+                  application/json: ErrorEnvelope
+            requestBody:
+              description: Sends a one-off email via SES. Use raw content (subject + htmlContent/textContent) or a named SES template (templateName + optional templateData).
+              required: true
+            requestModels:
+              application/json: SendAdhocEmailRequest
 
   emailNotification:
     handler: src/modules/email/handlers/email-notification.main

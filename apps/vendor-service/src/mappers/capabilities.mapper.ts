@@ -18,8 +18,8 @@ export class CapabilitiesMapper {
       vehicleTypes: item.vehicleTypes,
       serviceIds: services.filter((entry) => entry.enabled).map((entry) => entry.serviceId),
       packageIds: packages.filter((entry) => entry.enabled).map((entry) => entry.packageId),
-      services,
-      packages,
+      services: services.map(publicServiceOffering),
+      packages: packages.map(publicPackageOffering),
       updatedAt: item.updatedAt,
     };
   }
@@ -64,6 +64,7 @@ export class CapabilitiesMapper {
     vehicleTypes: VehicleType[];
     services: VendorServiceOfferingRecord[];
     packages: VendorPackageOfferingRecord[];
+    configurationVersion: number;
     createdAt?: string;
   }): VendorCapabilitiesDdbItem {
     const timestamp = new Date().toISOString();
@@ -83,11 +84,29 @@ export class CapabilitiesMapper {
         .map((entry) => entry.packageId),
       services,
       packages,
+      configurationVersion: input.configurationVersion,
       createdAt: input.createdAt || timestamp,
       updatedAt: timestamp,
       entityType: VENDOR_CAPABILITIES_ENTITY_TYPE,
     };
   }
+}
+
+function publicServiceOffering(entry: VendorServiceOfferingRecord) {
+  return {
+    serviceId: entry.serviceId,
+    ...(entry.categoryId ? { categoryId: entry.categoryId } : {}),
+    enabled: entry.enabled,
+    ...(entry.priceOverride !== undefined ? { priceOverride: entry.priceOverride } : {}),
+  };
+}
+
+function publicPackageOffering(entry: VendorPackageOfferingRecord) {
+  return {
+    packageId: entry.packageId,
+    enabled: entry.enabled,
+    ...(entry.priceOverride !== undefined ? { priceOverride: entry.priceOverride } : {}),
+  };
 }
 
 function stripUndefined<T extends object>(value: T): T {

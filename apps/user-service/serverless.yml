@@ -7,6 +7,7 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
+  - serverless-openapi-documenter
 
 provider:
   name: aws
@@ -73,6 +74,489 @@ custom:
     excludeStages:
       - production
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - User Service API
+    description: Customer profiles, addresses, preferences, and communities.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Users
+        description: User lookup
+      - name: Customers
+        description: Customer profiles
+      - name: Addresses
+        description: Customer addresses
+      - name: Preferences
+        description: Operational notification preferences
+      - name: Communities
+        description: Communities and customer membership
+    models:
+      - name: PhoneLookupResult
+        description: User matched by phone
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                phone:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - suspended
+              required:
+                - id
+                - phone
+                - status
+      - name: User
+        description: User summary
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - suspended
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                profileImage:
+                  type: string
+              required:
+                - id
+                - status
+      - name: CustomerProfileUpdate
+        description: Customer profile update
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                profileImage:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - suspended
+                preferredLanguage:
+                  type: string
+                loyaltyPoints:
+                  type: integer
+      - name: CustomerProfile
+        description: Customer profile
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - suspended
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                profileImage:
+                  type: string
+                preferredLanguage:
+                  type: string
+                loyaltyPoints:
+                  type: integer
+                defaultAddressId:
+                  type: string
+              required:
+                - userId
+                - status
+                - communityIds
+                - createdAt
+                - updatedAt
+      - name: AddressRequest
+        description: Address create or update
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                    - home
+                    - work
+                    - business
+                line1:
+                  type: string
+                line2:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                postalCode:
+                  type: string
+                country:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                isDefault:
+                  type: boolean
+              required:
+                - line1
+                - city
+      - name: Address
+        description: Stored address
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                userId:
+                  type: string
+                type:
+                  type: string
+                  enum:
+                    - home
+                    - work
+                    - business
+                line1:
+                  type: string
+                city:
+                  type: string
+                isDefault:
+                  type: boolean
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+                line2:
+                  type: string
+                state:
+                  type: string
+                postalCode:
+                  type: string
+                country:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+              required:
+                - id
+                - userId
+                - type
+                - line1
+                - city
+                - isDefault
+                - createdAt
+                - updatedAt
+      - name: AddressListResponse
+        description: Address list
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      userId:
+                        type: string
+                      type:
+                        type: string
+                        enum:
+                          - home
+                          - work
+                          - business
+                      line1:
+                        type: string
+                      city:
+                        type: string
+                      isDefault:
+                        type: boolean
+      - name: OperationalPreferencesUpdate
+        description: Notification channel preferences
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                whatsapp:
+                  type: boolean
+                sms:
+                  type: boolean
+                email:
+                  type: boolean
+                push:
+                  type: boolean
+                language:
+                  type: string
+                timezone:
+                  type: string
+              required:
+                - whatsapp
+                - sms
+                - email
+                - push
+      - name: OperationalPreferences
+        description: Stored notification preferences
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                whatsapp:
+                  type: boolean
+                sms:
+                  type: boolean
+                email:
+                  type: boolean
+                push:
+                  type: boolean
+                language:
+                  type: string
+                timezone:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - userId
+                - whatsapp
+                - sms
+                - email
+                - push
+      - name: CommunityCreate
+        description: Create a community
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                city:
+                  type: string
+              required:
+                - name
+      - name: CommunityUpdate
+        description: Update a community
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                city:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+      - name: Community
+        description: Community
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communityId:
+                  type: string
+                name:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+                code:
+                  type: string
+                city:
+                  type: string
+              required:
+                - communityId
+                - name
+                - status
+                - createdAt
+                - updatedAt
+      - name: CommunityListResponse
+        description: Community page
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      communityId:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - active
+                          - inactive
+                pagination:
+                  type: object
+                  properties:
+                    nextCursor:
+                      type: string
+                    hasMore:
+                      type: boolean
+      - name: CustomerCommunitiesUpdate
+        description: Replace customer community membership
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - communityIds
+      - name: CustomerCommunities
+        description: Customer community membership
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - userId
+                - communityIds
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
   lookupUserByPhone:
     handler: src/handlers/users.handler.handleLookupUserByPhone
@@ -96,6 +580,38 @@ functions:
               description: "Caller is not a service principal or admin"
             404:
               description: "No user for that phone"
+          documentation:
+            summary: Look up a user by phone
+            description: Service principal or admin. Requires query phone in E.164. Percent-encode + as %2B. Returns id, phone, and status.
+            tags:
+              - Users
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Matching user
+                responseModels:
+                  application/json: PhoneLookupResult
+              - statusCode: "400"
+                responseBody:
+                  description: Phone is missing or not E.164
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller is not a service principal or admin
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: No user for that phone
+                responseModels:
+                  application/json: ErrorResponse
+            queryParams:
+              - name: phone
+                description: E.164 phone number. Percent-encode + as %2B.
+                required: true
+                schema:
+                  type: string
 
   getUser:
     handler: src/handlers/users.handler.handleGetUser
@@ -117,6 +633,32 @@ functions:
               description: "Caller cannot read this user"
             404:
               description: "User not found"
+          documentation:
+            summary: Get user
+            description: Owner, admin, or service principal. Reads the customer profile summary.
+            tags:
+              - Users
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: User
+                responseModels:
+                  application/json: User
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read this user
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: User not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
 
   getCustomer:
     handler: src/handlers/customers.handler.handleGetCustomer
@@ -138,6 +680,32 @@ functions:
               description: "Caller cannot read this profile"
             404:
               description: "Customer profile not found"
+          documentation:
+            summary: Get customer profile
+            description: Owner, admin, or service principal. Includes communityIds and defaultAddressId.
+            tags:
+              - Customers
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Customer profile
+                responseModels:
+                  application/json: CustomerProfile
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read this profile
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
 
   putCustomer:
     handler: src/handlers/customers.handler.handlePutCustomer
@@ -162,6 +730,42 @@ functions:
               description: "Caller cannot update this profile"
             409:
               description: "Phone number is already in use"
+          documentation:
+            summary: Create or update customer profile
+            description: Owner or admin. Upserts the profile and the phone lookup used by WhatsApp. Status and loyaltyPoints are admin-only. Marketing consent is not accepted.
+            tags:
+              - Customers
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Customer profile
+                responseModels:
+                  application/json: CustomerProfile
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid profile
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot update this profile
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Phone number is already in use
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Owner or admin. Upserts the profile and the phone lookup used by WhatsApp. Status and loyaltyPoints are admin-only. Marketing consent is not accepted.
+              required: true
+            requestModels:
+              application/json: CustomerProfileUpdate
 
   listAddresses:
     handler: src/handlers/addresses.handler.handleListAddresses
@@ -183,6 +787,32 @@ functions:
               description: "Caller cannot read these addresses"
             404:
               description: "Customer profile not found"
+          documentation:
+            summary: List addresses
+            description: Owner, admin, or service principal. Deleted addresses are omitted. The default address is first.
+            tags:
+              - Addresses
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Address list
+                responseModels:
+                  application/json: AddressListResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read these addresses
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
 
   getAddress:
     handler: src/handlers/addresses.handler.handleGetAddress
@@ -204,6 +834,36 @@ functions:
               description: "Caller cannot read this address"
             404:
               description: "Address or customer profile not found"
+          documentation:
+            summary: Get address
+            description: Owner, admin, or service principal. Returns one active address owned by userId after the caller is checked against the access token. Response uses the platform envelope; the address is in data.
+            tags:
+              - Addresses
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Address
+                responseModels:
+                  application/json: Address
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read this address
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Address or customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+              - name: addressId
+                description: addressId
+                schema:
+                  type: string
 
   createAddress:
     handler: src/handlers/addresses.handler.handleCreateAddress
@@ -228,6 +888,42 @@ functions:
               description: "Caller cannot add an address"
             404:
               description: "Customer profile not found"
+          documentation:
+            summary: Add address
+            description: Owner or admin. The first active address becomes the default. isDefault true replaces the previous default.
+            tags:
+              - Addresses
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Created address
+                responseModels:
+                  application/json: Address
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid address
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot add an address
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Owner or admin. The first active address becomes the default. isDefault true replaces the previous default.
+              required: true
+            requestModels:
+              application/json: AddressRequest
 
   updateAddress:
     handler: src/handlers/addresses.handler.handleUpdateAddress
@@ -250,6 +946,41 @@ functions:
               description: "Caller cannot update this address"
             404:
               description: "Address not found"
+          documentation:
+            summary: Update address
+            description: Owner or admin. Replaces the address. The only active address stays the default.
+            tags:
+              - Addresses
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated address
+                responseModels:
+                  application/json: Address
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot update this address
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Address not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+              - name: addressId
+                description: addressId
+                schema:
+                  type: string
+            requestBody:
+              description: Owner or admin. Replaces the address. The only active address stays the default.
+              required: true
+            requestModels:
+              application/json: AddressRequest
 
   deleteAddress:
     handler: src/handlers/addresses.handler.handleDeleteAddress
@@ -270,6 +1001,34 @@ functions:
               description: "Caller cannot delete this address"
             404:
               description: "Address not found"
+          documentation:
+            summary: Delete address
+            description: Owner or admin. Soft-deletes the address. If it was the default, another active address is promoted.
+            tags:
+              - Addresses
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Deleted
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot delete this address
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Address not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+              - name: addressId
+                description: addressId
+                schema:
+                  type: string
 
   getPreferences:
     handler: src/handlers/preferences.handler.handleGetPreferences
@@ -289,6 +1048,27 @@ functions:
               bodyType: OperationalPreferences
             403:
               description: "Caller cannot read these preferences"
+          documentation:
+            summary: Get operational channel preferences
+            description: Owner, admin, or service principal. Missing row means WhatsApp, SMS, email, and push are enabled. Marketing consent is not part of this resource.
+            tags:
+              - Preferences
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operational preferences
+                responseModels:
+                  application/json: OperationalPreferences
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read these preferences
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
 
   putPreferences:
     handler: src/handlers/preferences.handler.handlePutPreferences
@@ -313,6 +1093,42 @@ functions:
               description: "Caller cannot update these preferences"
             404:
               description: "Customer profile not found"
+          documentation:
+            summary: Replace operational channel preferences
+            description: Owner or admin. whatsapp, sms, email, and push are required. Marketing consent is rejected.
+            tags:
+              - Preferences
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operational preferences
+                responseModels:
+                  application/json: OperationalPreferences
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid preferences
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot update these preferences
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Owner or admin. whatsapp, sms, email, and push are required. Marketing consent is rejected.
+              required: true
+            requestModels:
+              application/json: OperationalPreferencesUpdate
 
   createCommunity:
     handler: src/handlers/communities.handler.handleCreateCommunity
@@ -333,6 +1149,27 @@ functions:
               bodyType: Community
             403:
               description: "Administrator access is required"
+          documentation:
+            summary: Create community
+            description: Admin. Communities are territories a customer can belong to.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community
+                responseModels:
+                  application/json: Community
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Admin. Communities are territories a customer can belong to.
+              required: true
+            requestModels:
+              application/json: CommunityCreate
 
   listCommunities:
     handler: src/handlers/communities.handler.handleListCommunities
@@ -352,6 +1189,22 @@ functions:
               bodyType: CommunityListResponse
             403:
               description: "Administrator access is required"
+          documentation:
+            summary: List communities
+            description: Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community list
+                responseModels:
+                  application/json: CommunityListResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
 
   getCommunity:
     handler: src/handlers/communities.handler.handleGetCommunity
@@ -372,6 +1225,32 @@ functions:
               description: "Administrator access is required"
             404:
               description: "Community not found"
+          documentation:
+            summary: Get community
+            description: Get community
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community
+                responseModels:
+                  application/json: Community
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Community not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: communityId
+                description: communityId
+                schema:
+                  type: string
 
   updateCommunity:
     handler: src/handlers/communities.handler.handleUpdateCommunity
@@ -393,6 +1272,37 @@ functions:
               description: "Administrator access is required"
             404:
               description: "Community not found"
+          documentation:
+            summary: Update community
+            description: Update community
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Community
+                responseModels:
+                  application/json: Community
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Community not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: communityId
+                description: communityId
+                schema:
+                  type: string
+            requestBody:
+              description: Update community
+              required: true
+            requestModels:
+              application/json: CommunityUpdate
 
   deleteCommunity:
     handler: src/handlers/communities.handler.handleDeleteCommunity
@@ -414,6 +1324,32 @@ functions:
               description: "Administrator access is required"
             404:
               description: "Community not found"
+          documentation:
+            summary: Deactivate community
+            description: Admin. Sets status to inactive. Existing memberships are left in place until an admin replaces them.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Inactive community
+                responseModels:
+                  application/json: Community
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Community not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: communityId
+                description: communityId
+                schema:
+                  type: string
 
   getCustomerCommunities:
     handler: src/handlers/communities.handler.handleGetCustomerCommunities
@@ -435,6 +1371,32 @@ functions:
               description: "Caller cannot read this membership"
             404:
               description: "Customer profile not found"
+          documentation:
+            summary: Get customer community membership
+            description: Owner, admin, or service principal.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Membership
+                responseModels:
+                  application/json: CustomerCommunities
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read this membership
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
 
   putCustomerCommunities:
     handler: src/handlers/communities.handler.handlePutCustomerCommunities
@@ -459,6 +1421,42 @@ functions:
               description: "Administrator access is required"
             404:
               description: "Customer profile or community not found"
+          documentation:
+            summary: Replace customer community membership
+            description: Admin. Replaces communityIds. Every id must be an active community.
+            tags:
+              - Communities
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Membership
+                responseModels:
+                  application/json: CustomerCommunities
+              - statusCode: "400"
+                responseBody:
+                  description: Community is not active
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Administrator access is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Customer profile or community not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Admin. Replaces communityIds. Every id must be an active community.
+              required: true
+            requestModels:
+              application/json: CustomerCommunitiesUpdate
 
 resources:
   Resources:

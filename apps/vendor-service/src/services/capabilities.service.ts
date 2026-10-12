@@ -43,7 +43,9 @@ import {
   CatalogEntityLookup,
   getCatalogEntityLookup,
 } from '../integrations/catalog-entity-lookup';
+import { assignPricingConfiguration } from '../domain/pricing-configuration';
 import {
+  VendorCapabilitiesDdbItem,
   VendorPackageOfferingRecord,
   VendorServiceOfferingRecord,
 } from '../types/repository.types';
@@ -136,12 +138,12 @@ export class CapabilitiesService {
     const packages = this.resolvePackages(body);
     await this.validateCatalog(request, services, packages);
 
-    const ddbItem = CapabilitiesMapper.toDdbItem({
+    const ddbItem = this.versionedItem({
       vendorId,
       vehicleTypes: this.normalizeVehicleTypes(body.vehicleTypes),
       services,
       packages,
-      createdAt: existing?.createdAt,
+      existing,
     });
 
     await this.persist(ddbItem, existing?.updatedAt, vendorId, userId);
@@ -178,12 +180,12 @@ export class CapabilitiesService {
       : [];
     await this.validateCatalog(request, services, []);
 
-    const ddbItem = CapabilitiesMapper.toDdbItem({
+    const ddbItem = this.versionedItem({
       vendorId,
       vehicleTypes: existing?.vehicleTypes ?? [],
       services,
       packages,
-      createdAt: existing?.createdAt,
+      existing,
     });
     await this.persist(ddbItem, existing?.updatedAt, vendorId, userId);
     return { data: CapabilitiesMapper.toDomain(ddbItem).services ?? [] };
@@ -219,15 +221,40 @@ export class CapabilitiesService {
     const packages = this.normalizePackages(body.packages ?? []);
     await this.validateCatalog(request, [], packages);
 
-    const ddbItem = CapabilitiesMapper.toDdbItem({
+    const ddbItem = this.versionedItem({
       vendorId,
       vehicleTypes: existing?.vehicleTypes ?? [],
       services,
       packages,
-      createdAt: existing?.createdAt,
+      existing,
     });
     await this.persist(ddbItem, existing?.updatedAt, vendorId, userId);
     return { data: CapabilitiesMapper.toDomain(ddbItem).packages ?? [] };
+  }
+
+  private versionedItem(input: {
+    vendorId: string;
+    vehicleTypes: VehicleType[];
+    services: VendorServiceOfferingRecord[];
+    packages: VendorPackageOfferingRecord[];
+    existing: VendorCapabilitiesDdbItem | null;
+  }) {
+    const priced = assignPricingConfiguration({
+      hasExisting: Boolean(input.existing),
+      configurationVersion: input.existing?.configurationVersion,
+      existingServices: input.existing ? CapabilitiesMapper.servicesFromItem(input.existing) : [],
+      existingPackages: input.existing ? CapabilitiesMapper.packagesFromItem(input.existing) : [],
+      services: input.services,
+      packages: input.packages,
+    });
+    return CapabilitiesMapper.toDdbItem({
+      vendorId: input.vendorId,
+      vehicleTypes: input.vehicleTypes,
+      services: priced.services,
+      packages: priced.packages,
+      configurationVersion: priced.configurationVersion,
+      createdAt: input.existing?.createdAt,
+    });
   }
 
   private async persist(

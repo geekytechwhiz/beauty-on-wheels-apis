@@ -326,6 +326,11 @@ export type VendorNextAction =
   | 'VIEW_ACCOUNT_STATUS'
   | 'CORRECT_APPLICATION';
 
+export interface VendorMembership {
+  /** owner when the caller owns the vendor. Staff is not represented. */
+  role: 'owner';
+}
+
 export interface VendorSelfLookup {
   hasVendor: boolean;
   vendorId?: string;
@@ -335,6 +340,8 @@ export interface VendorSelfLookup {
     completed: boolean;
   };
   nextAction: VendorNextAction;
+  /** Present only when hasVendor is true. */
+  membership?: VendorMembership;
 }
 
 export interface VendorResponse {

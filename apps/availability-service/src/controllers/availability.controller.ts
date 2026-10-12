@@ -38,6 +38,12 @@ export class AvailabilityController {
 
     }
 
+    async handleGetavailability(
+        request: LambdaRequest
+    ) {
+        return this.service.getavailability(request);
+    }
+
 }
 
 let controller: AvailabilityController;

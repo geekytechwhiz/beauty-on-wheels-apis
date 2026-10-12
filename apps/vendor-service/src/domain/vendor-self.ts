@@ -1,6 +1,14 @@
 import { OnboardingSection, OnboardingStatus, VendorStatus } from '../types/api-types';
 import { ONBOARDING_STATUS } from './onboarding';
 
+/** Membership role on GET /vendors/me. Staff linkage is not resolved here. */
+export const VENDOR_MEMBERSHIP_ROLE = {
+  OWNER: 'owner',
+} as const;
+
+export type VendorMembershipRole =
+  (typeof VENDOR_MEMBERSHIP_ROLE)[keyof typeof VENDOR_MEMBERSHIP_ROLE];
+
 export const VENDOR_NEXT_ACTION = {
   START_ONBOARDING: 'START_ONBOARDING',
   RESUME_ONBOARDING: 'RESUME_ONBOARDING',

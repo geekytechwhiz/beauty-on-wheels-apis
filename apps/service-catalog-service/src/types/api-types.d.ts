@@ -23,6 +23,8 @@ export interface Service {
   vehicleTypes?: VehicleType[];
   basePrice?: number;
   active?: boolean;
+  /** Catalog input version. Booking uses the pricing offeringVersion. */
+  version?: number;
 }
 
 export interface Package {

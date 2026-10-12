@@ -16,6 +16,42 @@ export class HolidaysController {
 
 
 
+    async handlePostslotholds(
+        request: LambdaRequest
+    ) {
+
+        return this.service.postslotholds(
+            request
+        );
+
+    }
+
+
+
+    async handleDeleteslothold(
+        request: LambdaRequest
+    ) {
+
+        return this.service.deleteslothold(
+            request
+        );
+
+    }
+
+
+
+    async handleGetslothold(
+        request: LambdaRequest
+    ) {
+
+        return this.service.getslothold(
+            request
+        );
+
+    }
+
+
+
     async handleGetholidays(
         request: LambdaRequest
     ) {
@@ -33,6 +69,30 @@ export class HolidaysController {
     ) {
 
         return this.service.postholidays(
+            request
+        );
+
+    }
+
+
+
+    async handlePatchholiday(
+        request: LambdaRequest
+    ) {
+
+        return this.service.patchholiday(
+            request
+        );
+
+    }
+
+
+
+    async handleDeleteholiday(
+        request: LambdaRequest
+    ) {
+
+        return this.service.deleteholiday(
             request
         );
 

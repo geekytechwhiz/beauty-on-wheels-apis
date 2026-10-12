@@ -3,7 +3,7 @@ import { BookingsRepository } from '../repositories/bookings.repository';
 import { Booking } from '../types/api-types';
 import { validateBooking } from '../schemas/bookings.schema';
 import { LambdaRequest } from '@api-hub/utils';
-import { ValidationError, ConflictError, NotFoundError, BusinessRuleError, ConditionalWriteConflictError } from '@api-hub/utils';
+import { NotFoundError, BusinessRuleError } from '@api-hub/utils';
 
 describe('BookingsService Unit Tests', () => {
     let mockRepo: jest.Mocked<BookingsRepository>;
@@ -56,61 +56,15 @@ describe('BookingsService Unit Tests', () => {
     });
 
     describe('postbookings', () => {
-        it('creates a booking successfully', async () => {
-            const input: Booking = {
-                customerId: 'c1',
-                vendorId: 'v1',
-                vehicleId: 'KA05NB4819',
-                vehicleDetails: {
-                    bodyCategory: 'SEDAN',
-                    makeModel: 'Honda City 2022',
-                    saveToGarage: true
-                },
-                bookingDate: '2026-07-20',
-                slotId: 'slot1',
-                serviceIds: ['s1'],
-                totalAmount: 609,
-                paymentMethod: 'CARD'
-            };
-            const createdBooking = { ...input, id: 'b1', bookingStatus: 'CREATED', paymentStatus: 'PENDING' };
-            mockRepo.createBooking.mockResolvedValue(createdBooking);
-
+        it('rejects a create payload that still sends quoteId', async () => {
             const req = {
-                body: input
+                body: { quoteId: 'quote-1', vendorId: 'v1' },
+                context: { authContext: { userId: 'customer-1' } },
+                event: { headers: { 'Idempotency-Key': 'idem-1' } },
             } as unknown as LambdaRequest;
 
-            const result = await service.postbookings(req);
-            expect(result).toEqual(createdBooking);
-            expect(mockRepo.createBooking).toHaveBeenCalled();
-        });
-
-        it('throws ValidationError if customerId is missing', async () => {
-            const input: Booking = {
-                vendorId: 'v1',
-                bookingDate: '2026-07-20',
-                slotId: 'slot1',
-                serviceIds: ['s1'],
-                totalAmount: 100
-            };
-            const req = { body: input } as unknown as LambdaRequest;
-
-            await expect(service.postbookings(req)).rejects.toThrow(ValidationError);
-        });
-
-        it('throws ConflictError on ConditionalWriteConflictError from repository', async () => {
-            const input: Booking = {
-                customerId: 'c1',
-                vendorId: 'v1',
-                bookingDate: '2026-07-20',
-                slotId: 'slot1',
-                serviceIds: ['s1'],
-                totalAmount: 100
-            };
-            mockRepo.createBooking.mockRejectedValue(new ConditionalWriteConflictError('Slot locked'));
-
-            const req = { body: input } as unknown as LambdaRequest;
-
-            await expect(service.postbookings(req)).rejects.toThrow(ConflictError);
+            await expect(service.postbookings(req)).rejects.toThrow();
+            expect(mockRepo.createBooking).not.toHaveBeenCalled();
         });
     });
 

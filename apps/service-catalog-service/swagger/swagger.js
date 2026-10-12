@@ -753,6 +753,11 @@
         "active": {
           "title": "Service.active",
           "type": "boolean"
+        },
+        "version": {
+          "title": "Service.version",
+          "description": "Catalog input version. Booking uses the pricing offeringVersion.",
+          "type": "number"
         }
       },
       "additionalProperties": false,
@@ -1326,7 +1331,31 @@
           },
           "pricingVersion": {
             "type": "string",
-            "example": "catalog-mvp-1"
+            "example": "catalog-mvp-1",
+            "description": "Calculator identifier. Not the booking offeringVersion."
+          },
+          "offeringVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Effective revision when one vendor-scoped service or package is priced. Submit this as booking offeringVersion. offeringId is the catalog service id."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Same integer as offeringVersion."
+          },
+          "catalogVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "vendorPricingVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Applicable vendor overlay version. Zero means no overlay."
+          },
+          "vendorConfigurationVersion": {
+            "type": "integer",
+            "minimum": 1
           },
           "calculatedAt": {
             "type": "string",

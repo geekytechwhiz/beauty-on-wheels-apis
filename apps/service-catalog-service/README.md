@@ -10,11 +10,15 @@ service-catalog
 
 Bootstrap Completed
 
-## Next Step
+## Checkout pricing
 
-Run
+`offeringId` in a booking is a Service Catalog service id. Vendor Service does not create a second offering id. A vendor offering is the enabled flag and optional `priceOverride` for that same id.
 
-```bash
-node tools/codegen/02-create-folder-structure.js service-catalog
-```
+`POST /pricing/calculate` returns `offeringVersion` when the request prices one service or one package for a vendor. That integer is the effective revision. It increments when the catalog input version, the applicable vendor overlay version, or a dependency version changes. It is not the sum or maximum of those versions. `pricingVersion` (`catalog-mvp-1`) identifies the calculator and is not the booking version.
+
+Catalog `version` starts at 1 on create. Price, active, and vehicle-type changes increment a service. Package price, active, and composition changes increment a package. Add-on price and active changes increment an add-on. Rows that have no version are set to 1 on the next price read. The client's version is never stored.
+
+The revision row is `OFFERING#SERVICE#<serviceId>` / `VENDOR#<vendorId>` (packages use `OFFERING#PACKAGE#...`). A conditional write detects a concurrent change, retries up to three times, then returns `409 OFFERING_REVISION_CONFLICT`.
+
+Deploy Vendor Service first so `getPricingConfiguration` exists. Set `VENDOR_PRICING_CONFIGURATION_FUNCTION` to `vendor-service-api-<stage>-getPricingConfiguration`. Catalog invokes it with IAM and does not call the vendor owner HTTP API.
 

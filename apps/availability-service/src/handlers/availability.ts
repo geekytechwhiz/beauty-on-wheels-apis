@@ -30,3 +30,12 @@ export const handlePutworkinghours =
         async (request: LambdaRequest) =>
             controller.handlePutworkinghours(request)
     );
+
+export const handleGetavailability =
+    withApiHandler(
+        {
+            operation: "getavailability",
+        },
+        async (request: LambdaRequest) =>
+            controller.handleGetavailability(request)
+    );

@@ -1,11 +1,21 @@
 import {
   BaseError,
+  ConditionalWriteConflictError,
   LambdaRequest,
   isVehicleTypeSupported,
 } from "@api-hub/utils";
 import { createChildLogger, createLogger } from "@api-hub/observability";
 
 import { assertVehicleType } from "../domain/catalog-validation";
+import { isAuthoritativeCatalogVersion } from "../domain/catalog-version";
+import {
+  MAX_OFFERING_REVISION_ATTEMPTS,
+  NO_VENDOR_PRICING_VERSION,
+  OfferingRevisionInput,
+  OfferingRevisionStore,
+  nextOfferingVersion,
+  revisionsMatch,
+} from "../domain/offering-revision";
 import {
   PRICING_CURRENCY,
   PRICING_VERSION,
@@ -33,6 +43,10 @@ import {
   ResolvedPricingSelection,
   validatePricingCalculate,
 } from "../schemas/pricing.schema";
+import {
+  getOfferingRevisionsRepository,
+  getPackageOfferingRevisionsRepository,
+} from "../repositories/offering-revisions.repository";
 import { AddonEntity, PackageEntity, ServiceEntity } from "../utils/types/catalog-domain.types";
 
 const logger = createChildLogger(
@@ -48,10 +62,24 @@ export interface PricingResult {
   discount: number;
   addOnTotal: number;
   total: number;
-  items: ReturnType<typeof calculatePriceBreakdown>["items"];
+  items: Array<ReturnType<typeof calculatePriceBreakdown>["items"][number] & {
+    catalogVersion?: number;
+    vendorPricingVersion?: number;
+    offeringVersion?: number;
+  }>;
   pricingVersion: typeof PRICING_VERSION;
   calculatedAt: string;
   couponsApplied: false;
+  /**
+   * Effective offering revision for a single vendor-scoped service or package.
+   * Booking submits this integer as offeringVersion.
+   */
+  offeringVersion?: number;
+  /** Alias of offeringVersion for clients that read `version`. */
+  version?: number;
+  catalogVersion?: number;
+  vendorPricingVersion?: number;
+  vendorConfigurationVersion?: number;
 }
 
 export class PricingService {
@@ -61,6 +89,8 @@ export class PricingService {
     private readonly addOnsRepository: AddOnsRepository = getAddOnsRepository(),
     private readonly vendorPricing: VendorPricingProvider = getVendorPricingProvider(),
     private readonly now: () => Date = () => new Date(),
+    private readonly serviceRevisions: OfferingRevisionStore = getOfferingRevisionsRepository(),
+    private readonly packageRevisions: OfferingRevisionStore = getPackageOfferingRevisionsRepository(),
   ) {}
 
   async calculate(request: LambdaRequest): Promise<PricingResult> {
@@ -75,37 +105,187 @@ export class PricingService {
       });
     }
 
+    for (let attempt = 1; attempt <= MAX_OFFERING_REVISION_ATTEMPTS; attempt += 1) {
+      const priced = await this.priceSelection(selection, vehicleType);
+      try {
+        const offeringVersion = await this.resolveRevision(priced.revision);
+        const result = this.toResult(priced, selection, vehicleType, offeringVersion);
+        logger.info({
+          event: "pricing_calculated",
+          vehicleType,
+          vendorId: selection.vendorId,
+          serviceCount: priced.services.length,
+          packageCount: priced.packages.length,
+          addOnCount: priced.addOns.length,
+          totalPaise: Math.round(result.total * 100),
+          pricingVersion: result.pricingVersion,
+          offeringVersion: result.offeringVersion,
+          catalogVersion: result.catalogVersion,
+          vendorPricingVersion: result.vendorPricingVersion,
+        });
+        return result;
+      } catch (error) {
+        if (error instanceof ConditionalWriteConflictError && attempt < MAX_OFFERING_REVISION_ATTEMPTS) {
+          logger.warn({ event: "offering_revision_retry", attempt, vendorId: selection.vendorId });
+          continue;
+        }
+        if (error instanceof ConditionalWriteConflictError) {
+          throw new BaseError(
+            "Pricing inputs changed concurrently",
+            409,
+            "OFFERING_REVISION_CONFLICT",
+          );
+        }
+        throw error;
+      }
+    }
+
+    throw new BaseError(
+      "Pricing inputs changed concurrently",
+      409,
+      "OFFERING_REVISION_CONFLICT",
+    );
+  }
+
+  private async priceSelection(
+    selection: ResolvedPricingSelection,
+    vehicleType: string,
+  ): Promise<PricedSelection> {
     const services = await this.loadServices(selection);
     const packages = await this.loadPackages(selection.packageIds);
     const addOns = await this.loadAddOns(selection.addOnIds);
-
     this.assertVehicleCompatibility(vehicleType, services, packages);
-
     const vendorPrices = selection.vendorId
-      ? await this.vendorPricing.getPricing(
-          selection.vendorId,
-          request.context.authHeader,
-        )
+      ? await this.vendorPricing.getPricing(selection.vendorId)
       : undefined;
-
+    if (vendorPrices && !isAuthoritativeCatalogVersion(vendorPrices.configurationVersion)) {
+      throw new BaseError(
+        "Vendor pricing configuration has no authoritative version",
+        502,
+        "VENDOR_PRICING_UNAVAILABLE",
+      );
+    }
     const lines = this.buildLines(services, packages, addOns, vendorPrices);
-    const breakdown = calculatePriceBreakdown(lines);
-
-    logger.info({
-      event: "pricing_calculated",
-      vehicleType,
-      vendorId: selection.vendorId,
-      serviceCount: services.length,
-      packageCount: packages.length,
-      addOnCount: addOns.length,
-      totalPaise: Math.round(breakdown.total * 100),
-      pricingVersion: breakdown.pricingVersion,
-    });
-
     return {
-      ...breakdown,
+      services,
+      packages,
+      addOns,
+      vendorPrices,
+      breakdown: calculatePriceBreakdown(lines),
+      revision: this.revisionInput(selection.vendorId, services, packages, addOns, vendorPrices),
+    };
+  }
+
+  private revisionInput(
+    vendorId: string | undefined,
+    services: readonly ServiceEntity[],
+    packages: ReadonlyArray<{ packageEntity: PackageEntity; services: ServiceEntity[] }>,
+    addOns: readonly AddonEntity[],
+    vendorPrices: VendorPricingSnapshot | undefined,
+  ): (OfferingRevisionInput & { kind: "SERVICE" | "PACKAGE" }) | undefined {
+    if (!vendorId || services.length + packages.length !== 1) {
+      return undefined;
+    }
+    if (services.length === 1) {
+      const service = services[0];
+      return {
+        kind: "SERVICE",
+        offeringId: service.serviceId,
+        vendorId,
+        catalogVersion: requireCatalogVersion(service.version, service.serviceId),
+        vendorPricingVersion: vendorOfferingVersion(vendorPrices?.services.get(service.serviceId)),
+        dependencyVersions: addOns.map((addon) => ({
+          id: addon.addonId,
+          version: requireCatalogVersion(addon.version, addon.addonId),
+        })),
+      };
+    }
+    const entry = packages[0];
+    return {
+      kind: "PACKAGE",
+      offeringId: entry.packageEntity.packageId,
+      vendorId,
+      catalogVersion: requireCatalogVersion(entry.packageEntity.version, entry.packageEntity.packageId),
+      vendorPricingVersion: vendorOfferingVersion(
+        vendorPrices?.packages.get(entry.packageEntity.packageId),
+      ),
+      dependencyVersions: [
+        ...entry.services.map((service) => ({
+          id: service.serviceId,
+          version: requireCatalogVersion(service.version, service.serviceId),
+        })),
+        ...addOns.map((addon) => ({
+          id: addon.addonId,
+          version: requireCatalogVersion(addon.version, addon.addonId),
+        })),
+      ],
+    };
+  }
+
+  private async resolveRevision(
+    revision: (OfferingRevisionInput & { kind: "SERVICE" | "PACKAGE" }) | undefined,
+  ): Promise<number | undefined> {
+    if (!revision) {
+      return undefined;
+    }
+    const store = revision.kind === "PACKAGE" ? this.packageRevisions : this.serviceRevisions;
+    const current = await store.findRevision(revision.offeringId, revision.vendorId);
+    if (current && revisionsMatch(current, revision)) {
+      return current.offeringVersion;
+    }
+    let offeringVersion: number;
+    try {
+      offeringVersion = nextOfferingVersion(current);
+    } catch {
+      throw new BaseError(
+        "Stored offering revision is invalid",
+        502,
+        "CATALOG_PRICING_UNAVAILABLE",
+      );
+    }
+    await store.putRevision({
+      offeringId: revision.offeringId,
+      vendorId: revision.vendorId,
+      catalogVersion: revision.catalogVersion,
+      vendorPricingVersion: revision.vendorPricingVersion,
+      dependencyVersions: revision.dependencyVersions,
+      offeringVersion,
+    }, current ? current.offeringVersion : undefined);
+    return offeringVersion;
+  }
+
+  private toResult(
+    priced: PricedSelection,
+    selection: ResolvedPricingSelection,
+    vehicleType: string,
+    offeringVersion: number | undefined,
+  ): PricingResult {
+    const primaryId = priced.revision?.offeringId;
+    return {
+      ...priced.breakdown,
+      items: priced.breakdown.items.map((item) => ({
+        ...item,
+        ...(item.id === primaryId && priced.revision
+          ? {
+            catalogVersion: priced.revision.catalogVersion,
+            vendorPricingVersion: priced.revision.vendorPricingVersion,
+            ...(offeringVersion === undefined ? {} : { offeringVersion }),
+          }
+          : {}),
+      })),
       vehicleType,
       ...(selection.vendorId ? { vendorId: selection.vendorId } : {}),
+      ...(priced.vendorPrices
+        ? { vendorConfigurationVersion: priced.vendorPrices.configurationVersion }
+        : {}),
+      ...(offeringVersion === undefined
+        ? {}
+        : {
+          offeringVersion,
+          version: offeringVersion,
+          catalogVersion: priced.revision?.catalogVersion,
+          vendorPricingVersion: priced.revision?.vendorPricingVersion,
+        }),
       calculatedAt: this.now().toISOString(),
       couponsApplied: false,
     };
@@ -153,7 +333,7 @@ export class PricingService {
           "CATALOG_ENTITY_INACTIVE",
         );
       }
-      services.push(service);
+      services.push(await this.servicesRepository.ensureServiceVersion(service));
     }
     return services;
   }
@@ -200,9 +380,12 @@ export class PricingService {
             "INVALID_PACKAGE",
           );
         }
-        services.push(service);
+        services.push(await this.servicesRepository.ensureServiceVersion(service));
       }
-      packages.push({ packageEntity, services });
+      packages.push({
+        packageEntity: await this.packagesRepository.ensurePackageVersion(packageEntity),
+        services,
+      });
     }
     return packages;
   }
@@ -225,7 +408,7 @@ export class PricingService {
           "CATALOG_ENTITY_INACTIVE",
         );
       }
-      addOns.push(addon);
+      addOns.push(await this.addOnsRepository.ensureAddonVersion(addon));
     }
     return addOns;
   }
@@ -309,6 +492,40 @@ export class PricingService {
 
     return lines;
   }
+}
+
+interface PricedSelection {
+  services: ServiceEntity[];
+  packages: Array<{ packageEntity: PackageEntity; services: ServiceEntity[] }>;
+  addOns: AddonEntity[];
+  vendorPrices?: VendorPricingSnapshot;
+  breakdown: ReturnType<typeof calculatePriceBreakdown>;
+  revision?: OfferingRevisionInput & { kind: "SERVICE" | "PACKAGE" };
+}
+
+function requireCatalogVersion(version: number | undefined, id: string): number {
+  if (!isAuthoritativeCatalogVersion(version)) {
+    throw new BaseError(
+      `Catalog entity ${id} has no authoritative version`,
+      502,
+      "CATALOG_PRICING_UNAVAILABLE",
+    );
+  }
+  return version;
+}
+
+function vendorOfferingVersion(offering: { version: number } | undefined): number {
+  if (!offering) {
+    return NO_VENDOR_PRICING_VERSION;
+  }
+  if (!Number.isInteger(offering.version) || offering.version < 1) {
+    throw new BaseError(
+      "Vendor pricing offering has no authoritative version",
+      502,
+      "VENDOR_PRICING_UNAVAILABLE",
+    );
+  }
+  return offering.version;
 }
 
 let service: PricingService | undefined;

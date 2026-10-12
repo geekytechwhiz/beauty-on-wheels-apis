@@ -1,178 +1,193 @@
-import { BaseError } from "@api-hub/utils";
-import { createChildLogger, createLogger } from "@api-hub/observability";
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
+import { BaseError } from '@api-hub/utils';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 
-import { env } from "../configs/env.config";
+import { env } from '../configs/env.config';
 
 const logger = createChildLogger(
-  createLogger({ service: "service-catalog-service", redactPII: true }),
-  { component: "VendorPricingProvider" },
+  createLogger({ service: 'service-catalog-service', redactPII: true }),
+  { component: 'VendorPricingProvider' },
 );
 
 export interface VendorOfferingPrice {
   enabled: boolean;
   priceOverride?: number;
+  version: number;
 }
 
 export interface VendorPricingSnapshot {
+  configurationVersion: number;
   services: ReadonlyMap<string, VendorOfferingPrice>;
   packages: ReadonlyMap<string, VendorOfferingPrice>;
 }
 
 /**
- * Reads provider price overrides from Vendor Service.
- * Catalog does not read the vendor table.
- *
- * Dependency: `GET {VENDOR_SERVICE_URL}/vendors/{vendorId}/capabilities`.
- * That route is currently limited to the vendor owner or an admin. A customer
- * token receives 403, and this adapter fails the calculation instead of
- * inventing overrides. Identity must expose a service principal that can read
- * provider pricing before customer checkout can apply overrides.
+ * Reads provider price overrides by invoking Vendor Service.
+ * The function is IAM-authorized for same-account application roles.
+ * Catalog does not call the owner HTTP API and does not read the vendor table.
  */
 export interface VendorPricingProvider {
-  getPricing(
-    vendorId: string,
-    authorizationHeader?: string,
-  ): Promise<VendorPricingSnapshot>;
+  getPricing(vendorId: string): Promise<VendorPricingSnapshot>;
 }
 
-interface VendorCapabilitiesPayload {
-  services?: Array<{
-    serviceId?: string;
-    enabled?: boolean;
-    priceOverride?: number;
-  }>;
-  packages?: Array<{
-    packageId?: string;
-    enabled?: boolean;
-    priceOverride?: number;
-  }>;
-}
+export class LambdaVendorPricingProvider implements VendorPricingProvider {
+  constructor(private readonly lambda: LambdaClient = new LambdaClient({})) {}
 
-export class HttpVendorPricingProvider implements VendorPricingProvider {
-  async getPricing(
-    vendorId: string,
-    authorizationHeader?: string,
-  ): Promise<VendorPricingSnapshot> {
-    const base = env.VENDOR_SERVICE_URL?.trim().replace(/\/$/, "");
-    if (!base) {
+  async getPricing(vendorId: string): Promise<VendorPricingSnapshot> {
+    const functionName = env.VENDOR_PRICING_CONFIGURATION_FUNCTION?.trim() ?? '';
+    if (!functionName) {
       throw new BaseError(
-        "VENDOR_SERVICE_URL is not configured. Provider price overrides cannot be read.",
+        'VENDOR_PRICING_CONFIGURATION_FUNCTION is not configured',
         503,
-        "VENDOR_PRICING_UNAVAILABLE",
+        'VENDOR_PRICING_UNAVAILABLE',
       );
     }
 
-    const url = `${base}/vendors/${encodeURIComponent(vendorId)}/capabilities`;
-    let response: Response;
+    let output;
     try {
-      response = await fetch(url, {
-        method: "GET",
-        headers: authorizationHeader
-          ? { Authorization: authorizationHeader }
-          : undefined,
-        signal: AbortSignal.timeout(4000),
-      });
+      // Lambda invoke, not DynamoDB. The shared lint rule treats every client.send() call as a table access.
+      // eslint-disable-next-line mvrx/no-direct-dynamodb
+      output = await this.lambda.send(new InvokeCommand({
+        FunctionName: functionName,
+        InvocationType: 'RequestResponse',
+        Payload: Buffer.from(JSON.stringify({ vendorId })),
+      }));
     } catch (error) {
       logger.error({
-        event: "vendor_pricing_unreachable",
+        event: 'vendor_pricing_unreachable',
         vendorId,
         error: error instanceof Error ? error.message : String(error),
       });
       throw new BaseError(
-        "Vendor Service could not be reached for provider pricing",
+        'Vendor Service could not be invoked for provider pricing',
         502,
-        "VENDOR_PRICING_UNAVAILABLE",
+        'VENDOR_PRICING_UNAVAILABLE',
       );
     }
 
-    if (response.status === 404) {
+    if (output.FunctionError) {
       throw new BaseError(
-        `Vendor not found: ${vendorId}`,
-        404,
-        "VENDOR_NOT_FOUND",
-      );
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      logger.warn({
-        event: "vendor_pricing_forbidden",
-        vendorId,
-        statusCode: response.status,
-      });
-      throw new BaseError(
-        "Vendor Service denied the provider pricing read. Catalog does not access vendor storage.",
+        'Vendor Service failed while reading provider pricing',
         502,
-        "VENDOR_PRICING_UNAVAILABLE",
+        'VENDOR_PRICING_UNAVAILABLE',
       );
     }
 
-    if (!response.ok) {
-      logger.error({
-        event: "vendor_pricing_failed",
-        vendorId,
-        statusCode: response.status,
-      });
-      throw new BaseError(
-        "Vendor Service could not provide pricing overrides",
-        502,
-        "VENDOR_PRICING_UNAVAILABLE",
-      );
+    const raw = output.Payload ? Buffer.from(output.Payload).toString('utf8') : '';
+    let parsed: unknown = {};
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        throw new BaseError(
+          'Vendor Service returned an unreadable pricing response',
+          502,
+          'VENDOR_PRICING_UNAVAILABLE',
+        );
+      }
     }
-
-    const payload = await readCapabilities(response);
-    return toSnapshot(payload);
+    return parsePricingConfiguration(parsed, vendorId);
   }
 }
 
-async function readCapabilities(response: Response): Promise<VendorCapabilitiesPayload> {
-  try {
-    const body = (await response.json()) as { data?: VendorCapabilitiesPayload } &
-      VendorCapabilitiesPayload;
-    return body.data ?? body;
-  } catch {
+export function parsePricingConfiguration(payload: unknown, vendorId: string): VendorPricingSnapshot {
+  const envelope = asRecord(payload);
+  if (envelope.error) {
+    throw pricingFailure(envelope.error);
+  }
+  const body = asRecord(envelope.data ?? payload);
+  if (body.vendorId !== undefined && body.vendorId !== vendorId) {
     throw new BaseError(
-      "Vendor Service returned an unreadable pricing response",
+      'Vendor Service returned pricing for a different vendor',
       502,
-      "VENDOR_PRICING_UNAVAILABLE",
+      'VENDOR_PRICING_UNAVAILABLE',
     );
   }
+  const configurationVersion = requireVersion(body.configurationVersion, 'configuration');
+  return {
+    configurationVersion,
+    services: toOfferings(body.services, 'serviceId'),
+    packages: toOfferings(body.packages, 'packageId'),
+  };
 }
 
-function toSnapshot(payload: VendorCapabilitiesPayload): VendorPricingSnapshot {
-  const services = new Map<string, VendorOfferingPrice>();
-  for (const entry of payload.services ?? []) {
-    if (!entry.serviceId) {
-      continue;
+function toOfferings(value: unknown, idField: 'serviceId' | 'packageId'): Map<string, VendorOfferingPrice> {
+  if (!Array.isArray(value)) {
+    throw new BaseError(
+      'Vendor Service omitted pricing offerings',
+      502,
+      'VENDOR_PRICING_UNAVAILABLE',
+    );
+  }
+  const offerings = new Map<string, VendorOfferingPrice>();
+  for (const entry of value) {
+    const record = asRecord(entry);
+    const id = record[idField];
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new BaseError(
+        'Vendor Service returned a pricing offering without an id',
+        502,
+        'VENDOR_PRICING_UNAVAILABLE',
+      );
     }
-    services.set(entry.serviceId, {
-      enabled: entry.enabled !== false,
-      ...(entry.priceOverride === undefined
-        ? {}
-        : { priceOverride: entry.priceOverride }),
+    if (typeof record.enabled !== 'boolean') {
+      throw new BaseError(
+        `Vendor Service omitted enabled for ${id}`,
+        502,
+        'VENDOR_PRICING_UNAVAILABLE',
+      );
+    }
+    offerings.set(id, {
+      enabled: record.enabled,
+      ...(typeof record.priceOverride === 'number' ? { priceOverride: record.priceOverride } : {}),
+      version: requireVersion(record.version, id),
     });
   }
+  return offerings;
+}
 
-  const packages = new Map<string, VendorOfferingPrice>();
-  for (const entry of payload.packages ?? []) {
-    if (!entry.packageId) {
-      continue;
-    }
-    packages.set(entry.packageId, {
-      enabled: entry.enabled !== false,
-      ...(entry.priceOverride === undefined
-        ? {}
-        : { priceOverride: entry.priceOverride }),
-    });
+function requireVersion(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new BaseError(
+      `Vendor Service omitted an authoritative version for ${label}`,
+      502,
+      'VENDOR_PRICING_UNAVAILABLE',
+    );
   }
+  return value;
+}
 
-  return { services, packages };
+function pricingFailure(error: unknown): BaseError {
+  const record = asRecord(error);
+  const statusCode = typeof record.statusCode === 'number' ? record.statusCode : 502;
+  const code = typeof record.code === 'string' && record.code.trim()
+    ? record.code
+    : 'VENDOR_PRICING_UNAVAILABLE';
+  const message = typeof record.message === 'string' && record.message.trim()
+    ? record.message
+    : 'Vendor Service could not provide pricing overrides';
+  if (statusCode >= 500) {
+    return new BaseError(message, 502, 'VENDOR_PRICING_UNAVAILABLE');
+  }
+  return new BaseError(message, statusCode, code);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BaseError(
+      'Vendor Service returned an unreadable pricing response',
+      502,
+      'VENDOR_PRICING_UNAVAILABLE',
+    );
+  }
+  return value as Record<string, unknown>;
 }
 
 let provider: VendorPricingProvider | undefined;
 
 export function getVendorPricingProvider(): VendorPricingProvider {
   if (!provider) {
-    provider = new HttpVendorPricingProvider();
+    provider = new LambdaVendorPricingProvider();
   }
   return provider;
 }

@@ -26,6 +26,7 @@ import {
     validateService,
     validateServiceUpdate,
 } from "../schemas/services.schema";
+import { INITIAL_CATALOG_VERSION, nextCatalogVersion, sameMembers } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { ServiceEntity } from "../utils/types/catalog-domain.types";
 
@@ -206,11 +207,9 @@ export class ServicesService {
             categoryId,
         });
 
-        if (!categoryId) {
-            throw new BusinessRuleError("categoryId query parameter is required");
-        }
-
-        const entity = await this.repository.findById(categoryId, serviceId);
+        const entity = categoryId
+            ? await this.repository.findById(categoryId, serviceId)
+            : await this.repository.findByServiceId(serviceId);
 
         if (!entity) {
             throw new NotFoundError(`Service not found: ${serviceId}`);
@@ -393,6 +392,7 @@ function mapServiceEntityToResponse(entity: ServiceEntity) {
         basePrice: entity.basePrice,
         displayOrder: entity.displayOrder,
         active: entity.active,
+        ...(entity.version !== undefined ? { version: entity.version } : {}),
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };
@@ -425,6 +425,7 @@ function buildServiceEntity(
         basePrice: input.basePrice,
         displayOrder: input.displayOrder ?? 0,
         active: input.active ?? true,
+        version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
         LSI1SK: lsi1Val,
@@ -451,6 +452,9 @@ function mergeServiceEntity(
     const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
     const lsi5Val = CatalogKeyBuilder.lsi5sk(durationMinutes);
 
+    const pricingChanged = (updates.basePrice !== undefined && updates.basePrice !== existing.basePrice)
+        || (updates.active !== undefined && updates.active !== existing.active)
+        || (updates.vehicleTypes !== undefined && !sameMembers(updates.vehicleTypes, existing.vehicleTypes));
     const next: ServiceEntity = {
         ...existing,
         name,
@@ -460,6 +464,7 @@ function mergeServiceEntity(
         basePrice: updates.basePrice ?? existing.basePrice,
         displayOrder,
         active,
+        version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("SERVICE"),
         LSI1SK: lsi1Val,

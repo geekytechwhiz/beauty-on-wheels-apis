@@ -30,6 +30,7 @@ import {
     validateAddOn,
     validateAddOnUpdate,
 } from "../schemas/add-ons.schema";
+import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { AddonEntity } from "../utils/types/catalog-domain.types";
 
@@ -374,6 +375,7 @@ function mapAddonEntityToResponse(entity: AddonEntity) {
         durationMinutes: entity.durationMinutes,
         displayOrder: entity.displayOrder,
         active: entity.active,
+        ...(entity.version !== undefined ? { version: entity.version } : {}),
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };
@@ -406,6 +408,7 @@ function buildAddonEntity(
         durationMinutes: input.durationMinutes,
         displayOrder: input.displayOrder ?? 0,
         active: input.active ?? true,
+        version: INITIAL_CATALOG_VERSION,
         GSI1PK: CatalogKeyBuilder.gsi1pk(input.name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
         LSI1SK: lsi1Val,
@@ -426,6 +429,8 @@ function mergeAddonEntity(
     const displayOrder = updates.displayOrder ?? existing.displayOrder;
     const active = updates.active ?? existing.active;
     const durationMinutes = updates.durationMinutes ?? existing.durationMinutes;
+    const pricingChanged = (updates.price !== undefined && updates.price !== existing.price)
+        || (updates.active !== undefined && updates.active !== existing.active);
 
     const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
@@ -439,6 +444,7 @@ function mergeAddonEntity(
         durationMinutes,
         displayOrder,
         active,
+        version: nextCatalogVersion(existing.version, pricingChanged),
         GSI1PK: CatalogKeyBuilder.gsi1pk(name),
         GSI1SK: CatalogKeyBuilder.gsi1sk("ADDON"),
         LSI1SK: lsi1Val,

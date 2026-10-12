@@ -11,7 +11,7 @@ export interface Slot {
   endTime?: string;
   capacity?: number;
   available?: number;
-  status?: 'AVAILABLE' | 'FULL' | 'BLOCKED';
+  status?: 'available' | 'full' | 'blocked';
 }
 
 export interface WorkingHours {

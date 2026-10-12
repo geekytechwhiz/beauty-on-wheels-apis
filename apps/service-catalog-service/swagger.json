@@ -187,7 +187,12 @@
           "addOnTotal": { "type": "number" },
           "total": { "type": "number", "description": "subtotal + addOnTotal - discount, computed in integer paise." },
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/PricingLine" } },
-          "pricingVersion": { "type": "string", "example": "catalog-mvp-1" },
+          "pricingVersion": { "type": "string", "example": "catalog-mvp-1", "description": "Calculator identifier. Not the booking offeringVersion." },
+          "offeringVersion": { "type": "integer", "minimum": 1, "description": "Effective revision when one vendor-scoped service or package is priced. Submit this as booking offeringVersion. offeringId is the catalog service id." },
+          "version": { "type": "integer", "minimum": 1, "description": "Same integer as offeringVersion." },
+          "catalogVersion": { "type": "integer", "minimum": 1 },
+          "vendorPricingVersion": { "type": "integer", "minimum": 0, "description": "Applicable vendor overlay version. Zero means no overlay." },
+          "vendorConfigurationVersion": { "type": "integer", "minimum": 1 },
           "calculatedAt": { "type": "string", "format": "date-time" },
           "couponsApplied": { "type": "boolean", "example": false }
         }
@@ -335,7 +340,7 @@
           "409": { "description": "Inactive catalog entity or vendor offering disabled" },
           "500": { "description": "Unexpected error" },
           "502": { "description": "VENDOR_PRICING_UNAVAILABLE. Vendor Service denied or failed the override read. Catalog does not fall back to a silent price when vendorId was supplied." },
-          "503": { "description": "VENDOR_SERVICE_URL is not configured" }
+          "503": { "description": "VENDOR_PRICING_CONFIGURATION_FUNCTION is not configured" }
         }
       }
     }

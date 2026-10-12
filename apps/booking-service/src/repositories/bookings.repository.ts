@@ -4,7 +4,9 @@ import { env } from '../configs/env.config';
 import { Booking } from '../types/api-types';
 import {
   BookingDdbItem,
+  BookingIdempotencyItem,
   BookingLookupDdbItem,
+  HoldBookingItem,
 } from '../types/repository.types';
 import { BookingsMapper } from '../mappers/bookings.mapper';
 
@@ -32,20 +34,37 @@ export class BookingsRepository extends BaseRepository {
     });
   }
 
-  async createBooking(booking: Booking): Promise<Booking> {
+  async getIdempotency(
+    customerId: string,
+    idempotencyKey: string,
+  ): Promise<BookingIdempotencyItem | null> {
+    return this.get<BookingIdempotencyItem>(this.getTableName(), {
+      PK: `IDEMPOTENCY#${customerId}#${idempotencyKey}`,
+      SK: 'IDEMPOTENCY',
+    });
+  }
+
+  async getHoldBooking(holdId: string): Promise<HoldBookingItem | null> {
+    return this.get<HoldBookingItem>(this.getTableName(), {
+      PK: `HOLD_BOOKING#${holdId}`,
+      SK: 'HOLD_BOOKING',
+    });
+  }
+
+  /**
+   * Persists the booking, lookups, audit row, idempotency record, and a hold
+   * lock. Slot capacity stays in Availability Service; this lock only stops a
+   * second booking id from being created for the same hold.
+   */
+  async createBooking(
+    booking: Booking,
+    meta: { idempotencyKey: string; requestHash: string },
+  ): Promise<Booking> {
     const id = booking.id!;
     const timestamp = new Date().toISOString();
     const detailsItem = BookingsMapper.toDdbItem(booking, 1, timestamp);
     const customerItem = BookingsMapper.toCustomerLookupDdb(booking, timestamp);
     const vendorItem = BookingsMapper.toVendorLookupDdb(booking, timestamp);
-
-    const slotReservation = {
-      PK: `SLOT_RESERVATION#${booking.vendorId}#${booking.bookingDate}#${booking.slotId}`,
-      SK: `SLOT_RESERVATION`,
-      bookingId: id,
-      createdAt: timestamp,
-      entityType: 'SlotReservation',
-    };
 
     const auditItem = {
       PK: `BOOKING#${id}`,
@@ -86,7 +105,29 @@ export class BookingsRepository extends BaseRepository {
         {
           Put: {
             TableName: this.getTableName(),
-            Item: slotReservation,
+            Item: {
+              PK: `IDEMPOTENCY#${booking.customerId}#${meta.idempotencyKey}`,
+              SK: 'IDEMPOTENCY',
+              bookingId: id,
+              customerId: booking.customerId,
+              holdId: booking.holdId,
+              requestHash: meta.requestHash,
+              entityType: 'BookingIdempotency',
+            },
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: {
+              PK: `HOLD_BOOKING#${booking.holdId}`,
+              SK: 'HOLD_BOOKING',
+              bookingId: id,
+              customerId: booking.customerId,
+              holdId: booking.holdId,
+              entityType: 'HoldBooking',
+            },
             ConditionExpression: 'attribute_not_exists(PK)',
           },
         },
@@ -221,40 +262,6 @@ export class BookingsRepository extends BaseRepository {
       },
     ];
 
-    // Check if date or slot changes
-    const dateOrSlotChanged =
-      booking.bookingDate !== original.bookingDate ||
-      booking.slotId !== original.slotId ||
-      booking.vendorId !== original.vendorId;
-
-    if (dateOrSlotChanged) {
-      // Delete old slot reservation
-      transactItems.push({
-        Delete: {
-          TableName: this.getTableName(),
-          Key: {
-            PK: `SLOT_RESERVATION#${original.vendorId}#${original.bookingDate}#${original.slotId}`,
-            SK: `SLOT_RESERVATION`,
-          },
-        },
-      });
-
-      // Put new slot reservation
-      transactItems.push({
-        Put: {
-          TableName: this.getTableName(),
-          Item: {
-            PK: `SLOT_RESERVATION#${booking.vendorId}#${booking.bookingDate}#${booking.slotId}`,
-            SK: `SLOT_RESERVATION`,
-            bookingId: id,
-            createdAt: timestamp,
-            entityType: 'SlotReservation',
-          },
-          ConditionExpression: 'attribute_not_exists(PK)',
-        },
-      });
-    }
-
     await this.transactWrite({ TransactItems: transactItems });
   }
 
@@ -267,16 +274,7 @@ export class BookingsRepository extends BaseRepository {
     const newVersion = original.version + 1;
 
     const updatedBooking: Booking = {
-      id,
-      customerId: original.customerId,
-      vendorId: original.vendorId,
-      vehicleId: original.vehicleId,
-      vehicleDetails: original.vehicleDetails,
-      serviceIds: original.serviceIds,
-      bookingDate: original.bookingDate,
-      slotId: original.slotId,
-      totalAmount: original.totalAmount,
-      paymentMethod: original.paymentMethod,
+      ...BookingsMapper.toDomain(original),
       paymentStatus: status === 'CONFIRMED' ? 'PAID' : original.paymentStatus,
       bookingStatus: status,
     };
@@ -351,17 +349,7 @@ export class BookingsRepository extends BaseRepository {
     const newVersion = original.version + 1;
 
     const updatedBooking: Booking = {
-      id,
-      customerId: original.customerId,
-      vendorId: original.vendorId,
-      vehicleId: original.vehicleId,
-      vehicleDetails: original.vehicleDetails,
-      serviceIds: original.serviceIds,
-      bookingDate: original.bookingDate,
-      slotId: original.slotId,
-      totalAmount: original.totalAmount,
-      paymentMethod: original.paymentMethod,
-      paymentStatus: original.paymentStatus,
+      ...BookingsMapper.toDomain(original),
       bookingStatus: 'CANCELLED',
     };
 

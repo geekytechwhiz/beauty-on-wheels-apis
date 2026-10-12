@@ -297,7 +297,7 @@
     "/vendors/me": {
       "get": {
         "summary": "Get the authenticated user's vendor",
-        "description": "Resolves the canonical application userId from the verified authentication context and loads that user's vendor from GSI1 (OWNER#{userId}). Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor.",
+        "description": "Resolves the canonical application userId from the verified authentication context and loads that user's owned vendor. Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor. When a vendor exists, membership.role is owner. Staff membership is not resolved.",
         "tags": [
           "Vendors"
         ],
@@ -3739,6 +3739,24 @@
       "title": "VendorNextAction",
       "type": "string"
     },
+    "VendorMembership": {
+      "properties": {
+        "role": {
+          "title": "VendorMembership.role",
+          "description": "owner when the caller owns the vendor. Staff is not represented.",
+          "enum": [
+            "owner"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "additionalProperties": false,
+      "title": "VendorMembership",
+      "type": "object"
+    },
     "VendorSelfLookup": {
       "properties": {
         "hasVendor": {
@@ -3784,6 +3802,11 @@
         "nextAction": {
           "$ref": "#/definitions/VendorNextAction",
           "title": "VendorSelfLookup.nextAction"
+        },
+        "membership": {
+          "$ref": "#/definitions/VendorMembership",
+          "title": "VendorSelfLookup.membership",
+          "description": "Present only when hasVendor is true."
         }
       },
       "required": [

@@ -44,7 +44,7 @@
       },
       "post": {
         "summary": "Create booking",
-        "description": "",
+        "description": "Creates a booking from an availability hold. The customer comes from the access token. Price is snapshotted from Service Catalog and is not accepted from the client. Idempotency-Key is required.",
         "tags": [
           "Bookings"
         ],
@@ -62,7 +62,7 @@
             "description": "Body required in the request",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/Booking"
+              "$ref": "#/definitions/CreateBookingRequest"
             }
           }
         ],
@@ -393,6 +393,86 @@
       "description": "This file was automatically generated from the OpenAPI specification.\nDO NOT EDIT DIRECTLY.",
       "type": "object"
     },
+    "BookingLocation": {
+      "properties": {
+        "fulfilmentType": {
+          "enum": [
+            "community",
+            "address"
+          ],
+          "title": "BookingLocation.fulfilmentType",
+          "type": "string"
+        },
+        "communityId": {
+          "title": "BookingLocation.communityId",
+          "type": "string"
+        },
+        "addressId": {
+          "title": "BookingLocation.addressId",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fulfilmentType"
+      ],
+      "additionalProperties": false,
+      "title": "BookingLocation",
+      "type": "object"
+    },
+    "PricingSnapshot": {
+      "properties": {
+        "offeringId": {
+          "title": "PricingSnapshot.offeringId",
+          "type": "string"
+        },
+        "offeringVersion": {
+          "title": "PricingSnapshot.offeringVersion",
+          "type": "number"
+        },
+        "catalogVersion": {
+          "title": "PricingSnapshot.catalogVersion",
+          "description": "Catalog service version used for this price. Absent on bookings created before versioning.",
+          "type": "number"
+        },
+        "vendorPricingVersion": {
+          "title": "PricingSnapshot.vendorPricingVersion",
+          "description": "Vendor overlay version used for this price. Zero means no overlay.",
+          "type": "number"
+        },
+        "baseAmount": {
+          "title": "PricingSnapshot.baseAmount",
+          "type": "number"
+        },
+        "discountAmount": {
+          "title": "PricingSnapshot.discountAmount",
+          "type": "number"
+        },
+        "taxAmount": {
+          "title": "PricingSnapshot.taxAmount",
+          "type": "number"
+        },
+        "totalAmount": {
+          "title": "PricingSnapshot.totalAmount",
+          "type": "number"
+        },
+        "currency": {
+          "title": "PricingSnapshot.currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "offeringId",
+        "offeringVersion",
+        "baseAmount",
+        "discountAmount",
+        "taxAmount",
+        "totalAmount",
+        "currency"
+      ],
+      "additionalProperties": false,
+      "title": "PricingSnapshot",
+      "type": "object"
+    },
     "Booking": {
       "properties": {
         "id": {
@@ -405,6 +485,10 @@
         },
         "vendorId": {
           "title": "Booking.vendorId",
+          "type": "string"
+        },
+        "branchId": {
+          "title": "Booking.branchId",
           "type": "string"
         },
         "vehicleId": {
@@ -423,12 +507,37 @@
           "title": "Booking.serviceIds",
           "type": "array"
         },
+        "offeringId": {
+          "title": "Booking.offeringId",
+          "type": "string"
+        },
+        "offeringVersion": {
+          "title": "Booking.offeringVersion",
+          "type": "number"
+        },
         "bookingDate": {
           "title": "Booking.bookingDate",
           "type": "string"
         },
         "slotId": {
           "title": "Booking.slotId",
+          "type": "string"
+        },
+        "holdId": {
+          "title": "Booking.holdId",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/definitions/BookingLocation",
+          "title": "Booking.location"
+        },
+        "pricingSnapshot": {
+          "$ref": "#/definitions/PricingSnapshot",
+          "title": "Booking.pricingSnapshot"
+        },
+        "quoteId": {
+          "title": "Booking.quoteId",
+          "description": "Preserved when a historical booking already stored a quote. Create no longer accepts it.",
           "type": "string"
         },
         "totalAmount": {

@@ -1,0 +1,170 @@
+{
+  "info": {
+    "name": "Partner session workflow",
+    "description": "Test-backed examples for the Partner sign-in sequence. These are not captured responses from a deployed stage. Identity and Vendor use different base URLs. Call send, verify, me, vendors/me, then branches.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "identityBaseUrl", "value": "https://identity.example/dev" },
+    { "key": "vendorBaseUrl", "value": "https://vendor.example/dev" },
+    { "key": "accessToken", "value": "test-access-token" },
+    { "key": "refreshToken", "value": "test-refresh-token" },
+    { "key": "vendorId", "value": "vendor-1" }
+  ],
+  "item": [
+    {
+      "name": "1 Send OTP",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"destination\": \"+919876543210\",\n  \"userType\": \"VENDOR\"\n}"
+        },
+        "url": "{{identityBaseUrl}}/otp/send",
+        "description": "TEST-BACKED. Public. userType VENDOR or CUSTOMER, default CUSTOMER. Success is HTTP 200 with data.referenceId. The OTP is not in the body."
+      },
+      "response": [
+        {
+          "name": "200 challenge created (test-backed)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"destination\": \"+919876543210\",\n  \"userType\": \"VENDOR\"\n}" },
+            "url": "{{identityBaseUrl}}/otp/send"
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": { \"title\": \"SUCCESS\", \"description\": \"Request processed successfully\", \"severity\": \"SUCCESS\" },\n  \"data\": { \"success\": true, \"referenceId\": \"4f0c2a6b1d9e4a7c8b0d1e2f3a4b5c6d\" },\n  \"error\": null,\n  \"meta\": { \"correlationId\": \"test-corr\", \"timestamp\": \"2026-10-11T00:00:00.000Z\", \"version\": \"v1\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "2 Verify OTP",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"destination\": \"+919876543210\",\n  \"otp\": \"123456\"\n}"
+        },
+        "url": "{{identityBaseUrl}}/otp/verify",
+        "description": "TEST-BACKED. Returns tokens only. Save accessToken and refreshToken. Do not expect vendorId or branches."
+      },
+      "response": [
+        {
+          "name": "200 tokens (test-backed)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"destination\": \"+919876543210\",\n  \"otp\": \"123456\"\n}" },
+            "url": "{{identityBaseUrl}}/otp/verify"
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": { \"title\": \"SUCCESS\", \"description\": \"Request processed successfully\", \"severity\": \"SUCCESS\" },\n  \"data\": { \"accessToken\": \"test-access-token\", \"refreshToken\": \"test-refresh-token\", \"expiresIn\": 3600, \"tokenType\": \"Bearer\" },\n  \"error\": null,\n  \"meta\": { \"correlationId\": \"test-corr\", \"timestamp\": \"2026-10-11T00:00:00.000Z\", \"version\": \"v1\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "3 Refresh access token",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": "{{identityBaseUrl}}/auth/refresh-token",
+        "description": "TEST-BACKED. Public. Refresh credential is the JSON body, not a cookie or Authorization header."
+      },
+      "response": []
+    },
+    {
+      "name": "4 Current identity",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "method": "GET",
+        "header": [],
+        "url": "{{identityBaseUrl}}/me",
+        "description": "TEST-BACKED. Map userId to a local id and phoneNumber to phone. Use roles, not roleId. There is no capabilities array."
+      },
+      "response": [
+        {
+          "name": "200 identity (test-backed)",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{identityBaseUrl}}/me"
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": { \"title\": \"SUCCESS\", \"description\": \"Request processed successfully\", \"severity\": \"SUCCESS\" },\n  \"data\": {\n    \"userId\": \"u-123\",\n    \"firstName\": \"Priya\",\n    \"lastName\": \"Nair\",\n    \"email\": \"priya@example.com\",\n    \"phoneNumber\": \"+919876543210\",\n    \"status\": \"ACTIVE\",\n    \"roleId\": \"user\",\n    \"userType\": \"VENDOR\",\n    \"roles\": [\"CUSTOMER\", \"VENDOR\"]\n  },\n  \"error\": null,\n  \"meta\": { \"correlationId\": \"test-corr\", \"timestamp\": \"2026-10-11T00:00:00.000Z\", \"version\": \"v1\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "5 Vendor membership",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "method": "GET",
+        "header": [],
+        "url": "{{vendorBaseUrl}}/vendors/me",
+        "description": "TEST-BACKED. Owner lookup only. membership.role is owner when hasVendor is true. Staff is not returned. Copy data.vendorId for the branch call."
+      },
+      "response": [
+        {
+          "name": "200 owner (test-backed)",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{vendorBaseUrl}}/vendors/me"
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": { \"title\": \"SUCCESS\", \"description\": \"Request processed successfully\", \"severity\": \"SUCCESS\" },\n  \"data\": {\n    \"hasVendor\": true,\n    \"vendorId\": \"vendor-1\",\n    \"status\": \"DRAFT\",\n    \"onboarding\": { \"currentStep\": \"BUSINESS_INFO\", \"completed\": false },\n    \"nextAction\": \"RESUME_ONBOARDING\",\n    \"membership\": { \"role\": \"owner\" }\n  },\n  \"error\": null,\n  \"meta\": { \"correlationId\": \"test-corr\", \"timestamp\": \"2026-10-11T00:00:00.000Z\", \"version\": \"v1\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "6 Permitted branches",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+        },
+        "method": "GET",
+        "header": [],
+        "url": "{{vendorBaseUrl}}/vendors/{{vendorId}}/branches",
+        "description": "TEST-BACKED. Read branches from body.data.data. Map branchId to a local id. No timeZone and no pagination. Another vendor's id returns 403 for a non-admin."
+      },
+      "response": [
+        {
+          "name": "200 branches (test-backed)",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{vendorBaseUrl}}/vendors/{{vendorId}}/branches"
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": { \"title\": \"SUCCESS\", \"description\": \"Request processed successfully\", \"severity\": \"SUCCESS\" },\n  \"data\": {\n    \"data\": [\n      {\n        \"branchId\": \"branch-1\",\n        \"vendorId\": \"vendor-1\",\n        \"name\": \"Koramangala\",\n        \"isPrimary\": true,\n        \"createdAt\": \"2026-01-02T00:00:00.000Z\",\n        \"updatedAt\": \"2026-01-02T00:00:00.000Z\"\n      }\n    ]\n  },\n  \"error\": null,\n  \"meta\": { \"correlationId\": \"test-corr\", \"timestamp\": \"2026-10-11T00:00:00.000Z\", \"version\": \"v1\" }\n}"
+        }
+      ]
+    }
+  ]
+}

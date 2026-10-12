@@ -38,3 +38,14 @@ List vendors with `communityId` uses GSI3. Do not combine `communityId` with `ci
 ## Deploy
 
 `CATALOG_SERVICE_URL` is required before catalog mappings can be saved. Adding GSI3 is a table update; existing vendors have no community rows until an admin assigns them.
+
+## Checkout internals
+
+Deploy this service before Booking Service and Service Catalog Service. Two Lambda functions are invoke-only and have no HTTP route:
+
+- `getCheckoutEligibility` returns status, operational status, onboarding status, community ids, and the branch id when that branch belongs to the vendor.
+- `getPricingConfiguration` returns enabled services and packages, price overrides, each offering's version, and `configurationVersion`.
+
+Any role in the same account and stage may invoke them when its identity policy allows `lambda:InvokeFunction` on those function ARNs. The function resource policy grants the account. Handlers do not accept an internal flag or a caller allowlist. Owner and admin HTTP routes are unchanged.
+
+Versions are server-owned. The first saved configuration is version 1. A later change to `enabled` or `priceOverride` increments that offering's version and `configurationVersion`. Existing capability rows without a version are set to 1 on the next internal read, using a conditional write. No table scan is required. Do not copy a client-supplied version onto these items.

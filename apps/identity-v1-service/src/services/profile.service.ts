@@ -3,6 +3,7 @@ import {
     createLogger,
     createChildLogger
 } from "@api-hub/observability";
+import { resolveApplicationRoles } from "@api-hub/authentication-core";
 
 import {
     ProfileRepository,
@@ -41,9 +42,10 @@ export class ProfileService {
             throw new BaseError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const [profile, user] = await Promise.all([
+        const [profile, user, roleIds] = await Promise.all([
             this.repository.getProfile(userId),
             this.repository.getUser(userId),
+            this.repository.getUserRoles(userId),
         ]);
 
         if (!user && !profile) {
@@ -63,6 +65,8 @@ export class ProfileService {
             lastName: profile?.lastName ?? '',
             // Legacy identities predate userType and remain customers.
             userType: user?.userType ?? 'CUSTOMER',
+            // Application roles only. Legacy roleId "user" is not a role.
+            roles: resolveApplicationRoles(roleIds),
         };
     }
 

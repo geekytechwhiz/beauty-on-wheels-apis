@@ -4,9 +4,9 @@ export const env = {
   DYNAMODB_TABLE_NAME: process.env.DYNAMODB_TABLE_NAME || '',
   EVENT_BUS_NAME: process.env.EVENT_BUS_NAME || '',
   /**
-   * Vendor Service base URL used to read provider price overrides.
+   * Vendor Service Lambda that returns pricing configuration.
    * Empty means pricing with vendorId fails closed. Catalog never reads
-   * the vendor table.
+   * the vendor table and does not call the owner HTTP API.
    */
-  VENDOR_SERVICE_URL: process.env.VENDOR_SERVICE_URL || '',
+  VENDOR_PRICING_CONFIGURATION_FUNCTION: process.env.VENDOR_PRICING_CONFIGURATION_FUNCTION || '',
 };

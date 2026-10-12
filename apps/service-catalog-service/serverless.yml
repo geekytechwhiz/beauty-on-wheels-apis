@@ -6,7 +6,8 @@ plugins:
   - serverless-esbuild
   - serverless-dotenv-plugin
   - serverless-auto-swagger
-  - serverless-offline 
+  - serverless-offline
+  - serverless-openapi-documenter 
 provider:
   name: aws
   runtime: nodejs22.x
@@ -22,8 +23,8 @@ provider:
     SERVICE_NAME: service-catalog-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-service-catalog
-    # Provider overrides are read from Vendor Service. Leave empty until that API is reachable.
-    VENDOR_SERVICE_URL: ${env:VENDOR_SERVICE_URL, ''}
+    # IAM invoke of the vendor pricing-configuration function. Catalog does not call the owner HTTP API.
+    VENDOR_PRICING_CONFIGURATION_FUNCTION: vendor-service-api-${self:provider.stage}-getPricingConfiguration
 
   iam:
     role:
@@ -43,6 +44,11 @@ provider:
           Resource:
             - !GetAtt ServiceCatalogTable.Arn
             - !Join [ "/", [ !GetAtt ServiceCatalogTable.Arn, "index", "*" ] ]
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PRICING_CONFIGURATION_FUNCTION}
         - Effect: Allow
           Action:
             - xray:PutTraceSegments
@@ -81,6 +87,355 @@ custom:
       - production
 
 
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels - Service Catalog Service API
+    description: Catalog categories, services, packages, add-ons, and price calculation.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    servers:
+      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        description: Deployed API Gateway stage
+        variables:
+          apiId:
+            default: localhost
+            description: API Gateway id
+          stage:
+            default: dev
+            description: Deployment stage
+    tags:
+      - name: Categories
+        description: Service categories
+      - name: Services
+        description: Bookable services
+      - name: Packages
+        description: Service packages
+      - name: Pricing
+        description: Price calculation
+      - name: Add-ons
+        description: Optional add-ons
+    models:
+      - name: Category
+        description: Service category
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                displayOrder:
+                  type: integer
+                active:
+                  type: boolean
+                serviceCount:
+                  type: integer
+      - name: CategoryPage
+        description: Page of categories
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      displayOrder:
+                        type: integer
+                      active:
+                        type: boolean
+                      serviceCount:
+                        type: integer
+      - name: Service
+        description: Bookable catalog service
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                categoryId:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                durationMinutes:
+                  type: integer
+                vehicleTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - HATCHBACK
+                      - SEDAN
+                      - SUV
+                      - MUV
+                      - LUXURY
+                      - BIKE
+                basePrice:
+                  type: number
+                active:
+                  type: boolean
+      - name: ServicePage
+        description: Page of services
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      categoryId:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      durationMinutes:
+                        type: integer
+                      vehicleTypes:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - HATCHBACK
+                            - SEDAN
+                            - SUV
+                            - MUV
+                            - LUXURY
+                            - BIKE
+                      basePrice:
+                        type: number
+                      active:
+                        type: boolean
+      - name: Package
+        description: Service package
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                services:
+                  type: array
+                  items:
+                    type: string
+                discountedPrice:
+                  type: number
+      - name: PackagePage
+        description: Page of packages
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      services:
+                        type: array
+                        items:
+                          type: string
+                      discountedPrice:
+                        type: number
+      - name: AddOn
+        description: Optional add-on
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                price:
+                  type: number
+                durationMinutes:
+                  type: integer
+      - name: AddOnPage
+        description: Page of add-ons
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      price:
+                        type: number
+                      durationMinutes:
+                        type: integer
+      - name: PricingCalculateRequest
+        description: Price calculation input. Coupon codes are ignored.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicleType:
+                  type: string
+                  enum:
+                    - HATCHBACK
+                    - SEDAN
+                    - SUV
+                    - MUV
+                    - LUXURY
+                    - BIKE
+                vendorId:
+                  type: string
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                packageIds:
+                  type: array
+                  items:
+                    type: string
+                addOnIds:
+                  type: array
+                  items:
+                    type: string
+                addonIds:
+                  type: array
+                  items:
+                    type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - SERVICE
+                          - PACKAGE
+                      serviceId:
+                        type: string
+                      categoryId:
+                        type: string
+                      packageId:
+                        type: string
+                couponCode:
+                  type: string
+              required:
+                - vehicleType
+      - name: PricingResult
+        description: Calculated price
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency:
+                  type: string
+                subtotal:
+                  type: number
+                discount:
+                  type: number
+                total:
+                  type: number
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      amount:
+                        type: number
+      - name: ErrorResponse
+        description: Platform error envelope
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                statusCode:
+                  type: integer
+                message:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: string
+                data:
+                  type: object
+                  properties: {}
+                error:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                          message:
+                            type: string
+                meta:
+                  type: object
+                  properties:
+                    correlationId:
+                      type: string
+                    timestamp:
+                      type: string
+                    version:
+                      type: string
 functions:
 
 
@@ -98,6 +453,22 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: List categories
+            description: List categories
+            tags:
+              - Categories
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: CategoryPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
 
   postcategories:
@@ -115,6 +486,27 @@ functions:
           responseData:
             201:
               description: "Created"
+          documentation:
+            summary: Create category
+            description: Create category
+            tags:
+              - Categories
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: Category
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Create category
+              required: true
+            requestModels:
+              application/json: Category
 
 
   getcategoryid:
@@ -131,6 +523,27 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: Get category
+            description: Get category
+            tags:
+              - Categories
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: Category
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: categoryId
+                description: categoryId
+                schema:
+                  type: string
 
 
   putcategoryid:
@@ -148,6 +561,32 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update category
+            description: Update category
+            tags:
+              - Categories
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: Category
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: categoryId
+                description: categoryId
+                schema:
+                  type: string
+            requestBody:
+              description: Update category
+              required: true
+            requestModels:
+              application/json: Category
 
 
   deletecategoryid:
@@ -164,6 +603,25 @@ functions:
           responseData:
             204:
               description: "Deleted"
+          documentation:
+            summary: Delete category
+            description: Delete category
+            tags:
+              - Categories
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Deleted
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: categoryId
+                description: categoryId
+                schema:
+                  type: string
 
 
   getservices:
@@ -180,6 +638,22 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: List services
+            description: List services
+            tags:
+              - Services
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: ServicePage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
 
   postservices:
@@ -197,6 +671,27 @@ functions:
           responseData:
             201:
               description: "Created"
+          documentation:
+            summary: Create service
+            description: Create service
+            tags:
+              - Services
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: Service
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Create service
+              required: true
+            requestModels:
+              application/json: Service
 
 
   getserviceid:
@@ -213,6 +708,27 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: Get service
+            description: Get a catalog service. categoryId is optional; when omitted the service is resolved by service id.
+            tags:
+              - Services
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: Service
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: serviceId
+                description: serviceId
+                schema:
+                  type: string
 
 
   putserviceid:
@@ -230,6 +746,32 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update service
+            description: Update service
+            tags:
+              - Services
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: Service
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: serviceId
+                description: serviceId
+                schema:
+                  type: string
+            requestBody:
+              description: Update service
+              required: true
+            requestModels:
+              application/json: Service
 
 
   deleteserviceid:
@@ -246,6 +788,25 @@ functions:
           responseData:
             204:
               description: "Deleted"
+          documentation:
+            summary: Delete service
+            description: Delete service
+            tags:
+              - Services
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Deleted
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: serviceId
+                description: serviceId
+                schema:
+                  type: string
 
 
   getpackages:
@@ -262,6 +823,22 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: List packages
+            description: List packages
+            tags:
+              - Packages
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: PackagePage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
 
   postpackages:
@@ -279,6 +856,27 @@ functions:
           responseData:
             201:
               description: "Created"
+          documentation:
+            summary: Create package
+            description: Create package
+            tags:
+              - Packages
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: Package
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Create package
+              required: true
+            requestModels:
+              application/json: Package
 
 
   getpackageid:
@@ -295,6 +893,27 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: Get package
+            description: Get package
+            tags:
+              - Packages
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: Package
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: packageId
+                description: packageId
+                schema:
+                  type: string
 
 
   putpackageid:
@@ -312,6 +931,32 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update package
+            description: Update package
+            tags:
+              - Packages
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: Package
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: packageId
+                description: packageId
+                schema:
+                  type: string
+            requestBody:
+              description: Update package
+              required: true
+            requestModels:
+              application/json: Package
 
 
   deletepackageid:
@@ -328,14 +973,30 @@ functions:
           responseData:
             204:
               description: "Deleted"
+          documentation:
+            summary: Delete package
+            description: Delete package
+            tags:
+              - Packages
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Deleted
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: packageId
+                description: packageId
+                schema:
+                  type: string
 
 
   postpricingcalculate:
     handler: src/handlers/pricing-handler.handlePostpricingcalculate
-    description: >
-      Server-authoritative price from catalog services, packages, and add-ons.
-      Applies a vendor price override when Vendor Service returns one.
-      Coupon codes are ignored. Coupon support is Phase 2.
+    description: Server price for one vendor offering. Returns offeringVersion for booking. Coupons are ignored.
     events:
       - http:
           path: /pricing/calculate
@@ -363,6 +1024,47 @@ functions:
               description: "Vendor pricing could not be read"
             503:
               description: "Vendor pricing URL is not configured"
+          documentation:
+            summary: Calculate price
+            description: Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
+            tags:
+              - Pricing
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Price calculated
+                responseModels:
+                  application/json: PricingResult
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid request or unsupported vehicle type
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Catalog entity not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Inactive catalog entity or disabled vendor offering
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "502"
+                responseBody:
+                  description: Vendor pricing could not be read
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "503"
+                responseBody:
+                  description: Vendor pricing URL is not configured
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
+              required: true
+            requestModels:
+              application/json: PricingCalculateRequest
 
 
   getaddons:
@@ -379,6 +1081,22 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: List add-ons
+            description: List add-ons
+            tags:
+              - Add-ons
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: AddOnPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
 
   postaddons:
@@ -396,6 +1114,27 @@ functions:
           responseData:
             201:
               description: "Created"
+          documentation:
+            summary: Create add-on
+            description: Create add-on
+            tags:
+              - Add-ons
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: AddOn
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Create add-on
+              required: true
+            requestModels:
+              application/json: AddOn
 
 
   getaddonid:
@@ -412,6 +1151,27 @@ functions:
           responseData:
             200:
               description: "OK"
+          documentation:
+            summary: Get add-on
+            description: Get add-on
+            tags:
+              - Add-ons
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: AddOn
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: addonId
+                description: addonId
+                schema:
+                  type: string
 
 
   putaddonid:
@@ -429,6 +1189,32 @@ functions:
           responseData:
             200:
               description: "Updated"
+          documentation:
+            summary: Update add-on
+            description: Update add-on
+            tags:
+              - Add-ons
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: AddOn
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: addonId
+                description: addonId
+                schema:
+                  type: string
+            requestBody:
+              description: Update add-on
+              required: true
+            requestModels:
+              application/json: AddOn
 
 
   deleteaddonid:
@@ -445,6 +1231,25 @@ functions:
           responseData:
             204:
               description: "Deleted"
+          documentation:
+            summary: Delete add-on
+            description: Delete add-on
+            tags:
+              - Add-ons
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Deleted
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: addonId
+                description: addonId
+                schema:
+                  type: string
 
 
 resources:

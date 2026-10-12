@@ -55,6 +55,7 @@ import {
   isOnboardingComplete,
   resolveVendorNextAction,
   resolveVendorSelfStatus,
+  VENDOR_MEMBERSHIP_ROLE,
   VENDOR_NEXT_ACTION,
 } from '../domain/vendor-self';
 import { VendorDdbItem } from '../types/repository.types';
@@ -160,6 +161,9 @@ export class VendorsService {
         completed: isOnboardingComplete(vendor.onboardingStatus),
       },
       nextAction: resolveVendorNextAction(vendor),
+      membership: {
+        role: VENDOR_MEMBERSHIP_ROLE.OWNER,
+      },
     };
   }
 

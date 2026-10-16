@@ -210,6 +210,10 @@ describe('Create booking flow', () => {
       vendorId: 'vendor_001',
       vehicleType: 'SEDAN',
     }));
+    expect(catalog.getOffering).toHaveBeenCalledWith(expect.objectContaining({
+      offeringId: 'offering_001',
+      vendorId: 'vendor_001',
+    }));
     expect(availability.consumeHold).toHaveBeenCalledWith(expect.objectContaining({
       holdId: 'hold_001',
     }));

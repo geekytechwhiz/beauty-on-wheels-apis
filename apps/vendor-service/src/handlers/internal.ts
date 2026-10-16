@@ -1,6 +1,7 @@
 import { BaseError } from '@api-hub/utils';
 
 import { getCheckoutEligibilityService } from '../services/checkout-eligibility.service';
+import { getDiscoveryFactsService } from '../services/discovery-facts.service';
 import { getPricingConfigurationService } from '../services/pricing-configuration.service';
 
 interface InternalErrorBody {
@@ -53,6 +54,22 @@ export const getPricingConfiguration = async (event: {
   try {
     const vendorId = requireId(event?.vendorId, 'vendorId');
     const data = await getPricingConfigurationService().get(vendorId);
+    return { data };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+/**
+ * Approval, branch location, service-area coverage, and service prices.
+ * No HTTP route. Contact details are not included.
+ */
+export const getDiscoveryFacts = async (event: {
+  vendorId?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    const vendorId = requireId(event?.vendorId, 'vendorId');
+    const data = await getDiscoveryFactsService().get(vendorId);
     return { data };
   } catch (error) {
     return failure(error);

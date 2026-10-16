@@ -14,6 +14,7 @@ import {
     ConflictError,
     NotFoundError,
     BusinessRuleError,
+    ForbiddenError,
     ConditionalWriteConflictError
 } from "@api-hub/utils";
 import { Booking } from "../types/api-types";
@@ -76,14 +77,22 @@ export class BookingsService {
         private readonly now: () => Date = () => new Date(),
     ) {}
 
-    async getbookings(filters: {
-        customerId?: string;
-        vendorId?: string;
-        correlationId?: string;
-    }) {
-        const correlationId = filters.correlationId || "unknown";
-        const customerId = filters.customerId;
-        const vendorId = filters.vendorId;
+    /**
+     * Customer-facing booking history.  The customer id is always derived from
+     * the authorizer context; query/path parameters are never authority.
+     */
+    async getbookings(request: LambdaRequest) {
+        const correlationId = (request.context as any)?.correlationId || "unknown";
+        const customerId = requireCustomerId(request);
+        const requestedCustomerId = request.params?.customerId as string | undefined;
+        const vendorId = request.params?.vendorId as string | undefined;
+
+        if (requestedCustomerId && requestedCustomerId !== customerId) {
+            throw new ForbiddenError("Not authorized to view another customer's bookings");
+        }
+        if (vendorId) {
+            throw new ForbiddenError("Customer booking history cannot be filtered by vendor identity");
+        }
 
         this.logger.info({
             event: "getbookings_start",
@@ -93,14 +102,7 @@ export class BookingsService {
         });
 
         try {
-            let bookings: Booking[];
-            if (customerId) {
-                bookings = await this.repository.getCustomerBookings(customerId);
-            } else if (vendorId) {
-                bookings = await this.repository.getVendorBookings(vendorId);
-            } else {
-                bookings = await this.repository.listAllBookings();
-            }
+            const bookings = await this.repository.getCustomerBookings(customerId);
 
             this.logger.info({
                 event: "getbookings_success",
@@ -151,7 +153,11 @@ export class BookingsService {
             this.availability.getSlot(command.slotId, authHeader),
             this.availability.getHold(command.holdId, authHeader),
             this.users.getProfile(customerId, authHeader),
-            this.catalog.getOffering(command.offeringId, authHeader),
+            this.catalog.getOffering({
+                offeringId: command.offeringId,
+                vendorId: command.vendorId,
+                authorizationHeader: authHeader,
+            }),
         ]);
 
         assertVehicleOwnership(vehicle, customerId, command.vehicleId);
@@ -259,6 +265,7 @@ export class BookingsService {
         if (!booking) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
+        this.assertCustomerOwnsBooking(request, booking.customerId);
 
         this.logger.info({
             event: "getbookingid_success",
@@ -290,6 +297,7 @@ export class BookingsService {
         if (!originalItem) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
+        this.assertCustomerOwnsBooking(request, originalItem.customerId);
 
         // Check if reschedule is allowed
         const allowedToUpdate = ['CREATED', 'CONFIRMED', 'PENDING'];
@@ -347,6 +355,7 @@ export class BookingsService {
         if (!original) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
+        this.assertCustomerOwnsBooking(request, original.customerId);
 
         // Check if cancellable
         const allowedToCancel = ['CREATED', 'CONFIRMED', 'PENDING'];
@@ -375,8 +384,11 @@ export class BookingsService {
         }
     }
 
-    async postconfirm(request: LambdaRequest) {
-        return this.transitionStatus(request, 'CONFIRMED');
+    async postconfirm(_request: LambdaRequest) {
+        // Deliberately retained only for backwards-compatible in-process callers.
+        // It is not registered as an HTTP handler. Payment confirmation must use
+        // confirmPaidBooking after trusted gateway verification.
+        throw new ForbiddenError('Bookings can only be confirmed by verified payment processing');
     }
 
     async postcheckin(request: LambdaRequest) {
@@ -409,6 +421,7 @@ export class BookingsService {
         if (!original) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
+        this.assertCustomerOwnsBooking(request, original.customerId);
 
         // Validate transition
         this.validateStateTransition(original.bookingStatus, 'CANCELLED');
@@ -455,6 +468,7 @@ export class BookingsService {
         if (!original) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
+        this.assertCustomerOwnsBooking(request, original.customerId);
 
         // Validate transition
         this.validateStateTransition(original.bookingStatus, targetStatus!);
@@ -588,6 +602,54 @@ export class BookingsService {
         const allowedTransitions = VALID_TRANSITIONS[currentStatus] || [];
         if (!allowedTransitions.includes(targetStatus)) {
             throw new BusinessRuleError(`Invalid booking status transition: ${currentStatus} -> ${targetStatus}`);
+        }
+    }
+
+    /**
+     * Direct-Lambda integration point for a future Payment Service. This method
+     * is intentionally not reachable from API Gateway. The caller must have
+     * already verified the payment gateway event and must provide the immutable
+     * booking amount/currency it settled.
+     */
+    async confirmPaidBooking(input: {
+        bookingId?: unknown;
+        amount?: unknown;
+        currency?: unknown;
+    }): Promise<Booking> {
+        const bookingId = typeof input.bookingId === 'string' ? input.bookingId.trim() : '';
+        if (!bookingId) {
+            throw new ValidationError('bookingId is required');
+        }
+        const original = await this.repository.getBookingDetailsItem(bookingId);
+        if (!original) {
+            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        }
+        if (original.bookingStatus === 'CONFIRMED' && original.paymentStatus === 'PAID') {
+            return BookingsMapper.toDomain(original);
+        }
+        if (!['PENDING', 'CREATED'].includes(original.bookingStatus) || original.paymentStatus !== 'PENDING') {
+            throw new BusinessRuleError(`Booking ${bookingId} is not awaiting payment`);
+        }
+        const expectedAmount = payableAmount(BookingsMapper.toDomain(original));
+        const expectedCurrency = original.pricingSnapshot?.currency;
+        if (typeof input.amount !== 'number' || !Number.isFinite(input.amount) || input.amount !== expectedAmount) {
+            throw new BookingError('PAYMENT_AMOUNT_MISMATCH', 'Payment amount does not match the booking', 409, 'amount');
+        }
+        if (typeof input.currency !== 'string' || input.currency.toUpperCase() !== expectedCurrency?.toUpperCase()) {
+            throw new BookingError('PAYMENT_CURRENCY_MISMATCH', 'Payment currency does not match the booking', 409, 'currency');
+        }
+        await this.repository.updateBookingStatus('CONFIRMED', original, 'PAID');
+        const confirmed = await this.repository.getBookingById(bookingId);
+        if (!confirmed) {
+            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        }
+        return confirmed;
+    }
+
+    private assertCustomerOwnsBooking(request: LambdaRequest, bookingCustomerId?: string): void {
+        const customerId = requireCustomerId(request);
+        if (!bookingCustomerId || bookingCustomerId !== customerId) {
+            throw new ForbiddenError('Not authorized to access this booking');
         }
     }
 }

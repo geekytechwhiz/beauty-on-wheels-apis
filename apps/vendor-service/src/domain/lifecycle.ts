@@ -76,6 +76,11 @@ export function isVendorRejection(to: VendorStatus): boolean {
 
 const ACCEPTING_WORK: ReadonlySet<string> = new Set(['ONLINE', 'BUSY']);
 
+/** Vendor is available for new work. Branch rows have no status of their own. */
+export function isAcceptingWork(operationalStatus: string): boolean {
+  return ACCEPTING_WORK.has(operationalStatus);
+}
+
 export function assertOperationalStatusAllowed(
   lifecycleStatus: VendorStatus,
   operationalStatus: string,

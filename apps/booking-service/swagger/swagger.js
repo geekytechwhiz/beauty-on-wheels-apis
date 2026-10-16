@@ -8,8 +8,8 @@
   "paths": {
     "/bookings": {
       "get": {
-        "summary": "List bookings",
-        "description": "List all bookings, or filter by customerId or vendorId query param",
+        "summary": "List my bookings",
+        "description": "Lists bookings owned by the authenticated customer. Customer and vendor identifiers in query parameters are not accepted.",
         "tags": [
           "Bookings"
         ],
@@ -20,22 +20,7 @@
         "produces": [
           "application/json"
         ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "customerId",
-            "type": "string",
-            "description": "Filter bookings by customer ID",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "vendorId",
-            "type": "string",
-            "description": "Filter bookings by vendor ID",
-            "required": false
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Booking list"
@@ -104,42 +89,6 @@
           }
         }
       },
-      "put": {
-        "summary": "Update booking",
-        "description": "",
-        "tags": [
-          "Bookings"
-        ],
-        "operationId": "putbookingid.put./bookings/{bookingId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/Booking"
-            }
-          },
-          {
-            "name": "bookingId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Updated"
-          }
-        }
-      },
       "delete": {
         "summary": "Cancel booking",
         "description": "",
@@ -164,35 +113,6 @@
         "responses": {
           "204": {
             "description": "Cancelled"
-          }
-        }
-      }
-    },
-    "/bookings/{bookingId}/confirm": {
-      "post": {
-        "summary": "Confirm booking",
-        "description": "",
-        "tags": [
-          "Bookings"
-        ],
-        "operationId": "postconfirm.post./bookings/{bookingId}/confirm",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "bookingId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Confirmed"
           }
         }
       }

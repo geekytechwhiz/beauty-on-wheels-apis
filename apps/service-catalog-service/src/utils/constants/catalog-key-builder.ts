@@ -151,4 +151,43 @@ export const CatalogKeyBuilder = {
 
     vendorAddonServicePrefix: (serviceId: string) => `ADDON#${serviceId}#`,
 
+    /* --------------------------------
+       GSI2 — marketplace discovery
+       Separate items from the vendor catalog rows above.
+       GSI2 itself is unchanged: vendor rows stay on VENDOR#<vendorId>.
+    -------------------------------- */
+
+    /** GSI2 pk for every eligible service, regardless of category. */
+    discoveryAllPk: () => `DISCOVERY#ALL`,
+
+    /** GSI2 pk for services in one master category. */
+    discoveryCategoryPk: (categoryId: string) => `DISCOVERY#CATEGORY#${categoryId}`,
+
+    /**
+     * Sort key shared by the global and category discovery items.
+     * `branchKey` is UNASSIGNED when no branch coverage has been recorded.
+     */
+    discoveryItemSk: (serviceId: string, branchKey: string) =>
+        `SERVICE#${serviceId}#BRANCH#${branchKey}`,
+
+    /** Base-table partition that lists discovery rows for one service. */
+    discoveryServicePk: (serviceId: string) => `DISCOVERY#SERVICE#${serviceId}`,
+
+    discoveryPointerSk: (branchKey: string) => `BRANCH#${branchKey}`,
+
+    /** Local copy of vendor approval. Not projected onto GSI2. */
+    discoveryVendorPk: (vendorId: string) => `DISCOVERY_VENDOR#${vendorId}`,
+
+    discoveryVendorSk: () => `META`,
+
+    /** Local copy of branch coverage. Not projected onto GSI2. */
+    discoveryBranchPk: (vendorId: string) => `DISCOVERY_BRANCH#${vendorId}`,
+
+    discoveryBranchSk: (branchId: string) => `BRANCH#${branchId}`,
+
+    /** Local copy of a provider price override. Not projected onto GSI2. */
+    discoveryPricePk: (vendorId: string) => `DISCOVERY_PRICE#${vendorId}`,
+
+    discoveryPriceSk: (serviceId: string) => `SERVICE#${serviceId}`,
+
 };

@@ -12,7 +12,7 @@ export class HttpUserGateway implements UserGateway {
   async getProfile(userId: string, authorizationHeader?: string): Promise<CustomerProfile> {
     const base = requireBaseUrl(env.USER_SERVICE_URL, 'USER_SERVICE_URL');
     const body = await requestJson(
-      `${base}/users/${encodeURIComponent(userId)}`,
+      `${base}/customers/${encodeURIComponent(userId)}`,
       { method: 'GET', headers: authHeaders(authorizationHeader) },
     );
     const record = body && typeof body === 'object' ? body as Record<string, unknown> : {};

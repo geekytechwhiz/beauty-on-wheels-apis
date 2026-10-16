@@ -1,35 +1,25 @@
-import { withVendorApiHandler } from "./with-vendor-handler";
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest } from "@api-hub/utils"; 
 
 import {
-    getVendorsController
+  getVendorsController
 } from "../controllers/vendors.controller";
 
 import {
-    validateCreateVendorRequest,
-    validateUpdateVendorRequest,
-    validateUpdateVendorStatusRequest,
-    validateUpdateOperationalStatusRequest,
-    validateRegisterVendorRequest,
-    validateApproveVendorRequest,
-    validateRejectVendorRequest,
+  validateApproveVendorRequest,
+  validateCreateVendorRequest,
+  validateRejectVendorRequest,
+  validateUpdateOperationalStatusRequest,
+  validateUpdateVendorRequest,
+  validateUpdateVendorStatusRequest
 } from "../schemas/vendors.schema";
+import { withApiHandler } from "@api-hub/middleware";
 
 const controller =
     getVendorsController();
 
-    export const handleRegisterVendor = withVendorApiHandler(
-      {
-        operation: 'registervendor',
-        validator: (request: LambdaRequest) => {
-          validateRegisterVendorRequest(request);
-        },
-      },
-      async (request: LambdaRequest) => controller.handleRegisterVendor(request),
-    );
-
+ 
 export const handleCreatevendor =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "createvendor",
             validator: (request: LambdaRequest) => { validateCreateVendorRequest(request); }
@@ -39,7 +29,7 @@ export const handleCreatevendor =
     );
 
 export const handleListvendors =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "listvendors",
         },
@@ -48,7 +38,7 @@ export const handleListvendors =
     );
 
 export const handleGetvendor =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "getvendor",
         },
@@ -56,7 +46,7 @@ export const handleGetvendor =
             controller.handleGetvendor(request)
     );
 
-export const handleGetMyVendor = withVendorApiHandler(
+export const handleGetMyVendor = withApiHandler(
   {
     operation: 'getvendorme',
   },
@@ -64,7 +54,7 @@ export const handleGetMyVendor = withVendorApiHandler(
 );
 
 export const handleUpdatevendor =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "updatevendor",
             validator: (request: LambdaRequest) => { validateUpdateVendorRequest(request); }
@@ -74,7 +64,7 @@ export const handleUpdatevendor =
     );
 
 export const handleUpdatevendorstatus =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "updatevendorstatus",
             validator: (request: LambdaRequest) => { validateUpdateVendorStatusRequest(request); }
@@ -84,7 +74,7 @@ export const handleUpdatevendorstatus =
     );
 
 export const handleUpdatevendoroperationalstatus =
-    withVendorApiHandler(
+    withApiHandler(
         {
             operation: "updatevendoroperationalstatus",
             validator: (request: LambdaRequest) => { validateUpdateOperationalStatusRequest(request); }
@@ -93,7 +83,7 @@ export const handleUpdatevendoroperationalstatus =
             controller.handleUpdatevendoroperationalstatus(request)
     );
 
-export const handleApprovevendor = withVendorApiHandler(
+export const handleApprovevendor = withApiHandler(
   {
     operation: 'approvevendor',
     validator: (request: LambdaRequest) => {
@@ -103,7 +93,7 @@ export const handleApprovevendor = withVendorApiHandler(
   async (request: LambdaRequest) => controller.handleApprovevendor(request),
 );
 
-export const handleRejectvendor = withVendorApiHandler(
+export const handleRejectvendor = withApiHandler(
   {
     operation: 'rejectvendor',
     validator: (request: LambdaRequest) => {
@@ -113,7 +103,7 @@ export const handleRejectvendor = withVendorApiHandler(
   async (request: LambdaRequest) => controller.handleRejectvendor(request),
 );
 
-export const handleGetvendorstatushistory = withVendorApiHandler(
+export const handleGetvendorstatushistory = withApiHandler(
   {
     operation: 'getvendorstatushistory',
   },

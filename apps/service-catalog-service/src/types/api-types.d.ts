@@ -12,7 +12,13 @@ export interface Category {
   serviceCount?: number;
 }
 
-export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BIKE';
+export type VehicleType =
+  | 'HATCHBACK'
+  | 'SEDAN'
+  | 'SUV'
+  | 'MUV'
+  | 'LUXURY'
+  | 'BIKE';
 
 export interface Service {
   id?: string;
@@ -57,3 +63,49 @@ export interface PricingCalculateRequest {
   couponCode?: string;
 }
 
+type DiscoverySortBy =
+  | 'RELEVANCE'
+  | 'DISTANCE_ASC'
+  | 'PRICE_ASC'
+  | 'PRICE_DESC'
+  | 'RATING_DESC';
+
+interface DiscoverServicesQuery {
+  search?: string;
+  categoryId?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+  vehicleType?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minRating?: number;
+  sortBy?: DiscoverySortBy;
+  limit?: number;
+  nextToken?: string;
+}
+
+interface DiscoveryPage {
+  items: DiscoveryService[];
+  nextToken?: string;
+  hasMore: boolean;
+}
+
+interface DiscoveryService {
+  serviceId: string;
+  vendorId: string;
+  branchId?: string;
+  categoryId: string;
+  name: string;
+  description?: string;
+  vehicleTypes: string[];
+  durationMinutes: number;
+  displayPrice: number;
+  currency: string;
+  distanceKm?: number;
+  rating?: number;
+  reviewCount?: number;
+   
+
+
+}

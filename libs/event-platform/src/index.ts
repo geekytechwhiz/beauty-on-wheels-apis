@@ -190,6 +190,18 @@ export {
   type VendorOnboardingSubmittedPayload,
 } from './core/contracts/vendor-onboarding.events';
 export {
+  VendorDiscoveryChangedEvent,
+  VendorDiscoveryChangedPayloadSchema,
+  VENDOR_DISCOVERY_CHANGED_EVENT_TYPE,
+  VENDOR_DISCOVERY_CHANGED_EVENT_VERSION,
+  VENDOR_DISCOVERY_CHANGED_EVENT_SOURCE,
+  VENDOR_DISCOVERY_CHANGED_EVENT_OPERATIONS,
+  VENDOR_DISCOVERY_SUBJECTS,
+  vendorDiscoveryChangedIdempotencyKey,
+  type VendorDiscoveryChangedPayload,
+  type VendorDiscoverySubject,
+} from './core/contracts/vendor-discovery.events';
+export {
   VendorApprovedEvent,
   VendorRejectedEvent,
   VendorSuspendedEvent,

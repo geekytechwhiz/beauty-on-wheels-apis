@@ -1,25 +1,50 @@
-import { randomUUID } from 'crypto';
-import { LambdaRequest } from '@api-hub/utils';
+/* eslint-disable mvrx/enforce-platform-logger */
+/* eslint-disable no-console */
+import { createChildLogger, createLogger, getLoggerContext } from '@api-hub/observability';
 import {
-  ConflictError,
-  ConditionalWriteConflictError,
-  NotFoundError,
-  ValidationError,
+  ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError,
+  ValidationError
 } from '@api-hub/utils';
-import { createLogger, createChildLogger, getLoggerContext } from '@api-hub/observability';
+import { randomUUID } from 'crypto';
 
-import {
-  VendorsRepository,
-  getVendorsRepository,
-  VendorPageResult,
-} from '../repositories/vendors.repository';
+import { CommunitiesMapper } from '../mappers/communities.mapper';
+import { OwnerMapper } from '../mappers/owner.mapper';
+import { VendorsMapper } from '../mappers/vendors.mapper';
 import {
   CommunitiesRepository,
   getCommunitiesRepository,
 } from '../repositories/communities.repository';
-import { VendorsMapper } from '../mappers/vendors.mapper';
-import { CommunitiesMapper } from '../mappers/communities.mapper';
-import { OwnerMapper } from '../mappers/owner.mapper';
+import {
+  getVendorsRepository,
+  VendorPageResult,
+  VendorsRepository,
+} from '../repositories/vendors.repository';
+ 
+import { isCommunityId, normalizeCommunityId } from '../domain/community';
+import {
+  generateVendorEmailVerificationOtp,
+  hashVendorEmailVerificationToken,
+  hasValidRegisteredEmail,
+  VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+} from '../domain/email-verification';
+import {
+  assertOperationalStatusAllowed,
+  decideVendorStatusTransition,
+  isVendorApproval,
+  isVendorRejection,
+} from '../domain/lifecycle';
+import {
+  computeStateFromAggregate,
+  toVendorAggregate,
+} from '../domain/vendor-aggregate';
+import {
+  isOnboardingComplete,
+  resolveVendorNextAction,
+  resolveVendorSelfStatus,
+  VENDOR_MEMBERSHIP_ROLE,
+  VENDOR_NEXT_ACTION,
+} from '../domain/vendor-self';
+import { CreateVendorRequestSchema } from '../schemas/vendors.schema';
 import {
   ApproveVendorRequest,
   CreateVendorRequest,
@@ -32,39 +57,17 @@ import {
   VendorListResponse,
   VendorSelfLookup,
   VendorStatus,
-  VendorStatusHistoryEntry,
+  VendorStatusHistoryEntry
 } from '../types/api-types';
-import {
-  assertAdminAccess,
-  assertVendorAccess,
-  getAuthenticatedUserId,
-  getVendorId,
-  decodeCursor,
-  encodeCursor,
-  parseLimit,
-} from '../utils/helpers';
-import { RegisterVendorRequest } from '../schemas/vendors.schema';
-import {
-  assertOperationalStatusAllowed,
-  decideVendorStatusTransition,
-  isVendorApproval,
-  isVendorRejection,
-} from '../domain/lifecycle';
-import { isCommunityId, normalizeCommunityId } from '../domain/community';
-import {
-  isOnboardingComplete,
-  resolveVendorNextAction,
-  resolveVendorSelfStatus,
-  VENDOR_MEMBERSHIP_ROLE,
-  VENDOR_NEXT_ACTION,
-} from '../domain/vendor-self';
 import { VendorDdbItem } from '../types/repository.types';
 import {
-  generateVendorEmailVerificationOtp,
-  hasValidRegisteredEmail,
-  hashVendorEmailVerificationToken,
-  VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
-} from '../domain/email-verification';
+  assertAdminAccess,
+  decodeCursor,
+  encodeCursor,
+  getAuthenticatedUserId,
+  getVendorId,
+  parseLimit
+} from '../utils/helpers';
 
 const baseLogger = createLogger({
   service: 'vendors-service',
@@ -116,31 +119,6 @@ export class VendorsService {
     };
   }
 
-  async registerVendor(request: LambdaRequest): Promise<Vendor> {
-    const userId = getAuthenticatedUserId(request);
-    const body = (request.body ?? {}) as RegisterVendorRequest;
-    return this.createOwnedVendor(userId, {
-      email: body.email,
-      phoneNumber: body.phoneNumber,
-    });
-  }
-
-  async createvendor(request: LambdaRequest): Promise<Vendor> {
-    const userId = getAuthenticatedUserId(request);
-    const body = (request.body ?? {}) as CreateVendorRequest;
-    return this.createOwnedVendor(userId, {
-       businessType: body. businessType,
-      businessName: body.businessName,
-      contactName: body.contactName,
-      phoneNumber: body.phoneNumber,
-      email: body.email,
-      description: body.description,
-      gstNumber: body.gstNumber,
-      panNumber: body.panNumber,
-      profileImageUrl: body.profileImageUrl,
-    });
-  }
-
   async getMyVendor(request: LambdaRequest): Promise<VendorSelfLookup> {
     const userId = getAuthenticatedUserId(request);
     const vendor = await this.lookupOwnedVendor(userId);
@@ -167,89 +145,130 @@ export class VendorsService {
     };
   }
 
-  private async createOwnedVendor(
-    userId: string,
-    input: Omit<
-      Parameters<typeof VendorsMapper.toInitialDdbItem>[0],
-      'vendorId' | 'ownerUserId'
-    >,
-  ): Promise<Vendor> {
-    this.logger.info({
-      event: 'createvendor_start',
-      userId,
-    });
+  async createvendor(request: LambdaRequest): Promise<Vendor> {
 
-    const existing = await this.findOwnedVendor(userId);
+    
+
+    const parsed = CreateVendorRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ValidationError('Invalid vendor registration request');
+    }
+
+    const input = parsed.data; 
+
+    return this.createOwnedVendor(  input);
+  }
+
+ 
+  private async createOwnedVendor(
+    input: CreateVendorRequest,
+  ): Promise<Vendor> {
+    const { businessInfo, ownerDetails } = input;
+    const ownerUserId = ownerDetails.userId;
+
+    const existing = await this.findOwnedVendor(ownerUserId);
     if (existing) {
-      this.logger.info({
-        event: 'createvendor_existing',
-        userId,
-        vendorId: existing.vendorId,
-      });
       return VendorsMapper.toDomain(existing);
     }
 
     const vendorId = randomUUID();
+
     let profile = VendorsMapper.toInitialDdbItem({
-      ...input,
+      ...businessInfo,
       vendorId,
-      ownerUserId: userId,
+      ownerUserId,
     });
-    // A verification request belongs to the vendor profile and can be sent as
-    // soon as every value required by its template is persisted. It is not an
-    // onboarding-submission signal.
-    if (
-      hasValidRegisteredEmail(profile.email) &&
-      profile.contactName?.trim() &&
-      profile.businessName?.trim()
-    ) {
-      const requestedAt = new Date().toISOString();
-      const token = generateVendorEmailVerificationOtp(vendorId);
-      profile = {
-        ...profile,
-        emailVerificationRequestId: randomUUID(),
-        emailVerificationOtp: token,
-        emailVerificationTokenHash: hashVendorEmailVerificationToken(token),
-        emailVerificationEmail: profile.email,
-        emailVerificationExpiryMinutes: VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
-        emailVerificationRequestedAt: requestedAt,
-        emailVerificationExpiresAt: new Date(
-          Date.parse(requestedAt) + VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES * 60_000,
-        ).toISOString(),
-        emailVerificationDispatchPending: true,
-      };
-    }
-    const owner = OwnerMapper.initialOwner(vendorId, userId);
-    const ownership = OwnerMapper.ownershipClaim(vendorId, userId);
+
+    const owner = OwnerMapper.toDdbItem(vendorId, {
+      userId: ownerUserId,
+      fullName: ownerDetails.fullName, 
+      email: ownerDetails.email,
+      phoneNumber: ownerDetails.phoneNumber,
+    });
+
+    // Compute progress using the same rules as subsequent onboarding PUTs.
+    const aggregate = toVendorAggregate([profile, owner]);
+    const state = computeStateFromAggregate(aggregate);
+    const correlationId = correlationFromContext();
+
+    profile = VendorsMapper.applyOnboardingState(profile, {
+      onboardingStatus: state.status,
+      currentSection: state.currentSection,
+      completedSections: state.completedSections,
+      email: profile.email ?? owner.email,
+      meta: correlationId ? { correlationId } : undefined,
+    });
+
+    profile = this.withInitialEmailVerification(profile);
+
+    const ownership = OwnerMapper.ownershipClaim(vendorId, ownerUserId);
 
     try {
       await this.repository.createVendor(profile, owner, ownership);
-    } catch (err) {
-      if (err instanceof ConditionalWriteConflictError) {
-        const raced = await this.findOwnedVendor(userId);
-        if (raced) {
-          this.logger.info({
-            event: 'createvendor_existing',
-            userId,
-            vendorId: raced.vendorId,
-          });
-          return VendorsMapper.toDomain(raced);
-        }
-        throw new ConflictError('Vendor already exists');
+    } catch (error) {
+      if (!(error instanceof ConditionalWriteConflictError)) {
+        throw error;
       }
-      throw err;
+
+      const concurrentlyCreated = await this.findOwnedVendor(ownerUserId);
+
+      if (!concurrentlyCreated) {
+        throw new ConflictError('Vendor creation conflict; please retry');
+      }
+
+      this.logger.info({
+        event: 'createvendor_existing',
+        ownerUserId,
+        vendorId: concurrentlyCreated.vendorId,
+        correlationId,
+      });
+
+      return VendorsMapper.toDomain(concurrentlyCreated);
     }
 
     this.logger.info({
       event: 'createvendor_success',
-      userId,
+      ownerUserId,
       vendorId,
+      correlationId,
     });
 
     return VendorsMapper.toDomain(profile);
   }
 
-  private async lookupOwnedVendor(userId: string): Promise<VendorDdbItem | null> {
+  private withInitialEmailVerification(profile: VendorDdbItem): VendorDdbItem {
+    if (
+      profile.emailVerifiedAt ||
+      profile.emailVerificationRequestId ||
+      !hasValidRegisteredEmail(profile.email) ||
+      !profile.contactName?.trim() ||
+      !profile.businessName?.trim()
+    ) {
+      return profile;
+    }
+
+    const requestedAt = new Date();
+    const token = generateVendorEmailVerificationOtp(profile.vendorId);
+
+    return {
+      ...profile,
+      emailVerificationRequestId: randomUUID(),
+      emailVerificationOtp: token,
+      emailVerificationTokenHash: hashVendorEmailVerificationToken(token),
+      emailVerificationEmail: profile.email,
+      emailVerificationExpiryMinutes: VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES,
+      emailVerificationRequestedAt: requestedAt.toISOString(),
+      emailVerificationExpiresAt: new Date(
+        requestedAt.getTime() +
+          VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES * 60_000,
+      ).toISOString(),
+      emailVerificationDispatchPending: true,
+    };
+  }
+
+  private async lookupOwnedVendor(
+    userId: string,
+  ): Promise<VendorDdbItem | null> {
     const owners = await this.repository.listOwnersByUserId(userId);
     const indexedIds = [
       ...new Set(
@@ -296,9 +315,9 @@ export class VendorsService {
       return null;
     }
 
-    const profiles = (
-      await this.repository.getVendorsByIds(vendorIds)
-    ).filter((item) => item.ownerUserId === userId);
+    const profiles = (await this.repository.getVendorsByIds(vendorIds)).filter(
+      (item) => item.ownerUserId === userId,
+    );
     if (profiles.length === 0) {
       return null;
     }
@@ -447,7 +466,7 @@ export class VendorsService {
   async getvendor(request: LambdaRequest): Promise<Vendor> {
     const vendorId = getVendorId(request);
     const item = await this.requireVendor(vendorId);
-    assertVendorAccess(request, item);
+ 
 
     this.logger.info({
       event: 'getvendor_start',
@@ -466,9 +485,9 @@ export class VendorsService {
   }
 
   async updatevendor(request: LambdaRequest): Promise<Vendor> {
-    const vendorId = getVendorId(request);
+    const vendorId = request.pathParameters?.vendorId as string;
     const existing = await this.requireVendor(vendorId);
-    assertVendorAccess(request, existing);
+     
     const body = request.body as UpdateVendorRequest;
 
     this.logger.info({
@@ -521,9 +540,8 @@ export class VendorsService {
   async getvendorstatushistory(
     request: LambdaRequest,
   ): Promise<{ data: VendorStatusHistoryEntry[] }> {
-    const vendorId = getVendorId(request);
-    const existing = await this.requireVendor(vendorId);
-    assertVendorAccess(request, existing);
+    const vendorId = getVendorId(request); 
+    
     const items = await this.repository.listStatusHistory(vendorId);
     return {
       data: items.map((item) => ({
@@ -649,7 +667,7 @@ export class VendorsService {
   async updatevendoroperationalstatus(request: LambdaRequest): Promise<Vendor> {
     const vendorId = getVendorId(request);
     const existing = await this.requireVendor(vendorId);
-    assertVendorAccess(request, existing);
+ 
     const body = request.body as UpdateOperationalStatusRequest;
 
     this.logger.info({
@@ -678,7 +696,11 @@ export class VendorsService {
         expectedUpdatedAt: existing.updatedAt,
         expectedStatus: existing.status,
         puts: communities.map((item) => ({
-          item: CommunitiesMapper.withVendorState(item, updated, updated.updatedAt),
+          item: CommunitiesMapper.withVendorState(
+            item,
+            updated,
+            updated.updatedAt,
+          ),
           condition: 'exists' as const,
         })),
       });

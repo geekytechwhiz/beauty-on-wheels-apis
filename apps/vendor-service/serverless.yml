@@ -2165,6 +2165,54 @@ functions:
               arn: !GetAtt VendorLifecycleStreamDlq.Arn
               type: sqs
 
+  onVendorDiscoveryChanged:
+    handler: src/handlers/vendor-discovery-stream.handler
+    name: ${self:custom.resourcePrefix}-vendor-discovery-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          filterPatterns:
+            - eventName:
+                - INSERT
+                - MODIFY
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - VendorBranch
+                      - ServiceArea
+                      - VendorCapabilities
+            - eventName:
+                - REMOVE
+              dynamodb:
+                OldImage:
+                  entityType:
+                    S:
+                      - VendorBranch
+                      - ServiceArea
+                      - VendorCapabilities
+            - eventName:
+                - MODIFY
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - Vendor
+                  SK:
+                    S:
+                      - PROFILE
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorDiscoveryStreamDlq.Arn
+              type: sqs
+
   onVendorEmailVerified:
     handler: src/handlers/vendor-email-verified-stream.handler
     name: ${self:custom.resourcePrefix}-vendor-email-verified-stream
@@ -5124,6 +5172,10 @@ functions:
     handler: src/handlers/internal.getCheckoutEligibility
     description: Internal IAM invoke for vendor and branch checkout eligibility. No HTTP route.
 
+  getDiscoveryFacts:
+    handler: src/handlers/internal.getDiscoveryFacts
+    description: Internal IAM invoke for vendor approval, branches, coverage, and service prices. No HTTP route.
+
   getPricingConfiguration:
     handler: src/handlers/internal.getPricingConfiguration
     description: Internal IAM invoke for vendor pricing configuration and versions. No HTTP route.
@@ -5288,6 +5340,17 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:custom.resourcePrefix}-vendor-lifecycle-stream-dlq
+        MessageRetentionPeriod: 1209600
+        Tags:
+          - Key: Service
+            Value: vendor
+          - Key: Environment
+            Value: ${sls:stage}
+
+    VendorDiscoveryStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-discovery-stream-dlq
         MessageRetentionPeriod: 1209600
         Tags:
           - Key: Service

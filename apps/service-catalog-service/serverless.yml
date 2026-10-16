@@ -25,6 +25,7 @@ provider:
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-service-catalog
     # IAM invoke of the vendor pricing-configuration function. Catalog does not call the owner HTTP API.
     VENDOR_PRICING_CONFIGURATION_FUNCTION: vendor-service-api-${self:provider.stage}-getPricingConfiguration
+    VENDOR_DISCOVERY_FACTS_FUNCTION: vendor-service-api-${self:provider.stage}-getDiscoveryFacts
 
   iam:
     role:
@@ -49,6 +50,13 @@ provider:
             - lambda:InvokeFunction
           Resource:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PRICING_CONFIGURATION_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_DISCOVERY_FACTS_FUNCTION}
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource:
+            - !GetAtt DiscoveryVendorLifecycleDlq.Arn
+            - !GetAtt DiscoveryVendorFactsDlq.Arn
         - Effect: Allow
           Action:
             - xray:PutTraceSegments
@@ -635,6 +643,95 @@ functions:
                 schema:
                   type: string
 
+  discoverServices:
+    handler: src/handlers/discover-services-handler.discoverServicesHandler
+    description: Discover car wash services across vendors
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: catalog/discover
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          queryStringParameters:
+            - name: search
+              description: Search query
+              required: false
+              schema:
+                type: string
+            - name: categoryId
+              description: Category ID
+              required: false
+              schema:
+                type: string
+            - name: latitude
+              description: Latitude
+              required: false
+              schema:
+                type: number
+            - name: longitude
+              description: Longitude
+              required: false
+              schema:
+                type: number
+            - name: radiusKm
+              description: Radius in kilometers
+              required: false
+              schema:
+                type: number
+            - name: vehicleType
+              description: Vehicle type
+              required: false
+              schema:
+                type: string
+            - name: minPrice
+              description: Minimum price
+              required: false
+              schema:
+                type: number
+            - name: maxPrice
+              description: Maximum price
+              required: false
+              schema:
+                type: number
+            - name: minRating
+              description: Minimum rating
+              required: false
+              schema:
+                type: number
+            - name: sortBy
+              description: Sort by
+              required: false
+              schema:
+                type: string
+                enum:
+                  - RELEVANCE
+                  - DISTANCE_ASC
+                  - PRICE_ASC
+                  - PRICE_DESC
+
+  backfillDiscovery:
+    handler: src/handlers/backfill-discovery-handler.handler
+    description: Manual discovery projection backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
+    timeout: 300
+    memorySize: 512
+
+  onDiscoveryVendorLifecycle:
+    handler: src/handlers/discovery-vendor-lifecycle-handler.handler
+    description: Applies VendorApproved, VendorRejected, and VendorSuspended to discovery projections.
+    timeout: 60
+    memorySize: 512
+    environment:
+      DLQ_QUEUE_URL: !Ref DiscoveryVendorLifecycleDlq
+
+  onDiscoveryVendorFacts:
+    handler: src/handlers/discovery-vendor-facts-handler.handler
+    description: Reloads branch, coverage, and pricing facts into discovery projections.
+    timeout: 60
+    memorySize: 512
+    environment:
+      DLQ_QUEUE_URL: !Ref DiscoveryVendorFactsDlq
 
   getservices:
     handler: src/handlers/services-handler.handleGetservices
@@ -1363,6 +1460,120 @@ functions:
 
 resources:
   Resources:
+
+    DiscoveryVendorLifecycleDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-discovery-lifecycle-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    DiscoveryVendorLifecycleDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref DiscoveryVendorLifecycleDlq
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: AllowEventBridgeSendToDiscoveryLifecycleDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt DiscoveryVendorLifecycleDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+    DiscoveryVendorLifecycleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - DiscoveryVendorLifecycleDlqPolicy
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-discovery-lifecycle
+        Description: Updates marketplace discovery when a vendor is approved, rejected, or suspended
+        EventBusName:
+          Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
+        EventPattern:
+          source:
+            - vendor-service
+          detail-type:
+            - VendorApproved
+            - VendorRejected
+            - VendorSuspended
+        State: ENABLED
+        Targets:
+          - Id: CatalogDiscoveryLifecycle
+            Arn: !GetAtt OnDiscoveryVendorLifecycleLambdaFunction.Arn
+            DeadLetterConfig:
+              Arn: !GetAtt DiscoveryVendorLifecycleDlq.Arn
+            RetryPolicy:
+              MaximumRetryAttempts: 3
+
+    DiscoveryVendorLifecyclePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnDiscoveryVendorLifecycleLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt DiscoveryVendorLifecycleRule.Arn
+
+    DiscoveryVendorFactsDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-discovery-facts-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    DiscoveryVendorFactsDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref DiscoveryVendorFactsDlq
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: AllowEventBridgeSendToDiscoveryFactsDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt DiscoveryVendorFactsDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+    DiscoveryVendorFactsRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - DiscoveryVendorFactsDlqPolicy
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-discovery-facts
+        Description: Updates marketplace discovery when branch, coverage, pricing, or operations change
+        EventBusName:
+          Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
+        EventPattern:
+          source:
+            - vendor-service
+          detail-type:
+            - VendorDiscoveryChanged
+        State: ENABLED
+        Targets:
+          - Id: CatalogDiscoveryFacts
+            Arn: !GetAtt OnDiscoveryVendorFactsLambdaFunction.Arn
+            DeadLetterConfig:
+              Arn: !GetAtt DiscoveryVendorFactsDlq.Arn
+            RetryPolicy:
+              MaximumRetryAttempts: 3
+
+    DiscoveryVendorFactsPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnDiscoveryVendorFactsLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt DiscoveryVendorFactsRule.Arn
 
     ServiceCatalogTable:
       Type: AWS::DynamoDB::Table

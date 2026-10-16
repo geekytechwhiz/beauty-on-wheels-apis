@@ -5,6 +5,13 @@ import { validateBooking } from '../schemas/bookings.schema';
 import { LambdaRequest } from '@api-hub/utils';
 import { NotFoundError, BusinessRuleError } from '@api-hub/utils';
 
+function customerRequest(bookingId?: string, customerId = 'c1'): LambdaRequest {
+    return {
+        ...(bookingId ? { pathParameters: { bookingId } } : {}),
+        context: { authContext: { userId: customerId } },
+    } as unknown as LambdaRequest;
+}
+
 describe('BookingsService Unit Tests', () => {
     let mockRepo: jest.Mocked<BookingsRepository>;
     let service: BookingsService;
@@ -31,27 +38,17 @@ describe('BookingsService Unit Tests', () => {
             const mockBookings: Booking[] = [{ id: 'b1', customerId: 'c1', bookingStatus: 'CREATED' }];
             mockRepo.getCustomerBookings.mockResolvedValue(mockBookings);
 
-            const result = await service.getbookings({ customerId: 'c1' });
+            const result = await service.getbookings(customerRequest(undefined, 'c1'));
             expect(result).toEqual(mockBookings);
             expect(mockRepo.getCustomerBookings).toHaveBeenCalledWith('c1');
         });
 
-        it('queries vendor bookings if vendorId is present', async () => {
-            const mockBookings: Booking[] = [{ id: 'b1', vendorId: 'v1', bookingStatus: 'CREATED' }];
-            mockRepo.getVendorBookings.mockResolvedValue(mockBookings);
-
-            const result = await service.getbookings({ vendorId: 'v1' });
-            expect(result).toEqual(mockBookings);
-            expect(mockRepo.getVendorBookings).toHaveBeenCalledWith('v1');
-        });
-
-        it('lists all bookings if no customerId or vendorId is present', async () => {
-            const mockBookings: Booking[] = [{ id: 'b1', bookingStatus: 'CREATED' }];
-            mockRepo.listAllBookings.mockResolvedValue(mockBookings);
-
-            const result = await service.getbookings({});
-            expect(result).toEqual(mockBookings);
-            expect(mockRepo.listAllBookings).toHaveBeenCalled();
+        it('rejects a customer id that does not match the authenticated customer', async () => {
+            await expect(service.getbookings({
+                ...customerRequest(undefined, 'c1'),
+                params: { customerId: 'c2' },
+            } as LambdaRequest)).rejects.toThrow();
+            expect(mockRepo.getCustomerBookings).not.toHaveBeenCalled();
         });
     });
 
@@ -73,9 +70,7 @@ describe('BookingsService Unit Tests', () => {
             const mockBooking: Booking = { id: 'b1', customerId: 'c1' };
             mockRepo.getBookingById.mockResolvedValue(mockBooking);
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             const result = await service.getbookingid(req);
             expect(result).toEqual(mockBooking);
@@ -85,9 +80,7 @@ describe('BookingsService Unit Tests', () => {
         it('throws NotFoundError if booking is not found', async () => {
             mockRepo.getBookingById.mockResolvedValue(null);
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             await expect(service.getbookingid(req)).rejects.toThrow(NotFoundError);
         });
@@ -115,9 +108,9 @@ describe('BookingsService Unit Tests', () => {
             mockRepo.updateBooking.mockResolvedValue();
 
             const req = {
-                pathParameters: { bookingId: 'b1' },
+                ...customerRequest('b1'),
                 body: { bookingDate: '2026-07-21', slotId: 'slot2' }
-            } as unknown as LambdaRequest;
+            } as LambdaRequest;
 
             const result = await service.putbookingid(req);
             expect(result.bookingDate).toBe('2026-07-21');
@@ -128,6 +121,7 @@ describe('BookingsService Unit Tests', () => {
         it('throws BusinessRuleError if booking is in COMPLETED state', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'COMPLETED',
                 version: 1
             } as any;
@@ -135,9 +129,9 @@ describe('BookingsService Unit Tests', () => {
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
 
             const req = {
-                pathParameters: { bookingId: 'b1' },
+                ...customerRequest('b1'),
                 body: { bookingDate: '2026-07-21' }
-            } as unknown as LambdaRequest;
+            } as LambdaRequest;
 
             await expect(service.putbookingid(req)).rejects.toThrow(BusinessRuleError);
         });
@@ -147,6 +141,7 @@ describe('BookingsService Unit Tests', () => {
         it('cancels booking successfully', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'CREATED',
                 version: 1
             } as any;
@@ -154,9 +149,7 @@ describe('BookingsService Unit Tests', () => {
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
             mockRepo.cancelBooking.mockResolvedValue();
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             await service.deletebookingid(req);
             expect(mockRepo.cancelBooking).toHaveBeenCalledWith(originalDdb);
@@ -165,24 +158,24 @@ describe('BookingsService Unit Tests', () => {
         it('throws BusinessRuleError if booking is in IN_PROGRESS state', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'IN_PROGRESS',
                 version: 1
             } as any;
 
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             await expect(service.deletebookingid(req)).rejects.toThrow(BusinessRuleError);
         });
     });
 
     describe('status transitions', () => {
-        it('allows valid transition CREATED -> CONFIRMED', async () => {
+        it('rejects direct customer confirmation', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'CREATED',
                 version: 1
             } as any;
@@ -190,18 +183,63 @@ describe('BookingsService Unit Tests', () => {
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
             mockRepo.updateBookingStatus.mockResolvedValue();
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
-            const result = await service.postconfirm(req);
+            await expect(service.postconfirm(req)).rejects.toThrow();
+            expect(mockRepo.updateBookingStatus).not.toHaveBeenCalled();
+        });
+
+        it('confirms and settles only a matching verified payment', async () => {
+            const originalDdb = {
+                id: 'b1',
+                customerId: 'c1',
+                bookingStatus: 'CREATED',
+                paymentStatus: 'PENDING',
+                totalAmount: 499,
+                pricingSnapshot: { totalAmount: 499, currency: 'INR' },
+                version: 1,
+            } as any;
+            mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
+            mockRepo.getBookingById.mockResolvedValue({
+                ...originalDdb,
+                bookingStatus: 'CONFIRMED',
+                paymentStatus: 'PAID',
+            });
+            mockRepo.updateBookingStatus.mockResolvedValue();
+
+            const result = await service.confirmPaidBooking({
+                bookingId: 'b1',
+                amount: 499,
+                currency: 'inr',
+            });
+
             expect(result.bookingStatus).toBe('CONFIRMED');
-            expect(mockRepo.updateBookingStatus).toHaveBeenCalledWith('CONFIRMED', originalDdb);
+            expect(mockRepo.updateBookingStatus).toHaveBeenCalledWith('CONFIRMED', originalDdb, 'PAID');
+        });
+
+        it('rejects a mismatched verified payment amount', async () => {
+            mockRepo.getBookingDetailsItem.mockResolvedValue({
+                id: 'b1',
+                customerId: 'c1',
+                bookingStatus: 'CREATED',
+                paymentStatus: 'PENDING',
+                totalAmount: 499,
+                pricingSnapshot: { totalAmount: 499, currency: 'INR' },
+                version: 1,
+            } as any);
+
+            await expect(service.confirmPaidBooking({
+                bookingId: 'b1',
+                amount: 498,
+                currency: 'INR',
+            })).rejects.toThrow();
+            expect(mockRepo.updateBookingStatus).not.toHaveBeenCalled();
         });
 
         it('allows valid transition CONFIRMED -> CHECKED_IN', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'CONFIRMED',
                 version: 1
             } as any;
@@ -209,9 +247,7 @@ describe('BookingsService Unit Tests', () => {
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
             mockRepo.updateBookingStatus.mockResolvedValue();
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             const result = await service.postcheckin(req);
             expect(result.bookingStatus).toBe('CHECKED_IN');
@@ -221,15 +257,14 @@ describe('BookingsService Unit Tests', () => {
         it('rejects invalid transition CREATED -> IN_PROGRESS', async () => {
             const originalDdb = {
                 id: 'b1',
+                customerId: 'c1',
                 bookingStatus: 'CREATED',
                 version: 1
             } as any;
 
             mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
 
-            const req = {
-                pathParameters: { bookingId: 'b1' }
-            } as unknown as LambdaRequest;
+            const req = customerRequest('b1');
 
             await expect(service.poststart(req)).rejects.toThrow(BusinessRuleError);
         });

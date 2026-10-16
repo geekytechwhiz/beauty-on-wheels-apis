@@ -2637,48 +2637,94 @@
       "title": "GeoLocation",
       "type": "object"
     },
-    "CreateVendorRequest": {
+    "BusinessInfo": {
       "properties": {
         "businessName": {
-          "title": "CreateVendorRequest.businessName",
+          "title": "BusinessInfo.businessName",
           "type": "string"
         },
         "contactName": {
-          "title": "CreateVendorRequest.contactName",
+          "title": "BusinessInfo.contactName",
           "type": "string"
         },
         "phoneNumber": {
-          "title": "CreateVendorRequest.phoneNumber",
+          "title": "BusinessInfo.phoneNumber",
           "type": "string"
         },
         "email": {
-          "title": "CreateVendorRequest.email",
+          "title": "BusinessInfo.email",
           "type": "string"
         },
         "description": {
-          "title": "CreateVendorRequest.description",
+          "title": "BusinessInfo.description",
           "type": "string"
         },
         "gstNumber": {
-          "title": "CreateVendorRequest.gstNumber",
+          "title": "BusinessInfo.gstNumber",
           "type": "string"
         },
         "panNumber": {
-          "title": "CreateVendorRequest.panNumber",
+          "title": "BusinessInfo.panNumber",
           "type": "string"
         },
         "profileImageUrl": {
-          "title": "CreateVendorRequest.profileImageUrl",
+          "title": "BusinessInfo.profileImageUrl",
           "type": "string"
         },
         "businessType": {
           "$ref": "#/definitions/businessType",
-          "title": "CreateVendorRequest.businessType"
+          "title": "BusinessInfo.businessType"
         }
       },
       "required": [
         "businessName",
         "contactName"
+      ],
+      "additionalProperties": false,
+      "title": "BusinessInfo",
+      "type": "object"
+    },
+    "OwnerDetails": {
+      "properties": {
+        "userId": {
+          "title": "OwnerDetails.userId",
+          "type": "string"
+        },
+        "fullName": {
+          "title": "OwnerDetails.fullName",
+          "type": "string"
+        },
+        "phoneNumber": {
+          "title": "OwnerDetails.phoneNumber",
+          "type": "string"
+        },
+        "email": {
+          "title": "OwnerDetails.email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId",
+        "fullName"
+      ],
+      "additionalProperties": false,
+      "title": "OwnerDetails",
+      "type": "object"
+    },
+    "CreateVendorRequest": {
+      "properties": {
+        "businessInfo": {
+          "$ref": "#/definitions/BusinessInfo",
+          "title": "CreateVendorRequest.businessInfo"
+        },
+        "ownerDetails": {
+          "$ref": "#/definitions/OwnerDetails",
+          "title": "CreateVendorRequest.ownerDetails"
+        }
+      },
+      "required": [
+        "businessInfo",
+        "ownerDetails"
       ],
       "additionalProperties": false,
       "title": "CreateVendorRequest",

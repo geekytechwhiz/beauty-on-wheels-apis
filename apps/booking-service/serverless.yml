@@ -392,25 +392,16 @@ functions:
           method: get
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "List bookings"
-          description: "List all bookings, or filter by customerId or vendorId query param"
+          summary: "List my bookings"
+          description: "Lists bookings owned by the authenticated customer. Customer and vendor identifiers in query parameters are not accepted."
           swaggerTags:
             - Bookings
-          queryStringParameters:
-            customerId:
-              required: false
-              type: string
-              description: "Filter bookings by customer ID"
-            vendorId:
-              required: false
-              type: string
-              description: "Filter bookings by vendor ID"
           responseData:
             200:
               description: "Booking list"
           documentation:
-            summary: List bookings
-            description: List all bookings, or filter by customerId or vendorId query param
+            summary: List my bookings
+            description: Lists bookings owned by the authenticated customer.
             tags:
               - Bookings
             methodResponses:
@@ -424,19 +415,6 @@ functions:
                   description: Request failed
                 responseModels:
                   application/json: ErrorResponse
-            queryParams:
-              - name: customerId
-                description: Filter bookings by customer ID
-                required: false
-                schema:
-                  type: string
-              - name: vendorId
-                description: Filter bookings by vendor ID
-                required: false
-                schema:
-                  type: string
-
-
   postbookings:
     handler: src/handlers/bookingsHandler.handlePostbookings
     events:
@@ -514,49 +492,6 @@ functions:
                   type: string
 
 
-  putbookingid:
-    handler: src/handlers/bookingsHandler.handlePutbookingid
-    events:
-      - http:
-          path: /bookings/{bookingId}
-          method: put
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update booking"
-          swaggerTags:
-            - Bookings
-          bodyType: Booking
-          responseData:
-            200:
-              description: "Updated"
-          documentation:
-            summary: Update booking
-            description: Update booking
-            tags:
-              - Bookings
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Updated
-                responseModels:
-                  application/json: Booking
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: bookingId
-                description: bookingId
-                schema:
-                  type: string
-            requestBody:
-              description: Update booking
-              required: true
-            requestModels:
-              application/json: Booking
-
-
   deletebookingid:
     handler: src/handlers/bookingsHandler.handleDeletebookingid
     events:
@@ -592,41 +527,8 @@ functions:
                   type: string
 
 
-  postconfirm:
-    handler: src/handlers/bookingsHandler.handlePostconfirm
-    events:
-      - http:
-          path: /bookings/{bookingId}/confirm
-          method: post
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Confirm booking"
-          swaggerTags:
-            - Bookings
-          responseData:
-            200:
-              description: "Confirmed"
-          documentation:
-            summary: Confirm booking
-            description: Confirm booking
-            tags:
-              - Bookings
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Confirmed
-                responseModels:
-                  application/json: Booking
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: bookingId
-                description: bookingId
-                schema:
-                  type: string
+  confirmPaidBooking:
+    handler: src/handlers/internal.confirmPaidBooking
 
 
   postcheckin:

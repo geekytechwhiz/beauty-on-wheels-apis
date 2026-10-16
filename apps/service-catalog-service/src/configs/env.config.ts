@@ -9,4 +9,9 @@ export const env = {
    * the vendor table and does not call the owner HTTP API.
    */
   VENDOR_PRICING_CONFIGURATION_FUNCTION: process.env.VENDOR_PRICING_CONFIGURATION_FUNCTION || '',
+  /**
+   * Vendor Service Lambda that returns approval, branches, coverage, and prices.
+   * Empty skips the copy. Discovery then uses facts already stored from events.
+   */
+  VENDOR_DISCOVERY_FACTS_FUNCTION: process.env.VENDOR_DISCOVERY_FACTS_FUNCTION || '',
 };

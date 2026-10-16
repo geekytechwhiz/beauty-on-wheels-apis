@@ -268,6 +268,7 @@ export class BookingsRepository extends BaseRepository {
   async updateBookingStatus(
     status: Booking['bookingStatus'],
     original: BookingDdbItem,
+    paymentStatus: Booking['paymentStatus'] = original.paymentStatus,
   ): Promise<void> {
     const id = original.id;
     const timestamp = new Date().toISOString();
@@ -275,7 +276,7 @@ export class BookingsRepository extends BaseRepository {
 
     const updatedBooking: Booking = {
       ...BookingsMapper.toDomain(original),
-      paymentStatus: status === 'CONFIRMED' ? 'PAID' : original.paymentStatus,
+      paymentStatus,
       bookingStatus: status,
     };
 

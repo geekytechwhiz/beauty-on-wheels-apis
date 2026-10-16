@@ -25,16 +25,7 @@ export class VendorsController {
         );
 
     }
-
-    async handleRegisterVendor(
-        request: LambdaRequest
-    ) {
-
-        return this.service.registerVendor(
-            request
-        );
-
-    }
+ 
 
 
     async handleListvendors(

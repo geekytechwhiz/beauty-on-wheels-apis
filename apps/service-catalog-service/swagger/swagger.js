@@ -669,6 +669,96 @@
           }
         }
       }
+    },
+    "/catalog/discover": {
+      "get": {
+        "summary": "discoverServices",
+        "description": "",
+        "operationId": "discoverServices.get.catalog/discover",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "0",
+            "type": "string",
+            "description": "Search query",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "1",
+            "type": "string",
+            "description": "Category ID",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "2",
+            "type": "string",
+            "description": "Latitude",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "3",
+            "type": "string",
+            "description": "Longitude",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "4",
+            "type": "string",
+            "description": "Radius in kilometers",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "5",
+            "type": "string",
+            "description": "Vehicle type",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "6",
+            "type": "string",
+            "description": "Minimum price",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "7",
+            "type": "string",
+            "description": "Maximum price",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "8",
+            "type": "string",
+            "description": "Minimum rating",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "9",
+            "type": "string",
+            "description": "Sort by",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
     }
   },
   "definitions": {

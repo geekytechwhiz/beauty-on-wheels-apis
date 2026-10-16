@@ -1,7 +1,6 @@
 import { withApiHandler, type withApiHandlerOptions } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
-import { ensureCanonicalUserId } from '../auth/resolve-canonical-user';
 
 type VendorHandler = (request: LambdaRequest) => Promise<unknown>;
 
@@ -18,7 +17,7 @@ export function withVendorApiHandler(
     {
       ...options,
       validator: async (request: LambdaRequest) => {
-        await ensureCanonicalUserId(request);
+     
         if (validator) {
           await validator(request);
         }

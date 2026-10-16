@@ -7,7 +7,11 @@ import { BookingError } from '../errors';
 import { authHeaders, requestJson, requireBaseUrl } from './http';
 
 export interface CatalogGateway {
-  getOffering(offeringId: string, authorizationHeader?: string): Promise<CatalogOffering>;
+  getOffering(input: {
+    offeringId: string;
+    vendorId: string;
+    authorizationHeader?: string;
+  }): Promise<CatalogOffering>;
   priceOffering(input: {
     offeringId: string;
     vendorId: string;
@@ -17,13 +21,17 @@ export interface CatalogGateway {
 }
 
 export class HttpCatalogGateway implements CatalogGateway {
-  async getOffering(offeringId: string, authorizationHeader?: string): Promise<CatalogOffering> {
+  async getOffering(input: {
+    offeringId: string;
+    vendorId: string;
+    authorizationHeader?: string;
+  }): Promise<CatalogOffering> {
     const base = requireBaseUrl(env.CATALOG_SERVICE_URL, 'CATALOG_SERVICE_URL');
     const body = await requestJson(
-      `${base}/services/${encodeURIComponent(offeringId)}`,
-      { method: 'GET', headers: authHeaders(authorizationHeader) },
+      `${base}/services/${encodeURIComponent(input.offeringId)}?vendorId=${encodeURIComponent(input.vendorId)}`,
+      { method: 'GET', headers: authHeaders(input.authorizationHeader) },
     );
-    return parseOffering(body, offeringId);
+    return parseOffering(body, input.offeringId);
   }
 
   async priceOffering(input: {

@@ -49,7 +49,7 @@ export interface GeoLocation {
   longitude: number;
 }
 
-export interface CreateVendorRequest {
+export interface BusinessInfo {
   businessName: string;
   contactName: string;
   phoneNumber?: string;
@@ -59,6 +59,18 @@ export interface CreateVendorRequest {
   panNumber?: string;
   profileImageUrl?: string;
    businessType?:  businessType;
+}
+
+export interface OwnerDetails { 
+  userId: string;
+  fullName: string; 
+  phoneNumber?: string;
+  email?: string;
+}
+
+export interface CreateVendorRequest {
+  businessInfo: BusinessInfo;
+  ownerDetails: OwnerDetails;
 }
 
 export interface UpdateVendorRequest {

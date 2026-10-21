@@ -13,3 +13,6 @@ export * as backfillCustomerRolesHandlers from './backfill-customer-roles';
 export * as vendorApprovedRoleHandlers from './vendor-approved-role';
 export * as vendorEmailVerifiedRoleHandlers from './vendor-email-verified-role';
 export * as attachPreTokenGenerationHandlers from './attach-pre-token-generation';
+export * as identityProfileStreamHandlers from './identity-profile-stream';
+export * as userProvisionedHandlers from './user-provisioned';
+export * as reconcileUserProvisioningHandlers from './reconcile-user-provisioning';

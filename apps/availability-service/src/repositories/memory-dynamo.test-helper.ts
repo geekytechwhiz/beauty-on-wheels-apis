@@ -50,13 +50,7 @@ function evalExpr(
   names: Names,
   values: Values,
 ): unknown {
-  const trimmed = expr.trim();
-  if (trimmed.includes('+')) {
-    return trimmed.split('+').reduce((sum, part) => {
-      return sum + Number(resolveAtom(part.trim(), item, names, values) ?? 0);
-    }, 0);
-  }
-  return resolveAtom(trimmed, item, names, values);
+  return resolveAtom(expr.trim(), item, names, values);
 }
 
 function evalClause(
@@ -66,11 +60,13 @@ function evalClause(
   values: Values,
 ): boolean {
   const text = clause.trim();
-  if (text === 'attribute_not_exists(PK)') {
-    return !item;
+  const exists = text.match(/^attribute_exists\(([A-Za-z0-9_]+)\)$/);
+  if (exists) {
+    return Boolean(item) && item?.[exists[1]] !== undefined;
   }
-  if (text === 'attribute_exists(PK)') {
-    return Boolean(item);
+  const missing = text.match(/^attribute_not_exists\(([A-Za-z0-9_]+)\)$/);
+  if (missing) {
+    return !item || item[missing[1]] === undefined;
   }
   const match = text.match(/^(.+?)\s*(<>|>=|<=|=|>|<)\s*(.+)$/);
   if (!match) {
@@ -78,6 +74,9 @@ function evalClause(
   }
   const left = evalExpr(match[1], item, names, values);
   const right = evalExpr(match[3], item, names, values);
+  if (left === undefined || right === undefined) {
+    return false;
+  }
   switch (match[2]) {
     case '=':
       return left === right;
@@ -112,9 +111,115 @@ export function conditionPasses(
   if (!expression) {
     return true;
   }
-  return expression.split(' OR ').some((orClause) =>
-    orClause.split(' AND ').every((clause) => evalClause(clause, item, names, values)),
+  if (expression.includes('+')) {
+    const error = new Error(
+      `Invalid ConditionExpression: Syntax error; token: "+", near: "${expression}"`,
+    );
+    error.name = 'ValidationException';
+    throw error;
+  }
+  assertAttributeNamesDefined(expression, names);
+  return splitTopLevel(expression, ' OR ').some((orClause) =>
+    splitTopLevel(stripWrappingParens(orClause), ' AND ').every((clause) =>
+      evalClause(stripWrappingParens(clause), item, names, values),
+    ),
   );
+}
+
+function stripWrappingParens(value: string): string {
+  let text = value.trim();
+  while (text.startsWith('(') && text.endsWith(')')) {
+    let depth = 0;
+    let wrapsAll = true;
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      if (char === '(') {
+        depth += 1;
+      } else if (char === ')') {
+        depth -= 1;
+      }
+      if (depth === 0 && index < text.length - 1) {
+        wrapsAll = false;
+        break;
+      }
+    }
+    if (!wrapsAll || depth !== 0) {
+      break;
+    }
+    text = text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+function assertAttributeNamesDefined(expression: string, names: Names): void {
+  const tokens = expression.match(/#[A-Za-z0-9_]+/g) ?? [];
+  for (const token of tokens) {
+    if (names[token] === undefined) {
+      const error = new Error(
+        `Invalid ConditionExpression: An expression attribute name used in the document path is not defined; attribute name: ${token}`,
+      );
+      error.name = 'ValidationException';
+      throw error;
+    }
+  }
+}
+
+function splitTopLevel(input: string, separator: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === '(') {
+      depth += 1;
+    } else if (char === ')') {
+      depth -= 1;
+    }
+    if (depth === 0 && input.startsWith(separator, index)) {
+      parts.push(current);
+      current = '';
+      index += separator.length - 1;
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) {
+    parts.push(current);
+  }
+  return parts;
+}
+
+function evalOperand(
+  token: string,
+  item: Item,
+  names: Names,
+  values: Values,
+): unknown {
+  const trimmed = token.trim();
+  const fallback = trimmed.match(/^if_not_exists\(([A-Za-z0-9_#]+),\s*(:[A-Za-z0-9]+)\)$/);
+  if (fallback) {
+    const current = resolveAtom(fallback[1], item, names, values);
+    if (current !== undefined) {
+      return current;
+    }
+    return resolveAtom(fallback[2], item, names, values);
+  }
+  return resolveAtom(trimmed, item, names, values);
+}
+
+function evalUpdateValue(
+  rawRight: string,
+  item: Item,
+  names: Names,
+  values: Values,
+): unknown {
+  const arithmetic = rawRight.match(/^(.*)\s([+-])\s(\S+)$/);
+  if (!arithmetic) {
+    return evalOperand(rawRight, item, names, values);
+  }
+  const base = Number(evalOperand(arithmetic[1], item, names, values) ?? 0);
+  const delta = Number(evalOperand(arithmetic[3], item, names, values) ?? 0);
+  return arithmetic[2] === '+' ? base + delta : base - delta;
 }
 
 function applyUpdate(item: Item, action: Record<string, unknown>): Item {
@@ -130,22 +235,12 @@ function applyUpdate(item: Item, action: Record<string, unknown>): Item {
     }
   }
   const assignments = setPart.replace(/^SET\s+/, '');
-  for (const assignment of assignments.split(',')) {
-    const [rawLeft, rawRight] = assignment.split('=').map((part) => part.trim());
+  for (const assignment of splitTopLevel(assignments, ',')) {
+    const separator = assignment.indexOf('=');
+    const rawLeft = assignment.slice(0, separator).trim();
+    const rawRight = assignment.slice(separator + 1).trim();
     const left = rawLeft.startsWith('#') ? names[rawLeft] : rawLeft;
-    if (rawRight.includes('+')) {
-      const [base, delta] = rawRight.split('+').map((part) => part.trim());
-      next[left] =
-        Number(resolveAtom(base, next, names, values) ?? 0) +
-        Number(resolveAtom(delta, next, names, values) ?? 0);
-    } else if (rawRight.includes(' - ')) {
-      const [base, delta] = rawRight.split(' - ').map((part) => part.trim());
-      next[left] =
-        Number(resolveAtom(base, next, names, values) ?? 0) -
-        Number(resolveAtom(delta, next, names, values) ?? 0);
-    } else {
-      next[left] = resolveAtom(rawRight, next, names, values);
-    }
+    next[left] = evalUpdateValue(rawRight, item, names, values);
   }
   return next;
 }

@@ -17,6 +17,11 @@ function getDirectory(): DynamoDbAuthUserDirectory {
   return directory;
 }
 
+/**
+ * Cognito access tokens only. When User Service provisioning is linked,
+ * `context.userId` is that verified application user. Cognito `sub` is never
+ * copied into it. An in-progress, failed, or unreadable link does not Allow.
+ */
 export const handleAuthorize = async (
   event: APIGatewayTokenAuthorizerEvent,
 ): Promise<APIGatewayAuthorizerResult> => {

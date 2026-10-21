@@ -62,7 +62,8 @@
     "validate:policy:staged": "tsx tools/mvrx-policy-validator/src/validate-staged.ts",
     "validate:policy:affected": "tsx tools/mvrx-policy-validator/src/index.ts --only-changed",
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
-    "publish:resource-registry": "nx build mvrx-resource-registry && cd dist/tools/mvrx-resource-registry && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --userconfig=../../../.npmrc"
+    "publish:resource-registry": "nx build mvrx-resource-registry && cd dist/tools/mvrx-resource-registry && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --userconfig=../../../.npmrc",
+ "spec":"serverless openapi generate -o openapi.json -f json -a 3.0.4 -p postman.json"
   },
   "private": true,
   "engines": {

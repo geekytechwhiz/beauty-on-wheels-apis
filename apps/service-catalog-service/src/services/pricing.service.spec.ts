@@ -460,6 +460,33 @@ describe('PricingService', () => {
     expect(serviceRevisions.rows.size).toBe(0);
   });
 
+  it('prices the selected vehicle before applying a provider override', async () => {
+    services.findByServiceId.mockResolvedValue(service({
+      basePrice: 399,
+      durationMinutes: 30,
+      vehicleTypes: ['HATCHBACK', 'SUV'],
+      vehiclePricing: [
+        { vehicleType: 'HATCHBACK', price: 399, durationMinutes: 30 },
+        { vehicleType: 'SUV', price: 699, durationMinutes: 60 },
+      ],
+    }));
+
+    const catalogPrice = await pricing.calculate(
+      request({ vehicleType: 'SUV', serviceIds: ['svc-1'] }),
+    );
+    expect(catalogPrice.total).toBe(699);
+    expect(catalogPrice.items[0].catalogUnitPrice).toBe(699);
+
+    vendorPricing.getPricing.mockResolvedValue(vendorSnapshot([
+      ['svc-1', { enabled: true, priceOverride: 650, version: 2 }],
+    ]));
+    const overridden = await pricing.calculate(
+      request({ vehicleType: 'SUV', vendorId: 'vendor-1', serviceIds: ['svc-1'] }),
+    );
+    expect(overridden.items[0].catalogUnitPrice).toBe(699);
+    expect(overridden.total).toBe(650);
+  });
+
   it('rejects a service owned by another vendor', async () => {
     services.findByServiceId.mockResolvedValue(service({ vendorId: 'vendor-2', version: 1 }));
 

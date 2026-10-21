@@ -109,6 +109,8 @@ export function parseCheckoutEligibility(
       status,
       operationalStatus,
       ...(typeof body.onboardingStatus === 'string' ? { onboardingStatus: body.onboardingStatus } : {}),
+      ...(typeof body.vendorName === 'string' ? { vendorName: body.vendorName }
+        : typeof body.name === 'string' ? { vendorName: body.name } : {}),
       communityIds: Array.isArray(body.communityIds)
         ? body.communityIds.filter((value): value is string => typeof value === 'string')
         : [],
@@ -116,6 +118,8 @@ export function parseCheckoutEligibility(
     branch: {
       branchId: body.branchId,
       vendorId: resolvedVendorId,
+      ...(typeof body.branchName === 'string' ? { branchName: body.branchName }
+        : typeof body.name === 'string' ? { branchName: body.name } : {}),
     },
   };
 }

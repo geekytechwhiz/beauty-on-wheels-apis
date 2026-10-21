@@ -247,6 +247,69 @@ export class IdentityRepository extends BaseRepository {
     return this.getUser(item.userId);
   }
 
+  async getProfile(userId: string): Promise<Profile | null> {
+    const item = await this.get<any>(TABLE_NAME, IdentityKeyBuilder.userProfile(userId));
+    return item ? IdentityMapper.toProfileDomain(item) as Profile : null;
+  }
+
+  async getProvisioningReconciliationCursor(): Promise<Record<string, unknown> | undefined> {
+    const state = await this.get<{ cursor?: Record<string, unknown> }>(TABLE_NAME, {
+      PK: 'SYSTEM#USER_PROVISIONING_RECONCILIATION', SK: SK_VALS.META,
+    });
+    return state?.cursor;
+  }
+
+  async saveProvisioningReconciliationCursor(cursor?: Record<string, unknown>): Promise<void> {
+    const now = new Date().toISOString();
+    await this.put(TABLE_NAME, {
+      PK: 'SYSTEM#USER_PROVISIONING_RECONCILIATION', SK: SK_VALS.META,
+      entityType: 'ProvisioningReconciliation',
+      ...(cursor ? { cursor } : {}),
+      updatedAt: now, createdAt: now,
+    });
+  }
+
+  /**
+   * Idempotently stores a User Service mapping without changing authentication,
+   * role, or profile fields.  A different existing userId is a consistency
+   * violation and must be retried/DLQ'd rather than overwritten.
+   */
+  async linkProvisionedUser(identityId: string, applicationUserId: string): Promise<'linked' | 'already-linked'> {
+    const identity = await this.getUserByIdentityId(identityId);
+    if (!identity) throw new Error(`Identity ${identityId} was not found`);
+    const profile = await this.getProfile(identity.userId);
+    if (!profile) throw new Error(`Profile for identity ${identityId} was not found`);
+    const current = profile.userProvisioning;
+    if (current?.status === 'LINKED' && current.userId === applicationUserId) return 'already-linked';
+    if (current?.userId && current.userId !== applicationUserId) {
+      const error = new Error(`Identity ${identityId} is already linked to a different application user`);
+      error.name = 'IdentityUserLinkConflictError';
+      throw error;
+    }
+    const now = new Date().toISOString();
+    try {
+      await this.update({
+        TableName: TABLE_NAME,
+        Key: IdentityKeyBuilder.userProfile(identity.userId),
+        UpdateExpression: 'SET userProvisioning = :provisioning, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':provisioning': { status: 'LINKED', userId: applicationUserId, requestedAt: current?.requestedAt ?? now, linkedAt: now },
+          ':updatedAt': now,
+          ':pending': 'PENDING',
+          ':linked': 'LINKED',
+          ':userId': applicationUserId,
+        },
+        ConditionExpression: 'attribute_exists(PK) AND (attribute_not_exists(userProvisioning.#status) OR userProvisioning.#status = :pending OR (userProvisioning.#status = :linked AND userProvisioning.#userId = :userId))',
+        ExpressionAttributeNames: { '#status': 'status', '#userId': 'userId' },
+      });
+      return 'linked';
+    } catch (error) {
+      const refreshed = await this.getProfile(identity.userId);
+      if (refreshed?.userProvisioning?.status === 'LINKED' && refreshed.userProvisioning.userId === applicationUserId) return 'already-linked';
+      throw error;
+    }
+  }
+
   async linkIdentity(
     userId: string,
     identityId: string,

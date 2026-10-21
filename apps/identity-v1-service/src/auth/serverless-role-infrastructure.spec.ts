@@ -18,6 +18,22 @@ describe('identity role infrastructure', () => {
     expect(template).not.toContain('AWS::Cognito::UserPool');
   });
 
+  it('keeps pre-token generation on the identity-table read role for V2_0', () => {
+    const fn = template.slice(
+      template.indexOf('preTokenGeneration:'),
+      template.indexOf('attachPreTokenGeneration:'),
+    );
+    const attach = readFileSync(
+      join(__dirname, '../handlers/attach-pre-token-generation.ts'),
+      'utf8',
+    );
+    expect(fn).toContain('src/handlers/pre-token-generation.handler');
+    expect(fn).not.toContain('role:');
+    expect(template).toContain('dynamodb:GetItem');
+    expect(template).toContain('!GetAtt IdentityTable.Arn');
+    expect(attach).toContain("LambdaVersion: 'V2_0'");
+  });
+
   it('subscribes identity to vendor email verification events', () => {
     expect(template).toContain('handler: src/handlers/vendor-email-verified-role.handler');
     expect(template).toContain('AWS::Events::Rule');

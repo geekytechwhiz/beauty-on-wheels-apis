@@ -17,7 +17,7 @@ Services, packages, and add-ons store `vendorId`. That value is set on create an
 | PK | SK | entityType | Purpose |
 | --- | --- | --- | --- |
 | `CAT#<categoryId>` | `META` | `CATEGORY` | Master category |
-| `CAT#<categoryId>` | `SERVICE#<serviceId>` | `SERVICE` | Vendor service under a category |
+| `CAT#<categoryId>` | `SERVICE#<serviceId>` | `SERVICE` | Vendor service under a category. `vehiclePricing` is a list of maps. `vehicleTypes`, `basePrice`, and `durationMinutes` remain for older readers |
 | `SERVICE#<serviceId>` | `META` | `SERVICE_LOOKUP` | Resolve a service without its category |
 | `CAT#<categoryId>` | `SERVICE#<serviceId>#ADDON#<addonId>` | `ADDON` | Vendor add-on under a service |
 | `ADDON#<addonId>` | `META` | `ADDON_LOOKUP` | Resolve an add-on by id |
@@ -53,10 +53,18 @@ Name uniqueness stays on GSI1. A service name is unique per vendor and category 
 | API | Operation | Keys |
 | --- | --- | --- |
 | `GET /services?vendorId=` | Query GSI2 | `VENDOR#<vendorId>` / `SERVICE#` |
+| `GET /services?vendorId=&vehicleType=` | Query GSI2, then keep reading until the page is full | Same vendor partition. `vehicleType` is not a key |
 | `POST /services` | TransactWrite | Category partition plus GSI2 vendor keys. Body `vendorId` is required. |
 | `GET/PUT/DELETE /services/{serviceId}?vendorId=` | GetItem | Existing category key, then reject a different `vendorId` |
 | `GET /packages?vendorId=` | Query GSI2 | `VENDOR#<vendorId>` / `PACKAGE#` |
 | `GET /addons?vendorId=` | Query GSI2 | `VENDOR#<vendorId>` / `ADDON#` |
 | `GET /catalog/discover` | Query GSI2 | `DISCOVERY#ALL` or `DISCOVERY#CATEGORY#<categoryId>` |
+| `GET /offerings` | Query GSI2, then filter and sort the complete partition | `DISCOVERY#CATEGORY#<categoryId>` when `categoryId` is `eq`, otherwise `DISCOVERY#ALL` |
+
+`GET /offerings` does not add a GSI. GSI2 sort order is service id and branch id. Display price depends on the selected vehicle type, and distance is calculated, so those sorts are applied after the partition is read. The read stops at 5000 discovery rows. A larger partition returns `503 OFFERING_CANDIDATE_LIMIT` and is the point at which a search index would be required. The query planner selects the partition from the filter registry, so a later partition hint does not require a new handler.
+
+`availableOn` is not stored on the discovery item. Catalog asks Availability, once, which offerings in the filtered set have a bookable slot. That check is capped at 40 branches and 500 offerings.
+
+`vehiclePricing` is stored on the service item as a list of maps: `vehicleType`, `price`, and `durationMinutes`. One service is not split into one item per vehicle type. `basePrice` is the lowest price and `durationMinutes` is the shortest duration, so LSI5 still has a single duration. A `vehicleType` list filter does not scan the table. Marketplace discovery stays on `GET /catalog/discover`, which copies each vehicle price onto the discovery projection.
 
 Deploying this index is a table update. DynamoDB allows one GSI addition per update.

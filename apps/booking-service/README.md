@@ -12,7 +12,7 @@ Bootstrap Completed
 
 ## Checkout
 
-Create booking reads vendor eligibility from `getCheckoutEligibility` and the payable amount from Service Catalog `POST /pricing/calculate`. `offeringId` is the catalog service id. `offeringVersion` must equal the `offeringVersion` in that pricing response.
+Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, and `expectedPrice.totalMinor`. Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs. The persisted booking is a `PENDING_PAYMENT` immutable snapshot; only the trusted payment Lambda can confirm it.
 
 A mismatch returns `409 OFFERING_VERSION_MISMATCH` before the booking is written and before its hold is consumed. A missing authoritative version returns `502 CATALOG_PRICING_UNAVAILABLE`. The booking stores the server revision, `catalogVersion`, `vendorPricingVersion`, currency, and the price breakdown. An idempotent retry returns the original snapshot and does not reprice.
 

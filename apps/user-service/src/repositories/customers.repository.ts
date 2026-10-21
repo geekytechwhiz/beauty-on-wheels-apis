@@ -3,7 +3,11 @@ import { TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
 
 import { env } from '../configs/env.config';
 import { toPhoneLookupRecord } from '../mappers/customers.mapper';
-import { CustomerProfileRecord, PhoneLookupRecord } from '../types/records';
+import {
+  CustomerProfileRecord,
+  IdentityUserLookupRecord,
+  PhoneLookupRecord,
+} from '../types/records';
 import { UserKeyBuilder, withoutUndefined } from '../utils';
 
 type TransactItems = NonNullable<TransactWriteCommandInput['TransactItems']>;
@@ -24,6 +28,50 @@ export class CustomersRepository extends BaseRepository {
     return this.get<PhoneLookupRecord>(this.getTableName(), {
       PK: UserKeyBuilder.phonePk(e164),
       SK: UserKeyBuilder.phoneSk(),
+    });
+  }
+
+  async getIdentityLookup(identityId: string): Promise<IdentityUserLookupRecord | null> {
+    return this.get<IdentityUserLookupRecord>(this.getTableName(), {
+      PK: UserKeyBuilder.identityPk(identityId),
+      SK: UserKeyBuilder.identitySk(),
+    });
+  }
+
+  /**
+   * Atomically creates the minimal User Service profile and its immutable
+   * identity lookup.  The lookup condition is the uniqueness constraint; it
+   * protects against EventBridge duplicates and concurrent deliveries.
+   */
+  async createProvisionedUser(
+    profile: CustomerProfileRecord,
+    identityId: string,
+  ): Promise<void> {
+    const lookup: IdentityUserLookupRecord = {
+      PK: UserKeyBuilder.identityPk(identityId),
+      SK: UserKeyBuilder.identitySk(),
+      entityType: 'IdentityUserLookup',
+      identityId,
+      userId: profile.userId,
+      createdAt: profile.createdAt,
+    };
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: withoutUndefined(profile),
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: lookup,
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+      ],
     });
   }
 

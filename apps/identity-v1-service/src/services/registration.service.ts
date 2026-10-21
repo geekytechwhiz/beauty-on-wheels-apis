@@ -138,6 +138,12 @@ export class RegistrationService {
       lastName: input.lastName ?? '',
       identityId: input.identityId,
       userType: input.userType ?? 'CUSTOMER',
+      // PROFILE is created only by the verified OTP path when identityId is
+      // present.  This makes PENDING a durable stream/replay marker and keeps
+      // password-only legacy registrations backward compatible.
+      ...(input.identityId && (input.phoneVerified || input.emailVerified)
+        ? { userProvisioning: { status: 'PENDING' as const, requestedAt: new Date().toISOString() } }
+        : {}),
     };
 
     await this.repository.createUser(newUser, newProfile);

@@ -38,6 +38,8 @@ export interface SlotItem extends KeyedItem {
   capacity: number;
   heldCount: number;
   bookedCount: number;
+  /** Remaining units. Absent on slots written before this attribute existed. */
+  availableCount?: number;
   status: StoredSlotStatus;
   serviceIds: string[];
   vehicleTypeIds: string[];
@@ -102,14 +104,29 @@ export interface HoldIdempotencyItem extends KeyedItem {
   createdAt: string;
 }
 
+export interface CoveredSlotRef {
+  slotId: string;
+  canonicalPk: string;
+  canonicalSk: string;
+}
+
 export interface AllocationItem extends KeyedItem {
   entityType: 'SlotAllocation';
   bookingId: string;
-  holdId: string;
+  holdId?: string;
   slotId: string;
+  slotIds?: string[];
+  coveredSlots?: CoveredSlotRef[];
   vendorId: string;
   branchId: string;
   customerId: string;
+  offeringId?: string;
+  vehicleType?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  durationMinutes?: number;
   units: number;
   status: AllocationStatus;
   createdAt: string;
@@ -119,11 +136,20 @@ export interface AllocationItem extends KeyedItem {
 export interface AllocationLookupItem extends KeyedItem {
   entityType: 'AllocationLookup';
   bookingId: string;
-  holdId: string;
+  holdId?: string;
   slotId: string;
+  slotIds?: string[];
+  coveredSlots?: CoveredSlotRef[];
   vendorId: string;
   branchId: string;
   customerId: string;
+  offeringId?: string;
+  vehicleType?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  durationMinutes?: number;
   units: number;
   status: AllocationStatus;
   canonicalPk: string;

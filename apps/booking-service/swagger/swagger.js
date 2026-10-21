@@ -29,7 +29,7 @@
       },
       "post": {
         "summary": "Create booking",
-        "description": "Creates a booking from an availability hold. The customer comes from the access token. Price is snapshotted from Service Catalog and is not accepted from the client. Idempotency-Key is required.",
+        "description": "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity, service details, capacity, and pricing are validated server-side; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required.",
         "tags": [
           "Bookings"
         ],
@@ -303,6 +303,22 @@
           "title": "VehicleDetails.makeModel",
           "type": "string"
         },
+        "type": {
+          "title": "VehicleDetails.type",
+          "type": "string"
+        },
+        "brand": {
+          "title": "VehicleDetails.brand",
+          "type": "string"
+        },
+        "model": {
+          "title": "VehicleDetails.model",
+          "type": "string"
+        },
+        "registrationNumber": {
+          "title": "VehicleDetails.registrationNumber",
+          "type": "string"
+        },
         "saveToGarage": {
           "title": "VehicleDetails.saveToGarage",
           "type": "boolean"
@@ -330,6 +346,10 @@
         "addressId": {
           "title": "BookingLocation.addressId",
           "type": "string"
+        },
+        "details": {
+          "title": "BookingLocation.details",
+          "description": "Address/community fields resolved from User Service; never client supplied."
         }
       },
       "required": [
@@ -363,6 +383,14 @@
           "title": "PricingSnapshot.baseAmount",
           "type": "number"
         },
+        "addOnAmount": {
+          "title": "PricingSnapshot.addOnAmount",
+          "type": "number"
+        },
+        "subtotalAmount": {
+          "title": "PricingSnapshot.subtotalAmount",
+          "type": "number"
+        },
         "discountAmount": {
           "title": "PricingSnapshot.discountAmount",
           "type": "number"
@@ -373,6 +401,30 @@
         },
         "totalAmount": {
           "title": "PricingSnapshot.totalAmount",
+          "type": "number"
+        },
+        "baseMinor": {
+          "title": "PricingSnapshot.baseMinor",
+          "type": "number"
+        },
+        "addOnMinor": {
+          "title": "PricingSnapshot.addOnMinor",
+          "type": "number"
+        },
+        "subtotalMinor": {
+          "title": "PricingSnapshot.subtotalMinor",
+          "type": "number"
+        },
+        "discountMinor": {
+          "title": "PricingSnapshot.discountMinor",
+          "type": "number"
+        },
+        "taxMinor": {
+          "title": "PricingSnapshot.taxMinor",
+          "type": "number"
+        },
+        "totalMinor": {
+          "title": "PricingSnapshot.totalMinor",
           "type": "number"
         },
         "currency": {
@@ -387,16 +439,127 @@
         "discountAmount",
         "taxAmount",
         "totalAmount",
+        "totalMinor",
         "currency"
       ],
       "additionalProperties": false,
       "title": "PricingSnapshot",
       "type": "object"
     },
+    "BookingSchedule": {
+      "properties": {
+        "date": {
+          "title": "BookingSchedule.date",
+          "type": "string"
+        },
+        "startTime": {
+          "title": "BookingSchedule.startTime",
+          "type": "string"
+        },
+        "endTime": {
+          "title": "BookingSchedule.endTime",
+          "type": "string"
+        },
+        "durationMinutes": {
+          "title": "BookingSchedule.durationMinutes",
+          "type": "number"
+        },
+        "timezone": {
+          "title": "BookingSchedule.timezone",
+          "type": "string"
+        },
+        "startAtUtc": {
+          "title": "BookingSchedule.startAtUtc",
+          "type": "string"
+        },
+        "endAtUtc": {
+          "title": "BookingSchedule.endAtUtc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "startTime",
+        "endTime",
+        "durationMinutes",
+        "timezone",
+        "startAtUtc",
+        "endAtUtc"
+      ],
+      "additionalProperties": false,
+      "title": "BookingSchedule",
+      "type": "object"
+    },
+    "BookingServiceSnapshot": {
+      "properties": {
+        "serviceId": {
+          "title": "BookingServiceSnapshot.serviceId",
+          "type": "string"
+        },
+        "name": {
+          "title": "BookingServiceSnapshot.name",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "BookingServiceSnapshot.categoryId",
+          "type": "string"
+        },
+        "offeringId": {
+          "title": "BookingServiceSnapshot.offeringId",
+          "type": "string"
+        },
+        "durationMinutes": {
+          "title": "BookingServiceSnapshot.durationMinutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "serviceId",
+        "name",
+        "offeringId",
+        "durationMinutes"
+      ],
+      "additionalProperties": false,
+      "title": "BookingServiceSnapshot",
+      "type": "object"
+    },
+    "BookingAddOnSnapshot": {
+      "properties": {
+        "id": {
+          "title": "BookingAddOnSnapshot.id",
+          "type": "string"
+        },
+        "name": {
+          "title": "BookingAddOnSnapshot.name",
+          "type": "string"
+        },
+        "price": {
+          "title": "BookingAddOnSnapshot.price",
+          "type": "number"
+        },
+        "priceMinor": {
+          "title": "BookingAddOnSnapshot.priceMinor",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "priceMinor"
+      ],
+      "additionalProperties": false,
+      "title": "BookingAddOnSnapshot",
+      "type": "object"
+    },
     "Booking": {
       "properties": {
         "id": {
           "title": "Booking.id",
+          "type": "string"
+        },
+        "reference": {
+          "title": "Booking.reference",
           "type": "string"
         },
         "customerId": {
@@ -407,8 +570,16 @@
           "title": "Booking.vendorId",
           "type": "string"
         },
+        "vendorName": {
+          "title": "Booking.vendorName",
+          "type": "string"
+        },
         "branchId": {
           "title": "Booking.branchId",
+          "type": "string"
+        },
+        "branchName": {
+          "title": "Booking.branchName",
           "type": "string"
         },
         "vehicleId": {
@@ -435,6 +606,22 @@
           "title": "Booking.offeringVersion",
           "type": "number"
         },
+        "service": {
+          "$ref": "#/definitions/BookingServiceSnapshot",
+          "title": "Booking.service"
+        },
+        "addOns": {
+          "items": {
+            "$ref": "#/definitions/BookingAddOnSnapshot",
+            "title": "Booking.addOns.[]"
+          },
+          "title": "Booking.addOns",
+          "type": "array"
+        },
+        "schedule": {
+          "$ref": "#/definitions/BookingSchedule",
+          "title": "Booking.schedule"
+        },
         "bookingDate": {
           "title": "Booking.bookingDate",
           "type": "string"
@@ -450,6 +637,10 @@
         "location": {
           "$ref": "#/definitions/BookingLocation",
           "title": "Booking.location"
+        },
+        "notes": {
+          "title": "Booking.notes",
+          "type": "string"
         },
         "pricingSnapshot": {
           "$ref": "#/definitions/PricingSnapshot",
@@ -472,6 +663,7 @@
           "enum": [
             "PENDING",
             "PAID",
+            "FAILED",
             "REFUNDED"
           ],
           "title": "Booking.paymentStatus",
@@ -481,6 +673,7 @@
           "enum": [
             "CREATED",
             "PENDING",
+            "PENDING_PAYMENT",
             "CONFIRMED",
             "CHECKED_IN",
             "IN_PROGRESS",
@@ -488,6 +681,14 @@
             "CANCELLED"
           ],
           "title": "Booking.bookingStatus",
+          "type": "string"
+        },
+        "createdAt": {
+          "title": "Booking.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "Booking.updatedAt",
           "type": "string"
         }
       },

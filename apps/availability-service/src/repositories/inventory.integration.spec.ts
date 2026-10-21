@@ -232,6 +232,29 @@ describe('availability persistence', () => {
     expect(String(activeHolds[0].GSI1PK)).toMatch(/^HOLD_EXPIRY#/);
   });
 
+  it('lets only one concurrent booking reservation take the final unit without a customer hold', async () => {
+    await openMonday();
+    await slots.postslots(
+      request({
+        userId: 'owner-1', vendorId: 'vendor-1',
+        body: { branchId: 'branch-1', date: '2026-10-12', slotDurationMinutes: 60, capacity: 1, serviceIds: ['haircut'], vehicleTypeIds: ['sedan'] },
+      }),
+    );
+    const input = {
+      customerId: 'customer-1', vendorId: 'vendor-1', branchId: 'branch-1', offeringId: 'haircut',
+      vehicleType: 'sedan', date: '2026-10-12', startTime: '09:00', timezone: 'Asia/Kolkata', durationMinutes: 45,
+    };
+    const results = await Promise.allSettled([
+      allocations.reserveBooking({ ...input, bookingId: 'booking-1' }),
+      allocations.reserveBooking({ ...input, customerId: 'customer-2', bookingId: 'booking-2' }),
+    ]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    const storedSlot = memory.dump().find((item) => item.entityType === 'Slot' && item.slotId);
+    expect(storedSlot?.bookedCount).toBe(1);
+    expect(memory.dump().filter((item) => item.entityType === 'SlotAllocation')).toHaveLength(1);
+  });
+
   it('releases, consumes, and cancels without driving counters negative', async () => {
     await openMonday();
     const generated = await slots.postslots(

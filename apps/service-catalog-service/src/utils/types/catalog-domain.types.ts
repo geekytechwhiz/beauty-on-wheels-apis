@@ -54,6 +54,16 @@ export interface CategoryEntity extends CatalogBaseEntity {
     active: boolean;
 }
 
+/**
+ * Price and duration for one vehicle type on a service offering.
+ * Vehicle type codes come from the shared vehicle-type registry.
+ */
+export interface VehiclePricing {
+    vehicleType: string;
+    price: number;
+    durationMinutes: number;
+}
+
 export interface ServiceEntity extends CatalogBaseEntity {
     entityType: 'SERVICE';
     vendorId: string;
@@ -61,8 +71,23 @@ export interface ServiceEntity extends CatalogBaseEntity {
     serviceId: string;
     name: string;
     description?: string;
+    /**
+     * Authoritative per-vehicle price and duration.
+     * Absent on records written before vehicle pricing. Readers synthesize it
+     * from basePrice, durationMinutes, and vehicleTypes.
+     */
+    vehiclePricing?: VehiclePricing[];
+    /**
+     * Shortest configured duration. Kept so LSI5 and older clients still have
+     * one number. The selected vehicle's duration is on vehiclePricing.
+     */
     durationMinutes: number;
+    /** Derived from vehiclePricing. Kept for applicability rows and older clients. */
     vehicleTypes: string[];
+    /**
+     * Lowest configured price. Kept for older clients and unfiltered discovery.
+     * Pricing uses the selected vehiclePricing entry, not this field.
+     */
     basePrice: number;
     displayOrder: number;
     active: boolean;

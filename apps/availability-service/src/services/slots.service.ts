@@ -8,8 +8,10 @@ import {
 } from '../auth/access';
 import { ENTITY_TYPE, STORED_SLOT_STATUS } from '../domain/constants';
 import { hasBookableCapacity } from '../domain/capacity';
+import { parseBookableOfferingsQuery } from '../domain/bookable-offerings';
 import { deterministicSlotId } from '../domain/ids';
 import { AvailabilityKeyBuilder } from '../domain/keys';
+import { selectCapacityBlocks, supportsService, supportsVehicle } from '../domain/slot-coverage';
 import {
   buildSlotWindows,
   isSlotStartInPast,
@@ -90,27 +92,37 @@ export class SlotsService {
     const cursor = decodeCursor(queryValue(request, 'cursor'));
 
     const holidayDates = await this.closedDates(vendorId, branchId, range.dates);
+    const widenForDuration = bookable && serviceDuration !== undefined;
     const collected: SlotItem[] = [];
     await mapPool(range.dates, 8, async (date) => {
       const daySlots = await this.slots.querySlots({
         vendorId,
         branchId,
         date,
-        fromTime,
-        toTime,
+        fromTime: widenForDuration ? undefined : fromTime,
+        toTime: widenForDuration ? undefined : toTime,
       });
       collected.push(...daySlots);
     });
     collected.sort(byStart);
 
     const filtered = collected.filter((slot) => {
+      if (fromTime && slot.startTime < fromTime) {
+        return false;
+      }
+      if (toTime && slot.startTime > toTime) {
+        return false;
+      }
       if (cursor && (slot.date < cursor.date || (slot.date === cursor.date && slot.startTime <= cursor.startTime))) {
         return false;
       }
       if (!bookable) {
         return true;
       }
-      return this.isBookable(slot, schedule, holidayDates, {
+      const peers = collected.filter(
+        (peer) => peer.date === slot.date && peer.vendorId === slot.vendorId && peer.branchId === slot.branchId,
+      );
+      return this.isBookable(slot, peers, schedule, holidayDates, {
         serviceId,
         vehicleTypeId,
         serviceDuration,
@@ -134,6 +146,58 @@ export class SlotsService {
       items: page.map(toSlotView),
       ...(nextCursor ? { nextCursor } : {}),
     };
+  }
+
+  /**
+   * Internal marketplace check. One query per branch-day, then the same
+   * bookable rules as the public slot list.
+   */
+  async findBookableOfferings(event: unknown): Promise<{ keys: string[] }> {
+    const request = parseBookableOfferingsQuery(event);
+    const groups = new Map<string, typeof request.offerings>();
+    for (const offering of request.offerings) {
+      const key = `${offering.vendorId}#${offering.branchId}`;
+      const group = groups.get(key) ?? [];
+      group.push(offering);
+      groups.set(key, group);
+    }
+
+    const keys = new Set<string>();
+    await mapPool([...groups.values()], 8, async (probes) => {
+      const first = probes[0];
+      const schedule = await this.schedules.getWorkingHours(first.vendorId, first.branchId);
+      const holidayDates = await this.closedDates(first.vendorId, first.branchId, [request.date]);
+      const slots = await this.slots.querySlots({
+        vendorId: first.vendorId,
+        branchId: first.branchId,
+        date: request.date,
+      });
+      for (const probe of probes) {
+        const bookable = probe.vehicles.some((vehicle) => slots.some((slot) => {
+          if (request.startTime && slot.startTime !== request.startTime) {
+            return false;
+          }
+          return this.isBookable(slot, slots, schedule, holidayDates, {
+            serviceId: probe.offeringId,
+            vehicleTypeId: vehicle.vehicleType,
+            serviceDuration: vehicle.durationMinutes,
+          });
+        }));
+        if (bookable) {
+          keys.add(`${probe.vendorId}#${probe.branchId}#${probe.offeringId}`);
+        }
+      }
+    });
+
+    this.logger.info({
+      event: 'bookable_offerings_checked',
+      date: request.date,
+      branchCount: groups.size,
+      offeringCount: request.offerings.length,
+      bookableCount: keys.size,
+    });
+
+    return { keys: [...keys] };
   }
 
   async postslots(request: LambdaRequest): Promise<{
@@ -269,6 +333,7 @@ export class SlotsService {
 
   private isBookable(
     slot: SlotItem,
+    peers: SlotItem[],
     schedule: WorkingHoursItem | null,
     holidayDates: Set<string>,
     filter: {
@@ -290,16 +355,26 @@ export class SlotsService {
     if (!window || slot.startTime < window.openTime || slot.endTime > window.closeTime) {
       return false;
     }
-    if (filter.serviceDuration && slot.durationMinutes < filter.serviceDuration) {
+    if (!supportsService(slot.serviceIds, filter.serviceId)) {
       return false;
     }
-    if (filter.serviceId && !slot.serviceIds.includes(filter.serviceId)) {
+    if (!supportsVehicle(slot.vehicleTypeIds, filter.vehicleTypeId)) {
       return false;
     }
-    if (filter.vehicleTypeId && !slot.vehicleTypeIds.includes(filter.vehicleTypeId)) {
-      return false;
+    if (!filter.serviceDuration) {
+      return true;
     }
-    return true;
+    const cover = selectCapacityBlocks(peers, {
+      vendorId: slot.vendorId,
+      branchId: slot.branchId,
+      date: slot.date,
+      startTime: slot.startTime,
+      durationMinutes: filter.serviceDuration,
+      offeringId: filter.serviceId,
+      vehicleType: filter.vehicleTypeId,
+      timezone: slot.timezone,
+    });
+    return cover.ok && cover.slots.some((selected) => selected.slotId === slot.slotId);
   }
 
   private buildSlot(
@@ -338,6 +413,7 @@ export class SlotsService {
         capacity: input.capacity,
         heldCount: 0,
         bookedCount: 0,
+        availableCount: input.capacity,
         status: STORED_SLOT_STATUS.AVAILABLE,
         serviceIds: input.serviceIds,
         vehicleTypeIds: input.vehicleTypeIds,

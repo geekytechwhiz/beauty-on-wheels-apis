@@ -85,7 +85,7 @@ export function assertOwnerOrAdmin(
 ): string {
   assertKnownCaller(request);
   const userId = getOptionalAuthenticatedUserId(request);
-
+  console.log('assertOwnerOrAdmin_userId', userId);
   if (isAdminCaller(request)) {
     if (!userId) {
       throw new UnauthorizedError('Unauthorized');

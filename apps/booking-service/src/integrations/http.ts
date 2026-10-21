@@ -6,6 +6,7 @@ export async function requestJson(
 ): Promise<unknown> {
   let response: Response;
   try {
+    console.log('requestJson_url', url);
     response = await fetch(url, {
       ...init,
       signal: AbortSignal.timeout(4000),

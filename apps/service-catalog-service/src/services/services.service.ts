@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 
-import { LambdaRequest, ValidationError } from "@api-hub/utils";
+import { BaseError, LambdaRequest, ValidationError } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
@@ -21,12 +21,20 @@ import {
     getCategoriesRepository
 } from "../repositories/categories.repository";
 import {
-    CreateServiceInput,
     UpdateServiceInput,
+    ValidatedServiceWrite,
     validateService,
     validateServiceUpdate,
 } from "../schemas/services.schema";
-import { INITIAL_CATALOG_VERSION, nextCatalogVersion, sameMembers } from "../domain/catalog-version";
+import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
+import { assertVehicleType } from "../domain/catalog-validation";
+import {
+    deriveStoredPricing,
+    projectVehiclePricing,
+    resolveUpdatedPricing,
+    resolveVehiclePricing,
+    sameVehiclePricing,
+} from "../domain/vehicle-pricing";
 import {
     buildDiscoveryWritePlan,
     parseDiscoverServicesQuery,
@@ -144,14 +152,15 @@ export class ServicesService {
 
     const vendorId = requireVendorId(request.params?.vendorId);
     const categoryId = request.params?.categoryId as string | undefined;
-    const activeOnly = request.params?.active === 'true';
-    const vehicleType = request.params?.vehicleType as string | undefined;
-    const durationMinutes = request.params?.durationMinutes
-      ? parseInt(request.params.durationMinutes as string, 10)
+    const active = parseActiveFilter(request.params?.active);
+    const vehicleType = request.params?.vehicleType
+      ? assertVehicleType(String(request.params.vehicleType))
       : undefined;
-    const limit = request.params?.limit
-      ? parseInt(request.params.limit as string, 10)
-      : undefined;
+    const durationMinutes = parseOptionalPositiveInt(
+      request.params?.durationMinutes,
+      'durationMinutes',
+    );
+    const limit = parseOptionalPositiveInt(request.params?.limit, 'limit');
     const lastEvaluatedKey = request.params?.nextToken
       ? JSON.parse(
           Buffer.from(request.params.nextToken as string, 'base64').toString(),
@@ -167,14 +176,16 @@ export class ServicesService {
 
     const result = await this.repository.listByVendor(vendorId, {
       categoryId,
-      activeOnly,
+      active,
       vehicleType,
       durationMinutes,
       limit,
       lastEvaluatedKey,
     });
 
-    const items = result.items.map(mapServiceEntityToResponse);
+    const items = result.items.map((entity) =>
+      mapServiceEntityToResponse(entity, vehicleType),
+    );
 
     this.logger.info({
       event: 'getservices_success',
@@ -322,7 +333,7 @@ export class ServicesService {
     try {
       await this.repository.updateService(
         updated,
-        existing.vehicleTypes,
+        resolveVehiclePricing(existing).map((entry) => entry.vehicleType),
         await this.discoveryPlan(updated),
       );
     } catch (err) {
@@ -671,16 +682,26 @@ function discoveryKeys(plan: DiscoveryWritePlan): Array<{ PK: string; SK: string
     });
 }
 
-function mapServiceEntityToResponse(entity: ServiceEntity) {
+function mapServiceEntityToResponse(entity: ServiceEntity, vehicleType?: string) {
+    const vehiclePricing = projectVehiclePricing(entity, vehicleType);
+    const prices = vehiclePricing.map((entry) => entry.price);
+    const durations = vehiclePricing.map((entry) => entry.durationMinutes);
+    const sharedPrice = prices.length > 0 && prices.every((price) => price === prices[0])
+        ? prices[0]
+        : undefined;
+    const sharedDuration = durations.length > 0 && durations.every((duration) => duration === durations[0])
+        ? durations[0]
+        : undefined;
     return {
         id: entity.serviceId,
         vendorId: entity.vendorId,
         categoryId: entity.categoryId,
         name: entity.name,
         description: entity.description,
-        durationMinutes: entity.durationMinutes,
-        vehicleTypes: entity.vehicleTypes,
-        basePrice: entity.basePrice,
+        vehiclePricing,
+        vehicleTypes: vehiclePricing.map((entry) => entry.vehicleType),
+        ...(sharedPrice === undefined ? {} : { basePrice: sharedPrice }),
+        ...(sharedDuration === undefined ? {} : { durationMinutes: sharedDuration }),
         displayOrder: entity.displayOrder,
         active: entity.active,
         ...(entity.version !== undefined ? { version: entity.version } : {}),
@@ -689,19 +710,44 @@ function mapServiceEntityToResponse(entity: ServiceEntity) {
     };
 }
 
+function parseActiveFilter(value: unknown): boolean | undefined {
+    if (value === undefined || value === null || value === '') {
+        return undefined;
+    }
+    if (value === true || value === 'true') {
+        return true;
+    }
+    if (value === false || value === 'false') {
+        return false;
+    }
+    throw new BaseError('active must be true or false', 400, 'VALIDATION_ERROR');
+}
+
+function parseOptionalPositiveInt(value: unknown, field: string): number | undefined {
+    if (value === undefined || value === null || value === '') {
+        return undefined;
+    }
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new BaseError(`${field} must be a positive integer`, 400, 'VALIDATION_ERROR');
+    }
+    return parsed;
+}
+
 // ── Builder helpers ───────────────────────────────────────────────────────────
 
 function buildServiceEntity(
     serviceId: string,
-    input: CreateServiceInput,
+    input: ValidatedServiceWrite,
     now: string
 ): ServiceEntity {
+    const stored = deriveStoredPricing(input.vehiclePricing);
     const pkVal = CatalogKeyBuilder.categoryPk(input.categoryId);
     const skVal = CatalogKeyBuilder.serviceSk(serviceId);
     const lsi1Val = CatalogKeyBuilder.lsi1sk(input.displayOrder ?? 0);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(input.active ?? true);
     const lsi3Val = CatalogKeyBuilder.lsi3sk("SERVICE");
-    const lsi5Val = CatalogKeyBuilder.lsi5sk(input.durationMinutes);
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(stored.durationMinutes);
 
     return {
         PK: pkVal,
@@ -712,9 +758,10 @@ function buildServiceEntity(
         serviceId,
         name: input.name,
         description: input.description,
-        durationMinutes: input.durationMinutes,
-        vehicleTypes: input.vehicleTypes,
-        basePrice: input.basePrice,
+        vehiclePricing: stored.vehiclePricing,
+        durationMinutes: stored.durationMinutes,
+        vehicleTypes: stored.vehicleTypes,
+        basePrice: stored.basePrice,
         displayOrder: input.displayOrder ?? 0,
         active: input.active ?? true,
         version: INITIAL_CATALOG_VERSION,
@@ -739,23 +786,22 @@ function mergeServiceEntity(
     const name = updates.name ?? existing.name;
     const displayOrder = updates.displayOrder ?? existing.displayOrder;
     const active = updates.active ?? existing.active;
-    const vehicleTypes = updates.vehicleTypes ?? existing.vehicleTypes;
-    const durationMinutes = updates.durationMinutes ?? existing.durationMinutes;
+    const stored = deriveStoredPricing(resolveUpdatedPricing(existing, updates));
 
     const lsi1Val = CatalogKeyBuilder.lsi1sk(displayOrder);
     const lsi2Val = CatalogKeyBuilder.lsi2sk(active);
-    const lsi5Val = CatalogKeyBuilder.lsi5sk(durationMinutes);
+    const lsi5Val = CatalogKeyBuilder.lsi5sk(stored.durationMinutes);
 
-    const pricingChanged = (updates.basePrice !== undefined && updates.basePrice !== existing.basePrice)
-        || (updates.active !== undefined && updates.active !== existing.active)
-        || (updates.vehicleTypes !== undefined && !sameMembers(updates.vehicleTypes, existing.vehicleTypes));
+    const pricingChanged = !sameVehiclePricing(stored.vehiclePricing, resolveVehiclePricing(existing))
+        || (updates.active !== undefined && updates.active !== existing.active);
     const next: ServiceEntity = {
         ...existing,
         name,
         description: updates.description ?? existing.description,
-        durationMinutes,
-        vehicleTypes,
-        basePrice: updates.basePrice ?? existing.basePrice,
+        vehiclePricing: stored.vehiclePricing,
+        durationMinutes: stored.durationMinutes,
+        vehicleTypes: stored.vehicleTypes,
+        basePrice: stored.basePrice,
         displayOrder,
         active,
         version: nextCatalogVersion(existing.version, pricingChanged),

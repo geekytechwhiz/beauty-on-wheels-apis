@@ -94,3 +94,92 @@ describe('ServicesRepository vehicle applicability', () => {
     expect(found).toHaveLength(2);
   });
 });
+
+describe('ServicesRepository vehicle pricing pages', () => {
+  function row(serviceId: string, vehicleTypes: string[]): ServiceEntity {
+    return {
+      PK: 'CAT#cat-1',
+      SK: `SERVICE#${serviceId}`,
+      entityType: 'SERVICE',
+      vendorId: 'vendor-1',
+      categoryId: 'cat-1',
+      serviceId,
+      name: serviceId,
+      durationMinutes: 45,
+      vehicleTypes,
+      vehiclePricing: vehicleTypes.map((vehicleType) => ({
+        vehicleType,
+        price: vehicleType === 'SUV' ? 699 : 399,
+        durationMinutes: vehicleType === 'SUV' ? 60 : 30,
+      })),
+      basePrice: 399,
+      displayOrder: 0,
+      active: true,
+      GSI2PK: 'VENDOR#vendor-1',
+      GSI2SK: `SERVICE#cat-1#${serviceId}`,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  class PagingRepository extends ServicesRepository {
+    readonly items: ServiceEntity[];
+
+    constructor(items: ServiceEntity[]) {
+      super();
+      this.items = items;
+    }
+
+    protected override async queryPage<T>(params: {
+      ExclusiveStartKey?: { SK?: string };
+      Limit?: number;
+    }): Promise<{ items: T[]; lastEvaluatedKey?: Record<string, unknown> }> {
+      const start = params.ExclusiveStartKey?.SK;
+      const startIndex = start
+        ? this.items.findIndex((item) => item.SK === start) + 1
+        : 0;
+      const limit = params.Limit ?? this.items.length;
+      const slice = this.items.slice(startIndex, startIndex + limit);
+      const last = slice[slice.length - 1];
+      const more = startIndex + slice.length < this.items.length;
+      return {
+        items: slice as T[],
+        lastEvaluatedKey: more && last
+          ? { PK: last.PK, SK: last.SK, GSI2PK: last.GSI2PK, GSI2SK: last.GSI2SK }
+          : undefined,
+      };
+    }
+  }
+
+  it('fills a vehicle-type page without skipping later matches', async () => {
+    const repository = new PagingRepository([
+      row('hatch', ['HATCHBACK']),
+      row('suv-a', ['SUV']),
+      row('sedan', ['SEDAN']),
+      row('suv-b', ['HATCHBACK', 'SUV']),
+      row('suv-c', ['SUV']),
+    ]);
+
+    const first = await repository.listByVendor('vendor-1', { vehicleType: 'SUV', limit: 2 });
+    expect(first.items.map((item) => item.serviceId)).toEqual(['suv-a', 'suv-b']);
+    expect(first.lastEvaluatedKey?.SK).toBe('SERVICE#suv-b');
+
+    const second = await repository.listByVendor('vendor-1', {
+      vehicleType: 'SUV',
+      limit: 2,
+      lastEvaluatedKey: first.lastEvaluatedKey,
+    });
+    expect(second.items.map((item) => item.serviceId)).toEqual(['suv-c']);
+    expect(second.lastEvaluatedKey).toBeUndefined();
+  });
+
+  it('returns no rows when the vendor has no price for that vehicle type', async () => {
+    const repository = new PagingRepository([
+      row('hatch', ['HATCHBACK']),
+      row('sedan', ['SEDAN']),
+    ]);
+    const page = await repository.listByVendor('vendor-1', { vehicleType: 'SUV', limit: 20 });
+    expect(page.items).toEqual([]);
+    expect(page.lastEvaluatedKey).toBeUndefined();
+  });
+});

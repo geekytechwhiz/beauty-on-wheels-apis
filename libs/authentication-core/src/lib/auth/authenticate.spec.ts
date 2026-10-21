@@ -217,6 +217,34 @@ describe('authenticate', () => {
     expect(req.context.userContext?.userId).toBe('u-1');
   });
 
+  it('exposes a token userId that matches the linked application user', async () => {
+    const userDirectory = directory({
+      findUserByIdentityId: jest.fn().mockResolvedValue({
+        userId: 'identity-user',
+        applicationUserId: 'app-user',
+        identityId: 'cognito-sub-1',
+        roleId: 'VENDOR',
+        status: 'active',
+      }),
+    });
+    const token = signToken({ userId: 'app-user' });
+    const req = requestWithAuth(`Bearer ${token}`);
+    const ctx = await authenticate(req, { userDirectory });
+    expect(ctx.userId).toBe('app-user');
+    expect(req.context.userContext?.userId).toBe('app-user');
+    expect(userDirectory.getUserRoles).toHaveBeenCalledWith('identity-user');
+  });
+
+  it('denies a token userId that does not match the linked application user', async () => {
+    const token = signToken({ userId: 'someone-else' });
+    await expect(
+      authenticate(requestWithAuth(`Bearer ${token}`), { userDirectory: directory() }),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'APPLICATION_USER_NOT_FOUND',
+    });
+  });
+
   it('returns 403 when the application user mapping is missing', async () => {
     const token = signToken();
     const req = requestWithAuth(`Bearer ${token}`);

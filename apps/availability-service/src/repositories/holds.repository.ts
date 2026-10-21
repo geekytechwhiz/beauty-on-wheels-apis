@@ -2,6 +2,17 @@ import { BaseRepository } from '@api-hub/utils';
 import { QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 
 import { env } from '../configs/env.config';
+import {
+  CAPACITY_NAMES,
+  CONSUME_HELD_UPDATE,
+  CapacitySnapshot,
+  OPEN_CAPACITY_NAMES,
+  RESTORE_HELD_UPDATE,
+  consumeCapacityCondition,
+  consumeCapacityValues,
+  restoreCapacityCondition,
+  restoreCapacityValues,
+} from '../domain/capacity-expression';
 import { GSI1_INDEX } from '../domain/constants';
 import { AvailabilityKeyBuilder } from '../domain/keys';
 import {
@@ -9,9 +20,6 @@ import {
   HoldItem,
   HoldLookupItem,
 } from '../types/records';
-
-const BOOKABLE_SLOT =
-  'attribute_exists(PK) AND #status = :available AND capacity >= heldCount + bookedCount + :units';
 
 export class HoldsRepository extends BaseRepository {
   public getTableName(): string {
@@ -47,6 +55,7 @@ export class HoldsRepository extends BaseRepository {
 
   async createHold(input: {
     slotKey: { PK: string; SK: string };
+    snapshot: CapacitySnapshot;
     hold: HoldItem;
     lookup: HoldLookupItem;
     idempotency: HoldIdempotencyItem;
@@ -66,14 +75,10 @@ export class HoldsRepository extends BaseRepository {
           Update: {
             TableName: this.getTableName(),
             Key: input.slotKey,
-            UpdateExpression: 'SET heldCount = heldCount + :units, updatedAt = :now',
-            ConditionExpression: BOOKABLE_SLOT,
-            ExpressionAttributeNames: { '#status': 'status' },
-            ExpressionAttributeValues: {
-              ':available': 'available',
-              ':units': input.units,
-              ':now': input.now,
-            },
+            UpdateExpression: CONSUME_HELD_UPDATE,
+            ConditionExpression: consumeCapacityCondition(input.snapshot, input.units),
+            ExpressionAttributeNames: { ...OPEN_CAPACITY_NAMES },
+            ExpressionAttributeValues: consumeCapacityValues(input.snapshot, input.units, input.now),
           },
         },
         {
@@ -99,6 +104,7 @@ export class HoldsRepository extends BaseRepository {
     lookupKey: { PK: string; SK: string };
     slotKey: { PK: string; SK: string };
     units: number;
+    snapshot: CapacitySnapshot;
     now: string;
     ttl: number;
     nextStatus: 'released' | 'expired';
@@ -142,12 +148,10 @@ export class HoldsRepository extends BaseRepository {
           Update: {
             TableName: this.getTableName(),
             Key: input.slotKey,
-            UpdateExpression: 'SET heldCount = heldCount - :units, updatedAt = :now',
-            ConditionExpression: 'attribute_exists(PK) AND heldCount >= :units',
-            ExpressionAttributeValues: {
-              ':units': input.units,
-              ':now': input.now,
-            },
+            UpdateExpression: RESTORE_HELD_UPDATE,
+            ConditionExpression: restoreCapacityCondition('heldCount'),
+            ExpressionAttributeNames: { ...CAPACITY_NAMES },
+            ExpressionAttributeValues: restoreCapacityValues(input.snapshot, input.units, input.now),
           },
         },
       ],

@@ -790,9 +790,19 @@ functions:
     handler: src/handlers/internal.consumeHold
     description: "Internal invoke. Booking confirmation consumes an active hold and creates an allocation."
 
+  reserveBooking:
+    handler: src/handlers/internal.reserveBooking
+    description: "Internal invoke. Booking creation atomically reserves validated capacity without a customer hold."
+
   releaseAllocation:
     handler: src/handlers/internal.releaseAllocation
     description: "Internal invoke. Booking cancellation releases a confirmed allocation and restores capacity."
+
+  findBookableOfferings:
+    handler: src/handlers/internal.findBookableOfferings
+    description: "Internal invoke. Reports which offerings have a bookable slot on one date. No public route."
+    timeout: 15
+    memorySize: 512
 
   getworkinghours:
     handler: src/handlers/availability.handleGetworkinghours

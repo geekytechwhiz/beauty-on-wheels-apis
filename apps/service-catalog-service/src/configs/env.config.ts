@@ -14,4 +14,9 @@ export const env = {
    * Empty skips the copy. Discovery then uses facts already stored from events.
    */
   VENDOR_DISCOVERY_FACTS_FUNCTION: process.env.VENDOR_DISCOVERY_FACTS_FUNCTION || '',
+  /**
+   * Availability Lambda that reports which offerings have a bookable slot
+   * on a date. Empty rejects availableOn instead of skipping the filter.
+   */
+  AVAILABILITY_BOOKABLE_FUNCTION: process.env.AVAILABILITY_BOOKABLE_FUNCTION || '',
 };

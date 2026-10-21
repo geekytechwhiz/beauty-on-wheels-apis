@@ -11,6 +11,7 @@ import {
   ServiceDiscoveryQuery,
 } from '../types/service-discovery.types';
 import { PRICING_CURRENCY } from './pricing';
+import { resolveVehiclePricing } from './vehicle-pricing';
 import { CatalogKeyBuilder } from '../utils/constants/catalog-key-builder';
 import { ServiceEntity } from '../utils/types/catalog-domain.types';
 
@@ -212,7 +213,13 @@ function discoveryBody(
 ): Omit<ServiceDiscoveryEntity, 'PK' | 'SK' | 'GSI2PK' | 'GSI2SK'> {
   const name = input.service.name.trim();
   const description = input.service.description?.trim();
-  const searchText = [name, description ?? '', ...input.service.vehicleTypes]
+  const pricing = resolveVehiclePricing(input.service);
+  const searchText = [
+    name,
+    description ?? '',
+    ...pricing.map((entry) => entry.vehicleType),
+    ...readKeywords(input.service),
+  ]
     .join(' ')
     .toLowerCase();
   const latitude = finite(branch.latitude);
@@ -229,10 +236,20 @@ function discoveryBody(
     ...(description ? { description } : {}),
     normalizedName: name.toLowerCase(),
     searchText,
-    durationMinutes: input.service.durationMinutes,
-    vehicleTypes: [...input.service.vehicleTypes],
+    durationMinutes: pricing.length > 0
+      ? Math.min(...pricing.map((entry) => entry.durationMinutes))
+      : input.service.durationMinutes,
+    vehicleTypes: pricing.length > 0
+      ? pricing.map((entry) => entry.vehicleType)
+      : [...input.service.vehicleTypes],
     displayPricesByVehicleType: displayPrices(input.service, input.price),
-    basePrice: input.price?.priceOverride ?? input.service.basePrice,
+    durationMinutesByVehicleType: Object.fromEntries(
+      pricing.map((entry) => [entry.vehicleType, entry.durationMinutes]),
+    ),
+    basePrice: input.price?.priceOverride
+      ?? (pricing.length > 0
+        ? Math.min(...pricing.map((entry) => entry.price))
+        : input.service.basePrice),
     currency: PRICING_CURRENCY,
     ...(latitude === undefined ? {} : { latitude }),
     ...(longitude === undefined ? {} : { longitude }),
@@ -254,10 +271,9 @@ function displayPrices(
   if (price && price.enabled === false) {
     return {};
   }
-  const amount = price?.priceOverride ?? service.basePrice;
   const prices: Record<string, number> = {};
-  for (const vehicleType of service.vehicleTypes) {
-    prices[vehicleType] = amount;
+  for (const entry of resolveVehiclePricing(service)) {
+    prices[entry.vehicleType] = price?.priceOverride ?? entry.price;
   }
   return prices;
 }
@@ -290,6 +306,7 @@ function discoverySignature(item: ServiceDiscoveryEntity): string {
     durationMinutes: item.durationMinutes,
     vehicleTypes: item.vehicleTypes,
     displayPricesByVehicleType: item.displayPricesByVehicleType,
+    durationMinutesByVehicleType: item.durationMinutesByVehicleType ?? null,
     basePrice: item.basePrice,
     latitude: item.latitude ?? null,
     longitude: item.longitude ?? null,
@@ -306,6 +323,21 @@ function discoverySignature(item: ServiceDiscoveryEntity): string {
 
 function finite(value: number | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Optional keyword bag. Services do not store keywords yet.
+ * When they do, discovery search keeps matching searchText.
+ */
+function readKeywords(service: ServiceEntity): string[] {
+  const raw = (service as ServiceEntity & { keywords?: unknown }).keywords;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,7 +1,8 @@
-export * from './addresses.handler';
-export * from './communities.handler';
-export * from './customers.handler';
-export * from './kyc.handler';
-export * from './preferences.handler';
-export * from './users.handler';
-export * from './vendors.handler';
+export * from './addresses';
+export * from './communities';
+export * from './customers';
+export * from './kyc';
+export * from './preferences';
+export * from './users';
+export * from './vendors';
+export * as identityRegisteredHandlers from './identity-registered';

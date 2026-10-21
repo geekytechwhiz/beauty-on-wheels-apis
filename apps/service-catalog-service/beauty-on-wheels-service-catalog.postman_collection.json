@@ -214,7 +214,7 @@
             "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"vendorId\": \"{{vendorId}}\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"Premium Exterior Wash {{$timestamp}}\",\n  \"description\": \"Foam wash and polish\",\n  \"durationMinutes\": 60,\n  \"vehicleTypes\": [\"sedan\", \"suv\"],\n  \"basePrice\": 1499,\n  \"displayOrder\": 1,\n  \"active\": true\n}",
+              "raw": "{\n  \"vendorId\": \"{{vendorId}}\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"Premium Exterior Wash {{$timestamp}}\",\n  \"description\": \"Foam wash and polish\",\n  \"vehiclePricing\": [\n    { \"vehicleType\": \"HATCHBACK\", \"price\": 399, \"durationMinutes\": 30 },\n    { \"vehicleType\": \"SEDAN\", \"price\": 499, \"durationMinutes\": 45 },\n    { \"vehicleType\": \"SUV\", \"price\": 699, \"durationMinutes\": 60 }\n  ],\n  \"displayOrder\": 1,\n  \"active\": true\n}",
               "options": {"raw": {"language": "json"}}
             },
             "url": {
@@ -222,7 +222,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["services"]
             },
-            "description": "Creates a service for vendorId under a master category. durationMinutes must be an integer >= 1; vehicleTypes must be non-empty; basePrice must be >= 0."
+            "description": "Creates a service for vendorId under a master category. vehiclePricing requires a unique canonical vehicle type, a non-negative price, and a positive duration. Legacy basePrice, durationMinutes, and vehicleTypes are still accepted."
           },
           "event": [
             {
@@ -263,7 +263,7 @@
             "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Deluxe Exterior Wash\",\n  \"description\": \"Updated wash service\",\n  \"durationMinutes\": 75,\n  \"vehicleTypes\": [\"sedan\", \"suv\"],\n  \"basePrice\": 1699,\n  \"displayOrder\": 2,\n  \"active\": true\n}",
+              "raw": "{\n  \"name\": \"Deluxe Exterior Wash\",\n  \"description\": \"Updated wash service\",\n  \"vehiclePricing\": [\n    { \"vehicleType\": \"HATCHBACK\", \"price\": 449, \"durationMinutes\": 30 },\n    { \"vehicleType\": \"SEDAN\", \"price\": 549, \"durationMinutes\": 45 },\n    { \"vehicleType\": \"SUV\", \"price\": 799, \"durationMinutes\": 70 }\n  ],\n  \"displayOrder\": 2,\n  \"active\": true\n}",
               "options": {"raw": {"language": "json"}}
             },
             "url": {
@@ -552,6 +552,78 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Offerings",
+      "item": [
+        {
+          "name": "List offerings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Customer marketplace search. categoryId selects the discovery partition. sort and cursor apply to the full filtered set. availableOn asks Availability which of those offerings have a bookable slot.",
+            "url": {
+              "raw": "{{baseUrl}}/offerings?search=polish&categoryId={{categoryId}}&vehicleType=SUV&vendorId={{vendorId}}&minPrice=100&maxPrice=900&minRating=4&status=active&latitude=12.9716&longitude=77.5946&radiusKm=10&sort=price:asc,rating:desc&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["offerings"],
+              "query": [
+                { "key": "search", "value": "polish", "description": "Matches offering name, description, and keywords stored in searchText." },
+                { "key": "categoryId", "value": "{{categoryId}}" },
+                { "key": "vehicleType", "value": "SUV", "description": "One code or a comma-separated list. Codes: HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE." },
+                { "key": "vendorId", "value": "{{vendorId}}", "disabled": true },
+                { "key": "branchId", "value": "", "disabled": true },
+                { "key": "minPrice", "value": "100" },
+                { "key": "maxPrice", "value": "900" },
+                { "key": "minRating", "value": "4" },
+                { "key": "status", "value": "active" },
+                { "key": "latitude", "value": "12.9716" },
+                { "key": "longitude", "value": "77.5946" },
+                { "key": "radiusKm", "value": "10" },
+                { "key": "availableOn", "value": "2026-12-01", "disabled": true, "description": "YYYY-MM-DD. Omit to skip the availability check." },
+                { "key": "startTime", "value": "10:00", "disabled": true },
+                { "key": "filter", "value": "price:between:100,900", "disabled": true, "description": "field:operator:value. Operators: eq, in, gte, lte, between." },
+                { "key": "sort", "value": "price:asc,rating:desc" },
+                { "key": "limit", "value": "20" },
+                { "key": "cursor", "value": "{{offeringsCursor}}", "disabled": true }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "pm.test('Offerings page has a list', function () {",
+                  "  pm.expect(data.items).to.be.an('array');",
+                  "  pm.expect(data.hasMore).to.be.a('boolean');",
+                  "});",
+                  "if (data.nextCursor) {",
+                  "  pm.collectionVariables.set('offeringsCursor', data.nextCursor);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Matching offerings",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"offeringId\": \"svc_polish\",\n        \"serviceId\": \"svc_polish\",\n        \"name\": \"Interior polish\",\n        \"description\": \"Full interior\",\n        \"categoryId\": \"cat_detail\",\n        \"vendorId\": \"vendor_1\",\n        \"branchId\": \"branch_1\",\n        \"vehicleTypes\": [\"SUV\"],\n        \"displayPrice\": 799,\n        \"currency\": \"INR\",\n        \"durationMinutes\": 60,\n        \"distanceKm\": 3.2,\n        \"rating\": 4.6,\n        \"reviewCount\": 18,\n        \"status\": \"active\"\n      }\n    ],\n    \"nextCursor\": \"eyJ2ZXJzaW9uIjoxfQ\",\n    \"hasMore\": true\n  }\n}"
+            },
+            {
+              "name": "No offerings",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [],\n    \"hasMore\": false\n  }\n}"
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -566,6 +638,7 @@
     {"key": "vehicleType", "value": "suv", "type": "string"},
     {"key": "durationMinutes", "value": "60", "type": "string"},
     {"key": "limit", "value": "25", "type": "string"},
-    {"key": "nextToken", "value": "", "type": "string"}
+    {"key": "nextToken", "value": "", "type": "string"},
+    {"key": "offeringsCursor", "value": "", "type": "string"}
   ]
 }

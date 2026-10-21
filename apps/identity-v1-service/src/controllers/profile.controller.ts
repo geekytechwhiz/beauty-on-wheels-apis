@@ -26,6 +26,12 @@ export class ProfileController {
 
     }
 
+    async handleGetProvisioningStatus(
+        request: LambdaRequest
+    ) {
+        return this.service.getProvisioningStatus(request);
+    }
+
 }
 
 let controller: ProfileController;

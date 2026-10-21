@@ -27,3 +27,16 @@ export const confirmPaidBooking = async (event: {
     throw error;
   }
 };
+
+/** Trusted Payment Service callback for gateway failure or payment expiry. */
+export const failPaymentBooking = async (event: { bookingId?: unknown } | null): Promise<unknown> => {
+  try {
+    const data = await getBookingsService().failPaymentBooking(event ?? {});
+    return { data };
+  } catch (error) {
+    if (error instanceof BaseError) {
+      return { error: { code: error.code, message: error.message, statusCode: error.statusCode } };
+    }
+    throw error;
+  }
+};

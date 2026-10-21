@@ -18,9 +18,17 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ConditionalWriteConflictError } from '@api-hub/utils';
 
+import { AllocationsRepository } from './allocations.repository';
 import { HoldsRepository } from './holds.repository';
 import { SlotsRepository } from './slots.repository';
-import { HoldItem, HoldLookupItem, SlotItem, SlotLookupItem } from '../types/records';
+import {
+  AllocationItem,
+  AllocationLookupItem,
+  HoldItem,
+  HoldLookupItem,
+  SlotItem,
+  SlotLookupItem,
+} from '../types/records';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
@@ -76,7 +84,46 @@ describe('availability repositories', () => {
     expect(input.ExpressionAttributeValues).toMatchObject({
       ':pk': 'VENDOR#vendor-1#BRANCH#branch-1#DATE#2026-10-12',
       ':from': 'SLOT#09:00',
+      ':to': 'SLOT#10:00#\uffff',
     });
+  });
+
+  it('uses an exclusive end bound so later slot-id suffixes stay outside the range', async () => {
+    ddbMock.on(QueryCommand).resolves({ Items: [] });
+    const repository = new SlotsRepository();
+    await expect(repository.querySlotStarts({
+      vendorId: 'vendor-1',
+      branchId: 'branch-1',
+      date: '2026-10-21',
+      fromTime: '09:00',
+      toTimeExclusive: '09:30',
+    })).resolves.toEqual([]);
+    const input = ddbMock.commandCalls(QueryCommand)[0].args[0].input;
+    expect(input.KeyConditionExpression).toBe('PK = :pk AND SK BETWEEN :from AND :to');
+    expect(input.ExpressionAttributeValues).toEqual({
+      ':pk': 'VENDOR#vendor-1#BRANCH#branch-1#DATE#2026-10-21',
+      ':from': 'SLOT#09:00',
+      ':to': 'SLOT#09:30',
+    });
+  });
+
+  it('follows slot range pages until the partition is exhausted', async () => {
+    const second = { ...slot, SK: 'SLOT#09:00#slot_b', slotId: 'slot_b' };
+    ddbMock.on(QueryCommand)
+      .resolvesOnce({ Items: [slot], LastEvaluatedKey: { PK: slot.PK, SK: slot.SK } })
+      .resolvesOnce({ Items: [second] });
+    const repository = new SlotsRepository();
+    const items = await repository.querySlotStarts({
+      vendorId: 'vendor-1',
+      branchId: 'branch-1',
+      date: '2026-10-12',
+      fromTime: '09:00',
+      toTimeExclusive: '10:00',
+    });
+    expect(items.map((item) => item.slotId)).toEqual(['slot_abc', 'slot_b']);
+    const calls = ddbMock.commandCalls(QueryCommand);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].args[0].input.ExclusiveStartKey).toEqual({ PK: slot.PK, SK: slot.SK });
   });
 
   it('blocks a slot only while it is available', async () => {
@@ -144,6 +191,7 @@ describe('availability repositories', () => {
         createdAt: slot.createdAt,
       },
       units: 1,
+      snapshot: { capacity: slot.capacity, bookedCount: slot.bookedCount, heldCount: slot.heldCount },
       now: slot.createdAt,
     });
     const items = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems ?? [];
@@ -154,8 +202,14 @@ describe('availability repositories', () => {
       expect.objectContaining({ SK: 'HOLD#slot_abc#hold_1' }),
       expect.objectContaining({ PK: 'HOLD#hold_1', SK: 'META' }),
     ]);
-    expect(items[1].Update?.ConditionExpression).toContain(
-      'capacity >= heldCount + bookedCount + :units',
+    expect(items[1].Update?.ConditionExpression).toContain('availableCount >= :units');
+    expect(items[1].Update?.ConditionExpression).not.toContain('+');
+    expect(items[1].Update?.ExpressionAttributeNames).toEqual({
+      '#status': 'status',
+      '#capacity': 'capacity',
+    });
+    expect(items[1].Update?.UpdateExpression).toContain(
+      'if_not_exists(availableCount, :availableSeed)',
     );
     const keys = items.map((item) => JSON.stringify(item.Update?.Key ?? {
       PK: item.Put?.Item?.PK,
@@ -203,5 +257,116 @@ describe('availability repositories', () => {
     await expect(repository.createSlotIfAbsent(slot, lookup)).rejects.toBeInstanceOf(
       ConditionalWriteConflictError,
     );
+  });
+
+  it('reserves every intersecting block under one conditional transaction', async () => {
+    ddbMock.on(TransactWriteCommand).resolves({});
+    const repository = new AllocationsRepository();
+    const allocation: AllocationItem = {
+      PK: slot.PK,
+      SK: 'ALLOCATION#slot_abc#booking-1',
+      entityType: 'SlotAllocation',
+      bookingId: 'booking-1',
+      slotId: slot.slotId,
+      slotIds: [slot.slotId, 'slot_next'],
+      vendorId: slot.vendorId,
+      branchId: slot.branchId,
+      customerId: 'customer-1',
+      units: 1,
+      status: 'confirmed',
+      createdAt: slot.createdAt,
+      updatedAt: slot.createdAt,
+    };
+    const lookup: AllocationLookupItem = {
+      PK: 'BOOKING#booking-1',
+      SK: 'ALLOCATION',
+      entityType: 'AllocationLookup',
+      bookingId: 'booking-1',
+      slotId: slot.slotId,
+      slotIds: allocation.slotIds,
+      vendorId: slot.vendorId,
+      branchId: slot.branchId,
+      customerId: 'customer-1',
+      units: 1,
+      status: 'confirmed',
+      canonicalPk: allocation.PK,
+      canonicalSk: allocation.SK,
+      createdAt: slot.createdAt,
+      updatedAt: slot.createdAt,
+    };
+    await repository.reserveBooking({
+      slots: [
+        { PK: slot.PK, SK: slot.SK, capacity: 1, bookedCount: 0, heldCount: 0 },
+        { PK: slot.PK, SK: 'SLOT#09:30#slot_next', capacity: 1, bookedCount: 0, heldCount: 0 },
+      ],
+      allocation,
+      allocationLookup: lookup,
+      now: slot.createdAt,
+    });
+    const items = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems ?? [];
+    expect(items).toHaveLength(4);
+    expect(items[0].Update?.Key).toEqual({ PK: slot.PK, SK: slot.SK });
+    expect(items[1].Update?.Key).toEqual({ PK: slot.PK, SK: 'SLOT#09:30#slot_next' });
+    expect(items[0].Update?.ConditionExpression).toContain('availableCount >= :units');
+    expect(items[0].Update?.ConditionExpression).not.toContain('+');
+    expect(items[0].Update?.ExpressionAttributeNames).toEqual({
+      '#status': 'status',
+      '#capacity': 'capacity',
+    });
+    expect(items[0].Update?.UpdateExpression).toContain('if_not_exists(availableCount, :availableSeed)');
+    expect(items[1].Update?.ConditionExpression).toContain('#status = :available');
+    expect(items[2].Put?.ConditionExpression).toBe('attribute_not_exists(PK)');
+    expect(items[3].Put?.ConditionExpression).toBe('attribute_not_exists(PK)');
+  });
+
+  it('releases every covered block without decrementing below zero', async () => {
+    ddbMock.on(TransactWriteCommand).resolves({});
+    const repository = new AllocationsRepository();
+    await repository.releaseAllocation({
+      allocation: {
+        PK: slot.PK,
+        SK: 'ALLOCATION#slot_abc#booking-1',
+        entityType: 'SlotAllocation',
+        bookingId: 'booking-1',
+        slotId: slot.slotId,
+        vendorId: slot.vendorId,
+        branchId: slot.branchId,
+        customerId: 'customer-1',
+        units: 1,
+        status: 'confirmed',
+        createdAt: slot.createdAt,
+        updatedAt: slot.createdAt,
+      },
+      lookup: {
+        PK: 'BOOKING#booking-1',
+        SK: 'ALLOCATION',
+        entityType: 'AllocationLookup',
+        bookingId: 'booking-1',
+        slotId: slot.slotId,
+        vendorId: slot.vendorId,
+        branchId: slot.branchId,
+        customerId: 'customer-1',
+        units: 1,
+        status: 'confirmed',
+        canonicalPk: slot.PK,
+        canonicalSk: 'ALLOCATION#slot_abc#booking-1',
+        createdAt: slot.createdAt,
+        updatedAt: slot.createdAt,
+      },
+      slots: [
+        { PK: slot.PK, SK: slot.SK, capacity: 1, bookedCount: 1, heldCount: 0 },
+        { PK: slot.PK, SK: 'SLOT#09:30#slot_next', capacity: 1, bookedCount: 1, heldCount: 0 },
+      ],
+      now: slot.updatedAt,
+    });
+    const items = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems ?? [];
+    expect(items).toHaveLength(4);
+    expect(items[2].Update?.ConditionExpression).toContain('bookedCount >= :units');
+    expect(items[2].Update?.ConditionExpression).toContain('attribute_exists(availableCount)');
+    expect(items[2].Update?.ExpressionAttributeNames).toEqual({
+      '#capacity': 'capacity',
+    });
+    expect(items[2].Update?.UpdateExpression).toContain('availableCount = if_not_exists(availableCount, :availableSeed) + :units');
+    expect(items[3].Update?.Key).toEqual({ PK: slot.PK, SK: 'SLOT#09:30#slot_next' });
   });
 });

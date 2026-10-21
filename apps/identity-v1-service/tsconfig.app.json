@@ -9,7 +9,7 @@
     "declarationMap": false,
     "emitDeclarationOnly": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/events/bootstrap"],
   "references": [
     {
       "path": "../../libs/event-platform/tsconfig.lib.json"

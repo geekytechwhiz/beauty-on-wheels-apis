@@ -38,6 +38,8 @@ IdentityTable:
       PointInTimeRecoveryEnabled: true
     SSESpecification:
       SSEEnabled: true
+    StreamSpecification:
+      StreamViewType: NEW_IMAGE
     DeletionProtectionEnabled: ${self:custom.deletionProtectionEnabled.${self:provider.stage}, false}
     Tags:
       - Key: Service

@@ -2,6 +2,7 @@ import { env } from '../configs/env.config';
 import {
   CatalogOffering,
   CatalogPrice,
+  VehiclePricing,
 } from '../domain/create-booking';
 import { BookingError } from '../errors';
 import { authHeaders, requestJson, requireBaseUrl } from './http';
@@ -16,6 +17,7 @@ export interface CatalogGateway {
     offeringId: string;
     vendorId: string;
     vehicleType: string;
+    addOnIds: string[];
     authorizationHeader?: string;
   }): Promise<CatalogPrice>;
 }
@@ -26,7 +28,7 @@ export class HttpCatalogGateway implements CatalogGateway {
     vendorId: string;
     authorizationHeader?: string;
   }): Promise<CatalogOffering> {
-    const base = requireBaseUrl(env.CATALOG_SERVICE_URL, 'CATALOG_SERVICE_URL');
+    const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
     const body = await requestJson(
       `${base}/services/${encodeURIComponent(input.offeringId)}?vendorId=${encodeURIComponent(input.vendorId)}`,
       { method: 'GET', headers: authHeaders(input.authorizationHeader) },
@@ -38,9 +40,10 @@ export class HttpCatalogGateway implements CatalogGateway {
     offeringId: string;
     vendorId: string;
     vehicleType: string;
+    addOnIds: string[];
     authorizationHeader?: string;
   }): Promise<CatalogPrice> {
-    const base = requireBaseUrl(env.CATALOG_SERVICE_URL, 'CATALOG_SERVICE_URL');
+    const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
     const body = await requestJson(`${base}/pricing/calculate`, {
       method: 'POST',
       headers: {
@@ -51,15 +54,24 @@ export class HttpCatalogGateway implements CatalogGateway {
         vendorId: input.vendorId,
         vehicleType: input.vehicleType,
         serviceIds: [input.offeringId],
+        addOnIds: input.addOnIds,
       }),
     });
     return parsePrice(body, input.offeringId);
   }
 }
 
-export function parseOffering(body: unknown, offeringId: string): CatalogOffering {
-  const record = asRecord(body);
+
+export function parseOffering(
+  body: unknown,
+  offeringId: string,
+): CatalogOffering {
+  // Support both the standard API envelope and direct records.
+  const response = asRecord(body);
+  const record = asRecord(response.data !== undefined ? response.data : body);
+
   const id = typeof record.id === 'string' ? record.id : offeringId;
+
   if (typeof record.active !== 'boolean') {
     throw new BookingError(
       'CATALOG_PRICING_UNAVAILABLE',
@@ -67,20 +79,122 @@ export function parseOffering(body: unknown, offeringId: string): CatalogOfferin
       502,
     );
   }
-  const vehicleTypes = Array.isArray(record.vehicleTypes)
-    ? record.vehicleTypes.filter((value): value is string => typeof value === 'string')
+
+  // Parse vehicle-specific pricing and duration.
+  const vehiclePricing: VehiclePricing[] = [];
+
+  if (Array.isArray(record.vehiclePricing)) {
+    const seenTypes = new Set<string>();
+
+    for (const entry of record.vehiclePricing) {
+      const item = asRecord(entry);
+
+      const vehicleType = item.vehicleType;
+      const price = item.price;
+      const durationMinutes = item.durationMinutes;
+
+      if (
+        typeof vehicleType !== 'string' ||
+        vehicleType.trim().length === 0 ||
+        seenTypes.has(vehicleType) ||
+        typeof price !== 'number' ||
+        !Number.isFinite(price) ||
+        price < 0 ||
+        !Number.isInteger(Math.round(price * 100)) ||
+        typeof durationMinutes !== 'number' ||
+        !Number.isInteger(durationMinutes) ||
+        durationMinutes <= 0
+      ) {
+        throw new BookingError(
+          'CATALOG_PRICING_UNAVAILABLE',
+          'Service Catalog returned invalid vehicle pricing',
+          502,
+        );
+      }
+
+      seenTypes.add(vehicleType);
+
+      vehiclePricing.push({
+        vehicleType,
+        price,
+        durationMinutes,
+      });
+    }
+  }
+
+  // Backward compatibility for legacy Catalog records.
+  const legacyVehicleTypes = Array.isArray(record.vehicleTypes)
+    ? record.vehicleTypes.filter(
+        (value): value is string => typeof value === 'string',
+      )
     : [];
-  const version = typeof record.version === 'number' && Number.isInteger(record.version)
-    ? record.version
-    : undefined;
+
+  if (vehiclePricing.length === 0) {
+    const basePrice = record.basePrice;
+    const durationMinutes = record.durationMinutes;
+
+    if (
+      legacyVehicleTypes.length === 0 ||
+      typeof basePrice !== 'number' ||
+      !Number.isFinite(basePrice) ||
+      basePrice < 0 ||
+      typeof durationMinutes !== 'number' ||
+      !Number.isInteger(durationMinutes) ||
+      durationMinutes <= 0
+    ) {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Service Catalog did not provide valid vehicle pricing',
+        502,
+      );
+    }
+
+    for (const vehicleType of legacyVehicleTypes) {
+      vehiclePricing.push({
+        vehicleType,
+        price: basePrice,
+        durationMinutes,
+      });
+    }
+  }
+
+  const vehicleTypes = vehiclePricing.map((entry) => entry.vehicleType);
+
+  const version =
+    typeof record.version === 'number' && Number.isInteger(record.version)
+      ? record.version
+      : undefined;
+
   return {
     id,
     active: record.active,
     vehicleTypes,
-    ...(version === undefined ? {} : { version }),
-    ...(typeof record.currency === 'string' ? { currency: record.currency } : {}),
+    vehiclePricing,
+
+    ...(version !== undefined ? { version } : {}),
+    ...(typeof record.currency === 'string'
+      ? { currency: record.currency }
+      : {}),
+    ...(typeof record.name === 'string' ? { name: record.name } : {}),
+    ...(typeof record.categoryId === 'string'
+      ? { categoryId: record.categoryId }
+      : {}),
+    ...(typeof record.vendorId === 'string'
+      ? { vendorId: record.vendorId }
+      : {}),
+
+    // Only expose a single duration when all vehicle
+    // types genuinely share the same duration.
+    ...(vehiclePricing.every(
+      (entry) => entry.durationMinutes === vehiclePricing[0].durationMinutes,
+    )
+      ? {
+          durationMinutes: vehiclePricing[0].durationMinutes,
+        }
+      : {}),
   };
 }
+
 
 export function parsePrice(body: unknown, offeringId: string): CatalogPrice {
   const record = asRecord(body);
@@ -103,6 +217,16 @@ export function parsePrice(body: unknown, offeringId: string): CatalogPrice {
     ...(version === undefined ? {} : { offeringVersion: version, version }),
     ...(catalogVersion === undefined ? {} : { catalogVersion }),
     ...(vendorPricingVersion === undefined ? {} : { vendorPricingVersion }),
+    items: items.map(asRecord).flatMap((item) => {
+      const id = typeof item.id === 'string' ? item.id : undefined;
+      const name = typeof item.name === 'string' ? item.name : undefined;
+      const type = item.type;
+      const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : undefined;
+      const total = typeof item.total === 'number' ? item.total : undefined;
+      return id && name && (type === 'SERVICE' || type === 'PACKAGE' || type === 'ADD_ON') && unitPrice !== undefined && total !== undefined
+        ? [{ id, name, type, unitPrice, total }]
+        : [];
+    }),
   };
 }
 

@@ -204,5 +204,153 @@ describe('applyApplicationRoles', () => {
     expect(result).toBe(source);
     expect(JSON.stringify(result.response)).not.toContain('ADMIN');
     expect(JSON.stringify(result.response)).not.toContain('roles');
+    expect(JSON.stringify(result.response)).not.toContain('userId');
+    expect(JSON.stringify(result.response)).not.toContain('cognito-sub-1');
+  });
+
+  it('adds the linked application userId and keeps the existing claims', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userId: 'app-user',
+      userType: 'CUSTOMER',
+      roles: ['CUSTOMER', 'ADMIN'],
+    }));
+
+    expect(result.request?.userAttributes?.sub).toBe('cognito-sub-1');
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userId: 'app-user',
+            userType: 'CUSTOMER',
+            role: 'ADMIN',
+            roles: ['CUSTOMER', 'ADMIN'],
+          },
+        },
+      },
+    });
+  });
+
+  it('still adds userId when the identity has no role or userType', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      userId: 'app-user',
+      roles: [],
+    }));
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            userId: 'app-user',
+          },
+        },
+      },
+    });
+  });
+
+  it('omits userId for a new identity that has no application user', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userType: 'CUSTOMER',
+      roles: ['CUSTOMER'],
+    }));
+
+    const claims = (
+      result.response as {
+        claimsAndScopeOverrideDetails: {
+          accessTokenGeneration: { claimsToAddOrOverride: Record<string, unknown> };
+        };
+      }
+    ).claimsAndScopeOverrideDetails.accessTokenGeneration.claimsToAddOrOverride;
+    expect(claims).not.toHaveProperty('userId');
+    expect(claims.identityId).toBe('cognito-sub-1');
+    expect(claims.userType).toBe('CUSTOMER');
+    expect(claims.roles).toEqual(['CUSTOMER']);
+  });
+
+  it('adds userId again when the access token is refreshed', async () => {
+    const result = await applyApplicationRoles(
+      event({ triggerSource: 'TokenGeneration_RefreshTokens' }),
+      async () => ({
+        identityId: 'cognito-sub-1',
+        userId: 'app-user',
+        userType: 'VENDOR',
+        roles: ['VENDOR'],
+      }),
+    );
+
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userId: 'app-user',
+            userType: 'VENDOR',
+            role: 'VENDOR',
+            roles: ['VENDOR'],
+          },
+        },
+      },
+    });
+  });
+
+  it('keeps ID-token, scope, and group overrides when userId is added', async () => {
+    const result = await applyApplicationRoles(
+      event({
+        response: {
+          claimsAndScopeOverrideDetails: {
+            idTokenGeneration: {
+              claimsToAddOrOverride: { locale: 'en' },
+            },
+            accessTokenGeneration: {
+              claimsToAddOrOverride: { locale: 'en' },
+              scopesToAdd: ['openid'],
+              scopesToSuppress: ['unused'],
+            },
+            groupOverrideDetails: {
+              groupsToOverride: ['existing-group'],
+            },
+          },
+        },
+      }),
+      async () => ({
+        identityId: 'cognito-sub-1',
+        userId: 'app-user',
+        userType: 'CUSTOMER',
+        roles: ['CUSTOMER'],
+      }),
+    );
+
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        idTokenGeneration: {
+          claimsToAddOrOverride: { locale: 'en' },
+        },
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            locale: 'en',
+            identityId: 'cognito-sub-1',
+            userId: 'app-user',
+            userType: 'CUSTOMER',
+            role: 'CUSTOMER',
+            roles: ['CUSTOMER'],
+          },
+          scopesToAdd: ['openid'],
+          scopesToSuppress: ['unused'],
+        },
+        groupOverrideDetails: {
+          groupsToOverride: ['existing-group'],
+        },
+      },
+    });
+    const idToken = (
+      result.response as {
+        claimsAndScopeOverrideDetails: {
+          idTokenGeneration: { claimsToAddOrOverride: Record<string, unknown> };
+        };
+      }
+    ).claimsAndScopeOverrideDetails.idTokenGeneration.claimsToAddOrOverride;
+    expect(idToken).not.toHaveProperty('userId');
+    expect(idToken).not.toHaveProperty('roles');
   });
 });

@@ -53,6 +53,41 @@ apps/order-service/.esbuild/
 apps/device-service/.esbuild/
 apps/organization-service/.esbuild/
 apps/metadata-registry-service/.esbuild/
+apps/booking-service/.esbuild/
+apps/booking-service/swagger/
+apps/booking-service/coverage/
+apps/booking-service.zip
+apps/booking-service/*.zip
+apps/vehicle-service/.esbuild/
+apps/vehicle-service/swagger/
+apps/vehicle-service/coverage/
+apps/vehicle-service.zip
+apps/vehicle-service/*.zip
+apps/vendor-service/.esbuild/
+apps/vendor-service/swagger/
+apps/vendor-service/coverage/
+apps/vendor-service.zip
+apps/vendor-service/*.zip
+apps/payments-service/.esbuild/
+apps/payments-service/swagger/
+apps/payments-service/coverage/
+apps/payments-service.zip
+apps/payments-service/*.zip
+apps/email-service/.esbuild/
+apps/email-service/swagger/
+apps/email-service/coverage/
+apps/email-service.zip
+apps/email-service/*.zip
+apps/product-service/.esbuild/
+apps/product-service/swagger/
+apps/product-service/coverage/
+apps/product-service.zip
+apps/product-service/*.zip
+apps/vendor-service/.esbuild/
+apps/vendor-service/swagger/
+apps/vendor-service/coverage/
+apps/vendor-service.zip
+apps/vendor-service/*.zip
 
 services/partner-integration/.env
 services/partner-registry/.esbuild
@@ -60,8 +95,8 @@ services/partner-integration/.esbuild
 services/partner-registry/.esbuild
 services/fhir-gateway/.esbuild
 services/authorizer-service/.esbuild
-services/sso-integration/.esbuild
-services/sso-integration/.env
+services/vendor-integration/.esbuild
+services/vendor-integration/.env
 
 # Serverless build artifacts
 **/.serverless/

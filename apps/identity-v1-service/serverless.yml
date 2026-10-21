@@ -39,6 +39,7 @@ provider:
     FIXED_OTP_ENABLED: ${env:FIXED_OTP_ENABLED, 'true'}
     LOG_LEVEL: info
     DYNAMODB_TABLE_NAME: identity-table-${self:provider.stage}
+    EVENT_BUS_NAME: ${self:custom.sharedEventBusName}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
     COGNITO_REGION: ${self:provider.region}
     COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
@@ -83,6 +84,14 @@ provider:
             - cognito-idp:InitiateAuth
           Resource:
             - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
+        - Effect: Allow
+          Action: events:PutEvents
+          Resource:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-arn
+        - Effect: Allow
+          Action: sqs:SendMessage
+          Resource:
+            - !GetAtt IdentityRegistrationStreamDlq.Arn
 custom:
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
   deletionProtectionEnabled:
@@ -90,6 +99,7 @@ custom:
     production: true
   # Public routes (health, register, login, refresh, OTP) omit the authorizer.
   resourcePrefix: nv${self:provider.stage}-bw
+  sharedEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
   esbuild:
     bundle: true
     minify: false
@@ -736,6 +746,17 @@ functions:
                   description: Request failed
                 responseModels:
                   application/json: ErrorResponse
+  getProvisioningStatus:
+    handler: src/handlers/profile.provisioningStatus
+    events:
+      - http:
+          path: /identity/me/provisioning-status
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Current identity provisioning status"
+          swaggerTags:
+            - Profile
   getsessions:
     handler: src/handlers/sessions.handleGetsessions
     events:
@@ -892,7 +913,7 @@ functions:
   # the user pool or any other trigger.
   preTokenGeneration:
     handler: src/handlers/pre-token-generation.handler
-    description: Adds persisted identity classification and application role claims to Cognito access tokens.
+    description: Adds identityId, userType, linked application userId, role, and roles to Cognito access tokens. The pool trigger is V2_0.
     timeout: 5
     memorySize: 256
   attachPreTokenGeneration:
@@ -911,6 +932,44 @@ functions:
     description: Grants VENDOR after Vendor Service has verified a completed vendor onboarding email.
     timeout: 30
     memorySize: 256
+  onIdentityProfileInserted:
+    handler: src/handlers/identity-profile-stream.handler
+    name: ${self:custom.resourcePrefix}-identity-profile-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt IdentityTable.StreamArn
+          filterPatterns:
+            - eventName:
+                - INSERT
+              dynamodb:
+                NewImage:
+                  SK:
+                    S:
+                      - PROFILE
+                  entityType:
+                    S:
+                      - Profile
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt IdentityRegistrationStreamDlq.Arn
+              type: sqs
+  onUserProvisioned:
+    handler: src/handlers/user-provisioned.handler
+    name: ${self:custom.resourcePrefix}-identity-user-provisioned
+    timeout: 60
+  reconcileUserProvisioning:
+    handler: src/handlers/reconcile-user-provisioning.handler
+    name: ${self:custom.resourcePrefix}-identity-provisioning-reconciliation
+    timeout: 60
+    events:
+      - schedule: rate(15 minutes)
   postUserAdminRole:
     handler: src/handlers/roles.handleAssignAdminRole
     events:
@@ -995,6 +1054,55 @@ functions:
 resources:
   Resources:
     IdentityTable: ${file(resources/dynamodb.yml):IdentityTable}
+    IdentityRegistrationStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-identity-registration-stream-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+    IdentityUserProvisionedDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-identity-user-provisioned-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+    IdentityUserProvisionedDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref IdentityUserProvisionedDlq
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: { Service: events.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt IdentityUserProvisionedDlq.Arn
+              Condition:
+                StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
+    IdentityUserProvisionedRule:
+      Type: AWS::Events::Rule
+      DependsOn: IdentityUserProvisionedDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-user-provisioned
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [user-service]
+          detail-type: [User.Provisioned]
+        State: ENABLED
+        Targets:
+          - Id: IdentityUserProvisioned
+            Arn: !GetAtt OnUserProvisionedLambdaFunction.Arn
+            DeadLetterConfig: { Arn: !GetAtt IdentityUserProvisionedDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    IdentityUserProvisionedEventPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnUserProvisionedLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt IdentityUserProvisionedRule.Arn
     AttachPreTokenGenerationRole:
       Type: AWS::IAM::Role
       Properties:

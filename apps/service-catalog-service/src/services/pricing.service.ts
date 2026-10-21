@@ -7,6 +7,10 @@ import {
 import { createChildLogger, createLogger } from "@api-hub/observability";
 
 import { assertVehicleType } from "../domain/catalog-validation";
+import {
+  priceForVehicle,
+  normalizeServiceEntity,
+} from "../domain/vehicle-pricing";
 import { isAuthoritativeCatalogVersion } from "../domain/catalog-version";
 import {
   MAX_OFFERING_REVISION_ATTEMPTS,
@@ -165,7 +169,7 @@ export class PricingService {
         "VENDOR_PRICING_UNAVAILABLE",
       );
     }
-    const lines = this.buildLines(services, packages, addOns, vendorPrices);
+    const lines = this.buildLines(services, packages, addOns, vendorPrices, vehicleType);
     return {
       services,
       packages,
@@ -340,7 +344,9 @@ export class PricingService {
           "CATALOG_ENTITY_INACTIVE",
         );
       }
-      services.push(await this.servicesRepository.ensureServiceVersion(service));
+      services.push(normalizeServiceEntity(
+        await this.servicesRepository.ensureServiceVersion(service),
+      ));
     }
     return services;
   }
@@ -397,7 +403,9 @@ export class PricingService {
             "INVALID_PACKAGE",
           );
         }
-        services.push(await this.servicesRepository.ensureServiceVersion(service));
+        services.push(normalizeServiceEntity(
+          await this.servicesRepository.ensureServiceVersion(service),
+        ));
       }
       packages.push({
         packageEntity: await this.packagesRepository.ensurePackageVersion(packageEntity),
@@ -474,6 +482,7 @@ export class PricingService {
     packages: ReadonlyArray<{ packageEntity: PackageEntity; services: ServiceEntity[] }>,
     addOns: readonly AddonEntity[],
     vendorPrices: VendorPricingSnapshot | undefined,
+    vehicleType: string,
   ): PricingLineInput[] {
     const lines: PricingLineInput[] = [];
 
@@ -490,7 +499,7 @@ export class PricingService {
         type: "SERVICE",
         id: service.serviceId,
         name: service.name,
-        catalogPrice: service.basePrice,
+        catalogPrice: priceForVehicle(service, vehicleType),
         ...(offering?.priceOverride === undefined
           ? {}
           : { providerPrice: offering.priceOverride }),

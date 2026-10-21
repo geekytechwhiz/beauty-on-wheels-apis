@@ -1,6 +1,17 @@
 import { BaseRepository } from '@api-hub/utils';
 
 import { env } from '../configs/env.config';
+import {
+  CAPACITY_NAMES,
+  CONSUME_BOOKED_UPDATE,
+  OPEN_CAPACITY_NAMES,
+  RESTORE_BOOKED_UPDATE,
+  SlotCapacityTarget,
+  consumeCapacityCondition,
+  consumeCapacityValues,
+  restoreCapacityCondition,
+  restoreCapacityValues,
+} from '../domain/capacity-expression';
 import { AvailabilityKeyBuilder } from '../domain/keys';
 import {
   AllocationItem,
@@ -121,12 +132,56 @@ export class AllocationsRepository extends BaseRepository {
     });
   }
 
+  /**
+   * Atomically consumes capacity for a booking initiated by Booking Service.
+   * This intentionally bypasses public customer holds: the booking id is the
+   * idempotency boundary and allocation record, so clients cannot reserve
+   * capacity separately from a validated booking.
+   */
+  async reserveBooking(input: {
+    slots: SlotCapacityTarget[];
+    allocation: AllocationItem;
+    allocationLookup: AllocationLookupItem;
+    now: string;
+  }): Promise<void> {
+    const units = input.allocation.units;
+    await this.transactWrite({
+      TransactItems: [
+        ...input.slots.map((slot) => ({
+          Update: {
+            TableName: this.getTableName(),
+            Key: { PK: slot.PK, SK: slot.SK },
+            UpdateExpression: CONSUME_BOOKED_UPDATE,
+            ConditionExpression: consumeCapacityCondition(slot, units),
+            ExpressionAttributeNames: { ...OPEN_CAPACITY_NAMES },
+            ExpressionAttributeValues: consumeCapacityValues(slot, units, input.now),
+          },
+        })),
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: input.allocation,
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: input.allocationLookup,
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+      ],
+    });
+  }
+
   async releaseAllocation(input: {
     allocation: AllocationItem;
     lookup: AllocationLookupItem;
-    slotKey: { PK: string; SK: string };
+    slots: SlotCapacityTarget[];
     now: string;
   }): Promise<void> {
+    const units = input.allocation.units;
     await this.transactWrite({
       TransactItems: [
         {
@@ -157,18 +212,16 @@ export class AllocationsRepository extends BaseRepository {
             },
           },
         },
-        {
+        ...input.slots.map((slot) => ({
           Update: {
             TableName: this.getTableName(),
-            Key: input.slotKey,
-            UpdateExpression: 'SET bookedCount = bookedCount - :units, updatedAt = :now',
-            ConditionExpression: 'attribute_exists(PK) AND bookedCount >= :units',
-            ExpressionAttributeValues: {
-              ':units': input.allocation.units,
-              ':now': input.now,
-            },
+            Key: { PK: slot.PK, SK: slot.SK },
+            UpdateExpression: RESTORE_BOOKED_UPDATE,
+            ConditionExpression: restoreCapacityCondition('bookedCount'),
+            ExpressionAttributeNames: { ...CAPACITY_NAMES },
+            ExpressionAttributeValues: restoreCapacityValues(slot, units, input.now),
           },
-        },
+        })),
       ],
     });
   }

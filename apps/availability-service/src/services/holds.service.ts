@@ -97,6 +97,11 @@ export class HoldsService {
     try {
       await this.holds.createHold({
         slotKey: { PK: slot.PK, SK: slot.SK },
+        snapshot: {
+          capacity: slot.capacity,
+          bookedCount: slot.bookedCount,
+          heldCount: slot.heldCount,
+        },
         hold: built.hold,
         lookup: built.lookup,
         idempotency: built.idempotency,
@@ -177,6 +182,11 @@ export class HoldsService {
         lookupKey: { PK: lookup.PK, SK: lookup.SK },
         slotKey: { PK: slot.PK, SK: slot.SK },
         units: hold.units,
+        snapshot: {
+          capacity: slot.capacity,
+          bookedCount: slot.bookedCount,
+          heldCount: slot.heldCount,
+        },
         now: nowIso,
         ttl: Math.floor(instant.getTime() / 1000) + RETAIN_SECONDS,
         nextStatus,
@@ -321,7 +331,12 @@ export class HoldsService {
       .filter((allocation) => allocation.slotId === slot.slotId && allocation.status === 'confirmed')
       .reduce((sum, allocation) => sum + allocation.units, 0);
     const current = await this.requireSlot(slot.slotId);
-    if (current.heldCount === heldCount && current.bookedCount === bookedCount) {
+    const availableCount = Math.max(0, current.capacity - heldCount - bookedCount);
+    if (
+      current.heldCount === heldCount
+      && current.bookedCount === bookedCount
+      && current.availableCount === availableCount
+    ) {
       return;
     }
     try {
@@ -331,6 +346,7 @@ export class HoldsService {
         readBooked: current.bookedCount,
         heldCount,
         bookedCount,
+        availableCount,
         now: this.now().toISOString(),
       });
     } catch (error) {

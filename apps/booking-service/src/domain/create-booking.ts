@@ -11,12 +11,23 @@ const REVIEW_READY = new Set(['COMPLETED', 'PENDING_REVIEW']);
  * `version` here, when present, is the catalog input version. Booking compares
  * the submitted offeringVersion with the pricing result, not this field.
  */
+export interface VehiclePricing {
+  vehicleType: string;
+  price: number;
+  durationMinutes: number;
+}
+
 export interface CatalogOffering {
   id: string;
   active: boolean;
   vehicleTypes: string[];
+  vehiclePricing: VehiclePricing[];
   version?: number;
   currency?: string;
+  name?: string;
+  categoryId?: string;
+  vendorId?: string;
+  durationMinutes?: number; // Legacy compatibility only
 }
 
 export interface CatalogPrice {
@@ -27,6 +38,13 @@ export interface CatalogPrice {
   total: number;
   taxAmount?: number;
   unitPrice?: number;
+  items?: Array<{
+    id: string;
+    name: string;
+    type: 'SERVICE' | 'PACKAGE' | 'ADD_ON';
+    unitPrice: number;
+    total: number;
+  }>;
   /** Effective offering revision. `version` is accepted as the same integer. */
   offeringVersion?: number;
   catalogVersion?: number;
@@ -41,6 +59,7 @@ export interface VehicleSnapshot {
   vehicleType: string;
   brand?: string;
   model?: string;
+  registrationNumber?: string;
 }
 
 export interface VendorSnapshot {
@@ -49,36 +68,26 @@ export interface VendorSnapshot {
   operationalStatus: string;
   onboardingStatus?: string;
   communityIds: string[];
+  vendorName?: string;
 }
 
 export interface BranchSnapshot {
   branchId: string;
   vendorId: string;
-}
-
-export interface SlotSnapshot {
-  id: string;
-  vendorId: string;
-  branchId: string;
-  date: string;
-  status: string;
-  serviceIds: string[];
-  vehicleTypeIds: string[];
-}
-
-export interface HoldSnapshot {
-  holdId: string;
-  slotId: string;
-  vendorId: string;
-  branchId: string;
-  customerId?: string;
-  status: string;
-  expiresAt: string;
-  bookingId?: string;
+  branchName?: string;
 }
 
 export interface CustomerProfile {
   communityIds: string[];
+}
+
+export interface ReservationSnapshot {
+  slotId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  durationMinutes: number;
 }
 
 export function requestFingerprint(command: CreateBookingCommand): string {
@@ -154,83 +163,6 @@ export function assertBranch(branch: BranchSnapshot, command: CreateBookingComma
       409,
       'branchId',
     );
-  }
-}
-
-export function assertSlot(
-  slot: SlotSnapshot,
-  command: CreateBookingCommand,
-  vehicleType: string,
-): void {
-  if (slot.id !== command.slotId) {
-    throw new BookingError('SLOT_UNAVAILABLE', 'Slot does not match the booking', 409, 'slotId');
-  }
-  if (slot.vendorId !== command.vendorId || slot.branchId !== command.branchId) {
-    throw new BookingError(
-      'VENDOR_BRANCH_MISMATCH',
-      'Slot does not belong to the selected vendor and branch',
-      409,
-      'slotId',
-    );
-  }
-  if (slot.status === 'blocked') {
-    throw new BookingError('SLOT_UNAVAILABLE', 'Slot is not bookable', 409, 'slotId');
-  }
-  if (!slot.serviceIds.includes(command.offeringId)) {
-    throw new BookingError(
-      'SLOT_OFFERING_MISMATCH',
-      'Slot is not compatible with the selected offering',
-      409,
-      'slotId',
-    );
-  }
-  if (
-    slot.vehicleTypeIds.length > 0 &&
-    !includesIgnoreCase(slot.vehicleTypeIds, vehicleType)
-  ) {
-    throw new BookingError(
-      'SLOT_VEHICLE_MISMATCH',
-      'Slot is not compatible with the selected vehicle type',
-      409,
-      'slotId',
-    );
-  }
-}
-
-export function assertHold(
-  hold: HoldSnapshot,
-  command: CreateBookingCommand,
-  customerId: string,
-  now: Date,
-): void {
-  if (hold.holdId !== command.holdId) {
-    throw new BookingError('HOLD_NOT_FOUND', 'Hold not found', 404, 'holdId');
-  }
-  if (hold.customerId && hold.customerId !== customerId) {
-    throw new BookingError('HOLD_NOT_OWNED', 'Hold does not belong to the authenticated customer', 403, 'holdId');
-  }
-  if (!hold.customerId) {
-    throw new BookingError('HOLD_NOT_OWNED', 'Hold ownership could not be verified', 403, 'holdId');
-  }
-  if (hold.vendorId !== command.vendorId || hold.branchId !== command.branchId) {
-    throw new BookingError(
-      'VENDOR_BRANCH_MISMATCH',
-      'Hold does not belong to the selected vendor and branch',
-      409,
-      'holdId',
-    );
-  }
-  if (hold.slotId !== command.slotId) {
-    throw new BookingError('SLOT_UNAVAILABLE', 'Hold does not reference the selected slot', 409, 'holdId');
-  }
-  if (hold.status === 'consumed') {
-    throw new BookingError('HOLD_ALREADY_CONSUMED', 'Hold is already consumed', 409, 'holdId');
-  }
-  if (hold.status === 'expired' || hold.expiresAt <= now.toISOString()) {
-    throw new BookingError('HOLD_EXPIRED', 'Hold has expired', 409, 'holdId');
-  }
-  if (hold.status !== 'active') {
-    throw new BookingError('SLOT_UNAVAILABLE', 'Hold is not active', 409, 'holdId');
   }
 }
 
@@ -337,11 +269,60 @@ export function buildPricingSnapshot(input: {
     catalogVersion: input.catalogVersion,
     vendorPricingVersion: input.vendorPricingVersion,
     baseAmount: unitPrice,
+    addOnAmount: addOnTotal,
+    subtotalAmount: subtotal,
     discountAmount: discount,
     taxAmount,
     totalAmount: total,
+    baseMinor: moneyToMinor(unitPrice),
+    addOnMinor: moneyToMinor(addOnTotal),
+    subtotalMinor: moneyToMinor(subtotal),
+    discountMinor: moneyToMinor(discount),
+    taxMinor: moneyToMinor(taxAmount),
+    totalMinor: moneyToMinor(total),
     currency,
   };
+}
+
+export function assertExpectedPrice(
+  expected: { totalMinor: number; currency: string },
+  pricing: PricingSnapshot,
+): void {
+  console.log('assertExpectedPrice', expected, pricing);
+  if (expected.currency.toUpperCase() !== pricing.currency.toUpperCase()) {
+    throw new BookingError('PRICE_MISMATCH', 'Expected currency does not match the authoritative price', 409, 'expectedPrice.currency');
+  }
+  if (expected.totalMinor !== pricing.totalMinor) {
+    throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
+  }
+}
+
+/** Converts a civil time in an IANA zone without trusting a client UTC value. */
+export function civilTimeToUtc(date: string, time: string, timezone: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const requested = Date.UTC(year, month - 1, day, hour, minute);
+  let instant = new Date(requested);
+  // Two passes also cover DST offset changes around the requested local time.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(instant);
+    const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+    const rendered = Date.UTC(value('year'), value('month') - 1, value('day'), value('hour'), value('minute'));
+    instant = new Date(instant.getTime() + requested - rendered);
+  }
+  return instant.toISOString();
+}
+
+/**
+ * Catalog prices are already the integer amount the client submits as totalMinor.
+ * Scaling by 100 turns 699 into 69900 and fails the price check.
+ */
+export function moneyToMinor(amount: number): number {
+  return Math.round(amount);
 }
 
 function requireCurrency(value: unknown): string {

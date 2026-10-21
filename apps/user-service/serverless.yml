@@ -20,6 +20,7 @@ provider:
     SERVICE_NAME: user-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-user
+    EVENT_BUS_NAME: ${self:custom.sharedEventBusName}
 
   iam:
     role:
@@ -44,8 +45,14 @@ provider:
             - xray:PutTraceSegments
             - xray:PutTelemetryRecords
           Resource: "*"
+        - Effect: Allow
+          Action: events:PutEvents
+          Resource:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-arn
 
 custom:
+  resourcePrefix: nv${self:provider.stage}-bw
+  sharedEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
   esbuild:
@@ -558,8 +565,12 @@ custom:
                     version:
                       type: string
 functions:
+  onIdentityRegistered:
+    handler: src/handlers/identity-registered.handler
+    name: ${self:custom.resourcePrefix}-user-identity-registered
+    timeout: 60
   lookupUserByPhone:
-    handler: src/handlers/users.handler.handleLookupUserByPhone
+    handler: src/handlers/users.handleLookupUserByPhone
     events:
       - http:
           path: /users
@@ -614,7 +625,7 @@ functions:
                   type: string
 
   getUser:
-    handler: src/handlers/users.handler.handleGetUser
+    handler: src/handlers/users.handleGetUser
     events:
       - http:
           path: /users/{userId}
@@ -661,7 +672,7 @@ functions:
                   type: string
 
   getCustomer:
-    handler: src/handlers/customers.handler.handleGetCustomer
+    handler: src/handlers/customers.handleGetCustomer
     events:
       - http:
           path: /customers/{userId}
@@ -708,7 +719,7 @@ functions:
                   type: string
 
   putCustomer:
-    handler: src/handlers/customers.handler.handlePutCustomer
+    handler: src/handlers/customers.handlePutCustomer
     events:
       - http:
           path: /customers/{userId}
@@ -768,7 +779,7 @@ functions:
               application/json: CustomerProfileUpdate
 
   listAddresses:
-    handler: src/handlers/addresses.handler.handleListAddresses
+    handler: src/handlers/addresses.handleListAddresses
     events:
       - http:
           path: /users/{userId}/addresses
@@ -815,7 +826,7 @@ functions:
                   type: string
 
   getAddress:
-    handler: src/handlers/addresses.handler.handleGetAddress
+    handler: src/handlers/addresses.handleGetAddress
     events:
       - http:
           path: /users/{userId}/addresses/{addressId}
@@ -866,7 +877,7 @@ functions:
                   type: string
 
   createAddress:
-    handler: src/handlers/addresses.handler.handleCreateAddress
+    handler: src/handlers/addresses.handleCreateAddress
     events:
       - http:
           path: /users/{userId}/addresses
@@ -926,7 +937,7 @@ functions:
               application/json: AddressRequest
 
   updateAddress:
-    handler: src/handlers/addresses.handler.handleUpdateAddress
+    handler: src/handlers/addresses.handleUpdateAddress
     events:
       - http:
           path: /users/{userId}/addresses/{addressId}
@@ -983,7 +994,7 @@ functions:
               application/json: AddressRequest
 
   deleteAddress:
-    handler: src/handlers/addresses.handler.handleDeleteAddress
+    handler: src/handlers/addresses.handleDeleteAddress
     events:
       - http:
           path: /users/{userId}/addresses/{addressId}
@@ -1031,7 +1042,7 @@ functions:
                   type: string
 
   getPreferences:
-    handler: src/handlers/preferences.handler.handleGetPreferences
+    handler: src/handlers/preferences.handleGetPreferences
     events:
       - http:
           path: /users/{userId}/preferences
@@ -1071,7 +1082,7 @@ functions:
                   type: string
 
   putPreferences:
-    handler: src/handlers/preferences.handler.handlePutPreferences
+    handler: src/handlers/preferences.handlePutPreferences
     events:
       - http:
           path: /users/{userId}/preferences
@@ -1131,7 +1142,7 @@ functions:
               application/json: OperationalPreferencesUpdate
 
   createCommunity:
-    handler: src/handlers/communities.handler.handleCreateCommunity
+    handler: src/handlers/communities.handleCreateCommunity
     events:
       - http:
           path: /communities
@@ -1172,7 +1183,7 @@ functions:
               application/json: CommunityCreate
 
   listCommunities:
-    handler: src/handlers/communities.handler.handleListCommunities
+    handler: src/handlers/communities.handleListCommunities
     events:
       - http:
           path: /communities
@@ -1207,7 +1218,7 @@ functions:
                   application/json: ErrorResponse
 
   getCommunity:
-    handler: src/handlers/communities.handler.handleGetCommunity
+    handler: src/handlers/communities.handleGetCommunity
     events:
       - http:
           path: /communities/{communityId}
@@ -1253,7 +1264,7 @@ functions:
                   type: string
 
   updateCommunity:
-    handler: src/handlers/communities.handler.handleUpdateCommunity
+    handler: src/handlers/communities.handleUpdateCommunity
     events:
       - http:
           path: /communities/{communityId}
@@ -1305,7 +1316,7 @@ functions:
               application/json: CommunityUpdate
 
   deleteCommunity:
-    handler: src/handlers/communities.handler.handleDeleteCommunity
+    handler: src/handlers/communities.handleDeleteCommunity
     events:
       - http:
           path: /communities/{communityId}
@@ -1352,7 +1363,7 @@ functions:
                   type: string
 
   getCustomerCommunities:
-    handler: src/handlers/communities.handler.handleGetCustomerCommunities
+    handler: src/handlers/communities.handleGetCustomerCommunities
     events:
       - http:
           path: /customers/{userId}/communities
@@ -1399,7 +1410,7 @@ functions:
                   type: string
 
   putCustomerCommunities:
-    handler: src/handlers/communities.handler.handlePutCustomerCommunities
+    handler: src/handlers/communities.handlePutCustomerCommunities
     events:
       - http:
           path: /customers/{userId}/communities
@@ -1460,6 +1471,49 @@ functions:
 
 resources:
   Resources:
+    UserIdentityRegisteredDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-user-identity-registered-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+    UserIdentityRegisteredDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref UserIdentityRegisteredDlq
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: { Service: events.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt UserIdentityRegisteredDlq.Arn
+              Condition:
+                StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
+    UserIdentityRegisteredRule:
+      Type: AWS::Events::Rule
+      DependsOn: UserIdentityRegisteredDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-user-identity-registered
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [identity-service]
+          detail-type: [Identity.Registered]
+        State: ENABLED
+        Targets:
+          - Id: UserIdentityRegistered
+            Arn: !GetAtt OnIdentityRegisteredLambdaFunction.Arn
+            DeadLetterConfig: { Arn: !GetAtt UserIdentityRegisteredDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    UserIdentityRegisteredEventPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnIdentityRegisteredLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt UserIdentityRegisteredRule.Arn
     UserTable:
       Type: AWS::DynamoDB::Table
       Properties:

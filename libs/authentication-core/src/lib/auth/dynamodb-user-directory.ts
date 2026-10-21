@@ -1,5 +1,9 @@
 import { BaseRepository } from '@api-hub/utils';
 
+import {
+  applicationUserResolution,
+  linkedApplicationUserId,
+} from './application-user';
 import type { AuthUser, AuthUserDirectory } from './auth-context';
 
 const USER_PREFIX = 'USER#';
@@ -7,6 +11,7 @@ const IDENTITY_PREFIX = 'IDENTITY#';
 const ROLE_PREFIX = 'ROLE#';
 const PERMISSION_PREFIX = 'PERMISSION#';
 const META_SK = 'META';
+const PROFILE_SK = 'PROFILE';
 const LOOKUP_SK = 'LOOKUP';
 
 interface IdentityLookupItem {
@@ -19,6 +24,13 @@ interface UserMetaItem {
   identityId?: string;
   roleId?: string;
   status?: string;
+}
+
+interface ProfileItem {
+  userProvisioning?: {
+    status?: string;
+    userId?: string;
+  };
 }
 
 interface UserRoleItem {
@@ -54,25 +66,46 @@ export class DynamoDbAuthUserDirectory
   }
 
   async findUserByIdentityId(identityId: string): Promise<AuthUser | null> {
+    const trimmedIdentityId = identityId.trim();
     const lookup = await this.get<IdentityLookupItem>(this.tableName, {
-      PK: `${IDENTITY_PREFIX}${identityId.trim()}`,
+      PK: `${IDENTITY_PREFIX}${trimmedIdentityId}`,
       SK: LOOKUP_SK,
     });
-    if (!lookup?.userId) {
+    if (!lookup?.userId?.trim()) {
       return null;
     }
 
+    const identityUserId = lookup.userId.trim();
     const user = await this.get<UserMetaItem>(this.tableName, {
-      PK: `${USER_PREFIX}${lookup.userId.trim()}`,
+      PK: `${USER_PREFIX}${identityUserId}`,
       SK: META_SK,
     });
-    if (!user?.userId) {
+    if (!user?.userId?.trim()) {
       return null;
     }
 
+    const profile = await this.get<ProfileItem>(this.tableName, {
+      PK: `${USER_PREFIX}${identityUserId}`,
+      SK: PROFILE_SK,
+    });
+    const resolution = applicationUserResolution(
+      profile?.userProvisioning,
+      trimmedIdentityId,
+    );
+    // In-progress or failed User Service provisioning is not an application
+    // user. A DynamoDB error throws instead of being treated as legacy.
+    if (resolution === 'unresolved') {
+      return null;
+    }
+
+    const applicationUserId = linkedApplicationUserId(
+      profile?.userProvisioning,
+      trimmedIdentityId,
+    );
     return {
-      userId: user.userId,
-      identityId: user.identityId ?? identityId,
+      userId: user.userId.trim(),
+      ...(applicationUserId ? { applicationUserId } : {}),
+      identityId: user.identityId ?? trimmedIdentityId,
       roleId: user.roleId,
       status: user.status,
     };

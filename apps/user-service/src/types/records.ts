@@ -34,6 +34,16 @@ export interface PhoneLookupRecord {
   status: UserStatus;
 }
 
+/** One-to-one, concurrency-safe bridge from Cognito identity to application user. */
+export interface IdentityUserLookupRecord {
+  PK: string;
+  SK: string;
+  entityType: 'IdentityUserLookup';
+  identityId: string;
+  userId: string;
+  createdAt: string;
+}
+
 export interface AddressRecord {
   PK: string;
   SK: string;

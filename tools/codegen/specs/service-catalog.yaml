@@ -38,11 +38,21 @@ components:
         categoryId: {type: string}
         name: {type: string}
         description: {type: string}
-        durationMinutes: {type: integer}
+        durationMinutes: {type: integer, description: Shortest duration, or the filtered vehicle duration}
+        vehiclePricing:
+          type: array
+          description: Price and duration for each vehicle type
+          items:
+            type: object
+            required: [vehicleType, price, durationMinutes]
+            properties:
+              vehicleType: {type: string}
+              price: {type: number, minimum: 0}
+              durationMinutes: {type: integer, minimum: 1}
         vehicleTypes:
           type: array
           items: {type: string}
-        basePrice: {type: number}
+        basePrice: {type: number, description: Lowest price, or the filtered vehicle price}
         active: {type: boolean}
 
     Package:

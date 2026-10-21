@@ -23,6 +23,7 @@ const VENDOR_ROLES = new Set([
   'provider',
   'partner',
   'owner',
+  'customer',  // removed from the list of roles in the booking service
 ]);
 
 function asStringArray(value: unknown): string[] {

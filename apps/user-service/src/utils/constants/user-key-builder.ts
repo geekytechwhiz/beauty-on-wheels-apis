@@ -28,6 +28,10 @@ export const UserKeyBuilder = {
 
   phoneSk: () => PHONE_LOOKUP_SK,
 
+  identityPk: (identityId: string) => `IDENTITY#${identityId.trim()}`,
+
+  identitySk: () => PHONE_LOOKUP_SK,
+
   communityPk: (communityId: string) => `COMMUNITY#${communityId.trim()}`,
 
   communitySk: () => COMMUNITY_META_SK,

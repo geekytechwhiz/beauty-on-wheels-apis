@@ -7,7 +7,13 @@ export interface AuthContext {
 }
 
 export interface AuthUser {
+  /**
+   * Identity subject that owns role mappings. Callers receive
+   * {@link applicationUserId} when a User Service link exists.
+   */
   userId: string;
+  /** Verified User Service id. Absent for legacy identities with no provisioning record. */
+  applicationUserId?: string;
   identityId?: string;
   roleId?: string;
   status?: string;

@@ -16,12 +16,26 @@ describe('service validation', () => {
     basePrice: 750,
   };
 
-  it('accepts the canonical vehicle types', () => {
-    expect(validateService(request(valid)).vehicleTypes).toEqual([
-      'HATCHBACK',
-      'SUV',
-      'MUV',
+  it('accepts the canonical vehicle types and stores one price for each', () => {
+    expect(validateService(request(valid)).vehiclePricing).toEqual([
+      { vehicleType: 'HATCHBACK', price: 750, durationMinutes: 45 },
+      { vehicleType: 'SUV', price: 750, durationMinutes: 45 },
+      { vehicleType: 'MUV', price: 750, durationMinutes: 45 },
     ]);
+  });
+
+  it('accepts a different price and duration for each vehicle type', () => {
+    const pricing = [
+      { vehicleType: 'HATCHBACK', price: 399, durationMinutes: 30 },
+      { vehicleType: 'SEDAN', price: 499.5, durationMinutes: 45 },
+      { vehicleType: 'SUV', price: 699, durationMinutes: 60 },
+    ];
+    expect(validateService(request({
+      vendorId: 'vendor-1',
+      categoryId: 'cat-1',
+      name: 'Premium Wash',
+      vehiclePricing: pricing,
+    })).vehiclePricing).toEqual(pricing);
   });
 
   it('rejects an unknown vehicle type, duplicates, a negative price, and a non-positive duration', () => {
@@ -37,5 +51,23 @@ describe('service validation', () => {
     expect(() =>
       validateService(request({ ...valid, durationMinutes: 0 })),
     ).toThrow(BaseError);
+    expect(() =>
+      validateService(request({
+        vendorId: 'vendor-1',
+        categoryId: 'cat-1',
+        name: 'Premium Wash',
+        vehiclePricing: [
+          { vehicleType: 'SUV', price: 10, durationMinutes: 30 },
+          { vehicleType: 'SUV', price: 20, durationMinutes: 40 },
+        ],
+      })),
+    ).toThrow(expect.objectContaining({ statusCode: 400 }));
+    expect(() =>
+      validateService(request({
+        vendorId: 'vendor-1',
+        categoryId: 'cat-1',
+        name: 'Premium Wash',
+      })),
+    ).toThrow(expect.objectContaining({ message: 'vehiclePricing is required' }));
   });
 });

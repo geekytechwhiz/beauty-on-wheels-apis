@@ -72,6 +72,7 @@ export function accessTokenClaimsResponse(
         claimsToAddOrOverride: {
           ...(access.claimsToAddOrOverride ?? {}),
           ...(claims.identityId ? { identityId: claims.identityId } : {}),
+          ...(claims.userId ? { userId: claims.userId } : {}),
           ...(claims.userType ? { userType: claims.userType } : {}),
           ...(role ? { role } : {}),
           ...(roles.length > 0 ? { roles } : {}),
@@ -140,10 +141,11 @@ export async function applyApplicationRoles(
       claims = resolved;
     }
   } catch (err) {
-    // Fail open for issuance: Cognito still returns a token, but without an
-    // application `roles` claim. The claim is never defaulted and is never set
-    // to ADMIN. API authorization re-reads Identity and denies the call when
-    // that read fails, so a lookup error cannot grant a privilege.
+    // Fail open for issuance: Cognito still returns a token, but without
+    // application `roles` or `userId`. Neither claim is defaulted, `userId` is
+    // never set to Cognito `sub`, and `roles` is never set to ADMIN. API
+    // authorization re-reads the linked application user and denies endpoints
+    // that require one when that read is missing or fails.
     logger.warn({
       event: 'pre_token_generation_role_lookup_failed',
       triggerVersion: event.version,
@@ -154,7 +156,7 @@ export async function applyApplicationRoles(
   }
 
   const roles = resolveApplicationRoles(claims.roles);
-  if (roles.length === 0 && !claims.userType) {
+  if (roles.length === 0 && !claims.userType && !claims.userId) {
     logger.info({
       event: 'pre_token_generation_no_roles',
       roleCount: 0,
@@ -182,6 +184,7 @@ export async function applyApplicationRoles(
 export async function customizeAccessToken(
   event: PreTokenGenerationEvent,
 ): Promise<PreTokenGenerationEvent> {
+  
   return applyApplicationRoles(event, (identityId) =>
     loadApplicationTokenClaimsForIdentity(identityId),
   );

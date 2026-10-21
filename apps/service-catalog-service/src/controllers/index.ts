@@ -5,3 +5,4 @@ export * from "./categories.controller";
 export * from "./packages.controller";
 export * from "./pricing.controller";
 export * from "./services.controller";
+export * from "./offerings.controller";

@@ -55,7 +55,7 @@ describe('BookingsRepository create', () => {
     const items = repository.written?.TransactItems ?? [];
     const serialized = JSON.stringify(items);
     expect(serialized).not.toContain('SLOT_RESERVATION');
-    expect(serialized).toContain('HOLD_BOOKING#hold_001');
+    expect(serialized).not.toContain('HOLD_BOOKING#hold_001');
     expect(serialized).toContain('IDEMPOTENCY#customer-1#idem-1');
     const details = items[0]?.Put?.Item as Record<string, unknown> | undefined;
     expect(details?.pricingSnapshot).toEqual(snapshot);

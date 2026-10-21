@@ -322,7 +322,7 @@ export class OtpService {
         email: isEmail ? destination : undefined,
         phoneNumber: isEmail ? undefined : destination,
         emailVerified: isEmail,
-        phoneVerified: useFixedOtp ? false : !isEmail,
+        phoneVerified: true,
         identityId,
         cognitoUsername,
         userType,

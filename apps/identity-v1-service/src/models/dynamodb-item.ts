@@ -40,6 +40,13 @@ export interface ProfileDdbItem extends BaseDdbItem {
   phoneNumber?: string;
   identityId?: string;
   userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
+  userProvisioning?: {
+    status: 'PENDING' | 'LINKED' | 'FAILED';
+    userId?: string;
+    requestedAt?: string;
+    linkedAt?: string;
+    lastErrorCode?: string;
+  };
 }
 
 export interface LookupDdbItem extends BaseDdbItem {

@@ -41,7 +41,12 @@ describe('DynamoDbAuthUserDirectory', () => {
           roleId: 'vendor',
           status: 'active',
         },
-      });
+      })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#u-1', SK: 'PROFILE' },
+      })
+      .resolves({});
 
     await expect(directory.findUserByIdentityId('cognito-sub-1')).resolves.toEqual({
       userId: 'u-1',
@@ -49,6 +54,111 @@ describe('DynamoDbAuthUserDirectory', () => {
       roleId: 'vendor',
       status: 'active',
     });
+  });
+
+  it('exposes the linked application user id', async () => {
+    ddbMock
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'IDENTITY#cognito-sub-1', SK: 'LOOKUP' },
+      })
+      .resolves({ Item: { userId: 'identity-user', identityId: 'cognito-sub-1' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'META' },
+      })
+      .resolves({
+        Item: {
+          userId: 'identity-user',
+          identityId: 'cognito-sub-1',
+          roleId: 'vendor',
+          status: 'active',
+        },
+      })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'PROFILE' },
+      })
+      .resolves({
+        Item: {
+          userProvisioning: { status: 'LINKED', userId: 'app-user' },
+        },
+      });
+
+    await expect(directory.findUserByIdentityId('cognito-sub-1')).resolves.toEqual({
+      userId: 'identity-user',
+      applicationUserId: 'app-user',
+      identityId: 'cognito-sub-1',
+      roleId: 'vendor',
+      status: 'active',
+    });
+  });
+
+  it('does not resolve an application user while provisioning is incomplete', async () => {
+    ddbMock
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'IDENTITY#cognito-sub-1', SK: 'LOOKUP' },
+      })
+      .resolves({ Item: { userId: 'identity-user' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'META' },
+      })
+      .resolves({ Item: { userId: 'identity-user', status: 'active' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'PROFILE' },
+      })
+      .resolves({ Item: { userProvisioning: { status: 'PENDING' } } });
+
+    await expect(directory.findUserByIdentityId('cognito-sub-1')).resolves.toBeNull();
+  });
+
+  it('rejects a linked user id that is only the Cognito sub', async () => {
+    ddbMock
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'IDENTITY#cognito-sub-1', SK: 'LOOKUP' },
+      })
+      .resolves({ Item: { userId: 'identity-user' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'META' },
+      })
+      .resolves({ Item: { userId: 'identity-user', status: 'active' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'PROFILE' },
+      })
+      .resolves({
+        Item: { userProvisioning: { status: 'LINKED', userId: 'cognito-sub-1' } },
+      });
+
+    await expect(directory.findUserByIdentityId('cognito-sub-1')).resolves.toBeNull();
+  });
+
+  it('propagates a profile read failure', async () => {
+    ddbMock
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'IDENTITY#cognito-sub-1', SK: 'LOOKUP' },
+      })
+      .resolves({ Item: { userId: 'identity-user' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'META' },
+      })
+      .resolves({ Item: { userId: 'identity-user', status: 'active' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#identity-user', SK: 'PROFILE' },
+      })
+      .rejects(new Error('dynamo unavailable'));
+
+    await expect(directory.findUserByIdentityId('cognito-sub-1')).rejects.toThrow(
+      'dynamo unavailable',
+    );
   });
 
   it('returns null when the identity lookup is missing', async () => {

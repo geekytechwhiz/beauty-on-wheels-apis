@@ -1,58 +1,53 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 
 import { env } from '../configs/env.config';
-import { HoldSnapshot, SlotSnapshot } from '../domain/create-booking';
+import { ReservationSnapshot } from '../domain/create-booking';
 import { BookingError } from '../errors';
-import { authHeaders, requestJson, requireBaseUrl } from './http';
+
+export interface ReserveBookingInput {
+  bookingId: string;
+  customerId: string;
+  vendorId: string;
+  branchId: string;
+  offeringId: string;
+  vehicleType: string;
+  date: string;
+  startTime: string;
+  timezone: string;
+  durationMinutes: number;
+  authorizationHeader?: string;
+}
 
 export interface AvailabilityGateway {
-  getHold(holdId: string, authorizationHeader?: string): Promise<HoldSnapshot>;
-  getSlot(slotId: string, authorizationHeader?: string): Promise<SlotSnapshot>;
-  consumeHold(input: { holdId: string; bookingId: string }): Promise<{ bookingId: string; slotId: string }>;
+  reserveBooking(input: ReserveBookingInput): Promise<ReservationSnapshot>;
   releaseAllocation(bookingId: string): Promise<void>;
 }
 
 export class HttpAvailabilityGateway implements AvailabilityGateway {
   constructor(private readonly lambda: LambdaClient = new LambdaClient({})) {}
 
-  async getHold(holdId: string, authorizationHeader?: string): Promise<HoldSnapshot> {
-    const base = requireBaseUrl(env.AVAILABILITY_SERVICE_URL, 'AVAILABILITY_SERVICE_URL');
+  async reserveBooking(input: ReserveBookingInput): Promise<ReservationSnapshot> {
     try {
-      const body = await requestJson(
-        `${base}/slot-holds/${encodeURIComponent(holdId)}`,
-        { method: 'GET', headers: authHeaders(authorizationHeader) },
+      const body = await this.invoke(
+        env.AVAILABILITY_RESERVE_BOOKING_FUNCTION,
+        'AVAILABILITY_RESERVE_BOOKING_FUNCTION',
+        {
+          bookingId: input.bookingId,
+          customerId: input.customerId,
+          vendorId: input.vendorId,
+          branchId: input.branchId,
+          offeringId: input.offeringId,
+          vehicleType: input.vehicleType,
+          date: input.date,
+          startTime: input.startTime,
+          timezone: input.timezone,
+          durationMinutes: input.durationMinutes,
+        },
       );
-      return parseHold(body, holdId);
+      return parseReservation(body, input);
     } catch (error) {
-      if (error instanceof BookingError && error.statusCode === 403) {
-        throw new BookingError('HOLD_NOT_OWNED', 'Hold does not belong to the authenticated customer', 403, 'holdId', false);
-      }
-      if (error instanceof BookingError && error.statusCode === 404) {
-        throw new BookingError('HOLD_NOT_FOUND', 'Hold not found', 404, 'holdId', false);
-      }
-      throw error;
+      throw toAvailabilityError(error);
     }
-  }
-
-  async getSlot(slotId: string, authorizationHeader?: string): Promise<SlotSnapshot> {
-    const base = requireBaseUrl(env.AVAILABILITY_SERVICE_URL, 'AVAILABILITY_SERVICE_URL');
-    const body = await requestJson(
-      `${base}/slots/${encodeURIComponent(slotId)}`,
-      { method: 'GET', headers: authHeaders(authorizationHeader) },
-    );
-    return parseSlot(body, slotId);
-  }
-
-  async consumeHold(input: { holdId: string; bookingId: string }): Promise<{ bookingId: string; slotId: string }> {
-    const payload = await this.invoke(env.AVAILABILITY_CONSUME_HOLD_FUNCTION, 'AVAILABILITY_CONSUME_HOLD_FUNCTION', input);
-    const record = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
-    const allocation = record.allocation && typeof record.allocation === 'object'
-      ? record.allocation as Record<string, unknown>
-      : record;
-    return {
-      bookingId: typeof allocation.bookingId === 'string' ? allocation.bookingId : input.bookingId,
-      slotId: typeof allocation.slotId === 'string' ? allocation.slotId : input.holdId,
-    };
   }
 
   async releaseAllocation(bookingId: string): Promise<void> {
@@ -96,60 +91,61 @@ export class HttpAvailabilityGateway implements AvailabilityGateway {
     const raw = output.Payload ? Buffer.from(output.Payload).toString('utf8') : '';
     const body = raw ? JSON.parse(raw) as Record<string, unknown> : {};
     if (output.FunctionError) {
-      throw mapConsumeFailure(String(body.errorMessage ?? 'Availability request failed'));
+      throw mapReservationFailure(String(body.errorMessage ?? 'Availability request failed'));
     }
     return body;
   }
+
 }
 
-export function parseHold(body: unknown, holdId: string): HoldSnapshot {
-  const record = asRecord(body);
-  const status = record.status;
-  const expiresAt = record.expiresAt;
+export function parseReservation(body: unknown, input: { date: string; startTime: string; timezone: string; durationMinutes: number }): ReservationSnapshot {
+  const envelope = asRecord(body);
+  const record = envelope.data && typeof envelope.data === 'object' ? asRecord(envelope.data) : envelope;
   const slotId = record.slotId;
-  if (typeof status !== 'string' || typeof expiresAt !== 'string' || typeof slotId !== 'string') {
-    throw new BookingError('AVAILABILITY_UNAVAILABLE', 'Availability Service returned an incomplete hold', 502);
+  const endTime = record.endTime;
+  if (typeof slotId !== 'string' || typeof endTime !== 'string') {
+    throw new BookingError('AVAILABILITY_UNAVAILABLE', 'Availability Service returned an incomplete reservation', 502);
   }
   return {
-    holdId: typeof record.holdId === 'string' ? record.holdId : holdId,
     slotId,
-    vendorId: typeof record.vendorId === 'string' ? record.vendorId : '',
-    branchId: typeof record.branchId === 'string' ? record.branchId : '',
-    ...(typeof record.customerId === 'string' ? { customerId: record.customerId } : {}),
-    status,
-    expiresAt,
-    ...(typeof record.bookingId === 'string' ? { bookingId: record.bookingId } : {}),
+    date: typeof record.date === 'string' ? record.date : input.date,
+    startTime: typeof record.startTime === 'string' ? record.startTime : input.startTime,
+    endTime,
+    timezone: typeof record.timezone === 'string' ? record.timezone : input.timezone,
+    durationMinutes: typeof record.durationMinutes === 'number' ? record.durationMinutes : input.durationMinutes,
   };
 }
 
-export function parseSlot(body: unknown, slotId: string): SlotSnapshot {
-  const record = asRecord(body);
-  return {
-    id: typeof record.id === 'string' ? record.id : slotId,
-    vendorId: typeof record.vendorId === 'string' ? record.vendorId : '',
-    branchId: typeof record.branchId === 'string' ? record.branchId : '',
-    date: typeof record.date === 'string' ? record.date : '',
-    status: typeof record.status === 'string' ? record.status : '',
-    serviceIds: stringList(record.serviceIds),
-    vehicleTypeIds: stringList(record.vehicleTypeIds),
-  };
-}
-
-export function mapConsumeFailure(message: string): BookingError {
-  if (/expired/i.test(message)) {
-    return new BookingError('HOLD_EXPIRED', 'Hold has expired', 409, 'holdId', false);
-  }
-  if (/already consumed/i.test(message)) {
-    return new BookingError('HOLD_ALREADY_CONSUMED', 'Hold is already consumed', 409, 'holdId', false);
-  }
-  if (/not found/i.test(message)) {
-    return new BookingError('HOLD_NOT_FOUND', message, 404, 'holdId', false);
+export function mapReservationFailure(message: string): BookingError {
+  if (/capacity|compatible capacity|unavailable|not available|closed|passed|not found|released/i.test(message)) {
+    return new BookingError('SLOT_UNAVAILABLE', message, 409, 'schedule.startTime', false);
   }
   return new BookingError('AVAILABILITY_UNAVAILABLE', message, 502, undefined, true);
 }
 
-function stringList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+function toAvailabilityError(error: unknown): BookingError {
+  if (!(error instanceof BookingError)) {
+    return new BookingError(
+      'AVAILABILITY_UNAVAILABLE',
+      'Availability Service could not be reached',
+      502,
+      undefined,
+      true,
+    );
+  }
+  if (error.code === 'SLOT_UNAVAILABLE' || error.code === 'AVAILABILITY_UNAVAILABLE') {
+    return error;
+  }
+  if (error.statusCode === 409 || error.statusCode === 404) {
+    return mapReservationFailure(error.message);
+  }
+  return new BookingError(
+    'AVAILABILITY_UNAVAILABLE',
+    error.message || 'Availability Service could not reserve the slot',
+    error.statusCode >= 500 ? 502 : error.statusCode,
+    undefined,
+    error.statusCode >= 500,
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

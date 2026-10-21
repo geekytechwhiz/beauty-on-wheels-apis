@@ -8,6 +8,11 @@ import {
   isAuthoritativeCatalogVersion,
   isConditionalWriteFailure,
 } from '../domain/catalog-version';
+import {
+  normalizeServiceEntity,
+  serviceMatchesListFilters,
+  servicePageKey,
+} from '../domain/vehicle-pricing';
 import { CatalogKeyBuilder } from '../utils/constants/catalog-key-builder';
 import { vendorCatalogQuery } from './vendor-index-query';
 import {
@@ -442,9 +447,14 @@ export class ServicesRepository extends BaseRepository {
         }
       }
 
+      const durationForType = vehicleType
+        ? entity.durationMinutesByVehicleType?.[vehicleType]
+        : undefined;
+
       filtered.push({
         ...entity,
         displayPrice,
+        ...(durationForType === undefined ? {} : { durationMinutes: durationForType }),
         distanceKm,
         relevanceScore,
       });
@@ -554,10 +564,11 @@ export class ServicesRepository extends BaseRepository {
     categoryId: string,
     serviceId: string,
   ): Promise<ServiceEntity | null> {
-    return this.get<ServiceEntity>(TABLE(), {
+    const entity = await this.get<ServiceEntity>(TABLE(), {
       PK: CatalogKeyBuilder.categoryPk(categoryId),
       SK: CatalogKeyBuilder.serviceSk(serviceId),
     });
+    return entity?.entityType === 'SERVICE' ? normalizeServiceEntity(entity) : null;
   }
 
   async findByServiceId(serviceId: string): Promise<ServiceEntity | null> {
@@ -573,14 +584,16 @@ export class ServicesRepository extends BaseRepository {
   }
 
   /**
-   * Every service owned by one vendor. Optional category narrows the sort-key prefix.
-   * Vehicle type and duration are filters on that vendor partition.
+   * Every service owned by one vendor. Category narrows the GSI2 sort key.
+   * Vehicle type and duration are applied after the query. DynamoDB applies
+   * Limit before a filter, so matching continues until the page is full.
    */
   async listByVendor(
     vendorId: string,
     params?: {
       categoryId?: string;
       activeOnly?: boolean;
+      active?: boolean;
       vehicleType?: string;
       durationMinutes?: number;
       limit?: number;
@@ -590,18 +603,28 @@ export class ServicesRepository extends BaseRepository {
     items: ServiceEntity[];
     lastEvaluatedKey?: Record<string, unknown>;
   }> {
+    const activeOnly = params?.activeOnly === true || params?.active === true;
+    const inactiveOnly = params?.active === false;
     const extraFilters: string[] = [];
+    const extraNames: Record<string, string> = {};
     const extraValues: Record<string, unknown> = {};
-    if (params?.vehicleType) {
-      extraFilters.push('contains(vehicleTypes, :vehicleType)');
-      extraValues[':vehicleType'] = params.vehicleType;
-    }
-    if (params?.durationMinutes !== undefined) {
-      extraFilters.push('durationMinutes = :durationMinutes');
-      extraValues[':durationMinutes'] = params.durationMinutes;
+    if (inactiveOnly) {
+      extraNames['#active'] = 'active';
+      extraValues[':active'] = false;
+      extraFilters.push('#active = :active');
     }
 
-    return this.queryPage<ServiceEntity>(
+    const pageLimit = params?.limit;
+    const filters = {
+      vehicleType: params?.vehicleType,
+      durationMinutes: params?.durationMinutes,
+    };
+    const needsFill = Boolean(params?.vehicleType)
+      || params?.durationMinutes !== undefined
+      || activeOnly
+      || inactiveOnly;
+
+    const queryInput = (startKey: Record<string, unknown> | undefined, limit?: number) =>
       vendorCatalogQuery({
         tableName: TABLE(),
         vendorId,
@@ -609,13 +632,62 @@ export class ServicesRepository extends BaseRepository {
           ? CatalogKeyBuilder.vendorServiceCategoryPrefix(params.categoryId)
           : CatalogKeyBuilder.vendorServicePrefix(),
         entityType: 'SERVICE',
-        activeOnly: params?.activeOnly,
+        activeOnly,
         extraFilters,
+        extraNames,
         extraValues,
-        limit: params?.limit,
-        lastEvaluatedKey: params?.lastEvaluatedKey,
-      }),
-    );
+        limit,
+        lastEvaluatedKey: startKey,
+      });
+
+    if (!needsFill) {
+      const page = await this.queryPage<ServiceEntity>(
+        queryInput(params?.lastEvaluatedKey, pageLimit),
+      );
+      return {
+        items: page.items.map((item) => normalizeServiceEntity(item)),
+        lastEvaluatedKey: page.lastEvaluatedKey,
+      };
+    }
+
+    const matches: ServiceEntity[] = [];
+    let startKey = params?.lastEvaluatedKey;
+    const batch = Math.max(pageLimit ?? 25, 25);
+
+    while (pageLimit === undefined || matches.length < pageLimit) {
+      const page = await this.queryPage<ServiceEntity>(queryInput(startKey, batch));
+      if (page.items.length === 0 && !page.lastEvaluatedKey) {
+        break;
+      }
+      for (let index = 0; index < page.items.length; index += 1) {
+        const raw = page.items[index];
+        const entity = normalizeServiceEntity(raw);
+        if (!serviceMatchesListFilters(entity, filters)) {
+          continue;
+        }
+        matches.push(entity);
+        if (pageLimit !== undefined && matches.length === pageLimit) {
+          const moreInPage = page.items.slice(index + 1).some((item) =>
+            serviceMatchesListFilters(normalizeServiceEntity(item), filters),
+          );
+          return {
+            items: matches,
+            lastEvaluatedKey: moreInPage || page.lastEvaluatedKey
+              ? servicePageKey(raw)
+              : undefined,
+          };
+        }
+      }
+      if (!page.lastEvaluatedKey) {
+        break;
+      }
+      if (JSON.stringify(page.lastEvaluatedKey) === JSON.stringify(startKey)) {
+        break;
+      }
+      startKey = page.lastEvaluatedKey;
+    }
+
+    return { items: matches, lastEvaluatedKey: undefined };
   }
 
   /**
@@ -655,7 +727,10 @@ export class ServicesRepository extends BaseRepository {
       queryParams.ExpressionAttributeValues[':active'] = true;
     }
 
-    return this.queryPage<ServiceEntity>(queryParams);
+    return this.queryPage<ServiceEntity>(queryParams).then((page) => ({
+      items: page.items.map((item) => normalizeServiceEntity(item)),
+      lastEvaluatedKey: page.lastEvaluatedKey,
+    }));
   }
 
   /**
@@ -677,7 +752,9 @@ export class ServicesRepository extends BaseRepository {
         ':et': 'SERVICE',
       },
     }).then((items) =>
-      items.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)),
+      items
+        .map((item) => normalizeServiceEntity(item))
+        .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)),
     );
   }
 
@@ -731,7 +808,7 @@ export class ServicesRepository extends BaseRepository {
         ':lsi5sk': CatalogKeyBuilder.lsi5sk(durationMinutes),
         ':et': 'SERVICE',
       },
-    });
+    }).then((items) => items.map((item) => normalizeServiceEntity(item)));
   }
 
   /**
@@ -742,7 +819,7 @@ export class ServicesRepository extends BaseRepository {
     categoryId: string,
     vendorId: string,
   ): Promise<ServiceEntity | null> {
-    return this.queryOne<ServiceEntity>({
+    const found = await this.queryOne<ServiceEntity>({
       TableName: TABLE(),
       IndexName: GSI1_INDEX,
       KeyConditionExpression: '#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk',
@@ -759,6 +836,7 @@ export class ServicesRepository extends BaseRepository {
         ),
       },
     });
+    return found ? normalizeServiceEntity(found) : null;
   }
 
   /**

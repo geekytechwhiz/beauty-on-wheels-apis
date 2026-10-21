@@ -223,6 +223,50 @@ describe('evaluateApiGatewayAuthorizer', () => {
     });
   });
 
+  it('puts the verified application userId on the authorizer context', async () => {
+    const token = signToken({ userId: 'app-user' });
+    const userDirectory = directory({
+      findUserByIdentityId: jest.fn().mockResolvedValue({
+        userId: 'identity-user',
+        applicationUserId: 'app-user',
+        identityId: 'cognito-sub-1',
+        roleId: 'VENDOR',
+        status: 'active',
+      }),
+    });
+    const result = await evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {
+      userDirectory,
+      requireApplicationUser: true,
+      expectedTokenUse: 'access',
+    });
+    expect(statement(result).Effect).toBe('Allow');
+    expect(result.context?.userId).toBe('app-user');
+    expect(result.context?.identityId).toBe('cognito-sub-1');
+    expect(userDirectory.getUserRoles).toHaveBeenCalledWith('identity-user');
+  });
+
+  it('denies when the token userId does not match the application user', async () => {
+    const token = signToken({ userId: 'someone-else' });
+    const result = await evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {
+      userDirectory: directory(),
+      requireApplicationUser: true,
+    });
+    expect(statement(result).Effect).toBe('Deny');
+    expect(result.context?.userId).toBeUndefined();
+  });
+
+  it('denies when application user resolution fails', async () => {
+    const token = signToken({ userId: 'app-user' });
+    await expect(
+      evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {
+        userDirectory: directory({
+          findUserByIdentityId: jest.fn().mockRejectedValue(new Error('dynamo unavailable')),
+        }),
+        requireApplicationUser: true,
+      }),
+    ).rejects.toThrow('Unauthorized');
+  });
+
   it('denies when the application user mapping is missing', async () => {
     const token = signToken();
     const result = await evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {

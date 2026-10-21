@@ -26,13 +26,13 @@ provider:
     # LOG_LEVEL: ${ssm:/common/log-level}
     DYNAMODB_TABLE_NAME: ${self:provider.environment.BOOKING_TABLE}
     BOOKING_TABLE: booking-table-${self:provider.stage}
-    CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
-    VEHICLE_SERVICE_URL: ${env:VEHICLE_SERVICE_URL, ''}
-    VENDOR_SERVICE_URL: ${env:VENDOR_SERVICE_URL, ''}
+    CATALOG_BASE_URL: ${env:CATALOG_BASE_URL, ''}
+    VENDOR_BASE_URL: ${env:VENDOR_BASE_URL, ''}
     VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: vendor-service-api-${self:provider.stage}-getCheckoutEligibility
-    USER_SERVICE_URL: ${env:USER_SERVICE_URL, ''}
-    AVAILABILITY_SERVICE_URL: ${env:AVAILABILITY_SERVICE_URL, ''}
-    AVAILABILITY_CONSUME_HOLD_FUNCTION: availability-service-${self:provider.stage}-consumeHold
+    USER_BASE_URL: ${env:USER_BASE_URL, ''}
+    VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
+    AVAILABILITY_BASE_URL: ${env:AVAILABILITY_BASE_URL, ''}
+    AVAILABILITY_RESERVE_BOOKING_FUNCTION: availability-service-${self:provider.stage}-reserveBooking
     AVAILABILITY_RELEASE_ALLOCATION_FUNCTION: availability-service-${self:provider.stage}-releaseAllocation
     # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
@@ -59,7 +59,7 @@ provider:
           Action:
             - lambda:InvokeFunction
           Resource:
-            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_CONSUME_HOLD_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RESERVE_BOOKING_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RELEASE_ALLOCATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION}
 
@@ -145,10 +145,10 @@ custom:
                 - branchId
                 - vehicleId
                 - offeringId
-                - offeringVersion
-                - slotId
-                - holdId
+                - schedule
                 - location
+                - addOnIds
+                - expectedPrice
               properties:
                 vendorId:
                   type: string
@@ -158,13 +158,21 @@ custom:
                   type: string
                 offeringId:
                   type: string
-                offeringVersion:
-                  type: integer
-                  minimum: 1
-                slotId:
-                  type: string
-                holdId:
-                  type: string
+                schedule:
+                  type: object
+                  required:
+                    - date
+                    - startTime
+                    - timezone
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    startTime:
+                      type: string
+                      pattern: '^\\d{2}:\\d{2}$'
+                    timezone:
+                      type: string
                 location:
                   type: object
                   required:
@@ -181,6 +189,25 @@ custom:
                       type: string
                     addressId:
                       type: string
+                addOnIds:
+                  type: array
+                  items:
+                    type: string
+                expectedPrice:
+                  type: object
+                  required:
+                    - totalMinor
+                    - currency
+                  properties:
+                    totalMinor:
+                      type: integer
+                      minimum: 0
+                    currency:
+                      type: string
+                      pattern: '^[A-Za-z]{3}$'
+                notes:
+                  type: string
+                  maxLength: 2000
       - name: Booking
         description: Customer booking
         content:
@@ -190,11 +217,17 @@ custom:
               properties:
                 id:
                   type: string
+                reference:
+                  type: string
                 customerId:
                   type: string
                 vendorId:
                   type: string
+                vendorName:
+                  type: string
                 vehicleId:
+                  type: string
+                branchName:
                   type: string
                 vehicleDetails:
                   type: object
@@ -202,6 +235,14 @@ custom:
                     bodyCategory:
                       type: string
                     makeModel:
+                      type: string
+                    type:
+                      type: string
+                    brand:
+                      type: string
+                    model:
+                      type: string
+                    registrationNumber:
                       type: string
                     saveToGarage:
                       type: boolean
@@ -219,6 +260,52 @@ custom:
                   type: string
                 offeringVersion:
                   type: integer
+                service:
+                  type: object
+                  properties:
+                    serviceId:
+                      type: string
+                    name:
+                      type: string
+                    categoryId:
+                      type: string
+                    offeringId:
+                      type: string
+                    durationMinutes:
+                      type: integer
+                addOns:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      price:
+                        type: number
+                      priceMinor:
+                        type: integer
+                schedule:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    startTime:
+                      type: string
+                    endTime:
+                      type: string
+                    durationMinutes:
+                      type: integer
+                    timezone:
+                      type: string
+                    startAtUtc:
+                      type: string
+                      format: date-time
+                    endAtUtc:
+                      type: string
+                      format: date-time
                 holdId:
                   type: string
                 location:
@@ -233,6 +320,10 @@ custom:
                       type: string
                     addressId:
                       type: string
+                    details:
+                      type: object
+                      additionalProperties:
+                        type: string
                 pricingSnapshot:
                   type: object
                   properties:
@@ -250,29 +341,55 @@ custom:
                       description: Vendor overlay version captured with the price. Zero means no overlay.
                     baseAmount:
                       type: number
+                    addOnAmount:
+                      type: number
+                    subtotalAmount:
+                      type: number
                     discountAmount:
                       type: number
                     taxAmount:
                       type: number
                     totalAmount:
                       type: number
+                    baseMinor:
+                      type: integer
+                    addOnMinor:
+                      type: integer
+                    subtotalMinor:
+                      type: integer
+                    discountMinor:
+                      type: integer
+                    taxMinor:
+                      type: integer
+                    totalMinor:
+                      type: integer
                     currency:
                       type: string
                 totalAmount:
                   type: number
                 paymentMethod:
                   type: string
+                notes:
+                  type: string
+                createdAt:
+                  type: string
+                  format: date-time
+                updatedAt:
+                  type: string
+                  format: date-time
                 paymentStatus:
                   type: string
                   enum:
                     - PENDING
                     - PAID
+                    - FAILED
                     - REFUNDED
                 bookingStatus:
                   type: string
                   enum:
                     - CREATED
                     - PENDING
+                    - PENDING_PAYMENT
                     - CONFIRMED
                     - CHECKED_IN
                     - IN_PROGRESS
@@ -296,6 +413,12 @@ custom:
                         type: string
                       vendorId:
                         type: string
+                      vendorName:
+                        type: string
+                      branchId:
+                        type: string
+                      branchName:
+                        type: string
                       vehicleId:
                         type: string
                       vehicleDetails:
@@ -313,10 +436,28 @@ custom:
                           type: string
                       bookingDate:
                         type: string
+                      schedule:
+                        type: object
+                        properties:
+                          date:
+                            type: string
+                          startTime:
+                            type: string
+                          endTime:
+                            type: string
+                          timezone:
+                            type: string
                       slotId:
                         type: string
                       totalAmount:
                         type: number
+                      pricingSnapshot:
+                        type: object
+                        properties:
+                          totalMinor:
+                            type: integer
+                          currency:
+                            type: string
                       paymentMethod:
                         type: string
                       paymentStatus:
@@ -324,12 +465,14 @@ custom:
                         enum:
                           - PENDING
                           - PAID
+                          - FAILED
                           - REFUNDED
                       bookingStatus:
                         type: string
                         enum:
                           - CREATED
                           - PENDING
+                          - PENDING_PAYMENT
                           - CONFIRMED
                           - CHECKED_IN
                           - IN_PROGRESS
@@ -424,7 +567,7 @@ functions:
           cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create booking"
-          description: "Creates a booking from an availability hold. The customer comes from the access token. Price is snapshotted from Service Catalog and is not accepted from the client. Idempotency-Key is required."
+          description: "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity, service details, capacity, and pricing are validated server-side; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required."
           swaggerTags:
             - Bookings
           bodyType: CreateBookingRequest
@@ -433,7 +576,7 @@ functions:
               description: "Booking created"
           documentation:
             summary: Create booking
-            description: Creates a booking from an availability hold. Customer identity comes from the access token. quoteId and totalAmount are not accepted. Idempotency-Key is required.
+            description: Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity and authoritative price are server-assigned; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required.
             requestModels:
               application/json: CreateBookingRequest
             tags:
@@ -529,6 +672,9 @@ functions:
 
   confirmPaidBooking:
     handler: src/handlers/internal.confirmPaidBooking
+
+  failPaymentBooking:
+    handler: src/handlers/internal.failPaymentBooking
 
 
   postcheckin:

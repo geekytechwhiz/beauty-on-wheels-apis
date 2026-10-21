@@ -20,13 +20,25 @@ export type VehicleType =
   | 'LUXURY'
   | 'BIKE';
 
+export interface VehiclePricing {
+  vehicleType: VehicleType;
+  price: number;
+  durationMinutes: number;
+}
+
 export interface Service {
   id?: string;
+  vendorId?: string;
   categoryId?: string;
   name?: string;
   description?: string;
+  /** Authoritative per-vehicle price and duration. */
+  vehiclePricing?: VehiclePricing[];
+  /** Shortest duration, or the filtered vehicle's duration. */
   durationMinutes?: number;
+  /** Configured types. A vehicleType list filter narrows this to the match. */
   vehicleTypes?: VehicleType[];
+  /** Lowest price, or the filtered vehicle's price. Not the payable amount. */
   basePrice?: number;
   active?: boolean;
   /** Catalog input version. Booking uses the pricing offeringVersion. */

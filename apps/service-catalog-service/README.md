@@ -18,7 +18,65 @@ Master categories are platform data and are created by script. Services, package
 
 `POST /pricing/calculate` returns `offeringVersion` when the request prices one service or one package for a vendor. That integer is the effective revision. It increments when the catalog input version, the applicable vendor overlay version, or a dependency version changes. It is not the sum or maximum of those versions. `pricingVersion` (`catalog-mvp-1`) identifies the calculator and is not the booking version.
 
-Catalog `version` starts at 1 on create. Price, active, and vehicle-type changes increment a service. Package price, active, and composition changes increment a package. Add-on price and active changes increment an add-on. Rows that have no version are set to 1 on the next price read. The client's version is never stored.
+Catalog `version` starts at 1 on create. Price, active, and vehicle-type changes increment a service. A change to any vehicle's price or duration increments the service. Package price, active, and composition changes increment a package. Add-on price and active changes increment an add-on. Rows that have no version are set to 1 on the next price read. The client's version is never stored.
+
+## Vehicle pricing
+
+A service is the vendor's service offering. `POST /services` accepts `vehiclePricing`: one `vehicleType`, `price`, and `durationMinutes` for each vehicle the offering supports. Vehicle types must be unique and must be one of `HATCHBACK`, `SEDAN`, `SUV`, `MUV`, `LUXURY`, or `BIKE`. Price is a non-negative INR amount with at most two decimal places. Duration is a positive integer.
+
+Older create bodies that send `basePrice`, `durationMinutes`, and `vehicleTypes` are still accepted. If `vehiclePricing` is also present, it is the one that is stored. Each listed vehicle type on a legacy body is stored at that same price and duration. Rows that only have those fields are read the same way. The next update writes `vehiclePricing` and keeps the older attributes on the item: `basePrice` is the lowest price and `durationMinutes` is the shortest duration. `vehicleTypes` lists every configured type.
+
+`GET /services/{serviceId}` returns the full `vehiclePricing` array. `basePrice` and `durationMinutes` are included on that response only when every vehicle shares the same price or the same duration. A list filtered with `vehicleType` includes those fields for the matching vehicle, because that projection has one price and one duration. Booking still reads `vehicleTypes` and `durationMinutes` from the detail response, so a mixed-duration offering does not hand booking the shortest duration.
+
+`GET /services` requires `vendorId` and queries that vendor's GSI2 partition. Optional filters are `categoryId`, `vehicleType`, `active`, `durationMinutes`, `limit`, and `nextToken`. They combine. `vehicleType=SUV` returns only offerings with an SUV price, and that list item's `vehiclePricing` contains only the SUV entry. Pages continue through the vendor partition until `limit` matches are collected.
+
+`POST /pricing/calculate` uses the price for the requested `vehicleType`. A vendor `priceOverride` still replaces that catalog price. Replacing `vehiclePricing` on update adds, changes, or removes vehicle types. A removed type cannot be selected for a new price. Bookings keep the price and duration they already stored.
+
+There is no separate `/service-offerings` resource. Booking `offeringId` remains the service id.
+
+## Marketplace offerings
+
+`GET /offerings` is the customer marketplace list. It reads the discovery projection on GSI2 (`DISCOVERY#ALL`, or `DISCOVERY#CATEGORY#<categoryId>` when `categoryId` is an equality filter). It does not scan the table and it does not change `GET /catalog/discover`.
+
+Filters combine. Friendly parameters (`categoryId`, `vehicleType`, `vendorId`, `branchId`, `minPrice`, `maxPrice`, `minRating`, `status`, `latitude`, `longitude`, `radiusKm`) and `filter=field:operator:value` (`eq`, `in`, `gte`, `lte`, `between`) compile into the same registry. Sending both for one field is `400`. `search` matches the offering name, description, and `searchText` keyword bag. `status` accepts only `active`. Rows that are inactive, unapproved, or not operational are omitted.
+
+`sort` accepts up to three of `price`, `distance`, `rating`, `popularity`, `name`, `newest`, and `relevance`, each with `:asc` or `:desc`. The default is `distance:asc` when coordinates are present, `relevance:desc` when `search` is present, and otherwise `newest:desc`. Ordering is completed on the full filtered set, then a cursor returns the next keyset page. `limit` defaults to 20 and cannot exceed 50.
+
+`availableOn=YYYY-MM-DD` and optional `startTime=HH:mm` keep offerings with a bookable slot. Catalog sends the filtered rows to Availability in one invoke. More than 40 branches or 500 offerings returns `400 AVAILABILITY_FILTER_TOO_BROAD`. A discovery partition above 5000 rows returns `503 OFFERING_CANDIDATE_LIMIT` instead of a partially sorted page.
+
+```http
+GET /offerings?search=polish&categoryId=cat_detail&vehicleType=SUV&minPrice=100&maxPrice=900&minRating=4&status=active&latitude=12.9716&longitude=77.5946&radiusKm=10&sort=price:asc,rating:desc&limit=20
+```
+
+```json
+{
+  "items": [
+    {
+      "offeringId": "svc_polish",
+      "serviceId": "svc_polish",
+      "name": "Interior polish",
+      "description": "Full interior",
+      "categoryId": "cat_detail",
+      "vendorId": "vendor_1",
+      "branchId": "branch_1",
+      "vehicleTypes": ["SUV"],
+      "displayPrice": 799,
+      "currency": "INR",
+      "durationMinutes": 60,
+      "distanceKm": 3.2,
+      "rating": 4.6,
+      "reviewCount": 18,
+      "status": "active"
+    }
+  ],
+  "nextCursor": "<opaque>",
+  "hasMore": true
+}
+```
+
+`offeringId` and `serviceId` are the same id. An empty match is `items: []` and `hasMore: false`.
+
+No new DynamoDB index is required. Price depends on the selected vehicle type and distance is calculated, so neither is a GSI sort key. A search index becomes useful only after queries hit `OFFERING_CANDIDATE_LIMIT`.
 
 The revision row is `OFFERING#SERVICE#<serviceId>` / `VENDOR#<vendorId>` (packages use `OFFERING#PACKAGE#...`). A conditional write detects a concurrent change, retries up to three times, then returns `409 OFFERING_REVISION_CONFLICT`.
 

@@ -2,6 +2,10 @@
 export interface VehicleDetailsDdb {
   bodyCategory?: string;
   makeModel?: string;
+  type?: string;
+  brand?: string;
+  model?: string;
+  registrationNumber?: string;
   saveToGarage?: boolean;
 }
 
@@ -11,9 +15,17 @@ export interface PricingSnapshotDdb {
   catalogVersion?: number;
   vendorPricingVersion?: number;
   baseAmount: number;
+  addOnAmount?: number;
+  subtotalAmount?: number;
   discountAmount: number;
   taxAmount: number;
   totalAmount: number;
+  baseMinor?: number;
+  addOnMinor?: number;
+  subtotalMinor?: number;
+  discountMinor?: number;
+  taxMinor?: number;
+  totalMinor: number;
   currency: string;
 }
 
@@ -21,6 +33,32 @@ export interface BookingLocationDdb {
   fulfilmentType: 'community' | 'address';
   communityId?: string;
   addressId?: string;
+  details?: Record<string, string>;
+}
+
+export interface BookingScheduleDdb {
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  timezone: string;
+  startAtUtc: string;
+  endAtUtc: string;
+}
+
+export interface BookingServiceSnapshotDdb {
+  serviceId: string;
+  name: string;
+  categoryId?: string;
+  offeringId: string;
+  durationMinutes: number;
+}
+
+export interface BookingAddOnSnapshotDdb {
+  id: string;
+  name: string;
+  price: number;
+  priceMinor: number;
 }
 
 export interface BookingDdbItem {
@@ -29,24 +67,31 @@ export interface BookingDdbItem {
   GSI1PK: string;
   GSI1SK: string;
   id: string;
+  reference?: string;
   customerId: string;
   vendorId: string;
+  vendorName?: string;
   branchId?: string;
+  branchName?: string;
   vehicleId?: string;
   vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
   offeringId?: string;
   offeringVersion?: number;
+  service?: BookingServiceSnapshotDdb;
+  addOns?: BookingAddOnSnapshotDdb[];
+  schedule?: BookingScheduleDdb;
   bookingDate: string;
   slotId: string;
   holdId?: string;
   location?: BookingLocationDdb;
+  notes?: string;
   pricingSnapshot?: PricingSnapshotDdb;
   quoteId?: string;
   totalAmount: number;
   paymentMethod?: string;
-  paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
-  bookingStatus: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  bookingStatus: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -59,24 +104,31 @@ export interface BookingLookupDdbItem {
   GSI1PK: string;
   GSI1SK: string;
   id: string;
+  reference?: string;
   customerId: string;
   vendorId: string;
+  vendorName?: string;
   branchId?: string;
+  branchName?: string;
   vehicleId?: string;
   vehicleDetails?: VehicleDetailsDdb;
   serviceIds: string[];
   offeringId?: string;
   offeringVersion?: number;
+  service?: BookingServiceSnapshotDdb;
+  addOns?: BookingAddOnSnapshotDdb[];
+  schedule?: BookingScheduleDdb;
   bookingDate: string;
   slotId: string;
   holdId?: string;
   location?: BookingLocationDdb;
+  notes?: string;
   pricingSnapshot?: PricingSnapshotDdb;
   quoteId?: string;
   totalAmount: number;
   paymentMethod?: string;
-  paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
-  bookingStatus: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  bookingStatus: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
   entityType: 'CustomerBooking' | 'VendorBooking';
@@ -87,7 +139,7 @@ export interface BookingIdempotencyItem {
   SK: string;
   bookingId: string;
   customerId: string;
-  holdId: string;
+  holdId?: string;
   requestHash: string;
   entityType: 'BookingIdempotency';
 }

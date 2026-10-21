@@ -9,8 +9,9 @@ export interface VehicleGateway {
 
 export class HttpVehicleGateway implements VehicleGateway {
   async getVehicle(vehicleId: string, authorizationHeader?: string): Promise<VehicleSnapshot> {
-    const base = requireBaseUrl(env.VEHICLE_SERVICE_URL, 'VEHICLE_SERVICE_URL');
+    const base = requireBaseUrl(env.VEHICLE_BASE_URL, 'VEHICLE_BASE_URL');
     try {
+      console.log('getVehicle_base', base);
       const body = await requestJson(
         `${base}/vehicles/${encodeURIComponent(vehicleId)}`,
         { method: 'GET', headers: authHeaders(authorizationHeader) },
@@ -43,6 +44,8 @@ function parseVehicle(body: unknown, vehicleId: string): VehicleSnapshot {
     vehicleType,
     ...(typeof record.brand === 'string' ? { brand: record.brand } : {}),
     ...(typeof record.model === 'string' ? { model: record.model } : {}),
+    ...(typeof record.registrationNumber === 'string' ? { registrationNumber: record.registrationNumber }
+      : typeof record.registrationNo === 'string' ? { registrationNumber: record.registrationNo } : {}),
   };
 }
 

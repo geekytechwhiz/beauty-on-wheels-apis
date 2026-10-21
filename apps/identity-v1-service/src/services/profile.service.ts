@@ -74,6 +74,20 @@ export class ProfileService {
         return this.repository.getProfile(userId);
     }
 
+    /** Authenticated caller only; this deliberately accepts no target id. */
+    async getProvisioningStatus(request: LambdaRequest): Promise<{
+        status: 'PENDING' | 'LINKED' | 'FAILED' | 'NOT_REQUIRED';
+        userId?: string;
+    }> {
+        const userId = request.context.userContext?.userId;
+        if (!userId) throw new BaseError('Unauthorized', 401, 'UNAUTHORIZED');
+        const provisioning = (await this.repository.getProfile(userId))?.userProvisioning;
+        if (!provisioning) return { status: 'NOT_REQUIRED' };
+        return provisioning.userId
+            ? { status: provisioning.status, userId: provisioning.userId }
+            : { status: provisioning.status };
+    }
+
     async updateProfile(profile: Profile): Promise<Profile> {
         return this.repository.updateProfile(profile);
     }

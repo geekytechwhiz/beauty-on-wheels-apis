@@ -7,3 +7,4 @@ export * from "./profile.service";
 export * from "./registration.service";
 export * from "./roles.service";
 export * from "./sessions.service";
+export * from './user-provisioning.service';

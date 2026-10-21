@@ -224,6 +224,11 @@ export abstract class BaseRepository {
       ddbDocClient,
       new QueryCommand(params)
     );
+    this.logger.info({
+      event: "dynamodb_query_page_result",
+      items: result.Items?.[0],
+      lastEvaluatedKey: result.LastEvaluatedKey,
+    });
 
     return {
       items: (result.Items as T[]) || [],

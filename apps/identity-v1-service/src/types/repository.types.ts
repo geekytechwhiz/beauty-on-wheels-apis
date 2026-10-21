@@ -7,6 +7,17 @@ import { BaseError } from '@api-hub/utils';
  */
 export type UserType = 'CUSTOMER' | 'VENDOR' | 'ADMIN';
 
+export type UserProvisioningStatus = 'PENDING' | 'LINKED' | 'FAILED';
+
+export interface UserProvisioning {
+  status: UserProvisioningStatus;
+  /** User Service application-person identifier; distinct from Identity's legacy userId. */
+  userId?: string;
+  requestedAt?: string;
+  linkedAt?: string;
+  lastErrorCode?: string;
+}
+
 export interface User {
   userId: string;
   email: string;
@@ -37,6 +48,7 @@ export interface Profile {
   phoneNumber?: string;
   identityId?: string;
   userType?: UserType;
+  userProvisioning?: UserProvisioning;
   createdAt?: string;
   updatedAt?: string;
 }

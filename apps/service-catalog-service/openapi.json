@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "Category": {
@@ -445,6 +445,21 @@
       "vendorId": {
         "type": "string"
       },
+      "vehicleType": {
+        "type": "string"
+      },
+      "active": {
+        "type": "boolean"
+      },
+      "durationMinutes": {
+        "type": "integer"
+      },
+      "limit": {
+        "type": "integer"
+      },
+      "nextToken": {
+        "type": "string"
+      },
       "serviceId": {
         "type": "string"
       },
@@ -821,7 +836,7 @@
     "/services": {
       "get": {
         "summary": "List services for a vendor",
-        "description": "Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters.",
+        "description": "Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters. vehicleType returns offerings with a price for that vehicle and projects vehiclePricing to that entry. Pages keep querying the vendor partition until the limit is filled.",
         "operationId": "getservices",
         "parameters": [
           {
@@ -840,6 +855,51 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/categoryId"
+            }
+          },
+          {
+            "name": "vehicleType",
+            "in": "query",
+            "description": "Canonical vehicle type. Invalid values are rejected. The list vehiclePricing array contains only this entry.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vehicleType"
+            }
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "description": "true or false. Omit to return both.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/active"
+            }
+          },
+          {
+            "name": "durationMinutes",
+            "in": "query",
+            "description": "Match a configured duration. With vehicleType, matches that vehicle's duration.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/durationMinutes"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of matching services",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit"
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "description": "Continuation token from the previous page",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/nextToken"
             }
           }
         ],

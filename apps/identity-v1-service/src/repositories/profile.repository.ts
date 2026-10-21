@@ -21,7 +21,7 @@ export class ProfileRepository
         return env.DYNAMODB_TABLE_NAME;
     }
 
-    async getProfile(userId: string): Promise<Profile | null> {
+    override async getProfile(userId: string): Promise<Profile | null> {
         const keys = IdentityKeyBuilder.userProfile(userId);
         const item = await this.get<ProfileDdbItem>(this.getTableName(), keys);
         return item ? IdentityMapper.toProfileDomain(item) : null;

@@ -52,9 +52,9 @@ export class BookingsRepository extends BaseRepository {
   }
 
   /**
-   * Persists the booking, lookups, audit row, idempotency record, and a hold
-   * lock. Slot capacity stays in Availability Service; this lock only stops a
-   * second booking id from being created for the same hold.
+   * Persists the immutable booking snapshot, lookups, audit row and
+   * customer-scoped idempotency record. Capacity is reserved atomically by
+   * Availability Service before this write; the booking id is its recovery key.
    */
   async createBooking(
     booking: Booking,
@@ -110,23 +110,8 @@ export class BookingsRepository extends BaseRepository {
               SK: 'IDEMPOTENCY',
               bookingId: id,
               customerId: booking.customerId,
-              holdId: booking.holdId,
               requestHash: meta.requestHash,
               entityType: 'BookingIdempotency',
-            },
-            ConditionExpression: 'attribute_not_exists(PK)',
-          },
-        },
-        {
-          Put: {
-            TableName: this.getTableName(),
-            Item: {
-              PK: `HOLD_BOOKING#${booking.holdId}`,
-              SK: 'HOLD_BOOKING',
-              bookingId: id,
-              customerId: booking.customerId,
-              holdId: booking.holdId,
-              entityType: 'HoldBooking',
             },
             ConditionExpression: 'attribute_not_exists(PK)',
           },

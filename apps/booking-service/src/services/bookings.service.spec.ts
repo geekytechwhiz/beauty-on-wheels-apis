@@ -4,6 +4,7 @@ import { Booking } from '../types/api-types';
 import { validateBooking } from '../schemas/bookings.schema';
 import { LambdaRequest } from '@api-hub/utils';
 import { NotFoundError, BusinessRuleError } from '@api-hub/utils';
+import { AvailabilityGateway } from '../integrations/availability.client';
 
 function customerRequest(bookingId?: string, customerId = 'c1'): LambdaRequest {
     return {
@@ -14,6 +15,7 @@ function customerRequest(bookingId?: string, customerId = 'c1'): LambdaRequest {
 
 describe('BookingsService Unit Tests', () => {
     let mockRepo: jest.Mocked<BookingsRepository>;
+    let availability: jest.Mocked<AvailabilityGateway>;
     let service: BookingsService;
 
     beforeEach(() => {
@@ -30,7 +32,11 @@ describe('BookingsService Unit Tests', () => {
             bookingExists: jest.fn()
         } as unknown as jest.Mocked<BookingsRepository>;
 
-        service = new BookingsService(mockRepo);
+        availability = {
+            reserveBooking: jest.fn(),
+            releaseAllocation: jest.fn().mockResolvedValue(undefined),
+        };
+        service = new BookingsService(mockRepo, undefined, undefined, undefined, availability);
     });
 
     describe('getbookings', () => {
@@ -87,7 +93,7 @@ describe('BookingsService Unit Tests', () => {
     });
 
     describe('putbookingid', () => {
-        it('updates booking details successfully if in allowed state', async () => {
+        it('rejects direct snapshot changes that would bypass validation', async () => {
             const originalDdb = {
                 id: 'b1',
                 customerId: 'c1',
@@ -96,7 +102,7 @@ describe('BookingsService Unit Tests', () => {
                 slotId: 'slot1',
                 serviceIds: ['s1'],
                 totalAmount: 100,
-                bookingStatus: 'CREATED',
+                bookingStatus: 'PENDING_PAYMENT',
                 paymentStatus: 'PENDING',
                 version: 1,
                 createdAt: '2026-07-13T00:00:00.000Z',
@@ -112,10 +118,16 @@ describe('BookingsService Unit Tests', () => {
                 body: { bookingDate: '2026-07-21', slotId: 'slot2' }
             } as LambdaRequest;
 
-            const result = await service.putbookingid(req);
-            expect(result.bookingDate).toBe('2026-07-21');
-            expect(result.slotId).toBe('slot2');
-            expect(mockRepo.updateBooking).toHaveBeenCalled();
+            await expect(service.putbookingid(req)).rejects.toThrow(BusinessRuleError);
+            expect(mockRepo.updateBooking).not.toHaveBeenCalled();
+        });
+
+        it('permits a note-only update while payment is pending', async () => {
+            const originalDdb = { id: 'b1', customerId: 'c1', bookingStatus: 'PENDING_PAYMENT', paymentStatus: 'PENDING', version: 1, bookingDate: '2026-07-20', slotId: 'slot1', serviceIds: [], totalAmount: 100, createdAt: '2026-07-13T00:00:00.000Z', updatedAt: '2026-07-13T00:00:00.000Z', entityType: 'Booking' } as any;
+            mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
+            mockRepo.updateBooking.mockResolvedValue();
+            await service.putbookingid({ ...customerRequest('b1'), body: { notes: 'Gate code 1234' } } as LambdaRequest);
+            expect(mockRepo.updateBooking).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Gate code 1234' }), originalDdb);
         });
 
         it('throws BusinessRuleError if booking is in COMPLETED state', async () => {

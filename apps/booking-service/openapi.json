@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "VehicleDetails": {
@@ -24,10 +24,10 @@
           "branchId",
           "vehicleId",
           "offeringId",
-          "offeringVersion",
-          "slotId",
-          "holdId",
-          "location"
+          "schedule",
+          "location",
+          "addOnIds",
+          "expectedPrice"
         ],
         "properties": {
           "vendorId": {
@@ -42,15 +42,26 @@
           "offeringId": {
             "type": "string"
           },
-          "offeringVersion": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "slotId": {
-            "type": "string"
-          },
-          "holdId": {
-            "type": "string"
+          "schedule": {
+            "type": "object",
+            "required": [
+              "date",
+              "startTime",
+              "timezone"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "startTime": {
+                "type": "string",
+                "pattern": "^\\\\d{2}:\\\\d{2}$"
+              },
+              "timezone": {
+                "type": "string"
+              }
+            }
           },
           "location": {
             "type": "object",
@@ -74,6 +85,33 @@
                 "type": "string"
               }
             }
+          },
+          "addOnIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectedPrice": {
+            "type": "object",
+            "required": [
+              "totalMinor",
+              "currency"
+            ],
+            "properties": {
+              "totalMinor": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Za-z]{3}$"
+              }
+            }
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000
           }
         }
       },
@@ -83,13 +121,22 @@
           "id": {
             "type": "string"
           },
+          "reference": {
+            "type": "string"
+          },
           "customerId": {
             "type": "string"
           },
           "vendorId": {
             "type": "string"
           },
+          "vendorName": {
+            "type": "string"
+          },
           "vehicleId": {
+            "type": "string"
+          },
+          "branchName": {
             "type": "string"
           },
           "vehicleDetails": {
@@ -99,6 +146,18 @@
                 "type": "string"
               },
               "makeModel": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "registrationNumber": {
                 "type": "string"
               },
               "saveToGarage": {
@@ -127,6 +186,75 @@
           "offeringVersion": {
             "type": "integer"
           },
+          "service": {
+            "type": "object",
+            "properties": {
+              "serviceId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "categoryId": {
+                "type": "string"
+              },
+              "offeringId": {
+                "type": "string"
+              },
+              "durationMinutes": {
+                "type": "integer"
+              }
+            }
+          },
+          "addOns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "priceMinor": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "startTime": {
+                "type": "string"
+              },
+              "endTime": {
+                "type": "string"
+              },
+              "durationMinutes": {
+                "type": "integer"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "startAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
           "holdId": {
             "type": "string"
           },
@@ -145,6 +273,12 @@
               },
               "addressId": {
                 "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -170,6 +304,12 @@
               "baseAmount": {
                 "type": "number"
               },
+              "addOnAmount": {
+                "type": "number"
+              },
+              "subtotalAmount": {
+                "type": "number"
+              },
               "discountAmount": {
                 "type": "number"
               },
@@ -178,6 +318,24 @@
               },
               "totalAmount": {
                 "type": "number"
+              },
+              "baseMinor": {
+                "type": "integer"
+              },
+              "addOnMinor": {
+                "type": "integer"
+              },
+              "subtotalMinor": {
+                "type": "integer"
+              },
+              "discountMinor": {
+                "type": "integer"
+              },
+              "taxMinor": {
+                "type": "integer"
+              },
+              "totalMinor": {
+                "type": "integer"
               },
               "currency": {
                 "type": "string"
@@ -190,11 +348,23 @@
           "paymentMethod": {
             "type": "string"
           },
+          "notes": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "paymentStatus": {
             "type": "string",
             "enum": [
               "PENDING",
               "PAID",
+              "FAILED",
               "REFUNDED"
             ]
           },
@@ -203,6 +373,7 @@
             "enum": [
               "CREATED",
               "PENDING",
+              "PENDING_PAYMENT",
               "CONFIRMED",
               "CHECKED_IN",
               "IN_PROGRESS",
@@ -227,6 +398,15 @@
                   "type": "string"
                 },
                 "vendorId": {
+                  "type": "string"
+                },
+                "vendorName": {
+                  "type": "string"
+                },
+                "branchId": {
+                  "type": "string"
+                },
+                "branchName": {
                   "type": "string"
                 },
                 "vehicleId": {
@@ -255,11 +435,39 @@
                 "bookingDate": {
                   "type": "string"
                 },
+                "schedule": {
+                  "type": "object",
+                  "properties": {
+                    "date": {
+                      "type": "string"
+                    },
+                    "startTime": {
+                      "type": "string"
+                    },
+                    "endTime": {
+                      "type": "string"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    }
+                  }
+                },
                 "slotId": {
                   "type": "string"
                 },
                 "totalAmount": {
                   "type": "number"
+                },
+                "pricingSnapshot": {
+                  "type": "object",
+                  "properties": {
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    }
+                  }
                 },
                 "paymentMethod": {
                   "type": "string"
@@ -269,6 +477,7 @@
                   "enum": [
                     "PENDING",
                     "PAID",
+                    "FAILED",
                     "REFUNDED"
                   ]
                 },
@@ -277,6 +486,7 @@
                   "enum": [
                     "CREATED",
                     "PENDING",
+                    "PENDING_PAYMENT",
                     "CONFIRMED",
                     "CHECKED_IN",
                     "IN_PROGRESS",
@@ -454,7 +664,7 @@
       },
       "post": {
         "summary": "Create booking",
-        "description": "Creates a booking from an availability hold. Customer identity comes from the access token. quoteId and totalAmount are not accepted. Idempotency-Key is required.",
+        "description": "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity and authoritative price are server-assigned; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required.",
         "operationId": "postbookings",
         "parameters": [],
         "tags": [

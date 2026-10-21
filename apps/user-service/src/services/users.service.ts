@@ -14,6 +14,7 @@ import {
   getQueryParam,
   getUserId,
 } from '../utils';
+import { IdentityUserLookupRecord } from '../types/records';
 
 const baseLogger = createLogger({
   service: 'users-service',
@@ -66,6 +67,16 @@ export class UsersService {
     });
 
     return toUser(profile);
+  }
+
+  async getUserByCognitoSub(
+    cognitoSub: string,
+  ): Promise<IdentityUserLookupRecord> {
+    const user = await this.customers.getIdentityLookup(cognitoSub);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    return user;
   }
 }
 

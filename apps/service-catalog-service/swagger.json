@@ -61,20 +61,36 @@
       },
       "Service": {
         "type": "object",
-        "required": ["categoryId", "name", "durationMinutes", "vehicleTypes", "basePrice"],
+        "description": "Create with vehiclePricing, or with the legacy basePrice, durationMinutes, and vehicleTypes fields. Those legacy fields are still returned. basePrice is the lowest price and durationMinutes is the shortest duration, except when a list is filtered by vehicleType.",
+        "required": ["categoryId", "name"],
         "properties": {
           "id": { "type": "string" },
+          "vendorId": { "type": "string" },
           "categoryId": { "type": "string" },
           "name": { "type": "string" },
           "description": { "type": "string" },
-          "durationMinutes": { "type": "integer", "minimum": 1 },
+          "vehiclePricing": {
+            "type": "array",
+            "minItems": 1,
+            "description": "One price and duration per vehicle type. Vehicle types must be unique and canonical.",
+            "items": {
+              "type": "object",
+              "required": ["vehicleType", "price", "durationMinutes"],
+              "properties": {
+                "vehicleType": { "$ref": "#/components/schemas/VehicleType" },
+                "price": { "type": "number", "minimum": 0, "description": "INR with at most two decimal places." },
+                "durationMinutes": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          "durationMinutes": { "type": "integer", "minimum": 1, "description": "Legacy single duration. On read, the shortest configured duration, or the filtered vehicle's duration." },
           "vehicleTypes": {
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
             "items": { "$ref": "#/components/schemas/VehicleType" }
           },
-          "basePrice": { "type": "number", "minimum": 0, "description": "INR with at most two decimal places. Stored and calculated in integer paise." },
+          "basePrice": { "type": "number", "minimum": 0, "description": "Legacy single price. On read, the lowest configured price, or the filtered vehicle's price. Pricing does not use this as the payable amount." },
           "displayOrder": { "type": "integer" },
           "active": { "type": "boolean" }
         }
@@ -254,9 +270,13 @@
         "summary": "List services",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "categoryId", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "vehicleType", "in": "query", "schema": { "$ref": "#/components/schemas/VehicleType" }, "description": "Matches every indexed vehicle type, not only the first." },
-          { "name": "active", "in": "query", "schema": { "type": "string" } }
+          { "name": "vendorId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Vendor that owns the services. The list queries that vendor partition." },
+          { "name": "categoryId", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "vehicleType", "in": "query", "schema": { "$ref": "#/components/schemas/VehicleType" }, "description": "Offerings with a price for this vehicle. The list vehiclePricing array contains only that entry." },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" }, "description": "true or false. Omit to return both." },
+          { "name": "durationMinutes", "in": "query", "schema": { "type": "integer" }, "description": "Match a configured duration. With vehicleType, matches that vehicle's duration." },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } },
+          { "name": "nextToken", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": { "200": { "description": "Services" } }
       },
@@ -264,7 +284,7 @@
         "tags": ["Services"],
         "summary": "Create service",
         "security": [{ "bearerAuth": [] }],
-        "description": "Catalog administrator only. Category must exist and be active. Vehicle types must be canonical and unique. basePrice cannot be negative.",
+        "description": "Catalog administrator only. Category must exist and be active. Send vehiclePricing, or the legacy basePrice, durationMinutes, and vehicleTypes. Vehicle types must be canonical and unique. Prices cannot be negative.",
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Service" } } } },
         "responses": { "200": { "description": "Created" }, "400": { "description": "Invalid price, duration, or vehicle type" }, "401": { "description": "Unauthenticated" }, "403": { "description": "Forbidden" }, "404": { "description": "Category not found" }, "409": { "description": "Category inactive or name conflict" } }
       }

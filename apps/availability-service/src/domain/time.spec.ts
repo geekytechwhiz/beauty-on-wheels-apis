@@ -43,6 +43,19 @@ describe('availability time and keys', () => {
     );
     const slotId = deterministicSlotId('vendor-1', 'branch-1', '2026-10-12', '09:00');
     expect(AvailabilityKeyBuilder.slotSk('09:00', slotId)).toBe(`SLOT#09:00#${slotId}`);
+    expect(AvailabilityKeyBuilder.slotSkFrom('09:00')).toBe('SLOT#09:00');
+    const sample = 'SLOT#09:00#slot_ab25810fd593788434fe5529';
+    const exactFrom = AvailabilityKeyBuilder.slotSkFrom('09:00');
+    const exactTo = `${exactFrom}#\uffff`;
+    const nextBlock = 'SLOT#09:30#slot_next';
+    expect(sample >= exactFrom && sample <= exactTo).toBe(true);
+    expect(nextBlock > exactTo).toBe(true);
+    const exclusiveEnd = AvailabilityKeyBuilder.slotSkFrom('09:30');
+    const sameStart = ['SLOT#09:00#slot_a', sample].filter(
+      (key) => key >= exactFrom && key <= exclusiveEnd,
+    );
+    expect(sameStart).toEqual(['SLOT#09:00#slot_a', sample]);
+    expect(nextBlock <= exclusiveEnd).toBe(false);
     expect(deterministicSlotId('vendor-1', 'branch-1', '2026-10-12', '09:00')).toBe(slotId);
   });
 
@@ -54,6 +67,7 @@ describe('availability time and keys', () => {
       status: 'available' as const,
     };
     expect(remainingCapacity(slot)).toBe(0);
+    expect(remainingCapacity({ ...slot, heldCount: 0, bookedCount: 0, availableCount: 1 })).toBe(1);
     expect(displayStatus(slot)).toBe('full');
     expect(displayStatus({ ...slot, status: 'blocked', heldCount: 0, bookedCount: 0 })).toBe(
       'blocked',

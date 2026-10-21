@@ -24,10 +24,10 @@
           "branchId",
           "vehicleId",
           "offeringId",
-          "offeringVersion",
-          "slotId",
-          "holdId",
+          "schedule",
           "location"
+          ,"addOnIds",
+          "expectedPrice"
         ],
         "properties": {
           "vendorId": {
@@ -42,15 +42,14 @@
           "offeringId": {
             "type": "string"
           },
-          "offeringVersion": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "slotId": {
-            "type": "string"
-          },
-          "holdId": {
-            "type": "string"
+          "schedule": {
+            "type": "object",
+            "required": ["date", "startTime", "timezone"],
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "startTime": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
+              "timezone": { "type": "string" }
+            }
           },
           "location": {
             "type": "object",
@@ -74,6 +73,16 @@
                 "type": "string"
               }
             }
+          ,"addOnIds": { "type": "array", "items": { "type": "string" } }
+          ,"expectedPrice": {
+            "type": "object",
+            "required": ["totalMinor", "currency"],
+            "properties": {
+              "totalMinor": { "type": "integer", "minimum": 0 },
+              "currency": { "type": "string" }
+            }
+          }
+          ,"notes": { "type": "string", "maxLength": 2000 }
           }
         }
       },

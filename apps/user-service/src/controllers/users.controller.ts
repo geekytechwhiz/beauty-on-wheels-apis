@@ -1,4 +1,4 @@
-import { LambdaRequest } from '@api-hub/utils';
+import { LambdaRequest, ValidationError } from '@api-hub/utils';
 
 import { UsersService, getUsersService } from '../services/users.service';
 
@@ -12,6 +12,21 @@ export class UsersController {
   async getUser(request: LambdaRequest) {
     return this.service.getUser(request);
   }
+
+  async getUserByCognitoSub(request: LambdaRequest) {
+    const cognitoSub = readCognitoSub(request);
+    if (!cognitoSub) {
+      throw new ValidationError('cognitoSub is required');
+    }
+    return this.service.getUserByCognitoSub(cognitoSub);
+  }
+}
+
+function readCognitoSub(request: LambdaRequest): string {
+  const pathValue = request.pathParameters?.cognitoSub;
+  const paramValue = request.params?.cognitoSub;
+  const value = typeof pathValue === 'string' ? pathValue : paramValue;
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 let controller: UsersController;

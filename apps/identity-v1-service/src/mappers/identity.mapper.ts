@@ -99,6 +99,7 @@ export class IdentityMapper {
       phoneNumber: profile.phoneNumber,
       identityId: profile.identityId,
       userType: profile.userType,
+      userProvisioning: profile.userProvisioning,
       createdAt: profile.createdAt || timestamp,
       updatedAt: timestamp,
     };

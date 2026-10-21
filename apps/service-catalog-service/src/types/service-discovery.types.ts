@@ -42,6 +42,8 @@ export interface ServiceDiscoveryEntity {
 
   vehicleTypes: string[];
   displayPricesByVehicleType: Record<string, number>;
+  /** Shortest duration. A selected vehicle uses durationMinutesByVehicleType. */
+  durationMinutesByVehicleType?: Record<string, number>;
   basePrice: number;
   currency: 'INR';
 
@@ -51,7 +53,12 @@ export interface ServiceDiscoveryEntity {
 
   rating?: number;
   reviewCount?: number;
-
+  
+  image:{
+    alt: string;
+    url: string;
+    contentType: string;
+  }
   active: boolean;
   vendorApproved: boolean;
   branchOperational: boolean;

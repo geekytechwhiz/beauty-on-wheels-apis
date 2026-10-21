@@ -22,6 +22,10 @@ function isActiveStatus(status?: string): boolean {
   return normalized === USER_STATUS.ACTIVE;
 }
 
+function readClaimedUserId(claim: unknown): string | undefined {
+  return typeof claim === 'string' && claim.trim() ? claim.trim() : undefined;
+}
+
 function claimsFromPayload(payload: Record<string, unknown>): Record<string, unknown> {
   const claims: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
@@ -84,7 +88,29 @@ async function resolveApplicationUser(
     throw new UnauthorizedError('Account is not active');
   }
 
-  ctx.userId = user.userId;
+  const applicationUserId = user.applicationUserId?.trim() || user.userId;
+  const claimedUserId = readClaimedUserId(ctx.claims.userId);
+  // A token userId must match the linked application user. A missing claim is
+  // re-read here; a mismatch or an unresolved link cannot authorize the call.
+  if (claimedUserId && claimedUserId !== applicationUserId) {
+    throw new BaseError(
+      'Application user mapping not found',
+      403,
+      'APPLICATION_USER_NOT_FOUND',
+      undefined,
+      {
+        metadata: {
+          identityId: ctx.identityId,
+          tokenUse:
+            typeof ctx.claims.token_use === 'string'
+              ? ctx.claims.token_use
+              : undefined,
+        },
+      },
+    );
+  }
+
+  ctx.userId = applicationUserId;
   const tokenRoles = parseAccessTokenRolesClaim(ctx.claims.roles);
   if (!tokenRoles.ok) {
     throw new UnauthorizedError('Invalid roles claim');

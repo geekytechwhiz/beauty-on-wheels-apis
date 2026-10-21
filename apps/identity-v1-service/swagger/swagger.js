@@ -276,6 +276,28 @@
         }
       }
     },
+    "/identity/me/provisioning-status": {
+      "get": {
+        "summary": "Current identity provisioning status",
+        "description": "",
+        "tags": [
+          "Profile"
+        ],
+        "operationId": "getProvisioningStatus.get./identity/me/provisioning-status",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
     "/sessions": {
       "get": {
         "summary": "List active sessions",

@@ -5,10 +5,16 @@ export interface CapacityCounters {
   heldCount: number;
   bookedCount: number;
   status: StoredSlotStatus;
+  /** Remaining units maintained for the DynamoDB capacity condition. */
+  availableCount?: number;
 }
 
 export function remainingCapacity(slot: CapacityCounters): number {
-  return slot.capacity - slot.heldCount - slot.bookedCount;
+  const fromCounters = slot.capacity - slot.heldCount - slot.bookedCount;
+  if (typeof slot.availableCount !== 'number') {
+    return fromCounters;
+  }
+  return Math.min(fromCounters, slot.availableCount);
 }
 
 export function displayStatus(

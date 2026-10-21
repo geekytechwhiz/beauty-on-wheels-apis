@@ -258,4 +258,17 @@ export {
   bookingConfirmedIdempotencyKey,
   type BookingConfirmedPayload,
 } from './core/contracts/booking.events';
+export {
+  IdentityRegisteredEvent,
+  IdentityRegisteredPayloadSchema,
+  UserProvisionedEvent,
+  UserProvisionedPayloadSchema,
+  IDENTITY_REGISTERED_EVENT_TYPE,
+  USER_PROVISIONED_EVENT_TYPE,
+  IDENTITY_USER_PROVISIONING_EVENT_VERSION,
+  identityRegisteredIdempotencyKey,
+  userProvisionedIdempotencyKey,
+  type IdentityRegisteredPayload,
+  type UserProvisionedPayload,
+} from './core/contracts/identity-user-provisioning.events';
 export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

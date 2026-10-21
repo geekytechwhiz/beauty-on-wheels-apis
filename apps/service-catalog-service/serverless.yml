@@ -26,7 +26,9 @@ provider:
     # IAM invoke of the vendor pricing-configuration function. Catalog does not call the owner HTTP API.
     VENDOR_PRICING_CONFIGURATION_FUNCTION: vendor-service-api-${self:provider.stage}-getPricingConfiguration
     VENDOR_DISCOVERY_FACTS_FUNCTION: vendor-service-api-${self:provider.stage}-getDiscoveryFacts
-
+    AVAILABILITY_BOOKABLE_FUNCTION: availability-service-${self:provider.stage}-findBookableOfferings
+    ASSET_URL: https://dev-use1-bw-static-assets.s3.us-east-1.amazonaws.com/dev
+    
   iam:
     role:
       statements:
@@ -51,6 +53,7 @@ provider:
           Resource:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PRICING_CONFIGURATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_DISCOVERY_FACTS_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_BOOKABLE_FUNCTION}
         - Effect: Allow
           Action:
             - sqs:SendMessage
@@ -711,6 +714,93 @@ functions:
                   - PRICE_ASC
                   - PRICE_DESC
 
+  getOfferings:
+    handler: src/handlers/offerings-handler.getOfferings
+    description: Customer marketplace list of bookable service offerings
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: offerings
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          queryStringParameters:
+            - name: search
+              required: false
+              schema:
+                type: string
+            - name: categoryId
+              required: false
+              schema:
+                type: string
+            - name: vehicleType
+              required: false
+              schema:
+                type: string
+            - name: vendorId
+              required: false
+              schema:
+                type: string
+            - name: branchId
+              required: false
+              schema:
+                type: string
+            - name: latitude
+              required: false
+              schema:
+                type: number
+            - name: longitude
+              required: false
+              schema:
+                type: number
+            - name: radiusKm
+              required: false
+              schema:
+                type: number
+            - name: minPrice
+              required: false
+              schema:
+                type: number
+            - name: maxPrice
+              required: false
+              schema:
+                type: number
+            - name: minRating
+              required: false
+              schema:
+                type: number
+            - name: status
+              required: false
+              schema:
+                type: string
+                enum:
+                  - active
+            - name: availableOn
+              required: false
+              schema:
+                type: string
+            - name: startTime
+              required: false
+              schema:
+                type: string
+            - name: sort
+              required: false
+              schema:
+                type: string
+            - name: limit
+              required: false
+              schema:
+                type: integer
+            - name: cursor
+              required: false
+              schema:
+                type: string
+            - name: filter
+              required: false
+              schema:
+                type: string
+
   backfillDiscovery:
     handler: src/handlers/backfill-discovery-handler.handler
     description: Manual discovery projection backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
@@ -749,7 +839,7 @@ functions:
               description: "OK"
           documentation:
             summary: List services for a vendor
-            description: Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters.
+            description: Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters. vehicleType returns offerings with a price for that vehicle and projects vehiclePricing to that entry. Pages keep querying the vendor partition until the limit is filled.
             queryParams:
               - name: vendorId
                 description: Vendor that owns the services
@@ -758,6 +848,31 @@ functions:
                   type: string
               - name: categoryId
                 description: Optional master category
+                required: false
+                schema:
+                  type: string
+              - name: vehicleType
+                description: Canonical vehicle type. Invalid values are rejected. The list vehiclePricing array contains only this entry.
+                required: false
+                schema:
+                  type: string
+              - name: active
+                description: true or false. Omit to return both.
+                required: false
+                schema:
+                  type: boolean
+              - name: durationMinutes
+                description: Match a configured duration. With vehicleType, matches that vehicle's duration.
+                required: false
+                schema:
+                  type: integer
+              - name: limit
+                description: Maximum number of matching services
+                required: false
+                schema:
+                  type: integer
+              - name: nextToken
+                description: Continuation token from the previous page
                 required: false
                 schema:
                   type: string

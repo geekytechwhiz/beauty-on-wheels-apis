@@ -759,6 +759,134 @@
           }
         }
       }
+    },
+    "/offerings": {
+      "get": {
+        "summary": "getOfferings",
+        "description": "",
+        "operationId": "getOfferings.get.offerings",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "0",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "1",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "2",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "3",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "4",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "5",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "6",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "7",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "8",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "9",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "10",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "11",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "12",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "13",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "14",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "15",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "16",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "17",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -806,10 +934,38 @@
       "title": "VehicleType",
       "type": "string"
     },
+    "VehiclePricing": {
+      "properties": {
+        "vehicleType": {
+          "$ref": "#/definitions/VehicleType",
+          "title": "VehiclePricing.vehicleType"
+        },
+        "price": {
+          "title": "VehiclePricing.price",
+          "type": "number"
+        },
+        "durationMinutes": {
+          "title": "VehiclePricing.durationMinutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "vehicleType",
+        "price",
+        "durationMinutes"
+      ],
+      "additionalProperties": false,
+      "title": "VehiclePricing",
+      "type": "object"
+    },
     "Service": {
       "properties": {
         "id": {
           "title": "Service.id",
+          "type": "string"
+        },
+        "vendorId": {
+          "title": "Service.vendorId",
           "type": "string"
         },
         "categoryId": {
@@ -824,8 +980,18 @@
           "title": "Service.description",
           "type": "string"
         },
+        "vehiclePricing": {
+          "items": {
+            "$ref": "#/definitions/VehiclePricing",
+            "title": "Service.vehiclePricing.[]"
+          },
+          "title": "Service.vehiclePricing",
+          "description": "Authoritative per-vehicle price and duration.",
+          "type": "array"
+        },
         "durationMinutes": {
           "title": "Service.durationMinutes",
+          "description": "Shortest duration, or the filtered vehicle's duration.",
           "type": "number"
         },
         "vehicleTypes": {
@@ -834,10 +1000,12 @@
             "title": "Service.vehicleTypes.[]"
           },
           "title": "Service.vehicleTypes",
+          "description": "Configured types. A vehicleType list filter narrows this to the match.",
           "type": "array"
         },
         "basePrice": {
           "title": "Service.basePrice",
+          "description": "Lowest price, or the filtered vehicle's price. Not the payable amount.",
           "type": "number"
         },
         "active": {
@@ -1121,15 +1289,16 @@
       },
       "Service": {
         "type": "object",
+        "description": "Create with vehiclePricing, or with the legacy basePrice, durationMinutes, and vehicleTypes fields. Those legacy fields are still returned. basePrice is the lowest price and durationMinutes is the shortest duration, except when a list is filtered by vehicleType.",
         "required": [
           "categoryId",
-          "name",
-          "durationMinutes",
-          "vehicleTypes",
-          "basePrice"
+          "name"
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "vendorId": {
             "type": "string"
           },
           "categoryId": {
@@ -1141,9 +1310,37 @@
           "description": {
             "type": "string"
           },
+          "vehiclePricing": {
+            "type": "array",
+            "minItems": 1,
+            "description": "One price and duration per vehicle type. Vehicle types must be unique and canonical.",
+            "items": {
+              "type": "object",
+              "required": [
+                "vehicleType",
+                "price",
+                "durationMinutes"
+              ],
+              "properties": {
+                "vehicleType": {
+                  "$ref": "#/components/schemas/VehicleType"
+                },
+                "price": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "INR with at most two decimal places."
+                },
+                "durationMinutes": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
           "durationMinutes": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "description": "Legacy single duration. On read, the shortest configured duration, or the filtered vehicle's duration."
           },
           "vehicleTypes": {
             "type": "array",
@@ -1156,7 +1353,7 @@
           "basePrice": {
             "type": "number",
             "minimum": 0,
-            "description": "INR with at most two decimal places. Stored and calculated in integer paise."
+            "description": "Legacy single price. On read, the lowest configured price, or the filtered vehicle's price. Pricing does not use this as the payable amount."
           },
           "displayOrder": {
             "type": "integer"

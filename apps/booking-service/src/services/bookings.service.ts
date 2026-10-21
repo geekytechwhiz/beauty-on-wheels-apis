@@ -21,16 +21,18 @@ import { Booking } from "../types/api-types";
 import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
 import {
     assertBranch,
-    assertHold,
+    assertExpectedPrice,
     assertLocation,
     assertOffering,
-    assertSlot,
     assertVehicleOwnership,
     assertVendorEligible,
     authoritativeOfferingVersion,
     buildPricingSnapshot,
+    civilTimeToUtc,
+    moneyToMinor,
     payableAmount,
     requestFingerprint,
+    VehiclePricing,
 } from "../domain/create-booking";
 import { BookingError } from "../errors";
 import { AvailabilityGateway, getAvailabilityGateway } from "../integrations/availability.client";
@@ -50,6 +52,7 @@ const baseLogger = createLogger({
 const VALID_TRANSITIONS: Record<string, string[]> = {
   CREATED: ['CONFIRMED', 'CANCELLED'],
   PENDING: ['CONFIRMED', 'CANCELLED'],
+  PENDING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['CHECKED_IN', 'CANCELLED'],
   CHECKED_IN: ['IN_PROGRESS'],
   IN_PROGRESS: ['COMPLETED'],
@@ -74,7 +77,6 @@ export class BookingsService {
         private readonly vendors: VendorGateway = getVendorGateway(),
         private readonly availability: AvailabilityGateway = getAvailabilityGateway(),
         private readonly users: UserGateway = getUserGateway(),
-        private readonly now: () => Date = () => new Date(),
     ) {}
 
     /**
@@ -125,6 +127,11 @@ export class BookingsService {
         const correlationId = (request.context as any)?.correlationId || "unknown";
         const customerId = requireCustomerId(request);
         const command = validateCreateBooking(request);
+        this.logger.info({
+            event: "postbookings_start",
+            command: command,
+            correlationId,
+        });
         const idempotencyKey = headerValue(request, "Idempotency-Key");
         if (!idempotencyKey || idempotencyKey.length > 128) {
             throw new ValidationError("Idempotency-Key header is required");
@@ -137,8 +144,8 @@ export class BookingsService {
             vendorId: command.vendorId,
             branchId: command.branchId,
             offeringId: command.offeringId,
-            slotId: command.slotId,
-            holdId: command.holdId,
+            date: command.schedule.date,
+            startTime: command.schedule.startTime,
             correlationId,
         });
 
@@ -147,11 +154,9 @@ export class BookingsService {
             return this.resume(existing, hash, correlationId);
         }
 
-        const [vehicle, eligibility, slot, hold, profile, offering] = await Promise.all([
+        const [vehicle, eligibility, profile, offering] = await Promise.all([
             this.vehicles.getVehicle(command.vehicleId, authHeader),
             this.vendors.getCheckoutEligibility(command.vendorId, command.branchId),
-            this.availability.getSlot(command.slotId, authHeader),
-            this.availability.getHold(command.holdId, authHeader),
             this.users.getProfile(customerId, authHeader),
             this.catalog.getOffering({
                 offeringId: command.offeringId,
@@ -164,28 +169,19 @@ export class BookingsService {
         assertVendorEligible(eligibility.vendor, command.vendorId);
         assertBranch(eligibility.branch, command);
         assertOffering(offering, command, vehicle.vehicleType);
-        assertSlot(slot, command, vehicle.vehicleType);
-        assertHold(hold, command, customerId, this.now());
-        assertLocation(command, eligibility.vendor, profile);
-        if (command.location.addressId) {
-            await this.users.assertAddress(customerId, command.location.addressId, authHeader);
-        }
+        // assertLocation(command, eligibility.vendor, profile);
+        const addressDetails = command.location.addressId
+            ? await this.users.assertAddress(customerId, command.location.addressId, authHeader)
+            : undefined;
 
         const price = await this.catalog.priceOffering({
             offeringId: command.offeringId,
             vendorId: command.vendorId,
             vehicleType: vehicle.vehicleType,
+            addOnIds: command.addOnIds,
             authorizationHeader: authHeader,
         });
         const resolved = authoritativeOfferingVersion(price);
-        if (resolved.offeringVersion !== command.offeringVersion) {
-            throw new BookingError(
-                "OFFERING_VERSION_MISMATCH",
-                "Offering version does not match the current offering revision",
-                409,
-                "offeringVersion",
-            );
-        }
         const pricingSnapshot = buildPricingSnapshot({
             offeringId: command.offeringId,
             offeringVersion: resolved.offeringVersion,
@@ -193,15 +189,66 @@ export class BookingsService {
             vendorPricingVersion: resolved.vendorPricingVersion,
             price,
         });
-
-        const booking: Booking = {
-            id: randomUUID(),
+        this.logger.info({
+            event: "postbookings_pricingSnapshot",
+            pricingSnapshot: pricingSnapshot,
+            correlationId,
+        });
+        assertExpectedPrice(command.expectedPrice, pricingSnapshot);
+        const { vehiclePricing } = offering;
+        const pricing = vehiclePricing.find((v:VehiclePricing) => v.vehicleType === vehicle.vehicleType);
+       this.logger.info({
+        event: "postbookings_pricing",
+        pricing: pricing,
+        correlationId,
+       });
+        if (!pricing) {
+          throw new BookingError(
+            'CATALOG_PRICING_UNAVAILABLE',
+            'Service Catalog did not return a pricing for the vehicle type',
+            502,
+            'offeringId',
+          );
+        }
+        if (pricing.durationMinutes && pricing.durationMinutes < 1) {
+          throw new BookingError(
+            'CATALOG_PRICING_UNAVAILABLE',
+            'Service Catalog did not return an offering duration',
+            502,
+            'offeringId',
+          );
+        }
+       
+        const bookingId = randomUUID();
+        const reservation = await this.availability.reserveBooking({
+            bookingId,
             customerId,
             vendorId: command.vendorId,
             branchId: command.branchId,
+            offeringId: command.offeringId,
+            vehicleType: vehicle.vehicleType,
+            date: command.schedule.date,
+            startTime: command.schedule.startTime,
+            timezone: command.schedule.timezone,
+            durationMinutes: pricing.durationMinutes,
+            authorizationHeader: authHeader,
+        });
+
+        const booking: Booking = {
+            id: bookingId,
+            reference: `BOW-${bookingId.slice(0, 8).toUpperCase()}`,
+            customerId,
+            vendorId: command.vendorId,
+            vendorName: eligibility.vendor.vendorName,
+            branchId: command.branchId,
+            branchName: eligibility.branch.branchName,
             vehicleId: command.vehicleId,
             vehicleDetails: {
                 bodyCategory: vehicle.vehicleType,
+                type: vehicle.vehicleType,
+                brand: vehicle.brand,
+                model: vehicle.model,
+                registrationNumber: vehicle.registrationNumber,
                 ...([vehicle.brand, vehicle.model].filter(Boolean).length
                     ? { makeModel: [vehicle.brand, vehicle.model].filter(Boolean).join(" ") }
                     : {}),
@@ -209,14 +256,36 @@ export class BookingsService {
             serviceIds: [command.offeringId],
             offeringId: command.offeringId,
             offeringVersion: resolved.offeringVersion,
-            bookingDate: slot.date,
-            slotId: command.slotId,
-            holdId: command.holdId,
-            location: command.location,
+            service: {
+                serviceId: command.offeringId,
+                name: offering.name || command.offeringId,
+                ...(offering.categoryId ? { categoryId: offering.categoryId } : {}),
+                offeringId: command.offeringId,
+                durationMinutes: reservation.durationMinutes,
+            },
+            addOns: (price.items || []).filter((line) => line.type === 'ADD_ON').map((line) => ({
+                id: line.id, name: line.name, price: line.unitPrice, priceMinor: moneyToMinor(line.unitPrice),
+            })),
+            bookingDate: reservation.date,
+            slotId: reservation.slotId,
+            schedule: {
+                date: reservation.date,
+                startTime: reservation.startTime,
+                endTime: reservation.endTime,
+                durationMinutes: reservation.durationMinutes,
+                timezone: reservation.timezone,
+                startAtUtc: civilTimeToUtc(reservation.date, reservation.startTime, reservation.timezone),
+                endAtUtc: civilTimeToUtc(reservation.date, reservation.endTime, reservation.timezone),
+            },
+            location: {
+                ...command.location,
+                ...(addressDetails ? { details: addressDetails } : {}),
+            },
+            notes: command.notes,
             pricingSnapshot,
             totalAmount: pricingSnapshot.totalAmount,
             paymentStatus: "PENDING",
-            bookingStatus: "PENDING",
+            bookingStatus: "PENDING_PAYMENT",
         };
 
         try {
@@ -226,8 +295,10 @@ export class BookingsService {
             });
         } catch (error) {
             if (error instanceof ConditionalWriteConflictError) {
-                return this.resumeAfterConflict(customerId, idempotencyKey, hash, command.holdId, correlationId);
+                await this.releaseReservationQuietly(bookingId, correlationId);
+                return this.resumeAfterConflict(customerId, idempotencyKey, hash, correlationId);
             }
+            await this.releaseReservationQuietly(bookingId, correlationId);
             this.logger.error({
                 event: "postbookings_persist_failed",
                 bookingId: booking.id,
@@ -237,14 +308,13 @@ export class BookingsService {
             throw error;
         }
 
-        const secured = await this.secureAllocation(booking.id!, correlationId);
         this.logger.info({
             event: "postbookings_success",
-            bookingId: secured.id,
-            payableAmount: payableAmount(secured),
+            bookingId: booking.id,
+            payableAmount: payableAmount(booking),
             correlationId,
         });
-        return secured;
+        return booking;
     }
 
     async getbookingid(request: LambdaRequest) {
@@ -299,18 +369,20 @@ export class BookingsService {
         }
         this.assertCustomerOwnsBooking(request, originalItem.customerId);
 
-        // Check if reschedule is allowed
-        const allowedToUpdate = ['CREATED', 'CONFIRMED', 'PENDING'];
-        if (!allowedToUpdate.includes(originalItem.bookingStatus)) {
+        // Creation snapshots are authoritative. Generic updates cannot bypass
+        // vehicle, service, pricing, schedule, or capacity validation.
+        const attempted = Object.keys(body ?? {}).filter((key) => key !== 'notes');
+        if (attempted.length > 0) {
+            throw new BusinessRuleError(
+                'Booking snapshots are immutable; create a new booking to change service, schedule, vehicle, or location',
+            );
+        }
+        if (originalItem.bookingStatus !== 'PENDING_PAYMENT') {
             throw new BusinessRuleError(`Cannot update booking in ${originalItem.bookingStatus} state`);
         }
-
         const updatedBooking: Booking = {
-            ...originalItem,
-            ...body,
-            id: bookingId,
-            bookingStatus: originalItem.bookingStatus, // keep status unchanged
-            paymentStatus: originalItem.paymentStatus
+            ...BookingsMapper.toDomain(originalItem),
+            ...(body.notes === undefined ? {} : { notes: body.notes }),
         };
 
         try {
@@ -514,15 +586,12 @@ export class BookingsService {
         if (!item) {
             throw new NotFoundError(`Booking with ID ${record.bookingId} not found`);
         }
-        if (item.bookingStatus === "PENDING") {
-            return this.secureAllocation(item.id, correlationId);
-        }
         if (item.bookingStatus === "CANCELLED") {
             throw new BookingError(
                 "ALLOCATION_FAILED",
-                "Booking allocation was not secured. Start again with a new hold and idempotency key.",
+                "Booking capacity reservation was released. Start again with a new idempotency key.",
                 409,
-                "holdId",
+                "Idempotency-Key",
             );
         }
         return BookingsMapper.toDomain(item);
@@ -532,70 +601,29 @@ export class BookingsService {
         customerId: string,
         idempotencyKey: string,
         hash: string,
-        holdId: string,
         correlationId: string,
     ): Promise<Booking> {
         const existing = await this.repository.getIdempotency(customerId, idempotencyKey);
         if (existing) {
             return this.resume(existing, hash, correlationId);
         }
-        const holdBooking = await this.repository.getHoldBooking(holdId);
-        if (holdBooking && holdBooking.customerId !== customerId) {
-            throw new BookingError("HOLD_ALREADY_CONSUMED", "Hold is already consumed", 409, "holdId");
-        }
-        throw new ConflictError("The selected hold is already reserved");
-    }
-
-    private async secureAllocation(bookingId: string, correlationId: string): Promise<Booking> {
-        const original = await this.repository.getBookingDetailsItem(bookingId);
-        if (!original) {
-            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
-        }
-        if (original.bookingStatus !== "PENDING") {
-            return BookingsMapper.toDomain(original);
-        }
-        if (!original.holdId) {
-            throw new BookingError("HOLD_NOT_FOUND", "Booking has no hold to consume", 409, "holdId");
-        }
-        try {
-            await this.availability.consumeHold({
-                holdId: original.holdId,
-                bookingId,
-            });
-        } catch (error) {
-            this.logger.error({
-                event: "hold_consume_failed",
-                bookingId,
-                holdId: original.holdId,
-                correlationId,
-                code: error instanceof BookingError ? error.code : undefined,
-            });
-            if (this.isTerminalAllocationFailure(error)) {
-                await this.repository.cancelBooking(original);
-            }
-            throw error;
-        }
-        const current = await this.repository.getBookingDetailsItem(bookingId);
-        if (!current) {
-            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
-        }
-        await this.repository.updateBookingStatus("CREATED", current);
-        const secured = await this.repository.getBookingById(bookingId);
-        if (!secured) {
-            throw new NotFoundError(`Booking with ID ${bookingId} not found`);
-        }
-        return secured;
-    }
-
-    private isTerminalAllocationFailure(error: unknown): boolean {
-        return error instanceof BookingError && !error.retryable && (error.statusCode ?? 500) < 500;
+        throw new ConflictError("The booking request was processed concurrently; retry with the same idempotency key");
     }
 
     private async cancelAndRelease(original: BookingDdbItem): Promise<void> {
-        if (original.holdId) {
-            await this.availability.releaseAllocation(original.id);
-        }
+        await this.availability.releaseAllocation(original.id);
         await this.repository.cancelBooking(original);
+    }
+
+    private async releaseReservationQuietly(bookingId: string, correlationId: string): Promise<void> {
+        try {
+            await this.availability.releaseAllocation(bookingId);
+        } catch (error) {
+            this.logger.error({
+                event: 'booking_reservation_compensation_failed', bookingId, correlationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     private validateStateTransition(currentStatus: string, targetStatus: string) {
@@ -627,7 +655,7 @@ export class BookingsService {
         if (original.bookingStatus === 'CONFIRMED' && original.paymentStatus === 'PAID') {
             return BookingsMapper.toDomain(original);
         }
-        if (!['PENDING', 'CREATED'].includes(original.bookingStatus) || original.paymentStatus !== 'PENDING') {
+        if (!['PENDING', 'CREATED', 'PENDING_PAYMENT'].includes(original.bookingStatus) || original.paymentStatus !== 'PENDING') {
             throw new BusinessRuleError(`Booking ${bookingId} is not awaiting payment`);
         }
         const expectedAmount = payableAmount(BookingsMapper.toDomain(original));
@@ -644,6 +672,24 @@ export class BookingsService {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
         return confirmed;
+    }
+
+    /** Trusted payment failure/timeout callback. It is idempotent and always releases capacity. */
+    async failPaymentBooking(input: { bookingId?: unknown }): Promise<Booking> {
+        const bookingId = typeof input.bookingId === 'string' ? input.bookingId.trim() : '';
+        if (!bookingId) throw new ValidationError('bookingId is required');
+        const original = await this.repository.getBookingDetailsItem(bookingId);
+        if (!original) throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        if (original.bookingStatus === 'CONFIRMED' || original.paymentStatus === 'PAID') {
+            throw new BusinessRuleError(`Booking ${bookingId} has already been paid`);
+        }
+        if (original.bookingStatus !== 'CANCELLED') {
+            await this.availability.releaseAllocation(bookingId);
+            await this.repository.updateBookingStatus('CANCELLED', original, 'FAILED');
+        }
+        const cancelled = await this.repository.getBookingById(bookingId);
+        if (!cancelled) throw new NotFoundError(`Booking with ID ${bookingId} not found`);
+        return cancelled;
     }
 
     private assertCustomerOwnsBooking(request: LambdaRequest, bookingCustomerId?: string): void {

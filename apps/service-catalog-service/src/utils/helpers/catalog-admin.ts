@@ -1,5 +1,5 @@
 import { PERMISSION } from '@api-hub/authentication-core';
-import { LambdaRequest, UnauthorizedError } from '@api-hub/utils';
+import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 import { ServiceDiscoveryEntity, ServiceDiscoveryQuery, ServiceDiscoveryResult } from '../../types/service-discovery.types';
 import { DiscoveryService } from '../../types/api-types';
 
@@ -83,6 +83,33 @@ export function assertCatalogAdmin(request: LambdaRequest): void {
   // if (!isCatalogAdmin(request)) {
   //   throw new ForbiddenError('Catalog administrator access is required');
   // }
+}
+
+/**
+ * Offering approval is an admin decision. `catalog:write` is not enough,
+ * so a vendor caller cannot approve or reject a mapping.
+ */
+export function assertOfferingApprovalAdmin(request: LambdaRequest): void {
+  if (!hasCallerIdentity(request)) {
+    throw new UnauthorizedError('Unauthorized');
+  }
+  const allowed = callerRoles(request).some((role) => CATALOG_ADMIN_ROLES.has(normalizeRole(role)));
+  if (!allowed) {
+    throw new ForbiddenError('Administrator access is required');
+  }
+}
+
+export function approvalActor(request: LambdaRequest): string {
+  const candidates = [
+    request.context.userContext?.userId,
+    request.context.authContext?.identityId,
+    request.context.userContext?.identityId,
+  ];
+  const actor = candidates.find((value) => typeof value === 'string' && value.trim() !== '');
+  if (!actor) {
+    throw new UnauthorizedError('Unauthorized');
+  }
+  return actor.trim();
 }
 
 export function normalizeSearch(value?: string): string {

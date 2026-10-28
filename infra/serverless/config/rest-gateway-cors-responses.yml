@@ -1,0 +1,234 @@
+# Shared REST API gateway responses. Headers are static; Allow-Origin is echoed
+# only when the request Origin is in custom.corsAllowedOrigins.
+# The body stays the API Gateway default message envelope.
+GatewayResponseDefault4XX:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: DEFAULT_4XX
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseDefault5XX:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: DEFAULT_5XX
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseUnauthorized:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: UNAUTHORIZED
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseAccessDenied:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: ACCESS_DENIED
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseMissingAuthenticationToken:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: MISSING_AUTHENTICATION_TOKEN
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseExpiredToken:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: EXPIRED_TOKEN
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseIntegrationFailure:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: INTEGRATION_FAILURE
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}
+
+GatewayResponseIntegrationTimeout:
+  Type: AWS::ApiGateway::GatewayResponse
+  Properties:
+    ResponseType: INTEGRATION_TIMEOUT
+    RestApiId:
+      Ref: ApiGatewayRestApi
+    ResponseParameters:
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id,X-Correlation-Id,X-Request-Id'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      gatewayresponse.header.Vary: "'Origin'"
+    ResponseTemplates:
+      application/json: |
+        #set($origin = $input.params("Origin"))
+        #if($origin == "")#set($origin = $input.params("origin"))#end
+        #set($allowed = "${self:custom.corsAllowedOrigins}")
+        #set($match = false)
+        #if($allowed == "*")
+        #set($match = true)
+        #elseif($origin != "")
+        #foreach($candidate in $allowed.split(","))
+        #if($origin == $candidate.trim())#set($match = true)#end
+        #end
+        #end
+        #if($match && $origin != "")
+        #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)
+        #set($context.responseOverride.header.Access-Control-Allow-Credentials = "true")
+        #end
+        {"message":$context.error.messageString}

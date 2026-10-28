@@ -68,6 +68,7 @@ export interface ParsedOfferingsQuery {
   sorts: SortSpec[];
   limit: number;
   cursor?: string;
+  communityId?: string;
 }
 
 export interface OfferingCandidate {

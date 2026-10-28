@@ -12,7 +12,9 @@ export type EntityType =
     | 'PACKAGE_ITEM'
     | 'SERVICE_LOOKUP'
     | 'SERVICE_VEHICLE'
-    | 'ADDON_LOOKUP';
+    | 'ADDON_LOOKUP'
+    | 'OfferingCommunity'
+    | 'ServiceCreateIdempotency';
 
 export interface CatalogBaseEntity {
     /** DynamoDB partition key */
@@ -39,6 +41,13 @@ export interface CatalogBaseEntity {
     GSI2PK?: string;
     /** GSI2 sk — `SERVICE#`, `PACKAGE#`, or `ADDON#` prefix */
     GSI2SK?: string;
+    /**
+     * Sparse community index. Set only on an OfferingCommunity row while the
+     * service is active, the mapping is operationally active, and approval
+     * is approved.
+     */
+    GSI3PK?: string;
+    GSI3SK?: string;
     createdAt: string;
     updatedAt: string;
     /** Soft-delete flag */
@@ -93,6 +102,12 @@ export interface ServiceEntity extends CatalogBaseEntity {
     active: boolean;
     /** Server-owned catalog input version for price and booking eligibility. */
     version?: number;
+    /** Liters one booking uses. Absent when the service does not declare water use. */
+    waterLiters?: number;
+    /** Absent when the service does not declare that it needs water. */
+    requiresWater?: boolean;
+    /** Absent when the service does not declare that it needs vendor equipment. */
+    requiresVendorEquipment?: boolean;
 }
 
 export interface AddonEntity extends CatalogBaseEntity {
@@ -122,6 +137,58 @@ export interface PackageEntity extends CatalogBaseEntity {
     /** Server-owned catalog input version for package price, active state, and composition. */
     version?: number;
     displayOrder: number;
+}
+
+export const OFFERING_COMMUNITY_STATUS = {
+    ACTIVE: 'active',
+    INACTIVE: 'inactive',
+} as const;
+
+export type OfferingCommunityStatus =
+    (typeof OFFERING_COMMUNITY_STATUS)[keyof typeof OFFERING_COMMUNITY_STATUS];
+
+export const OFFERING_COMMUNITY_APPROVAL = {
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+} as const;
+
+export type OfferingCommunityApprovalStatus =
+    (typeof OFFERING_COMMUNITY_APPROVAL)[keyof typeof OFFERING_COMMUNITY_APPROVAL];
+
+/**
+ * One community relationship for a vendor service.
+ * `serviceId` stays the offering id. This row does not replace the SERVICE item.
+ * `approvalStatus` and `status` are independent: active + pending is stored
+ * but is not discoverable or bookable.
+ * Records written before approval existed omit `approvalStatus`. Readers treat
+ * that absence as pending and do not invent an approval.
+ */
+export interface OfferingCommunityEntity extends CatalogBaseEntity {
+    entityType: 'OfferingCommunity';
+    vendorId: string;
+    categoryId: string;
+    serviceId: string;
+    communityId: string;
+    status: OfferingCommunityStatus;
+    approvalStatus?: OfferingCommunityApprovalStatus;
+    /** Set when an admin or automatic approval records a decision. */
+    approvalUpdatedAt?: string;
+    approvalUpdatedBy?: string;
+    /** Copied from the service so the community index can drop without rewriting status. */
+    serviceActive: boolean;
+    version: number;
+}
+
+export interface ServiceCreateIdempotencyEntity {
+    PK: string;
+    SK: string;
+    entityType: 'ServiceCreateIdempotency';
+    vendorId: string;
+    serviceId: string;
+    categoryId: string;
+    idempotencyKey: string;
+    createdAt: string;
 }
 
 export interface ServiceLookupEntity extends CatalogBaseEntity {

@@ -2,14 +2,22 @@
 openapi: 3.1.0
 info:
   title: Beauty on Wheels - Booking Service API
-  version: 1.0.0
-  description: Booking lifecycle management.
+  version: 1.1.0
+  description: |
+    Booking lifecycle, customer sandbox payments, and completed-booking reviews.
+    Create booking persists an immutable pricing snapshot and PENDING_PAYMENT status.
+    Only a verified payment confirmation (trusted Lambda or sandbox-complete when enabled)
+    can mark a booking PAID/CONFIRMED. Customer clients never supply the authoritative amount.
 
 servers:
   - url: https://api.example.com/bookings/v1
 
 tags:
   - name: Bookings
+  - name: Payments
+  - name: Reviews
+  - name: Customer Plans
+  - name: Booking Changes
 
 components:
   securitySchemes:
@@ -19,25 +27,430 @@ components:
       bearerFormat: JWT
 
   schemas:
+    BookingServiceSnapshot:
+      type: object
+      required: [serviceId, name, offeringId, durationMinutes]
+      properties:
+        serviceId: { type: string }
+        name: { type: string, description: Customer-visible offering/service name }
+        categoryId: { type: string }
+        offeringId: { type: string }
+        durationMinutes: { type: integer }
+
+    BookingAddOnSnapshot:
+      type: object
+      required: [id, name, price, priceMinor]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        price: { type: number }
+        priceMinor: { type: integer }
+
+    BookingSchedule:
+      type: object
+      required: [date, startTime, endTime, durationMinutes, timezone, startAtUtc, endAtUtc]
+      properties:
+        date: { type: string, format: date }
+        startTime: { type: string, example: "10:00" }
+        endTime: { type: string, example: "10:45" }
+        durationMinutes: { type: integer }
+        timezone: { type: string, example: Asia/Kolkata }
+        startAtUtc: { type: string, format: date-time }
+        endAtUtc: { type: string, format: date-time }
+
+    BookingLocation:
+      type: object
+      required: [fulfilmentType]
+      properties:
+        fulfilmentType:
+          type: string
+          enum: [community, address]
+        communityId: { type: string }
+        addressId: { type: string }
+        details:
+          type: object
+          additionalProperties: { type: string }
+
+    PricingSnapshot:
+      type: object
+      required: [offeringId, offeringVersion, baseAmount, discountAmount, taxAmount, totalAmount, totalMinor, currency]
+      properties:
+        offeringId: { type: string }
+        offeringVersion: { type: integer }
+        catalogVersion: { type: integer }
+        vendorPricingVersion: { type: integer }
+        baseAmount: { type: number }
+        addOnAmount: { type: number }
+        subtotalAmount: { type: number }
+        discountAmount: { type: number }
+        taxAmount: { type: number }
+        totalAmount: { type: number }
+        totalMinor: { type: integer }
+        currency: { type: string, example: INR }
+
     Booking:
       type: object
       properties:
-        id: {type: string}
-        customerId: {type: string}
-        vendorId: {type: string}
-        vehicleId: {type: string}
+        id: { type: string }
+        reference: { type: string }
+        customerId: { type: string }
+        vendorId: { type: string }
+        vendorName: { type: string, description: Customer-visible provider name snapshot }
+        branchId: { type: string }
+        branchName: { type: string }
+        vehicleId: { type: string }
+        vehicleDetails:
+          type: object
+          properties:
+            bodyCategory: { type: string }
+            makeModel: { type: string }
         serviceIds:
           type: array
-          items: {type: string}
-        bookingDate: {type: string, format: date}
-        slotId: {type: string}
-        totalAmount: {type: number}
+          items: { type: string }
+        offeringId: { type: string }
+        offeringVersion: { type: integer }
+        service:
+          $ref: '#/components/schemas/BookingServiceSnapshot'
+        addOns:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingAddOnSnapshot'
+        schedule:
+          $ref: '#/components/schemas/BookingSchedule'
+        bookingDate: { type: string, format: date }
+        slotId: { type: string }
+        holdId: { type: string, description: Slot hold consumed by this booking at creation, when the client supplied one }
+        location:
+          $ref: '#/components/schemas/BookingLocation'
+        notes: { type: string }
+        pricingSnapshot:
+          $ref: '#/components/schemas/PricingSnapshot'
+        quoteId: { type: string, description: Historical only; create no longer accepts client quote ids }
+        totalAmount: { type: number }
+        paymentMethod: { type: string }
         paymentStatus:
           type: string
-          enum: [PENDING, PAID, REFUNDED]
+          enum: [PENDING, PAID, FAILED, REFUNDED]
         bookingStatus:
           type: string
-          enum: [CREATED, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED]
+          enum: [CREATED, PENDING, PENDING_PAYMENT, CONFIRMED, CHECKED_IN, IN_PROGRESS, COMPLETED, CANCELLED]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateBooking:
+      type: object
+      required: [vendorId, branchId, vehicleId, offeringId, schedule, location, expectedPrice]
+      properties:
+        vendorId: { type: string }
+        branchId: { type: string }
+        vehicleId: { type: string }
+        offeringId: { type: string }
+        schedule:
+          type: object
+          required: [date, startTime, timezone]
+          properties:
+            date: { type: string, format: date }
+            startTime: { type: string, example: "10:00" }
+            timezone: { type: string, example: Asia/Kolkata }
+        location:
+          $ref: '#/components/schemas/BookingLocation'
+        addOnIds:
+          type: array
+          items: { type: string }
+        expectedPrice:
+          type: object
+          required: [totalMinor, currency]
+          properties:
+            totalMinor: { type: integer }
+            currency: { type: string, example: INR }
+        notes: { type: string, maxLength: 2000 }
+        holdId:
+          type: string
+          description: |
+            Optional slot hold created by the same customer. When present, the hold is atomically consumed
+            into the booking allocation instead of reserving capacity again. Hold vendor, branch, customer,
+            and schedule must match the request. Expired or already consumed holds return 409.
+
+    CustomerPayment:
+      type: object
+      required: [paymentId, bookingId, amountMinor, currency, status, provider, checkoutToken, expiresAt, sandboxEnabled]
+      properties:
+        paymentId: { type: string, format: uuid }
+        bookingId: { type: string }
+        amountMinor:
+          type: integer
+          description: Authoritative payable amount from the booking pricing snapshot. Never client-supplied.
+        currency: { type: string, example: INR }
+        status:
+          type: string
+          enum: [PENDING, PAID, FAILED, CANCELLED, EXPIRED]
+        provider:
+          type: string
+          enum: [SANDBOX]
+        checkoutToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        sandboxEnabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+      example:
+        paymentId: 7c2f0f3a-1d2b-4c5e-9a10-111213141516
+        bookingId: booking_123
+        amountMinor: 499
+        currency: INR
+        status: PENDING
+        provider: SANDBOX
+        checkoutToken: sandbox_abc
+        expiresAt: "2026-10-28T10:30:00.000Z"
+        sandboxEnabled: true
+
+    SandboxCompleteRequest:
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [SUCCESS, FAILURE, CANCELLED]
+      example:
+        outcome: SUCCESS
+
+    BookingReview:
+      type: object
+      required: [reviewId, bookingId, customerId, vendorId, rating, submittedAt]
+      properties:
+        reviewId: { type: string, format: uuid }
+        bookingId: { type: string }
+        customerId: { type: string }
+        vendorId: { type: string }
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment: { type: string, maxLength: 2000 }
+        submittedAt: { type: string, format: date-time }
+      example:
+        reviewId: 9a8b7c6d-5e4f-3a2b-1c0d-ef1234567890
+        bookingId: booking_123
+        customerId: cust_1
+        vendorId: vendor_1
+        rating: 5
+        comment: Great wash
+        submittedAt: "2026-10-28T11:00:00.000Z"
+
+    SubmitReviewRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment: { type: string, maxLength: 2000 }
+      example:
+        rating: 5
+        comment: On time and thorough
+
+    Money:
+      type: object
+      required: [totalMinor, currency]
+      properties:
+        totalMinor: { type: integer, description: Catalog integer amount (INR rupees), same convention as bookings }
+        currency: { type: string, example: INR }
+
+    PlanVisitWindow:
+      type: object
+      required: [preferredDays, startTime, endTime, timezone]
+      properties:
+        preferredDays:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [MON, TUE, WED, THU, FRI, SAT, SUN] }
+        startTime: { type: string, example: "09:00" }
+        endTime: { type: string, example: "12:00", description: Must be later than startTime }
+        timezone: { type: string, example: Asia/Kolkata }
+
+    PlanEntitlement:
+      type: object
+      required: [serviceId, quantity]
+      properties:
+        serviceId: { type: string }
+        quantity: { type: integer, minimum: 1 }
+
+    CreateCustomerPlan:
+      type: object
+      additionalProperties: false
+      required: [vendorId, branchId, packageId, vehicleId, location, cadence, visitWindow, expectedPrice]
+      description: |
+        branchId is a contract addition over the proposal; vendor checkout eligibility is branch scoped.
+      properties:
+        vendorId: { type: string }
+        branchId: { type: string }
+        packageId: { type: string }
+        vehicleId: { type: string }
+        location:
+          $ref: '#/components/schemas/BookingLocation'
+        cadence: { type: string, enum: [WEEKLY, BIWEEKLY, MONTHLY] }
+        visitWindow:
+          $ref: '#/components/schemas/PlanVisitWindow'
+        expectedPrice:
+          $ref: '#/components/schemas/Money'
+      example:
+        vendorId: vendor_1
+        branchId: branch_1
+        packageId: pkg_weekly_wash
+        vehicleId: veh_1
+        location: { fulfilmentType: community, communityId: comm_1, addressId: addr_1 }
+        cadence: WEEKLY
+        visitWindow: { preferredDays: [MON, THU], startTime: "09:00", endTime: "12:00", timezone: Asia/Kolkata }
+        expectedPrice: { totalMinor: 1999, currency: INR }
+
+    CustomerPlan:
+      type: object
+      required: [planId, packageId, vendorId, branchId, vehicleId, status, paymentStatus, cadence, remainingVisits, entitlements, visitWindow, location, pricingSnapshot, createdAt, updatedAt]
+      description: |
+        PROVISIONAL policy: entitlements and remainingVisits are derived from package SERVICE items
+        (one visit per item occurrence, add-ons ignored) and the cadence is client supplied, until product
+        defines explicit entitlement/cadence fields in the catalog. No cancellation or refund policy is defined.
+      properties:
+        planId: { type: string, format: uuid }
+        packageId: { type: string }
+        packageName: { type: string }
+        vendorId: { type: string }
+        branchId: { type: string }
+        vehicleId: { type: string }
+        status: { type: string, enum: [PENDING_PAYMENT, ACTIVE] }
+        paymentStatus: { type: string, enum: [PENDING, PAID] }
+        cadence: { type: string, enum: [WEEKLY, BIWEEKLY, MONTHLY] }
+        remainingVisits: { type: integer }
+        entitlements:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanEntitlement'
+        visitWindow:
+          $ref: '#/components/schemas/PlanVisitWindow'
+        location:
+          $ref: '#/components/schemas/BookingLocation'
+        pricingSnapshot:
+          type: object
+          required: [totalAmount, totalMinor, currency, packageId]
+          properties:
+            totalAmount: { type: number }
+            totalMinor: { type: integer }
+            currency: { type: string, example: INR }
+            packageId: { type: string }
+            packageName: { type: string }
+            packageVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        activatedAt: { type: string, format: date-time }
+
+    CustomerPlanPayment:
+      type: object
+      required: [paymentId, planId, amountMinor, currency, status, provider, expiresAt]
+      description: Mirrors CustomerPayment; amount comes from the plan pricing snapshot, never from the client.
+      properties:
+        paymentId: { type: string, format: uuid }
+        planId: { type: string }
+        amountMinor: { type: integer }
+        providerAmountMinor: { type: integer, description: Amount in provider minor units (paise) }
+        currency: { type: string, example: INR }
+        status: { type: string, enum: [PENDING, PAID, FAILED, CANCELLED, EXPIRED] }
+        provider: { type: string, enum: [SANDBOX, RAZORPAY] }
+        checkoutToken: { type: string }
+        checkoutKeyId: { type: string }
+        providerOrderId: { type: string }
+        expiresAt: { type: string, format: date-time }
+        sandboxEnabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+
+    BookingChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [changeType, vendorId, branchId, offeringId, schedule]
+      properties:
+        changeType: { type: string, enum: [PROVIDER, SERVICE] }
+        vendorId: { type: string }
+        branchId: { type: string }
+        offeringId: { type: string }
+        schedule:
+          type: object
+          required: [date, startTime, timezone]
+          properties:
+            date: { type: string, format: date }
+            startTime: { type: string, example: "11:00" }
+            timezone: { type: string, example: Asia/Kolkata }
+        expectedPrice:
+          $ref: '#/components/schemas/Money'
+          description: Optional on preview, required on commit.
+        holdId: { type: string, description: Optional hold consumed under a fresh allocation key on commit }
+      example:
+        changeType: PROVIDER
+        vendorId: vendor_2
+        branchId: branch_2
+        offeringId: off_2
+        schedule: { date: "2026-11-02", startTime: "11:00", timezone: Asia/Kolkata }
+        expectedPrice: { totalMinor: 549, currency: INR }
+
+    BookingChangeSnapshot:
+      type: object
+      properties:
+        vendorId: { type: string }
+        vendorName: { type: string }
+        branchId: { type: string }
+        branchName: { type: string }
+        offeringId: { type: string }
+        service:
+          $ref: '#/components/schemas/BookingServiceSnapshot'
+        addOns:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingAddOnSnapshot'
+        schedule:
+          $ref: '#/components/schemas/BookingSchedule'
+        pricingSnapshot:
+          $ref: '#/components/schemas/PricingSnapshot'
+
+    BookingChangePreview:
+      type: object
+      required: [bookingId, changeType, current, proposed, priceDeltaMinor, currency, paymentImpact, settlementExecuted]
+      properties:
+        bookingId: { type: string }
+        changeType: { type: string, enum: [PROVIDER, SERVICE] }
+        current:
+          $ref: '#/components/schemas/BookingChangeSnapshot'
+        proposed:
+          $ref: '#/components/schemas/BookingChangeSnapshot'
+        priceDeltaMinor: { type: integer, description: proposed.totalMinor - current.totalMinor }
+        currency: { type: string }
+        paymentImpact: { type: string, enum: [CHARGE, REFUND, NONE], description: Report only. No charge or refund is executed. }
+        bookingPaymentStatus: { type: string, enum: [PENDING, PAID, FAILED, REFUNDED] }
+        refundPolicy:
+          type: string
+          enum: [UNRESOLVED]
+          description: Present when priceDeltaMinor is negative. Refund policy is undefined; nothing is refunded automatically.
+        settlementExecuted: { type: boolean, enum: [false] }
+
+    BookingChangeResult:
+      allOf:
+        - $ref: '#/components/schemas/BookingChangePreview'
+      type: object
+      properties:
+        changeId: { type: string }
+        booking:
+          $ref: '#/components/schemas/Booking'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            statusCode: { type: integer }
 
 paths:
   /bookings:
@@ -46,19 +459,28 @@ paths:
       security: [{bearerAuth: []}]
       summary: List bookings
       responses:
-        "200": {description: Booking list}
+        "200": { description: Booking list }
     post:
       tags: [Bookings]
       security: [{bearerAuth: []}]
       summary: Create booking
+      description: |
+        Creates a PENDING_PAYMENT booking with a server-computed pricing snapshot.
+        expectedPrice is validated against catalog pricing; mismatches return 409 PRICE_MISMATCH.
+        An optional holdId binds a customer slot hold to the booking atomically.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Booking'
+              $ref: '#/components/schemas/CreateBooking'
       responses:
-        "201": {description: Booking created}
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
 
   /bookings/{bookingId}:
     get:
@@ -69,7 +491,7 @@ paths:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
         "200":
           description: Booking
@@ -80,19 +502,14 @@ paths:
     put:
       tags: [Bookings]
       security: [{bearerAuth: []}]
-      summary: Update booking
+      summary: Update / reschedule booking
       parameters:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Booking'
+          schema: { type: string }
       responses:
-        "200": {description: Updated}
+        "200": { description: Updated }
     delete:
       tags: [Bookings]
       security: [{bearerAuth: []}]
@@ -101,35 +518,36 @@ paths:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "204": {description: Cancelled}
+        "204": { description: Cancelled }
 
   /bookings/{bookingId}/confirm:
     post:
       tags: [Bookings]
       security: [{bearerAuth: []}]
-      summary: Confirm booking
+      summary: Confirm booking (non-customer)
+      description: Not for customer payment confirmation. Paid confirmation is payment-owned.
       parameters:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: Confirmed}
+        "200": { description: Confirmed }
 
   /bookings/{bookingId}/check-in:
     post:
       tags: [Bookings]
       security: [{bearerAuth: []}]
-      summary: Customer check-in
+      summary: Check in
       parameters:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: Checked in}
+        "200": { description: Checked in }
 
   /bookings/{bookingId}/start:
     post:
@@ -140,9 +558,9 @@ paths:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: In progress}
+        "200": { description: In progress }
 
   /bookings/{bookingId}/complete:
     post:
@@ -153,9 +571,9 @@ paths:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: Completed}
+        "200": { description: Completed }
 
   /bookings/{bookingId}/cancel:
     post:
@@ -166,9 +584,478 @@ paths:
         - in: path
           name: bookingId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: Cancelled}
+        "200": { description: Cancelled }
+
+  /bookings/{bookingId}/payments:
+    post:
+      tags: [Payments]
+      security: [{bearerAuth: []}]
+      summary: Initiate payment for a booking
+      description: |
+        Binds a payment to the booking. Amount/currency come from the booking snapshot.
+        Requires Idempotency-Key. Retries with the same key return the original payment.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string }
+      responses:
+        "201":
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPayment'
+        "403":
+          description: Not the booking owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Booking not awaiting payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/payments/{paymentId}:
+    get:
+      tags: [Payments]
+      security: [{bearerAuth: []}]
+      summary: Get payment status
+      description: Used after app restart, timeout, or delayed confirmation to reconcile payment state.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPayment'
+        "404":
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/payments/{paymentId}/sandbox-complete:
+    post:
+      tags: [Payments]
+      security: [{bearerAuth: []}]
+      summary: Complete sandbox payment
+      description: |
+        Staging/dev only when PAYMENT_SANDBOX_ENABLED=true.
+        SUCCESS calls the same trusted confirmation path as a verified gateway webhook.
+        FAILURE/CANCELLED marks payment failed/cancelled and releases capacity.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxCompleteRequest'
+      responses:
+        "200":
+          description: Sandbox outcome applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPayment'
+        "403":
+          description: Sandbox disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/reviews:
+    post:
+      tags: [Reviews]
+      security: [{bearerAuth: []}]
+      summary: Submit booking review
+      description: |
+        Allowed only for the booking customer after COMPLETED.
+        Duplicate submissions return 409. No update policy in this version.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingReview'
+        "400":
+          description: Invalid rating/comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Review already exists or booking not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Reviews]
+      security: [{bearerAuth: []}]
+      summary: Get booking review
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingReview'
+        "404":
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customer-plans:
+    post:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Purchase a package plan (creates PENDING_PAYMENT plan)
+      description: |
+        Validates vehicle ownership, vendor checkout eligibility, active package and that expectedPrice equals the
+        package discountedPrice. Never creates an ON_DEMAND booking. Requires Idempotency-Key.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerPlan'
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlan'
+        "403":
+          description: Vehicle not owned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Package not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Price mismatch, inactive package, ineligible vendor or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: List the authenticated customer's plans
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerPlan'
+
+  /customer-plans/{planId}:
+    get:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Get a plan (owner only)
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlan'
+        "403":
+          description: Not the plan owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customer-plans/{planId}/payments:
+    post:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Initiate payment for a plan
+      description: Amount/currency come from the plan pricing snapshot. Requires Idempotency-Key.
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 128 }
+      responses:
+        "201":
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlanPayment'
+        "403":
+          description: Not the plan owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Plan already paid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customer-plans/{planId}/payments/{paymentId}:
+    get:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Get plan payment status
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlanPayment'
+        "404":
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customer-plans/{planId}/payments/{paymentId}/sandbox-complete:
+    post:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Complete sandbox plan payment
+      description: |
+        Only when PAYMENT_SANDBOX_ENABLED=true. SUCCESS activates the plan. FAILURE/CANCELLED leave the plan
+        PENDING_PAYMENT so payment can be retried.
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxCompleteRequest'
+      responses:
+        "200":
+          description: Sandbox outcome applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlanPayment'
+        "403":
+          description: Sandbox disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /customer-plans/{planId}/payments/{paymentId}/confirm:
+    post:
+      tags: [Customer Plans]
+      security: [{bearerAuth: []}]
+      summary: Confirm a provider (Razorpay) plan payment
+      description: Verifies the provider signature server side before activating the plan. No webhook is wired for plans yet.
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPlanPayment'
+        "400":
+          description: Invalid signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/changes/preview:
+    post:
+      tags: [Booking Changes]
+      security: [{bearerAuth: []}]
+      summary: Preview a provider/service change
+      description: |
+        Owner-only, PENDING_PAYMENT or CONFIRMED bookings only. Returns current vs proposed snapshots, price delta and
+        payment impact. Reports only: nothing is charged, refunded or reserved. Plan/package bookings return 409
+        PACKAGE_CHANGE_NOT_ALLOWED.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingChangeRequest'
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingChangePreview'
+        "403":
+          description: Not the booking owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: BOOKING_NOT_CHANGEABLE, PACKAGE_CHANGE_NOT_ALLOWED, CHANGE_NOT_APPLICABLE, PAYMENT_IN_PROGRESS or PRICE_MISMATCH
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/changes:
+    post:
+      tags: [Booking Changes]
+      security: [{bearerAuth: []}]
+      summary: Commit a provider/service change
+      description: |
+        Revalidates coverage, price and availability, reserves (or consumes holdId into) a new allocation, keeps the
+        original booking until success, then replaces the snapshot and releases the old allocation. On failure the new
+        allocation is released and the original is untouched. Requires Idempotency-Key and expectedPrice.
+        The price delta is reported, never settled automatically.
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingChangeRequest'
+      responses:
+        "200":
+          description: Change committed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingChangeResult'
+        "403":
+          description: Not the booking owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Not changeable, slot unavailable, price mismatch or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 
   /customers/{customerId}/bookings:
     get:
@@ -179,9 +1066,9 @@ paths:
         - in: path
           name: customerId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: History}
+        "200": { description: History }
 
   /vendors/{vendorId}/bookings:
     get:
@@ -192,9 +1079,9 @@ paths:
         - in: path
           name: vendorId
           required: true
-          schema: {type: string}
+          schema: { type: string }
       responses:
-        "200": {description: Vendor bookings}
+        "200": { description: Vendor bookings }
 
 security:
   - bearerAuth: []

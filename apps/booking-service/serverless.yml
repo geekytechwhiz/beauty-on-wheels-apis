@@ -21,6 +21,7 @@ provider:
   versionFunctions: false
 
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
 
     SERVICE_NAME: booking-service
     # LOG_LEVEL: ${ssm:/common/log-level}
@@ -33,7 +34,12 @@ provider:
     VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
     AVAILABILITY_BASE_URL: ${env:AVAILABILITY_BASE_URL, ''}
     AVAILABILITY_RESERVE_BOOKING_FUNCTION: availability-service-${self:provider.stage}-reserveBooking
+    AVAILABILITY_CONSUME_HOLD_FUNCTION: availability-service-${self:provider.stage}-consumeHold
     AVAILABILITY_RELEASE_ALLOCATION_FUNCTION: availability-service-${self:provider.stage}-releaseAllocation
+    # Turn on only after catalog GSI3 is ACTIVE, the backfill is verified, and catalog enforcement is on.
+    COMMUNITY_OFFERING_ENFORCEMENT: 'false'
+    # Sandbox payment completion for local/dev/staging. Set false when a real gateway owns confirmation.
+    PAYMENT_SANDBOX_ENABLED: ${env:PAYMENT_SANDBOX_ENABLED, 'true'}
     # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
   iam:
@@ -60,10 +66,13 @@ provider:
             - lambda:InvokeFunction
           Resource:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RESERVE_BOOKING_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_CONSUME_HOLD_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RELEASE_ALLOCATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION}
 
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
 
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
@@ -119,6 +128,10 @@ custom:
     tags:
       - name: Bookings
         description: Customer and vendor bookings
+      - name: Customer Plans
+        description: Recurring package plans (never ON_DEMAND bookings)
+      - name: Booking Changes
+        description: Preview and commit a provider or service change
     models:
       - name: VehicleDetails
         description: Vehicle snapshot stored on a booking
@@ -524,6 +537,273 @@ custom:
                       type: string
                     version:
                       type: string
+      - name: PlanVisitWindow
+        description: Provider-coordinated recurring visit window
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preferredDays, startTime, endTime, timezone]
+              properties:
+                preferredDays:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
+                startTime:
+                  type: string
+                  pattern: '^\\d{2}:\\d{2}$'
+                endTime:
+                  type: string
+                  pattern: '^\\d{2}:\\d{2}$'
+                timezone:
+                  type: string
+      - name: CreateCustomerPlanRequest
+        description: Purchase a catalog package as a recurring customer plan. Not an ON_DEMAND booking.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [vendorId, branchId, packageId, vehicleId, location, cadence, visitWindow, expectedPrice]
+              properties:
+                vendorId:
+                  type: string
+                branchId:
+                  type: string
+                  description: Addition to the approved proposal; vendor checkout eligibility is branch-scoped.
+                packageId:
+                  type: string
+                vehicleId:
+                  type: string
+                location:
+                  type: object
+                  additionalProperties: false
+                  required: [fulfilmentType]
+                  properties:
+                    fulfilmentType:
+                      type: string
+                      enum: [community, address, COMMUNITY, ADDRESS]
+                    communityId:
+                      type: string
+                    addressId:
+                      type: string
+                cadence:
+                  type: string
+                  enum: [WEEKLY, BIWEEKLY, MONTHLY]
+                visitWindow:
+                  type: object
+                  required: [preferredDays, startTime, endTime, timezone]
+                  properties:
+                    preferredDays:
+                      type: array
+                      items:
+                        type: string
+                        enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
+                    startTime:
+                      type: string
+                    endTime:
+                      type: string
+                    timezone:
+                      type: string
+                expectedPrice:
+                  type: object
+                  additionalProperties: false
+                  required: [totalMinor, currency]
+                  properties:
+                    totalMinor:
+                      type: integer
+                      minimum: 0
+                    currency:
+                      type: string
+                      pattern: '^[A-Za-z]{3}$'
+      - name: CustomerPlan
+        description: Customer package plan
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planId:
+                  type: string
+                packageId:
+                  type: string
+                packageName:
+                  type: string
+                vendorId:
+                  type: string
+                branchId:
+                  type: string
+                vehicleId:
+                  type: string
+                status:
+                  type: string
+                  enum: [PENDING_PAYMENT, ACTIVE]
+                paymentStatus:
+                  type: string
+                  enum: [PENDING, PAID]
+                cadence:
+                  type: string
+                  enum: [WEEKLY, BIWEEKLY, MONTHLY]
+                remainingVisits:
+                  type: integer
+                entitlements:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      serviceId:
+                        type: string
+                      quantity:
+                        type: integer
+                visitWindow:
+                  type: object
+                  required: [preferredDays, startTime, endTime, timezone]
+                  properties:
+                    preferredDays:
+                      type: array
+                      items:
+                        type: string
+                        enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
+                    startTime:
+                      type: string
+                    endTime:
+                      type: string
+                    timezone:
+                      type: string
+                location:
+                  type: object
+                  properties:
+                    fulfilmentType:
+                      type: string
+                    communityId:
+                      type: string
+                    addressId:
+                      type: string
+                pricingSnapshot:
+                  type: object
+                  properties:
+                    totalAmount:
+                      type: number
+                    totalMinor:
+                      type: integer
+                    currency:
+                      type: string
+                    packageId:
+                      type: string
+                    packageName:
+                      type: string
+                    packageVersion:
+                      type: integer
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+                activatedAt:
+                  type: string
+      - name: BookingChangeRequest
+        description: Preview or commit a provider/service change on an owned PENDING_PAYMENT or CONFIRMED booking.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [changeType, vendorId, branchId, offeringId, schedule]
+              properties:
+                changeType:
+                  type: string
+                  enum: [PROVIDER, SERVICE]
+                vendorId:
+                  type: string
+                branchId:
+                  type: string
+                offeringId:
+                  type: string
+                schedule:
+                  type: object
+                  additionalProperties: false
+                  required: [date, startTime, timezone]
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    startTime:
+                      type: string
+                      pattern: '^\\d{2}:\\d{2}$'
+                    timezone:
+                      type: string
+                expectedPrice:
+                  type: object
+                  additionalProperties: false
+                  description: Optional on preview, required on commit.
+                  required: [totalMinor, currency]
+                  properties:
+                    totalMinor:
+                      type: integer
+                      minimum: 0
+                    currency:
+                      type: string
+                holdId:
+                  type: string
+      - name: BookingChangePreview
+        description: Current vs proposed booking snapshots with price delta and payment impact. Reports impact only; no money moves.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookingId:
+                  type: string
+                changeType:
+                  type: string
+                current:
+                  type: object
+                proposed:
+                  type: object
+                priceDeltaMinor:
+                  type: integer
+                currency:
+                  type: string
+                paymentImpact:
+                  type: string
+                  enum: [CHARGE, REFUND, NONE]
+                bookingPaymentStatus:
+                  type: string
+                refundPolicy:
+                  type: string
+                  enum: [UNRESOLVED]
+                settlementExecuted:
+                  type: boolean
+      - name: BookingChangeResult
+        description: Committed booking change with the updated booking
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                changeId:
+                  type: string
+                bookingId:
+                  type: string
+                changeType:
+                  type: string
+                booking:
+                  type: object
+                  description: Updated booking (see Booking)
+                priceDeltaMinor:
+                  type: integer
+                currency:
+                  type: string
+                paymentImpact:
+                  type: string
+                  enum: [CHARGE, REFUND, NONE]
+                refundPolicy:
+                  type: string
+                  enum: [UNRESOLVED]
+                settlementExecuted:
+                  type: boolean
 functions:
 
 
@@ -533,7 +813,7 @@ functions:
       - http:
           path: /bookings
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List my bookings"
           description: "Lists bookings owned by the authenticated customer. Customer and vendor identifiers in query parameters are not accepted."
@@ -564,7 +844,7 @@ functions:
       - http:
           path: /bookings
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create booking"
           description: "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity, service details, capacity, and pricing are validated server-side; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required."
@@ -603,7 +883,7 @@ functions:
       - http:
           path: /bookings/{bookingId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get booking"
           swaggerTags:
@@ -641,7 +921,7 @@ functions:
       - http:
           path: /bookings/{bookingId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Cancel booking"
           swaggerTags:
@@ -683,7 +963,7 @@ functions:
       - http:
           path: /bookings/{bookingId}/check-in
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Customer check-in"
           swaggerTags:
@@ -720,7 +1000,7 @@ functions:
       - http:
           path: /bookings/{bookingId}/start
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Start service"
           swaggerTags:
@@ -757,7 +1037,7 @@ functions:
       - http:
           path: /bookings/{bookingId}/complete
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Complete booking"
           swaggerTags:
@@ -794,7 +1074,7 @@ functions:
       - http:
           path: /bookings/{bookingId}/cancel
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Cancel booking"
           swaggerTags:
@@ -831,7 +1111,7 @@ functions:
       - http:
           path: /customers/{customerId}/bookings
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Customer booking history"
           swaggerTags:
@@ -868,7 +1148,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/bookings
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Vendor bookings"
           swaggerTags:
@@ -899,57 +1179,501 @@ functions:
                   type: string
 
 
+  postbookingpayment:
+    handler: src/handlers/customer-payments.handlePostPayment
+    events:
+      - http:
+          path: /bookings/{bookingId}/payments
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Initiate customer payment for a booking"
+          swaggerTags:
+            - Payments
+          responseData:
+            201:
+              description: "Payment initiated"
+          documentation:
+            summary: Initiate customer payment
+            description: Creates a payment bound to the booking. Amount is taken from the booking pricing snapshot; clients must not supply an amount. Requires Idempotency-Key.
+            tags:
+              - Payments
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+
+  getbookingpayment:
+    handler: src/handlers/customer-payments.handleGetPayment
+    events:
+      - http:
+          path: /bookings/{bookingId}/payments/{paymentId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get customer payment status"
+          swaggerTags:
+            - Payments
+          responseData:
+            200:
+              description: "Payment status"
+          documentation:
+            summary: Get customer payment status
+            description: Reconciles pending payments against expiry and returns the current payment record for restart/callback recovery.
+            tags:
+              - Payments
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+              - name: paymentId
+                description: paymentId
+                schema:
+                  type: string
+
+  sandboxcompletepayment:
+    handler: src/handlers/customer-payments.handleSandboxCompletePayment
+    events:
+      - http:
+          path: /bookings/{bookingId}/payments/{paymentId}/sandbox-complete
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Sandbox payment completion"
+          swaggerTags:
+            - Payments
+          responseData:
+            200:
+              description: "Payment completed in sandbox"
+          documentation:
+            summary: Sandbox payment completion
+            description: Dev/staging only. Confirms or fails a payment without a real gateway. Disabled when PAYMENT_SANDBOX_ENABLED=false.
+            tags:
+              - Payments
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+              - name: paymentId
+                description: paymentId
+                schema:
+                  type: string
+
+  postbookingreview:
+    handler: src/handlers/customer-reviews.handlePostReview
+    events:
+      - http:
+          path: /bookings/{bookingId}/reviews
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Submit booking review"
+          swaggerTags:
+            - Reviews
+          responseData:
+            201:
+              description: "Review created"
+          documentation:
+            summary: Submit booking review
+            description: Customer-only. Allowed once after COMPLETED. rating 1-5 required; comment optional.
+            tags:
+              - Reviews
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+
+  getbookingreview:
+    handler: src/handlers/customer-reviews.handleGetReview
+    events:
+      - http:
+          path: /bookings/{bookingId}/reviews
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get booking review"
+          swaggerTags:
+            - Reviews
+          responseData:
+            200:
+              description: "Review"
+          documentation:
+            summary: Get booking review
+            description: Returns the persisted customer review for a booking owned by the caller.
+            tags:
+              - Reviews
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+
+
+  postcustomerplan:
+    handler: src/handlers/customer-plans.handlePostCustomerPlan
+    events:
+      - http:
+          path: /customer-plans
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create customer plan"
+          description: "Purchases a catalog package as a recurring plan in PENDING_PAYMENT. Price must equal the catalog discountedPrice. Cadence and visit count are provisional (derived from package items plus request cadence). Idempotency-Key is required."
+          swaggerTags:
+            - Customer Plans
+          bodyType: CreateCustomerPlanRequest
+          responseData:
+            201:
+              description: "Create customer plan"
+          documentation:
+            summary: Create customer plan
+            description: Purchases a catalog package as a recurring plan in PENDING_PAYMENT. Price must equal the catalog discountedPrice. Cadence and visit count are provisional (derived from package items plus request cadence). Idempotency-Key is required.
+            tags:
+              - Customer Plans
+            requestModels:
+              application/json: CreateCustomerPlanRequest
+            requestBody:
+              description: Purchases a catalog package as a recurring plan in PENDING_PAYMENT. Price must equal the catalog discountedPrice. Cadence and visit count are provisional (derived from package items plus request cadence). Idempotency-Key is required.
+              required: true
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Create customer plan
+                responseModels:
+                  application/json: CustomerPlan
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+
+  getcustomerplans:
+    handler: src/handlers/customer-plans.handleListCustomerPlans
+    events:
+      - http:
+          path: /customer-plans
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List my customer plans"
+          description: "Lists plans owned by the authenticated customer."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "List my customer plans"
+          documentation:
+            summary: List my customer plans
+            description: Lists plans owned by the authenticated customer.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: List my customer plans
+                responseModels:
+                  application/json: CustomerPlan
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+
+  getcustomerplan:
+    handler: src/handlers/customer-plans.handleGetCustomerPlan
+    events:
+      - http:
+          path: /customer-plans/{planId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get customer plan"
+          description: "Owner-only plan detail."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Get customer plan"
+          documentation:
+            summary: Get customer plan
+            description: Owner-only plan detail.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Get customer plan
+                responseModels:
+                  application/json: CustomerPlan
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+
+  postcustomerplanpayment:
+    handler: src/handlers/customer-plans.handlePostPlanPayment
+    events:
+      - http:
+          path: /customer-plans/{planId}/payments
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Initiate customer plan payment"
+          description: "Creates a payment bound to the plan. Amount is taken from the plan pricing snapshot; clients must not supply an amount. Requires Idempotency-Key."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            201:
+              description: "Initiate customer plan payment"
+          documentation:
+            summary: Initiate customer plan payment
+            description: Creates a payment bound to the plan. Amount is taken from the plan pricing snapshot; clients must not supply an amount. Requires Idempotency-Key.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Initiate customer plan payment
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+
+  getcustomerplanpayment:
+    handler: src/handlers/customer-plans.handleGetPlanPayment
+    events:
+      - http:
+          path: /customer-plans/{planId}/payments/{paymentId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get customer plan payment"
+          description: "Reconciles pending payments against expiry and returns the payment record."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Get customer plan payment"
+          documentation:
+            summary: Get customer plan payment
+            description: Reconciles pending payments against expiry and returns the payment record.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Get customer plan payment
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: paymentId
+                description: paymentId
+                schema:
+                  type: string
+
+  sandboxcompleteplanpayment:
+    handler: src/handlers/customer-plans.handleSandboxCompletePlanPayment
+    events:
+      - http:
+          path: /customer-plans/{planId}/payments/{paymentId}/sandbox-complete
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Sandbox plan payment completion"
+          description: "Dev/staging only. SUCCESS activates the plan. Disabled when PAYMENT_SANDBOX_ENABLED=false."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Sandbox plan payment completion"
+          documentation:
+            summary: Sandbox plan payment completion
+            description: Dev/staging only. SUCCESS activates the plan. Disabled when PAYMENT_SANDBOX_ENABLED=false.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Sandbox plan payment completion
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: paymentId
+                description: paymentId
+                schema:
+                  type: string
+
+  confirmcustomerplanpayment:
+    handler: src/handlers/customer-plans.handleConfirmPlanPayment
+    events:
+      - http:
+          path: /customer-plans/{planId}/payments/{paymentId}/confirm
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Confirm plan payment with provider signature"
+          description: "Razorpay checkout callback. Verifies the signature and activates the plan."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Confirm plan payment with provider signature"
+          documentation:
+            summary: Confirm plan payment with provider signature
+            description: Razorpay checkout callback. Verifies the signature and activates the plan.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Confirm plan payment with provider signature
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: paymentId
+                description: paymentId
+                schema:
+                  type: string
+
+  postbookingchangepreview:
+    handler: src/handlers/booking-changes.handlePostBookingChangePreview
+    events:
+      - http:
+          path: /bookings/{bookingId}/changes/preview
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Preview booking provider/service change"
+          description: "Owner-only. PENDING_PAYMENT or CONFIRMED bookings only. Returns current vs proposed snapshots, priceDeltaMinor and paymentImpact (CHARGE, REFUND, NONE). Reports impact only; no money moves and refund policy is unresolved."
+          swaggerTags:
+            - Booking Changes
+          bodyType: BookingChangeRequest
+          responseData:
+            200:
+              description: "Preview booking provider/service change"
+          documentation:
+            summary: Preview booking provider/service change
+            description: Owner-only. PENDING_PAYMENT or CONFIRMED bookings only. Returns current vs proposed snapshots, priceDeltaMinor and paymentImpact (CHARGE, REFUND, NONE). Reports impact only; no money moves and refund policy is unresolved.
+            tags:
+              - Booking Changes
+            requestModels:
+              application/json: BookingChangeRequest
+            requestBody:
+              description: Owner-only. PENDING_PAYMENT or CONFIRMED bookings only. Returns current vs proposed snapshots, priceDeltaMinor and paymentImpact (CHARGE, REFUND, NONE). Reports impact only; no money moves and refund policy is unresolved.
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Preview booking provider/service change
+                responseModels:
+                  application/json: BookingChangePreview
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+
+  postbookingchange:
+    handler: src/handlers/booking-changes.handlePostBookingChange
+    events:
+      - http:
+          path: /bookings/{bookingId}/changes
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Commit booking provider/service change"
+          description: "Owner-only. Revalidates coverage, price and availability, reserves new capacity, swaps the snapshot and releases the old allocation. On failure the original booking is kept. Idempotency-Key and expectedPrice are required. Package-plan bookings return 409 PACKAGE_CHANGE_NOT_ALLOWED."
+          swaggerTags:
+            - Booking Changes
+          bodyType: BookingChangeRequest
+          responseData:
+            200:
+              description: "Commit booking provider/service change"
+          documentation:
+            summary: Commit booking provider/service change
+            description: Owner-only. Revalidates coverage, price and availability, reserves new capacity, swaps the snapshot and releases the old allocation. On failure the original booking is kept. Idempotency-Key and expectedPrice are required. Package-plan bookings return 409 PACKAGE_CHANGE_NOT_ALLOWED.
+            tags:
+              - Booking Changes
+            requestModels:
+              application/json: BookingChangeRequest
+            requestBody:
+              description: Owner-only. Revalidates coverage, price and availability, reserves new capacity, swaps the snapshot and releases the old allocation. On failure the original booking is kept. Idempotency-Key and expectedPrice are required. Package-plan bookings return 409 PACKAGE_CHANGE_NOT_ALLOWED.
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Commit booking provider/service change
+                responseModels:
+                  application/json: BookingChangeResult
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: bookingId
+                description: bookingId
+                schema:
+                  type: string
+
+
 resources:
   Resources:
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
 
-  
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+
     BookingTable:
       Type: AWS::DynamoDB::Table
       DeletionPolicy: Retain

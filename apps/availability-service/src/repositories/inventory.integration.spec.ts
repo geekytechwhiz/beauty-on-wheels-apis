@@ -313,12 +313,31 @@ describe('availability persistence', () => {
         body: { slotId },
       }),
     );
+    await expect(
+      allocations.consumeHold({ holdId: next.holdId, bookingId: 'booking-1', customerId: 'customer-2' }),
+    ).rejects.toMatchObject({ statusCode: 403 });
     const consumed = await allocations.consumeHold({
       holdId: next.holdId,
       bookingId: 'booking-1',
+      customerId: 'customer-1',
     });
     expect(consumed.allocation.status).toBe('confirmed');
-    await allocations.consumeHold({ holdId: next.holdId, bookingId: 'booking-1' });
+    expect(consumed.reservation).toMatchObject({
+      holdId: next.holdId,
+      slotId,
+      vendorId: 'vendor-1',
+      branchId: 'branch-1',
+      customerId: 'customer-1',
+      date: '2026-10-12',
+    });
+    expect(consumed.reservation).toEqual(expect.objectContaining({
+      startTime: expect.any(String),
+      endTime: expect.any(String),
+      timezone: expect.any(String),
+      durationMinutes: expect.any(Number),
+    }));
+    const replayed = await allocations.consumeHold({ holdId: next.holdId, bookingId: 'booking-1' });
+    expect(replayed.reservation).toEqual(consumed.reservation);
     await expect(
       allocations.consumeHold({ holdId: next.holdId, bookingId: 'booking-2' }),
     ).rejects.toMatchObject({ code: 'HOLD_ALREADY_CONSUMED' });

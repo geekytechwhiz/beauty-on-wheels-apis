@@ -12,7 +12,18 @@ Bootstrap Completed
 
 ## Checkout
 
-Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, and `expectedPrice.totalMinor`. Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs. The persisted booking is a `PENDING_PAYMENT` immutable snapshot; only the trusted payment Lambda can confirm it.
+Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, and `expectedPrice.totalMinor`. Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs. The persisted booking is a `PENDING_PAYMENT` immutable snapshot; only the trusted payment Lambda or the sandbox-complete path (when `PAYMENT_SANDBOX_ENABLED=true`) can confirm it.
+
+Customer payment HTTP paths:
+
+- `POST /bookings/{bookingId}/payments` — initiate payment bound to the booking snapshot amount (Idempotency-Key required).
+- `GET /bookings/{bookingId}/payments/{paymentId}` — reconcile status after restart/timeout.
+- `POST /bookings/{bookingId}/payments/{paymentId}/sandbox-complete` — staging/dev only; `SUCCESS` calls the same confirm path as a verified gateway.
+
+Customer review HTTP paths:
+
+- `POST /bookings/{bookingId}/reviews` — rating 1–5 + optional comment; completed bookings only; one review per booking.
+- `GET /bookings/{bookingId}/reviews` — read the persisted review.
 
 A mismatch returns `409 OFFERING_VERSION_MISMATCH` before the booking is written and before its hold is consumed. A missing authoritative version returns `502 CATALOG_PRICING_UNAVAILABLE`. The booking stores the server revision, `catalogVersion`, `vendorPricingVersion`, currency, and the price breakdown. An idempotent retry returns the original snapshot and does not reprice.
 

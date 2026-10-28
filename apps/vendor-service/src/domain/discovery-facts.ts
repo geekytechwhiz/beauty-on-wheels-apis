@@ -34,6 +34,8 @@ export interface DiscoveryFacts {
   acceptingWork: boolean;
   branches: DiscoveryBranchFacts[];
   services: DiscoveryServicePriceFacts[];
+  /** Communities the vendor may offer services in. Catalog treats a missing list as unreadable. */
+  communityIds: string[];
 }
 
 export function buildDiscoveryFacts(input: {
@@ -51,6 +53,7 @@ export function buildDiscoveryFacts(input: {
     status: input.vendor.status,
     reviewedAt,
     acceptingWork,
+    communityIds: uniqueCommunityIds(input.vendor.communityIds),
     branches: input.branches.map((branch) =>
       branchFacts(branch, input.areas, acceptingWork),
     ),
@@ -63,6 +66,23 @@ export function buildDiscoveryFacts(input: {
         }))
       : [],
   };
+}
+
+function uniqueCommunityIds(values: readonly string[] | undefined): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values ?? []) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+    const communityId = value.trim();
+    if (!communityId || seen.has(communityId)) {
+      continue;
+    }
+    seen.add(communityId);
+    ids.push(communityId);
+  }
+  return ids;
 }
 
 function branchFacts(

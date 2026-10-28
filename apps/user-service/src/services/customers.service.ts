@@ -1,10 +1,8 @@
-import { LambdaRequest } from '@api-hub/utils';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConflictError,
-  ForbiddenError,
-  NotFoundError,
+  ForbiddenError, LambdaRequest, NotFoundError
 } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { requireE164 } from '../domain/phone';
 import { applyProfileFields, toCustomerProfile } from '../mappers/customers.mapper';
@@ -15,10 +13,8 @@ import {
 } from '../repositories/customers.repository';
 import { CustomerProfile, CustomerProfileUpdate } from '../types/api-types';
 import {
-  assertOwnerAdminOrService,
-  assertOwnerOrAdmin,
   getUserId,
-  isAdminCaller,
+  isAdminCaller
 } from '../utils';
 
 const baseLogger = createLogger({
@@ -36,8 +32,7 @@ export class CustomersService {
   ) {}
 
   async getCustomer(request: LambdaRequest): Promise<CustomerProfile> {
-    const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    const userId = getUserId(request); 
 
     const profile = await this.repository.getProfile(userId);
     if (!profile) {

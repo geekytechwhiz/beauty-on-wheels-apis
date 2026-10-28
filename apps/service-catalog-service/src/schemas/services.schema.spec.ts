@@ -1,6 +1,6 @@
 import { BaseError, LambdaRequest } from '@api-hub/utils';
 
-import { validateService } from './services.schema';
+import { validateService, validateServiceUpdate } from './services.schema';
 
 function request(body: unknown): LambdaRequest {
   return { body, params: {}, context: {} } as unknown as LambdaRequest;
@@ -69,5 +69,12 @@ describe('service validation', () => {
         name: 'Premium Wash',
       })),
     ).toThrow(expect.objectContaining({ message: 'vehiclePricing is required' }));
+  });
+
+  it('accepts community ids on create and rejects them on update', () => {
+    expect(validateService(request({ ...valid, communityIds: ['community-1', 'community-2'] })).communityIds)
+      .toEqual(['community-1', 'community-2']);
+    expect(() => validateServiceUpdate(request({ name: 'Wash', communityIds: ['community-1'] })))
+      .toThrow(expect.objectContaining({ message: 'Request validation failed' }));
   });
 });

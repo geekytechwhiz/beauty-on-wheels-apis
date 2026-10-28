@@ -1,4 +1,5 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
+import { buildCorsHeaders } from '../helper/cors.helpers';
 import { ApiResponse } from '../helper/http-response.helpers';
 import { Message } from '../types/core-types';
 
@@ -58,6 +59,7 @@ export const noContentResponse = (): APIGatewayProxyResult => {
     statusCode: 204,
     headers: {
       'Content-Type': 'application/json',
+      ...buildCorsHeaders(),
     },
     body: '',
   };

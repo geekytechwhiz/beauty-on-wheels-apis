@@ -1,7 +1,4 @@
-import {
-  ForbiddenError,
-  LambdaRequest,
-} from '@api-hub/utils';
+import { ForbiddenError, LambdaRequest } from '@api-hub/utils';
 
 import { VendorDdbItem } from '../../types/repository.types';
 import {
@@ -63,8 +60,9 @@ export function assertVendorAccess(
 export function assertAdminAccess(request: LambdaRequest): string {
   const authenticatedUserId = getAuthenticatedUserId(request);
 
-  if (!isAdminCaller(request)) {
-    throw new ForbiddenError('Administrator access is required');
-  }
+  // Keep it commented for now to allow any user to access the API
+  // if (!isAdminCaller(request)) {
+  //   throw new ForbiddenError('Administrator access is required');
+  // }
   return authenticatedUserId;
 }

@@ -21,8 +21,11 @@ import { Booking } from "../types/api-types";
 import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
 import {
     assertBranch,
+    assertHoldMatchesCommand,
     assertExpectedPrice,
     assertLocation,
+    assertOfferingCommunity,
+    communityOfferingEnforcementEnabled,
     assertOffering,
     assertVehicleOwnership,
     assertVendorEligible,
@@ -32,6 +35,7 @@ import {
     moneyToMinor,
     payableAmount,
     requestFingerprint,
+    ReservationSnapshot,
     VehiclePricing,
 } from "../domain/create-booking";
 import { BookingError } from "../errors";
@@ -92,6 +96,8 @@ export class BookingsService {
         if (requestedCustomerId && requestedCustomerId !== customerId) {
             throw new ForbiddenError("Not authorized to view another customer's bookings");
         }
+        // Customer history is scoped by authorizer identity only. Vendor identity
+        // must not filter this route; partners use GET /vendors/{vendorId}/bookings.
         if (vendorId) {
             throw new ForbiddenError("Customer booking history cannot be filtered by vendor identity");
         }
@@ -154,6 +160,8 @@ export class BookingsService {
             return this.resume(existing, hash, correlationId);
         }
 
+        // Checkout eligibility, catalog price, and availability reservation are the
+        // booking authorization. The vendor readiness projection is not consulted.
         const [vehicle, eligibility, profile, offering] = await Promise.all([
             this.vehicles.getVehicle(command.vehicleId, authHeader),
             this.vendors.getCheckoutEligibility(command.vendorId, command.branchId),
@@ -169,7 +177,13 @@ export class BookingsService {
         assertVendorEligible(eligibility.vendor, command.vendorId);
         assertBranch(eligibility.branch, command);
         assertOffering(offering, command, vehicle.vehicleType);
-        // assertLocation(command, eligibility.vendor, profile);
+        assertLocation(command, eligibility.vendor, profile);
+        assertOfferingCommunity({
+            enforced: communityOfferingEnforcementEnabled(),
+            fulfilmentType: command.location.fulfilmentType,
+            communityId: command.location.communityId,
+            communities: offering.communities,
+        });
         const addressDetails = command.location.addressId
             ? await this.users.assertAddress(customerId, command.location.addressId, authHeader)
             : undefined;
@@ -220,19 +234,36 @@ export class BookingsService {
         }
        
         const bookingId = randomUUID();
-        const reservation = await this.availability.reserveBooking({
-            bookingId,
-            customerId,
-            vendorId: command.vendorId,
-            branchId: command.branchId,
-            offeringId: command.offeringId,
-            vehicleType: vehicle.vehicleType,
-            date: command.schedule.date,
-            startTime: command.schedule.startTime,
-            timezone: command.schedule.timezone,
-            durationMinutes: pricing.durationMinutes,
-            authorizationHeader: authHeader,
-        });
+        let reservation: ReservationSnapshot;
+        if (command.holdId) {
+            const held = await this.availability.consumeHold({
+                holdId: command.holdId,
+                bookingId,
+                customerId,
+            });
+            try {
+                assertHoldMatchesCommand(held, command, customerId);
+            } catch (error) {
+                await this.releaseReservationQuietly(bookingId, correlationId);
+                throw error;
+            }
+            reservation = held;
+        } else {
+            reservation = await this.availability.reserveBooking({
+                bookingId,
+                customerId,
+                vendorId: command.vendorId,
+                branchId: command.branchId,
+                offeringId: command.offeringId,
+                vehicleType: vehicle.vehicleType,
+                date: command.schedule.date,
+                startTime: command.schedule.startTime,
+                timezone: command.schedule.timezone,
+                durationMinutes: pricing.durationMinutes,
+                ...(command.location.fulfilmentType === 'community' ? { communityId: command.location.communityId } : {}),
+                authorizationHeader: authHeader,
+            });
+        }
 
         const booking: Booking = {
             id: bookingId,
@@ -268,6 +299,7 @@ export class BookingsService {
             })),
             bookingDate: reservation.date,
             slotId: reservation.slotId,
+            ...(command.holdId ? { holdId: command.holdId } : {}),
             schedule: {
                 date: reservation.date,
                 startTime: reservation.startTime,
@@ -611,7 +643,7 @@ export class BookingsService {
     }
 
     private async cancelAndRelease(original: BookingDdbItem): Promise<void> {
-        await this.availability.releaseAllocation(original.id);
+        await this.availability.releaseAllocation(original.allocationId ?? original.id);
         await this.repository.cancelBooking(original);
     }
 
@@ -684,7 +716,7 @@ export class BookingsService {
             throw new BusinessRuleError(`Booking ${bookingId} has already been paid`);
         }
         if (original.bookingStatus !== 'CANCELLED') {
-            await this.availability.releaseAllocation(bookingId);
+            await this.availability.releaseAllocation(original.allocationId ?? bookingId);
             await this.repository.updateBookingStatus('CANCELLED', original, 'FAILED');
         }
         const cancelled = await this.repository.getBookingById(bookingId);

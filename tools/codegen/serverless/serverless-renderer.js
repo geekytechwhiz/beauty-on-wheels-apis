@@ -211,6 +211,9 @@ class ServerlessRenderer {
     }
 
     return `
+  httpCors: \${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: \${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
+
   esbuild:
     bundle: ${esbuild.bundle}
     minify: ${esbuild.minify}

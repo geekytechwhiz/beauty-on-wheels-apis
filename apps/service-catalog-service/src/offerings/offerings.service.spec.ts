@@ -156,6 +156,76 @@ describe('OfferingsService', () => {
       code: 'OFFERING_CANDIDATE_LIMIT',
     });
   });
+
+  it('filters by community through GSI3 and still returns branchId', async () => {
+    const queried: string[] = [];
+    const service = new OfferingsService(
+      {
+        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
+          throw new Error('branch discovery should stay unused');
+        },
+      },
+      { findBookable: jest.fn() },
+      {
+        async queryActivePage(input) {
+          queried.push(input.communityId);
+          return {
+            items: [{
+              PK: 'SERVICE#low',
+              SK: 'COMMUNITY#community-1',
+              entityType: 'OfferingCommunity',
+              vendorId: 'vendor-1',
+              categoryId: 'cat-1',
+              serviceId: 'low',
+              communityId: 'community-1',
+              status: 'active',
+              serviceActive: true,
+              version: 1,
+              GSI3PK: 'COMMUNITY#community-1',
+              GSI3SK: 'SERVICE#cat-1#low',
+              createdAt: '2026-10-01T00:00:00.000Z',
+              updatedAt: '2026-10-01T00:00:00.000Z',
+            }],
+          };
+        },
+        async listDiscoveryRows() {
+          return [discovery('low', 100, 'branch-9')];
+        },
+      },
+      true,
+    );
+
+    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
+    expect(queried).toEqual(['community-1']);
+    expect(page.items).toEqual([
+      expect.objectContaining({ serviceId: 'low', offeringId: 'low', branchId: 'branch-9' }),
+    ]);
+  });
+
+  it('keeps branch discovery when community enforcement is off', async () => {
+    const partitions: string[] = [];
+    const service = new OfferingsService(
+      {
+        async listDiscoveryPartition(partitionKey: string): Promise<DiscoveryPartitionPage> {
+          partitions.push(partitionKey);
+          return { items: [discovery('low', 100)], truncated: false };
+        },
+      },
+      { findBookable: jest.fn() },
+      {
+        async queryActivePage() {
+          throw new Error('community index should stay unused');
+        },
+        async listDiscoveryRows() {
+          return [];
+        },
+      },
+      false,
+    );
+    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
+    expect(partitions).toEqual(['DISCOVERY#ALL']);
+    expect(page.items[0]?.branchId).toBe('branch-1');
+  });
 });
 
 describe('parseBookableKeys', () => {

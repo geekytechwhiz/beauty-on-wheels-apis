@@ -259,6 +259,44 @@ export {
   type BookingConfirmedPayload,
 } from './core/contracts/booking.events';
 export {
+  BookingReadinessOutboxRepository,
+  publishAuthoritativeFact,
+} from './booking-readiness/outbox';
+export {
+  BookingReadinessFactUpdatedEvent,
+  BookingReadinessFactUpdatedPayloadSchema,
+  BookingReadinessFactDetailSchema,
+  VendorReadinessDetailSchema,
+  ServiceReadinessDetailSchema,
+  VisitScheduleReadinessDetailSchema,
+  BOOKING_READINESS_FACT_EVENT_TYPE,
+  BOOKING_READINESS_FACT_EVENT_VERSION,
+  BOOKING_READINESS_FACT_EVENT_SOURCE,
+  BOOKING_READINESS_FACT_SOURCES,
+  BOOKING_READINESS_FACT_NAMES,
+  BOOKING_READINESS_TRANSITIONS,
+  bookingReadinessFactIdempotencyKey,
+  planBookingReadinessFact,
+  vendorReadinessTransition,
+  countReadinessTransition,
+  countTransitionFrom,
+  readinessDetailFingerprint,
+  type BookingReadinessFactPayload,
+  type BookingReadinessFactSource,
+  type BookingReadinessTransition,
+  type VendorReadinessDetail,
+  type ReadinessOutboxState,
+} from './core/contracts/booking-readiness-fact.events';
+export {
+  VendorServiceChangedEvent,
+  VendorServiceSnapshotSchema,
+  VENDOR_SERVICE_EVENT_VERSION,
+  VENDOR_SERVICE_EVENT_SOURCE,
+  VENDOR_SERVICE_EVENT_TYPES,
+  vendorServiceIdempotencyKey,
+  type VendorServiceSnapshot,
+} from './core/contracts/vendor-service.events';
+export {
   IdentityRegisteredEvent,
   IdentityRegisteredPayloadSchema,
   UserProvisionedEvent,
@@ -271,4 +309,22 @@ export {
   type IdentityRegisteredPayload,
   type UserProvisionedPayload,
 } from './core/contracts/identity-user-provisioning.events';
+export {
+  ServiceVisitCreatedEvent,
+  ServiceVisitUpdatedEvent,
+  ServiceVisitActivatedEvent,
+  ServiceVisitPausedEvent,
+  ServiceVisitArchivedEvent,
+  ServiceVisitSnapshotSchema,
+  ServiceVisitWindowSchema,
+  SERVICE_VISIT_EVENTS,
+  SERVICE_VISIT_EVENT_TYPES,
+  SERVICE_VISIT_EVENT_VERSION,
+  SERVICE_VISIT_EVENT_SOURCE,
+  SERVICE_VISIT_EVENT_OPERATIONS,
+  serviceVisitEventType,
+  serviceVisitIdempotencyKey,
+  type ServiceVisitSnapshot,
+  type ServiceVisitEventType,
+} from './core/contracts/service-visit.events';
 export type { RealtimeSocketEnvelope } from './core/realtime/types/realtime-socket-envelope.type';

@@ -7,6 +7,7 @@ import { VehicleGateway } from '../integrations/vehicle.client';
 import { VendorGateway } from '../integrations/vendor.client';
 import { AvailabilityGateway } from '../integrations/availability.client';
 import { UserGateway } from '../integrations/user.client';
+import { BookingError } from '../errors';
 import { Booking } from '../types/api-types';
 import { requestFingerprint } from '../domain/create-booking';
 import { validateCreateBooking } from '../schemas/bookings.schema';
@@ -16,6 +17,11 @@ const command = {
   schedule: { date: '2026-10-25', startTime: '10:00', timezone: 'Asia/Kolkata' },
   location: { fulfilmentType: 'COMMUNITY', communityId: 'community_001' },
   addOnIds: [], expectedPrice: { totalMinor: 499, currency: 'INR' }, notes: 'Please call before arrival',
+};
+
+const heldReservation = {
+  holdId: 'hold-1', slotId: 'held-slot', vendorId: 'vendor_001', branchId: 'branch_001', customerId: 'customer-1',
+  date: '2026-10-25', startTime: '10:00', endTime: '12:00', timezone: 'Asia/Kolkata', durationMinutes: 120,
 };
 
 function request(body: unknown = command, key = 'idem-1'): LambdaRequest {
@@ -47,7 +53,7 @@ describe('Create booking flow', () => {
     };
     vehicles = { getVehicle: jest.fn().mockResolvedValue({ id: 'vehicle_001', userId: 'customer-1', vehicleType: 'SEDAN', brand: 'Honda', model: 'City', registrationNumber: 'KA01AB1234' }) };
     vendors = { getCheckoutEligibility: jest.fn().mockResolvedValue({ vendor: { vendorId: 'vendor_001', vendorName: 'Beauty Wheels', status: 'ACTIVE', operationalStatus: 'ONLINE', communityIds: ['community_001'] }, branch: { branchId: 'branch_001', branchName: 'Indiranagar', vendorId: 'vendor_001' } }) };
-    availability = { reserveBooking: jest.fn().mockResolvedValue({ slotId: 'internal-slot', date: '2026-10-25', startTime: '10:00', endTime: '10:45', timezone: 'Asia/Kolkata', durationMinutes: 45 }), releaseAllocation: jest.fn().mockResolvedValue(undefined) };
+    availability = { consumeHold: jest.fn().mockResolvedValue(heldReservation), reserveBooking: jest.fn().mockResolvedValue({ slotId: 'internal-slot', date: '2026-10-25', startTime: '10:00', endTime: '10:45', timezone: 'Asia/Kolkata', durationMinutes: 45 }), releaseAllocation: jest.fn().mockResolvedValue(undefined) };
     users = { getProfile: jest.fn().mockResolvedValue({ communityIds: ['community_001'] }), assertAddress: jest.fn().mockResolvedValue(undefined) };
     service = new BookingsService(repository, catalog, vehicles, vendors, availability, users);
   });
@@ -62,9 +68,51 @@ describe('Create booking flow', () => {
     expect(availability.reserveBooking).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-10-25', startTime: '10:00', durationMinutes: 45 }));
   });
 
-  it('rejects removed slot, hold, and version request fields at the boundary', async () => {
-    await expect(service.postbookings(request({ ...command, slotId: 'slot', holdId: 'hold', offeringVersion: 1 }))).rejects.toThrow();
+  it('rejects removed slot and version request fields at the boundary', async () => {
+    await expect(service.postbookings(request({ ...command, slotId: 'slot', offeringVersion: 1 }))).rejects.toThrow();
     expect(availability.reserveBooking).not.toHaveBeenCalled();
+    expect(availability.consumeHold).not.toHaveBeenCalled();
+  });
+
+  it('consumes a supplied hold instead of reserving and persists the holdId', async () => {
+    const result = await service.postbookings(request({ ...command, holdId: ' hold-1 ' }));
+    expect(availability.consumeHold).toHaveBeenCalledWith({ holdId: 'hold-1', bookingId: result.id, customerId: 'customer-1' });
+    expect(availability.reserveBooking).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ holdId: 'hold-1', slotId: 'held-slot' });
+    expect(result.schedule).toMatchObject({ date: '2026-10-25', startTime: '10:00', endTime: '12:00', durationMinutes: 120 });
+    expect(repository.createBooking).toHaveBeenCalledWith(expect.objectContaining({ holdId: 'hold-1' }), expect.anything());
+  });
+
+  it('uses reserveBooking and stores no holdId when none is supplied', async () => {
+    const result = await service.postbookings(request());
+    expect(availability.reserveBooking).toHaveBeenCalled();
+    expect(availability.consumeHold).not.toHaveBeenCalled();
+    expect(result.holdId).toBeUndefined();
+  });
+
+  it('releases the consumed allocation when persisting a hold-backed booking fails', async () => {
+    repository.createBooking.mockRejectedValue(new Error('dynamodb unavailable'));
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toThrow('dynamodb unavailable');
+    expect(availability.releaseAllocation).toHaveBeenCalledWith(availability.consumeHold.mock.calls[0][0].bookingId);
+  });
+
+  it('propagates expired and consumed hold failures without creating a booking', async () => {
+    availability.consumeHold.mockRejectedValue(new BookingError('HOLD_EXPIRED', 'Hold has expired', 409, 'holdId', false));
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toMatchObject({ code: 'HOLD_EXPIRED', statusCode: 409 });
+    availability.consumeHold.mockRejectedValue(new BookingError('SLOT_UNAVAILABLE', 'Hold is already consumed', 409, 'holdId', false));
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE', statusCode: 409 });
+    expect(repository.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('rejects and releases a hold that does not match the customer or request', async () => {
+    availability.consumeHold.mockResolvedValue({ ...heldReservation, customerId: 'customer-2' });
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toMatchObject({ code: 'HOLD_NOT_OWNED', statusCode: 403 });
+    availability.consumeHold.mockResolvedValue({ ...heldReservation, startTime: '11:00' });
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toMatchObject({ code: 'HOLD_MISMATCH', statusCode: 409 });
+    availability.consumeHold.mockResolvedValue({ ...heldReservation, branchId: 'branch_002' });
+    await expect(service.postbookings(request({ ...command, holdId: 'hold-1' }))).rejects.toMatchObject({ code: 'HOLD_MISMATCH' });
+    expect(availability.releaseAllocation).toHaveBeenCalledTimes(3);
+    expect(repository.createBooking).not.toHaveBeenCalled();
   });
 
   it('rejects price mismatches before reserving capacity', async () => {

@@ -19,6 +19,7 @@ import {
   VendorPageResult,
   VendorsRepository,
 } from '../repositories/vendors.repository';
+import { getStaffRepository, StaffRepository } from '../repositories/staff.repository';
  
 import { isCommunityId, normalizeCommunityId } from '../domain/community';
 import {
@@ -39,8 +40,10 @@ import {
 } from '../domain/vendor-aggregate';
 import {
   isOnboardingComplete,
+  OWNER_VISIT_PERMISSIONS,
   resolveVendorNextAction,
   resolveVendorSelfStatus,
+  STAFF_VISIT_PERMISSIONS,
   VENDOR_MEMBERSHIP_ROLE,
   VENDOR_NEXT_ACTION,
 } from '../domain/vendor-self';
@@ -97,6 +100,7 @@ export class VendorsService {
   constructor(
     private readonly repository: VendorsRepository = getVendorsRepository(),
     private readonly communitiesRepository: CommunitiesRepository = getCommunitiesRepository(),
+    private readonly staff: StaffRepository = getStaffRepository(),
   ) {}
 
   private async requireVendor(vendorId: string) {
@@ -124,9 +128,32 @@ export class VendorsService {
     const vendor = await this.lookupOwnedVendor(userId);
 
     if (!vendor) {
+      const memberships = await this.staff.listMembershipsByUserId(userId);
+      const membership = memberships.find((item) => item.status === 'ACTIVE') ?? memberships[0];
+      if (!membership) {
+        return {
+          hasVendor: false,
+          nextAction: VENDOR_NEXT_ACTION.START_ONBOARDING,
+        };
+      }
+      const employer = await this.repository.getVendorById(membership.vendorId);
+      if (!employer) {
+        return {
+          hasVendor: false,
+          nextAction: VENDOR_NEXT_ACTION.START_ONBOARDING,
+        };
+      }
+      const active = membership.status === 'ACTIVE' && employer.status === 'ACTIVE';
       return {
-        hasVendor: false,
-        nextAction: VENDOR_NEXT_ACTION.START_ONBOARDING,
+        hasVendor: true,
+        vendorId: employer.vendorId,
+        status: resolveVendorSelfStatus(employer),
+        nextAction: active ? VENDOR_NEXT_ACTION.OPEN_VENDOR_DASHBOARD : VENDOR_NEXT_ACTION.VIEW_ACCOUNT_STATUS,
+        membership: {
+          role: VENDOR_MEMBERSHIP_ROLE.STAFF,
+          staffId: membership.staffId,
+          permissions: active ? [...STAFF_VISIT_PERMISSIONS] : [],
+        },
       };
     }
 
@@ -141,30 +168,29 @@ export class VendorsService {
       nextAction: resolveVendorNextAction(vendor),
       membership: {
         role: VENDOR_MEMBERSHIP_ROLE.OWNER,
+        permissions: [...OWNER_VISIT_PERMISSIONS],
       },
     };
   }
 
   async createvendor(request: LambdaRequest): Promise<Vendor> {
-
-    
-
     const parsed = CreateVendorRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError('Invalid vendor registration request');
     }
 
-    const input = parsed.data; 
-
-    return this.createOwnedVendor(  input);
+    const input = parsed.data as unknown as CreateVendorRequest;
+    const ownerUserId = getAuthenticatedUserId(request);
+    return this.createOwnedVendor(input, ownerUserId);
   }
 
  
   private async createOwnedVendor(
     input: CreateVendorRequest,
+    ownerUserId: string,
   ): Promise<Vendor> {
-    const { businessInfo, ownerDetails } = input;
-    const ownerUserId = ownerDetails.userId;
+    const businessInfo = input.businessInfo ?? {};
+    const ownerDetails = input.ownerDetails ?? {};
 
     const existing = await this.findOwnedVendor(ownerUserId);
     if (existing) {
@@ -181,7 +207,7 @@ export class VendorsService {
 
     const owner = OwnerMapper.toDdbItem(vendorId, {
       userId: ownerUserId,
-      fullName: ownerDetails.fullName, 
+      fullName: ownerDetails.fullName ?? businessInfo.contactName,
       email: ownerDetails.email,
       phoneNumber: ownerDetails.phoneNumber,
     });

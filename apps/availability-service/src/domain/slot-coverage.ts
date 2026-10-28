@@ -1,4 +1,4 @@
-import { hasBookableCapacity } from './capacity';
+import { hasBookableCapacity, type CapacityCounters } from './capacity';
 import { isValidTime, timeToMinutes, addMinutes } from './time';
 
 /**
@@ -44,6 +44,8 @@ export interface CoverageSlot {
   vendorId: string;
   branchId: string;
   date: string;
+  /** Days after the visit occurrence. Set on blocks that start after midnight. */
+  startDayOffset?: number;
 }
 
 export interface CoverageRequest {
@@ -51,6 +53,8 @@ export interface CoverageRequest {
   branchId?: string;
   date?: string;
   startTime: string;
+  /** Days after `date` when the requested start is on the next civil morning. */
+  startDayOffset?: number;
   durationMinutes: number;
   offeringId?: string;
   vehicleType?: string;
@@ -92,7 +96,7 @@ export function slotQueryBounds(
 ): { fromTime: string; toTimeExclusive: string } {
   const start = timeToMinutes(startTime);
   const from = Math.max(0, start - MAX_SLOT_LOOKBACK_MINUTES);
-  const end = Math.min(start + durationMinutes, 24 * 60);
+  const end = Math.min(start + durationMinutes, 48 * 60);
   return {
     fromTime: addMinutes('00:00', from),
     toTimeExclusive: addMinutes('00:00', end),
@@ -103,9 +107,9 @@ export function selectCapacityBlocks<T extends CoverageSlot>(
   slots: readonly T[],
   request: CoverageRequest,
 ): CoverageSuccess<T> | CoverageFailure {
-  const start = timeToMinutes(request.startTime);
+  const start = timeToMinutes(request.startTime) + (request.startDayOffset ?? 0) * 1440;
   const end = start + request.durationMinutes;
-  if (!isValidTime(request.startTime) || request.durationMinutes < 1 || end > 24 * 60) {
+  if (!isValidTime(request.startTime) || request.durationMinutes < 1 || end > 48 * 60) {
     return { ok: false, reason: RESERVATION_REJECTION.OUTSIDE_WORKING_HOURS };
   }
 
@@ -152,9 +156,9 @@ export function selectCapacityBlocks<T extends CoverageSlot>(
     return { ok: false, reason: RESERVATION_REJECTION.INSUFFICIENT_DURATION };
   }
 
-  const lacking = applicable.filter((slot) => !hasBookableCapacity(slot, 1));
+  const lacking = applicable.filter((slot) => !hasBookableCapacity(slot as CapacityCounters, 1));
   if (lacking.length > 0) {
-    const free = applicable.filter((slot) => hasBookableCapacity(slot, 1));
+    const free = applicable.filter((slot) => hasBookableCapacity(slot as CapacityCounters, 1));
     return {
       ok: false,
       reason: coversInterval(free, start, end)
@@ -172,32 +176,39 @@ export function selectCapacityBlocks<T extends CoverageSlot>(
 }
 
 function intersects(slot: CoverageSlot, start: number, end: number): boolean {
-  const slotStart = clockMinutes(slot.startTime);
-  const slotEnd = clockMinutes(slot.endTime);
-  if (slotStart === null || slotEnd === null || slotEnd <= slotStart) {
+  const range = absoluteRange(slot);
+  if (!range) {
     return false;
   }
-  return slotStart < end && slotEnd > start;
+  return range.start < end && range.end > start;
 }
 
 function coversInterval(slots: readonly CoverageSlot[], start: number, end: number): boolean {
   let cursor = start;
   const ordered = [...slots].sort(byWindow);
   for (const slot of ordered) {
-    const slotStart = clockMinutes(slot.startTime);
-    const slotEnd = clockMinutes(slot.endTime);
-    if (slotStart === null || slotEnd === null || slotEnd <= cursor) {
+    const range = absoluteRange(slot);
+    if (!range || range.end <= cursor) {
       continue;
     }
-    if (slotStart > cursor) {
+    if (range.start > cursor) {
       return false;
     }
-    cursor = slotEnd;
+    cursor = range.end;
     if (cursor >= end) {
       return true;
     }
   }
   return cursor >= end;
+}
+
+function absoluteRange(slot: CoverageSlot): { start: number; end: number } | null {
+  const clock = clockMinutes(slot.startTime);
+  if (clock === null || slot.durationMinutes < 1) {
+    return null;
+  }
+  const start = (slot.startDayOffset ?? 0) * 1440 + clock;
+  return { start, end: start + slot.durationMinutes };
 }
 
 function clockMinutes(value: string): number | null {
@@ -208,9 +219,7 @@ function clockMinutes(value: string): number | null {
 }
 
 function byWindow(left: CoverageSlot, right: CoverageSlot): number {
-  return (
-    left.startTime.localeCompare(right.startTime) ||
-    left.endTime.localeCompare(right.endTime) ||
-    left.slotId.localeCompare(right.slotId)
-  );
+  const leftStart = (left.startDayOffset ?? 0) * 1440 + (clockMinutes(left.startTime) ?? 0);
+  const rightStart = (right.startDayOffset ?? 0) * 1440 + (clockMinutes(right.startTime) ?? 0);
+  return leftStart - rightStart || left.slotId.localeCompare(right.slotId);
 }

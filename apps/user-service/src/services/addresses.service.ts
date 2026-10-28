@@ -1,10 +1,10 @@
-import { randomUUID } from 'crypto';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError,
   LambdaRequest,
   NotFoundError,
 } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/observability';
+import { randomUUID } from 'crypto';
 
 import { ADDRESS_STATUS } from '../domain/constants';
 import {
@@ -27,7 +27,7 @@ import {
   AddressRequest,
 } from '../types/api-types';
 import { AddressRecord } from '../types/records';
-import { assertOwnerAdminOrService, assertOwnerOrAdmin, getPathParam, getUserId } from '../utils';
+import {  getPathParam, getUserId } from '../utils';
 
 const baseLogger = createLogger({
   service: 'addresses-service',
@@ -49,8 +49,7 @@ export class AddressesService {
   ) {}
 
   async listAddresses(request: LambdaRequest): Promise<AddressListResponse> {
-    const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    const userId = getUserId(request); 
     await this.requireProfile(userId);
 
     const records = activeAddresses(await this.addresses.listByUser(userId));
@@ -67,8 +66,7 @@ export class AddressesService {
   }
 
   async getAddress(request: LambdaRequest): Promise<Address> {
-    const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    const userId = getUserId(request); 
     await this.requireProfile(userId);
     const addressId = getPathParam(request, 'addressId');
     const address = await this.requireActiveAddress(userId, addressId);
@@ -162,9 +160,6 @@ export class AddressesService {
         city: body.city,
         state: body.state,
         postalCode: body.postalCode,
-        country: body.country,
-        latitude: body.latitude,
-        longitude: body.longitude,
         isDefault: plan.isDefault,
       },
       isDefault: plan.isDefault,

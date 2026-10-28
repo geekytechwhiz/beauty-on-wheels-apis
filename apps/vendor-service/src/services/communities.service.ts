@@ -1,33 +1,33 @@
-import { LambdaRequest } from '@api-hub/utils';
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError,
-  ConflictError,
-  NotFoundError,
-  ValidationError,
+  ConflictError, LambdaRequest, NotFoundError,
+  ValidationError
 } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/observability';
 
-import {
-  CommunitiesRepository,
-  getCommunitiesRepository,
-} from '../repositories/communities.repository';
-import {
-  VendorsRepository,
-  getVendorsRepository,
-} from '../repositories/vendors.repository';
-import { CommunitiesMapper } from '../mappers/communities.mapper';
-import { VendorsMapper } from '../mappers/vendors.mapper';
-import {
-  AddVendorCommunityRequest,
-  ReplaceVendorCommunitiesRequest,
-  VendorCommunityAssignment,
-} from '../types/api-types';
 import {
   MAX_VENDOR_COMMUNITIES,
   isCommunityId,
   normalizeCommunityId,
   uniqueCommunityIds,
 } from '../domain/community';
+import { CommunitiesMapper } from '../mappers/communities.mapper';
+import { VendorsMapper } from '../mappers/vendors.mapper';
+import {
+  CommunitiesRepository,
+  CommunityDirectoryPageResult,
+  ListCommunitiesParams,
+  getCommunitiesRepository
+} from '../repositories/communities.repository';
+import {
+  VendorsRepository,
+  getVendorsRepository,
+} from '../repositories/vendors.repository';
+import {
+  AddVendorCommunityRequest,
+  ReplaceVendorCommunitiesRequest,
+  VendorCommunityAssignment,
+} from '../types/api-types';
 import {
   assertAdminAccess,
   assertVendorAccess,
@@ -59,6 +59,21 @@ export class CommunitiesService {
     const items = await this.communitiesRepository.listByVendor(vendorId);
     return { data: items.map((item) => CommunitiesMapper.toDomain(item)) };
   }
+  async listcommunities(
+    request: LambdaRequest,
+  ): Promise<{ data: CommunityDirectoryPageResult }> {
+    const params = {
+      cityId: request.query?.cityId as string,
+      localityId: request.query?.localityId as string,
+      postalCode: request.query?.postalCode as string,
+      search: request.query?.search as string,
+      limit: request.query?.limit as number,
+      lastEvaluatedKey: request.query?.lastEvaluatedKey as Record<string, unknown>,
+    } as ListCommunitiesParams;
+
+    const items = await this.communitiesRepository.listCommunities(params);
+    return { data: items };
+  }
 
   async replacevendorcommunities(
     request: LambdaRequest,
@@ -73,7 +88,7 @@ export class CommunitiesService {
   async addvendorcommunity(
     request: LambdaRequest,
   ): Promise<{ data: VendorCommunityAssignment[] }> {
-    const userId = assertAdminAccess(request);
+    const userId = request.context.userContext?.userId as string;
     const vendorId = getVendorId(request);
     const body = request.body as AddVendorCommunityRequest;
     const communityId = this.parseCommunityId(body.communityId);
@@ -93,7 +108,9 @@ export class CommunitiesService {
   ): Promise<{ data: VendorCommunityAssignment[] }> {
     const userId = assertAdminAccess(request);
     const vendorId = getVendorId(request);
-    const communityId = this.parseCommunityId(getPathParam(request, 'communityId'));
+    const communityId = this.parseCommunityId(
+      getPathParam(request, 'communityId'),
+    );
     const existing = await this.communitiesRepository.listByVendor(vendorId);
     if (!existing.some((item) => item.communityId === communityId)) {
       const vendor = await this.vendorsRepository.getVendorById(vendorId);
@@ -125,15 +142,18 @@ export class CommunitiesService {
     const next = new Set(communityIds);
     const current = new Set(existing.map((item) => item.communityId));
     const same =
-      next.size === current.size &&
-      [...next].every((id) => current.has(id));
+      next.size === current.size && [...next].every((id) => current.has(id));
 
     if (same) {
       return { data: existing.map((item) => CommunitiesMapper.toDomain(item)) };
     }
 
     const assignedAt = new Date().toISOString();
-    const profile = VendorsMapper.applyCommunityIds(vendor, communityIds, assignedAt);
+    const profile = VendorsMapper.applyCommunityIds(
+      vendor,
+      communityIds,
+      assignedAt,
+    );
     const toDelete = existing.filter((item) => !next.has(item.communityId));
     const toAdd = communityIds.filter((id) => !current.has(id));
     const puts = toAdd.map((communityId) => ({
@@ -181,7 +201,9 @@ export class CommunitiesService {
   }
 
   private parseCommunityIds(values: string[]): string[] {
-    return uniqueCommunityIds(values.map((value) => this.parseCommunityId(value)));
+    return uniqueCommunityIds(
+      values.map((value) => this.parseCommunityId(value)),
+    );
   }
 
   private parseCommunityId(value: string | undefined): string {

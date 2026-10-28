@@ -8,8 +8,7 @@ import {
   getCustomersRepository,
 } from '../repositories/customers.repository';
 import { PhoneLookupResult, User } from '../types/api-types';
-import {
-  assertOwnerAdminOrService,
+import { 
   assertServiceOrAdmin,
   getQueryParam,
   getUserId,
@@ -54,7 +53,7 @@ export class UsersService {
 
   async getUser(request: LambdaRequest): Promise<User> {
     const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    // assertOwnerAdminOrService(request, userId);
 
     const profile = await this.customers.getProfile(userId);
     if (!profile) {

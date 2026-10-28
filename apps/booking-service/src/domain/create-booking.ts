@@ -28,6 +28,8 @@ export interface CatalogOffering {
   categoryId?: string;
   vendorId?: string;
   durationMinutes?: number; // Legacy compatibility only
+  /** Authoritative offering-community rows from the catalog service read. */
+  communities?: Array<{ communityId: string; status: string; approvalStatus?: string }>;
 }
 
 export interface CatalogPrice {
@@ -90,6 +92,33 @@ export interface ReservationSnapshot {
   durationMinutes: number;
 }
 
+export interface HeldReservation extends ReservationSnapshot {
+  holdId: string;
+  vendorId: string;
+  branchId: string;
+  customerId: string;
+}
+
+export function assertHoldMatchesCommand(
+  held: HeldReservation,
+  command: Pick<CreateBookingCommand, 'vendorId' | 'branchId' | 'schedule'>,
+  customerId: string,
+): void {
+  if (held.customerId !== customerId) {
+    throw new BookingError('HOLD_NOT_OWNED', 'Hold does not belong to the authenticated customer', 403, 'holdId');
+  }
+  if (held.vendorId !== command.vendorId || held.branchId !== command.branchId) {
+    throw new BookingError('HOLD_MISMATCH', 'Hold does not match the selected vendor or branch', 409, 'holdId');
+  }
+  if (
+    held.date !== command.schedule.date
+    || held.startTime !== command.schedule.startTime
+    || held.timezone !== command.schedule.timezone
+  ) {
+    throw new BookingError('HOLD_MISMATCH', 'Hold does not match the selected schedule', 409, 'schedule.startTime');
+  }
+}
+
 export function requestFingerprint(command: CreateBookingCommand): string {
   return createHash('sha256').update(JSON.stringify(command)).digest('hex');
 }
@@ -123,7 +152,7 @@ export function assertVehicleOwnership(
 
 export function assertOffering(
   offering: CatalogOffering,
-  command: CreateBookingCommand,
+  command: Pick<CreateBookingCommand, 'offeringId'>,
   vehicleType: string,
 ): void {
   if (offering.id !== command.offeringId) {
@@ -155,7 +184,7 @@ export function assertVendorEligible(vendor: VendorSnapshot, vendorId: string): 
   }
 }
 
-export function assertBranch(branch: BranchSnapshot, command: CreateBookingCommand): void {
+export function assertBranch(branch: BranchSnapshot, command: Pick<CreateBookingCommand, 'vendorId' | 'branchId'>): void {
   if (branch.branchId !== command.branchId || branch.vendorId !== command.vendorId) {
     throw new BookingError(
       'VENDOR_BRANCH_MISMATCH',
@@ -166,21 +195,53 @@ export function assertBranch(branch: BranchSnapshot, command: CreateBookingComma
   }
 }
 
+export function communityOfferingEnforcementEnabled(): boolean {
+  return process.env.COMMUNITY_OFFERING_ENFORCEMENT === 'true';
+}
+
+/**
+ * Community bookings require an approved and operationally active mapping.
+ * Customer membership stays in assertLocation. Doorstep and address
+ * fulfilment skip this check. Automatic approval only affects how a new
+ * mapping was stored; it does not skip this check.
+ * Pricing and availability stay on their existing reads.
+ */
+export function assertOfferingCommunity(input: {
+  enforced: boolean;
+  fulfilmentType: string;
+  communityId?: string;
+  communities?: ReadonlyArray<{ communityId: string; status: string; approvalStatus?: string }>;
+}): void {
+  if (!input.enforced || input.fulfilmentType !== 'community') {
+    return;
+  }
+  const communityId = input.communityId?.trim();
+  const mapping = input.communities?.find((item) => item.communityId === communityId);
+  if (!communityId || !mapping || mapping.status !== 'active') {
+    throw new BookingError(
+      'OFFERING_COMMUNITY_INACTIVE',
+      'This service is not offered in the selected community',
+      409,
+      'location.communityId',
+    );
+  }
+  if (mapping.approvalStatus !== 'approved') {
+    throw new BookingError(
+      'OFFERING_COMMUNITY_NOT_APPROVED',
+      'This service is not approved for the selected community',
+      409,
+      'location.communityId',
+    );
+  }
+}
+
 export function assertLocation(
-  command: CreateBookingCommand,
-  vendor: VendorSnapshot,
+  command: Pick<CreateBookingCommand, 'location'>,
+  _vendor: VendorSnapshot,
   profile: CustomerProfile,
 ): void {
   const location = command.location;
   if (location.fulfilmentType === 'community') {
-    if (!vendor.communityIds.includes(location.communityId!)) {
-      throw new BookingError(
-        'COMMUNITY_NOT_SERVED',
-        'Vendor does not serve the selected community',
-        409,
-        'location.communityId',
-      );
-    }
     if (!profile.communityIds.includes(location.communityId!)) {
       throw new BookingError(
         'COMMUNITY_NOT_ASSIGNED',

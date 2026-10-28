@@ -36,6 +36,15 @@ export function createDiscoveryVendorFactsHandler() {
         schema: VendorDiscoveryChangedEvent,
         handler: async ({ meta, ...payload }) => {
           const change = payload as VendorDiscoveryChangedPayload;
+          if (change.subject === 'community') {
+            logger.info({
+              event: 'offering_community_coverage_ignored',
+              vendorId: change.vendorId,
+              communityId: change.communityId,
+              correlationId: meta.correlationId,
+            });
+            return;
+          }
           await getServicesService().syncDiscoveryFromVendor(change.vendorId);
           logger.info({
             event: 'discovery_vendor_facts_consumed',

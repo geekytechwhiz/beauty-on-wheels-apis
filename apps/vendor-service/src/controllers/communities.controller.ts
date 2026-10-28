@@ -25,6 +25,9 @@ export class CommunitiesController {
   async handleRemovevendorcommunity(request: LambdaRequest) {
     return this.service.removevendorcommunity(request);
   }
+  async handleListcommunities(request: LambdaRequest) {
+    return this.service.listcommunities(request);
+  }
 }
 
 let controller: CommunitiesController;

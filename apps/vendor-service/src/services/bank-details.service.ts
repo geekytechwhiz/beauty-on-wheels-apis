@@ -3,7 +3,6 @@ import {
   ConditionalWriteConflictError,
   NotFoundError,
 } from '@api-hub/utils';
-import { createLogger, createChildLogger } from '@api-hub/observability';
 
 import {
   VendorsRepository,
@@ -18,16 +17,7 @@ import {
 } from '../domain/vendor-aggregate';
 import { assertVendorAccess, getVendorId } from '../utils/helpers';
 
-const baseLogger = createLogger({
-  service: 'bank-details-service',
-  redactPII: true,
-});
-
 export class BankDetailsService {
-  private readonly logger = createChildLogger(baseLogger, {
-    service: 'BankDetailsService',
-  });
-
   constructor(
     private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
   ) {}
@@ -66,7 +56,9 @@ export class BankDetailsService {
     aggregate.bank = item;
     const state = computeStateFromAggregate(aggregate);
     const updatedProfile = VendorsMapper.applyOnboardingState(vendor, {
-      ...state,
+      onboardingStatus: state.status,
+      currentSection: state.currentSection,
+      completedSections: state.completedSections,
       primaryBranchId: vendor.primaryBranchId,
       addressCity: aggregate.address?.city,
       addressPostalCode: aggregate.address?.postalCode,

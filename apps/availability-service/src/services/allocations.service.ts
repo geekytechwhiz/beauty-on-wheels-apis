@@ -19,8 +19,9 @@ import {
   selectCapacityBlocks,
   slotQueryBounds,
 } from '../domain/slot-coverage';
-import { addMinutes, isSlotStartInPast, isValidTime, weekdayOfCivilDate } from '../domain/time';
+import { addMinutes } from '../domain/time';
 import { AllocationItem, AllocationLookupItem, CoveredSlotRef, SlotItem } from '../types/records';
+import { VisitSlotsService, getVisitSlotsService } from './visit-slots.service';
 
 const baseLogger = createLogger({
   service: 'allocations-service',
@@ -37,17 +38,23 @@ export class AllocationsService {
     private readonly slots: SlotsRepository = getSlotsRepository(),
     private readonly holds: HoldsService = getHoldsService(),
     private readonly now: () => Date = () => new Date(),
-    private readonly schedules: AvailabilityRepository = getAvailabilityRepository(),
-    private readonly holidays: HolidaysRepository = getHolidaysRepository(),
-  ) {}
+    // Kept in the signature for legacy callers; deployed construction injects visit slots.
+    schedules: AvailabilityRepository = getAvailabilityRepository(),
+    holidays: HolidaysRepository = getHolidaysRepository(),
+    private readonly visitSlots: VisitSlotsService | null = null,
+  ) {
+    void schedules;
+    void holidays;
+  }
 
-  async consumeHold(input: { holdId?: string; bookingId?: string }) {
+  async consumeHold(input: { holdId?: string; bookingId?: string; customerId?: string }) {
     if (!input.holdId || !input.bookingId) {
       throw new NotFoundError('holdId and bookingId are required');
     }
     return this.holds.consume({
       holdId: input.holdId,
       bookingId: input.bookingId,
+      ...(typeof input.customerId === 'string' ? { customerId: input.customerId } : {}),
     });
   }
 
@@ -105,6 +112,7 @@ export class AllocationsService {
     startTime?: string;
     timezone?: string;
     durationMinutes?: number;
+    communityId?: string;
   }) {
     const bookingId = requirePathId(input.bookingId ?? '', 'bookingId');
     const required = ['customerId', 'vendorId', 'branchId', 'offeringId', 'vehicleType', 'date', 'startTime', 'timezone'] as const;
@@ -127,6 +135,7 @@ export class AllocationsService {
       startTime: input.startTime!,
       timezone: input.timezone!,
       durationMinutes: input.durationMinutes!,
+      ...(typeof input.communityId === 'string' ? { communityId: input.communityId } : {}),
     };
     const existing = await this.allocations.getByBookingId(bookingId);
     if (existing) {
@@ -140,16 +149,18 @@ export class AllocationsService {
       }
       return this.viewFromExisting(existing, request.durationMinutes);
     }
-    await this.assertRequestedInterval(request);
+    const visitReservation = this.visitSlots ? await this.visitSlots.prepareReservation(request) : null;
+    if (visitReservation && !visitReservation.ok) {
+      this.rejectVisit(visitReservation.reason);
+    }
     const bounds = slotQueryBounds(request.startTime, request.durationMinutes);
-    const candidates = (await this.slots.querySlotStarts({
-      vendorId: request.vendorId,
-      branchId: request.branchId,
-      date: request.date,
-      fromTime: bounds.fromTime,
-      toTimeExclusive: bounds.toTimeExclusive,
-    })).filter((candidate) => candidate.entityType === 'Slot');
-    const selection = selectCapacityBlocks(candidates, request);
+    const candidates = visitReservation
+      ? visitReservation.slots
+      : (await this.slots.querySlotStarts({ vendorId: request.vendorId, branchId: request.branchId, date: request.date, fromTime: bounds.fromTime, toTimeExclusive: bounds.toTimeExclusive })).filter((candidate) => candidate.entityType === 'Slot');
+    const selection = selectCapacityBlocks(
+      candidates,
+      visitReservation ? { ...request, durationMinutes: visitReservation.occupancyMinutes, startDayOffset: visitReservation.slots[0]?.startDayOffset } : request,
+    );
     this.logger.info({
       event: 'availability_slot_candidates_evaluated',
       bookingId: request.bookingId,
@@ -169,13 +180,16 @@ export class AllocationsService {
       this.rejectSelection(selection.reason);
     }
     const now = this.now().toISOString();
-    const reserved = this.reservationView(
-      selection.anchor.slotId,
-      request.date,
-      request.startTime,
-      request.timezone,
-      request.durationMinutes,
-    );
+    const reserved = {
+      ...this.reservationView(
+        selection.anchor.slotId,
+        request.date,
+        request.startTime,
+        request.timezone,
+        visitReservation ? visitReservation.occupancyMinutes : request.durationMinutes,
+      ),
+      ...(visitReservation ? { visitId: visitReservation.visitId, windowId: visitReservation.windowId } : {}),
+    };
     const coveredSlots: CoveredSlotRef[] = selection.slots.map((slot) => ({
       slotId: slot.slotId,
       canonicalPk: slot.PK,
@@ -289,71 +303,18 @@ export class AllocationsService {
     return reserved;
   }
 
-  private async assertRequestedInterval(input: {
-    bookingId: string;
-    vendorId: string;
-    branchId: string;
-    date: string;
-    startTime: string;
-    timezone: string;
-    durationMinutes: number;
-  }): Promise<void> {
-    const context = {
-      bookingId: input.bookingId,
-      vendorId: input.vendorId,
-      branchId: input.branchId,
-      date: input.date,
-      startTime: input.startTime,
-      requestedDurationMinutes: input.durationMinutes,
-    };
-    if (!isValidTime(input.startTime)) {
-      this.logger.info({
-        event: 'availability_slot_candidates_evaluated',
-        ...context,
-        candidateCount: 0,
-        rejectionReason: RESERVATION_REJECTION.NO_SLOT_FOUND,
-      });
-      throw AvailabilityErrors.slotUnavailable('No compatible capacity exists at the selected time');
+  private rejectVisit(reason: string): never {
+    this.logger.info({ event: 'visit_reservation_rejected', reason });
+    if (reason === 'timezone') {
+      throw AvailabilityErrors.slotUnavailable('Selected timezone does not match the service visit');
     }
-    const endTime = addMinutes(input.startTime, input.durationMinutes);
-    if (isSlotStartInPast(input.date, input.startTime, input.timezone, this.now())) {
-      this.logger.info({
-        event: 'availability_slot_candidates_evaluated',
-        ...context,
-        candidateCount: 0,
-        rejectionReason: 'START_IN_PAST',
-      });
-      throw AvailabilityErrors.slotUnavailable('Selected time has passed');
+    if (reason === RESERVATION_REJECTION.INSUFFICIENT_CAPACITY || reason === RESERVATION_REJECTION.SLOT_BLOCKED || reason === RESERVATION_REJECTION.OVERLAPPING_RESERVATION) {
+      throw AvailabilityErrors.capacityExceeded();
     }
-    const [schedule, branchHolidays, vendorHolidays] = await Promise.all([
-      this.schedules.getWorkingHours(input.vendorId, input.branchId),
-      this.holidays.listBranchHolidays(input.vendorId, input.branchId),
-      this.holidays.listVendorHolidays(input.vendorId),
-    ]);
-    if (schedule && schedule.timezone !== input.timezone) {
-      this.logger.info({
-        event: 'availability_slot_candidates_evaluated',
-        ...context,
-        candidateCount: 0,
-        rejectionReason: RESERVATION_REJECTION.TIMEZONE_MISMATCH,
-      });
-      throw AvailabilityErrors.slotUnavailable('Selected timezone does not match branch working hours');
+    if (reason === 'holiday') {
+      throw AvailabilityErrors.vendorNotAvailable('Vendor is closed on this date');
     }
-    const day = schedule?.hours.find((entry) => entry.dayOfWeek === weekdayOfCivilDate(input.date));
-    const outsideHours = !schedule || !day || day.closed || !day.openTime || !day.closeTime
-      || input.startTime < day.openTime
-      || endTime > day.closeTime
-      || branchHolidays.some((holiday) => holiday.date === input.date)
-      || vendorHolidays.some((holiday) => holiday.date === input.date);
-    if (outsideHours) {
-      this.logger.info({
-        event: 'availability_slot_candidates_evaluated',
-        ...context,
-        candidateCount: 0,
-        rejectionReason: RESERVATION_REJECTION.OUTSIDE_WORKING_HOURS,
-      });
-      throw AvailabilityErrors.vendorNotAvailable('Branch is not available at the selected time');
-    }
+    throw AvailabilityErrors.vendorNotAvailable('Branch is not available at the selected time');
   }
 
   private rejectSelection(reason: ReservationRejection): never {
@@ -526,7 +487,15 @@ let service: AllocationsService;
 
 export function getAllocationsService(): AllocationsService {
   if (!service) {
-    service = new AllocationsService();
+    service = new AllocationsService(
+      getAllocationsRepository(),
+      getSlotsRepository(),
+      getHoldsService(),
+      () => new Date(),
+      getAvailabilityRepository(),
+      getHolidaysRepository(),
+      getVisitSlotsService(),
+    );
   }
   return service;
 }

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zondacare Logo Showcase & Implementation</title>
+    <style>
+        :root {
+            --bg-dark: #0f1115;
+            --surface-dark: #161a22;
+            --accent-glow: #00d2ff;
+            --text-light: #ffffff;
+            --text-muted: #8b949e;
+            --border-color: #21262d;
+            --charcoal-gradient: linear-gradient(135deg, #2c3540 0%, #111418 100%);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        .wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header-title {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .header-title h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--surface-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-top: 0;
+            margin-bottom: 20px;
+            align-self: flex-start;
+            border-bottom: 1px solid var(--border-color);
+            width: 100%;
+            padding-bottom: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Pure CSS / SVG High-End Reconstructed Shield Emblem */
+        .logo-box {
+            width: 180px;
+            height: 180px;
+            background: var(--charcoal-gradient);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #30363d;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+        }
+
+        .emblem-svg {
+            width: 110px;
+            height: 110px;
+            filter: drop-shadow(0px 4px 12px rgba(0, 0, 0, 0.6));
+        }
+
+        /* Mock Web Header Implementation Component */
+        .preview-header-bar {
+            width: 100%;
+            background-color: #0b0d10;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-sizing: border-box;
+            margin-top: 15px;
+        }
+
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .small-emblem {
+            width: 28px;
+            height: 28px;
+        }
+
+        .brand-text {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mock-links {
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mock-btn {
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            color: var(--text-light);
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        /* Code Block Area */
+        .code-container {
+            width: 100%;
+            background-color: #010409;
+            border-radius: 6px;
+            padding: 14px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+
+        pre {
+            margin: 0;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 11px;
+            color: #79c0ff;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .spec-list {
+            width: 100%;
+            margin: 0;
+            padding-left: 20px;
+            color: #c9d1d9;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .spec-list li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <header class="header-title">
+            <h1>Zondacare Dynamic Vector Engine</h1>
+            <p>Isolated high-contrast standalone shield design ready for responsive app and web frontends.</p>
+        </header>
+
+        <div class="grid-container">
+            <!-- Left Side: Live Visual Preview Canvas -->
+            <div class="card">
+                <h2>1. Live Visual Emblem Output</h2>
+                
+                <div class="logo-box">
+                    <!-- Standardized SVG Architecture representing your chosen metallic look -->
+                    <svg class="emblem-svg" viewBox="0 0 100 100" fill="none" xmlns="http://w3.org">
+                        <defs>
+                            <linearGradient id="chromeOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff"/>
+                                <stop offset="30%" stop-color="#b0bfc9"/>
+                                <stop offset="70%" stop-color="#56626d"/>
+                                <stop offset="100%" stop-color="#242b31"/>
+                            </linearGradient>
+                            <linearGradient id="shieldFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#1c232b"/>
+                                <stop offset="100%" stop-color="#090d10"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Main Structural Armor Shield -->
+                        <path d="M50 88C50 88 82 70 82 34C82 20 50 12 50 12C50 12 18 20 18 34C18 70 50 88 50 88Z" fill="url(#shieldFill)" stroke="url(#chromeOuter)" stroke-width="5" stroke-linejoin="round"/>
+                        <!-- Kinetic Sharp Z-Line Configuration -->
+                        <path d="M34 36H66L34 64H66" stroke="url(#chromeOuter)" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- High-Velocity Fluid Accent Arc -->
+                        <path d="M24 50C34 36 66 36 76 50" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+                    </svg>
+                </div>
+
+                <div class="preview-header-bar">
+                    <div class="brand-block">
+                        <svg class="small-emblem" viewBox="0 0 100 100" fill="none" xmlns="http://w3.org">
+                            <path d="M50 88C50 88 82 70 82 34C82 20 50 12 50 12C50 12 18 20 18 34C18 70 50 88 50 88Z" fill="url(#shieldFill)" stroke="url(#chromeOuter)" stroke-width="6" stroke-linejoin="round"/>
+                            <path d="M34 36H66L34 64H66" stroke="url(#chromeOuter)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span class="brand-text">Zondacare</span>
+                    </div>
+                    <div class="mock-links">
+                        <span>Wash</span>
+                        <span>Detailing</span>
+                    </div>
+                    <button class="mock-btn">Book Now</button>
+                </div>
+            </div>
+
+            <!-- Right Side: Implementation Code Output -->
+            <div class="card">
+                <h2>2. Production Vector Asset Extraction</h2>
+                <p style="font-size:13px; color:var(--text-muted); margin-top:0; margin-bottom:15px; width:100%;">Copy the inline SVG node below directly into any HTML codebase layout block:</p>
+                
+                <div class="code-container">
+<pre>&lt;svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://w3.org"&gt;
+  &lt;defs&gt;
+    &lt;linearGradient id="chrome" x1="0%" y1="0%" x2="100%" y2="100%"&gt;
+      &lt;stop offset="0%" stop-color="#ffffff"/&gt;
+      &lt;stop offset="50%" stop-color="#b0bfc9"/&gt;
+      &lt;stop offset="100%" stop-color="#242b31"/&gt;
+    &lt;/linearGradient&gt;
+  &lt;/defs&gt;
+  &lt;path d="M50 88C50 88 82 70 82 34C82 20 50 12" fill="#090d10" stroke="url(#chrome)" stroke-width="5"/&gt;
+  &lt;path d="M34 36H66L34 64H66" stroke="url(#chrome)" stroke-width="7.5"/&gt;
+&lt;/svg&gt;</pre>
+                </div>
+
+                <h2 style="margin-top:24px; margin-bottom:12px;">3. Structural Architecture Rules</h2>
+                <ul class="spec-list">
+                    <li><strong>Pure Alpha Transparency:</strong> The bounding viewport box contains zero default background colors, enabling standard CSS containment rules to dictate contrast layouts dynamically.</li>
+                    <li><strong>Flexible Scaling:</strong> The internal path matrix uses a uniform 100x100 relative view coordinate workspace layout. It resizes to 16px, 32px, or 512px via simple CSS height and width adjustments without losing sharpness.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

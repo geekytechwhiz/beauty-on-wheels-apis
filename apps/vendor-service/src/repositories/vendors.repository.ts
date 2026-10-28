@@ -183,13 +183,20 @@ export class VendorsRepository extends BaseRepository {
   async putSection(
     profile: VendorDdbItem,
     sectionItems: Array<Record<string, unknown>> = [],
+    expectedRevision?: number,
   ): Promise<void> {
     const transactItems: Array<Record<string, unknown>> = [
       {
         Put: {
           TableName: this.getTableName(),
           Item: profile,
-          ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
+          ConditionExpression: expectedRevision === undefined
+            ? 'attribute_exists(PK) AND attribute_exists(SK)'
+            : 'attribute_exists(PK) AND attribute_exists(SK) AND (#revision = :expectedRevision OR attribute_not_exists(#revision))',
+          ...(expectedRevision === undefined ? {} : {
+            ExpressionAttributeNames: { '#revision': 'revision' },
+            ExpressionAttributeValues: { ':expectedRevision': expectedRevision },
+          }),
         },
       },
       ...sectionItems.map((sectionItem) => ({
@@ -330,6 +337,7 @@ export class VendorsRepository extends BaseRepository {
   async transactVendorProfile(input: {
     profile: VendorDdbItem;
     expectedUpdatedAt?: string;
+    expectedRevision?: number;
     expectedStatus?: VendorStatus;
     puts?: Array<{
       item: Record<string, unknown> | VendorCommunityDdbItem | VendorStatusHistoryDdbItem;
@@ -350,6 +358,11 @@ export class VendorsRepository extends BaseRepository {
     if (input.expectedUpdatedAt) {
       values[':expectedUpdatedAt'] = input.expectedUpdatedAt;
       conditions.push('updatedAt = :expectedUpdatedAt');
+    }
+    if (input.expectedRevision !== undefined) {
+      names['#revision'] = 'revision';
+      values[':expectedRevision'] = input.expectedRevision;
+      conditions.push('(#revision = :expectedRevision OR attribute_not_exists(#revision))');
     }
 
     const profilePut: Record<string, unknown> = {

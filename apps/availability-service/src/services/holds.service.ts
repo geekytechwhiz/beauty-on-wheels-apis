@@ -30,10 +30,16 @@ import { getHoldsRepository, HoldsRepository } from '../repositories/holds.repos
 import { getHolidaysRepository, HolidaysRepository } from '../repositories/holidays.repository';
 import { getSlotsRepository, SlotsRepository } from '../repositories/slots.repository';
 import {
+  CommunityVisitsService,
+  getCommunityVisitsService,
+  VisitHoldView,
+} from './community-visits.service';
+import {
   AllocationItem,
   AllocationLookupItem,
   HoldItem,
   HoldLookupItem,
+  HoldReservationView,
   HoldView,
   SlotItem,
 } from '../types/records';
@@ -57,26 +63,44 @@ export class HoldsService {
     private readonly allocations: AllocationsRepository = getAllocationsRepository(),
     private readonly now: () => Date = () => new Date(),
     private readonly holdTtlSeconds: number = env.SLOT_HOLD_TTL_SECONDS,
+    private readonly communityVisits: CommunityVisitsService = getCommunityVisitsService(),
   ) {}
 
-  async postslotholds(request: LambdaRequest): Promise<HoldView> {
-    const customerId = getAuthenticatedUserId(request);
-    const body = (request.body ?? {}) as { slotId?: string; units?: number };
-    const slotId = requireSlotId(body.slotId);
-    const units = body.units ?? 1;
-    if (!Number.isInteger(units) || units < 1 || units > 20) {
-      throw new ValidationError('units must be an integer between 1 and 20');
+  async postslotholds(request: LambdaRequest): Promise<HoldView | VisitHoldView> {
+    const body = (request.body ?? {}) as {
+      slotId?: string;
+      visitId?: string;
+      vendorId?: string;
+      units?: number;
+    };
+    if (
+      request.body &&
+      typeof request.body === 'object' &&
+      ('holdId' in request.body || 'customerId' in request.body || 'id' in request.body)
+    ) {
+      throw new ValidationError('holdId, id, and customerId are server-assigned');
     }
     const idempotencyKey = headerValue(request, 'Idempotency-Key');
     if (!idempotencyKey || idempotencyKey.length > 128) {
       throw new ValidationError('Idempotency-Key header is required');
     }
-    if (
-      request.body &&
-      typeof request.body === 'object' &&
-      ('holdId' in request.body || 'customerId' in request.body)
-    ) {
-      throw new ValidationError('holdId and customerId are server-assigned');
+    if (body.visitId) {
+      const vendorId = typeof body.vendorId === 'string' ? body.vendorId.trim() : '';
+      if (!vendorId) {
+        throw new ValidationError('vendorId is required when holding a community visit');
+      }
+      return this.communityVisits.createHold(request, {
+        vendorId,
+        visitId: requirePathId(body.visitId, 'visitId'),
+        units: body.units,
+        idempotencyKey,
+      });
+    }
+    const customerId = getAuthenticatedUserId(request);
+    const slotId = requireSlotId(body.slotId);
+    const units = body.units ?? 1;
+    if (!Number.isInteger(units) || units < 1 || units > 20) {
+      throw new ValidationError('units must be an integer between 1 and 20');
     }
 
     const slot = await this.requireSlot(slotId);
@@ -129,8 +153,12 @@ export class HoldsService {
     }
   }
 
-  async deleteslothold(request: LambdaRequest): Promise<HoldView> {
+  async deleteslothold(request: LambdaRequest): Promise<HoldView | VisitHoldView> {
     const holdId = pathParam(request, 'holdId');
+    const visitHold = await this.communityVisits.findHold(holdId);
+    if (visitHold) {
+      return this.communityVisits.releaseHold(request, holdId);
+    }
     const hold = await this.requireHold(holdId);
     const slot = await this.requireSlot(hold.slotId);
     const schedule = await this.schedules.getWorkingHours(slot.vendorId, slot.branchId);
@@ -141,8 +169,14 @@ export class HoldsService {
     return this.releaseLoadedHold(hold, slot, 'released');
   }
 
-  async getslothold(request: LambdaRequest): Promise<HoldView> {
+  async getslothold(request: LambdaRequest): Promise<HoldView | VisitHoldView> {
     const holdId = pathParam(request, 'holdId');
+    const visitHold = await this.communityVisits.findHold(holdId);
+    if (visitHold) {
+      const view = await this.communityVisits.getHold(request, holdId);
+      if (!view) throw AvailabilityErrors.holdNotFound();
+      return view;
+    }
     const hold = await this.requireHold(holdId);
     const schedule = await this.schedules.getWorkingHours(hold.vendorId, hold.branchId);
     const userId = getAuthenticatedUserId(request);
@@ -214,18 +248,32 @@ export class HoldsService {
     return toHoldView(updated, true);
   }
 
-  async consume(input: { holdId: string; bookingId: string }): Promise<{
-    hold: HoldView;
-    allocation: { bookingId: string; slotId: string; status: string };
+  async consume(input: { holdId: string; bookingId: string; customerId?: string }): Promise<{
+    hold: HoldView | VisitHoldView;
+    allocation: { bookingId: string; slotId?: string; visitId?: string; status: string };
+    reservation?: HoldReservationView;
   }> {
     const bookingId = requirePathId(input.bookingId, 'bookingId');
-    const hold = await this.requireHold(requirePathId(input.holdId, 'holdId'));
+    const holdId = requirePathId(input.holdId, 'holdId');
+    const customerId = input.customerId?.trim() || undefined;
+    const visitHold = await this.communityVisits.findHold(holdId);
+    if (visitHold) {
+      assertHoldOwner(visitHold.customerId, customerId);
+      const confirmed = await this.communityVisits.confirmHold({ holdId, bookingId });
+      return {
+        hold: confirmed.hold,
+        allocation: {
+          bookingId,
+          visitId: confirmed.hold.visitId,
+          status: 'confirmed',
+        },
+      };
+    }
+    const hold = await this.requireHold(holdId);
+    assertHoldOwner(hold.customerId, customerId);
     if (hold.status === HOLD_STATUS.CONSUMED) {
       if (hold.bookingId === bookingId) {
-        return {
-          hold: toHoldView(hold, true),
-          allocation: { bookingId, slotId: hold.slotId, status: 'confirmed' },
-        };
+        return this.consumedResult(hold, bookingId);
       }
       throw AvailabilityErrors.holdAlreadyConsumed();
     }
@@ -263,10 +311,7 @@ export class HoldsService {
       }
       const current = await this.requireHold(hold.holdId);
       if (current.status === HOLD_STATUS.CONSUMED && current.bookingId === bookingId) {
-        return {
-          hold: toHoldView(current, true),
-          allocation: { bookingId, slotId: current.slotId, status: 'confirmed' },
-        };
+        return this.consumedResult(current, bookingId, slot);
       }
       if (current.status === HOLD_STATUS.CONSUMED) {
         throw AvailabilityErrors.holdAlreadyConsumed();
@@ -282,9 +327,15 @@ export class HoldsService {
       bookingId,
       slotId: hold.slotId,
     });
+    return this.consumedResult({ ...hold, status: HOLD_STATUS.CONSUMED, bookingId }, bookingId, slot);
+  }
+
+  private async consumedResult(hold: HoldItem, bookingId: string, loadedSlot?: SlotItem) {
+    const slot = loadedSlot ?? (await this.requireSlot(hold.slotId));
     return {
-      hold: toHoldView({ ...hold, status: HOLD_STATUS.CONSUMED, bookingId }, true),
+      hold: toHoldView(hold, true),
       allocation: { bookingId, slotId: hold.slotId, status: 'confirmed' },
+      reservation: toHoldReservation(hold, slot),
     };
   }
 
@@ -297,7 +348,7 @@ export class HoldsService {
     for (const bucket of buckets) {
       const candidates = await this.holds.queryExpiryBucket(bucket, nowIso);
       for (const hold of candidates) {
-        if (seen.has(hold.holdId) || hold.status !== HOLD_STATUS.ACTIVE) {
+        if (seen.has(hold.holdId) || hold.status !== HOLD_STATUS.ACTIVE || !hold.slotId) {
           continue;
         }
         seen.add(hold.holdId);
@@ -316,7 +367,8 @@ export class HoldsService {
         }
       }
     }
-    return { expired, failed };
+    const visitExpiry = await this.communityVisits.expireDueHolds(instant);
+    return { expired: expired + visitExpiry.expired, failed: failed + visitExpiry.failed };
   }
 
   async reconcileSlot(slot: SlotItem): Promise<void> {
@@ -397,23 +449,26 @@ export class HoldsService {
     if (isSlotStartInPast(slot.date, slot.startTime, slot.timezone, this.now())) {
       throw AvailabilityErrors.slotUnavailable('Slot start time has passed');
     }
-    const closed = await this.isClosed(slot.vendorId, slot.branchId, slot.date);
+    const closed = await this.isClosed(slot.vendorId, slot.branchId, slot.date, Boolean(slot.visitId));
     if (closed) {
       throw AvailabilityErrors.vendorNotAvailable('Vendor is closed on this date');
     }
   }
 
-  private async isClosed(vendorId: string, branchId: string, date: string): Promise<boolean> {
+  private async isClosed(vendorId: string, branchId: string, date: string, visitSlot = false): Promise<boolean> {
     const [branchHolidays, vendorHolidays, schedule] = await Promise.all([
       this.holidays.listBranchHolidays(vendorId, branchId),
       this.holidays.listVendorHolidays(vendorId),
-      this.schedules.getWorkingHours(vendorId, branchId),
+      visitSlot ? Promise.resolve(null) : this.schedules.getWorkingHours(vendorId, branchId),
     ]);
     if (
       branchHolidays.some((holiday) => holiday.date === date) ||
       vendorHolidays.some((holiday) => holiday.date === date)
     ) {
       return true;
+    }
+    if (visitSlot) {
+      return false;
     }
     if (!schedule) {
       return true;
@@ -553,6 +608,27 @@ export class HoldsService {
     }
     return hold;
   }
+}
+
+function assertHoldOwner(holdCustomerId: string, customerId: string | undefined): void {
+  if (customerId && holdCustomerId !== customerId) {
+    throw new ForbiddenError('Hold belongs to a different customer');
+  }
+}
+
+function toHoldReservation(hold: HoldItem, slot: SlotItem): HoldReservationView {
+  return {
+    holdId: hold.holdId,
+    slotId: slot.slotId,
+    vendorId: hold.vendorId,
+    branchId: hold.branchId,
+    customerId: hold.customerId,
+    date: slot.date,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    timezone: slot.timezone,
+    durationMinutes: slot.durationMinutes,
+  };
 }
 
 function requireSlotId(value: unknown): string {

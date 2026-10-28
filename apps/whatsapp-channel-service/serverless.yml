@@ -16,6 +16,7 @@ provider:
     Service: whatsapp-channel-service
     Product: beauty-on-wheels
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
     STAGE: ${self:provider.stage}
     SERVICE_NAME: whatsapp-channel-service
     LOG_LEVEL: INFO
@@ -81,6 +82,8 @@ plugins:
   - serverless-offline
 
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
   resourcePrefix: nv${self:provider.stage}-bw
   conversationTableName: ${self:service}-${self:provider.stage}-conversations
   inboundQueueName: ${self:custom.resourcePrefix}-whatsapp-inbound
@@ -131,19 +134,19 @@ functions:
       - http:
           path: /webhooks/whatsapp
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: Verify the Meta WhatsApp webhook
           description: Returns the hub.challenge when hub.verify_token matches. This route is public because Meta calls it.
       - http:
           path: /webhooks/whatsapp
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: Receive Meta WhatsApp webhook events
           description: Validates the X-Hub-Signature-256 header, then enqueues the payload for conversation processing.
       - http:
           path: /health
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: Liveness check
           description: Returns ok without reading Secrets Manager or calling downstream services.
 
@@ -155,7 +158,7 @@ functions:
       - http:
           path: /whatsapp/messages
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: Send a WhatsApp text message
           description: Validates the recipient and text, then sends the message through the Meta WhatsApp Cloud API. Credentials come from the environment or the WhatsApp secret.
 
@@ -226,6 +229,15 @@ resources:
             Value: whatsapp-channel-service
           - Key: Environment
             Value: ${self:provider.stage}
+
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
 
   Outputs:
     ConversationTableName:

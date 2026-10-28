@@ -5,6 +5,9 @@ export const COMMUNITY_META_SK = 'META';
 export const ADDRESS_SK_PREFIX = 'ADDR#';
 export const MEMBERSHIP_SK_PREFIX = 'MEMBER#';
 
+export const SUPPORT_TICKET_SK_PREFIX = 'SUPPORT_TICKET#';
+export const SUPPORT_TICKET_IDEMPOTENCY_SK_PREFIX = 'SUPPORT_TICKET_IDEMPOTENCY#';
+
 export const GSI1_INDEX = 'GSI1';
 export const COMMUNITY_LIST_PK = 'COMMUNITY';
 
@@ -23,6 +26,14 @@ export const UserKeyBuilder = {
     `${MEMBERSHIP_SK_PREFIX}${communityId.trim()}`,
 
   membershipSkPrefix: () => MEMBERSHIP_SK_PREFIX,
+
+  supportTicketSk: (ticketId: string) =>
+    `${SUPPORT_TICKET_SK_PREFIX}${ticketId.trim()}`,
+
+  supportTicketSkPrefix: () => SUPPORT_TICKET_SK_PREFIX,
+
+  supportTicketIdempotencySk: (key: string) =>
+    `${SUPPORT_TICKET_IDEMPOTENCY_SK_PREFIX}${key.trim()}`,
 
   phonePk: (e164: string) => `PHONE#${e164.trim()}`,
 

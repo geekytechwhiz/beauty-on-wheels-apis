@@ -32,6 +32,7 @@ provider:
     Stage: ${self:provider.stage}
     ManagedBy: serverless
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
     SERVICE_NAME: identity-v1-service
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
@@ -93,6 +94,8 @@ provider:
           Resource:
             - !GetAtt IdentityRegistrationStreamDlq.Arn
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
   deletionProtectionEnabled:
     prod: true
@@ -451,7 +454,7 @@ functions:
       - http:
           path: /health
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           documentation:
             summary: GET /health
             description: GET /health
@@ -474,7 +477,7 @@ functions:
       - http:
           path: /auth/register
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Register a new user"
           description: "Public. HTTP 200 platform envelope. The created identity is in data (id, email, phone, status, roles). This call does not return tokens."
           swaggerTags:
@@ -512,7 +515,7 @@ functions:
       - http:
           path: /auth/login
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Login"
           swaggerTags:
             - Authentication
@@ -549,7 +552,7 @@ functions:
       - http:
           path: /auth/refresh-token
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Refresh access token"
           swaggerTags:
             - Authentication
@@ -586,7 +589,7 @@ functions:
       - http:
           path: /auth/logout
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Logout current session"
           swaggerTags:
@@ -614,7 +617,7 @@ functions:
       - http:
           path: /auth/change-password
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Change password"
           swaggerTags:
@@ -648,7 +651,7 @@ functions:
       - http:
           path: /otp/send
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Send OTP"
           swaggerTags:
             - OTP
@@ -684,7 +687,7 @@ functions:
       - http:
           path: /otp/verify
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Verify OTP"
           swaggerTags:
             - OTP
@@ -721,7 +724,7 @@ functions:
       - http:
           path: /me
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Current authenticated user"
           swaggerTags:
@@ -752,7 +755,7 @@ functions:
       - http:
           path: /identity/me/provisioning-status
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Current identity provisioning status"
           swaggerTags:
@@ -763,7 +766,7 @@ functions:
       - http:
           path: /sessions
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List active sessions"
           swaggerTags:
@@ -793,7 +796,7 @@ functions:
       - http:
           path: /sessions
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Logout from all devices"
           swaggerTags:
@@ -821,7 +824,7 @@ functions:
       - http:
           path: /sessions/{sessionId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Revoke a session"
           swaggerTags:
@@ -854,7 +857,7 @@ functions:
       - http:
           path: /roles
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List roles"
           swaggerTags:
@@ -884,7 +887,7 @@ functions:
       - http:
           path: /permissions
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List permissions"
           swaggerTags:
@@ -976,7 +979,7 @@ functions:
       - http:
           path: /users/{userId}/roles
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Assign the ADMIN application role"
           description: "Caller must already have ADMIN on the access token. The body role must be ADMIN. CUSTOMER and VENDOR are not assigned here."
@@ -1017,7 +1020,7 @@ functions:
       - http:
           path: /users/{userId}/roles/{role}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Remove the ADMIN application role"
           description: "Caller must already have ADMIN on the access token. Only the ADMIN role can be removed through this route."
@@ -1202,50 +1205,19 @@ resources:
         Action: lambda:InvokeFunction
         Principal: events.amazonaws.com
         SourceArn: !GetAtt VendorRoleLifecycleRule.Arn
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
+
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
+
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
+
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+
   Outputs:
     IdentityTableName:
       Description: Name of the Identity Service DynamoDB table

@@ -125,60 +125,9 @@
           }
         }
       },
-      "put": {
-        "summary": "Save an onboarding section",
-        "description": "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.",
-        "tags": [
-          "Onboarding"
-        ],
-        "operationId": "updatevendoronboarding.put./vendors/{vendorId}/onboarding",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/UpdateOnboardingRequest"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Onboarding section saved",
-            "schema": {
-              "$ref": "#/definitions/OnboardingResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid section or section payload"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          }
-        }
-      },
       "patch": {
-        "summary": "Save an onboarding section",
-        "description": "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.",
+        "summary": "Patch vendor onboarding",
+        "description": "Atomically saves one or more onboarding sections with optimistic concurrency. Omitted fields are preserved.",
         "tags": [
           "Onboarding"
         ],
@@ -208,13 +157,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Onboarding section saved",
+            "description": "Onboarding updated",
             "schema": {
               "$ref": "#/definitions/OnboardingResponse"
             }
           },
           "400": {
-            "description": "Invalid section or section payload"
+            "description": "Invalid onboarding update payload"
           },
           "401": {
             "description": "401 response"
@@ -224,6 +173,9 @@
           },
           "404": {
             "description": "404 response"
+          },
+          "409": {
+            "description": "Onboarding has changed or is not editable"
           }
         }
       }
@@ -290,6 +242,35 @@
           },
           "429": {
             "description": "Verification resend cooldown is active"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/booking-readiness": {
+      "get": {
+        "summary": "Get booking readiness",
+        "description": "Reads the local booking-readiness projection. Does not call catalog, availability, or pricing.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "getBookingReadiness.get./vendors/{vendorId}/booking-readiness",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
           }
         }
       }
@@ -544,7 +525,7 @@
     "/vendors/{vendorId}/submit-review": {
       "post": {
         "summary": "Submit vendor for review",
-        "description": "Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent.",
+        "description": "Submits a complete onboarding application for review. BUSINESS_REGISTRATION and OWNER_IDENTITY must be uploaded. If the business email is unverified, the response status becomes AWAITING_EMAIL_VERIFICATION and a verification email is queued.",
         "tags": [
           "Onboarding"
         ],
@@ -874,6 +855,62 @@
           },
           "409": {
             "description": "409 response"
+          }
+        }
+      }
+    },
+    "/communities": {
+      "get": {
+        "summary": "listCommunities",
+        "description": "",
+        "operationId": "listCommunities.get./communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "localityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "postalCode",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "lastEvaluatedKey",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
           }
         }
       }
@@ -2115,7 +2152,7 @@
     "/vendors/{vendorId}/documents/upload-url": {
       "post": {
         "summary": "Issue a presigned document upload URL",
-        "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
+        "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
         "tags": [
           "Documents"
         ],
@@ -2458,6 +2495,50 @@
           }
         }
       }
+    },
+    "/vendors/{vendorId}/communities/{communityId}/schedule": {
+      "put": {
+        "summary": "Configure a community service schedule",
+        "description": "Stores recurring provider configuration only. Availability owns generated slots, holds, capacity, and date exceptions.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "putvendorcommunityschedule.put./vendors/{vendorId}/communities/{communityId}/schedule",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community schedule saved"
+          },
+          "400": {
+            "description": "Invalid timezone or overlapping windows"
+          },
+          "403": {
+            "description": "Vendor is not approved"
+          },
+          "404": {
+            "description": "Community is not assigned to vendor"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -2526,10 +2607,10 @@
     },
     "OnboardingSection": {
       "enum": [
-        "BUSINESS_INFO_AND_OWNER",
-        "SERVICE_LOCATION_AND_COVERAGE",
-        "BUSINESS_VERIFICATION",
-        "BANK_AND_PAYOUT_DETAILS"
+        "BUSINESS_INFO",
+        "COMMUNITIES",
+        "DOCUMENTS",
+        "BANK_DETAILS"
       ],
       "title": "OnboardingSection",
       "type": "string"
@@ -2538,8 +2619,10 @@
       "enum": [
         "DRAFT",
         "IN_PROGRESS",
-        "COMPLETED",
-        "PENDING_REVIEW"
+        "AWAITING_EMAIL_VERIFICATION",
+        "PENDING_REVIEW",
+        "CHANGES_REQUESTED",
+        "COMPLETED"
       ],
       "title": "OnboardingStatus",
       "type": "string"
@@ -2548,6 +2631,7 @@
       "enum": [
         "GST_REGISTRATION",
         "BUSINESS_REGISTRATION",
+        "OWNER_IDENTITY",
         "COMMERCIAL_INSURANCE"
       ],
       "title": "DocumentType",
@@ -2556,7 +2640,9 @@
     "DocumentStatus": {
       "enum": [
         "PENDING_UPLOAD",
-        "UPLOADED"
+        "UPLOADED",
+        "VERIFIED",
+        "REJECTED"
       ],
       "title": "DocumentStatus",
       "type": "string"
@@ -3138,35 +3224,135 @@
     },
     "UpdateOnboardingRequest": {
       "properties": {
-        "section": {
-          "$ref": "#/definitions/OnboardingSection",
-          "title": "UpdateOnboardingRequest.section"
+        "revision": {
+          "title": "UpdateOnboardingRequest.revision",
+          "description": "Version returned by GET/PATCH onboarding; used for optimistic concurrency.",
+          "type": "number"
         },
-        "data": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/BusinessInfoAndOwnerData",
-              "title": "UpdateOnboardingRequest.data"
+        "sections": {
+          "properties": {
+            "BUSINESS_INFO": {
+              "properties": {
+                "businessType": {
+                  "$ref": "#/definitions/businessType",
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.businessType"
+                },
+                "businessName": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.businessName",
+                  "type": "string"
+                },
+                "contactName": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.contactName",
+                  "type": "string"
+                },
+                "phoneNumber": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.phoneNumber",
+                  "type": "string"
+                },
+                "email": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.email",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "description": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.description",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "gstNumber": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.gstNumber",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "panNumber": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.panNumber",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "profileImageUrl": {
+                  "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO.profileImageUrl",
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "title": "UpdateOnboardingRequest.sections.BUSINESS_INFO",
+              "type": "object"
             },
-            {
-              "$ref": "#/definitions/ServiceLocationAndCoverageData",
-              "title": "UpdateOnboardingRequest.data"
+            "COMMUNITIES": {
+              "properties": {
+                "communityIds": {
+                  "items": {
+                    "title": "UpdateOnboardingRequest.sections.COMMUNITIES.communityIds.[]",
+                    "type": "string"
+                  },
+                  "title": "UpdateOnboardingRequest.sections.COMMUNITIES.communityIds",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "communityIds"
+              ],
+              "additionalProperties": false,
+              "title": "UpdateOnboardingRequest.sections.COMMUNITIES",
+              "type": "object"
             },
-            {
-              "$ref": "#/definitions/DocumentsData",
-              "title": "UpdateOnboardingRequest.data"
-            },
-            {
-              "$ref": "#/definitions/BankDetailsData",
-              "title": "UpdateOnboardingRequest.data"
+            "BANK_DETAILS": {
+              "properties": {
+                "accountHolderName": {
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.accountHolderName",
+                  "type": "string"
+                },
+                "accountNumber": {
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.accountNumber",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "ifscCode": {
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.ifscCode",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "bankName": {
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.bankName",
+                  "type": "string"
+                },
+                "branchName": {
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.branchName",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "accountType": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/BankAccountType",
+                      "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.accountType"
+                    },
+                    {
+                      "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.accountType",
+                      "nullable": true
+                    }
+                  ],
+                  "title": "UpdateOnboardingRequest.sections.BANK_DETAILS.accountType"
+                }
+              },
+              "additionalProperties": false,
+              "title": "UpdateOnboardingRequest.sections.BANK_DETAILS",
+              "type": "object"
             }
-          ],
-          "title": "UpdateOnboardingRequest.data"
+          },
+          "additionalProperties": false,
+          "title": "UpdateOnboardingRequest.sections",
+          "type": "object"
+        },
+        "lastVisitedStep": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "UpdateOnboardingRequest.lastVisitedStep"
         }
       },
       "required": [
-        "section",
-        "data"
+        "revision",
+        "sections"
       ],
       "additionalProperties": false,
       "title": "UpdateOnboardingRequest",
@@ -3632,6 +3818,34 @@
           "title": "OnboardingResponse.applicationId",
           "type": "string"
         },
+        "revision": {
+          "title": "OnboardingResponse.revision",
+          "type": "number"
+        },
+        "lastVisitedStep": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "OnboardingResponse.lastVisitedStep"
+        },
+        "requiredSections": {
+          "items": {
+            "$ref": "#/definitions/OnboardingSection",
+            "title": "OnboardingResponse.requiredSections.[]"
+          },
+          "title": "OnboardingResponse.requiredSections",
+          "type": "array"
+        },
+        "incompleteSections": {
+          "items": {
+            "$ref": "#/definitions/OnboardingSection",
+            "title": "OnboardingResponse.incompleteSections.[]"
+          },
+          "title": "OnboardingResponse.incompleteSections",
+          "type": "array"
+        },
+        "recommendedNextStep": {
+          "$ref": "#/definitions/OnboardingSection",
+          "title": "OnboardingResponse.recommendedNextStep"
+        },
         "sections": {
           "properties": {
             "BUSINESS_INFO": {
@@ -3641,18 +3855,6 @@
             "OWNER_DETAILS": {
               "$ref": "#/definitions/VendorOwner",
               "title": "OnboardingResponse.sections.OWNER_DETAILS"
-            },
-            "ADDRESS": {
-              "$ref": "#/definitions/VendorAddress",
-              "title": "OnboardingResponse.sections.ADDRESS"
-            },
-            "BRANCH": {
-              "items": {
-                "$ref": "#/definitions/VendorBranch",
-                "title": "OnboardingResponse.sections.BRANCH.[]"
-              },
-              "title": "OnboardingResponse.sections.BRANCH",
-              "type": "array"
             },
             "DOCUMENTS": {
               "items": {
@@ -3665,6 +3867,27 @@
             "BANK_DETAILS": {
               "$ref": "#/definitions/BankDetails",
               "title": "OnboardingResponse.sections.BANK_DETAILS"
+            },
+            "COMMUNITIES": {
+              "items": {
+                "properties": {
+                  "communityId": {
+                    "title": "communityId",
+                    "type": "string"
+                  },
+                  "label": {
+                    "title": "label",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "communityId"
+                ],
+                "additionalProperties": false,
+                "type": "object"
+              },
+              "title": "OnboardingResponse.sections.COMMUNITIES",
+              "type": "array"
             }
           },
           "additionalProperties": false,
@@ -3677,6 +3900,7 @@
         "status",
         "currentSection",
         "completedSections",
+        "revision",
         "sections"
       ],
       "additionalProperties": false,
@@ -3765,6 +3989,10 @@
           "title": "Vendor.applicationId",
           "type": "string"
         },
+        "revision": {
+          "title": "Vendor.revision",
+          "type": "number"
+        },
         "communityIds": {
           "items": {
             "title": "Vendor.communityIds.[]",
@@ -3816,16 +4044,29 @@
     "VendorMembership": {
       "properties": {
         "role": {
-          "title": "VendorMembership.role",
-          "description": "owner when the caller owns the vendor. Staff is not represented.",
           "enum": [
-            "owner"
+            "owner",
+            "staff"
           ],
+          "title": "VendorMembership.role",
           "type": "string"
+        },
+        "staffId": {
+          "title": "VendorMembership.staffId",
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "title": "VendorMembership.permissions.[]",
+            "type": "string"
+          },
+          "title": "VendorMembership.permissions",
+          "type": "array"
         }
       },
       "required": [
-        "role"
+        "role",
+        "permissions"
       ],
       "additionalProperties": false,
       "title": "VendorMembership",

@@ -11,3 +11,5 @@ export * from "./service-areas.service";
 export * from "./staff.service";
 export * from "./vendors.service";
 export * from "./communities.service";
+export * from './community-schedules.service';
+export * from './booking-readiness.service';

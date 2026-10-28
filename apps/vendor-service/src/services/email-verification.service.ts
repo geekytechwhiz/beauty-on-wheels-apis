@@ -53,6 +53,7 @@ export class EmailVerificationService {
     const completed = new Set(profile.completedSections);
     if (
       profile.status !== EMAIL_VERIFICATION_ELIGIBLE_VENDOR_STATUS ||
+      profile.onboardingStatus !== ONBOARDING_STATUS.AWAITING_EMAIL_VERIFICATION ||
       !ONBOARDING_SECTION_ORDER.every((section) => completed.has(section)) ||
       !hasValidRegisteredEmail(profile.email)
     ) {
@@ -103,6 +104,7 @@ export class EmailVerificationService {
       emailVerificationConsumedAt: timestamp,
       emailVerificationDispatchPending: false,
       onboardingStatus: ONBOARDING_STATUS.PENDING_REVIEW,
+      revision: (profile.revision ?? 0) + 1,
       updatedAt: timestamp,
     };
     try {

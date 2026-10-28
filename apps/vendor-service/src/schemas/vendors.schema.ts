@@ -22,8 +22,8 @@ const optionalTrimmedString = (max: number) =>
     });
 
 export const BusinessInfoRequestSchema = z.object({
-  businessName: z.string().min(2).max(150),
-  contactName: z.string().min(2).max(100),
+  businessName: z.string().min(2).max(150).optional(),
+  contactName: z.string().min(2).max(100).optional(),
   phoneNumber: optionalTrimmedString(20),
   email: optionalTrimmedString(254).pipe(z.string().email().optional()),
   description: optionalTrimmedString(1000),
@@ -34,17 +34,18 @@ export const BusinessInfoRequestSchema = z.object({
 });
 
 export const OwnerDetailsRequestSchema = z.object({
-  userId: z.string().min(1).max(100),
-  fullName: z.string().min(1).max(100),
+  /** Ignored at the API boundary; ownership comes from the identity token. */
+  userId: z.string().min(1).max(100).optional(),
+  fullName: z.string().min(1).max(100).optional(),
   designation: optionalTrimmedString(100),
   email: optionalTrimmedString(254).pipe(z.string().email().optional()),
   phoneNumber: optionalTrimmedString(20),
 });
 
 export const CreateVendorRequestSchema = z.object({
-  businessInfo: BusinessInfoRequestSchema,
-  ownerDetails: OwnerDetailsRequestSchema,
-});
+  businessInfo: BusinessInfoRequestSchema.optional(),
+  ownerDetails: OwnerDetailsRequestSchema.optional(),
+}).strict();
 
 export type CreateVendorRequest = z.infer<typeof CreateVendorRequestSchema>;
 

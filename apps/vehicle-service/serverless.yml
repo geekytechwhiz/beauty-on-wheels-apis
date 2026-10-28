@@ -20,6 +20,7 @@ provider:
   versionFunctions: false
 
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
 
     SERVICE_NAME: vehicle-service
     LOG_LEVEL: INFO
@@ -51,6 +52,8 @@ provider:
           Resource: '*'
 
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
 
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
@@ -225,7 +228,7 @@ functions:
       - http:
           path: /vehicles
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List my vehicles"
           description: "Requires a bearer access token. Returns only vehicles owned by the authenticated user. Query status (ACTIVE or INACTIVE) or vehicleType. The platform envelope puts the list at data.items."
@@ -259,7 +262,7 @@ functions:
       - http:
           path: /vehicles
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vehicle"
           description: "Requires a bearer access token. The vehicle is stored for the authenticated user. A client-supplied userId is ignored. HTTP 200 platform envelope; the vehicle is in data."
@@ -296,7 +299,7 @@ functions:
       - http:
           path: /vehicles/{vehicleId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vehicle"
           swaggerTags:
@@ -334,7 +337,7 @@ functions:
       - http:
           path: /vehicles/{vehicleId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vehicle"
           swaggerTags:
@@ -375,7 +378,7 @@ functions:
       - http:
           path: /vehicles/{vehicleId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete vehicle"
           description: "Requires a bearer access token. Deletes a vehicle owned by the authenticated user. Success is HTTP 200 with the platform envelope and data null."
@@ -411,7 +414,7 @@ functions:
       - http:
           path: /vehicles/{vehicleId}/default
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Set default vehicle"
           swaggerTags:
@@ -448,7 +451,7 @@ functions:
       - http:
           path: /vehicle-types
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List supported vehicle types"
           description: "Requires a bearer access token. Canonical success body is the platform envelope. data.items is the vehicle type array. Clients must not expect a bare JSON array."
@@ -568,50 +571,16 @@ resources:
           - Key: ManagedBy
             Value: Serverless 
  
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+

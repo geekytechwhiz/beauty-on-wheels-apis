@@ -59,6 +59,7 @@ export class VendorsMapper {
       currentSection: item.currentSection,
       completedSections: item.completedSections,
       applicationId: item.applicationId,
+      revision: item.revision ?? 0,
       communityIds: item.communityIds ?? [],
       latestReview: item.latestReview
         ? VendorsMapper.toReview(item.latestReview)
@@ -106,9 +107,7 @@ export class VendorsMapper {
         contactName: input.contactName,
         phoneNumber: input.phoneNumber,
       }),
-      hasOwner: false,
-      hasAddress: false,
-      hasBranch: false,
+      hasCommunities: false,
       documentTypes: [],
       hasBankDetails: false,
     });
@@ -132,6 +131,7 @@ export class VendorsMapper {
       onboardingStatus: onboarding.status,
       currentSection: onboarding.currentSection,
       completedSections: onboarding.completedSections,
+      revision: 0,
       communityIds: [],
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -172,6 +172,7 @@ export class VendorsMapper {
       panNumber: data.panNumber,
       profileImageUrl: data.profileImageUrl ?? existing.profileImageUrl,
       updatedAt: new Date().toISOString(),
+      revision: (existing.revision ?? 0) + 1,
     };
   }
 

@@ -1,10 +1,48 @@
 /**
  * Hierarchical keys on the existing availability table.
  * Inventory is partitioned by vendor, branch, and business-local date.
- * GSI1 is shared by namespaces (hold expiry buckets and customer hold lookups).
+ * Community visit occurrences reuse vendor PK partitions and project onto GSI1
+ * under COMMUNITY#… for community/date-range browse.
+ * GSI1 is shared by namespaces (hold expiry, customer holds, community visits).
  */
 
 export const AvailabilityKeyBuilder = {
+  communityPk(communityId: string): string {
+    return `COMMUNITY#${communityId}`;
+  },
+
+  communityVisitSk(date: string, vendorId: string, visitId: string): string {
+    return `CVISIT#${date}#${vendorId}#${visitId}`;
+  },
+
+  communityVisitSkFrom(date: string): string {
+    return `CVISIT#${date}`;
+  },
+
+  communityScheduleSk(vendorId: string, scheduleId: string): string {
+    return `CVISIT_SCHEDULE#${vendorId}#${scheduleId}`;
+  },
+
+  vendorCommunityVisitPk(vendorId: string): string {
+    return `VENDOR#${vendorId}`;
+  },
+
+  vendorCommunityVisitSk(date: string, visitId: string): string {
+    return `CVISIT#${date}#${visitId}`;
+  },
+
+  vendorCommunityVisitSkFrom(date: string): string {
+    return `CVISIT#${date}`;
+  },
+
+  vendorCommunityScheduleSk(scheduleId: string): string {
+    return `CVISIT_SCHEDULE#${scheduleId}`;
+  },
+
+  communityVisitHoldSk(visitId: string, holdId: string): string {
+    return `CVISIT_HOLD#${visitId}#${holdId}`;
+  },
+
   dailyPk(vendorId: string, branchId: string, date: string): string {
     return `VENDOR#${vendorId}#BRANCH#${branchId}#DATE#${date}`;
   },

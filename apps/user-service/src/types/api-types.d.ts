@@ -61,6 +61,7 @@ export interface AddressRequest {
   latitude?: number;
   longitude?: number;
   isDefault?: boolean;
+  communityId: string;
 }
 
 export interface Address {
@@ -68,6 +69,7 @@ export interface Address {
   userId: string;
   type: AddressType;
   line1: string;
+  communityId: string;
   city: string;
   isDefault: boolean;
   createdAt: string;
@@ -142,4 +144,20 @@ export interface CustomerCommunitiesUpdate {
 export interface CustomerCommunities {
   userId: string;
   communityIds: string[];
+}
+
+export interface SupportTicketCreate {
+  category: 'BOOKING' | 'PAYMENT' | 'ACCOUNT';
+  bookingId?: string;
+  message: string;
+}
+
+export interface SupportTicket {
+  ticketId: string;
+  userId: string;
+  status: 'OPEN';
+  category: 'BOOKING' | 'PAYMENT' | 'ACCOUNT';
+  message: string;
+  bookingId?: string;
+  submittedAt: string;
 }

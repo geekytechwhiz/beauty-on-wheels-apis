@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { ApiResponse } from '@api-hub/utils';
+import { ApiResponse, buildCorsHeaders } from '@api-hub/utils';
 import { extractCorrelationId } from '@api-hub/observability';
 import { CHANNEL_ERROR_CODE } from '../errors/channel-error';
 import { recordMetric, WHATSAPP_METRIC } from '../infra/metrics';
@@ -75,7 +75,11 @@ export async function handleHttpRequest(request: HttpRequest, runtime: WebhookRu
         const response = ApiResponse.forbidden(message('Forbidden', 'Webhook verification failed'), options, { code: CHANNEL_ERROR_CODE.AUTHORIZATION_ERROR });
         return { statusCode: response.statusCode, body: response.body, headers: asHeaders(response.headers) };
       }
-      return { statusCode: 200, body: challenge, headers: { 'Content-Type': 'text/plain' } };
+      return {
+        statusCode: 200,
+        body: challenge,
+        headers: { 'Content-Type': 'text/plain', ...buildCorsHeaders() },
+      };
     }
 
     if (request.method === 'POST' && request.path.includes('/webhooks/whatsapp')) {

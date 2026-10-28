@@ -43,6 +43,18 @@ export function classifyVendorDiscoveryChange(
     return { vendorId, updatedAt, subject: 'operations' };
   }
 
+  if (entityType === 'VendorCommunity') {
+    if (eventName !== 'REMOVE' || typeof current.communityId !== 'string' || current.communityId.trim() === '') {
+      return undefined;
+    }
+    return {
+      vendorId,
+      updatedAt,
+      subject: 'community',
+      communityId: current.communityId.trim(),
+    };
+  }
+
   if (typeof entityType !== 'string' || !(entityType in DISCOVERY_ENTITIES)) {
     return undefined;
   }

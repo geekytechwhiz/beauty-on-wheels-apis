@@ -365,6 +365,144 @@
           }
         }
       },
+      "ServiceVisitWindow": {
+        "type": "object",
+        "description": "New windows require capacity.staffCount and resources. Visits saved earlier may contain only maxConcurrentBookings and are returned unchanged.",
+        "required": ["windowId", "label", "daysOfWeek", "startTime", "endTime", "endDayOffset"],
+        "properties": {
+          "windowId": { "type": "string" },
+          "label": {
+            "type": "string",
+            "enum": ["earlyMorning", "morning", "afternoon", "evening", "night", "weekend", "custom"],
+            "description": "EARLY_MORNING and the other underscore forms are accepted and stored as these camelCase values."
+          },
+          "daysOfWeek": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] }
+          },
+          "startTime": { "type": "string", "example": "06:00" },
+          "endTime": { "type": "string", "example": "09:00" },
+          "endDayOffset": { "type": "integer", "enum": [0, 1] },
+          "maxConcurrentBookings": {
+            "type": "integer",
+            "description": "Legacy concurrent booking limit. Not derived from staffCount."
+          },
+          "bufferMinutes": { "type": "integer" },
+          "capacity": {
+            "type": "object",
+            "required": ["staffCount"],
+            "properties": {
+              "staffCount": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "required": ["water", "equipment"],
+            "properties": {
+              "water": {
+                "type": "object",
+                "required": ["source"],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": ["vendorSupplied", "communitySupplied", "waterless"],
+                    "description": "VENDOR_SUPPLIED, COMMUNITY_SUPPLIED, and WATERLESS are accepted and stored as these camelCase values."
+                  },
+                  "capacityLiters": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Required and positive only when source is vendorSupplied."
+                  }
+                }
+              },
+              "equipment": {
+                "type": "object",
+                "required": ["providedByVendor"],
+                "properties": {
+                  "providedByVendor": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServiceVisit": {
+        "type": "object",
+        "properties": {
+          "visitId": { "type": "string" },
+          "vendorId": { "type": "string" },
+          "name": { "type": "string" },
+          "deliveryModel": { "type": "string", "enum": ["community", "doorstep"] },
+          "location": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["community", "serviceArea"] },
+              "communityId": { "type": "string" },
+              "serviceAreaId": { "type": "string" },
+              "branchId": {
+                "type": "string",
+                "description": "Returned only for visits saved before branchId was removed from the request."
+              }
+            }
+          },
+          "timezone": { "type": "string" },
+          "windows": { "type": "array", "items": { "$ref": "#/components/schemas/ServiceVisitWindow" } },
+          "serviceIds": { "type": "array", "items": { "type": "string" } },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "serviceId": { "type": "string" },
+                "durationMinutes": { "type": "integer" },
+                "waterLiters": { "type": "integer" },
+                "requiresWater": { "type": "boolean" },
+                "requiresVendorEquipment": { "type": "boolean" }
+              }
+            }
+          },
+          "staffIds": { "type": "array", "items": { "type": "string" } },
+          "effectiveFrom": { "type": "string" },
+          "effectiveUntil": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["draft", "active", "paused", "archived"] },
+          "version": { "type": "integer" }
+        }
+      },
+      "ServiceVisitPage": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/ServiceVisit" } },
+          "nextToken": { "type": "string" }
+        }
+      },
+      "ServiceVisitWrite": {
+        "type": "object",
+        "required": ["name", "deliveryModel", "location", "timezone", "windows", "serviceIds", "effectiveFrom"],
+        "properties": {
+          "name": { "type": "string" },
+          "deliveryModel": { "type": "string", "enum": ["community", "doorstep"] },
+          "location": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": { "type": "string", "enum": ["community", "serviceArea"] },
+              "communityId": { "type": "string" },
+              "serviceAreaId": { "type": "string" }
+            }
+          },
+          "timezone": { "type": "string" },
+          "windows": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/ServiceVisitWindow" } },
+          "serviceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "staffIds": {
+            "type": "array",
+            "description": "Optional. Individual staff assignment is not required.",
+            "items": { "type": "string" }
+          },
+          "effectiveFrom": { "type": "string" },
+          "effectiveUntil": { "type": "string", "nullable": true },
+          "expectedVersion": { "type": "integer", "description": "Required on PATCH." }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "properties": {
@@ -433,7 +571,7 @@
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
-        "example": "https://developer.mozilla.org"
+        "example": "http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:19006,http://localhost:8080"
       },
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
@@ -480,7 +618,7 @@
   },
   "info": {
     "title": "Beauty on Wheels - Service Catalog Service API",
-    "description": "Catalog categories, services, packages, add-ons, and price calculation.",
+    "description": "Catalog categories, services, packages, add-ons, price calculation, and service visits.",
     "version": "1.0.0"
   },
   "security": [
@@ -2233,6 +2371,140 @@
           }
         }
       }
+    },
+    "/vendors/{vendorId}/service-visits": {
+      "post": {
+        "summary": "Create a service visit",
+        "description": "Creates a draft visit. Each window requires staffCount and resources. branchId is not accepted. staffIds is optional. Idempotency-Key is required.",
+        "operationId": "postservicevisits",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisitWrite" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          },
+          "400": {
+            "description": "Request failed",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "get": {
+        "summary": "List service visits",
+        "description": "Lists visits for the vendor. Previously saved windows are returned without invented resource defaults.",
+        "operationId": "getservicevisits",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisitPage" } } }
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}": {
+      "get": {
+        "summary": "Get a service visit",
+        "operationId": "getservicevisit",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "visitId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a service visit",
+        "description": "Replaces any windows sent in the body. Omitted fields stay as they are. expectedVersion is required.",
+        "operationId": "patchservicevisit",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "visitId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisitWrite" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          },
+          "400": {
+            "description": "Request failed",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive a service visit",
+        "operationId": "archiveservicevisit",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "visitId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "responses": {
+          "200": {
+            "description": "Archived",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}/activate": {
+      "post": {
+        "summary": "Activate a service visit",
+        "description": "Activates a draft or paused visit. Previously saved windows stay valid.",
+        "operationId": "activateservicevisit",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "visitId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "responses": {
+          "200": {
+            "description": "Activated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}/pause": {
+      "post": {
+        "summary": "Pause a service visit",
+        "operationId": "pauseservicevisit",
+        "parameters": [
+          { "name": "vendorId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "visitId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "tags": ["Service visits"],
+        "responses": {
+          "200": {
+            "description": "Paused",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServiceVisit" } } }
+          }
+        }
+      }
     }
   },
   "servers": [
@@ -2271,6 +2543,10 @@
     {
       "name": "Add-ons",
       "description": "Optional add-ons"
+    },
+    {
+      "name": "Service visits",
+      "description": "Recurring community and doorstep visit windows"
     }
   ]
 }

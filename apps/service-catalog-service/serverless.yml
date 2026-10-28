@@ -19,6 +19,7 @@ provider:
   versionFunctions: false
 
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
 
     SERVICE_NAME: service-catalog-service
     LOG_LEVEL: INFO
@@ -27,6 +28,14 @@ provider:
     VENDOR_PRICING_CONFIGURATION_FUNCTION: vendor-service-api-${self:provider.stage}-getPricingConfiguration
     VENDOR_DISCOVERY_FACTS_FUNCTION: vendor-service-api-${self:provider.stage}-getDiscoveryFacts
     AVAILABILITY_BOOKABLE_FUNCTION: availability-service-${self:provider.stage}-findBookableOfferings
+    EVENT_BUS_NAME:
+      Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
+    VENDOR_BASE_URL: https://ysnqqonq60.execute-api.us-east-1.amazonaws.com/dev
+    # Turn on only after GSI3 is ACTIVE and the offering-community backfill is verified.
+    COMMUNITY_OFFERING_ENFORCEMENT: 'false'
+    # dev approves new mappings. stg and prd keep admin approval. Any other stage stays false.
+    COMMUNITY_OFFERING_AUTO_APPROVE: ${self:custom.communityOfferingAutoApprove.${self:provider.stage}, 'false'}
+    COMMUNITY_DIRECTORY_FUNCTION: vendor-service-api-${self:provider.stage}-lookupActiveCommunities
     ASSET_URL: https://dev-use1-bw-static-assets.s3.us-east-1.amazonaws.com/dev
     
   iam:
@@ -54,12 +63,22 @@ provider:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PRICING_CONFIGURATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_DISCOVERY_FACTS_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_BOOKABLE_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.COMMUNITY_DIRECTORY_FUNCTION}
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource:
+            - Fn::Sub:
+                - arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${BusName}
+                - BusName:
+                    Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
         - Effect: Allow
           Action:
             - sqs:SendMessage
           Resource:
             - !GetAtt DiscoveryVendorLifecycleDlq.Arn
             - !GetAtt DiscoveryVendorFactsDlq.Arn
+            - !GetAtt ServiceVisitStreamDlq.Arn
         - Effect: Allow
           Action:
             - xray:PutTraceSegments
@@ -67,6 +86,12 @@ provider:
           Resource: "*"
 
 custom:
+  communityOfferingAutoApprove:
+    dev: 'true'
+    stg: 'false'
+    prd: 'false'
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
 
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
@@ -101,7 +126,7 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels - Service Catalog Service API
-    description: Catalog categories, services, packages, add-ons, and price calculation.
+    description: Catalog categories, services, packages, add-ons, price calculation, and service visits.
     securitySchemes:
       bearerAuth:
         type: http
@@ -130,6 +155,8 @@ custom:
         description: Price calculation
       - name: Add-ons
         description: Optional add-ons
+      - name: Service visits
+        description: Recurring community and doorstep visit windows
     models:
       - name: Category
         description: Service category
@@ -208,6 +235,52 @@ custom:
                   type: number
                 active:
                   type: boolean
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+                communities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      communityId:
+                        type: string
+                      approvalStatus:
+                        type: string
+                        enum:
+                          - pending
+                          - approved
+                          - rejected
+                      status:
+                        type: string
+                        enum:
+                          - active
+                          - inactive
+                      version:
+                        type: integer
+                      approvalUpdatedAt:
+                        type: string
+                      approvalUpdatedBy:
+                        type: string
+      - name: OfferingCommunityApproval
+        description: Admin approval decision for one service-community mapping
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approvalStatus
+                - version
+              properties:
+                approvalStatus:
+                  type: string
+                  enum:
+                    - approved
+                    - rejected
+                version:
+                  type: integer
+                  minimum: 1
       - name: ServicePage
         description: Page of services
         content:
@@ -413,6 +486,187 @@ custom:
                         type: string
                       amount:
                         type: number
+      - name: ServiceVisitWindow
+        description: One visit window. New windows require staff count and resources. Older windows may only have maxConcurrentBookings.
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - windowId
+                - label
+                - daysOfWeek
+                - startTime
+                - endTime
+                - endDayOffset
+              properties:
+                windowId:
+                  type: string
+                label:
+                  type: string
+                  enum:
+                    - earlyMorning
+                    - morning
+                    - afternoon
+                    - evening
+                    - night
+                    - weekend
+                    - custom
+                daysOfWeek:
+                  type: array
+                  items:
+                    type: string
+                    enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                endDayOffset:
+                  type: integer
+                  enum: [0, 1]
+                maxConcurrentBookings:
+                  type: integer
+                  description: Present on visits saved before staff count. Not derived from staffCount.
+                bufferMinutes:
+                  type: integer
+                capacity:
+                  type: object
+                  required: [staffCount]
+                  properties:
+                    staffCount:
+                      type: integer
+                      minimum: 1
+                resources:
+                  type: object
+                  required: [water, equipment]
+                  properties:
+                    water:
+                      type: object
+                      required: [source]
+                      properties:
+                        source:
+                          type: string
+                          enum: [vendorSupplied, communitySupplied, waterless]
+                        capacityLiters:
+                          type: integer
+                          minimum: 1
+                          description: Required only when source is vendorSupplied.
+                    equipment:
+                      type: object
+                      required: [providedByVendor]
+                      properties:
+                        providedByVendor:
+                          type: boolean
+      - name: ServiceVisit
+        description: Service visit configuration
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                visitId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                deliveryModel:
+                  type: string
+                  enum: [community, doorstep]
+                location:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [community, serviceArea]
+                    communityId:
+                      type: string
+                    serviceAreaId:
+                      type: string
+                    branchId:
+                      type: string
+                      description: Returned only for visits saved before branchId was removed from the request.
+                timezone:
+                  type: string
+                windows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ServiceVisitWindow"
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                staffIds:
+                  type: array
+                  items:
+                    type: string
+                effectiveFrom:
+                  type: string
+                effectiveUntil:
+                  type: string
+                  nullable: true
+                status:
+                  type: string
+                  enum: [draft, active, paused, archived]
+                version:
+                  type: integer
+      - name: ServiceVisitPage
+        description: Page of service visits
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ServiceVisit"
+                nextToken:
+                  type: string
+      - name: ServiceVisitWrite
+        description: Create or replace fields for a service visit. branchId is not accepted.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, deliveryModel, location, timezone, windows, serviceIds, effectiveFrom]
+              properties:
+                name:
+                  type: string
+                deliveryModel:
+                  type: string
+                  enum: [community, doorstep]
+                location:
+                  type: object
+                  required: [type]
+                  properties:
+                    type:
+                      type: string
+                      enum: [community, serviceArea]
+                    communityId:
+                      type: string
+                    serviceAreaId:
+                      type: string
+                timezone:
+                  type: string
+                windows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ServiceVisitWindow"
+                serviceIds:
+                  type: array
+                  items:
+                    type: string
+                staffIds:
+                  type: array
+                  description: Optional. Individual staff assignment is not required.
+                  items:
+                    type: string
+                effectiveFrom:
+                  type: string
+                effectiveUntil:
+                  type: string
+                  nullable: true
       - name: ErrorResponse
         description: Platform error envelope
         content:
@@ -460,6 +714,10 @@ custom:
                     version:
                       type: string
 functions:
+  getBookingReadinessFacts:
+    handler: src/handlers/internal.getBookingReadinessFacts
+    description: "Internal invoke. Publishes the authoritative active bookable service count for booking readiness."
+    timeout: 30
 
 
   getcategories:
@@ -468,7 +726,7 @@ functions:
       - http:
           path: /categories
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List categories"
           swaggerTags:
@@ -500,7 +758,7 @@ functions:
       - http:
           path: /categories
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create category"
           swaggerTags:
@@ -538,7 +796,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get category"
           swaggerTags:
@@ -575,7 +833,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update category"
           swaggerTags:
@@ -618,7 +876,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete category"
           swaggerTags:
@@ -655,7 +913,7 @@ functions:
       - http:
           path: catalog/discover
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           queryStringParameters:
             - name: search
@@ -723,7 +981,7 @@ functions:
       - http:
           path: offerings
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           queryStringParameters:
             - name: search
@@ -800,6 +1058,10 @@ functions:
               required: false
               schema:
                 type: string
+            - name: communityId
+              required: false
+              schema:
+                type: string
 
   backfillDiscovery:
     handler: src/handlers/backfill-discovery-handler.handler
@@ -829,7 +1091,7 @@ functions:
       - http:
           path: /services
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List services"
           swaggerTags:
@@ -897,7 +1159,7 @@ functions:
       - http:
           path: /services
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create service"
           swaggerTags:
@@ -935,7 +1197,7 @@ functions:
       - http:
           path: /services/{serviceId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get service"
           swaggerTags:
@@ -945,7 +1207,7 @@ functions:
               description: "OK"
           documentation:
             summary: Get service
-            description: Gets one service owned by vendorId. categoryId is optional.
+            description: Gets one service owned by vendorId, including its community mappings. categoryId is optional. consistent=true is the booking read.
             queryParams:
               - name: vendorId
                 description: Vendor that owns the service
@@ -957,6 +1219,11 @@ functions:
                 required: false
                 schema:
                   type: string
+              - name: consistent
+                description: Consistent read of the service and its community mappings
+                required: false
+                schema:
+                  type: boolean
             tags:
               - Services
             methodResponses:
@@ -983,7 +1250,7 @@ functions:
       - http:
           path: /services/{serviceId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update service"
           swaggerTags:
@@ -1037,7 +1304,7 @@ functions:
       - http:
           path: /services/{serviceId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete service"
           swaggerTags:
@@ -1076,6 +1343,107 @@ functions:
                 schema:
                   type: string
 
+  postServiceCommunities:
+    handler: src/handlers/offering-communities-handler.handlePostServiceCommunities
+    events:
+      - http:
+          path: /services/{serviceId}/communities
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Add communities to a service
+          documentation:
+            summary: Add offering communities
+            description: Inserts missing community mappings. Selected communities must be active in the platform directory. Vendor coverage is not required. Existing approval and operational status are left unchanged. New mappings are approved only when COMMUNITY_OFFERING_AUTO_APPROVE is true.
+            queryParams:
+              - name: vendorId
+                required: true
+                schema:
+                  type: string
+            pathParams:
+              - name: serviceId
+                schema:
+                  type: string
+
+  putServiceCommunity:
+    handler: src/handlers/offering-communities-handler.handlePutServiceCommunity
+    events:
+      - http:
+          path: /services/{serviceId}/communities/{communityId}
+          method: put
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Activate or deactivate one community
+          documentation:
+            summary: Set offering community status
+            description: Updates operational status for one mapping. approvalStatus is unchanged. The service-level active flag is unchanged.
+            queryParams:
+              - name: vendorId
+                required: true
+                schema:
+                  type: string
+            pathParams:
+              - name: serviceId
+                schema:
+                  type: string
+              - name: communityId
+                schema:
+                  type: string
+
+  putServiceCommunityApproval:
+    handler: src/handlers/offering-communities-handler.handlePutServiceCommunityApproval
+    events:
+      - http:
+          path: /services/{serviceId}/communities/{communityId}/approval
+          method: put
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Approve or reject one community mapping
+          documentation:
+            summary: Set offering community approval
+            description: Admin only. Records the caller and time. Does not change operational status. A vendor cannot call this route.
+            pathParams:
+              - name: serviceId
+                schema:
+                  type: string
+              - name: communityId
+                schema:
+                  type: string
+            requestBody:
+              description: approvalStatus is approved or rejected. version is the current mapping version.
+            requestModels:
+              application/json: OfferingCommunityApproval
+
+  deleteServiceCommunity:
+    handler: src/handlers/offering-communities-handler.handleDeleteServiceCommunity
+    events:
+      - http:
+          path: /services/{serviceId}/communities/{communityId}
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Remove one community mapping
+          documentation:
+            summary: Delete offering community
+            description: Removes the mapping. A missing mapping returns success.
+            queryParams:
+              - name: vendorId
+                required: true
+                schema:
+                  type: string
+            pathParams:
+              - name: serviceId
+                schema:
+                  type: string
+              - name: communityId
+                schema:
+                  type: string
+
+  backfillOfferingCommunities:
+    handler: src/handlers/backfill-offering-communities-handler.handler
+    description: Idempotent offering-community backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
+    timeout: 300
+    memorySize: 512
 
   getpackages:
     handler: src/handlers/packages-handler.handleGetpackages
@@ -1083,7 +1451,7 @@ functions:
       - http:
           path: /packages
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List packages"
           swaggerTags:
@@ -1121,7 +1489,7 @@ functions:
       - http:
           path: /packages
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create package"
           swaggerTags:
@@ -1159,7 +1527,7 @@ functions:
       - http:
           path: /packages/{packageId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get package"
           swaggerTags:
@@ -1202,7 +1570,7 @@ functions:
       - http:
           path: /packages/{packageId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update package"
           swaggerTags:
@@ -1251,7 +1619,7 @@ functions:
       - http:
           path: /packages/{packageId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete package"
           swaggerTags:
@@ -1293,7 +1661,7 @@ functions:
       - http:
           path: /pricing/calculate
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Calculate price"
           description: >
@@ -1365,7 +1733,7 @@ functions:
       - http:
           path: /addons
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List add-ons"
           swaggerTags:
@@ -1408,7 +1776,7 @@ functions:
       - http:
           path: /addons
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create add-on"
           swaggerTags:
@@ -1446,7 +1814,7 @@ functions:
       - http:
           path: /addons/{addonId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get add-on"
           swaggerTags:
@@ -1489,7 +1857,7 @@ functions:
       - http:
           path: /addons/{addonId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update add-on"
           swaggerTags:
@@ -1538,7 +1906,7 @@ functions:
       - http:
           path: /addons/{addonId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete add-on"
           swaggerTags:
@@ -1572,9 +1940,266 @@ functions:
                 schema:
                   type: string
 
+  postServiceVisits:
+    handler: src/handlers/service-visits-handler.handlePostServiceVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Create a service visit
+          swaggerTags:
+            - Service visits
+          bodyType: ServiceVisitWrite
+          responseData:
+            201:
+              description: Created
+          documentation:
+            summary: Create a service visit
+            description: Creates a draft visit. Each window requires staffCount and resources. branchId is not accepted. staffIds is optional.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: ServiceVisit
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Service visit
+              required: true
+            requestModels:
+              application/json: ServiceVisitWrite
+
+  getServiceVisits:
+    handler: src/handlers/service-visits-handler.handleGetServiceVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: List service visits
+          swaggerTags:
+            - Service visits
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: List service visits
+            description: Lists visits for the vendor. Previously saved windows are returned without invented resource defaults.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: ServiceVisitPage
+
+  getServiceVisit:
+    handler: src/handlers/service-visits-handler.handleGetServiceVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits/{visitId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Get a service visit
+          swaggerTags:
+            - Service visits
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: Get a service visit
+            description: Returns one visit, including staff count and resources when they were saved.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: ServiceVisit
+
+  patchServiceVisit:
+    handler: src/handlers/service-visits-handler.handlePatchServiceVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits/{visitId}
+          method: patch
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Update a service visit
+          swaggerTags:
+            - Service visits
+          bodyType: ServiceVisitWrite
+          responseData:
+            200:
+              description: Updated
+          documentation:
+            summary: Update a service visit
+            description: Replaces any windows sent in the body. Omitted fields stay as they are. expectedVersion is required.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated
+                responseModels:
+                  application/json: ServiceVisit
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            requestBody:
+              description: Fields to replace
+              required: true
+            requestModels:
+              application/json: ServiceVisitWrite
+
+  activateServiceVisit:
+    handler: src/handlers/service-visits-handler.handleActivateServiceVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits/{visitId}/activate
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Activate a service visit
+          swaggerTags:
+            - Service visits
+          documentation:
+            summary: Activate a service visit
+            description: Activates a draft or paused visit. Previously saved windows stay valid.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Activated
+                responseModels:
+                  application/json: ServiceVisit
+
+  pauseServiceVisit:
+    handler: src/handlers/service-visits-handler.handlePauseServiceVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits/{visitId}/pause
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Pause a service visit
+          swaggerTags:
+            - Service visits
+          documentation:
+            summary: Pause a service visit
+            description: Pauses an active visit.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Paused
+                responseModels:
+                  application/json: ServiceVisit
+
+  archiveServiceVisit:
+    handler: src/handlers/service-visits-handler.handleArchiveServiceVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visits/{visitId}
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Archive a service visit
+          swaggerTags:
+            - Service visits
+          documentation:
+            summary: Archive a service visit
+            description: Archives a visit. The visit id is unchanged.
+            tags:
+              - Service visits
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Archived
+                responseModels:
+                  application/json: ServiceVisit
+
+  onServiceVisitChanged:
+    handler: src/handlers/service-visit-stream.handler
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt ServiceCatalogTable.StreamArn
+          filterPatterns:
+            - eventName:
+                - INSERT
+                - MODIFY
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - ServiceVisitConfiguration
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt ServiceVisitStreamDlq.Arn
+              type: sqs
+
+  # One consumer on the existing table stream; SERVICE index rows are excluded.
+  onVendorServiceChanged:
+    handler: src/handlers/vendor-service-stream.handler
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt ServiceCatalogTable.StreamArn
+          filterPatterns:
+            - eventName: [INSERT, MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [SERVICE]
+            - eventName: [REMOVE]
+              dynamodb:
+                OldImage:
+                  entityType:
+                    S: [SERVICE]
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt ServiceVisitStreamDlq.Arn
+              type: sqs
+
 
 resources:
   Resources:
+
+    ServiceVisitStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-service-visit-stream-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
 
     DiscoveryVendorLifecycleDlq:
       Type: AWS::SQS::Queue
@@ -1731,6 +2356,12 @@ resources:
           - AttributeName: GSI2SK
             AttributeType: S
 
+          - AttributeName: GSI3PK
+            AttributeType: S
+
+          - AttributeName: GSI3SK
+            AttributeType: S
+
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -1802,6 +2433,17 @@ resources:
             Projection:
               ProjectionType: ALL
 
+          # Sparse index of active offering-community mappings.
+          # Deploy this index and wait until it is ACTIVE before enabling enforcement.
+          - IndexName: GSI3
+            KeySchema:
+              - AttributeName: GSI3PK
+                KeyType: HASH
+              - AttributeName: GSI3SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
 
@@ -1821,50 +2463,16 @@ resources:
           - Key: ManagedBy
             Value: Serverless
 
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+

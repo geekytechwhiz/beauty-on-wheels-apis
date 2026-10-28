@@ -87,6 +87,8 @@ export interface Booking {
   bookingDate?: string;
   slotId?: string;
   holdId?: string;
+  /** Availability allocation key; absent means the booking id. Set when a provider/service change reserved new capacity. */
+  allocationId?: string;
   location?: BookingLocation;
   notes?: string;
   pricingSnapshot?: PricingSnapshot;

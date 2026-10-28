@@ -1,6 +1,6 @@
 import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 
-import { assertCatalogAdmin } from './catalog-admin';
+import { assertCatalogAdmin, assertOfferingApprovalAdmin } from './catalog-admin';
 
 function request(partial: Record<string, unknown>): LambdaRequest {
   return {
@@ -47,6 +47,39 @@ describe('assertCatalogAdmin', () => {
 
     expect(() =>
       assertCatalogAdmin(
+        request({
+          authContext: {
+            identityId: 'admin-1',
+            roles: ['ADMIN'],
+            permissions: [],
+            claims: {},
+          },
+        }),
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe('assertOfferingApprovalAdmin', () => {
+  it('rejects a vendor and a catalog writer who is not an admin', () => {
+    expect(() => assertOfferingApprovalAdmin(request({}))).toThrow(UnauthorizedError);
+    expect(() =>
+      assertOfferingApprovalAdmin(
+        request({
+          authContext: {
+            identityId: 'vendor-1',
+            roles: ['VENDOR'],
+            permissions: ['catalog:write'],
+            claims: {},
+          },
+        }),
+      ),
+    ).toThrow(ForbiddenError);
+  });
+
+  it('allows an admin role', () => {
+    expect(() =>
+      assertOfferingApprovalAdmin(
         request({
           authContext: {
             identityId: 'admin-1',

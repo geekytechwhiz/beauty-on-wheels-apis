@@ -300,7 +300,7 @@ describe('reserveBooking capacity blocks', () => {
   it('rejects a reservation that runs past working hours', async () => {
     await openHours('10:00');
     await generate(30, 1);
-    await expect(reserve({ durationMinutes: 90 })).rejects.toMatchObject({ code: 'VENDOR_NOT_AVAILABLE' });
+    await expect(reserve({ durationMinutes: 90 })).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
     expect(booked('09:00')).toBe(0);
   });
 

@@ -1,0 +1,27 @@
+# REST API (provider http events) CORS. Serverless creates an unauthenticated
+# OPTIONS mock and splits a comma-separated origin into an allowlist.
+# Lambda proxy responses add the same headers themselves. This block does not
+# attach CORS headers to those proxy responses, so they are not duplicated.
+origin: ${self:custom.corsAllowedOrigins}
+allowCredentials: true
+maxAge: 600
+headers:
+  - Content-Type
+  - Authorization
+  - Idempotency-Key
+  - X-Requested-With
+  - X-Amz-Date
+  - X-Api-Key
+  - X-Amz-Security-Token
+  - X-Amz-User-Agent
+  - X-Amzn-Trace-Id
+  - X-Correlation-Id
+  - X-Request-Id
+methods:
+  - DELETE
+  - GET
+  - HEAD
+  - OPTIONS
+  - PATCH
+  - POST
+  - PUT

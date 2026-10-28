@@ -3,5 +3,6 @@ export * from './communities.controller';
 export * from './customers.controller';
 export * from './kyc.controller';
 export * from './preferences.controller';
+export * from './support-tickets.controller';
 export * from './users.controller';
 export * from './vendors.controller';

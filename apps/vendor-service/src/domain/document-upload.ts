@@ -34,7 +34,8 @@ const DOCUMENT_TYPE_VALUES = new Set<string>(Object.values(DOCUMENT_TYPE));
 export function assertDocumentsMutable(onboardingStatus: string): void {
   if (
     onboardingStatus === ONBOARDING_STATUS.DRAFT ||
-    onboardingStatus === ONBOARDING_STATUS.IN_PROGRESS
+    onboardingStatus === ONBOARDING_STATUS.IN_PROGRESS ||
+    onboardingStatus === ONBOARDING_STATUS.CHANGES_REQUESTED
   ) {
     return;
   }

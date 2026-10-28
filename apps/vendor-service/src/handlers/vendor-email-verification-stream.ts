@@ -48,7 +48,7 @@ export function createVendorEmailVerificationRequestedStreamHandler(deps?: {
           const fields = {
             vendorId: requestPayload.vendorId,
             eventName: VendorEmailVerificationRequestedEvent.__meta.eventType,
-            eventId: event.eventId,
+            eventId: (event as { eventId?: string }).eventId,
             correlationId: meta.correlationId,
           };
           getLogger().info('vendor_email_event_publish_started', fields);

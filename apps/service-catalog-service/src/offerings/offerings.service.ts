@@ -2,6 +2,15 @@ import { BaseError } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { pageOfferings } from './cursor';
+import {
+  CatalogCommunityOfferingSource,
+  categoryIdFromClauses,
+  CommunityOfferingSource,
+  decodeCommunityCursor,
+  encodeCommunityCursor,
+  selectDiscoveryBranch,
+} from './community-offerings';
+import { communityOfferingEnforcementEnabled } from '../domain/offering-community';
 import { applyCatalogFilters } from './filter-registry';
 import {
   getOfferingAvailabilitySource,
@@ -33,10 +42,15 @@ export class OfferingsService {
   constructor(
     private readonly repository: Pick<OfferingsRepository, 'listDiscoveryPartition'> = getOfferingsRepository(),
     private readonly availability: OfferingAvailabilitySource = getOfferingAvailabilitySource(),
+    private readonly communities: CommunityOfferingSource | null = null,
+    private readonly enforceCommunity = communityOfferingEnforcementEnabled(),
   ) {}
 
   async listOfferings(input: unknown): Promise<OfferingsPage> {
     const parsed = parseOfferingsQuery(input);
+    if (this.enforceCommunity && parsed.communityId) {
+      return this.listCommunityOfferings(parsed, parsed.communityId);
+    }
     const partitionKey = selectDiscoveryPartition(parsed.clauses);
     logger.info({
       event: 'offerings_list_start',
@@ -108,6 +122,82 @@ export class OfferingsService {
     });
     return items.filter((item) => keys.has(item.offeringKey));
   }
+
+  /**
+   * Active offerings for one community. Pages follow GSI3. Each row still
+   * carries branchId from the current discovery projection.
+   */
+  private async listCommunityOfferings(
+    parsed: ReturnType<typeof parseOfferingsQuery>,
+    communityId: string,
+  ): Promise<OfferingsPage> {
+    if (!this.communities) {
+      throw new BaseError(
+        'Community offering discovery is not configured',
+        503,
+        'COMMUNITY_OFFERING_UNAVAILABLE',
+      );
+    }
+    const collected: OfferingCandidate[] = [];
+    let exclusiveStartKey = decodeCommunityCursor(parsed.cursor, parsed, communityId);
+    let resumeKey: Record<string, unknown> | undefined;
+    let hasMore = false;
+    const categoryId = categoryIdFromClauses(parsed.clauses);
+
+    while (collected.length < parsed.limit) {
+      const page = await this.communities.queryActivePage({
+        communityId,
+        categoryId,
+        limit: 25,
+        exclusiveStartKey,
+      });
+      if (page.items.length === 0) {
+        hasMore = false;
+        break;
+      }
+      for (let index = 0; index < page.items.length; index += 1) {
+        const mapping = page.items[index];
+        resumeKey = {
+          PK: mapping.PK,
+          SK: mapping.SK,
+          ...(mapping.GSI3PK ? { GSI3PK: mapping.GSI3PK } : {}),
+          ...(mapping.GSI3SK ? { GSI3SK: mapping.GSI3SK } : {}),
+        };
+        const discovery = await this.communities.listDiscoveryRows(mapping.serviceId);
+        const selected = selectDiscoveryBranch(discovery, parsed.clauses);
+        let matched = selected ? applyCatalogFilters([selected], parsed) : [];
+        if (parsed.availableOn && matched.length > 0) {
+          matched = await this.keepBookable(matched, parsed.availableOn, parsed.startTime);
+        }
+        if (matched[0]) {
+          collected.push(matched[0]);
+        }
+        if (collected.length === parsed.limit) {
+          hasMore = index < page.items.length - 1 || Boolean(page.lastEvaluatedKey);
+          break;
+        }
+      }
+      if (collected.length === parsed.limit) {
+        break;
+      }
+      if (!page.lastEvaluatedKey) {
+        hasMore = false;
+        resumeKey = undefined;
+        break;
+      }
+      exclusiveStartKey = page.lastEvaluatedKey;
+      resumeKey = page.lastEvaluatedKey;
+    }
+
+    collected.sort((left, right) => compareOfferings(left, right, parsed.sorts));
+    return {
+      items: collected.map(toOfferingView),
+      hasMore,
+      ...(hasMore && resumeKey
+        ? { nextCursor: encodeCommunityCursor(parsed, communityId, resumeKey) }
+        : {}),
+    };
+  }
 }
 
 function bookableChecks(items: readonly OfferingCandidate[]): BookableOfferingCheck[] {
@@ -172,7 +262,12 @@ let service: OfferingsService | undefined;
 
 export function getOfferingsService(): OfferingsService {
   if (!service) {
-    service = new OfferingsService();
+    service = new OfferingsService(
+      getOfferingsRepository(),
+      getOfferingAvailabilitySource(),
+      new CatalogCommunityOfferingSource(),
+      communityOfferingEnforcementEnabled(),
+    );
   }
   return service;
 }

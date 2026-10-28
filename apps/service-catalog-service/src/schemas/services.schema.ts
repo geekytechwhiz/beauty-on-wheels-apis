@@ -13,6 +13,7 @@ import {
     vehiclePricingFromLegacy,
     type VehiclePricing,
 } from "../domain/vehicle-pricing";
+import { normalizeCommunityIds } from "../domain/offering-community";
 
 const VehiclePricingSchema = z.object({
     vehicleType: z.string().min(1),
@@ -37,6 +38,7 @@ export const CreateServiceSchema = z.object({
     basePrice: z.number().optional(),
     displayOrder: z.number().int().min(0).optional().default(0),
     active: z.boolean().optional().default(true),
+    communityIds: z.array(z.string()).max(25).optional(),
 }).strict();
 
 export const UpdateServiceSchema = z.object({
@@ -64,6 +66,7 @@ export interface ValidatedServiceWrite {
     vehiclePricing: VehiclePricing[];
     displayOrder: number;
     active: boolean;
+    communityIds?: string[];
 }
 
 /** Legacy alias */
@@ -84,6 +87,9 @@ export const validateService = (req: LambdaRequest): ValidatedServiceWrite => {
         vehiclePricing: pricingFromCreate(result.data),
         displayOrder: result.data.displayOrder,
         active: result.data.active,
+        ...(result.data.communityIds === undefined
+            ? {}
+            : { communityIds: normalizeCommunityIds(result.data.communityIds) }),
     };
 };
 

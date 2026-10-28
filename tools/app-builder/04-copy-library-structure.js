@@ -116,7 +116,7 @@ functions:
 
           method: get
 
-          cors: true
+          cors: \${self:custom.httpCors}
 
 `;
 

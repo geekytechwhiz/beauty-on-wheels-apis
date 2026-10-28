@@ -1,10 +1,10 @@
 // Auto-generated exports
 
-export * from "./bank-details.schema";
+export { validateBankDetailsRequest } from './bank-details.schema';
 export * from "./branches.schema";
 export * from "./capabilities.schema";
 export * from "./documents.schema";
-export * from "./onboarding.schema";
+export { UpdateOnboardingRequestSchema, validateUpdateOnboardingRequest } from './onboarding.schema';
 export * from './email-verification.schema';
 export * from "./operating-hours.schema";
 export * from "./service-areas.schema";

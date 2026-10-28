@@ -44,7 +44,11 @@ export abstract class BaseRepository {
     service: this.constructor.name,
   });
 
-  protected async get<T>(table: string, key: any): Promise<T | null> {
+  protected async get<T>(
+    table: string,
+    key: any,
+    options?: { consistent?: boolean },
+  ): Promise<T | null> {
 
     this.logger.debug({ event: "dynamodb_get", table, key });
 
@@ -53,6 +57,7 @@ export abstract class BaseRepository {
       new GetCommand({
         TableName: table,
         Key: key,
+        ConsistentRead: options?.consistent === true ? true : undefined,
       })
     );
 

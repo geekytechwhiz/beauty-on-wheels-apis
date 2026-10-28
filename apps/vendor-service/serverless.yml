@@ -19,6 +19,7 @@ provider:
   versionFunctions: false
 
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
 
     SERVICE_NAME: vendor-service
     LOG_LEVEL: INFO
@@ -36,11 +37,19 @@ provider:
     COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
     COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
     COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
-    CATALOG_SERVICE_URL: ${env:CATALOG_SERVICE_URL, ''}
+    CATALOG_BASE_URL: ${env:CATALOG_BASE_URL, ''}
+    CATALOG_BOOKING_READINESS_FUNCTION: service-catalog-service-${self:provider.stage}-getBookingReadinessFacts
+    AVAILABILITY_BOOKING_READINESS_FUNCTION: availability-service-${self:provider.stage}-getBookingReadinessFacts
 
   iam:
     role:
       statements:
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.CATALOG_BOOKING_READINESS_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_BOOKING_READINESS_FUNCTION}
         - Effect: Allow
           Action:
             - dynamodb:GetItem
@@ -87,8 +96,12 @@ provider:
             - !GetAtt VendorEmailVerificationStreamDlq.Arn
             - !GetAtt VendorEmailVerifiedStreamDlq.Arn
             - !GetAtt VendorLifecycleStreamDlq.Arn 
+            - !GetAtt VendorBookingReadinessStreamDlq.Arn
+            - !GetAtt VendorBookingReadinessEventDlq.Arn
 
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
   # nv{stage}-bw-  e.g. nvdev-bw-
   resourcePrefix: nv${self:provider.stage}-bw
   vendorEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
@@ -567,81 +580,58 @@ custom:
                 - hasVendor
                 - nextAction
       - name: UpdateOnboardingRequest
-        description: Save one onboarding section
+        description: Atomically save one or more mutable onboarding sections.
         content:
           application/json:
             schema:
               type: object
               properties:
-                section:
-                  type: string
-                  enum:
-                    - BUSINESS_INFO
-                    - OWNER_DETAILS
-                    - ADDRESS
-                    - BRANCH
-                    - DOCUMENTS
-                    - BANK_DETAILS
-                data:
+                revision:
+                  type: integer
+                  minimum: 0
+                  description: Revision returned by the previous onboarding read or update.
+                sections:
                   type: object
                   properties:
-                    businessType:
-                      type: string
-                      enum:
-                        - INDIVIDUAL
-                        - BUSINESS
-                    businessName:
-                      type: string
-                    contactName:
-                      type: string
-                    phoneNumber:
-                      type: string
-                    email:
-                      type: string
-                    fullName:
-                      type: string
-                    designation:
-                      type: string
-                    addressLine1:
-                      type: string
-                    city:
-                      type: string
-                    state:
-                      type: string
-                    country:
-                      type: string
-                    postalCode:
-                      type: string
-                    name:
-                      type: string
-                    documentType:
-                      type: string
-                      enum:
-                        - GST_REGISTRATION
-                        - BUSINESS_REGISTRATION
-                        - COMMERCIAL_INSURANCE
-                    fileName:
-                      type: string
-                    contentType:
-                      type: string
-                    fileSize:
-                      type: integer
-                    accountHolderName:
-                      type: string
-                    accountNumber:
-                      type: string
-                    ifscCode:
-                      type: string
-                    bankName:
-                      type: string
-                    accountType:
-                      type: string
-                      enum:
-                        - SAVINGS
-                        - CURRENT
+                    BUSINESS_INFO:
+                      type: object
+                      properties:
+                        businessType:
+                          type: string
+                          enum: [INDIVIDUAL, BUSINESS]
+                        businessName: { type: string }
+                        contactName: { type: string }
+                        phoneNumber: { type: string }
+                        email: { type: string, nullable: true }
+                        description: { type: string, nullable: true }
+                        gstNumber: { type: string, nullable: true }
+                        panNumber: { type: string, nullable: true }
+                        profileImageUrl: { type: string, format: uri, nullable: true }
+                    COMMUNITIES:
+                      type: object
+                      properties:
+                        communityIds:
+                          type: array
+                          minItems: 0
+                          maxItems: 25
+                          items: { type: string }
+                      required: [communityIds]
+                    BANK_DETAILS:
+                      type: object
+                      properties:
+                        accountHolderName: { type: string }
+                        accountNumber: { type: string, nullable: true }
+                        ifscCode: { type: string, nullable: true }
+                        bankName: { type: string }
+                        branchName: { type: string, nullable: true }
+                        accountType: { type: string, enum: [SAVINGS, CURRENT], nullable: true }
+                  minProperties: 1
+                lastVisitedStep:
+                  type: string
+                  enum: [BUSINESS_INFO, COMMUNITIES, DOCUMENTS, BANK_DETAILS]
               required:
-                - section
-                - data
+                - revision
+                - sections
       - name: OnboardingResponse
         description: Onboarding progress and saved sections
         content:
@@ -656,15 +646,15 @@ custom:
                   enum:
                     - DRAFT
                     - IN_PROGRESS
-                    - COMPLETED
+                    - AWAITING_EMAIL_VERIFICATION
                     - PENDING_REVIEW
+                    - CHANGES_REQUESTED
+                    - COMPLETED
                 currentSection:
                   type: string
                   enum:
                     - BUSINESS_INFO
-                    - OWNER_DETAILS
-                    - ADDRESS
-                    - BRANCH
+                    - COMMUNITIES
                     - DOCUMENTS
                     - BANK_DETAILS
                 completedSections:
@@ -673,16 +663,46 @@ custom:
                     type: string
                     enum:
                       - BUSINESS_INFO
-                      - OWNER_DETAILS
-                      - ADDRESS
-                      - BRANCH
+                      - COMMUNITIES
                       - DOCUMENTS
                       - BANK_DETAILS
                 applicationId:
                   type: string
+                revision:
+                  type: integer
+                  minimum: 0
+                lastVisitedStep:
+                  type: string
+                  enum: [BUSINESS_INFO, COMMUNITIES, DOCUMENTS, BANK_DETAILS]
+                requiredSections:
+                  type: array
+                  items:
+                    type: string
+                    enum: [BUSINESS_INFO, COMMUNITIES, DOCUMENTS, BANK_DETAILS]
+                incompleteSections:
+                  type: array
+                  items:
+                    type: string
+                    enum: [BUSINESS_INFO, COMMUNITIES, DOCUMENTS, BANK_DETAILS]
+                recommendedNextStep:
+                  type: string
+                  enum: [BUSINESS_INFO, COMMUNITIES, DOCUMENTS, BANK_DETAILS]
                 sections:
                   type: object
-                  properties: {}
+                  properties:
+                    BUSINESS_INFO: { type: object }
+                    COMMUNITIES:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          communityId: { type: string }
+                        required: [communityId]
+                    DOCUMENTS:
+                      type: array
+                      items: { type: object }
+                    BANK_DETAILS: { type: object }
+              required: [vendorId, status, currentSection, completedSections, revision, sections]
       - name: VendorStatusHistoryList
         description: Vendor status review history
         content:
@@ -1567,6 +1587,7 @@ custom:
                   enum:
                     - GST_REGISTRATION
                     - BUSINESS_REGISTRATION
+                    - OWNER_IDENTITY
                     - COMMERCIAL_INSURANCE
                 fileName:
                   type: string
@@ -1603,6 +1624,7 @@ custom:
                   enum:
                     - GST_REGISTRATION
                     - BUSINESS_REGISTRATION
+                    - OWNER_IDENTITY
                     - COMMERCIAL_INSURANCE
                 fileName:
                   type: string
@@ -1765,7 +1787,7 @@ functions:
       - http:
           path: /vendors
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor"
           description: "Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor."
@@ -1827,7 +1849,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/onboarding
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor onboarding state"
           description: "Returns backend-authoritative onboarding progress and persisted section data so the frontend can resume."
@@ -1881,7 +1903,7 @@ functions:
       - http:
           path: /vendors/email-verification/verify
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           summary: "Verify vendor email"
           description: "Consumes a single-use opaque email verification token and moves the completed onboarding application to PENDING_REVIEW."
           swaggerTags:
@@ -1922,7 +1944,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/email-verification/resend
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Resend vendor email verification"
           description: "Queues a replacement verification email. The previous link is revoked."
@@ -1974,118 +1996,62 @@ functions:
     events:
       - http:
           path: /vendors/{vendorId}/onboarding
-          method: put
-          cors: true
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Save an onboarding section"
-          description: "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff."
-          swaggerTags:
-            - Onboarding
-          bodyType: UpdateOnboardingRequest
-          responseData:
-            200:
-              description: "Onboarding section saved"
-              bodyType: OnboardingResponse
-            400:
-              description: "Invalid section or section payload"
-            401:
-              description: ""
-            403:
-              description: ""
-            404:
-              description: ""
-          documentation:
-            summary: Save an onboarding section
-            description: Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.
-            tags:
-              - Onboarding
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Onboarding section saved
-                responseModels:
-                  application/json: OnboardingResponse
-              - statusCode: "400"
-                responseBody:
-                  description: Invalid section or section payload
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "401"
-                responseBody:
-                  description: Save an onboarding section
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "403"
-                responseBody:
-                  description: Save an onboarding section
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "404"
-                responseBody:
-                  description: Save an onboarding section
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: vendorId
-                description: vendorId
-                schema:
-                  type: string
-            requestBody:
-              description: Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.
-              required: true
-            requestModels:
-              application/json: UpdateOnboardingRequest
-      - http:
-          path: /vendors/{vendorId}/onboarding
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Save an onboarding section"
-          description: "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding."
+          summary: "Patch vendor onboarding"
+          description: "Atomically saves one or more onboarding sections with optimistic concurrency. Omitted fields are preserved."
           swaggerTags:
             - Onboarding
           bodyType: UpdateOnboardingRequest
           responseData:
             200:
-              description: "Onboarding section saved"
+              description: "Onboarding updated"
               bodyType: OnboardingResponse
             400:
-              description: "Invalid section or section payload"
+              description: "Invalid onboarding update payload"
             401:
               description: ""
             403:
               description: ""
             404:
               description: ""
+            409:
+              description: "Onboarding has changed or is not editable"
           documentation:
-            summary: Save an onboarding section
-            description: Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.
+            summary: Patch vendor onboarding
+            description: Atomically saves one or more onboarding sections using the revision returned by the previous read or update. Omitted fields are preserved.
             tags:
               - Onboarding
             methodResponses:
               - statusCode: "200"
                 responseBody:
-                  description: Onboarding section saved
+                  description: Onboarding updated
                 responseModels:
                   application/json: OnboardingResponse
               - statusCode: "400"
                 responseBody:
-                  description: Invalid section or section payload
+                  description: Invalid onboarding update payload
                 responseModels:
                   application/json: ErrorResponse
               - statusCode: "401"
                 responseBody:
-                  description: Save an onboarding section
+                  description: Patch vendor onboarding
                 responseModels:
                   application/json: ErrorResponse
               - statusCode: "403"
                 responseBody:
-                  description: Save an onboarding section
+                  description: Patch vendor onboarding
                 responseModels:
                   application/json: ErrorResponse
               - statusCode: "404"
                 responseBody:
-                  description: Save an onboarding section
+                  description: Patch vendor onboarding
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Onboarding has changed or is not editable
                 responseModels:
                   application/json: ErrorResponse
             pathParams:
@@ -2094,7 +2060,7 @@ functions:
                 schema:
                   type: string
             requestBody:
-              description: Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.
+              description: Atomically saves one or more onboarding sections using the revision returned by the previous read or update. Omitted fields are preserved.
               required: true
             requestModels:
               application/json: UpdateOnboardingRequest
@@ -2242,13 +2208,70 @@ functions:
               arn: !GetAtt VendorEmailVerifiedStreamDlq.Arn
               type: sqs
 
+  onVendorBookingReadinessChanged:
+    handler: src/handlers/booking-readiness-stream.handler
+    name: ${self:custom.resourcePrefix}-vendor-booking-readiness-stream
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt VendorTable.StreamArn
+          filterPatterns:
+            - eventName: [INSERT, MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [Vendor, VendorCommunity, VendorCapabilities, Staff, VendorBank]
+            - eventName: [REMOVE]
+              dynamodb:
+                OldImage:
+                  entityType:
+                    S: [VendorCommunity, Staff, VendorBank]
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt VendorBookingReadinessStreamDlq.Arn
+              type: sqs
+
+  onBookingReadinessCatalogEvent:
+    handler: src/handlers/booking-readiness-events.handler
+    timeout: 60
+    environment:
+      EVENT_DLQ_QUEUE_URL: !Ref VendorBookingReadinessEventDlq
+    events:
+      - sqs:
+          arn: !GetAtt VendorBookingReadinessQueue.Arn
+          batchSize: 5
+          functionResponseType: ReportBatchItemFailures
+
+  backfillBookingReadiness:
+    handler: src/handlers/booking-readiness-backfill.handler
+    timeout: 300
+
+  getBookingReadiness:
+    handler: src/handlers/booking-readiness-handler.handleGetBookingReadiness
+    events:
+      - http:
+          path: /vendors/{vendorId}/booking-readiness
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get booking readiness"
+          description: "Reads the local booking-readiness projection. Does not call catalog, availability, or pricing."
+          swaggerTags:
+            - Vendors
+
   listvendors:
     handler: src/handlers/vendors-handler.handleListvendors
     events:
       - http:
           path: /vendors
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendors"
           description: "Lists vendors using optional filters.\nIntended primarily for admin and operational use.\n"
@@ -2298,7 +2321,7 @@ functions:
       - http:
           path: /vendors/me
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get the authenticated user's vendor"
           description: "Resolves the canonical application userId from the verified authentication context and loads that user's owned vendor. Does not accept vendorId, userId, or phone number. Returns hasVendor false and nextAction START_ONBOARDING when the user has no vendor. When a vendor exists, membership.role is owner. Staff membership is not resolved."
@@ -2347,7 +2370,7 @@ functions:
       - http:
           path: /vendors/{vendorId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor"
           description: "Returns the vendor profile and primary address. Bank details are omitted."
@@ -2409,7 +2432,7 @@ functions:
       - http:
           path: /vendors/{vendorId}
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor"
           description: "Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs."
@@ -2484,7 +2507,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/status
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor lifecycle status"
           description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.\n"
@@ -2566,7 +2589,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/operational-status
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor operational status"
           description: "Controls whether a vendor is currently accepting work.\n\nThis is different from the administrative vendor lifecycle status.\n"
@@ -2641,10 +2664,10 @@ functions:
       - http:
           path: /vendors/{vendorId}/submit-review
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Submit vendor for review"
-          description: "Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent."
+          description: "Submits a complete onboarding application for review. BUSINESS_REGISTRATION and OWNER_IDENTITY must be uploaded. If the business email is unverified, the response status becomes AWAITING_EMAIL_VERIFICATION and a verification email is queued."
           swaggerTags:
             - Onboarding
           responseData:
@@ -2663,7 +2686,7 @@ functions:
               description: "Onboarding is incomplete or already in a conflicting state"
           documentation:
             summary: Submit vendor for review
-            description: Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent.
+            description: Submits a complete onboarding application for review. BUSINESS_REGISTRATION and OWNER_IDENTITY must be uploaded. If the business email is unverified, the response status becomes AWAITING_EMAIL_VERIFICATION and a verification email is queued.
             tags:
               - Onboarding
             methodResponses:
@@ -2709,7 +2732,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/approve
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Approve vendor"
           description: "Approves a vendor whose onboarding status is PENDING_REVIEW. Allowed only from PENDING_VERIFICATION. Approving an already ACTIVE vendor is idempotent."
@@ -2783,7 +2806,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/reject
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Reject vendor"
           description: "Rejects a vendor that is PENDING_VERIFICATION. A reason is required. Rejecting an already REJECTED vendor is idempotent."
@@ -2857,7 +2880,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/status-history
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor status history"
           description: "Returns approval and lifecycle transition history, newest first."
@@ -2910,7 +2933,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/communities
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor communities"
           description: "Returns business community assignments for the vendor. This is not the geographic service-area list."
@@ -2957,13 +2980,32 @@ functions:
                 schema:
                   type: string
 
+  listCommunities:
+    handler: src/handlers/communities-handler.handleListcommunities
+    description: List active communities by city, locality, PIN code and search
+    events:
+      - http:
+          path: /communities
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+          request:
+            parameters:
+              querystrings:
+                cityId: false
+                localityId: false
+                postalCode: false
+                search: false
+                limit: false
+                lastEvaluatedKey: false
   replacevendorcommunities:
     handler: src/handlers/communities-handler.handleReplacevendorcommunities
     events:
       - http:
           path: /vendors/{vendorId}/communities
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor communities"
           description: "Admin replacement of the vendor community set. Duplicate ids are ignored. Community existence is owned by User Service and is not checked here."
@@ -3036,7 +3078,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/communities
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor community"
           description: "Admin assignment of one community. Adding an existing assignment is idempotent."
@@ -3109,7 +3151,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/communities/{communityId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Remove vendor community"
           description: "Admin removal of one community assignment. Removing a missing assignment is idempotent."
@@ -3181,7 +3223,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/service-areas
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor service areas"
           swaggerTags:
@@ -3234,7 +3276,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/service-areas
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor service area"
           swaggerTags:
@@ -3307,7 +3349,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor service area"
           swaggerTags:
@@ -3357,7 +3399,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor service area"
           swaggerTags:
@@ -3420,7 +3462,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/service-areas/{serviceAreaId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Remove vendor service area"
           swaggerTags:
@@ -3468,7 +3510,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/operating-hours
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor operating hours"
           swaggerTags:
@@ -3514,7 +3556,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/operating-hours
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor operating hours"
           description: "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n\nHoliday dates and slot blocks are owned by Availability Service and are not stored here.\n"
@@ -3574,7 +3616,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor staff"
           swaggerTags:
@@ -3621,7 +3663,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor staff member"
           swaggerTags:
@@ -3688,7 +3730,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor staff member"
           swaggerTags:
@@ -3739,7 +3781,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor staff member"
           swaggerTags:
@@ -3798,7 +3840,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor staff member"
           swaggerTags:
@@ -3862,7 +3904,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/staff/{staffId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Deactivate vendor staff member"
           description: "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n"
@@ -3911,7 +3953,7 @@ functions:
       - http:
           path: /capabilities
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List available capabilities"
           description: "Returns capability master data. Vendor assignments store IDs only; service and package definitions remain in Service Catalog."
@@ -3947,7 +3989,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/capabilities
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor capabilities"
           swaggerTags:
@@ -3993,7 +4035,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/capabilities
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor capabilities"
           description: "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nService mappings require catalog serviceId and categoryId so Vendor Service\ncan confirm the entity with Service Catalog. Package ids are confirmed the same way.\nOptional priceOverride is provider configuration only. Checkout price is not calculated here.\n"
@@ -4060,7 +4102,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/services
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor catalog services"
           description: "Returns provider-specific catalog service mappings, including disabled offerings and optional price overrides."
@@ -4113,7 +4155,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/services
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor catalog services"
           description: "Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price."
@@ -4193,7 +4235,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/packages
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor catalog packages"
           swaggerTags:
@@ -4245,7 +4287,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/packages
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor catalog packages"
           description: "Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only."
@@ -4326,7 +4368,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/branches
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor branches"
           swaggerTags:
@@ -4378,7 +4420,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/branches
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor branch"
           swaggerTags:
@@ -4436,7 +4478,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/branches/{branchId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor branch"
           swaggerTags:
@@ -4485,7 +4527,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/branches/{branchId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor branch"
           swaggerTags:
@@ -4547,7 +4589,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/branches/{branchId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete vendor branch"
           swaggerTags:
@@ -4594,7 +4636,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List vendor documents"
           description: "Returns document metadata for the vendor. Uploaded documents include a short-lived presigned download URL. Presigned URLs are not stored."
@@ -4648,7 +4690,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create vendor document metadata and upload URL"
           description: "Same behavior as POST /vendors/{vendorId}/documents/upload-url. One active document is kept per document type. A retry refreshes the presigned URL instead of creating a duplicate."
@@ -4722,10 +4764,10 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents/upload-url
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Issue a presigned document upload URL"
-          description: "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key."
+          description: "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key."
           swaggerTags:
             - Documents
           bodyType: CreateDocumentRequest
@@ -4745,7 +4787,7 @@ functions:
               description: "Onboarding status does not allow document changes"
           documentation:
             summary: Issue a presigned document upload URL
-            description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
+            description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
             tags:
               - Documents
             methodResponses:
@@ -4785,7 +4827,7 @@ functions:
                 schema:
                   type: string
             requestBody:
-              description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
+              description: Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.
               required: true
             requestModels:
               application/json: CreateDocumentRequest
@@ -4796,7 +4838,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents/{documentId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor document"
           description: "Returns document metadata. An UPLOADED document includes a short-lived presigned GET URL. A PENDING_UPLOAD document includes a fresh presigned PUT URL. The S3 object stays private."
@@ -4854,7 +4896,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents/{documentId}/complete
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Confirm a document upload"
           description: "Verifies the private S3 object exists at the server-generated key and that its content type, file size, and file signature match the metadata. On success the document status becomes UPLOADED. Generating a presigned URL does not perform this transition."
@@ -4926,7 +4968,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents/{documentId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace vendor document"
           description: "Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed."
@@ -5004,7 +5046,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/documents/{documentId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete vendor document"
           description: "Deletes document metadata and the private S3 object while onboarding is DRAFT or IN_PROGRESS. Documents are kept after the application is submitted for review."
@@ -5068,7 +5110,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/bank-details
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get vendor bank details"
           description: "Returns masked banking information. Full account numbers are never returned."
@@ -5115,7 +5157,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/bank-details
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create or update vendor bank details"
           swaggerTags:
@@ -5168,6 +5210,28 @@ functions:
             requestModels:
               application/json: BankDetailsData
 
+  putvendorcommunityschedule:
+    handler: src/handlers/community-schedules-handler.handlePutVendorCommunitySchedule
+    events:
+      - http:
+          path: /vendors/{vendorId}/communities/{communityId}/schedule
+          method: put
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Configure a community service schedule"
+          description: "Stores recurring provider configuration only. Availability owns generated slots, holds, capacity, and date exceptions."
+          swaggerTags:
+            - Communities
+          responseData:
+            200:
+              description: "Community schedule saved"
+            400:
+              description: "Invalid timezone or overlapping windows"
+            403:
+              description: "Vendor is not approved"
+            404:
+              description: "Community is not assigned to vendor"
+
   getCheckoutEligibility:
     handler: src/handlers/internal.getCheckoutEligibility
     description: Internal IAM invoke for vendor and branch checkout eligibility. No HTTP route.
@@ -5175,6 +5239,10 @@ functions:
   getDiscoveryFacts:
     handler: src/handlers/internal.getDiscoveryFacts
     description: Internal IAM invoke for vendor approval, branches, coverage, and service prices. No HTTP route.
+
+  lookupActiveCommunities:
+    handler: src/handlers/internal.lookupActiveCommunities
+    description: Internal IAM invoke for active platform community directory ids. No HTTP route.
 
   getPricingConfiguration:
     handler: src/handlers/internal.getPricingConfiguration
@@ -5358,6 +5426,92 @@ resources:
           - Key: Environment
             Value: ${sls:stage}
 
+    VendorBookingReadinessStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-booking-readiness-stream-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    VendorBookingReadinessEventDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-booking-readiness-event-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    VendorBookingReadinessQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-vendor-booking-readiness
+        MessageRetentionPeriod: 345600
+        VisibilityTimeout: 180
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt VendorBookingReadinessEventDlq.Arn
+          maxReceiveCount: 5
+
+    VendorBookingReadinessEventDlqAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:custom.resourcePrefix}-vendor-booking-readiness-dlq
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt VendorBookingReadinessEventDlq.QueueName
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+
+    VendorBookingReadinessEventDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues: [!Ref VendorBookingReadinessEventDlq]
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: { Service: events.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt VendorBookingReadinessEventDlq.Arn
+              Condition:
+                StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
+
+    VendorBookingReadinessQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues: [!Ref VendorBookingReadinessQueue]
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: { Service: events.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt VendorBookingReadinessQueue.Arn
+              Condition:
+                StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
+
+    VendorBookingReadinessEventRule:
+      Type: AWS::Events::Rule
+      DependsOn: [VendorBookingReadinessQueuePolicy, VendorBookingReadinessEventDlqPolicy]
+      Properties:
+        Name: ${self:custom.resourcePrefix}-vendor-booking-readiness
+        Description: Routes authoritative booking-readiness facts to the vendor projector
+        EventBusName: ${self:custom.vendorEventBusName}
+        EventPattern:
+          source: [vendor-service, service-catalog-service, availability-service]
+          detail-type: [BookingReadinessFact.Updated]
+        State: ENABLED
+        Targets:
+          - Id: VendorBookingReadinessQueue
+            Arn: !GetAtt VendorBookingReadinessQueue.Arn
+            DeadLetterConfig: { Arn: !GetAtt VendorBookingReadinessEventDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+
     VendorDocumentsBucket:
       Type: AWS::S3::Bucket
       Properties:
@@ -5408,41 +5562,11 @@ resources:
                 Bool:
                   aws:SecureTransport: 'false'
 
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
     CheckoutEligibilityInvokePermission:
       Type: AWS::Lambda::Permission
@@ -5458,17 +5582,12 @@ resources:
         Action: lambda:InvokeFunction
         Principal: !Ref AWS::AccountId
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
 
   Outputs:
     VendorEventBusName:

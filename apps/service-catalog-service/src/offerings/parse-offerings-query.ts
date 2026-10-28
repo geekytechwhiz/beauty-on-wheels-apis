@@ -36,6 +36,7 @@ const QUERY_FIELDS = new Set([
   'limit',
   'cursor',
   'filter',
+  'communityId',
 ]);
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -113,6 +114,10 @@ export function parseOfferingsQuery(input: unknown): ParsedOfferingsQuery {
     throw new ValidationError('availableOn is required when startTime is set');
   }
 
+  const communityId = optionalText(source.communityId, 'communityId');
+  if (communityId && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(communityId)) {
+    throw new ValidationError('Invalid communityId');
+  }
   const sorts = parseSort(source.sort, Boolean(location), Boolean(search));
   const limit = parseLimit(source.limit);
   const cursor = optionalText(source.cursor, 'cursor');
@@ -130,6 +135,7 @@ export function parseOfferingsQuery(input: unknown): ParsedOfferingsQuery {
     sorts,
     limit,
     ...(cursor ? { cursor } : {}),
+    ...(communityId ? { communityId } : {}),
   };
 }
 

@@ -43,6 +43,10 @@ export interface SlotItem extends KeyedItem {
   status: StoredSlotStatus;
   serviceIds: string[];
   vehicleTypeIds: string[];
+  visitId?: string;
+  windowId?: string;
+  startDayOffset?: number;
+  endDayOffset?: 0 | 1;
   createdAt: string;
   updatedAt: string;
 }
@@ -239,6 +243,19 @@ export interface HoldView {
   customerId?: string;
   bookingId?: string;
   createdAt: string;
+}
+
+export interface HoldReservationView {
+  holdId: string;
+  slotId: string;
+  vendorId: string;
+  branchId: string;
+  customerId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  durationMinutes: number;
 }
 
 export interface HolidayView {

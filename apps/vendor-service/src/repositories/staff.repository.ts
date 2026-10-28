@@ -28,6 +28,7 @@ export class StaffRepository extends BaseRepository {
   }
 
   async createStaff(item: StaffDdbItem): Promise<void> {
+    const membership = this.membershipItem(item);
     await this.transactWrite({
       TransactItems: [
         {
@@ -48,6 +49,13 @@ export class StaffRepository extends BaseRepository {
               'attribute_not_exists(PK) AND attribute_not_exists(SK)',
           },
         },
+        ...(membership ? [{
+          Put: {
+            TableName: this.getTableName(),
+            Item: membership,
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        }] : []),
       ],
     });
   }
@@ -102,6 +110,7 @@ export class StaffRepository extends BaseRepository {
   }
 
   async updateStaff(item: StaffDdbItem): Promise<void> {
+    const membership = this.membershipItem(item);
     await this.transactWrite({
       TransactItems: [
         {
@@ -111,9 +120,51 @@ export class StaffRepository extends BaseRepository {
             ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
           },
         },
+        ...(membership ? [{
+          Put: {
+            TableName: this.getTableName(),
+            Item: membership,
+          },
+        }] : []),
       ],
     });
   }
+
+  async listMembershipsByUserId(userId: string): Promise<StaffMembershipItem[]> {
+    const result = await this.queryAll<StaffMembershipItem>({
+      TableName: this.getTableName(),
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': `STAFF_USER#${userId}`,
+        ':prefix': 'VENDOR#',
+      },
+    });
+    return result;
+  }
+
+  private membershipItem(item: StaffDdbItem): StaffMembershipItem | undefined {
+    const userId = item.userId?.trim();
+    if (!userId) return undefined;
+    return {
+      PK: `STAFF_USER#${userId}`,
+      SK: `VENDOR#${item.vendorId}`,
+      userId,
+      vendorId: item.vendorId,
+      staffId: item.staffId,
+      status: item.status,
+      entityType: 'StaffMembership',
+    };
+  }
+}
+
+export interface StaffMembershipItem {
+  PK: string;
+  SK: string;
+  userId: string;
+  vendorId: string;
+  staffId: string;
+  status: StaffStatus;
+  entityType: 'StaffMembership';
 }
 
 let repository: StaffRepository;

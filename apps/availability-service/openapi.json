@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "Slot": {
@@ -218,7 +218,7 @@
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
-        "example": "https://developer.mozilla.org"
+        "example": "http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:19006,http://localhost:8080"
       },
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
@@ -235,6 +235,33 @@
       },
       "holidayId": {
         "type": "string"
+      },
+      "communityId": {
+        "type": "string"
+      },
+      "fromDate": {
+        "type": "string"
+      },
+      "toDate": {
+        "type": "string"
+      },
+      "date": {
+        "type": "string"
+      },
+      "branchId": {
+        "type": "string"
+      },
+      "serviceId": {
+        "type": "string"
+      },
+      "vehicleTypeId": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer"
+      },
+      "nextToken": {
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -247,7 +274,7 @@
   },
   "info": {
     "title": "Beauty on Wheels - Availability Service API",
-    "description": "Manage vendor schedules, slots, holidays, and slot holds.",
+    "description": "Manage vendor schedules, slots, holidays, and slot holidays.",
     "version": "1.0.0"
   },
   "security": [
@@ -1127,9 +1154,297 @@
         }
       }
     },
+    "/vendors/{vendorId}/availability": {
+      "get": {
+        "summary": "List bookable community visit occurrences (communityId) or legacy branch slots (branchId)",
+        "description": "Canonical vendor-scoped availability. Prefer communityId with fromDate/toDate (or date) to return bookable dated community visit occurrences. Pass communityId+serviceId+date for service-visit time slices. branchId+date remains supported for legacy clients.\n",
+        "operationId": "getavailability",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "Vendor id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "Community id for community-visit availability",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "Range start YYYY-MM-DD (preferred with communityId)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/fromDate"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "Range end YYYY-MM-DD",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/toDate"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Single date (alias for fromDate=toDate=date)",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "description": "Legacy branch-scoped slot listing",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/branchId"
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/serviceId"
+            }
+          },
+          {
+            "name": "vehicleTypeId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vehicleTypeId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit"
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/nextToken"
+            }
+          }
+        ],
+        "tags": [
+          "Availability"
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookable visit occurrences or slots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotPage"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities/{communityId}/availability": {
+      "get": {
+        "summary": "Canonical customer availability by community and date range",
+        "description": "Returns eligible, bookable dated community visit occurrences with remaining capacity. Optional vendorId filters to a selected vendor. serviceId/vehicleTypeId are accepted for forward compatibility and do not currently filter community visit capacity.\n",
+        "operationId": "listCommunityAvailability",
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "path",
+            "description": "Community id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/fromDate"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/toDate"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Single-day alias when fromDate/toDate omitted",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/serviceId"
+            }
+          },
+          {
+            "name": "vehicleTypeId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vehicleTypeId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit"
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/nextToken"
+            }
+          }
+        ],
+        "tags": [
+          "Availability"
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookable community visit occurrences",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/working-hours": {
       "get": {
-        "summary": "Get working hours",
+        "summary": "Deprecated. Bookable time comes from service visits. This schedule remains for vendors that have not activated a visit.",
         "description": "",
         "operationId": "getworkinghours",
         "parameters": [

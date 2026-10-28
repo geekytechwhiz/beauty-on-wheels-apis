@@ -55,6 +55,7 @@ export const CreateBookingSchema = z.object({
     currency: z.string().regex(/^[A-Za-z]{3}$/),
   }).strict(),
   notes: z.string().trim().max(2000).optional(),
+  holdId: z.string().trim().min(1).optional(),
 }).strict().superRefine((value, context) => {
   if (value.location.fulfilmentType === "community" && !value.location.communityId) {
     context.addIssue({

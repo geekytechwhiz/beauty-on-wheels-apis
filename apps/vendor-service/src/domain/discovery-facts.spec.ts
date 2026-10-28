@@ -97,6 +97,7 @@ describe('vendor discovery facts', () => {
       status: 'ACTIVE',
       reviewedAt: '2026-02-01T00:00:00.000Z',
       acceptingWork: true,
+      communityIds: [],
       branches: [{
         branchId: 'branch-1',
         operational: true,

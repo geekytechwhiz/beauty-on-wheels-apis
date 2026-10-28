@@ -10,6 +10,11 @@ const logger = createChildLogger(
   { service: 'CheckoutEligibilityService' },
 );
 
+/**
+ * Live vendor and branch check used by Booking Service.
+ * The booking-readiness projection is a vendor dashboard read model and is not
+ * an authorization decision for creating a customer booking.
+ */
 export class CheckoutEligibilityService {
   constructor(
     private readonly vendors: VendorsRepository = getVendorsRepository(),

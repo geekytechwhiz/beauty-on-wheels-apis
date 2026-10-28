@@ -1,6 +1,13 @@
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import { serializeError } from '@api-hub/observability';
-import { BaseError, handleError, toBaseError } from '@api-hub/utils';
+import {
+  BaseError,
+  corsPreflightResponse,
+  handleError,
+  isHttpPreflight,
+  runWithCorsContext,
+  toBaseError,
+} from '@api-hub/utils';
 
 import { EventSchemaError } from './event-schema/event-schema-error';
 import type { Middleware, MiddlewarePipelineEvent } from './types';
@@ -35,38 +42,43 @@ export function httpApiErrorMiddleware<
   TContext = unknown,
 >(): Middleware<MiddlewarePipelineEvent, TResult, TContext> {
   return async ({ event, next }) => {
-    try {
-      return await next();
-    } catch (error: unknown) {
-      const raw = (event as MiddlewarePipelineEvent).__context;
-      const correlationId = raw?.correlationId ?? 'unknown';
-      const awsRequestId = raw?.awsRequestId ?? 'unknown-request-id';
-      const logger = createChildLogger(baseLogger, {
-        correlationId,
-        awsRequestId,
-      });
+    return runWithCorsContext(event, async () => {
+      if (isHttpPreflight(event)) {
+        return corsPreflightResponse(event) as TResult;
+      }
+      try {
+        return await next();
+      } catch (error: unknown) {
+        const raw = (event as MiddlewarePipelineEvent).__context;
+        const correlationId = raw?.correlationId ?? 'unknown';
+        const awsRequestId = raw?.awsRequestId ?? 'unknown-request-id';
+        const logger = createChildLogger(baseLogger, {
+          correlationId,
+          awsRequestId,
+        });
 
-      const appError = normalizePipelineError(error);
+        const appError = normalizePipelineError(error);
 
-      logger.error({
-        event: 'http_pipeline_error',
-        operation: raw?.operation,
-        correlationId,
-        traceId: raw?.traceId,
-        'error.code': appError.code,
-        'error.retryable': appError.retryable ?? false,
-        err: serializeError(appError),
-      });
+        logger.error({
+          event: 'http_pipeline_error',
+          operation: raw?.operation,
+          correlationId,
+          traceId: raw?.traceId,
+          'error.code': appError.code,
+          'error.retryable': appError.retryable ?? false,
+          err: serializeError(appError),
+        });
 
-      const response = await handleError(appError, {
-        correlationId,
-        logger,
-        event,
-        skipLog: true,
-      });
+        const response = await handleError(appError, {
+          correlationId,
+          logger,
+          event,
+          skipLog: true,
+        });
 
-      return response as TResult;
-    }
+        return response as TResult;
+      }
+    });
   };
 }
 

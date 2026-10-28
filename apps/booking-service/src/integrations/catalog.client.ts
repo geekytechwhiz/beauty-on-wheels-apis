@@ -22,7 +22,48 @@ export interface CatalogGateway {
   }): Promise<CatalogPrice>;
 }
 
-export class HttpCatalogGateway implements CatalogGateway {
+/** Vendor-owned catalog package with its composition, as read from `GET /packages/{packageId}`. */
+export interface CatalogPackage {
+  id: string;
+  vendorId: string;
+  name: string;
+  active: boolean;
+  /** Catalog integer amount (INR rupees), the same convention as booking prices. */
+  discountedPrice: number;
+  currency: string;
+  version?: number;
+  items: Array<{ refId: string; itemType: 'SERVICE' | 'ADDON'; quantity?: number }>;
+}
+
+export interface CatalogPackageGateway {
+  getPackage(input: {
+    packageId: string;
+    vendorId: string;
+    authorizationHeader?: string;
+  }): Promise<CatalogPackage>;
+}
+
+export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway {
+  async getPackage(input: {
+    packageId: string;
+    vendorId: string;
+    authorizationHeader?: string;
+  }): Promise<CatalogPackage> {
+    const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
+    try {
+      const body = await requestJson(
+        `${base}/packages/${encodeURIComponent(input.packageId)}?vendorId=${encodeURIComponent(input.vendorId)}`,
+        { method: 'GET', headers: authHeaders(input.authorizationHeader) },
+      );
+      return parsePackage(body, input.packageId);
+    } catch (error) {
+      if (error instanceof BookingError && error.statusCode === 404) {
+        throw new BookingError('PACKAGE_NOT_FOUND', 'Package not found for the vendor', 404, 'packageId', false);
+      }
+      throw error;
+    }
+  }
+
   async getOffering(input: {
     offeringId: string;
     vendorId: string;
@@ -30,7 +71,7 @@ export class HttpCatalogGateway implements CatalogGateway {
   }): Promise<CatalogOffering> {
     const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
     const body = await requestJson(
-      `${base}/services/${encodeURIComponent(input.offeringId)}?vendorId=${encodeURIComponent(input.vendorId)}`,
+      `${base}/services/${encodeURIComponent(input.offeringId)}?vendorId=${encodeURIComponent(input.vendorId)}&consistent=true`,
       { method: 'GET', headers: authHeaders(input.authorizationHeader) },
     );
     return parseOffering(body, input.offeringId);
@@ -62,6 +103,44 @@ export class HttpCatalogGateway implements CatalogGateway {
 }
 
 
+export function parsePackage(body: unknown, packageId: string): CatalogPackage {
+  const response = asRecord(body);
+  const record = asRecord(response.data !== undefined ? response.data : body);
+  const id = typeof record.id === 'string' ? record.id : packageId;
+  const unavailable = (message: string) => new BookingError('CATALOG_PRICING_UNAVAILABLE', message, 502);
+  if (typeof record.active !== 'boolean') throw unavailable('Service Catalog package did not include an active flag');
+  if (typeof record.vendorId !== 'string' || !record.vendorId.trim()) {
+    throw unavailable('Service Catalog package did not include a vendor');
+  }
+  const price = record.discountedPrice;
+  if (typeof price !== 'number' || !Number.isFinite(price) || price < 0) {
+    throw unavailable('Service Catalog package did not include a valid price');
+  }
+  if (!Array.isArray(record.items)) throw unavailable('Service Catalog package did not include items');
+  const items = record.items.map((entry) => {
+    const item = asRecord(entry);
+    if (typeof item.refId !== 'string' || !item.refId.trim() || (item.itemType !== 'SERVICE' && item.itemType !== 'ADDON')) {
+      throw unavailable('Service Catalog package returned an invalid item');
+    }
+    return {
+      refId: item.refId,
+      itemType: item.itemType as 'SERVICE' | 'ADDON',
+      ...(typeof item.quantity === 'number' && Number.isInteger(item.quantity) && item.quantity > 0
+        ? { quantity: item.quantity } : {}),
+    };
+  });
+  return {
+    id,
+    vendorId: record.vendorId,
+    name: typeof record.name === 'string' ? record.name : id,
+    active: record.active,
+    discountedPrice: price,
+    currency: typeof record.currency === 'string' && /^[A-Za-z]{3}$/.test(record.currency) ? record.currency.toUpperCase() : 'INR',
+    ...(typeof record.version === 'number' && Number.isInteger(record.version) ? { version: record.version } : {}),
+    items,
+  };
+}
+
 export function parseOffering(
   body: unknown,
   offeringId: string,
@@ -71,6 +150,8 @@ export function parseOffering(
   const record = asRecord(response.data !== undefined ? response.data : body);
 
   const id = typeof record.id === 'string' ? record.id : offeringId;
+
+  const communities = parseCommunities(record.communities);
 
   if (typeof record.active !== 'boolean') {
     throw new BookingError(
@@ -182,6 +263,7 @@ export function parseOffering(
     ...(typeof record.vendorId === 'string'
       ? { vendorId: record.vendorId }
       : {}),
+    ...(communities ? { communities } : {}),
 
     // Only expose a single duration when all vehicle
     // types genuinely share the same duration.
@@ -195,6 +277,48 @@ export function parseOffering(
   };
 }
 
+
+function parseCommunities(
+  value: unknown,
+): Array<{ communityId: string; status: string; approvalStatus?: string }> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new BookingError(
+      'CATALOG_PRICING_UNAVAILABLE',
+      'Service Catalog returned an invalid community list',
+      502,
+    );
+  }
+  return value.map((entry) => {
+    const item = asRecord(entry);
+    if (typeof item.communityId !== 'string' || typeof item.status !== 'string') {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Service Catalog returned an invalid community mapping',
+        502,
+      );
+    }
+    if (
+      item.approvalStatus !== undefined
+      && item.approvalStatus !== 'pending'
+      && item.approvalStatus !== 'approved'
+      && item.approvalStatus !== 'rejected'
+    ) {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Service Catalog returned an invalid community approval status',
+        502,
+      );
+    }
+    return {
+      communityId: item.communityId,
+      status: item.status,
+      ...(typeof item.approvalStatus === 'string' ? { approvalStatus: item.approvalStatus } : {}),
+    };
+  });
+}
 
 export function parsePrice(body: unknown, offeringId: string): CatalogPrice {
   const record = asRecord(body);
@@ -253,9 +377,17 @@ function nonNegativeIntegerOrUndefined(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
-let gateway: CatalogGateway | undefined;
+let gateway: HttpCatalogGateway | undefined;
 
 export function getCatalogGateway(): CatalogGateway {
+  return getHttpCatalogGateway();
+}
+
+export function getCatalogPackageGateway(): CatalogPackageGateway {
+  return getHttpCatalogGateway();
+}
+
+function getHttpCatalogGateway(): HttpCatalogGateway {
   if (!gateway) {
     gateway = new HttpCatalogGateway();
   }

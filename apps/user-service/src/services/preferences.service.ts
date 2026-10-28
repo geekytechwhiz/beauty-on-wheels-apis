@@ -1,5 +1,5 @@
-import { LambdaRequest, NotFoundError } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
+import { LambdaRequest, NotFoundError } from '@api-hub/utils';
 
 import {
   toOperationalPreferences,
@@ -17,7 +17,7 @@ import {
   OperationalPreferences,
   OperationalPreferencesUpdate,
 } from '../types/api-types';
-import { assertOwnerAdminOrService, assertOwnerOrAdmin, getUserId } from '../utils';
+import {  getUserId } from '../utils';
 
 const baseLogger = createLogger({
   service: 'preferences-service',
@@ -35,8 +35,7 @@ export class PreferencesService {
   ) {}
 
   async getPreferences(request: LambdaRequest): Promise<OperationalPreferences> {
-    const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    const userId = getUserId(request); 
 
     const record = await this.preferences.getPreferences(userId);
 

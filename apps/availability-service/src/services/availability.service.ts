@@ -11,9 +11,10 @@ import {
   AvailabilityRepository,
   getAvailabilityRepository,
 } from '../repositories/availability.repository';
+import { getCommunityVisitsService, CommunityVisitsService } from './community-visits.service';
 import { getSlotsService, SlotsService } from './slots.service';
 import { WorkingHoursInterval, WorkingHoursItem, WorkingHoursView } from '../types/records';
-import { pathParam, queryValue } from '../utils/request';
+import { pathParam, parseLimit, queryValue } from '../utils/request';
 
 const baseLogger = createLogger({
   service: 'availability-service',
@@ -28,6 +29,7 @@ export class AvailabilityService {
   constructor(
     private readonly repository: AvailabilityRepository = getAvailabilityRepository(),
     private readonly slots: SlotsService = getSlotsService(),
+    private readonly communityVisits: CommunityVisitsService = getCommunityVisitsService(),
   ) {}
 
   async getworkinghours(request: LambdaRequest): Promise<
@@ -109,26 +111,56 @@ export class AvailabilityService {
       branchId,
       createdAt: existing?.createdAt ?? now,
     });
-    this.logger.info({ event: 'working_hours_saved', vendorId, branchId });
+    this.logger.info({
+      event: 'working_hours_deprecated',
+      vendorId,
+      branchId,
+      message: 'Working hours remain readable during migration. Bookable community and doorstep time comes from service visits.',
+    });
     return toWorkingHoursView(item);
   }
 
   async getavailability(request: LambdaRequest) {
+    const vendorId = pathParam(request, 'vendorId');
+    const communityId = queryValue(request, 'communityId');
+    const fromDate = queryValue(request, 'fromDate');
+    const toDate = queryValue(request, 'toDate');
     const date = queryValue(request, 'date');
-    if (!date) {
-      throw new ValidationError('date is required');
+
+    // Community visit occurrences (current booking flow). Prefer this when communityId is present
+    // and the caller is not asking for service-visit time slices (serviceId + single date).
+    const serviceId = queryValue(request, 'serviceId');
+    if (communityId && !(serviceId && date && !fromDate && !toDate)) {
+      const rangeFrom = fromDate ?? date;
+      const rangeTo = toDate ?? date ?? fromDate;
+      if (!rangeFrom || !rangeTo) {
+        throw new ValidationError('fromDate and toDate (or date) are required');
+      }
+      return this.communityVisits.listBookableOccurrences(request, {
+        communityId,
+        fromDate: rangeFrom,
+        toDate: rangeTo,
+        vendorId,
+        limit: parseLimit(queryValue(request, 'limit')),
+        cursor: queryValue(request, 'nextToken') ?? queryValue(request, 'cursor'),
+      });
+    }
+
+    if (!date && !fromDate) {
+      throw new ValidationError('date or fromDate is required');
     }
     const result = await this.slots.getslots({
       ...request,
       params: {
         ...(request.params ?? {}),
         bookable: 'true',
-        date,
+        ...(date ? { date } : {}),
+        ...(fromDate ? { fromDate } : {}),
+        ...(toDate ? { toDate } : {}),
       },
     });
     if (result.items.length === 0) {
       const branchId = queryValue(request, 'branchId');
-      const vendorId = pathParam(request, 'vendorId');
       if (branchId) {
         const schedule = await this.repository.getWorkingHours(vendorId, branchId);
         if (!schedule) {

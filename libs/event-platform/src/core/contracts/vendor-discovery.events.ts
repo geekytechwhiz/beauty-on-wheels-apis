@@ -17,6 +17,7 @@ export const VENDOR_DISCOVERY_SUBJECTS = [
   'coverage',
   'pricing',
   'operations',
+  'community',
 ] as const;
 
 export type VendorDiscoverySubject = (typeof VENDOR_DISCOVERY_SUBJECTS)[number];
@@ -25,7 +26,16 @@ export const VendorDiscoveryChangedPayloadSchema = z.object({
   vendorId: z.string().min(1),
   updatedAt: z.string().min(1),
   subject: z.enum(VENDOR_DISCOVERY_SUBJECTS),
-}).strict();
+  communityId: z.string().min(1).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.subject === 'community' && !value.communityId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['communityId'],
+      message: 'communityId is required when subject is community',
+    });
+  }
+});
 
 export type VendorDiscoveryChangedPayload = z.infer<typeof VendorDiscoveryChangedPayloadSchema>;
 

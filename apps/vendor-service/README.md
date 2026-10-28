@@ -31,13 +31,13 @@ Operational status (`ONLINE`, `OFFLINE`, `BUSY`, `TEMPORARILY_UNAVAILABLE`) is s
 
 `/vendors/{vendorId}/communities` stores provider membership in business communities. Geographic coverage stays on `/vendors/{vendorId}/service-areas`. Community definitions live in User Service; this service checks id format only.
 
-`/vendors/{vendorId}/services` and `/vendors/{vendorId}/packages` store enablement and an optional `priceOverride`. Each service mapping includes `categoryId` because Service Catalog looks up a service by category. Set `CATALOG_SERVICE_URL` to the catalog API base (including stage). Writes fail closed when the catalog cannot be reached. Checkout totals are not calculated here.
+`/vendors/{vendorId}/services` and `/vendors/{vendorId}/packages` store enablement and an optional `priceOverride`. Each service mapping includes `categoryId` because Service Catalog looks up a service by category. Set `CATALOG_BASE_URL` to the catalog API base (including stage). Writes fail closed when the catalog cannot be reached. Checkout totals are not calculated here.
 
 List vendors with `communityId` uses GSI3. Do not combine `communityId` with `city` or `postalCode`.
 
 ## Deploy
 
-`CATALOG_SERVICE_URL` is required before catalog mappings can be saved. Adding GSI3 is a table update; existing vendors have no community rows until an admin assigns them.
+`CATALOG_BASE_URL` is required before catalog mappings can be saved. Adding GSI3 is a table update; existing vendors have no community rows until an admin assigns them.
 
 ## Checkout internals
 

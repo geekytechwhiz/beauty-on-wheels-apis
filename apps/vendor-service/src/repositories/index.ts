@@ -8,3 +8,4 @@ export * from "./service-areas.repository";
 export * from "./staff.repository";
 export * from "./vendors.repository";
 export * from "./communities.repository";
+export * from './community-schedules.repository';

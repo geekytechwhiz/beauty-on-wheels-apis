@@ -1,10 +1,25 @@
 import { OnboardingSection, OnboardingStatus, VendorStatus } from '../types/api-types';
 import { ONBOARDING_STATUS } from './onboarding';
 
-/** Membership role on GET /vendors/me. Staff linkage is not resolved here. */
+/** Membership role on GET /vendors/me. Staff is resolved from the staff user index, never a phone match. */
 export const VENDOR_MEMBERSHIP_ROLE = {
   OWNER: 'owner',
+  STAFF: 'staff',
 } as const;
+
+export const VISIT_PERMISSION = {
+  VIEW: 'visits:view',
+  PUBLISH: 'visits:publish',
+  MANAGE: 'visits:manage',
+} as const;
+
+export const OWNER_VISIT_PERMISSIONS = [
+  VISIT_PERMISSION.VIEW,
+  VISIT_PERMISSION.PUBLISH,
+  VISIT_PERMISSION.MANAGE,
+];
+
+export const STAFF_VISIT_PERMISSIONS = [VISIT_PERMISSION.VIEW];
 
 export type VendorMembershipRole =
   (typeof VENDOR_MEMBERSHIP_ROLE)[keyof typeof VENDOR_MEMBERSHIP_ROLE];

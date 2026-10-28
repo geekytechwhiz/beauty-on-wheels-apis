@@ -563,23 +563,24 @@ export class ServicesRepository extends BaseRepository {
   async findById(
     categoryId: string,
     serviceId: string,
+    consistent = false,
   ): Promise<ServiceEntity | null> {
     const entity = await this.get<ServiceEntity>(TABLE(), {
       PK: CatalogKeyBuilder.categoryPk(categoryId),
       SK: CatalogKeyBuilder.serviceSk(serviceId),
-    });
+    }, { consistent });
     return entity?.entityType === 'SERVICE' ? normalizeServiceEntity(entity) : null;
   }
 
-  async findByServiceId(serviceId: string): Promise<ServiceEntity | null> {
+  async findByServiceId(serviceId: string, consistent = false): Promise<ServiceEntity | null> {
     const lookup = await this.get<ServiceLookupEntity>(TABLE(), {
       PK: CatalogKeyBuilder.serviceLookupPk(serviceId),
       SK: CatalogKeyBuilder.serviceLookupSk(),
-    });
+    }, { consistent });
     if (!lookup?.categoryId) {
       return null;
     }
-    const service = await this.findById(lookup.categoryId, serviceId);
+    const service = await this.findById(lookup.categoryId, serviceId, consistent);
     return service?.entityType === 'SERVICE' ? service : null;
   }
 
@@ -911,15 +912,13 @@ export class ServicesRepository extends BaseRepository {
   async deleteService(
     entity: ServiceEntity,
     discoveryKeys: ReadonlyArray<{ PK: string; SK: string }> = [],
+    mappingKeys: ReadonlyArray<{ PK: string; SK: string }> = [],
   ): Promise<void> {
-    await this.writeTransactChunks([
+    const canonical = [
       {
         Delete: {
           TableName: TABLE(),
-          Key: {
-            PK: entity.PK,
-            SK: entity.SK,
-          },
+          Key: { PK: entity.PK, SK: entity.SK },
           ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
         },
       },
@@ -930,14 +929,18 @@ export class ServicesRepository extends BaseRepository {
       ...entity.vehicleTypes.map((vehicleType) =>
         deleteKey(
           CatalogKeyBuilder.categoryPk(entity.categoryId),
-          CatalogKeyBuilder.vehicleApplicabilitySk(
-            vehicleType,
-            entity.serviceId,
-          ),
+          CatalogKeyBuilder.vehicleApplicabilitySk(vehicleType, entity.serviceId),
         ),
       ),
-      ...discoveryKeys.map((key) => deleteKey(key.PK, key.SK)),
-    ]);
+      ...mappingKeys.map((key) => deleteKey(key.PK, key.SK)),
+    ];
+    if (canonical.length > 100) {
+      throw new Error('Service delete exceeds the DynamoDB transaction limit');
+    }
+    await this.transactWrite({ TransactItems: canonical });
+    if (discoveryKeys.length > 0) {
+      await this.writeTransactChunks(discoveryKeys.map((key) => deleteKey(key.PK, key.SK)));
+    }
   }
 
   async getDiscoveryItem(
@@ -1248,7 +1251,7 @@ function deleteKey(pk: string, sk: string) {
   };
 }
 
-function buildServiceLookup(
+export function buildServiceLookup(
   entity: ServiceEntity,
   now: string,
 ): ServiceLookupEntity {
@@ -1265,7 +1268,7 @@ function buildServiceLookup(
   };
 }
 
-function buildVehicleLink(
+export function buildVehicleLink(
   entity: ServiceEntity,
   vehicleType: string,
   now: string,

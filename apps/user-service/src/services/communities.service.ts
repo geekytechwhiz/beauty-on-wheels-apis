@@ -28,8 +28,7 @@ import {
 } from '../types/api-types';
 import { CommunityRecord } from '../types/records';
 import {
-  assertAdminAccess,
-  assertOwnerAdminOrService,
+  assertAdminAccess, 
   decodeCursor,
   encodeCursor,
   getPathParam,
@@ -185,8 +184,7 @@ export class CommunitiesService {
   }
 
   async getMembership(request: LambdaRequest): Promise<CustomerCommunities> {
-    const userId = getUserId(request);
-    assertOwnerAdminOrService(request, userId);
+    const userId = getUserId(request); 
     const profile = await this.customers.getProfile(userId);
     if (!profile) {
       throw new NotFoundError('Customer profile not found');

@@ -9,6 +9,7 @@ import {
 import { VendorsService } from './vendors.service';
 import { VendorsRepository } from '../repositories/vendors.repository';
 import { CommunitiesRepository } from '../repositories/communities.repository';
+import { StaffRepository } from '../repositories/staff.repository';
 import { validateCreateVendorRequest } from '../schemas/vendors.schema';
 import { VendorDdbItem } from '../types/repository.types';
 
@@ -50,6 +51,7 @@ function vendorItem(): VendorDdbItem {
 describe('VendorsService', () => {
   let repository: jest.Mocked<VendorsRepository>;
   let communitiesRepository: jest.Mocked<CommunitiesRepository>;
+  let staffRepository: jest.Mocked<Pick<StaffRepository, 'listMembershipsByUserId'>>;
   let service: VendorsService;
 
   beforeEach(() => {
@@ -72,8 +74,10 @@ describe('VendorsService', () => {
       listByVendor: jest.fn().mockResolvedValue([]),
       listByCommunity: jest.fn(),
     } as unknown as jest.Mocked<CommunitiesRepository>;
-
-    service = new VendorsService(repository, communitiesRepository);
+    staffRepository = {
+      listMembershipsByUserId: jest.fn().mockResolvedValue([]),
+    };
+    service = new VendorsService(repository, communitiesRepository, staffRepository as unknown as StaffRepository);
   });
 
   const createBody = {
@@ -384,6 +388,27 @@ describe('VendorsService', () => {
       repository.getVendorsByIds.mockResolvedValue([item]);
       return item;
     }
+
+    it('resolves an active staff member by user id without treating them as the owner', async () => {
+      repository.getVendorById.mockResolvedValue({ ...vendorItem(), status: 'ACTIVE', onboardingStatus: 'PENDING_REVIEW' });
+      staffRepository.listMembershipsByUserId.mockResolvedValue([{
+        PK: 'STAFF_USER#user-1',
+        SK: 'VENDOR#vendor-1',
+        userId: 'user-1',
+        vendorId: 'vendor-1',
+        staffId: 'staff-1',
+        status: 'ACTIVE',
+        entityType: 'StaffMembership',
+      }]);
+      const result = await service.getMyVendor(authRequest());
+      expect(result).toMatchObject({
+        hasVendor: true,
+        vendorId: 'vendor-1',
+        membership: { role: 'staff', staffId: 'staff-1', permissions: ['visits:view'] },
+        nextAction: 'OPEN_VENDOR_DASHBOARD',
+      });
+      expect(result.membership?.permissions).not.toContain('visits:publish');
+    });
 
     it('returns start onboarding when the user has no vendor', async () => {
       const result = await service.getMyVendor(authRequest());

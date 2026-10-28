@@ -17,6 +17,7 @@ provider:
   versionFunctions: false
 
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
     SERVICE_NAME: user-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-user
@@ -51,6 +52,8 @@ provider:
             Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-arn
 
 custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
   resourcePrefix: nv${self:provider.stage}-bw
   sharedEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
@@ -111,6 +114,8 @@ custom:
         description: Customer addresses
       - name: Preferences
         description: Operational notification preferences
+      - name: Support Tickets
+        description: Customer support tickets
       - name: Communities
         description: Communities and customer membership
     models:
@@ -398,6 +403,64 @@ custom:
                 - sms
                 - email
                 - push
+      - name: SupportTicketCreate
+        description: Create a support ticket
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                category:
+                  type: string
+                  enum:
+                    - BOOKING
+                    - PAYMENT
+                    - ACCOUNT
+                bookingId:
+                  type: string
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+              required:
+                - category
+                - message
+      - name: SupportTicket
+        description: Support ticket
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticketId:
+                  type: string
+                userId:
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - OPEN
+                category:
+                  type: string
+                  enum:
+                    - BOOKING
+                    - PAYMENT
+                    - ACCOUNT
+                message:
+                  type: string
+                bookingId:
+                  type: string
+                submittedAt:
+                  type: string
+                  format: date-time
+              required:
+                - ticketId
+                - userId
+                - status
+                - category
+                - message
+                - submittedAt
       - name: CommunityCreate
         description: Create a community
         content:
@@ -575,7 +638,7 @@ functions:
       - http:
           path: /users
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Look up a user by phone"
           description: "Service principal or admin. Requires query phone in E.164. Percent-encode + as %2B. Returns id, phone, and status."
@@ -630,7 +693,7 @@ functions:
       - http:
           path: /users/{userId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get user"
           description: "Owner, admin, or service principal. Reads the customer profile summary."
@@ -677,7 +740,7 @@ functions:
       - http:
           path: /customers/{userId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get customer profile"
           description: "Owner, admin, or service principal. Includes communityIds and defaultAddressId."
@@ -724,7 +787,7 @@ functions:
       - http:
           path: /customers/{userId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create or update customer profile"
           description: "Owner or admin. Upserts the profile and the phone lookup used by WhatsApp. Status and loyaltyPoints are admin-only. Marketing consent is not accepted."
@@ -784,7 +847,7 @@ functions:
       - http:
           path: /users/{userId}/addresses
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List addresses"
           description: "Owner, admin, or service principal. Deleted addresses are omitted. The default address is first."
@@ -831,7 +894,7 @@ functions:
       - http:
           path: /users/{userId}/addresses/{addressId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get address"
           description: "Owner, admin, or service principal. Returns one active address owned by userId after the caller is checked against the access token. Response uses the platform envelope; the address is in data."
@@ -882,7 +945,7 @@ functions:
       - http:
           path: /users/{userId}/addresses
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add address"
           description: "Owner or admin. The first active address becomes the default. isDefault true replaces the previous default."
@@ -942,7 +1005,7 @@ functions:
       - http:
           path: /users/{userId}/addresses/{addressId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update address"
           description: "Owner or admin. Replaces the address. The only active address stays the default."
@@ -999,7 +1062,7 @@ functions:
       - http:
           path: /users/{userId}/addresses/{addressId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete address"
           description: "Owner or admin. Soft-deletes the address. If it was the default, another active address is promoted."
@@ -1047,7 +1110,7 @@ functions:
       - http:
           path: /users/{userId}/preferences
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get operational channel preferences"
           description: "Owner, admin, or service principal. Missing row means WhatsApp, SMS, email, and push are enabled. Marketing consent is not part of this resource."
@@ -1087,7 +1150,7 @@ functions:
       - http:
           path: /users/{userId}/preferences
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace operational channel preferences"
           description: "Owner or admin. whatsapp, sms, email, and push are required. Marketing consent is rejected."
@@ -1147,7 +1210,7 @@ functions:
       - http:
           path: /communities
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create community"
           description: "Admin. Communities are territories a customer can belong to."
@@ -1188,7 +1251,7 @@ functions:
       - http:
           path: /communities
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List communities"
           description: "Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list."
@@ -1223,7 +1286,7 @@ functions:
       - http:
           path: /communities/{communityId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get community"
           swaggerTags:
@@ -1269,7 +1332,7 @@ functions:
       - http:
           path: /communities/{communityId}
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update community"
           swaggerTags:
@@ -1321,7 +1384,7 @@ functions:
       - http:
           path: /communities/{communityId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Deactivate community"
           description: "Admin. Sets status to inactive. Existing memberships are left in place until an admin replaces them."
@@ -1368,7 +1431,7 @@ functions:
       - http:
           path: /customers/{userId}/communities
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get customer community membership"
           description: "Owner, admin, or service principal."
@@ -1415,7 +1478,7 @@ functions:
       - http:
           path: /customers/{userId}/communities
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace customer community membership"
           description: "Admin. Replaces communityIds. Every id must be an active community."
@@ -1468,6 +1531,136 @@ functions:
               required: true
             requestModels:
               application/json: CustomerCommunitiesUpdate
+
+  createSupportTicket:
+    handler: src/handlers/support-tickets.handleCreateSupportTicket
+    events:
+      - http:
+          path: /users/{userId}/support-tickets
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Submit support ticket"
+          description: "Owner only (path userId must equal the authenticated user). Idempotency-Key header is required; retries with the same key and payload return the original ticket. message is 1 to 4000 characters."
+          swaggerTags:
+            - Support Tickets
+          bodyType: SupportTicketCreate
+          responseData:
+            201:
+              description: "Submit support ticket"
+              bodyType: SupportTicket
+            403:
+              description: "Path userId does not match the authenticated user"
+          documentation:
+            summary: Submit support ticket
+            description: Owner only (path userId must equal the authenticated user). Idempotency-Key header is required; retries with the same key and payload return the original ticket. message is 1 to 4000 characters.
+            tags:
+              - Support Tickets
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Submit support ticket
+                responseModels:
+                  application/json: SupportTicket
+              - statusCode: "403"
+                responseBody:
+                  description: Path userId does not match the authenticated user
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+            requestBody:
+              description: Owner only (path userId must equal the authenticated user). Idempotency-Key header is required; retries with the same key and payload return the original ticket. message is 1 to 4000 characters.
+              required: true
+            requestModels:
+              application/json: SupportTicketCreate
+
+  listSupportTickets:
+    handler: src/handlers/support-tickets.handleListSupportTickets
+    events:
+      - http:
+          path: /users/{userId}/support-tickets
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List support tickets"
+          description: "Owner only. Returns the caller tickets, newest first."
+          swaggerTags:
+            - Support Tickets
+          responseData:
+            200:
+              description: "List support tickets"
+              bodyType: SupportTicket
+            403:
+              description: "Path userId does not match the authenticated user"
+          documentation:
+            summary: List support tickets
+            description: Owner only. Returns the caller tickets, newest first.
+            tags:
+              - Support Tickets
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: List support tickets
+                responseModels:
+                  application/json: SupportTicket
+              - statusCode: "403"
+                responseBody:
+                  description: Path userId does not match the authenticated user
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+
+  getSupportTicket:
+    handler: src/handlers/support-tickets.handleGetSupportTicket
+    events:
+      - http:
+          path: /users/{userId}/support-tickets/{ticketId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get support ticket"
+          description: "Owner only. 404 when the ticket does not exist for this user."
+          swaggerTags:
+            - Support Tickets
+          responseData:
+            200:
+              description: "Get support ticket"
+              bodyType: SupportTicket
+            403:
+              description: "Path userId does not match the authenticated user"
+          documentation:
+            summary: Get support ticket
+            description: Owner only. 404 when the ticket does not exist for this user.
+            tags:
+              - Support Tickets
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Get support ticket
+                responseModels:
+                  application/json: SupportTicket
+              - statusCode: "403"
+                responseBody:
+                  description: Path userId does not match the authenticated user
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: userId
+                description: userId
+                schema:
+                  type: string
+              - name: ticketId
+                description: ticketId
+                schema:
+                  type: string
 
 resources:
   Resources:
@@ -1547,46 +1740,16 @@ resources:
         SSESpecification:
           SSEEnabled: true
 
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+

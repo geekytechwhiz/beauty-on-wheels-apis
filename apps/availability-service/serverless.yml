@@ -16,12 +16,14 @@ provider:
   region: ${opt:region,'us-east-1'}
   versionFunctions: false
   environment:
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
     SERVICE_NAME: availability-service
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: availability-table-${self:provider.stage}
     SLOT_HOLD_TTL_SECONDS: "600"
     EXPIRY_LOOKBACK_HOURS: "48"
-    EVENT_BUS_NAME: ""
+    EVENT_BUS_NAME:
+      Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
   iam:
     role:
       statements:
@@ -49,11 +51,27 @@ provider:
             - arn:aws:logs:${aws:region}:${aws:accountId}:*
         - Effect: Allow
           Action:
+            - sqs:SendMessage
+          Resource:
+            - !GetAtt AvailabilityBookingReadinessStreamDlq.Arn
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource:
+            - Fn::Sub:
+                - arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${BusName}
+                - BusName:
+                    Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
+        - Effect: Allow
+          Action:
             - xray:PutTraceSegments
             - xray:PutTelemetryRecords
           Resource: "*"
 
 custom:
+  resourcePrefix: nv${self:provider.stage}-bw
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
   esbuild:
     bundle: true
@@ -289,7 +307,7 @@ functions:
       - http:
           path: /slot-holds
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create slot hold"
           swaggerTags:
@@ -325,7 +343,7 @@ functions:
       - http:
           path: /slot-holds/{holdId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Release slot hold"
           swaggerTags:
@@ -358,7 +376,7 @@ functions:
       - http:
           path: /slot-holds/{holdId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get slot hold"
           swaggerTags:
@@ -394,7 +412,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/slots
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List slots"
           swaggerTags:
@@ -430,7 +448,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/slots
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Generate slots"
           swaggerTags:
@@ -466,7 +484,7 @@ functions:
       - http:
           path: /slots/{slotId}
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get slot"
           swaggerTags:
@@ -502,7 +520,7 @@ functions:
       - http:
           path: /slots/{slotId}/block
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Block slot"
           swaggerTags:
@@ -538,7 +556,7 @@ functions:
       - http:
           path: /slots/{slotId}/unblock
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Unblock slot"
           swaggerTags:
@@ -574,7 +592,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/holidays
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List holidays"
           swaggerTags:
@@ -610,7 +628,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/holidays
           method: post
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add holiday"
           swaggerTags:
@@ -651,7 +669,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/holidays/{holidayId}
           method: patch
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update holiday"
           swaggerTags:
@@ -696,7 +714,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/holidays/{holidayId}
           method: delete
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Remove holiday"
           swaggerTags:
@@ -733,17 +751,21 @@ functions:
       - http:
           path: /vendors/{vendorId}/availability
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "List bookable availability"
+          summary: "List bookable availability for a vendor"
           swaggerTags:
             - Availability
           responseData:
             200:
-              description: "Bookable slots"
+              description: "Bookable visit occurrences or slots"
               bodyType: SlotPage
           documentation:
-            summary: "List bookable slots for a vendor branch and date"
+            summary: "List bookable community visit occurrences (communityId) or legacy branch slots (branchId)"
+            description: >
+              Canonical vendor-scoped availability. Prefer communityId with fromDate/toDate (or date)
+              to return bookable dated community visit occurrences. Pass communityId+serviceId+date
+              for service-visit time slices. branchId+date remains supported for legacy clients.
             tags:
               - Availability
             pathParams:
@@ -752,12 +774,29 @@ functions:
                 schema:
                   type: string
             queryParams:
-              - name: branchId
-                required: true
+              - name: communityId
+                required: false
+                description: "Community id for community-visit availability"
+                schema:
+                  type: string
+              - name: fromDate
+                required: false
+                description: "Range start YYYY-MM-DD (preferred with communityId)"
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                description: "Range end YYYY-MM-DD"
                 schema:
                   type: string
               - name: date
-                required: true
+                required: false
+                description: "Single date (alias for fromDate=toDate=date)"
+                schema:
+                  type: string
+              - name: branchId
+                required: false
+                description: "Legacy branch-scoped slot listing"
                 schema:
                   type: string
               - name: serviceId
@@ -766,12 +805,84 @@ functions:
               - name: vehicleTypeId
                 schema:
                   type: string
+              - name: limit
+                schema:
+                  type: integer
+              - name: nextToken
+                schema:
+                  type: string
             methodResponses:
               - statusCode: "200"
                 responseBody:
-                  description: "Bookable slots"
+                  description: "Bookable visit occurrences or slots"
                 responseModels:
                   application/json: SlotPage
+              - statusCode: "400"
+                responseBody:
+                  description: "Request failed"
+                responseModels:
+                  application/json: ErrorResponse
+
+  listCommunityAvailability:
+    handler: src/handlers/community-visits.handleListCommunityAvailability
+    events:
+      - http:
+          path: /communities/{communityId}/availability
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List bookable community visit occurrences"
+          swaggerTags:
+            - Availability
+          documentation:
+            summary: "Canonical customer availability by community and date range"
+            description: >
+              Returns eligible, bookable dated community visit occurrences with remaining capacity.
+              Optional vendorId filters to a selected vendor. serviceId/vehicleTypeId are accepted
+              for forward compatibility and do not currently filter community visit capacity.
+            tags:
+              - Availability
+            pathParams:
+              - name: communityId
+                description: "Community id"
+                schema:
+                  type: string
+            queryParams:
+              - name: fromDate
+                required: false
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                schema:
+                  type: string
+              - name: date
+                required: false
+                description: "Single-day alias when fromDate/toDate omitted"
+                schema:
+                  type: string
+              - name: vendorId
+                required: false
+                schema:
+                  type: string
+              - name: serviceId
+                required: false
+                schema:
+                  type: string
+              - name: vehicleTypeId
+                required: false
+                schema:
+                  type: string
+              - name: limit
+                schema:
+                  type: integer
+              - name: nextToken
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Bookable community visit occurrences"
               - statusCode: "400"
                 responseBody:
                   description: "Request failed"
@@ -804,15 +915,63 @@ functions:
     timeout: 15
     memorySize: 512
 
+  getBookingReadinessFacts:
+    handler: src/handlers/internal.getBookingReadinessFacts
+    description: "Internal invoke. Publishes the authoritative valid community visit schedule count."
+    timeout: 30
+
+  onBookingReadinessChanged:
+    handler: src/handlers/booking-readiness-stream.handler
+    description: "Publishes a visit-schedule readiness summary after schedule or visit changes."
+    timeout: 60
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt AvailabilityTable.StreamArn
+          filterPatterns:
+            - eventName: [INSERT, MODIFY]
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S: [CommunityVisitSchedule, CommunityVisit]
+            - eventName: [REMOVE]
+              dynamodb:
+                OldImage:
+                  entityType:
+                    S: [CommunityVisitSchedule, CommunityVisit]
+          batchSize: 10
+          startingPosition: LATEST
+          bisectBatchOnFunctionError: true
+          maximumRetryAttempts: 3
+          functionResponseType: ReportBatchItemFailures
+          destinations:
+            onFailure:
+              arn: !GetAtt AvailabilityBookingReadinessStreamDlq.Arn
+              type: sqs
+
+  reconcileServiceVisits:
+    handler: src/handlers/reconcile-service-visits.handleReconcileServiceVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/service-visit-projections/reconcile
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Reconcile service visit projections"
+
+  onServiceVisitProjection:
+    handler: src/handlers/service-visit-projection.handler
+    description: "Applies ServiceVisit lifecycle events onto the availability read model."
+
   getworkinghours:
     handler: src/handlers/availability.handleGetworkinghours
     events:
       - http:
           path: /vendors/{vendorId}/working-hours
           method: get
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get working hours"
+          summary: "Get working hours (deprecated)"
           swaggerTags:
             - Availability
           responseData:
@@ -820,7 +979,7 @@ functions:
               description: "Working hours"
               bodyType: WorkingHours
           documentation:
-            summary: "Get working hours"
+            summary: "Deprecated. Bookable time comes from service visits. This schedule remains for vendors that have not activated a visit."
             tags:
               - Availability
             pathParams:
@@ -846,7 +1005,7 @@ functions:
       - http:
           path: /vendors/{vendorId}/working-hours
           method: put
-          cors: true
+          cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update working hours"
           swaggerTags:
@@ -882,8 +1041,164 @@ functions:
                 responseModels:
                   application/json: ErrorResponse
 
+  listCommunityVisitSchedules:
+    handler: src/handlers/community-visits.handleListCommunityVisitSchedules
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visit-schedules
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  publishCommunityVisitSchedule:
+    handler: src/handlers/community-visits.handlePublishCommunityVisitSchedule
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visit-schedules
+          method: put
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  listCommunityVisits:
+    handler: src/handlers/community-visits.handleListCommunityVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  updateCommunityVisitCapacity:
+    handler: src/handlers/community-visits.handleUpdateCommunityVisitCapacity
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}
+          method: patch
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  cancelCommunityVisit:
+    handler: src/handlers/community-visits.handleCancelCommunityVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}/cancel
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  unblockCommunityVisit:
+    handler: src/handlers/community-visits.handleUnblockCommunityVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}/unblock
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  deactivateCommunityVisitSchedule:
+    handler: src/handlers/community-visits.handleDeactivateCommunityVisitSchedule
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  listCommunityVisitBookings:
+    handler: src/handlers/community-visits.handleListCommunityVisitBookings
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}/bookings
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  reserveCommunityVisit:
+    handler: src/handlers/community-visits.handleReserveCommunityVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}/reservations
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
+  releaseCommunityVisit:
+    handler: src/handlers/community-visits.handleReleaseCommunityVisit
+    events:
+      - http:
+          path: /vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+
 resources:
   Resources:
+    ServiceVisitProjectionDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-service-visit-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
+    ServiceVisitProjectionDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ServiceVisitProjectionDlq
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt ServiceVisitProjectionDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+
+    ServiceVisitProjectionRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - ServiceVisitProjectionDlqPolicy
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-service-visit
+        Description: Projects service visit configurations for slot calculation
+        EventBusName:
+          Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
+        EventPattern:
+          source:
+            - service-catalog-service
+          detail-type:
+            - ServiceVisit.Created
+            - ServiceVisit.Updated
+            - ServiceVisit.Activated
+            - ServiceVisit.Paused
+            - ServiceVisit.Archived
+        State: ENABLED
+        Targets:
+          - Id: AvailabilityServiceVisitProjection
+            Arn: !GetAtt OnServiceVisitProjectionLambdaFunction.Arn
+            DeadLetterConfig:
+              Arn: !GetAtt ServiceVisitProjectionDlq.Arn
+            RetryPolicy:
+              MaximumRetryAttempts: 3
+
+    ServiceVisitProjectionPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnServiceVisitProjectionLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt ServiceVisitProjectionRule.Arn
+
+    AvailabilityBookingReadinessStreamDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-availability-booking-readiness-stream-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+
     AvailabilityTable:
       Type: AWS::DynamoDB::Table
       DeletionPolicy: Retain
@@ -912,6 +1227,8 @@ resources:
             KeyType: HASH
           - AttributeName: SK
             KeyType: RANGE
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
         GlobalSecondaryIndexes:
           - IndexName: GSI1
             KeySchema:
@@ -929,50 +1246,16 @@ resources:
           - Key: ManagedBy
             Value: Serverless
 
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}
 
-    GatewayResponseUnauthorized:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: UNAUTHORIZED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseUnauthorized: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseUnauthorized}
 
-    GatewayResponseAccessDenied:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseType: ACCESS_DENIED
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: >-
-            'Content-Type,Authorization,Idempotency-Key,X-Requested-With,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform'
-          gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    GatewayResponseAccessDenied: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAccessDenied}
+
+    GatewayResponseMissingAuthenticationToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseMissingAuthenticationToken}
+    GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
+    GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
+    GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+

@@ -16,19 +16,20 @@ export type StaffStatus = 'ACTIVE' | 'INACTIVE';
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 export type OnboardingSection =
-  | 'BUSINESS_INFO_AND_OWNER'
-  | 'SERVICE_LOCATION_AND_COVERAGE'
-  | 'BUSINESS_VERIFICATION'
-  | 'BANK_AND_PAYOUT_DETAILS';
+  | 'BUSINESS_INFO'
+  | 'COMMUNITIES'
+  | 'DOCUMENTS'
+  | 'BANK_DETAILS';
 
-export type OnboardingStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'PENDING_REVIEW';
+export type OnboardingStatus = 'DRAFT' | 'IN_PROGRESS' | 'AWAITING_EMAIL_VERIFICATION' | 'PENDING_REVIEW' | 'CHANGES_REQUESTED' | 'COMPLETED';
 
 export type DocumentType =
   | 'GST_REGISTRATION'
   | 'BUSINESS_REGISTRATION'
+  | 'OWNER_IDENTITY'
   | 'COMMERCIAL_INSURANCE';
 
-export type DocumentStatus = 'PENDING_UPLOAD' | 'UPLOADED';
+export type DocumentStatus = 'PENDING_UPLOAD' | 'UPLOADED' | 'VERIFIED' | 'REJECTED';
 
 export type BankAccountType = 'SAVINGS' | 'CURRENT';
 
@@ -180,12 +181,33 @@ export interface ServiceLocationAndCoverageData {
 }
 
 export interface UpdateOnboardingRequest {
-  section: OnboardingSection;
-  data:
-    | BusinessInfoAndOwnerData
-    | ServiceLocationAndCoverageData
-    | DocumentsData
-    | BankDetailsData;
+  /** Version returned by GET/PATCH onboarding; used for optimistic concurrency. */
+  revision: number;
+  sections: {
+    BUSINESS_INFO?: {
+      businessType?: businessType;
+      businessName?: string;
+      contactName?: string;
+      phoneNumber?: string;
+      email?: string | null;
+      description?: string | null;
+      gstNumber?: string | null;
+      panNumber?: string | null;
+      profileImageUrl?: string | null;
+    };
+    COMMUNITIES?: {
+      communityIds: string[];
+    };
+    BANK_DETAILS?: {
+      accountHolderName?: string;
+      accountNumber?: string | null;
+      ifscCode?: string | null;
+      bankName?: string;
+      branchName?: string | null;
+      accountType?: BankAccountType | null;
+    };
+  };
+  lastVisitedStep?: OnboardingSection;
 }
 
 export interface VendorOwner {
@@ -299,13 +321,17 @@ export interface OnboardingResponse {
   currentSection: OnboardingSection;
   completedSections: OnboardingSection[];
   applicationId?: string;
+  revision: number;
+  lastVisitedStep?: OnboardingSection;
+  requiredSections?: OnboardingSection[];
+  incompleteSections?: OnboardingSection[];
+  recommendedNextStep?: OnboardingSection;
   sections: {
     BUSINESS_INFO?: BusinessInfoData;
     OWNER_DETAILS?: VendorOwner;
-    ADDRESS?: VendorAddress;
-    BRANCH?: VendorBranch[];
     DOCUMENTS?: VendorDocument[];
     BANK_DETAILS?: BankDetails;
+    COMMUNITIES?: Array<{ communityId: string; label?: string }>;
   };
 }
 
@@ -329,6 +355,7 @@ export interface Vendor {
   currentSection?: OnboardingSection;
   completedSections?: OnboardingSection[];
   applicationId?: string;
+  revision?: number;
   communityIds: string[];
   latestReview?: VendorStatusReview;
   createdAt: string;
@@ -345,8 +372,9 @@ export type VendorNextAction =
   | 'CORRECT_APPLICATION';
 
 export interface VendorMembership {
-  /** owner when the caller owns the vendor. Staff is not represented. */
-  role: 'owner';
+  role: 'owner' | 'staff';
+  staffId?: string;
+  permissions: string[];
 }
 
 export interface VendorSelfLookup {

@@ -35,6 +35,9 @@ export interface VendorDdbItem {
   onboardingStatus: OnboardingStatus;
   currentSection: OnboardingSection;
   completedSections: OnboardingSection[];
+  lastVisitedStep?: OnboardingSection;
+  /** Monotonic optimistic-concurrency token. Legacy rows are treated as revision 0. */
+  revision?: number;
   applicationId?: string;
   communityIds?: string[];
   latestReview?: VendorStatusReviewRecord;
@@ -113,10 +116,10 @@ export interface VendorBankDdbItem {
   PK: string;
   SK: string;
   vendorId: string;
-  accountHolderName: string;
-  accountNumber: string;
-  ifscCode: string;
-  bankName: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
   branchName?: string;
   accountType?: BankAccountType;
   createdAt: string;
@@ -154,6 +157,7 @@ export interface VendorDocumentDdbItem {
   /** Previous confirmed object retained until the replacement upload is verified. */
   supersededObjectKey?: string;
   status: DocumentStatus;
+  reviewComment?: string;
   createdAt: string;
   updatedAt: string;
   entityType: 'VendorDocument';

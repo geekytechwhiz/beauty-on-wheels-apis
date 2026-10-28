@@ -43,6 +43,14 @@ import {
 import { assertVendorOwner, requireVendorId } from "../domain/vendor-scope";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { ServiceEntity } from "../utils/types/catalog-domain.types";
+import {
+    OfferingCommunityView,
+    readOptionalIdempotencyKey,
+} from "../domain/offering-community";
+import {
+    getOfferingCommunitiesService,
+    OfferingCommunitiesService,
+} from "./offering-communities.service";
 import { DiscoveryPage } from "../types/api-types";
 import {
     DiscoveryBranchState,
@@ -73,6 +81,8 @@ export class ServicesService {
     private readonly categoriesRepository: CategoriesRepository = getCategoriesRepository(),
 
     private readonly discoveryFacts: DiscoveryFactsSource | null = getDiscoveryFactsSource(),
+
+    private readonly communities: OfferingCommunitiesService | null = null,
   ) {}
 
   async discoverServices(query: unknown): Promise<DiscoveryPage> {
@@ -183,9 +193,13 @@ export class ServicesService {
       lastEvaluatedKey,
     });
 
-    const items = result.items.map((entity) =>
-      mapServiceEntityToResponse(entity, vehicleType),
-    );
+    const items = await Promise.all(result.items.map(async (entity) =>
+      mapServiceEntityToResponse(
+        entity,
+        vehicleType,
+        await this.communityViews(entity.serviceId),
+      ),
+    ));
 
     this.logger.info({
       event: 'getservices_success',
@@ -213,6 +227,9 @@ export class ServicesService {
     });
 
     const body = validateService(request);
+    const idempotencyKey = readOptionalIdempotencyKey(
+      request.event?.headers as Record<string, unknown> | undefined,
+    );
 
     // Validate parent category exists
     const category = await this.categoriesRepository.findById(body.categoryId);
@@ -221,6 +238,18 @@ export class ServicesService {
     }
     if (!category.active) {
       throw new ConflictError(`Category is not active: ${body.categoryId}`);
+    }
+
+    if (idempotencyKey) {
+      const replay = await this.requireCommunities().replayAfterConflict(body.vendorId, idempotencyKey);
+      if (replay) {
+        const existing = await this.loadReplay(replay.categoryId, replay.serviceId);
+        return mapServiceEntityToResponse(
+          existing,
+          undefined,
+          await this.communityViews(existing.serviceId, true),
+        );
+      }
     }
 
     await this.assertServiceNameUnique(
@@ -232,10 +261,15 @@ export class ServicesService {
     const now = new Date().toISOString();
     const serviceId = randomUUID();
 
-    const entity = buildServiceEntity(serviceId, body, now);
+    let entity = buildServiceEntity(serviceId, body, now);
+    const communityIds = body.communityIds ?? [];
 
     try {
-      await this.repository.createService(entity, await this.discoveryPlan(entity));
+      if (communityIds.length > 0 || idempotencyKey) {
+        entity = await this.createServiceWithCommunities(entity, communityIds, idempotencyKey);
+      } else {
+        await this.repository.createService(entity, await this.discoveryPlan(entity));
+      }
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         this.logger.warn({
@@ -260,7 +294,11 @@ export class ServicesService {
       serviceId,
     });
 
-    return mapServiceEntityToResponse(entity);
+    return mapServiceEntityToResponse(
+      entity,
+      undefined,
+      await this.communityViews(entity.serviceId, this.consistentRead(request)),
+    );
   }
 
   async getserviceid(request: LambdaRequest) {
@@ -275,14 +313,19 @@ export class ServicesService {
       vendorId,
     });
 
-    const entity = await this.loadOwnedService(serviceId, vendorId, categoryId);
+    const consistent = this.consistentRead(request);
+    const entity = await this.loadOwnedService(serviceId, vendorId, categoryId, consistent);
 
     this.logger.info({
       event: 'getserviceid_success',
       serviceId,
     });
 
-    return mapServiceEntityToResponse(entity);
+    return mapServiceEntityToResponse(
+      entity,
+      undefined,
+      await this.communityViews(serviceId, consistent),
+    );
   }
 
   async putserviceid(request: LambdaRequest) {
@@ -336,6 +379,9 @@ export class ServicesService {
         resolveVehiclePricing(existing).map((entry) => entry.vehicleType),
         await this.discoveryPlan(updated),
       );
+      if (existing.active !== updated.active && this.communities) {
+        await this.communities.syncServiceActive(updated);
+      }
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         this.logger.warn({
@@ -360,7 +406,11 @@ export class ServicesService {
       serviceId,
     });
 
-    return mapServiceEntityToResponse(updated);
+    return mapServiceEntityToResponse(
+      updated,
+      undefined,
+      await this.communityViews(serviceId),
+    );
   }
 
   async deleteserviceid(request: LambdaRequest) {
@@ -393,7 +443,14 @@ export class ServicesService {
 
     try {
       const plan = await this.discoveryPlan(existing);
-      await this.repository.deleteService(existing, discoveryKeys(plan));
+      const mappings = this.communities
+        ? await this.communities.listViews(serviceId, true)
+        : [];
+      const mappingKeys = mappings.map((mapping) => ({
+        PK: `SERVICE#${serviceId}`,
+        SK: `COMMUNITY#${mapping.communityId}`,
+      }));
+      await this.repository.deleteService(existing, discoveryKeys(plan), mappingKeys);
     } catch (err) {
       if (err instanceof ConditionalWriteConflictError) {
         this.logger.warn({
@@ -421,14 +478,82 @@ export class ServicesService {
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
+  private async createServiceWithCommunities(
+    entity: ServiceEntity,
+    communityIds: readonly string[],
+    idempotencyKey: string | undefined,
+  ): Promise<ServiceEntity> {
+    const communities = this.requireCommunities();
+    const prepared = await communities.prepareCreate({ service: entity, communityIds, idempotencyKey });
+    if (prepared.replay) {
+      return this.loadReplay(prepared.replay.categoryId, prepared.replay.serviceId);
+    }
+    try {
+      await communities.commitCreate(prepared.puts);
+    } catch (error) {
+      if (error instanceof ConditionalWriteConflictError) {
+        const replay = await communities.replayAfterConflict(entity.vendorId, idempotencyKey);
+        if (replay) {
+          return this.loadReplay(replay.categoryId, replay.serviceId);
+        }
+      }
+      throw error;
+    }
+    try {
+      await this.repository.replaceDiscovery(await this.discoveryPlan(entity));
+    } catch (error) {
+      this.logger.warn({
+        event: 'postservices_discovery_followup_failed',
+        serviceId: entity.serviceId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return entity;
+  }
+
+  private async loadReplay(categoryId: string, serviceId: string): Promise<ServiceEntity> {
+    const existing = await this.repository.findById(categoryId, serviceId, true);
+    if (!existing) {
+      throw new ConflictError('Idempotency key is already in use');
+    }
+    return existing;
+  }
+
+  private requireCommunities(): OfferingCommunitiesService {
+    if (!this.communities) {
+      throw new BaseError(
+        'Community offerings are not configured',
+        503,
+        'COMMUNITY_OFFERING_UNAVAILABLE',
+      );
+    }
+    return this.communities;
+  }
+
+  private async communityViews(
+    serviceId: string,
+    consistent = false,
+  ): Promise<OfferingCommunityView[]> {
+    if (!this.communities) {
+      return [];
+    }
+    return this.communities.listViews(serviceId, consistent);
+  }
+
+  private consistentRead(request: LambdaRequest): boolean {
+    const value = request.params?.consistent ?? request.query?.consistent;
+    return value === true || value === 'true';
+  }
+
   private async loadOwnedService(
     serviceId: string,
     vendorId: string,
     categoryId?: string,
+    consistent = false,
   ): Promise<ServiceEntity> {
     const entity = categoryId
-      ? await this.repository.findById(categoryId, serviceId)
-      : await this.repository.findByServiceId(serviceId);
+      ? await this.repository.findById(categoryId, serviceId, consistent)
+      : await this.repository.findByServiceId(serviceId, consistent);
     if (!entity) {
       throw new NotFoundError(`Service not found: ${serviceId}`);
     }
@@ -682,7 +807,11 @@ function discoveryKeys(plan: DiscoveryWritePlan): Array<{ PK: string; SK: string
     });
 }
 
-function mapServiceEntityToResponse(entity: ServiceEntity, vehicleType?: string) {
+function mapServiceEntityToResponse(
+    entity: ServiceEntity,
+    vehicleType?: string,
+    communities: OfferingCommunityView[] = [],
+) {
     const vehiclePricing = projectVehiclePricing(entity, vehicleType);
     const prices = vehiclePricing.map((entry) => entry.price);
     const durations = vehiclePricing.map((entry) => entry.durationMinutes);
@@ -705,6 +834,7 @@ function mapServiceEntityToResponse(entity: ServiceEntity, vehicleType?: string)
         displayOrder: entity.displayOrder,
         active: entity.active,
         ...(entity.version !== undefined ? { version: entity.version } : {}),
+        communities,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
     };
@@ -831,7 +961,12 @@ export function getServicesService() {
     if (!service) {
 
         service =
-            new ServicesService();
+            new ServicesService(
+              getServicesRepository(),
+              getCategoriesRepository(),
+              getDiscoveryFactsSource(),
+              getOfferingCommunitiesService(),
+            );
 
     }
 

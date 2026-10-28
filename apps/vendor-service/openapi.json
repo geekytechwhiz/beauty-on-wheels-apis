@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "CreateVendorRequest": {
@@ -525,105 +525,119 @@
       "UpdateOnboardingRequest": {
         "type": "object",
         "properties": {
-          "section": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Revision returned by the previous onboarding read or update."
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "BUSINESS_INFO": {
+                "type": "object",
+                "properties": {
+                  "businessType": {
+                    "type": "string",
+                    "enum": [
+                      "INDIVIDUAL",
+                      "BUSINESS"
+                    ]
+                  },
+                  "businessName": {
+                    "type": "string"
+                  },
+                  "contactName": {
+                    "type": "string"
+                  },
+                  "phoneNumber": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gstNumber": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "panNumber": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "profileImageUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "nullable": true
+                  }
+                }
+              },
+              "COMMUNITIES": {
+                "type": "object",
+                "properties": {
+                  "communityIds": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 25,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "communityIds"
+                ]
+              },
+              "BANK_DETAILS": {
+                "type": "object",
+                "properties": {
+                  "accountHolderName": {
+                    "type": "string"
+                  },
+                  "accountNumber": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "ifscCode": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bankName": {
+                    "type": "string"
+                  },
+                  "branchName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "accountType": {
+                    "type": "string",
+                    "enum": [
+                      "SAVINGS",
+                      "CURRENT"
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "minProperties": 1
+          },
+          "lastVisitedStep": {
             "type": "string",
             "enum": [
               "BUSINESS_INFO",
-              "OWNER_DETAILS",
-              "ADDRESS",
-              "BRANCH",
+              "COMMUNITIES",
               "DOCUMENTS",
               "BANK_DETAILS"
             ]
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "businessType": {
-                "type": "string",
-                "enum": [
-                  "INDIVIDUAL",
-                  "BUSINESS"
-                ]
-              },
-              "businessName": {
-                "type": "string"
-              },
-              "contactName": {
-                "type": "string"
-              },
-              "phoneNumber": {
-                "type": "string"
-              },
-              "email": {
-                "type": "string"
-              },
-              "fullName": {
-                "type": "string"
-              },
-              "designation": {
-                "type": "string"
-              },
-              "addressLine1": {
-                "type": "string"
-              },
-              "city": {
-                "type": "string"
-              },
-              "state": {
-                "type": "string"
-              },
-              "country": {
-                "type": "string"
-              },
-              "postalCode": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "documentType": {
-                "type": "string",
-                "enum": [
-                  "GST_REGISTRATION",
-                  "BUSINESS_REGISTRATION",
-                  "COMMERCIAL_INSURANCE"
-                ]
-              },
-              "fileName": {
-                "type": "string"
-              },
-              "contentType": {
-                "type": "string"
-              },
-              "fileSize": {
-                "type": "integer"
-              },
-              "accountHolderName": {
-                "type": "string"
-              },
-              "accountNumber": {
-                "type": "string"
-              },
-              "ifscCode": {
-                "type": "string"
-              },
-              "bankName": {
-                "type": "string"
-              },
-              "accountType": {
-                "type": "string",
-                "enum": [
-                  "SAVINGS",
-                  "CURRENT"
-                ]
-              }
-            }
           }
         },
         "required": [
-          "section",
-          "data"
+          "revision",
+          "sections"
         ]
       },
       "OnboardingResponse": {
@@ -637,17 +651,17 @@
             "enum": [
               "DRAFT",
               "IN_PROGRESS",
-              "COMPLETED",
-              "PENDING_REVIEW"
+              "AWAITING_EMAIL_VERIFICATION",
+              "PENDING_REVIEW",
+              "CHANGES_REQUESTED",
+              "COMPLETED"
             ]
           },
           "currentSection": {
             "type": "string",
             "enum": [
               "BUSINESS_INFO",
-              "OWNER_DETAILS",
-              "ADDRESS",
-              "BRANCH",
+              "COMMUNITIES",
               "DOCUMENTS",
               "BANK_DETAILS"
             ]
@@ -658,9 +672,7 @@
               "type": "string",
               "enum": [
                 "BUSINESS_INFO",
-                "OWNER_DETAILS",
-                "ADDRESS",
-                "BRANCH",
+                "COMMUNITIES",
                 "DOCUMENTS",
                 "BANK_DETAILS"
               ]
@@ -669,11 +681,92 @@
           "applicationId": {
             "type": "string"
           },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastVisitedStep": {
+            "type": "string",
+            "enum": [
+              "BUSINESS_INFO",
+              "COMMUNITIES",
+              "DOCUMENTS",
+              "BANK_DETAILS"
+            ]
+          },
+          "requiredSections": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "BUSINESS_INFO",
+                "COMMUNITIES",
+                "DOCUMENTS",
+                "BANK_DETAILS"
+              ]
+            }
+          },
+          "incompleteSections": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "BUSINESS_INFO",
+                "COMMUNITIES",
+                "DOCUMENTS",
+                "BANK_DETAILS"
+              ]
+            }
+          },
+          "recommendedNextStep": {
+            "type": "string",
+            "enum": [
+              "BUSINESS_INFO",
+              "COMMUNITIES",
+              "DOCUMENTS",
+              "BANK_DETAILS"
+            ]
+          },
           "sections": {
             "type": "object",
-            "properties": {}
+            "properties": {
+              "BUSINESS_INFO": {
+                "type": "object"
+              },
+              "COMMUNITIES": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "communityId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "communityId"
+                  ]
+                }
+              },
+              "DOCUMENTS": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "BANK_DETAILS": {
+                "type": "object"
+              }
+            }
           }
-        }
+        },
+        "required": [
+          "vendorId",
+          "status",
+          "currentSection",
+          "completedSections",
+          "revision",
+          "sections"
+        ]
       },
       "VendorStatusHistoryList": {
         "type": "object",
@@ -1843,6 +1936,7 @@
             "enum": [
               "GST_REGISTRATION",
               "BUSINESS_REGISTRATION",
+              "OWNER_IDENTITY",
               "COMMERCIAL_INSURANCE"
             ]
           },
@@ -1890,6 +1984,7 @@
             "enum": [
               "GST_REGISTRATION",
               "BUSINESS_REGISTRATION",
+              "OWNER_IDENTITY",
               "COMMERCIAL_INSURANCE"
             ]
           },
@@ -2096,7 +2191,7 @@
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
-        "example": "https://developer.mozilla.org"
+        "example": "http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:19006,http://localhost:8080"
       },
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
@@ -2509,9 +2604,9 @@
           }
         }
       },
-      "put": {
-        "summary": "Save an onboarding section",
-        "description": "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.",
+      "patch": {
+        "summary": "Patch vendor onboarding",
+        "description": "Atomically saves one or more onboarding sections using the revision returned by the previous read or update. Omitted fields are preserved.",
         "operationId": "updatevendoronboarding",
         "parameters": [
           {
@@ -2529,7 +2624,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Progressively creates or updates one onboarding section. OWNER_DETAILS stores the vendor profile ownerUserId. A userId in the section body is ignored. Vendors may be onboarded by the vendor owner or by platform admin staff.",
+          "description": "Atomically saves one or more onboarding sections using the revision returned by the previous read or update. Omitted fields are preserved.",
           "content": {
             "application/json": {
               "schema": {
@@ -2540,7 +2635,7 @@
         },
         "responses": {
           "200": {
-            "description": "Onboarding section saved",
+            "description": "Onboarding updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -2564,7 +2659,7 @@
             }
           },
           "400": {
-            "description": "Invalid section or section payload",
+            "description": "Invalid onboarding update payload",
             "content": {
               "application/json": {
                 "schema": {
@@ -2588,7 +2683,7 @@
             }
           },
           "401": {
-            "description": "Save an onboarding section",
+            "description": "Patch vendor onboarding",
             "content": {
               "application/json": {
                 "schema": {
@@ -2612,7 +2707,7 @@
             }
           },
           "403": {
-            "description": "Save an onboarding section",
+            "description": "Patch vendor onboarding",
             "content": {
               "application/json": {
                 "schema": {
@@ -2636,87 +2731,7 @@
             }
           },
           "404": {
-            "description": "Save an onboarding section",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
-                }
-              },
-              "Access-Control-Allow-Credentials": {
-                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "summary": "Save an onboarding section",
-        "description": "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.",
-        "operationId": "updatevendoronboarding-229b1130-7eab-4c47-8c6c-6d27fcfcdca0",
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "description": "vendorId",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/vendorId"
-            }
-          }
-        ],
-        "tags": [
-          "Onboarding"
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "Progressively creates or updates one onboarding section. Same contract as PUT /vendors/{vendorId}/onboarding.",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateOnboardingRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Onboarding section saved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OnboardingResponse"
-                }
-              }
-            },
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
-                }
-              },
-              "Access-Control-Allow-Credentials": {
-                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid section or section payload",
+            "description": "Patch vendor onboarding",
             "content": {
               "application/json": {
                 "schema": {
@@ -2739,56 +2754,8 @@
               }
             }
           },
-          "401": {
-            "description": "Save an onboarding section",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
-                }
-              },
-              "Access-Control-Allow-Credentials": {
-                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Save an onboarding section",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
-                }
-              },
-              "Access-Control-Allow-Credentials": {
-                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
-                "schema": {
-                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Save an onboarding section",
+          "409": {
+            "description": "Onboarding has changed or is not editable",
             "content": {
               "application/json": {
                 "schema": {
@@ -3830,7 +3797,7 @@
     "/vendors/{vendorId}/submit-review": {
       "post": {
         "summary": "Submit vendor for review",
-        "description": "Submits a complete onboarding application for review. All required documents (GST_REGISTRATION, BUSINESS_REGISTRATION, COMMERCIAL_INSURANCE) must be present with status UPLOADED. A missing document or a document still in PENDING_UPLOAD is rejected. Repeating submit after PENDING_REVIEW is idempotent.",
+        "description": "Submits a complete onboarding application for review. BUSINESS_REGISTRATION and OWNER_IDENTITY must be uploaded. If the business email is unverified, the response status becomes AWAITING_EMAIL_VERIFICATION and a verification email is queued.",
         "operationId": "submitvendorforreview",
         "parameters": [
           {
@@ -6460,7 +6427,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-7d458229-f54b-46c5-8647-a3e8d543a13c",
+        "operationId": "updatevendorstaff-68c4653f-db5d-4957-9af6-4ed2d1a80fd3",
         "parameters": [
           {
             "name": "vendorId",
@@ -8517,7 +8484,7 @@
     "/vendors/{vendorId}/documents/upload-url": {
       "post": {
         "summary": "Issue a presigned document upload URL",
-        "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
+        "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
         "operationId": "createvendordocumentuploadurl",
         "parameters": [
           {
@@ -8535,7 +8502,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
+          "description": "Authenticates the caller, checks vendor ownership, and validates documentType, fileName, contentType, and fileSize. The server generates documentId and the S3 object key. The response contains a short-lived presigned PUT URL. The object is not marked UPLOADED until POST /documents/{documentId}/complete verifies it. Supported document types are GST_REGISTRATION, BUSINESS_REGISTRATION, OWNER_IDENTITY, and COMMERCIAL_INSURANCE. Supported content types are application/pdf, image/jpeg, and image/png. The default maximum file size is 10485760 bytes and the default URL expiry is 900 seconds. Clients must not send an S3 object key.",
           "content": {
             "application/json": {
               "schema": {

@@ -383,7 +383,7 @@
     },
     "/vendors/{vendorId}/availability": {
       "get": {
-        "summary": "List bookable availability",
+        "summary": "List bookable availability for a vendor",
         "description": "",
         "tags": [
           "Availability"
@@ -405,7 +405,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Bookable slots",
+            "description": "Bookable visit occurrences or slots",
             "schema": {
               "$ref": "#/definitions/SlotPage"
             }
@@ -413,9 +413,64 @@
         }
       }
     },
+    "/communities/{communityId}/availability": {
+      "get": {
+        "summary": "List bookable community visit occurrences",
+        "description": "",
+        "tags": [
+          "Availability"
+        ],
+        "operationId": "listCommunityAvailability.get./communities/{communityId}/availability",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visit-projections/reconcile": {
+      "post": {
+        "summary": "Reconcile service visit projections",
+        "description": "",
+        "operationId": "reconcileServiceVisits.post./vendors/{vendorId}/service-visit-projections/reconcile",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/working-hours": {
       "get": {
-        "summary": "Get working hours",
+        "summary": "Get working hours (deprecated)",
         "description": "",
         "tags": [
           "Availability"
@@ -480,6 +535,312 @@
             "schema": {
               "$ref": "#/definitions/WorkingHours"
             }
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visit-schedules": {
+      "get": {
+        "summary": "listCommunityVisitSchedules",
+        "description": "",
+        "operationId": "listCommunityVisitSchedules.get./vendors/{vendorId}/community-visit-schedules",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      },
+      "put": {
+        "summary": "publishCommunityVisitSchedule",
+        "description": "",
+        "operationId": "publishCommunityVisitSchedule.put./vendors/{vendorId}/community-visit-schedules",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits": {
+      "get": {
+        "summary": "listCommunityVisits",
+        "description": "",
+        "operationId": "listCommunityVisits.get./vendors/{vendorId}/community-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}": {
+      "patch": {
+        "summary": "updateCommunityVisitCapacity",
+        "description": "",
+        "operationId": "updateCommunityVisitCapacity.patch./vendors/{vendorId}/community-visits/{visitId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}/cancel": {
+      "post": {
+        "summary": "cancelCommunityVisit",
+        "description": "",
+        "operationId": "cancelCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/cancel",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}/unblock": {
+      "post": {
+        "summary": "unblockCommunityVisit",
+        "description": "",
+        "operationId": "unblockCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/unblock",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate": {
+      "post": {
+        "summary": "deactivateCommunityVisitSchedule",
+        "description": "",
+        "operationId": "deactivateCommunityVisitSchedule.post./vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}/bookings": {
+      "get": {
+        "summary": "listCommunityVisitBookings",
+        "description": "",
+        "operationId": "listCommunityVisitBookings.get./vendors/{vendorId}/community-visits/{visitId}/bookings",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}/reservations": {
+      "post": {
+        "summary": "reserveCommunityVisit",
+        "description": "",
+        "operationId": "reserveCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/reservations",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}": {
+      "delete": {
+        "summary": "releaseCommunityVisit",
+        "description": "",
+        "operationId": "releaseCommunityVisit.delete./vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
           }
         }
       }

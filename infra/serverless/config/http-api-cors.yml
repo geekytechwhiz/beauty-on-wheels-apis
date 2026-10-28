@@ -1,12 +1,32 @@
-origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
-headers:
+# API Gateway HTTP API (payload v2) CORS. HTTP API adds these headers itself,
+# including unauthenticated OPTIONS. Lambda responses for payload v2 omit CORS
+# headers so the two layers do not emit duplicates.
+# Keep allowedOrigins aligned with cors-allowed-origins.yml.
+allowedOrigins:
+  - http://localhost:8081
+  - http://127.0.0.1:8081
+  - http://localhost:3000
+  - http://localhost:19006
+  - http://localhost:8080
+allowedHeaders:
   - Content-Type
-  - X-Amz-Date
   - Authorization
+  - Idempotency-Key
+  - X-Requested-With
+  - X-Amz-Date
   - X-Api-Key
+  - X-Amz-Security-Token
+  - X-Amz-User-Agent
+  - X-Amzn-Trace-Id
   - X-Correlation-Id
   - X-Request-Id
-  - X-Requested-With
-  - Sec-Ch-Ua
-  - Sec-Ch-Ua-Mobile
-  - Sec-Ch-Ua-Platform
+allowedMethods:
+  - DELETE
+  - GET
+  - HEAD
+  - OPTIONS
+  - PATCH
+  - POST
+  - PUT
+allowCredentials: true
+maxAge: 600

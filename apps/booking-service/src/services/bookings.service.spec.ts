@@ -34,6 +34,7 @@ describe('BookingsService Unit Tests', () => {
 
         availability = {
             reserveBooking: jest.fn(),
+            consumeHold: jest.fn(),
             releaseAllocation: jest.fn().mockResolvedValue(undefined),
         };
         service = new BookingsService(mockRepo, undefined, undefined, undefined, availability);

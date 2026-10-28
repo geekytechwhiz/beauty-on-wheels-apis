@@ -28,6 +28,26 @@ export const CatalogKeyBuilder = {
 
     serviceLookupSk: () => `META`,
 
+    /** One OfferingCommunity row under the service lookup partition. */
+    offeringCommunitySk: (communityId: string) => `COMMUNITY#${communityId}`,
+
+    offeringCommunityPrefix: () => `COMMUNITY#`,
+
+    /**
+     * Sparse GSI3. Present only while the service is active, the mapping is
+     * operationally active, and approvalStatus is approved.
+     * GSI1 stays name uniqueness. GSI2 stays the vendor catalog and branch discovery.
+     */
+    communityGsi3Pk: (communityId: string) => `COMMUNITY#${communityId}`,
+
+    communityGsi3Sk: (categoryId: string, serviceId: string) =>
+        `SERVICE#${categoryId}#${serviceId}`,
+
+    communityGsi3CategoryPrefix: (categoryId: string) => `SERVICE#${categoryId}#`,
+
+    /** Idempotency pointer for service create. Not a catalog row and not on GSI2. */
+    serviceIdempotencySk: (idempotencyKey: string) => `IDEMPOTENCY#SERVICE#${idempotencyKey}`,
+
     /**
      * One applicability row per vehicle type under the category partition.
      * A single service item cannot be indexed under every type on LSI4.

@@ -36,6 +36,8 @@ export const ENTITY_TYPE = {
   OPERATIONAL_PREFERENCES: 'OperationalPreferences',
   COMMUNITY: 'Community',
   COMMUNITY_MEMBERSHIP: 'CommunityMembership',
+  SUPPORT_TICKET: 'SupportTicket',
+  SUPPORT_TICKET_IDEMPOTENCY: 'SupportTicketIdempotency',
 } as const;
 
 export type EntityType = (typeof ENTITY_TYPE)[keyof typeof ENTITY_TYPE];

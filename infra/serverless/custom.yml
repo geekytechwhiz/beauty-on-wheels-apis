@@ -5,19 +5,9 @@
 # Use YAML: authorizer: ${self:custom.securedAuthorizer}
 # See infra/serverless/config/http-event-secured.yml for the documented shape.
 # Shared authorizer fragment: infra/serverless/config/http-api-authorizer.yml
-httpApiCors:
-  origin: ${self:custom.bundle.corsOrigin.${self:provider.stage}, '*'}
-  headers:
-    - Content-Type
-    - X-Amz-Date
-    - Authorization
-    - X-Api-Key
-    - X-Correlation-Id
-    - X-Request-Id
-    - X-Requested-With
-    - Sec-Ch-Ua
-    - Sec-Ch-Ua-Mobile
-    - Sec-Ch-Ua-Platform
+# Paths are relative to apps/<service>/serverless.yml, which is where this fragment is included.
+httpApiCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
 
 httpApiAuthorizer:
   name: platformAuthorizer

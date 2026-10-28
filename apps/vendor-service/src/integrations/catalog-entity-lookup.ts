@@ -36,10 +36,10 @@ export class CatalogUnavailableError extends Error {
 }
 
 function catalogBaseUrl(): string {
-  const base = env.CATALOG_SERVICE_URL?.trim().replace(/\/$/, '');
+  const base = env.CATALOG_BASE_URL?.trim().replace(/\/$/, '');
   if (!base) {
     throw new CatalogUnavailableError(
-      'CATALOG_SERVICE_URL is not configured; catalog mappings cannot be validated',
+      'CATALOG_BASE_URL is not configured; catalog mappings cannot be validated',
     );
   }
   return base;

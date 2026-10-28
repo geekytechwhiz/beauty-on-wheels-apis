@@ -1,12 +1,12 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
 import { Meta, ResponseOptions, ApiResponseBody, Message, ErrorBody } from '../types/core-types';
+import { buildCorsHeaders } from './cors.helpers';
 
-function corsHeaders() {
+function responseHeaders(options?: ResponseOptions): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'Content-Type,Authorization,X-Correlation-Id,X-Requested-With',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
+    'Content-Type': 'application/json',
+    ...buildCorsHeaders(options?.event),
+    ...(options?.headers ?? {}),
   };
 }
 
@@ -25,16 +25,12 @@ function buildMeta(options: ResponseOptions): Meta {
 function createResponse<T>(
   statusCode: number,
   body: ApiResponseBody<T>,
-  headers?: Record<string, string>,
+  options?: ResponseOptions,
 ): APIGatewayProxyResult {
 
   return {
     statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders(),
-      ...(headers ?? {}),
-    },
+    headers: responseHeaders(options),
     body: JSON.stringify(body),
   };
 }
@@ -75,7 +71,7 @@ export class ApiResponse {
       body.fhirValidation = options.fhirValidation;
     }
 
-    return createResponse(200, body, options.headers);
+    return createResponse(200, body, options);
   }
 
   static created<T>(
@@ -94,7 +90,7 @@ export class ApiResponse {
         error: null,
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -114,7 +110,7 @@ export class ApiResponse {
         error: error ?? { code: 'BAD_REQUEST' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -134,7 +130,7 @@ export class ApiResponse {
         error: error ?? { code: 'UNAUTHORIZED' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -154,7 +150,7 @@ export class ApiResponse {
         error: error ?? { code: 'FORBIDDEN' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -174,7 +170,7 @@ export class ApiResponse {
         error: error ?? { code: 'NOT_FOUND' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -194,7 +190,7 @@ export class ApiResponse {
         error: error ?? { code: 'CONFLICT' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -214,7 +210,7 @@ export class ApiResponse {
         error: null,
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -233,7 +229,7 @@ export class ApiResponse {
         error: error ?? { code: 'UNPROCESSABLE_ENTITY' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -253,7 +249,7 @@ export class ApiResponse {
         error: error ?? { code: 'INTERNAL_ERROR' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 
@@ -274,7 +270,7 @@ export class ApiResponse {
         error: error ?? { code: 'ERROR' },
         meta: buildMeta(options),
       },
-      options.headers
+      options
     );
   }
 }

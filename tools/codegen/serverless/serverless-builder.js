@@ -138,7 +138,7 @@ class ServerlessBuilder {
 
           authorizer: this.requiresAuthorizer(operation),
 
-          cors: true,
+          cors: '${self:custom.httpCors}',
 
           summary: operation.summary,
 
@@ -175,6 +175,8 @@ class ServerlessBuilder {
   buildEnvironment() {
     return {
       SERVICE_NAME: `${this.metadata.service}-service`,
+
+      CORS_ALLOWED_ORIGINS: '${self:custom.corsAllowedOrigins}',
 
       LOG_LEVEL: '${ssm:/common/log-level}',
 

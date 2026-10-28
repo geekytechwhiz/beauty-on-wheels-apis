@@ -28,14 +28,14 @@ export function maskAccountNumber(accountNumber: string): {
 
 export class BankDetailsMapper {
   static toDomain(item: VendorBankDdbItem): BankDetails {
-    const masked = maskAccountNumber(item.accountNumber);
+    const masked = maskAccountNumber(item.accountNumber ?? '');
     return {
       vendorId: item.vendorId,
-      accountHolderName: item.accountHolderName,
+      accountHolderName: item.accountHolderName ?? '',
       accountNumberLast4: masked.accountNumberLast4,
       accountNumberMasked: masked.accountNumberMasked,
-      ifscCode: item.ifscCode,
-      bankName: item.bankName,
+      ifscCode: item.ifscCode ?? '',
+      bankName: item.bankName ?? '',
       branchName: item.branchName,
       accountType: item.accountType,
       createdAt: item.createdAt,

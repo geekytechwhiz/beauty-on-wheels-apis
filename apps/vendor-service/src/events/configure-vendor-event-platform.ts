@@ -17,6 +17,9 @@ import {
   VENDOR_ONBOARDING_EVENT_VERSION,
   VENDOR_REJECTED_EVENT_TYPE,
   VENDOR_SUSPENDED_EVENT_TYPE,
+  BookingReadinessFactUpdatedEvent,
+  BOOKING_READINESS_FACT_EVENT_TYPE,
+  BOOKING_READINESS_FACT_EVENT_VERSION,
 } from '@api-hub/event-platform';
 
 import { env } from '../configs/env.config';
@@ -59,6 +62,9 @@ export function ensureVendorEventPlatform(): void {
       },
       [VENDOR_SUSPENDED_EVENT_TYPE]: {
         [VENDOR_LIFECYCLE_EVENT_VERSION]: VendorSuspendedEvent,
+      },
+      [BOOKING_READINESS_FACT_EVENT_TYPE]: {
+        [BOOKING_READINESS_FACT_EVENT_VERSION]: BookingReadinessFactUpdatedEvent,
       },
     },
   });

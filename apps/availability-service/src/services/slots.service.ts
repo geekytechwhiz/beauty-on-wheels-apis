@@ -29,6 +29,7 @@ import {
   getHolidaysRepository,
 } from '../repositories/holidays.repository';
 import { getSlotsRepository, SlotsRepository } from '../repositories/slots.repository';
+import { VisitSlotsService } from './visit-slots.service';
 import { SlotItem, SlotLookupItem, SlotView, WorkingHoursItem } from '../types/records';
 import {
   decodeCursor,
@@ -64,14 +65,46 @@ export class SlotsService {
     private readonly schedules: AvailabilityRepository = getAvailabilityRepository(),
     private readonly holidays: HolidaysRepository = getHolidaysRepository(),
     private readonly now: () => Date = () => new Date(),
+    private readonly visitSlots: VisitSlotsService | null = null,
   ) {}
 
   async getslots(request: LambdaRequest): Promise<{
-    items: SlotView[];
+    items: Array<SlotView | {
+      slotId: string;
+      visitId: string;
+      windowId: string;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      available: number;
+      status: string;
+    }>;
     nextCursor?: string;
+    slots?: unknown[];
+    vendorId?: string;
+    communityId?: string;
+    serviceAreaId?: string;
+    serviceId?: string;
+    date?: string;
+    timezone?: string;
   }> {
     getAuthenticatedUserId(request);
     const vendorId = pathParam(request, 'vendorId');
+    const communityId = queryValue(request, 'communityId');
+    const serviceAreaId = queryValue(request, 'serviceAreaId');
+    if ((communityId || serviceAreaId) && queryValue(request, 'serviceId') && queryValue(request, 'date')) {
+      if (!this.visitSlots) {
+        throw new ValidationError('Service visit availability is not configured');
+      }
+      return this.visitSlots.list({
+        vendorId,
+        communityId,
+        serviceAreaId,
+        serviceId: queryValue(request, 'serviceId') as string,
+        date: queryValue(request, 'date') as string,
+        branchId: queryValue(request, 'branchId'),
+      });
+    }
     const branchId = requiredBranch(request);
     const range = parseDateRange(request);
     const schedule = await this.schedules.getWorkingHours(vendorId, branchId);
@@ -550,7 +583,13 @@ let service: SlotsService;
 
 export function getSlotsService(): SlotsService {
   if (!service) {
-    service = new SlotsService();
+    service = new SlotsService(
+      getSlotsRepository(),
+      getAvailabilityRepository(),
+      getHolidaysRepository(),
+      () => new Date(),
+      new VisitSlotsService(),
+    );
   }
   return service;
 }

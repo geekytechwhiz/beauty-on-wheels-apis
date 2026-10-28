@@ -15,6 +15,7 @@ tags:
   - name: Admins
   - name: Addresses
   - name: Preferences
+  - name: Support Tickets
   - name: KYC
 
 components:
@@ -84,6 +85,61 @@ components:
         smsNotifications: {type: boolean}
         language: {type: string}
         timezone: {type: string}
+
+    SupportTicketCreate:
+      type: object
+      additionalProperties: false
+      required: [category, message]
+      properties:
+        category: { type: string, enum: [BOOKING, PAYMENT, ACCOUNT] }
+        bookingId:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$'
+          description: Optional booking the ticket refers to. Not verified against booking-service.
+        message: { type: string, minLength: 1, maxLength: 4000, description: Trimmed before validation }
+      example:
+        category: BOOKING
+        bookingId: booking_123
+        message: Provider did not arrive
+
+    SupportTicket:
+      type: object
+      required: [ticketId, userId, status, category, message, submittedAt]
+      properties:
+        ticketId: { type: string, format: uuid }
+        userId: { type: string, description: Authenticated user; must equal the path userId }
+        status: { type: string, enum: [OPEN] }
+        category: { type: string, enum: [BOOKING, PAYMENT, ACCOUNT] }
+        message: { type: string }
+        bookingId: { type: string }
+        submittedAt: { type: string, format: date-time }
+      example:
+        ticketId: 5b6c0f0e-6a1d-4c8e-9f7a-2c1d3e4f5a6b
+        userId: user_1
+        status: OPEN
+        category: BOOKING
+        message: Provider did not arrive
+        bookingId: booking_123
+        submittedAt: "2026-10-28T10:00:00.000Z"
+
+    SupportTicketList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportTicket'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            statusCode: { type: integer }
 
 paths:
 
@@ -344,3 +400,108 @@ paths:
               $ref: '#/components/schemas/Preference'
       responses:
         "200": {description: Updated}
+
+  /users/{userId}/support-tickets:
+    post:
+      tags: [Support Tickets]
+      security: [{bearerAuth: []}]
+      summary: Submit a support ticket
+      description: |
+        Path userId must equal the authenticated user. Requires Idempotency-Key; a retry with the same key and
+        payload returns the original ticket, the same key with a different payload returns 409 IDEMPOTENCY_CONFLICT.
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportTicketCreate'
+      responses:
+        "201":
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportTicket'
+        "400":
+          description: Invalid request or missing Idempotency-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Path userId does not match the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Idempotency-Key reused with a different payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Support Tickets]
+      security: [{bearerAuth: []}]
+      summary: List my support tickets (newest first)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Tickets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportTicketList'
+        "403":
+          description: Path userId does not match the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{userId}/support-tickets/{ticketId}:
+    get:
+      tags: [Support Tickets]
+      security: [{bearerAuth: []}]
+      summary: Get a support ticket
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: ticketId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportTicket'
+        "403":
+          description: Path userId does not match the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

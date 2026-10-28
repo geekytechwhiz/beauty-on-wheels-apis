@@ -1,6 +1,8 @@
+/* eslint-disable mvrx/no-controller-business-logic */
 import { BaseError } from '@api-hub/utils';
 
 import { getCheckoutEligibilityService } from '../services/checkout-eligibility.service';
+import { getCommunitiesRepository } from '../repositories/communities.repository';
 import { getDiscoveryFactsService } from '../services/discovery-facts.service';
 import { getPricingConfigurationService } from '../services/pricing-configuration.service';
 
@@ -71,6 +73,40 @@ export const getDiscoveryFacts = async (event: {
     const vendorId = requireId(event?.vendorId, 'vendorId');
     const data = await getDiscoveryFactsService().get(vendorId);
     return { data };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+const DIRECTORY_COMMUNITY_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+/**
+ * Active platform directory ids. Inactive and unknown ids are omitted.
+ * No HTTP route. The caller cannot ask this function to approve an offering.
+ */
+export const lookupActiveCommunities = async (event: {
+  communityIds?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    if (!Array.isArray(event?.communityIds) || event.communityIds.length < 1 || event.communityIds.length > 25) {
+      throw new BaseError('communityIds must contain 1 to 25 ids', 400, 'VALIDATION_ERROR');
+    }
+    const communityIds: string[] = [];
+    for (const value of event.communityIds) {
+      if (typeof value !== 'string' || !DIRECTORY_COMMUNITY_ID.test(value)) {
+        throw new BaseError('Invalid communityId', 400, 'VALIDATION_ERROR');
+      }
+      communityIds.push(value);
+    }
+    const communities = getCommunitiesRepository();
+    const active: string[] = [];
+    for (const communityId of communityIds) {
+      const item = await communities.getActiveCommunity(communityId);
+      if (item) {
+        active.push(communityId);
+      }
+    }
+    return { data: { communityIds: active } };
   } catch (error) {
     return failure(error);
   }

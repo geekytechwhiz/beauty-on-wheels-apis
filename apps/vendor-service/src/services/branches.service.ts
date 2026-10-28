@@ -6,7 +6,6 @@ import {
   NotFoundError,
   isConditionalWriteConflictAtIndex,
 } from '@api-hub/utils';
-import { createLogger, createChildLogger } from '@api-hub/observability';
 
 import {
   BranchesRepository,
@@ -33,16 +32,7 @@ import {
   getVendorId,
 } from '../utils/helpers';
 
-const baseLogger = createLogger({
-  service: 'branches-service',
-  redactPII: true,
-});
-
 export class BranchesService {
-  private readonly logger = createChildLogger(baseLogger, {
-    service: 'BranchesService',
-  });
-
   constructor(
     private readonly repository: BranchesRepository = getBranchesRepository(),
     private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
@@ -69,7 +59,9 @@ export class BranchesService {
     aggregate.profile = vendor;
     const state = computeStateFromAggregate(aggregate);
     const updated = VendorsMapper.applyOnboardingState(vendor, {
-      ...state,
+      onboardingStatus: state.status,
+      currentSection: state.currentSection,
+      completedSections: state.completedSections,
       primaryBranchId: vendor.primaryBranchId,
       addressCity: aggregate.address?.city,
       addressPostalCode: aggregate.address?.postalCode,

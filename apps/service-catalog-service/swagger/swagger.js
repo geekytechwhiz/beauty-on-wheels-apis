@@ -879,6 +879,377 @@
             "name": "17",
             "type": "string",
             "required": false
+          },
+          {
+            "in": "query",
+            "name": "18",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/services/{serviceId}/communities": {
+      "post": {
+        "summary": "Add communities to a service",
+        "description": "",
+        "operationId": "postServiceCommunities.post./services/{serviceId}/communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/services/{serviceId}/communities/{communityId}": {
+      "put": {
+        "summary": "Activate or deactivate one community",
+        "description": "",
+        "operationId": "putServiceCommunity.put./services/{serviceId}/communities/{communityId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove one community mapping",
+        "description": "",
+        "operationId": "deleteServiceCommunity.delete./services/{serviceId}/communities/{communityId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/services/{serviceId}/communities/{communityId}/approval": {
+      "put": {
+        "summary": "Approve or reject one community mapping",
+        "description": "",
+        "operationId": "putServiceCommunityApproval.put./services/{serviceId}/communities/{communityId}/approval",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits": {
+      "post": {
+        "summary": "Create a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "postServiceVisits.post./vendors/{vendorId}/service-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ServiceVisitWrite"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "summary": "List service visits",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "getServiceVisits.get./vendors/{vendorId}/service-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}": {
+      "get": {
+        "summary": "Get a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "getServiceVisit.get./vendors/{vendorId}/service-visits/{visitId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "patchServiceVisit.patch./vendors/{vendorId}/service-visits/{visitId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ServiceVisitWrite"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "archiveServiceVisit.delete./vendors/{vendorId}/service-visits/{visitId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}/activate": {
+      "post": {
+        "summary": "Activate a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "activateServiceVisit.post./vendors/{vendorId}/service-visits/{visitId}/activate",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-visits/{visitId}/pause": {
+      "post": {
+        "summary": "Pause a service visit",
+        "description": "",
+        "tags": [
+          "Service visits"
+        ],
+        "operationId": "pauseServiceVisit.post./vendors/{vendorId}/service-visits/{visitId}/pause",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {

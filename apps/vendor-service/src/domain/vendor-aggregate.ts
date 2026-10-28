@@ -8,13 +8,7 @@ import {
   VendorOwnerDdbItem,
 } from '../types/repository.types';
 import { acceptedDocumentTypes } from './document-upload';
-import {
-  computeOnboardingState,
-  isAddressComplete,
-  isBankComplete,
-  isBusinessInfoComplete,
-  isOwnerComplete,
-} from './onboarding';
+import { computeOnboardingState, isBankComplete, isBusinessInfoComplete } from './onboarding';
 
 export interface VendorAggregate {
   profile?: VendorDdbItem;
@@ -66,11 +60,7 @@ export function computeStateFromAggregate(aggregate: VendorAggregate) {
     hasBusinessInfo: Boolean(
       aggregate.profile && isBusinessInfoComplete(aggregate.profile),
     ),
-    hasOwner: Boolean(aggregate.owner && isOwnerComplete(aggregate.owner)),
-    hasAddress: Boolean(
-      aggregate.address && isAddressComplete(aggregate.address),
-    ),
-    hasBranch: aggregate.branches.length > 0,
+    hasCommunities: (aggregate.profile?.communityIds?.length ?? 0) > 0,
     documentTypes: acceptedDocumentTypes(aggregate.documents),
     hasBankDetails: Boolean(aggregate.bank && isBankComplete(aggregate.bank)),
   });

@@ -51,6 +51,7 @@ export interface AddressRecord {
   addressId: string;
   userId: string;
   type: AddressType;
+  communityId: string;
   line1: string;
   line2?: string;
   city: string;
@@ -126,4 +127,33 @@ export interface MembershipReplacement {
   updatedAt: string;
   toPut: CommunityMembershipRecord[];
   toDelete: string[];
+}
+
+export type SupportTicketCategory = 'BOOKING' | 'PAYMENT' | 'ACCOUNT';
+export type SupportTicketStatus = 'OPEN';
+
+/** PK USER#{userId}, SK SUPPORT_TICKET#{ticketId}. */
+export interface SupportTicketRecord {
+  PK: string;
+  SK: string;
+  entityType: EntityType;
+  ticketId: string;
+  userId: string;
+  status: SupportTicketStatus;
+  category: SupportTicketCategory;
+  message: string;
+  bookingId?: string;
+  submittedAt: string;
+  updatedAt: string;
+}
+
+/** PK USER#{userId}, SK SUPPORT_TICKET_IDEMPOTENCY#{key}. Written atomically with the ticket. */
+export interface SupportTicketIdempotencyRecord {
+  PK: string;
+  SK: string;
+  entityType: EntityType;
+  ticketId: string;
+  userId: string;
+  requestHash: string;
+  createdAt: string;
 }

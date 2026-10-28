@@ -54,6 +54,23 @@ describe('vendor discovery stream mapping', () => {
       vendorId: 'vendor-1',
       updatedAt: '2026-02-01T00:00:00.000Z',
     }, undefined)?.subject).toBe('branch');
+    expect(classifyVendorDiscoveryChange('REMOVE', {
+      entityType: 'VendorCommunity',
+      vendorId: 'vendor-1',
+      communityId: 'community-1',
+      updatedAt: '2026-02-06T00:00:00.000Z',
+    }, undefined)).toEqual({
+      vendorId: 'vendor-1',
+      updatedAt: '2026-02-06T00:00:00.000Z',
+      subject: 'community',
+      communityId: 'community-1',
+    });
+    expect(classifyVendorDiscoveryChange('INSERT', undefined, {
+      entityType: 'VendorCommunity',
+      vendorId: 'vendor-1',
+      communityId: 'community-1',
+      updatedAt: '2026-02-07T00:00:00.000Z',
+    })).toBeUndefined();
   });
 
   it('maps a branch insert onto VendorDiscoveryChanged', () => {

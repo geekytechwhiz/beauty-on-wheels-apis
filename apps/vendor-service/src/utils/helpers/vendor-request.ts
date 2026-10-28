@@ -1,4 +1,8 @@
-import { LambdaRequest, UnauthorizedError, ValidationError } from '@api-hub/utils';
+import {
+  LambdaRequest,
+  UnauthorizedError,
+  ValidationError,
+} from '@api-hub/utils';
 
 const DEFAULT_LIST_LIMIT = 20;
 const MIN_LIST_LIMIT = 1;
@@ -70,7 +74,8 @@ export function assignCanonicalUserId(
 
 export function getPathParam(request: LambdaRequest, name: string): string {
   const value =
-    request.pathParameters?.[name] ?? (request.params?.[name] as string | undefined);
+    request.pathParameters?.[name] ??
+    (request.params?.[name] as string | undefined);
 
   if (!value || value.trim().length === 0) {
     throw new ValidationError(`${name} is required`);
@@ -90,7 +95,11 @@ export function parseLimit(raw?: unknown): number {
 
   const limit = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
 
-  if (!Number.isInteger(limit) || limit < MIN_LIST_LIMIT || limit > MAX_LIST_LIMIT) {
+  if (
+    !Number.isInteger(limit) ||
+    limit < MIN_LIST_LIMIT ||
+    limit > MAX_LIST_LIMIT
+  ) {
     throw new ValidationError(
       `limit must be an integer between ${MIN_LIST_LIMIT} and ${MAX_LIST_LIMIT}`,
     );
@@ -99,7 +108,9 @@ export function parseLimit(raw?: unknown): number {
   return limit;
 }
 
-export function decodeCursor(cursor?: unknown): Record<string, unknown> | undefined {
+export function decodeCursor(
+  cursor?: unknown,
+): Record<string, unknown> | undefined {
   if (cursor === undefined || cursor === null || cursor === '') {
     return undefined;
   }
@@ -121,4 +132,13 @@ export function encodeCursor(
   }
 
   return Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64');
+}
+export function normalize(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 }

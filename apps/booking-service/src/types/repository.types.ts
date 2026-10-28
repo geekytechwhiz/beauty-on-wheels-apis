@@ -84,6 +84,8 @@ export interface BookingDdbItem {
   bookingDate: string;
   slotId: string;
   holdId?: string;
+  /** Availability allocation key. Absent means the booking id (original reservation). */
+  allocationId?: string;
   location?: BookingLocationDdb;
   notes?: string;
   pricingSnapshot?: PricingSnapshotDdb;
@@ -121,6 +123,8 @@ export interface BookingLookupDdbItem {
   bookingDate: string;
   slotId: string;
   holdId?: string;
+  /** Availability allocation key. Absent means the booking id (original reservation). */
+  allocationId?: string;
   location?: BookingLocationDdb;
   notes?: string;
   pricingSnapshot?: PricingSnapshotDdb;

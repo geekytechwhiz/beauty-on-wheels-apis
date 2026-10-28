@@ -73,6 +73,25 @@ export const CatalogKeyBuilder = {
     addonLookupSk: () => `META`,
 
     /* --------------------------------
+       OFFERING (unified PACKAGE / future SERVICE)
+    -------------------------------- */
+
+    offeringPk: (offeringId: string) => `OFFERING#${offeringId}`,
+
+    offeringSk: () => `META`,
+
+    offeringLookupPk: (offeringId: string) => `OFFERING#${offeringId}`,
+
+    offeringLookupSk: () => `LOOKUP`,
+
+    /** Idempotency pointer for offering create. */
+    offeringIdempotencySk: (idempotencyKey: string) => `IDEMPOTENCY#OFFERING#${idempotencyKey}`,
+
+    vendorOfferingSk: (offeringId: string) => `OFFERING#${offeringId}`,
+
+    vendorOfferingPrefix: () => `OFFERING#`,
+
+    /* --------------------------------
        PACKAGE
     -------------------------------- */
 

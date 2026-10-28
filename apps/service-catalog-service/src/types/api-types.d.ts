@@ -22,57 +22,91 @@ export type VehicleType =
 
 export interface VehiclePricing {
   vehicleType: VehicleType;
+  /** Integer minor units for managed offerings; major units on legacy discovery rows. */
   price: number;
   durationMinutes: number;
 }
 
+export interface IncludedService {
+  name: string;
+  description?: string;
+  categoryId: string;
+  tags?: string[];
+  visitsPerPeriod: number;
+  durationMinutes: number;
+}
+
+export type OfferingType = 'PACKAGE' | 'SERVICE';
+
+export type OfferingStatus = 'draft' | 'published' | 'paused' | 'archived';
+
+export type BillingPeriod = 'oneTime' | 'weekly' | 'monthly' | 'yearly';
+
+export interface CreateOfferingRequest {
+  offeringType: 'PACKAGE';
+  name: string;
+  description?: string;
+  billingPeriod: BillingPeriod;
+  currency?: string;
+  vehiclePricing: VehiclePricing[];
+  includedServices: IncludedService[];
+  status?: 'draft' | 'published';
+  displayOrder?: number;
+  communityIds?: string[];
+}
+
+export interface PatchOfferingRequest {
+  name?: string;
+  description?: string;
+  billingPeriod?: BillingPeriod;
+  currency?: string;
+  vehiclePricing?: VehiclePricing[];
+  includedServices?: IncludedService[];
+  status?: OfferingStatus;
+  displayOrder?: number;
+  expectedVersion?: number;
+}
+
+export interface Offering {
+  offeringId: string;
+  offeringType: OfferingType;
+  vendorId: string;
+  categoryId: string;
+  name: string;
+  description?: string;
+  billingPeriod: BillingPeriod;
+  currency: string;
+  vehiclePricing: VehiclePricing[];
+  vehicleTypes: VehicleType[];
+  includedServices: IncludedService[];
+  status: OfferingStatus;
+  active: boolean;
+  version: number;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  legacySource?: 'SERVICE' | 'PACKAGE';
+}
+
+export interface OfferingPage {
+  items: Offering[];
+  nextToken?: string;
+  total: number;
+}
+
+/** @deprecated Legacy shape retained for discovery projection helpers. */
 export interface Service {
   id?: string;
   vendorId?: string;
   categoryId?: string;
   name?: string;
   description?: string;
-  /** Authoritative per-vehicle price and duration. */
   vehiclePricing?: VehiclePricing[];
-  /** Shortest duration, or the filtered vehicle's duration. */
   durationMinutes?: number;
-  /** Configured types. A vehicleType list filter narrows this to the match. */
   vehicleTypes?: VehicleType[];
-  /** Lowest price, or the filtered vehicle's price. Not the payable amount. */
   basePrice?: number;
   active?: boolean;
-  /** Catalog input version. Booking uses the pricing offeringVersion. */
   version?: number;
-}
-
-export interface Package {
-  id?: string;
-  name?: string;
-  description?: string;
-  services?: string[];
-  discountedPrice?: number;
-}
-
-export interface AddOn {
-  id?: string;
-  name?: string;
-  price?: number;
-  durationMinutes?: number;
-}
-
-export interface PricingCalculateRequest {
-  vehicleType: VehicleType;
-  vendorId?: string;
-  serviceIds?: string[];
-  packageIds?: string[];
-  addOnIds?: string[];
-  addonIds?: string[];
-  items?: Array<
-    | { type: 'SERVICE'; serviceId: string; categoryId?: string }
-    | { type: 'PACKAGE'; packageId: string }
-  >;
-  /** Ignored. Coupon support is Phase 2. */
-  couponCode?: string;
 }
 
 type DiscoverySortBy =
@@ -117,7 +151,4 @@ interface DiscoveryService {
   distanceKm?: number;
   rating?: number;
   reviewCount?: number;
-   
-
-
 }

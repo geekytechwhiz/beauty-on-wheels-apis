@@ -163,52 +163,117 @@
     },
     "/services": {
       "get": {
+        "tags": [
+          "Services"
+        ],
         "summary": "List services",
-        "description": "",
-        "tags": [
-          "Services"
-        ],
-        "operationId": "getservices.get./services",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK"
+        "security": [
+          {
+            "bearerAuth": []
           }
-        }
-      },
-      "post": {
-        "summary": "Create service",
-        "description": "",
-        "tags": [
-          "Services"
-        ],
-        "operationId": "postservices.post./services",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
         ],
         "parameters": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
+            "name": "vendorId",
+            "in": "query",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/Service"
+              "type": "string"
+            },
+            "description": "Vendor that owns the services. The list queries that vendor partition."
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vehicleType",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/VehicleType"
+            },
+            "description": "Offerings with a price for this vehicle. The list vehiclePricing array contains only that entry."
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true or false. Omit to return both."
+          },
+          {
+            "name": "durationMinutes",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Match a configured duration. With vehicleType, matches that vehicle's duration."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
         "responses": {
-          "201": {
+          "200": {
+            "description": "Services"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Create service",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Catalog administrator only. Category must exist and be active. Send vehiclePricing, or the legacy basePrice, durationMinutes, and vehicleTypes. Vehicle types must be canonical and unique. Prices cannot be negative.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Service"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Invalid price, duration, or vehicle type"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Category not found"
+          },
+          "409": {
+            "description": "Category inactive or name conflict"
           }
         }
       }
@@ -225,144 +290,158 @@
         }
       ],
       "get": {
-        "summary": "Get service",
-        "description": "",
         "tags": [
           "Services"
         ],
-        "operationId": "getserviceid.get./services/{serviceId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
+        "summary": "Get service",
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
         "parameters": [
           {
-            "name": "serviceId",
-            "in": "path",
+            "name": "categoryId",
+            "in": "query",
             "required": true,
-            "type": "string"
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Service"
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       },
       "put": {
-        "summary": "Update service",
-        "description": "",
         "tags": [
           "Services"
         ],
-        "operationId": "putserviceid.put./services/{serviceId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Update service",
+        "security": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/Service"
-            }
-          },
-          {
-            "name": "serviceId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
           "200": {
             "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       },
       "delete": {
-        "summary": "Delete service",
-        "description": "",
         "tags": [
           "Services"
         ],
-        "operationId": "deleteserviceid.delete./services/{serviceId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Delete service",
+        "security": [
           {
-            "name": "serviceId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
-          "204": {
+          "200": {
             "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
     },
     "/packages": {
       "get": {
+        "tags": [
+          "Packages"
+        ],
         "summary": "List packages",
-        "description": "",
-        "tags": [
-          "Packages"
-        ],
-        "operationId": "getpackages.get./packages",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK"
+        "security": [
+          {
+            "bearerAuth": []
           }
-        }
-      },
-      "post": {
-        "summary": "Create package",
-        "description": "",
-        "tags": [
-          "Packages"
         ],
-        "operationId": "postpackages.post./packages",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "description": "Queries the base-table aggregate partition CATALOG#PACKAGES / META#PACKAGE#. Active filtering uses LSI2 (LSI2SK = ACTIVE#1).",
         "parameters": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
+            "name": "active",
+            "in": "query",
             "schema": {
-              "$ref": "#/definitions/Package"
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
         "responses": {
-          "201": {
+          "200": {
+            "description": "Package page"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Create package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Catalog administrator only. Every service and add-on reference must exist and be active. Package stores references, not copied service documents.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Package"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Invalid package"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Referenced service or add-on not found"
           }
         }
       }
@@ -379,144 +458,121 @@
         }
       ],
       "get": {
-        "summary": "Get package",
-        "description": "",
         "tags": [
           "Packages"
         ],
-        "operationId": "getpackageid.get./packages/{packageId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Get package",
+        "security": [
           {
-            "name": "packageId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Package"
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       },
       "put": {
-        "summary": "Update package",
-        "description": "",
         "tags": [
           "Packages"
         ],
-        "operationId": "putpackageid.put./packages/{packageId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Update package",
+        "security": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/Package"
-            }
-          },
-          {
-            "name": "packageId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
           "200": {
             "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       },
       "delete": {
-        "summary": "Delete package",
-        "description": "",
         "tags": [
           "Packages"
         ],
-        "operationId": "deletepackageid.delete./packages/{packageId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Delete package",
+        "security": [
           {
-            "name": "packageId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
-          "204": {
+          "200": {
             "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
     },
     "/addons": {
       "get": {
-        "summary": "List add-ons",
-        "description": "",
         "tags": [
           "Add-ons"
         ],
-        "operationId": "getaddons.get./addons",
-        "consumes": [
-          "application/json"
+        "summary": "List add-ons",
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Add-ons"
           }
         }
       },
       "post": {
-        "summary": "Create add-on",
-        "description": "",
         "tags": [
           "Add-ons"
         ],
-        "operationId": "postaddons.post./addons",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Create add-on",
+        "security": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/AddOn"
-            }
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only. Price must be non-negative. Duration must be positive.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddOn"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": {
+          "200": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Invalid price or duration"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
@@ -533,238 +589,140 @@
         }
       ],
       "get": {
-        "summary": "Get add-on",
-        "description": "",
         "tags": [
           "Add-ons"
         ],
-        "operationId": "getaddonid.get./addons/{addonId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Get add-on",
+        "security": [
           {
-            "name": "addonId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Add-on"
+          },
+          "404": {
+            "description": "Not found"
           }
         }
       },
       "put": {
-        "summary": "Update add-on",
-        "description": "",
         "tags": [
           "Add-ons"
         ],
-        "operationId": "putaddonid.put./addons/{addonId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Update add-on",
+        "security": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/AddOn"
-            }
-          },
-          {
-            "name": "addonId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
           "200": {
             "description": "Updated"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       },
       "delete": {
-        "summary": "Delete add-on",
-        "description": "",
         "tags": [
           "Add-ons"
         ],
-        "operationId": "deleteaddonid.delete./addons/{addonId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Delete add-on",
+        "security": [
           {
-            "name": "addonId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "bearerAuth": []
           }
         ],
+        "description": "Catalog administrator only.",
         "responses": {
-          "204": {
+          "200": {
             "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
     },
     "/pricing/calculate": {
       "post": {
-        "summary": "Calculate price",
-        "description": "Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.\n",
         "tags": [
           "Pricing"
         ],
-        "operationId": "postpricingcalculate.post./pricing/calculate",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
+        "summary": "Calculate price",
+        "description": "Server-authoritative MVP price. Uses catalog basePrice or package discountedPrice, selected add-on prices, and an optional vendor override from Vendor Service. Every selected service, including services inside a package, must support vehicleType. No coupon logic is applied. A partial price is not returned when a service is incompatible.",
+        "security": [
           {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/PricingCalculateRequest"
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingCalculateRequest"
+              }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
-            "description": "Price calculated"
+            "description": "Price calculated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingBreakdown"
+                }
+              }
+            }
           },
           "400": {
-            "description": "Invalid request or unsupported vehicle type"
+            "description": "Invalid request, invalid price, or VEHICLE_TYPE_NOT_SUPPORTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Catalog entity not found"
+            "description": "SERVICE_NOT_FOUND, PACKAGE_NOT_FOUND, or ADDON_NOT_FOUND"
           },
           "409": {
-            "description": "Inactive catalog entity or disabled vendor offering"
+            "description": "Inactive catalog entity or vendor offering disabled"
+          },
+          "500": {
+            "description": "Unexpected error"
           },
           "502": {
-            "description": "Vendor pricing could not be read"
+            "description": "VENDOR_PRICING_UNAVAILABLE. Vendor Service denied or failed the override read. Catalog does not fall back to a silent price when vendorId was supplied."
           },
           "503": {
-            "description": "Vendor pricing URL is not configured"
-          }
-        }
-      }
-    },
-    "/catalog/discover": {
-      "get": {
-        "summary": "discoverServices",
-        "description": "",
-        "operationId": "discoverServices.get.catalog/discover",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "0",
-            "type": "string",
-            "description": "Search query",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "1",
-            "type": "string",
-            "description": "Category ID",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "2",
-            "type": "string",
-            "description": "Latitude",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "3",
-            "type": "string",
-            "description": "Longitude",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "4",
-            "type": "string",
-            "description": "Radius in kilometers",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "5",
-            "type": "string",
-            "description": "Vehicle type",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "6",
-            "type": "string",
-            "description": "Minimum price",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "7",
-            "type": "string",
-            "description": "Maximum price",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "8",
-            "type": "string",
-            "description": "Minimum rating",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "9",
-            "type": "string",
-            "description": "Sort by",
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response"
+            "description": "VENDOR_PRICING_CONFIGURATION_FUNCTION is not configured"
           }
         }
       }
     },
     "/offerings": {
       "get": {
-        "summary": "getOfferings",
+        "summary": "Discover marketplace offerings",
         "description": "",
-        "operationId": "getOfferings.get.offerings",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "getOfferings.get./offerings",
         "consumes": [
           "application/json"
         ],
@@ -889,16 +847,17 @@
         ],
         "responses": {
           "200": {
-            "description": "200 response"
+            "description": "OK"
           }
         }
-      }
-    },
-    "/services/{serviceId}/communities": {
+      },
       "post": {
-        "summary": "Add communities to a service",
+        "summary": "Create offering",
         "description": "",
-        "operationId": "postServiceCommunities.post./services/{serviceId}/communities",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "postOfferings.post./offerings",
         "consumes": [
           "application/json"
         ],
@@ -907,7 +866,150 @@
         ],
         "parameters": [
           {
-            "name": "serviceId",
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateOfferingRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/offerings/{offeringId}": {
+      "get": {
+        "summary": "Get offering",
+        "description": "",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "getOfferingById.get./offerings/{offeringId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "offeringId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update offering",
+        "description": "",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "patchOfferingById.patch./offerings/{offeringId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PatchOfferingRequest"
+            }
+          },
+          {
+            "name": "offeringId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive offering",
+        "description": "",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "deleteOfferingById.delete./offerings/{offeringId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "offeringId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived"
+          }
+        }
+      }
+    },
+    "/vendors/me/offerings": {
+      "get": {
+        "summary": "List my offerings",
+        "description": "",
+        "tags": [
+          "Offerings"
+        ],
+        "operationId": "getMyOfferings.get./vendors/me/offerings",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/offerings/{offeringId}/communities": {
+      "post": {
+        "summary": "Add communities to an offering",
+        "description": "",
+        "operationId": "postServiceCommunities.post./offerings/{offeringId}/communities",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "offeringId",
             "in": "path",
             "required": true,
             "type": "string"
@@ -920,11 +1022,11 @@
         }
       }
     },
-    "/services/{serviceId}/communities/{communityId}": {
+    "/offerings/{offeringId}/communities/{communityId}": {
       "put": {
         "summary": "Activate or deactivate one community",
         "description": "",
-        "operationId": "putServiceCommunity.put./services/{serviceId}/communities/{communityId}",
+        "operationId": "putServiceCommunity.put./offerings/{offeringId}/communities/{communityId}",
         "consumes": [
           "application/json"
         ],
@@ -933,7 +1035,7 @@
         ],
         "parameters": [
           {
-            "name": "serviceId",
+            "name": "offeringId",
             "in": "path",
             "required": true,
             "type": "string"
@@ -954,7 +1056,7 @@
       "delete": {
         "summary": "Remove one community mapping",
         "description": "",
-        "operationId": "deleteServiceCommunity.delete./services/{serviceId}/communities/{communityId}",
+        "operationId": "deleteServiceCommunity.delete./offerings/{offeringId}/communities/{communityId}",
         "consumes": [
           "application/json"
         ],
@@ -963,7 +1065,7 @@
         ],
         "parameters": [
           {
-            "name": "serviceId",
+            "name": "offeringId",
             "in": "path",
             "required": true,
             "type": "string"
@@ -982,11 +1084,11 @@
         }
       }
     },
-    "/services/{serviceId}/communities/{communityId}/approval": {
+    "/offerings/{offeringId}/communities/{communityId}/approval": {
       "put": {
         "summary": "Approve or reject one community mapping",
         "description": "",
-        "operationId": "putServiceCommunityApproval.put./services/{serviceId}/communities/{communityId}/approval",
+        "operationId": "putServiceCommunityApproval.put./offerings/{offeringId}/communities/{communityId}/approval",
         "consumes": [
           "application/json"
         ],
@@ -995,258 +1097,13 @@
         ],
         "parameters": [
           {
-            "name": "serviceId",
+            "name": "offeringId",
             "in": "path",
             "required": true,
             "type": "string"
           },
           {
             "name": "communityId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/service-visits": {
-      "post": {
-        "summary": "Create a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "postServiceVisits.post./vendors/{vendorId}/service-visits",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ServiceVisitWrite"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created"
-          }
-        }
-      },
-      "get": {
-        "summary": "List service visits",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "getServiceVisits.get./vendors/{vendorId}/service-visits",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/service-visits/{visitId}": {
-      "get": {
-        "summary": "Get a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "getServiceVisit.get./vendors/{vendorId}/service-visits/{visitId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "visitId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "patchServiceVisit.patch./vendors/{vendorId}/service-visits/{visitId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ServiceVisitWrite"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "visitId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Updated"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Archive a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "archiveServiceVisit.delete./vendors/{vendorId}/service-visits/{visitId}",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "visitId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/service-visits/{visitId}/activate": {
-      "post": {
-        "summary": "Activate a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "activateServiceVisit.post./vendors/{vendorId}/service-visits/{visitId}/activate",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "visitId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "200 response"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/service-visits/{visitId}/pause": {
-      "post": {
-        "summary": "Pause a service visit",
-        "description": "",
-        "tags": [
-          "Service visits"
-        ],
-        "operationId": "pauseServiceVisit.post./vendors/{vendorId}/service-visits/{visitId}/pause",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "visitId",
             "in": "path",
             "required": true,
             "type": "string"
@@ -1313,6 +1170,7 @@
         },
         "price": {
           "title": "VehiclePricing.price",
+          "description": "Integer minor units for managed offerings; major units on legacy discovery rows.",
           "type": "number"
         },
         "durationMinutes": {
@@ -1327,6 +1185,339 @@
       ],
       "additionalProperties": false,
       "title": "VehiclePricing",
+      "type": "object"
+    },
+    "IncludedService": {
+      "properties": {
+        "name": {
+          "title": "IncludedService.name",
+          "type": "string"
+        },
+        "description": {
+          "title": "IncludedService.description",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "IncludedService.categoryId",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "title": "IncludedService.tags.[]",
+            "type": "string"
+          },
+          "title": "IncludedService.tags",
+          "type": "array"
+        },
+        "visitsPerPeriod": {
+          "title": "IncludedService.visitsPerPeriod",
+          "type": "number"
+        },
+        "durationMinutes": {
+          "title": "IncludedService.durationMinutes",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "categoryId",
+        "visitsPerPeriod",
+        "durationMinutes"
+      ],
+      "additionalProperties": false,
+      "title": "IncludedService",
+      "type": "object"
+    },
+    "OfferingType": {
+      "enum": [
+        "PACKAGE",
+        "SERVICE"
+      ],
+      "title": "OfferingType",
+      "type": "string"
+    },
+    "OfferingStatus": {
+      "enum": [
+        "draft",
+        "published",
+        "paused",
+        "archived"
+      ],
+      "title": "OfferingStatus",
+      "type": "string"
+    },
+    "BillingPeriod": {
+      "enum": [
+        "oneTime",
+        "weekly",
+        "monthly",
+        "yearly"
+      ],
+      "title": "BillingPeriod",
+      "type": "string"
+    },
+    "CreateOfferingRequest": {
+      "properties": {
+        "offeringType": {
+          "title": "CreateOfferingRequest.offeringType",
+          "enum": [
+            "PACKAGE"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "title": "CreateOfferingRequest.name",
+          "type": "string"
+        },
+        "description": {
+          "title": "CreateOfferingRequest.description",
+          "type": "string"
+        },
+        "billingPeriod": {
+          "$ref": "#/definitions/BillingPeriod",
+          "title": "CreateOfferingRequest.billingPeriod"
+        },
+        "currency": {
+          "title": "CreateOfferingRequest.currency",
+          "type": "string"
+        },
+        "vehiclePricing": {
+          "items": {
+            "$ref": "#/definitions/VehiclePricing",
+            "title": "CreateOfferingRequest.vehiclePricing.[]"
+          },
+          "title": "CreateOfferingRequest.vehiclePricing",
+          "type": "array"
+        },
+        "includedServices": {
+          "items": {
+            "$ref": "#/definitions/IncludedService",
+            "title": "CreateOfferingRequest.includedServices.[]"
+          },
+          "title": "CreateOfferingRequest.includedServices",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published"
+          ],
+          "title": "CreateOfferingRequest.status",
+          "type": "string"
+        },
+        "displayOrder": {
+          "title": "CreateOfferingRequest.displayOrder",
+          "type": "number"
+        },
+        "communityIds": {
+          "items": {
+            "title": "CreateOfferingRequest.communityIds.[]",
+            "type": "string"
+          },
+          "title": "CreateOfferingRequest.communityIds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "offeringType",
+        "name",
+        "billingPeriod",
+        "vehiclePricing",
+        "includedServices"
+      ],
+      "additionalProperties": false,
+      "title": "CreateOfferingRequest",
+      "type": "object"
+    },
+    "PatchOfferingRequest": {
+      "properties": {
+        "name": {
+          "title": "PatchOfferingRequest.name",
+          "type": "string"
+        },
+        "description": {
+          "title": "PatchOfferingRequest.description",
+          "type": "string"
+        },
+        "billingPeriod": {
+          "$ref": "#/definitions/BillingPeriod",
+          "title": "PatchOfferingRequest.billingPeriod"
+        },
+        "currency": {
+          "title": "PatchOfferingRequest.currency",
+          "type": "string"
+        },
+        "vehiclePricing": {
+          "items": {
+            "$ref": "#/definitions/VehiclePricing",
+            "title": "PatchOfferingRequest.vehiclePricing.[]"
+          },
+          "title": "PatchOfferingRequest.vehiclePricing",
+          "type": "array"
+        },
+        "includedServices": {
+          "items": {
+            "$ref": "#/definitions/IncludedService",
+            "title": "PatchOfferingRequest.includedServices.[]"
+          },
+          "title": "PatchOfferingRequest.includedServices",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/OfferingStatus",
+          "title": "PatchOfferingRequest.status"
+        },
+        "displayOrder": {
+          "title": "PatchOfferingRequest.displayOrder",
+          "type": "number"
+        },
+        "expectedVersion": {
+          "title": "PatchOfferingRequest.expectedVersion",
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "title": "PatchOfferingRequest",
+      "type": "object"
+    },
+    "Offering": {
+      "properties": {
+        "offeringId": {
+          "title": "Offering.offeringId",
+          "type": "string"
+        },
+        "offeringType": {
+          "$ref": "#/definitions/OfferingType",
+          "title": "Offering.offeringType"
+        },
+        "vendorId": {
+          "title": "Offering.vendorId",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "Offering.categoryId",
+          "type": "string"
+        },
+        "name": {
+          "title": "Offering.name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Offering.description",
+          "type": "string"
+        },
+        "billingPeriod": {
+          "$ref": "#/definitions/BillingPeriod",
+          "title": "Offering.billingPeriod"
+        },
+        "currency": {
+          "title": "Offering.currency",
+          "type": "string"
+        },
+        "vehiclePricing": {
+          "items": {
+            "$ref": "#/definitions/VehiclePricing",
+            "title": "Offering.vehiclePricing.[]"
+          },
+          "title": "Offering.vehiclePricing",
+          "type": "array"
+        },
+        "vehicleTypes": {
+          "items": {
+            "$ref": "#/definitions/VehicleType",
+            "title": "Offering.vehicleTypes.[]"
+          },
+          "title": "Offering.vehicleTypes",
+          "type": "array"
+        },
+        "includedServices": {
+          "items": {
+            "$ref": "#/definitions/IncludedService",
+            "title": "Offering.includedServices.[]"
+          },
+          "title": "Offering.includedServices",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/OfferingStatus",
+          "title": "Offering.status"
+        },
+        "active": {
+          "title": "Offering.active",
+          "type": "boolean"
+        },
+        "version": {
+          "title": "Offering.version",
+          "type": "number"
+        },
+        "displayOrder": {
+          "title": "Offering.displayOrder",
+          "type": "number"
+        },
+        "createdAt": {
+          "title": "Offering.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "Offering.updatedAt",
+          "type": "string"
+        },
+        "legacySource": {
+          "enum": [
+            "SERVICE",
+            "PACKAGE"
+          ],
+          "title": "Offering.legacySource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "offeringId",
+        "offeringType",
+        "vendorId",
+        "categoryId",
+        "name",
+        "billingPeriod",
+        "currency",
+        "vehiclePricing",
+        "vehicleTypes",
+        "includedServices",
+        "status",
+        "active",
+        "version",
+        "displayOrder",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "Offering",
+      "type": "object"
+    },
+    "OfferingPage": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/Offering",
+            "title": "OfferingPage.items.[]"
+          },
+          "title": "OfferingPage.items",
+          "type": "array"
+        },
+        "nextToken": {
+          "title": "OfferingPage.nextToken",
+          "type": "string"
+        },
+        "total": {
+          "title": "OfferingPage.total",
+          "type": "number"
+        }
+      },
+      "required": [
+        "items",
+        "total"
+      ],
+      "additionalProperties": false,
+      "title": "OfferingPage",
       "type": "object"
     },
     "Service": {
@@ -1357,12 +1548,10 @@
             "title": "Service.vehiclePricing.[]"
           },
           "title": "Service.vehiclePricing",
-          "description": "Authoritative per-vehicle price and duration.",
           "type": "array"
         },
         "durationMinutes": {
           "title": "Service.durationMinutes",
-          "description": "Shortest duration, or the filtered vehicle's duration.",
           "type": "number"
         },
         "vehicleTypes": {
@@ -1371,12 +1560,10 @@
             "title": "Service.vehicleTypes.[]"
           },
           "title": "Service.vehicleTypes",
-          "description": "Configured types. A vehicleType list filter narrows this to the match.",
           "type": "array"
         },
         "basePrice": {
           "title": "Service.basePrice",
-          "description": "Lowest price, or the filtered vehicle's price. Not the payable amount.",
           "type": "number"
         },
         "active": {
@@ -1385,175 +1572,12 @@
         },
         "version": {
           "title": "Service.version",
-          "description": "Catalog input version. Booking uses the pricing offeringVersion.",
           "type": "number"
         }
       },
       "additionalProperties": false,
       "title": "Service",
-      "type": "object"
-    },
-    "Package": {
-      "properties": {
-        "id": {
-          "title": "Package.id",
-          "type": "string"
-        },
-        "name": {
-          "title": "Package.name",
-          "type": "string"
-        },
-        "description": {
-          "title": "Package.description",
-          "type": "string"
-        },
-        "services": {
-          "items": {
-            "title": "Package.services.[]",
-            "type": "string"
-          },
-          "title": "Package.services",
-          "type": "array"
-        },
-        "discountedPrice": {
-          "title": "Package.discountedPrice",
-          "type": "number"
-        }
-      },
-      "additionalProperties": false,
-      "title": "Package",
-      "type": "object"
-    },
-    "AddOn": {
-      "properties": {
-        "id": {
-          "title": "AddOn.id",
-          "type": "string"
-        },
-        "name": {
-          "title": "AddOn.name",
-          "type": "string"
-        },
-        "price": {
-          "title": "AddOn.price",
-          "type": "number"
-        },
-        "durationMinutes": {
-          "title": "AddOn.durationMinutes",
-          "type": "number"
-        }
-      },
-      "additionalProperties": false,
-      "title": "AddOn",
-      "type": "object"
-    },
-    "PricingCalculateRequest": {
-      "properties": {
-        "vehicleType": {
-          "$ref": "#/definitions/VehicleType",
-          "title": "PricingCalculateRequest.vehicleType"
-        },
-        "vendorId": {
-          "title": "PricingCalculateRequest.vendorId",
-          "type": "string"
-        },
-        "serviceIds": {
-          "items": {
-            "title": "PricingCalculateRequest.serviceIds.[]",
-            "type": "string"
-          },
-          "title": "PricingCalculateRequest.serviceIds",
-          "type": "array"
-        },
-        "packageIds": {
-          "items": {
-            "title": "PricingCalculateRequest.packageIds.[]",
-            "type": "string"
-          },
-          "title": "PricingCalculateRequest.packageIds",
-          "type": "array"
-        },
-        "addOnIds": {
-          "items": {
-            "title": "PricingCalculateRequest.addOnIds.[]",
-            "type": "string"
-          },
-          "title": "PricingCalculateRequest.addOnIds",
-          "type": "array"
-        },
-        "addonIds": {
-          "items": {
-            "title": "PricingCalculateRequest.addonIds.[]",
-            "type": "string"
-          },
-          "title": "PricingCalculateRequest.addonIds",
-          "type": "array"
-        },
-        "items": {
-          "items": {
-            "anyOf": [
-              {
-                "properties": {
-                  "type": {
-                    "title": "type",
-                    "enum": [
-                      "SERVICE"
-                    ],
-                    "type": "string"
-                  },
-                  "serviceId": {
-                    "title": "serviceId",
-                    "type": "string"
-                  },
-                  "categoryId": {
-                    "title": "categoryId",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "serviceId"
-                ],
-                "additionalProperties": false,
-                "type": "object"
-              },
-              {
-                "properties": {
-                  "type": {
-                    "title": "type",
-                    "enum": [
-                      "PACKAGE"
-                    ],
-                    "type": "string"
-                  },
-                  "packageId": {
-                    "title": "packageId",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "packageId"
-                ],
-                "additionalProperties": false,
-                "type": "object"
-              }
-            ]
-          },
-          "title": "PricingCalculateRequest.items",
-          "type": "array"
-        },
-        "couponCode": {
-          "title": "PricingCalculateRequest.couponCode",
-          "description": "Ignored. Coupon support is Phase 2.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "vehicleType"
-      ],
-      "additionalProperties": false,
-      "title": "PricingCalculateRequest",
+      "description": "@deprecated Legacy shape retained for discovery projection helpers.",
       "type": "object"
     }
   },

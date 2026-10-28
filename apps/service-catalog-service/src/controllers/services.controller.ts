@@ -1,116 +1,30 @@
-import { LambdaRequest } from "@api-hub/utils";
+import { LambdaRequest } from '@api-hub/utils';
 
-import {
-    ServicesService,
-    getServicesService
-} from "../services/services.service";
-import { DiscoverServicesQuery } from "../types/api-types";
+import { ServicesService, getServicesService } from '../services/services.service';
+import { DiscoveryPage } from '../types/api-types';
 
+/**
+ * Internal discovery helper used by tests and legacy projection tooling.
+ * Public HTTP discovery is `GET /offerings`.
+ */
 export class ServicesController {
+  constructor(
+    private readonly service: ServicesService = getServicesService(),
+  ) {}
 
-    constructor(
-
-        private readonly service: ServicesService =
-            getServicesService()
-
-    ) {}
-
-
-
-    async handleGetservices(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getservices(
-            request
-        );
-
-    }
-
-
-
-    async handlePostservices(
-        request: LambdaRequest
-    ) {
-
-        return this.service.postservices(
-            request
-        );
-
-    }
-
-
-
-    async handleGetserviceid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.getserviceid(
-            request
-        );
-
-    }
-
-
-
-    async handlePutserviceid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.putserviceid(
-            request
-        );
-
-    }
-
-
-
-    async handleDeleteserviceid(
-        request: LambdaRequest
-    ) {
-
-        return this.service.deleteserviceid(
-            request
-        );
-
-    }
-
-    async handleDiscoverServices(
-      request: LambdaRequest
-    ) {
-        const requestBody: DiscoverServicesQuery ={
-            search: request.query?.search,
-            categoryId: request.query?.categoryId,
-            latitude: request.query?.latitude,
-            longitude: request.query?.longitude,
-            radiusKm: request.query?.radiusKm,
-            vehicleType: request.query?.vehicleType,
-            minPrice: request.query?.minPrice,
-            maxPrice: request.query?.maxPrice,
-            minRating: request.query?.minRating,
-            sortBy: request.query?.sortBy,
-            limit: request.query?.limit,
-            nextToken: request.query?.nextToken,
-        }
-
-      return this.service.discoverServices(
-        requestBody
-      );
-    }
-
+  async handleDiscoverServices(request: LambdaRequest): Promise<DiscoveryPage> {
+    return this.service.discoverServices({
+      ...(request.query ?? {}),
+      ...(request.params ?? {}),
+    });
+  }
 }
 
-let controller: ServicesController;
+let controller: ServicesController | undefined;
 
-export function getServicesController() {
-
-    if (!controller) {
-
-        controller =
-            new ServicesController();
-
-    }
-
-    return controller;
-
+export function getServicesController(): ServicesController {
+  if (!controller) {
+    controller = new ServicesController();
+  }
+  return controller;
 }

@@ -361,6 +361,75 @@
           "push"
         ]
       },
+      "SupportTicketCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "BOOKING",
+              "PAYMENT",
+              "ACCOUNT"
+            ]
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "category",
+          "message"
+        ]
+      },
+      "SupportTicket": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "BOOKING",
+              "PAYMENT",
+              "ACCOUNT"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "bookingId": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "ticketId",
+          "userId",
+          "status",
+          "category",
+          "message",
+          "submittedAt"
+        ]
+      },
       "CommunityCreate": {
         "type": "object",
         "properties": {
@@ -589,6 +658,9 @@
         "type": "string"
       },
       "communityId": {
+        "type": "string"
+      },
+      "ticketId": {
         "type": "string"
       }
     },
@@ -2427,6 +2499,237 @@
           }
         }
       }
+    },
+    "/users/{userId}/support-tickets": {
+      "post": {
+        "summary": "Submit support ticket",
+        "description": "Owner only (path userId must equal the authenticated user). Idempotency-Key header is required; retries with the same key and payload return the original ticket. message is 1 to 4000 characters.",
+        "operationId": "createSupportTicket",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "userId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/userId"
+            }
+          }
+        ],
+        "tags": [
+          "Support Tickets"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Owner only (path userId must equal the authenticated user). Idempotency-Key header is required; retries with the same key and payload return the original ticket. message is 1 to 4000 characters.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportTicketCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Submit support ticket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicket"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Path userId does not match the authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List support tickets",
+        "description": "Owner only. Returns the caller tickets, newest first.",
+        "operationId": "listSupportTickets",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "userId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/userId"
+            }
+          }
+        ],
+        "tags": [
+          "Support Tickets"
+        ],
+        "responses": {
+          "200": {
+            "description": "List support tickets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicket"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Path userId does not match the authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}/support-tickets/{ticketId}": {
+      "get": {
+        "summary": "Get support ticket",
+        "description": "Owner only. 404 when the ticket does not exist for this user.",
+        "operationId": "getSupportTicket",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "userId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/userId"
+            }
+          },
+          {
+            "name": "ticketId",
+            "in": "path",
+            "description": "ticketId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ticketId"
+            }
+          }
+        ],
+        "tags": [
+          "Support Tickets"
+        ],
+        "responses": {
+          "200": {
+            "description": "Get support ticket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicket"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Path userId does not match the authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
@@ -2461,6 +2764,10 @@
     {
       "name": "Preferences",
       "description": "Operational notification preferences"
+    },
+    {
+      "name": "Support Tickets",
+      "description": "Customer support tickets"
     },
     {
       "name": "Communities",

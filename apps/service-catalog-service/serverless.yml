@@ -126,7 +126,7 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels - Service Catalog Service API
-    description: Catalog categories, services, packages, add-ons, price calculation, and service visits.
+    description: Platform categories and provider offerings (PACKAGE type with inline included services). Customer discovery via GET /offerings.
     securitySchemes:
       bearerAuth:
         type: http
@@ -146,17 +146,11 @@ custom:
             description: Deployment stage
     tags:
       - name: Categories
-        description: Service categories
-      - name: Services
-        description: Bookable services
-      - name: Packages
-        description: Service packages
-      - name: Pricing
-        description: Price calculation
-      - name: Add-ons
-        description: Optional add-ons
-      - name: Service visits
-        description: Recurring community and doorstep visit windows
+        description: Platform-managed service categories
+      - name: Offerings
+        description: Provider offerings (PACKAGE) and customer marketplace discovery
+      - name: Offering communities
+        description: Community coverage mappings for an offering
     models:
       - name: Category
         description: Service category
@@ -201,6 +195,268 @@ custom:
                         type: boolean
                       serviceCount:
                         type: integer
+
+      - name: CreateOfferingRequest
+        description: Create a PACKAGE offering with inline included services
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - offeringType
+                - name
+                - billingPeriod
+                - vehiclePricing
+                - includedServices
+              properties:
+                offeringType:
+                  type: string
+                  enum:
+                    - PACKAGE
+                  description: Discriminator. PACKAGE is the supported type; SERVICE is reserved.
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                billingPeriod:
+                  type: string
+                  enum:
+                    - oneTime
+                    - weekly
+                    - monthly
+                    - yearly
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                  default: INR
+                vehiclePricing:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - vehicleType
+                      - price
+                      - durationMinutes
+                    properties:
+                      vehicleType:
+                        type: string
+                        enum:
+                          - HATCHBACK
+                          - SEDAN
+                          - SUV
+                          - MUV
+                          - LUXURY
+                          - BIKE
+                      price:
+                        type: integer
+                        minimum: 0
+                        description: Integer minor units (paise for INR)
+                      durationMinutes:
+                        type: integer
+                        minimum: 1
+                includedServices:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - categoryId
+                      - visitsPerPeriod
+                      - durationMinutes
+                    properties:
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      categoryId:
+                        type: string
+                        description: Platform-managed category id
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                      visitsPerPeriod:
+                        type: integer
+                        minimum: 1
+                      durationMinutes:
+                        type: integer
+                        minimum: 1
+                status:
+                  type: string
+                  enum:
+                    - draft
+                    - published
+                  default: draft
+                displayOrder:
+                  type: integer
+                  minimum: 0
+                communityIds:
+                  type: array
+                  maxItems: 25
+                  items:
+                    type: string
+              example:
+                offeringType: PACKAGE
+                name: Premium monthly wash
+                description: Interior and exterior wash package
+                billingPeriod: monthly
+                currency: INR
+                vehiclePricing:
+                  - vehicleType: HATCHBACK
+                    price: 149900
+                    durationMinutes: 45
+                  - vehicleType: SUV
+                    price: 199900
+                    durationMinutes: 60
+                includedServices:
+                  - name: Exterior wash
+                    description: Foam wash and dry
+                    categoryId: cat_wash
+                    tags:
+                      - exterior
+                    visitsPerPeriod: 4
+                    durationMinutes: 30
+                  - name: Interior vacuum
+                    categoryId: cat_detail
+                    visitsPerPeriod: 2
+                    durationMinutes: 25
+                status: published
+      - name: PatchOfferingRequest
+        description: Partial update for an owned offering
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                billingPeriod:
+                  type: string
+                  enum:
+                    - oneTime
+                    - weekly
+                    - monthly
+                    - yearly
+                currency:
+                  type: string
+                vehiclePricing:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      vehicleType:
+                        type: string
+                      price:
+                        type: integer
+                      durationMinutes:
+                        type: integer
+                includedServices:
+                  type: array
+                  items:
+                    type: object
+                status:
+                  type: string
+                  enum:
+                    - draft
+                    - published
+                    - paused
+                    - archived
+                displayOrder:
+                  type: integer
+                expectedVersion:
+                  type: integer
+                  minimum: 1
+      - name: Offering
+        description: Catalog offering
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offeringId:
+                  type: string
+                offeringType:
+                  type: string
+                  enum:
+                    - PACKAGE
+                    - SERVICE
+                vendorId:
+                  type: string
+                categoryId:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                billingPeriod:
+                  type: string
+                currency:
+                  type: string
+                vehiclePricing:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      vehicleType:
+                        type: string
+                      price:
+                        type: integer
+                        description: Minor units
+                      durationMinutes:
+                        type: integer
+                vehicleTypes:
+                  type: array
+                  items:
+                    type: string
+                includedServices:
+                  type: array
+                  items:
+                    type: object
+                status:
+                  type: string
+                  enum:
+                    - draft
+                    - published
+                    - paused
+                    - archived
+                active:
+                  type: boolean
+                version:
+                  type: integer
+                displayOrder:
+                  type: integer
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+                legacySource:
+                  type: string
+                  enum:
+                    - SERVICE
+                    - PACKAGE
+      - name: OfferingPage
+        description: Page of provider offerings
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                nextToken:
+                  type: string
+                total:
+                  type: integer
+
       - name: Service
         description: Bookable catalog service
         content:
@@ -281,6 +537,95 @@ custom:
                 version:
                   type: integer
                   minimum: 1
+      - name: OfferingCommunitiesAddRequest
+        description: Community ids to map onto an offering
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - communityIds
+              properties:
+                communityIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+      - name: OfferingCommunityStatusUpdate
+        description: Operational status update for one offering-community mapping
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - version
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                version:
+                  type: integer
+                  minimum: 1
+      - name: OfferingCommunityView
+        description: One offering-community mapping
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communityId:
+                  type: string
+                approvalStatus:
+                  type: string
+                  enum:
+                    - pending
+                    - approved
+                    - rejected
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                version:
+                  type: integer
+                approvalUpdatedAt:
+                  type: string
+                approvalUpdatedBy:
+                  type: string
+      - name: OfferingCommunitiesList
+        description: Offering community mappings
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                communities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      communityId:
+                        type: string
+                      approvalStatus:
+                        type: string
+                        enum:
+                          - pending
+                          - approved
+                          - rejected
+                      status:
+                        type: string
+                        enum:
+                          - active
+                          - inactive
+                      version:
+                        type: integer
+                      approvalUpdatedAt:
+                        type: string
+                      approvalUpdatedBy:
+                        type: string
       - name: ServicePage
         description: Page of services
         content:
@@ -904,74 +1249,6 @@ functions:
                 schema:
                   type: string
 
-  discoverServices:
-    handler: src/handlers/discover-services-handler.discoverServicesHandler
-    description: Discover car wash services across vendors
-    timeout: 15
-    memorySize: 512
-    events:
-      - http:
-          path: catalog/discover
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          queryStringParameters:
-            - name: search
-              description: Search query
-              required: false
-              schema:
-                type: string
-            - name: categoryId
-              description: Category ID
-              required: false
-              schema:
-                type: string
-            - name: latitude
-              description: Latitude
-              required: false
-              schema:
-                type: number
-            - name: longitude
-              description: Longitude
-              required: false
-              schema:
-                type: number
-            - name: radiusKm
-              description: Radius in kilometers
-              required: false
-              schema:
-                type: number
-            - name: vehicleType
-              description: Vehicle type
-              required: false
-              schema:
-                type: string
-            - name: minPrice
-              description: Minimum price
-              required: false
-              schema:
-                type: number
-            - name: maxPrice
-              description: Maximum price
-              required: false
-              schema:
-                type: number
-            - name: minRating
-              description: Minimum rating
-              required: false
-              schema:
-                type: number
-            - name: sortBy
-              description: Sort by
-              required: false
-              schema:
-                type: string
-                enum:
-                  - RELEVANCE
-                  - DISTANCE_ASC
-                  - PRICE_ASC
-                  - PRICE_DESC
-
   getOfferings:
     handler: src/handlers/offerings-handler.getOfferings
     description: Customer marketplace list of bookable service offerings
@@ -979,90 +1256,351 @@ functions:
     memorySize: 512
     events:
       - http:
-          path: offerings
+          path: /offerings
           method: get
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
-          queryStringParameters:
-            - name: search
-              required: false
-              schema:
-                type: string
-            - name: categoryId
-              required: false
-              schema:
-                type: string
-            - name: vehicleType
-              required: false
-              schema:
-                type: string
-            - name: vendorId
-              required: false
-              schema:
-                type: string
-            - name: branchId
-              required: false
-              schema:
-                type: string
-            - name: latitude
-              required: false
-              schema:
-                type: number
-            - name: longitude
-              required: false
-              schema:
-                type: number
-            - name: radiusKm
-              required: false
-              schema:
-                type: number
-            - name: minPrice
-              required: false
-              schema:
-                type: number
-            - name: maxPrice
-              required: false
-              schema:
-                type: number
-            - name: minRating
-              required: false
-              schema:
-                type: number
-            - name: status
-              required: false
-              schema:
-                type: string
-                enum:
-                  - active
-            - name: availableOn
-              required: false
-              schema:
-                type: string
-            - name: startTime
-              required: false
-              schema:
-                type: string
-            - name: sort
-              required: false
-              schema:
-                type: string
-            - name: limit
-              required: false
-              schema:
-                type: integer
-            - name: cursor
-              required: false
-              schema:
-                type: string
-            - name: filter
-              required: false
-              schema:
-                type: string
-            - name: communityId
-              required: false
-              schema:
-                type: string
+          summary: Discover marketplace offerings
+          swaggerTags:
+            - Offerings
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: Discover marketplace offerings
+            description: Customer marketplace list of bookable service offerings with optional geo, price, and community filters.
+            tags:
+              - Offerings
+            queryParams:
+              - name: search
+                required: false
+                schema:
+                  type: string
+              - name: categoryId
+                required: false
+                schema:
+                  type: string
+              - name: vehicleType
+                required: false
+                schema:
+                  type: string
+              - name: vendorId
+                required: false
+                schema:
+                  type: string
+              - name: branchId
+                required: false
+                schema:
+                  type: string
+              - name: latitude
+                required: false
+                schema:
+                  type: number
+              - name: longitude
+                required: false
+                schema:
+                  type: number
+              - name: radiusKm
+                required: false
+                schema:
+                  type: number
+              - name: minPrice
+                required: false
+                schema:
+                  type: number
+              - name: maxPrice
+                required: false
+                schema:
+                  type: number
+              - name: minRating
+                required: false
+                schema:
+                  type: number
+              - name: status
+                required: false
+                schema:
+                  type: string
+                  enum:
+                    - active
+              - name: availableOn
+                required: false
+                schema:
+                  type: string
+              - name: startTime
+                required: false
+                schema:
+                  type: string
+              - name: sort
+                required: false
+                schema:
+                  type: string
+              - name: limit
+                required: false
+                schema:
+                  type: integer
+              - name: cursor
+                required: false
+                schema:
+                  type: string
+              - name: filter
+                required: false
+                schema:
+                  type: string
+              - name: communityId
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: OfferingPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
+  postOfferings:
+    handler: src/handlers/offerings-handler.postOfferings
+    description: Provider creates a PACKAGE offering with inline included services
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /offerings
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Create offering
+          swaggerTags:
+            - Offerings
+          bodyType: CreateOfferingRequest
+          responseData:
+            201:
+              description: Created
+          documentation:
+            summary: Create a provider offering
+            description: |
+              Creates a PACKAGE offering for the authenticated provider. vendorId is taken from
+              the caller via Vendor Service `/vendors/me` and must not be supplied by the client.
+              Prices are integer minor units with an explicit currency. Included services are
+              inline descriptions (no separate service ids).
+            tags:
+              - Offerings
+            requestBody:
+              description: Create a PACKAGE offering with inline included services
+              required: true
+            requestModels:
+              application/json: CreateOfferingRequest
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Created
+                responseModels:
+                  application/json: Offering
+              - statusCode: "400"
+                responseBody:
+                  description: Validation failed
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Unauthorized
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+
+  getOfferingById:
+    handler: src/handlers/offerings-handler.getOfferingById
+    description: Offering details for customers or the owning provider
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /offerings/{offeringId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Get offering
+          swaggerTags:
+            - Offerings
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: Get offering by id
+            description: Returns a published offering to any authenticated caller. Owners may also read draft, paused, or archived offerings. Legacy SERVICE/PACKAGE ids remain readable for booking compatibility.
+            pathParams:
+              - name: offeringId
+                description: Offering id
+                required: true
+                schema:
+                  type: string
+            queryParams:
+              - name: consistent
+                description: When true, use a consistent DynamoDB read
+                required: false
+                schema:
+                  type: boolean
+            tags:
+              - Offerings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: Offering
+              - statusCode: "404"
+                responseBody:
+                  description: Not found
+                responseModels:
+                  application/json: ErrorResponse
+
+  patchOfferingById:
+    handler: src/handlers/offerings-handler.patchOfferingById
+    description: Provider updates their offering
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /offerings/{offeringId}
+          method: patch
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Update offering
+          swaggerTags:
+            - Offerings
+          bodyType: PatchOfferingRequest
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: Patch an owned offering
+            description: Updates fields on the authenticated provider's offering. Ownership is derived from the caller. Optional expectedVersion enforces optimistic concurrency.
+            pathParams:
+              - name: offeringId
+                required: true
+                schema:
+                  type: string
+            tags:
+              - Offerings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: Offering
+              - statusCode: "404"
+                responseBody:
+                  description: Not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Version or status conflict
+                responseModels:
+                  application/json: ErrorResponse
+
+  deleteOfferingById:
+    handler: src/handlers/offerings-handler.deleteOfferingById
+    description: Provider archives their offering
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /offerings/{offeringId}
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Archive offering
+          swaggerTags:
+            - Offerings
+          responseData:
+            200:
+              description: Archived
+          documentation:
+            summary: Archive an owned offering
+            description: Soft-archives the offering (status archived). Removes it from marketplace discovery. Ownership is derived from the caller.
+            pathParams:
+              - name: offeringId
+                required: true
+                schema:
+                  type: string
+            tags:
+              - Offerings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Archived
+              - statusCode: "404"
+                responseBody:
+                  description: Not found
+                responseModels:
+                  application/json: ErrorResponse
+
+  getMyOfferings:
+    handler: src/handlers/offerings-handler.getMyOfferings
+    description: Authenticated provider lists their offerings
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /vendors/me/offerings
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: List my offerings
+          swaggerTags:
+            - Offerings
+          responseData:
+            200:
+              description: OK
+          documentation:
+            summary: List offerings for the authenticated provider
+            description: Resolves vendor identity from `/vendors/me`. Does not accept a client-supplied vendorId.
+            queryParams:
+              - name: status
+                description: Optional lifecycle filter (draft, published, paused, archived)
+                required: false
+                schema:
+                  type: string
+                  enum:
+                    - draft
+                    - published
+                    - paused
+                    - archived
+              - name: limit
+                required: false
+                schema:
+                  type: integer
+              - name: nextToken
+                required: false
+                schema:
+                  type: string
+            tags:
+              - Offerings
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: OK
+                responseModels:
+                  application/json: OfferingPage
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Unauthorized
+                responseModels:
+                  application/json: ErrorResponse
   backfillDiscovery:
     handler: src/handlers/backfill-discovery-handler.handler
     description: Manual discovery projection backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
@@ -1085,291 +1623,52 @@ functions:
     environment:
       DLQ_QUEUE_URL: !Ref DiscoveryVendorFactsDlq
 
-  getservices:
-    handler: src/handlers/services-handler.handleGetservices
-    events:
-      - http:
-          path: /services
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "List services"
-          swaggerTags:
-            - Services
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: List services for a vendor
-            description: Lists services owned by vendorId. categoryId, active, vehicleType, and durationMinutes are optional filters. vehicleType returns offerings with a price for that vehicle and projects vehiclePricing to that entry. Pages keep querying the vendor partition until the limit is filled.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the services
-                required: true
-                schema:
-                  type: string
-              - name: categoryId
-                description: Optional master category
-                required: false
-                schema:
-                  type: string
-              - name: vehicleType
-                description: Canonical vehicle type. Invalid values are rejected. The list vehiclePricing array contains only this entry.
-                required: false
-                schema:
-                  type: string
-              - name: active
-                description: true or false. Omit to return both.
-                required: false
-                schema:
-                  type: boolean
-              - name: durationMinutes
-                description: Match a configured duration. With vehicleType, matches that vehicle's duration.
-                required: false
-                schema:
-                  type: integer
-              - name: limit
-                description: Maximum number of matching services
-                required: false
-                schema:
-                  type: integer
-              - name: nextToken
-                description: Continuation token from the previous page
-                required: false
-                schema:
-                  type: string
-            tags:
-              - Services
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: ServicePage
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-
-
-  postservices:
-    handler: src/handlers/services-handler.handlePostservices
-    events:
-      - http:
-          path: /services
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Create service"
-          swaggerTags:
-            - Services
-          bodyType: Service
-          responseData:
-            201:
-              description: "Created"
-          documentation:
-            summary: Create a vendor service
-            description: Creates a service for vendorId under a master category. vendorId is stored on the service and cannot be changed later.
-            tags:
-              - Services
-            methodResponses:
-              - statusCode: "201"
-                responseBody:
-                  description: Created
-                responseModels:
-                  application/json: Service
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Create service
-              required: true
-            requestModels:
-              application/json: Service
-
-
-  getserviceid:
-    handler: src/handlers/services-handler.handleGetserviceid
-    events:
-      - http:
-          path: /services/{serviceId}
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get service"
-          swaggerTags:
-            - Services
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: Get service
-            description: Gets one service owned by vendorId, including its community mappings. categoryId is optional. consistent=true is the booking read.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the service
-                required: true
-                schema:
-                  type: string
-              - name: categoryId
-                description: Optional parent category
-                required: false
-                schema:
-                  type: string
-              - name: consistent
-                description: Consistent read of the service and its community mappings
-                required: false
-                schema:
-                  type: boolean
-            tags:
-              - Services
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: Service
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: serviceId
-                description: serviceId
-                schema:
-                  type: string
-
-
-  putserviceid:
-    handler: src/handlers/services-handler.handlePutserviceid
-    events:
-      - http:
-          path: /services/{serviceId}
-          method: put
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update service"
-          swaggerTags:
-            - Services
-          bodyType: Service
-          responseData:
-            200:
-              description: "Updated"
-          documentation:
-            summary: Update a vendor service
-            description: Updates a service owned by vendorId. vendorId and categoryId cannot be changed.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the service
-                required: true
-                schema:
-                  type: string
-              - name: categoryId
-                description: Optional parent category
-                required: false
-                schema:
-                  type: string
-            tags:
-              - Services
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Updated
-                responseModels:
-                  application/json: Service
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: serviceId
-                description: serviceId
-                schema:
-                  type: string
-            requestBody:
-              description: Update service
-              required: true
-            requestModels:
-              application/json: Service
-
-
-  deleteserviceid:
-    handler: src/handlers/services-handler.handleDeleteserviceid
-    events:
-      - http:
-          path: /services/{serviceId}
-          method: delete
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Delete service"
-          swaggerTags:
-            - Services
-          responseData:
-            204:
-              description: "Deleted"
-          documentation:
-            summary: Delete a vendor service
-            description: Deletes a service owned by vendorId when no add-ons remain.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the service
-                required: true
-                schema:
-                  type: string
-              - name: categoryId
-                description: Optional parent category
-                required: false
-                schema:
-                  type: string
-            tags:
-              - Services
-            methodResponses:
-              - statusCode: "204"
-                responseBody:
-                  description: Deleted
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: serviceId
-                description: serviceId
-                schema:
-                  type: string
-
   postServiceCommunities:
     handler: src/handlers/offering-communities-handler.handlePostServiceCommunities
     events:
       - http:
-          path: /services/{serviceId}/communities
+          path: /offerings/{offeringId}/communities
           method: post
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
-          summary: Add communities to a service
+          summary: Add communities to an offering
           documentation:
             summary: Add offering communities
             description: Inserts missing community mappings. Selected communities must be active in the platform directory. Vendor coverage is not required. Existing approval and operational status are left unchanged. New mappings are approved only when COMMUNITY_OFFERING_AUTO_APPROVE is true.
+            tags:
+              - Offering communities
             queryParams:
               - name: vendorId
                 required: true
                 schema:
                   type: string
             pathParams:
-              - name: serviceId
+              - name: offeringId
+                required: true
                 schema:
                   type: string
+            requestBody:
+              description: Community ids to add
+              required: true
+            requestModels:
+              application/json: OfferingCommunitiesAddRequest
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated community mappings
+                responseModels:
+                  application/json: OfferingCommunitiesList
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
   putServiceCommunity:
     handler: src/handlers/offering-communities-handler.handlePutServiceCommunity
     events:
       - http:
-          path: /services/{serviceId}/communities/{communityId}
+          path: /offerings/{offeringId}/communities/{communityId}
           method: put
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
@@ -1377,24 +1676,44 @@ functions:
           documentation:
             summary: Set offering community status
             description: Updates operational status for one mapping. approvalStatus is unchanged. The service-level active flag is unchanged.
+            tags:
+              - Offering communities
             queryParams:
               - name: vendorId
                 required: true
                 schema:
                   type: string
             pathParams:
-              - name: serviceId
+              - name: offeringId
+                required: true
                 schema:
                   type: string
               - name: communityId
+                required: true
                 schema:
                   type: string
+            requestBody:
+              description: status is active or inactive. version is the current mapping version.
+              required: true
+            requestModels:
+              application/json: OfferingCommunityStatusUpdate
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated mapping
+                responseModels:
+                  application/json: OfferingCommunityView
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
   putServiceCommunityApproval:
     handler: src/handlers/offering-communities-handler.handlePutServiceCommunityApproval
     events:
       - http:
-          path: /services/{serviceId}/communities/{communityId}/approval
+          path: /offerings/{offeringId}/communities/{communityId}/approval
           method: put
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
@@ -1402,23 +1721,44 @@ functions:
           documentation:
             summary: Set offering community approval
             description: Admin only. Records the caller and time. Does not change operational status. A vendor cannot call this route.
+            tags:
+              - Offering communities
             pathParams:
-              - name: serviceId
+              - name: offeringId
+                required: true
                 schema:
                   type: string
               - name: communityId
+                required: true
                 schema:
                   type: string
             requestBody:
               description: approvalStatus is approved or rejected. version is the current mapping version.
+              required: true
             requestModels:
               application/json: OfferingCommunityApproval
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated mapping
+                responseModels:
+                  application/json: OfferingCommunityView
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
 
   deleteServiceCommunity:
     handler: src/handlers/offering-communities-handler.handleDeleteServiceCommunity
     events:
       - http:
-          path: /services/{serviceId}/communities/{communityId}
+          path: /offerings/{offeringId}/communities/{communityId}
           method: delete
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
@@ -1426,714 +1766,37 @@ functions:
           documentation:
             summary: Delete offering community
             description: Removes the mapping. A missing mapping returns success.
+            tags:
+              - Offering communities
             queryParams:
               - name: vendorId
                 required: true
                 schema:
                   type: string
             pathParams:
-              - name: serviceId
+              - name: offeringId
+                required: true
                 schema:
                   type: string
               - name: communityId
+                required: true
                 schema:
                   type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Mapping removed
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
 
   backfillOfferingCommunities:
     handler: src/handlers/backfill-offering-communities-handler.handler
     description: Idempotent offering-community backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
     timeout: 300
     memorySize: 512
-
-  getpackages:
-    handler: src/handlers/packages-handler.handleGetpackages
-    events:
-      - http:
-          path: /packages
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "List packages"
-          swaggerTags:
-            - Packages
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: List packages for a vendor
-            description: Lists packages owned by vendorId.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the packages
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Packages
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: PackagePage
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-
-
-  postpackages:
-    handler: src/handlers/packages-handler.handlePostpackages
-    events:
-      - http:
-          path: /packages
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Create package"
-          swaggerTags:
-            - Packages
-          bodyType: Package
-          responseData:
-            201:
-              description: "Created"
-          documentation:
-            summary: Create a vendor package
-            description: Creates a package for vendorId. Referenced services and add-ons must belong to the same vendor.
-            tags:
-              - Packages
-            methodResponses:
-              - statusCode: "201"
-                responseBody:
-                  description: Created
-                responseModels:
-                  application/json: Package
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Create package
-              required: true
-            requestModels:
-              application/json: Package
-
-
-  getpackageid:
-    handler: src/handlers/packages-handler.handleGetpackageid
-    events:
-      - http:
-          path: /packages/{packageId}
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get package"
-          swaggerTags:
-            - Packages
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: Get a vendor package
-            description: Gets one package owned by vendorId.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the package
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Packages
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: Package
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: packageId
-                description: packageId
-                schema:
-                  type: string
-
-
-  putpackageid:
-    handler: src/handlers/packages-handler.handlePutpackageid
-    events:
-      - http:
-          path: /packages/{packageId}
-          method: put
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update package"
-          swaggerTags:
-            - Packages
-          bodyType: Package
-          responseData:
-            200:
-              description: "Updated"
-          documentation:
-            summary: Update a vendor package
-            description: Updates a package owned by vendorId. vendorId cannot be changed.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the package
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Packages
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Updated
-                responseModels:
-                  application/json: Package
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: packageId
-                description: packageId
-                schema:
-                  type: string
-            requestBody:
-              description: Update package
-              required: true
-            requestModels:
-              application/json: Package
-
-
-  deletepackageid:
-    handler: src/handlers/packages-handler.handleDeletepackageid
-    events:
-      - http:
-          path: /packages/{packageId}
-          method: delete
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Delete package"
-          swaggerTags:
-            - Packages
-          responseData:
-            204:
-              description: "Deleted"
-          documentation:
-            summary: Delete a vendor package
-            description: Deletes a package owned by vendorId.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the package
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Packages
-            methodResponses:
-              - statusCode: "204"
-                responseBody:
-                  description: Deleted
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: packageId
-                description: packageId
-                schema:
-                  type: string
-
-
-  postpricingcalculate:
-    handler: src/handlers/pricing-handler.handlePostpricingcalculate
-    description: Server price for one vendor offering. Returns offeringVersion for booking. Coupons are ignored.
-    events:
-      - http:
-          path: /pricing/calculate
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Calculate price"
-          description: >
-            Calculates a deterministic INR total. Does not apply coupons.
-            vehicleType must be a canonical vehicle type. Incompatible
-            services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
-          swaggerTags:
-            - Pricing
-          bodyType: PricingCalculateRequest
-          responseData:
-            200:
-              description: "Price calculated"
-            400:
-              description: "Invalid request or unsupported vehicle type"
-            404:
-              description: "Catalog entity not found"
-            409:
-              description: "Inactive catalog entity or disabled vendor offering"
-            502:
-              description: "Vendor pricing could not be read"
-            503:
-              description: "Vendor pricing URL is not configured"
-          documentation:
-            summary: Calculate price
-            description: Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
-            tags:
-              - Pricing
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Price calculated
-                responseModels:
-                  application/json: PricingResult
-              - statusCode: "400"
-                responseBody:
-                  description: Invalid request or unsupported vehicle type
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "404"
-                responseBody:
-                  description: Catalog entity not found
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "409"
-                responseBody:
-                  description: Inactive catalog entity or disabled vendor offering
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "502"
-                responseBody:
-                  description: Vendor pricing could not be read
-                responseModels:
-                  application/json: ErrorResponse
-              - statusCode: "503"
-                responseBody:
-                  description: Vendor pricing URL is not configured
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Calculates a deterministic INR total. Does not apply coupons. vehicleType must be a canonical vehicle type. Incompatible services return 400 VEHICLE_TYPE_NOT_SUPPORTED.
-              required: true
-            requestModels:
-              application/json: PricingCalculateRequest
-
-
-  getaddons:
-    handler: src/handlers/add-ons-handler.handleGetaddons
-    events:
-      - http:
-          path: /addons
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "List add-ons"
-          swaggerTags:
-            - Add-ons
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: List add-ons for a vendor
-            description: Lists add-ons owned by vendorId. serviceId and categoryId are optional filters.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the add-ons
-                required: true
-                schema:
-                  type: string
-              - name: serviceId
-                description: Optional parent service
-                required: false
-                schema:
-                  type: string
-            tags:
-              - Add-ons
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: AddOnPage
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-
-
-  postaddons:
-    handler: src/handlers/add-ons-handler.handlePostaddons
-    events:
-      - http:
-          path: /addons
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Create add-on"
-          swaggerTags:
-            - Add-ons
-          bodyType: AddOn
-          responseData:
-            201:
-              description: "Created"
-          documentation:
-            summary: Create a vendor add-on
-            description: Creates an add-on for vendorId on a service owned by the same vendor.
-            tags:
-              - Add-ons
-            methodResponses:
-              - statusCode: "201"
-                responseBody:
-                  description: Created
-                responseModels:
-                  application/json: AddOn
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Create add-on
-              required: true
-            requestModels:
-              application/json: AddOn
-
-
-  getaddonid:
-    handler: src/handlers/add-ons-handler.handleGetaddonid
-    events:
-      - http:
-          path: /addons/{addonId}
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Get add-on"
-          swaggerTags:
-            - Add-ons
-          responseData:
-            200:
-              description: "OK"
-          documentation:
-            summary: Get a vendor add-on
-            description: Gets one add-on owned by vendorId.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the add-on
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Add-ons
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: AddOn
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: addonId
-                description: addonId
-                schema:
-                  type: string
-
-
-  putaddonid:
-    handler: src/handlers/add-ons-handler.handlePutaddonid
-    events:
-      - http:
-          path: /addons/{addonId}
-          method: put
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Update add-on"
-          swaggerTags:
-            - Add-ons
-          bodyType: AddOn
-          responseData:
-            200:
-              description: "Updated"
-          documentation:
-            summary: Update a vendor add-on
-            description: Updates an add-on owned by vendorId. vendorId cannot be changed.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the add-on
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Add-ons
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Updated
-                responseModels:
-                  application/json: AddOn
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: addonId
-                description: addonId
-                schema:
-                  type: string
-            requestBody:
-              description: Update add-on
-              required: true
-            requestModels:
-              application/json: AddOn
-
-
-  deleteaddonid:
-    handler: src/handlers/add-ons-handler.handleDeleteaddonid
-    events:
-      - http:
-          path: /addons/{addonId}
-          method: delete
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: "Delete add-on"
-          swaggerTags:
-            - Add-ons
-          responseData:
-            204:
-              description: "Deleted"
-          documentation:
-            summary: Delete a vendor add-on
-            description: Deletes an add-on owned by vendorId.
-            queryParams:
-              - name: vendorId
-                description: Vendor that owns the add-on
-                required: true
-                schema:
-                  type: string
-            tags:
-              - Add-ons
-            methodResponses:
-              - statusCode: "204"
-                responseBody:
-                  description: Deleted
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            pathParams:
-              - name: addonId
-                description: addonId
-                schema:
-                  type: string
-
-  postServiceVisits:
-    handler: src/handlers/service-visits-handler.handlePostServiceVisits
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Create a service visit
-          swaggerTags:
-            - Service visits
-          bodyType: ServiceVisitWrite
-          responseData:
-            201:
-              description: Created
-          documentation:
-            summary: Create a service visit
-            description: Creates a draft visit. Each window requires staffCount and resources. branchId is not accepted. staffIds is optional.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "201"
-                responseBody:
-                  description: Created
-                responseModels:
-                  application/json: ServiceVisit
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Service visit
-              required: true
-            requestModels:
-              application/json: ServiceVisitWrite
-
-  getServiceVisits:
-    handler: src/handlers/service-visits-handler.handleGetServiceVisits
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: List service visits
-          swaggerTags:
-            - Service visits
-          responseData:
-            200:
-              description: OK
-          documentation:
-            summary: List service visits
-            description: Lists visits for the vendor. Previously saved windows are returned without invented resource defaults.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: ServiceVisitPage
-
-  getServiceVisit:
-    handler: src/handlers/service-visits-handler.handleGetServiceVisit
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits/{visitId}
-          method: get
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Get a service visit
-          swaggerTags:
-            - Service visits
-          responseData:
-            200:
-              description: OK
-          documentation:
-            summary: Get a service visit
-            description: Returns one visit, including staff count and resources when they were saved.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: OK
-                responseModels:
-                  application/json: ServiceVisit
-
-  patchServiceVisit:
-    handler: src/handlers/service-visits-handler.handlePatchServiceVisit
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits/{visitId}
-          method: patch
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Update a service visit
-          swaggerTags:
-            - Service visits
-          bodyType: ServiceVisitWrite
-          responseData:
-            200:
-              description: Updated
-          documentation:
-            summary: Update a service visit
-            description: Replaces any windows sent in the body. Omitted fields stay as they are. expectedVersion is required.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Updated
-                responseModels:
-                  application/json: ServiceVisit
-              - statusCode: "400"
-                responseBody:
-                  description: Request failed
-                responseModels:
-                  application/json: ErrorResponse
-            requestBody:
-              description: Fields to replace
-              required: true
-            requestModels:
-              application/json: ServiceVisitWrite
-
-  activateServiceVisit:
-    handler: src/handlers/service-visits-handler.handleActivateServiceVisit
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits/{visitId}/activate
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Activate a service visit
-          swaggerTags:
-            - Service visits
-          documentation:
-            summary: Activate a service visit
-            description: Activates a draft or paused visit. Previously saved windows stay valid.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Activated
-                responseModels:
-                  application/json: ServiceVisit
-
-  pauseServiceVisit:
-    handler: src/handlers/service-visits-handler.handlePauseServiceVisit
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits/{visitId}/pause
-          method: post
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Pause a service visit
-          swaggerTags:
-            - Service visits
-          documentation:
-            summary: Pause a service visit
-            description: Pauses an active visit.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Paused
-                responseModels:
-                  application/json: ServiceVisit
-
-  archiveServiceVisit:
-    handler: src/handlers/service-visits-handler.handleArchiveServiceVisit
-    events:
-      - http:
-          path: /vendors/{vendorId}/service-visits/{visitId}
-          method: delete
-          cors: ${self:custom.httpCors}
-          authorizer: ${self:custom.securedAuthorizer}
-          summary: Archive a service visit
-          swaggerTags:
-            - Service visits
-          documentation:
-            summary: Archive a service visit
-            description: Archives a visit. The visit id is unchanged.
-            tags:
-              - Service visits
-            methodResponses:
-              - statusCode: "200"
-                responseBody:
-                  description: Archived
-                responseModels:
-                  application/json: ServiceVisit
 
   onServiceVisitChanged:
     handler: src/handlers/service-visit-stream.handler

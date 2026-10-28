@@ -10,6 +10,8 @@ export type EntityType =
     | 'ADDON'
     | 'PACKAGE'
     | 'PACKAGE_ITEM'
+    | 'OFFERING'
+    | 'OFFERING_LOOKUP'
     | 'SERVICE_LOOKUP'
     | 'SERVICE_VEHICLE'
     | 'ADDON_LOOKUP'
@@ -137,6 +139,59 @@ export interface PackageEntity extends CatalogBaseEntity {
     /** Server-owned catalog input version for package price, active state, and composition. */
     version?: number;
     displayOrder: number;
+}
+
+/**
+ * Inline service description embedded on a PACKAGE offering.
+ * Not a separate SERVICE row — providers do not create linked service ids.
+ */
+export interface IncludedServiceDescription {
+    name: string;
+    description?: string;
+    categoryId: string;
+    tags?: string[];
+    visitsPerPeriod: number;
+    durationMinutes: number;
+}
+
+/**
+ * Unified catalog offering. PACKAGE is the supported type; SERVICE is reserved.
+ * Prices are integer minor units with an explicit currency.
+ */
+export interface OfferingEntity extends CatalogBaseEntity {
+    entityType: 'OFFERING';
+    offeringId: string;
+    offeringType: 'PACKAGE' | 'SERVICE';
+    vendorId: string;
+    /** Primary category for discovery indexes (first included service category). */
+    categoryId: string;
+    name: string;
+    description?: string;
+    billingPeriod: 'oneTime' | 'weekly' | 'monthly' | 'yearly';
+    currency: string;
+    /** Per-vehicle price (minor units) and duration. */
+    vehiclePricing: VehiclePricing[];
+    vehicleTypes: string[];
+    /** Lowest configured minor-unit price (discovery / legacy helpers). */
+    basePrice: number;
+    /** Shortest configured duration. */
+    durationMinutes: number;
+    includedServices: IncludedServiceDescription[];
+    status: 'draft' | 'published' | 'paused' | 'archived';
+    /** True when status is published — kept for discovery eligibility helpers. */
+    active: boolean;
+    version: number;
+    displayOrder: number;
+}
+
+export interface OfferingLookupEntity extends CatalogBaseEntity {
+    entityType: 'OFFERING_LOOKUP';
+    offeringId: string;
+    vendorId: string;
+    categoryId: string;
+    offeringType: 'PACKAGE' | 'SERVICE';
+    status: 'draft' | 'published' | 'paused' | 'archived';
+    active: boolean;
 }
 
 export const OFFERING_COMMUNITY_STATUS = {

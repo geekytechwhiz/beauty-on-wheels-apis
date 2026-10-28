@@ -290,6 +290,452 @@
           }
         }
       }
+    },
+    "/bookings/{bookingId}/payments": {
+      "post": {
+        "summary": "Initiate customer payment for a booking",
+        "description": "",
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "postbookingpayment.post./bookings/{bookingId}/payments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Payment initiated"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/payments/{paymentId}": {
+      "get": {
+        "summary": "Get customer payment status",
+        "description": "",
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "getbookingpayment.get./bookings/{bookingId}/payments/{paymentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/payments/{paymentId}/sandbox-complete": {
+      "post": {
+        "summary": "Sandbox payment completion",
+        "description": "",
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "sandboxcompletepayment.post./bookings/{bookingId}/payments/{paymentId}/sandbox-complete",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment completed in sandbox"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/reviews": {
+      "post": {
+        "summary": "Submit booking review",
+        "description": "",
+        "tags": [
+          "Reviews"
+        ],
+        "operationId": "postbookingreview.post./bookings/{bookingId}/reviews",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Review created"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get booking review",
+        "description": "",
+        "tags": [
+          "Reviews"
+        ],
+        "operationId": "getbookingreview.get./bookings/{bookingId}/reviews",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review"
+          }
+        }
+      }
+    },
+    "/customer-plans": {
+      "post": {
+        "summary": "Create customer plan",
+        "description": "Purchases a catalog package as a recurring plan in PENDING_PAYMENT. Price must equal the catalog discountedPrice. Cadence and visit count are provisional (derived from package items plus request cadence). Idempotency-Key is required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "postcustomerplan.post./customer-plans",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateCustomerPlanRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create customer plan"
+          }
+        }
+      },
+      "get": {
+        "summary": "List my customer plans",
+        "description": "Lists plans owned by the authenticated customer.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "getcustomerplans.get./customer-plans",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List my customer plans"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}": {
+      "get": {
+        "summary": "Get customer plan",
+        "description": "Owner-only plan detail.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "getcustomerplan.get./customer-plans/{planId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get customer plan"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/payments": {
+      "post": {
+        "summary": "Initiate customer plan payment",
+        "description": "Creates a payment bound to the plan. Amount is taken from the plan pricing snapshot; clients must not supply an amount. Requires Idempotency-Key.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "postcustomerplanpayment.post./customer-plans/{planId}/payments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Initiate customer plan payment"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/payments/{paymentId}": {
+      "get": {
+        "summary": "Get customer plan payment",
+        "description": "Reconciles pending payments against expiry and returns the payment record.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "getcustomerplanpayment.get./customer-plans/{planId}/payments/{paymentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get customer plan payment"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/payments/{paymentId}/sandbox-complete": {
+      "post": {
+        "summary": "Sandbox plan payment completion",
+        "description": "Dev/staging only. SUCCESS activates the plan. Disabled when PAYMENT_SANDBOX_ENABLED=false.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "sandboxcompleteplanpayment.post./customer-plans/{planId}/payments/{paymentId}/sandbox-complete",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandbox plan payment completion"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/payments/{paymentId}/confirm": {
+      "post": {
+        "summary": "Confirm plan payment with provider signature",
+        "description": "Razorpay checkout callback. Verifies the signature and activates the plan.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "confirmcustomerplanpayment.post./customer-plans/{planId}/payments/{paymentId}/confirm",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirm plan payment with provider signature"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/changes/preview": {
+      "post": {
+        "summary": "Preview booking provider/service change",
+        "description": "Owner-only. PENDING_PAYMENT or CONFIRMED bookings only. Returns current vs proposed snapshots, priceDeltaMinor and paymentImpact (CHARGE, REFUND, NONE). Reports impact only; no money moves and refund policy is unresolved.",
+        "tags": [
+          "Booking Changes"
+        ],
+        "operationId": "postbookingchangepreview.post./bookings/{bookingId}/changes/preview",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BookingChangeRequest"
+            }
+          },
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preview booking provider/service change"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/changes": {
+      "post": {
+        "summary": "Commit booking provider/service change",
+        "description": "Owner-only. Revalidates coverage, price and availability, reserves new capacity, swaps the snapshot and releases the old allocation. On failure the original booking is kept. Idempotency-Key and expectedPrice are required. Package-plan bookings return 409 PACKAGE_CHANGE_NOT_ALLOWED.",
+        "tags": [
+          "Booking Changes"
+        ],
+        "operationId": "postbookingchange.post./bookings/{bookingId}/changes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BookingChangeRequest"
+            }
+          },
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Commit booking provider/service change"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -632,6 +1078,11 @@
         },
         "holdId": {
           "title": "Booking.holdId",
+          "type": "string"
+        },
+        "allocationId": {
+          "title": "Booking.allocationId",
+          "description": "Availability allocation key; absent means the booking id. Set when a provider/service change reserved new capacity.",
           "type": "string"
         },
         "location": {

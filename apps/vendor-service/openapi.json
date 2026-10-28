@@ -6427,7 +6427,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-68c4653f-db5d-4957-9af6-4ed2d1a80fd3",
+        "operationId": "updatevendorstaff-7d6364b2-5f82-43e6-aa83-4dd08c71428c",
         "parameters": [
           {
             "name": "vendorId",

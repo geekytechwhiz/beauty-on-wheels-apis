@@ -22,7 +22,7 @@ export interface CatalogGateway {
   }): Promise<CatalogPrice>;
 }
 
-/** Vendor-owned catalog package with its composition, as read from `GET /packages/{packageId}`. */
+/** Vendor-owned catalog package with its composition, as read from offering detail. */
 export interface CatalogPackage {
   id: string;
   vendorId: string;
@@ -52,10 +52,10 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
     const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
     try {
       const body = await requestJson(
-        `${base}/packages/${encodeURIComponent(input.packageId)}?vendorId=${encodeURIComponent(input.vendorId)}`,
+        `${base}/offerings/${encodeURIComponent(input.packageId)}?consistent=true`,
         { method: 'GET', headers: authHeaders(input.authorizationHeader) },
       );
-      return parsePackage(body, input.packageId);
+      return parsePackageFromOffering(body, input.packageId, input.vendorId);
     } catch (error) {
       if (error instanceof BookingError && error.statusCode === 404) {
         throw new BookingError('PACKAGE_NOT_FOUND', 'Package not found for the vendor', 404, 'packageId', false);
@@ -71,10 +71,10 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
   }): Promise<CatalogOffering> {
     const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
     const body = await requestJson(
-      `${base}/services/${encodeURIComponent(input.offeringId)}?vendorId=${encodeURIComponent(input.vendorId)}&consistent=true`,
+      `${base}/offerings/${encodeURIComponent(input.offeringId)}?consistent=true`,
       { method: 'GET', headers: authHeaders(input.authorizationHeader) },
     );
-    return parseOffering(body, input.offeringId);
+    return parseOffering(body, input.offeringId, input.vendorId);
   }
 
   async priceOffering(input: {
@@ -84,76 +84,110 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
     addOnIds: string[];
     authorizationHeader?: string;
   }): Promise<CatalogPrice> {
-    const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
-    const body = await requestJson(`${base}/pricing/calculate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(input.authorizationHeader ? { Authorization: input.authorizationHeader } : {}),
-      },
-      body: JSON.stringify({
-        vendorId: input.vendorId,
-        vehicleType: input.vehicleType,
-        serviceIds: [input.offeringId],
-        addOnIds: input.addOnIds,
-      }),
+    // Pricing is derived from the offering vehicle price. Catalog no longer
+    // exposes POST /pricing/calculate. Add-ons are not part of the unified offering model.
+    if (input.addOnIds.length > 0) {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Add-on pricing is not supported on catalog offerings',
+        502,
+      );
+    }
+    const offering = await this.getOffering({
+      offeringId: input.offeringId,
+      vendorId: input.vendorId,
+      authorizationHeader: input.authorizationHeader,
     });
-    return parsePrice(body, input.offeringId);
+    const match = offering.vehiclePricing.find((entry) => entry.vehicleType === input.vehicleType);
+    if (!match) {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        `Vehicle type ${input.vehicleType} is not supported on this offering`,
+        400,
+      );
+    }
+    const unitPrice = match.price;
+    const version = offering.version;
+    return {
+      currency: offering.currency ?? 'INR',
+      subtotal: unitPrice,
+      discount: 0,
+      addOnTotal: 0,
+      total: unitPrice,
+      unitPrice,
+      ...(version === undefined ? {} : { offeringVersion: version, version, catalogVersion: version }),
+      items: [{
+        id: offering.id,
+        name: offering.name ?? offering.id,
+        type: 'PACKAGE',
+        unitPrice,
+        total: unitPrice,
+      }],
+    };
   }
 }
 
 
-export function parsePackage(body: unknown, packageId: string): CatalogPackage {
+export function parsePackageFromOffering(body: unknown, packageId: string, vendorId: string): CatalogPackage {
+  const offering = parseOffering(body, packageId, vendorId);
+  if (!offering.active) {
+    throw new BookingError('PACKAGE_NOT_FOUND', 'Package not found for the vendor', 404, 'packageId', false);
+  }
+  if (offering.vendorId && offering.vendorId !== vendorId) {
+    throw new BookingError('PACKAGE_NOT_FOUND', 'Package not found for the vendor', 404, 'packageId', false);
+  }
   const response = asRecord(body);
   const record = asRecord(response.data !== undefined ? response.data : body);
-  const id = typeof record.id === 'string' ? record.id : packageId;
-  const unavailable = (message: string) => new BookingError('CATALOG_PRICING_UNAVAILABLE', message, 502);
-  if (typeof record.active !== 'boolean') throw unavailable('Service Catalog package did not include an active flag');
-  if (typeof record.vendorId !== 'string' || !record.vendorId.trim()) {
-    throw unavailable('Service Catalog package did not include a vendor');
-  }
-  const price = record.discountedPrice;
-  if (typeof price !== 'number' || !Number.isFinite(price) || price < 0) {
-    throw unavailable('Service Catalog package did not include a valid price');
-  }
-  if (!Array.isArray(record.items)) throw unavailable('Service Catalog package did not include items');
-  const items = record.items.map((entry) => {
+  const included = Array.isArray(record.includedServices) ? record.includedServices : [];
+  const items = included.map((entry, index) => {
     const item = asRecord(entry);
-    if (typeof item.refId !== 'string' || !item.refId.trim() || (item.itemType !== 'SERVICE' && item.itemType !== 'ADDON')) {
-      throw unavailable('Service Catalog package returned an invalid item');
-    }
+    const name = typeof item.name === 'string' ? item.name : `item-${index + 1}`;
     return {
-      refId: item.refId,
-      itemType: item.itemType as 'SERVICE' | 'ADDON',
-      ...(typeof item.quantity === 'number' && Number.isInteger(item.quantity) && item.quantity > 0
-        ? { quantity: item.quantity } : {}),
+      refId: name,
+      itemType: 'SERVICE' as const,
+      quantity: typeof item.visitsPerPeriod === 'number' && Number.isInteger(item.visitsPerPeriod) && item.visitsPerPeriod > 0
+        ? item.visitsPerPeriod
+        : 1,
     };
   });
+  const price = offering.vehiclePricing[0]?.price;
+  if (price === undefined) {
+    throw new BookingError('CATALOG_PRICING_UNAVAILABLE', 'Service Catalog package did not include a valid price', 502);
+  }
   return {
-    id,
-    vendorId: record.vendorId,
-    name: typeof record.name === 'string' ? record.name : id,
-    active: record.active,
+    id: offering.id,
+    vendorId: offering.vendorId ?? vendorId,
+    name: offering.name ?? packageId,
+    active: offering.active,
     discountedPrice: price,
-    currency: typeof record.currency === 'string' && /^[A-Za-z]{3}$/.test(record.currency) ? record.currency.toUpperCase() : 'INR',
-    ...(typeof record.version === 'number' && Number.isInteger(record.version) ? { version: record.version } : {}),
-    items,
+    currency: offering.currency ?? 'INR',
+    ...(offering.version !== undefined ? { version: offering.version } : {}),
+    items: items.length > 0 ? items : [{ refId: offering.id, itemType: 'SERVICE' }],
   };
 }
 
 export function parseOffering(
   body: unknown,
   offeringId: string,
+  expectedVendorId?: string,
 ): CatalogOffering {
   // Support both the standard API envelope and direct records.
   const response = asRecord(body);
   const record = asRecord(response.data !== undefined ? response.data : body);
 
-  const id = typeof record.id === 'string' ? record.id : offeringId;
+  const id = typeof record.offeringId === 'string'
+    ? record.offeringId
+    : typeof record.id === 'string'
+      ? record.id
+      : offeringId;
 
   const communities = parseCommunities(record.communities);
 
-  if (typeof record.active !== 'boolean') {
+  const active = typeof record.active === 'boolean'
+    ? record.active
+    : record.status === 'published';
+
+  if (typeof active !== 'boolean') {
     throw new BookingError(
       'CATALOG_PRICING_UNAVAILABLE',
       'Service Catalog offering did not include an active flag',
@@ -161,8 +195,20 @@ export function parseOffering(
     );
   }
 
-  // Parse vehicle-specific pricing and duration.
+  if (expectedVendorId && typeof record.vendorId === 'string' && record.vendorId !== expectedVendorId) {
+    throw new BookingError(
+      'CATALOG_PRICING_UNAVAILABLE',
+      'Service Catalog offering vendor mismatch',
+      404,
+    );
+  }
+
+  // Parse vehicle-specific pricing. New offerings use integer minor units;
+  // legacy bridged rows may still send major units with at most two decimals.
   const vehiclePricing: VehiclePricing[] = [];
+  const pricesAreMinor = record.offeringType === 'PACKAGE'
+    || record.offeringType === 'SERVICE'
+    || typeof record.billingPeriod === 'string';
 
   if (Array.isArray(record.vehiclePricing)) {
     const seenTypes = new Set<string>();
@@ -171,20 +217,19 @@ export function parseOffering(
       const item = asRecord(entry);
 
       const vehicleType = item.vehicleType;
-      const price = item.price;
+      const rawPrice = item.price;
       const durationMinutes = item.durationMinutes;
 
       if (
-        typeof vehicleType !== 'string' ||
-        vehicleType.trim().length === 0 ||
-        seenTypes.has(vehicleType) ||
-        typeof price !== 'number' ||
-        !Number.isFinite(price) ||
-        price < 0 ||
-        !Number.isInteger(Math.round(price * 100)) ||
-        typeof durationMinutes !== 'number' ||
-        !Number.isInteger(durationMinutes) ||
-        durationMinutes <= 0
+        typeof vehicleType !== 'string'
+        || vehicleType.trim().length === 0
+        || seenTypes.has(vehicleType)
+        || typeof rawPrice !== 'number'
+        || !Number.isFinite(rawPrice)
+        || rawPrice < 0
+        || typeof durationMinutes !== 'number'
+        || !Number.isInteger(durationMinutes)
+        || durationMinutes <= 0
       ) {
         throw new BookingError(
           'CATALOG_PRICING_UNAVAILABLE',
@@ -192,6 +237,10 @@ export function parseOffering(
           502,
         );
       }
+
+      const price = pricesAreMinor
+        ? minorToMajor(rawPrice)
+        : majorOrThrow(rawPrice);
 
       seenTypes.add(vehicleType);
 
@@ -215,13 +264,13 @@ export function parseOffering(
     const durationMinutes = record.durationMinutes;
 
     if (
-      legacyVehicleTypes.length === 0 ||
-      typeof basePrice !== 'number' ||
-      !Number.isFinite(basePrice) ||
-      basePrice < 0 ||
-      typeof durationMinutes !== 'number' ||
-      !Number.isInteger(durationMinutes) ||
-      durationMinutes <= 0
+      legacyVehicleTypes.length === 0
+      || typeof basePrice !== 'number'
+      || !Number.isFinite(basePrice)
+      || basePrice < 0
+      || typeof durationMinutes !== 'number'
+      || !Number.isInteger(durationMinutes)
+      || durationMinutes <= 0
     ) {
       throw new BookingError(
         'CATALOG_PRICING_UNAVAILABLE',
@@ -233,7 +282,7 @@ export function parseOffering(
     for (const vehicleType of legacyVehicleTypes) {
       vehiclePricing.push({
         vehicleType,
-        price: basePrice,
+        price: pricesAreMinor ? minorToMajor(basePrice) : basePrice,
         durationMinutes,
       });
     }
@@ -248,7 +297,8 @@ export function parseOffering(
 
   return {
     id,
-    active: record.active,
+    active,
+
     vehicleTypes,
     vehiclePricing,
 
@@ -277,6 +327,27 @@ export function parseOffering(
   };
 }
 
+function minorToMajor(paise: number): number {
+  if (!Number.isInteger(paise) || paise < 0) {
+    throw new BookingError(
+      'CATALOG_PRICING_UNAVAILABLE',
+      'Service Catalog returned invalid minor-unit price',
+      502,
+    );
+  }
+  return Math.round(paise) / 100;
+}
+
+function majorOrThrow(value: number): number {
+  if (!Number.isInteger(Math.round(value * 100))) {
+    throw new BookingError(
+      'CATALOG_PRICING_UNAVAILABLE',
+      'Service Catalog returned invalid vehicle pricing',
+      502,
+    );
+  }
+  return value;
+}
 
 function parseCommunities(
   value: unknown,
@@ -320,40 +391,6 @@ function parseCommunities(
   });
 }
 
-export function parsePrice(body: unknown, offeringId: string): CatalogPrice {
-  const record = asRecord(body);
-  const items = Array.isArray(record.items) ? record.items : [];
-  const line = items
-    .map(asRecord)
-    .find((item) => item.id === offeringId);
-  const unitPrice = line && typeof line.unitPrice === 'number' ? line.unitPrice : undefined;
-  const version = integerOrUndefined(record.offeringVersion) ?? integerOrUndefined(record.version);
-  const catalogVersion = integerOrUndefined(record.catalogVersion);
-  const vendorPricingVersion = nonNegativeIntegerOrUndefined(record.vendorPricingVersion);
-  return {
-    currency: typeof record.currency === 'string' ? record.currency : '',
-    subtotal: numberOrNaN(record.subtotal),
-    discount: numberOrNaN(record.discount),
-    addOnTotal: numberOrNaN(record.addOnTotal),
-    total: numberOrNaN(record.total),
-    ...(typeof record.taxAmount === 'number' ? { taxAmount: record.taxAmount } : {}),
-    ...(unitPrice === undefined ? {} : { unitPrice }),
-    ...(version === undefined ? {} : { offeringVersion: version, version }),
-    ...(catalogVersion === undefined ? {} : { catalogVersion }),
-    ...(vendorPricingVersion === undefined ? {} : { vendorPricingVersion }),
-    items: items.map(asRecord).flatMap((item) => {
-      const id = typeof item.id === 'string' ? item.id : undefined;
-      const name = typeof item.name === 'string' ? item.name : undefined;
-      const type = item.type;
-      const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : undefined;
-      const total = typeof item.total === 'number' ? item.total : undefined;
-      return id && name && (type === 'SERVICE' || type === 'PACKAGE' || type === 'ADD_ON') && unitPrice !== undefined && total !== undefined
-        ? [{ id, name, type, unitPrice, total }]
-        : [];
-    }),
-  };
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new BookingError(
@@ -363,18 +400,6 @@ function asRecord(value: unknown): Record<string, unknown> {
     );
   }
   return value as Record<string, unknown>;
-}
-
-function numberOrNaN(value: unknown): number {
-  return typeof value === 'number' ? value : Number.NaN;
-}
-
-function integerOrUndefined(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : undefined;
-}
-
-function nonNegativeIntegerOrUndefined(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
 let gateway: HttpCatalogGateway | undefined;

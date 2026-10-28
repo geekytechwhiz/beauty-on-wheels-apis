@@ -47,8 +47,25 @@ function catalogBaseUrl(): string {
 
 async function readActiveFlag(response: Response): Promise<boolean | undefined> {
   try {
-    const body = (await response.json()) as { active?: unknown };
-    return typeof body?.active === 'boolean' ? body.active : undefined;
+    const body = (await response.json()) as {
+      active?: unknown;
+      data?: { active?: unknown; status?: unknown };
+      status?: unknown;
+    };
+    if (typeof body?.active === 'boolean') {
+      return body.active;
+    }
+    if (typeof body?.data?.active === 'boolean') {
+      return body.data.active;
+    }
+    const status = body?.data?.status ?? body?.status;
+    if (status === 'published') {
+      return true;
+    }
+    if (typeof status === 'string') {
+      return false;
+    }
+    return undefined;
   } catch {
     return undefined;
   }
@@ -100,9 +117,8 @@ export class HttpCatalogEntityLookup implements CatalogEntityLookup {
     await Promise.all(
       services.map((service) => {
         const url = new URL(
-          `${base}/services/${encodeURIComponent(service.serviceId)}`,
+          `${base}/offerings/${encodeURIComponent(service.serviceId)}`,
         );
-        url.searchParams.set('categoryId', service.categoryId);
         return assertExists({
           url: url.toString(),
           authorizationHeader,
@@ -125,7 +141,7 @@ export class HttpCatalogEntityLookup implements CatalogEntityLookup {
     await Promise.all(
       packages.map((pkg) =>
         assertExists({
-          url: `${base}/packages/${encodeURIComponent(pkg.packageId)}`,
+          url: `${base}/offerings/${encodeURIComponent(pkg.packageId)}`,
           authorizationHeader,
           enabled: pkg.enabled,
           unknownMessage: `Unknown catalog package: ${pkg.packageId}`,

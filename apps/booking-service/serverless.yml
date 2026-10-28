@@ -128,6 +128,10 @@ custom:
     tags:
       - name: Bookings
         description: Customer and vendor bookings
+      - name: Payments
+        description: Customer booking payments
+      - name: Reviews
+        description: Customer booking reviews
       - name: Customer Plans
         description: Recurring package plans (never ON_DEMAND bookings)
       - name: Booking Changes
@@ -1198,6 +1202,15 @@ functions:
             description: Creates a payment bound to the booking. Amount is taken from the booking pricing snapshot; clients must not supply an amount. Requires Idempotency-Key.
             tags:
               - Payments
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Payment initiated
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
             pathParams:
               - name: bookingId
                 description: bookingId
@@ -1223,6 +1236,15 @@ functions:
             description: Reconciles pending payments against expiry and returns the current payment record for restart/callback recovery.
             tags:
               - Payments
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Payment status
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
             pathParams:
               - name: bookingId
                 description: bookingId
@@ -1252,6 +1274,15 @@ functions:
             description: Dev/staging only. Confirms or fails a payment without a real gateway. Disabled when PAYMENT_SANDBOX_ENABLED=false.
             tags:
               - Payments
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Payment completed in sandbox
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
             pathParams:
               - name: bookingId
                 description: bookingId
@@ -1281,6 +1312,15 @@ functions:
             description: Customer-only. Allowed once after COMPLETED. rating 1-5 required; comment optional.
             tags:
               - Reviews
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Review created
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
             pathParams:
               - name: bookingId
                 description: bookingId
@@ -1306,6 +1346,15 @@ functions:
             description: Returns the persisted customer review for a booking owned by the caller.
             tags:
               - Reviews
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Review
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
             pathParams:
               - name: bookingId
                 description: bookingId

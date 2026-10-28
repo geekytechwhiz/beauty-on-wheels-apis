@@ -69,6 +69,14 @@ const baseLogger = createLogger({
   redactPII: true,
 });
 
+export interface OfferingVisitWindowResponse {
+  visitWindowId: string;
+  label: string;
+  allDay?: boolean;
+  startTime?: string;
+  endTime?: string;
+}
+
 export interface OfferingApiResponse {
   offeringId: string;
   offeringType: string;
@@ -81,10 +89,16 @@ export interface OfferingApiResponse {
   vehiclePricing: Array<{
     vehicleType: string;
     price: number;
+    /**
+     * Total package duration across visits in the billing period for this
+     * vehicle. Per-visit duration is on includedServices[].durationMinutes.
+     */
     durationMinutes: number;
   }>;
   vehicleTypes: string[];
   includedServices: ValidatedIncludedService[];
+  /** Package-defined preferred visit windows (not confirmed slots). */
+  visitWindows?: OfferingVisitWindowResponse[];
   status: OfferingLifecycleStatus;
   active: boolean;
   version: number;
@@ -196,6 +210,16 @@ export class CatalogOfferingsService {
     }
     if (body.status) {
       assertOfferingStatusTransition(existing.status, body.status);
+    }
+    assertPatchBillingPeriodCopy(existing, body);
+    const nextStatus = body.status ?? existing.status;
+    const nextWindows = body.visitWindows ?? existing.visitWindows;
+    if (nextStatus === OFFERING_STATUS.PUBLISHED && (!nextWindows || nextWindows.length === 0)) {
+      throw new BaseError(
+        'Published package offerings require visitWindows preferences',
+        400,
+        'VISIT_WINDOWS_REQUIRED',
+      );
     }
 
     const expectedVersion = body.expectedVersion ?? existing.version;
@@ -438,6 +462,9 @@ function buildOfferingEntity(
     basePrice,
     durationMinutes,
     includedServices: input.includedServices.map((entry) => ({ ...entry })),
+    ...(input.visitWindows === undefined
+      ? {}
+      : { visitWindows: input.visitWindows.map((entry) => ({ ...entry })) }),
     status: input.status,
     active,
     version: INITIAL_CATALOG_VERSION,
@@ -468,6 +495,7 @@ function mergeOffering(
   const billingPeriod = updates.billingPeriod ?? existing.billingPeriod;
   const currency = updates.currency ?? existing.currency;
   const description = updates.description ?? existing.description;
+  const visitWindows = updates.visitWindows ?? existing.visitWindows;
   const categoryId = includedServices[0]?.categoryId ?? existing.categoryId;
   const vehicleTypes = vehiclePricing.map((entry) => entry.vehicleType);
   const basePrice = Math.min(...vehiclePricing.map((entry) => entry.price));
@@ -481,6 +509,7 @@ function mergeOffering(
     || (updates.currency !== undefined && updates.currency !== existing.currency)
     || (updates.vehiclePricing !== undefined)
     || (updates.includedServices !== undefined)
+    || (updates.visitWindows !== undefined)
     || (updates.status !== undefined && updates.status !== existing.status);
 
   return {
@@ -495,6 +524,9 @@ function mergeOffering(
     basePrice,
     durationMinutes,
     includedServices: includedServices.map((entry) => ({ ...entry })),
+    ...(visitWindows === undefined
+      ? {}
+      : { visitWindows: visitWindows.map((entry) => ({ ...entry })) }),
     status,
     active,
     displayOrder,
@@ -551,6 +583,9 @@ function mapOffering(entity: OfferingEntity): OfferingApiResponse {
     vehiclePricing: entity.vehiclePricing.map((entry) => ({ ...entry })),
     vehicleTypes: [...entity.vehicleTypes],
     includedServices: entity.includedServices.map((entry) => ({ ...entry })),
+    ...(entity.visitWindows === undefined
+      ? {}
+      : { visitWindows: entity.visitWindows.map((entry) => ({ ...entry })) }),
     status: entity.status,
     active: entity.active,
     version: entity.version,
@@ -558,6 +593,41 @@ function mapOffering(entity: OfferingEntity): OfferingApiResponse {
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };
+}
+
+function assertPatchBillingPeriodCopy(
+  existing: OfferingEntity,
+  updates: ValidatedPatchOffering,
+): void {
+  const nextStatus = updates.status ?? existing.status;
+  const copyChanged =
+    updates.name !== undefined
+    || updates.description !== undefined
+    || updates.billingPeriod !== undefined;
+  const publishing = nextStatus === OFFERING_STATUS.PUBLISHED
+    && (copyChanged || existing.status !== OFFERING_STATUS.PUBLISHED);
+  if (!copyChanged && !publishing) {
+    return;
+  }
+  const billingPeriod = updates.billingPeriod ?? existing.billingPeriod;
+  const name = updates.name ?? existing.name;
+  const description = updates.description ?? existing.description;
+  const haystack = `${name} ${description ?? ''}`.toLowerCase();
+  const conflicts: Record<string, string[]> = {
+    weekly: ['daily', 'every day', 'per day'],
+    monthly: ['daily', 'weekly', 'every week', 'per week'],
+    yearly: ['daily', 'weekly', 'monthly', 'every month', 'per month'],
+    oneTime: ['daily', 'weekly', 'monthly', 'yearly', 'subscription', 'recurring'],
+  };
+  const tokens = conflicts[billingPeriod] ?? [];
+  const hit = tokens.find((token) => haystack.includes(token));
+  if (hit) {
+    throw new BaseError(
+      `Offering copy mentions "${hit}" which conflicts with billingPeriod ${billingPeriod}`,
+      400,
+      'BILLING_PERIOD_COPY_CONFLICT',
+    );
+  }
 }
 
 function mapLegacyService(entity: ServiceEntity): OfferingApiResponse {

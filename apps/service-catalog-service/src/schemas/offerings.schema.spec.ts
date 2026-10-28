@@ -23,6 +23,9 @@ const validCreate = {
       durationMinutes: 30,
     },
   ],
+  visitWindows: [
+    { visitWindowId: 'morning', label: 'Morning', startTime: '08:00', endTime: '12:00' },
+  ],
   status: 'published',
 };
 
@@ -34,6 +37,20 @@ describe('offerings schema', () => {
     expect(result.includedServices[0].categoryId).toBe('cat_wash');
   });
 
+  it('accepts package visitWindows with time bounds or allDay', () => {
+    const result = validateCreateOffering(
+      request({
+        ...validCreate,
+        visitWindows: [
+          { visitWindowId: 'morning', label: 'Morning', startTime: '08:00', endTime: '12:00' },
+          { visitWindowId: 'anytime', label: 'Anytime', allDay: true },
+        ],
+      }),
+    );
+    expect(result.visitWindows).toHaveLength(2);
+    expect(result.visitWindows?.[1]).toMatchObject({ visitWindowId: 'anytime', allDay: true });
+  });
+
   it('rejects fractional prices', () => {
     expect(() =>
       validateCreateOffering(
@@ -43,6 +60,18 @@ describe('offerings schema', () => {
         }),
       ),
     ).toThrow();
+  });
+
+  it('rejects name/description that conflicts with billingPeriod', () => {
+    expect(() =>
+      validateCreateOffering(
+        request({
+          ...validCreate,
+          name: 'Daily wash club',
+          billingPeriod: 'weekly',
+        }),
+      ),
+    ).toThrow(/conflicts with billingPeriod/);
   });
 
   it('requires at least one patch field', () => {

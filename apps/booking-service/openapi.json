@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.4",
+  "openapi": "3.0.0",
   "components": {
     "schemas": {
       "VehicleDetails": {
@@ -609,11 +609,10 @@
         "required": [
           "vendorId",
           "branchId",
-          "packageId",
           "vehicleId",
           "location",
-          "cadence",
-          "visitWindow",
+          "visitWindowId",
+          "autoRenew",
           "expectedPrice"
         ],
         "properties": {
@@ -622,10 +621,15 @@
           },
           "branchId": {
             "type": "string",
-            "description": "Addition to the approved proposal; vendor checkout eligibility is branch-scoped."
+            "description": "Vendor checkout eligibility is branch-scoped."
+          },
+          "offeringId": {
+            "type": "string",
+            "description": "Catalog PACKAGE offering id (preferred)."
           },
           "packageId": {
-            "type": "string"
+            "type": "string",
+            "description": "Alias of offeringId for UI compatibility."
           },
           "vehicleId": {
             "type": "string"
@@ -654,48 +658,13 @@
               }
             }
           },
-          "cadence": {
+          "visitWindowId": {
             "type": "string",
-            "enum": [
-              "WEEKLY",
-              "BIWEEKLY",
-              "MONTHLY"
-            ]
+            "description": "Stable id from the offering visitWindows preference list."
           },
-          "visitWindow": {
-            "type": "object",
-            "required": [
-              "preferredDays",
-              "startTime",
-              "endTime",
-              "timezone"
-            ],
-            "properties": {
-              "preferredDays": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "MON",
-                    "TUE",
-                    "WED",
-                    "THU",
-                    "FRI",
-                    "SAT",
-                    "SUN"
-                  ]
-                }
-              },
-              "startTime": {
-                "type": "string"
-              },
-              "endTime": {
-                "type": "string"
-              },
-              "timezone": {
-                "type": "string"
-              }
-            }
+          "autoRenew": {
+            "type": "boolean",
+            "description": "Customer renewal choice; applied only when true."
           },
           "expectedPrice": {
             "type": "object",
@@ -707,7 +676,8 @@
             "properties": {
               "totalMinor": {
                 "type": "integer",
-                "minimum": 0
+                "minimum": 0,
+                "description": "Final customer price for the selected vehicle after catalog minor\u2192major conversion (INR rupees integer). Must match the resolved offering price.\n"
               },
               "currency": {
                 "type": "string",
@@ -715,12 +685,31 @@
               }
             }
           }
+        },
+        "example": {
+          "vendorId": "vend_demo_001",
+          "branchId": "branch_demo_001",
+          "offeringId": "offr_premium_weekly_wash",
+          "vehicleId": "veh_customer_001",
+          "location": {
+            "fulfilmentType": "community",
+            "communityId": "comm_demo_001"
+          },
+          "visitWindowId": "morning",
+          "autoRenew": true,
+          "expectedPrice": {
+            "totalMinor": 1499,
+            "currency": "INR"
+          }
         }
       },
       "CustomerPlan": {
         "type": "object",
         "properties": {
           "planId": {
+            "type": "string"
+          },
+          "offeringId": {
             "type": "string"
           },
           "packageId": {
@@ -738,10 +727,14 @@
           "vehicleId": {
             "type": "string"
           },
+          "vehicleType": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
               "PENDING_PAYMENT",
+              "AWAITING_FIRST_JOB",
               "ACTIVE"
             ]
           },
@@ -752,12 +745,23 @@
               "PAID"
             ]
           },
+          "billingPeriod": {
+            "type": "string",
+            "enum": [
+              "oneTime",
+              "weekly",
+              "monthly",
+              "yearly"
+            ]
+          },
           "cadence": {
             "type": "string",
             "enum": [
               "WEEKLY",
               "BIWEEKLY",
-              "MONTHLY"
+              "MONTHLY",
+              "YEARLY",
+              "ONE_TIME"
             ]
           },
           "remainingVisits": {
@@ -777,35 +781,62 @@
               }
             }
           },
+          "includedServices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "visitsPerPeriod": {
+                  "type": "integer"
+                },
+                "durationMinutes": {
+                  "type": "integer",
+                  "description": "One visit duration"
+                }
+              }
+            }
+          },
+          "visitWindowId": {
+            "type": "string"
+          },
           "visitWindow": {
             "type": "object",
-            "required": [
-              "preferredDays",
-              "startTime",
-              "endTime",
-              "timezone"
-            ],
             "properties": {
-              "preferredDays": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "enum": [
-                    "MON",
-                    "TUE",
-                    "WED",
-                    "THU",
-                    "FRI",
-                    "SAT",
-                    "SUN"
-                  ]
-                }
+              "visitWindowId": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "allDay": {
+                "type": "boolean"
               },
               "startTime": {
                 "type": "string"
               },
               "endTime": {
                 "type": "string"
+              },
+              "preferredDays": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "timezone": {
                 "type": "string"
@@ -841,13 +872,36 @@
               "packageId": {
                 "type": "string"
               },
+              "offeringId": {
+                "type": "string"
+              },
               "packageName": {
                 "type": "string"
               },
               "packageVersion": {
                 "type": "integer"
+              },
+              "vehicleType": {
+                "type": "string"
+              },
+              "durationMinutes": {
+                "type": "integer",
+                "description": "Package-total duration for the selected vehicle"
               }
             }
+          },
+          "autoRenew": {
+            "type": "boolean"
+          },
+          "firstJobId": {
+            "type": "string"
+          },
+          "billingPeriodStart": {
+            "type": "string",
+            "description": "Set when the first job starts"
+          },
+          "billingPeriodEnd": {
+            "type": "string"
           },
           "createdAt": {
             "type": "string"
@@ -856,8 +910,79 @@
             "type": "string"
           },
           "activatedAt": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment completion time (plan may still await first job)"
           }
+        },
+        "example": {
+          "planId": "plan_demo_001",
+          "offeringId": "offr_premium_weekly_wash",
+          "packageId": "offr_premium_weekly_wash",
+          "packageName": "Premium weekly wash",
+          "vendorId": "vend_demo_001",
+          "branchId": "branch_demo_001",
+          "vehicleId": "veh_customer_001",
+          "vehicleType": "HATCHBACK",
+          "status": "AWAITING_FIRST_JOB",
+          "paymentStatus": "PAID",
+          "billingPeriod": "weekly",
+          "cadence": "WEEKLY",
+          "remainingVisits": 6,
+          "entitlements": [
+            {
+              "serviceId": "Exterior wash",
+              "quantity": 4
+            },
+            {
+              "serviceId": "Interior vacuum",
+              "quantity": 2
+            }
+          ],
+          "includedServices": [
+            {
+              "name": "Exterior wash",
+              "description": "Foam wash and dry",
+              "categoryId": "cat_wash",
+              "tags": [
+                "exterior"
+              ],
+              "visitsPerPeriod": 4,
+              "durationMinutes": 30
+            },
+            {
+              "name": "Interior vacuum",
+              "categoryId": "cat_detail",
+              "visitsPerPeriod": 2,
+              "durationMinutes": 25
+            }
+          ],
+          "visitWindowId": "morning",
+          "visitWindow": {
+            "visitWindowId": "morning",
+            "label": "Morning (8:00\u201312:00)",
+            "startTime": "08:00",
+            "endTime": "12:00"
+          },
+          "location": {
+            "fulfilmentType": "community",
+            "communityId": "comm_demo_001"
+          },
+          "pricingSnapshot": {
+            "totalAmount": 1499,
+            "totalMinor": 1499,
+            "currency": "INR",
+            "packageId": "offr_premium_weekly_wash",
+            "offeringId": "offr_premium_weekly_wash",
+            "packageName": "Premium weekly wash",
+            "packageVersion": 1,
+            "vehicleType": "HATCHBACK",
+            "durationMinutes": 170
+          },
+          "autoRenew": true,
+          "firstJobId": "book_first_job_001",
+          "createdAt": "2026-10-28T11:00:00.000Z",
+          "updatedAt": "2026-10-28T11:05:00.000Z",
+          "activatedAt": "2026-10-28T11:05:00.000Z"
         }
       },
       "BookingChangeRequest": {
@@ -2102,6 +2227,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateCustomerPlanRequest"
+              },
+              "example": {
+                "vendorId": "vend_demo_001",
+                "branchId": "branch_demo_001",
+                "offeringId": "offr_premium_weekly_wash",
+                "vehicleId": "veh_customer_001",
+                "location": {
+                  "fulfilmentType": "community",
+                  "communityId": "comm_demo_001"
+                },
+                "visitWindowId": "morning",
+                "autoRenew": true,
+                "expectedPrice": {
+                  "totalMinor": 1499,
+                  "currency": "INR"
+                }
               }
             }
           }
@@ -2113,6 +2254,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CustomerPlan"
+                },
+                "example": {
+                  "planId": "plan_demo_001",
+                  "offeringId": "offr_premium_weekly_wash",
+                  "packageId": "offr_premium_weekly_wash",
+                  "packageName": "Premium weekly wash",
+                  "vendorId": "vend_demo_001",
+                  "branchId": "branch_demo_001",
+                  "vehicleId": "veh_customer_001",
+                  "vehicleType": "HATCHBACK",
+                  "status": "PENDING_PAYMENT",
+                  "paymentStatus": "PENDING",
+                  "billingPeriod": "weekly",
+                  "cadence": "WEEKLY",
+                  "remainingVisits": 6,
+                  "entitlements": [
+                    {
+                      "serviceId": "Exterior wash",
+                      "quantity": 4
+                    },
+                    {
+                      "serviceId": "Interior vacuum",
+                      "quantity": 2
+                    }
+                  ],
+                  "includedServices": [
+                    {
+                      "name": "Exterior wash",
+                      "description": "Foam wash and dry",
+                      "categoryId": "cat_wash",
+                      "tags": [
+                        "exterior"
+                      ],
+                      "visitsPerPeriod": 4,
+                      "durationMinutes": 30
+                    },
+                    {
+                      "name": "Interior vacuum",
+                      "categoryId": "cat_detail",
+                      "visitsPerPeriod": 2,
+                      "durationMinutes": 25
+                    }
+                  ],
+                  "visitWindowId": "morning",
+                  "visitWindow": {
+                    "visitWindowId": "morning",
+                    "label": "Morning (8:00\u201312:00)",
+                    "startTime": "08:00",
+                    "endTime": "12:00"
+                  },
+                  "location": {
+                    "fulfilmentType": "community",
+                    "communityId": "comm_demo_001"
+                  },
+                  "pricingSnapshot": {
+                    "totalAmount": 1499,
+                    "totalMinor": 1499,
+                    "currency": "INR",
+                    "packageId": "offr_premium_weekly_wash",
+                    "offeringId": "offr_premium_weekly_wash",
+                    "packageName": "Premium weekly wash",
+                    "packageVersion": 1,
+                    "vehicleType": "HATCHBACK",
+                    "durationMinutes": 170
+                  },
+                  "autoRenew": true,
+                  "createdAt": "2026-10-28T11:00:00.000Z",
+                  "updatedAt": "2026-10-28T11:05:00.000Z"
                 }
               }
             },
@@ -2172,7 +2381,79 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CustomerPlan"
-                }
+                },
+                "example": [
+                  {
+                    "planId": "plan_demo_001",
+                    "offeringId": "offr_premium_weekly_wash",
+                    "packageId": "offr_premium_weekly_wash",
+                    "packageName": "Premium weekly wash",
+                    "vendorId": "vend_demo_001",
+                    "branchId": "branch_demo_001",
+                    "vehicleId": "veh_customer_001",
+                    "vehicleType": "HATCHBACK",
+                    "status": "AWAITING_FIRST_JOB",
+                    "paymentStatus": "PAID",
+                    "billingPeriod": "weekly",
+                    "cadence": "WEEKLY",
+                    "remainingVisits": 6,
+                    "entitlements": [
+                      {
+                        "serviceId": "Exterior wash",
+                        "quantity": 4
+                      },
+                      {
+                        "serviceId": "Interior vacuum",
+                        "quantity": 2
+                      }
+                    ],
+                    "includedServices": [
+                      {
+                        "name": "Exterior wash",
+                        "description": "Foam wash and dry",
+                        "categoryId": "cat_wash",
+                        "tags": [
+                          "exterior"
+                        ],
+                        "visitsPerPeriod": 4,
+                        "durationMinutes": 30
+                      },
+                      {
+                        "name": "Interior vacuum",
+                        "categoryId": "cat_detail",
+                        "visitsPerPeriod": 2,
+                        "durationMinutes": 25
+                      }
+                    ],
+                    "visitWindowId": "morning",
+                    "visitWindow": {
+                      "visitWindowId": "morning",
+                      "label": "Morning (8:00\u201312:00)",
+                      "startTime": "08:00",
+                      "endTime": "12:00"
+                    },
+                    "location": {
+                      "fulfilmentType": "community",
+                      "communityId": "comm_demo_001"
+                    },
+                    "pricingSnapshot": {
+                      "totalAmount": 1499,
+                      "totalMinor": 1499,
+                      "currency": "INR",
+                      "packageId": "offr_premium_weekly_wash",
+                      "offeringId": "offr_premium_weekly_wash",
+                      "packageName": "Premium weekly wash",
+                      "packageVersion": 1,
+                      "vehicleType": "HATCHBACK",
+                      "durationMinutes": 170
+                    },
+                    "autoRenew": true,
+                    "firstJobId": "book_first_job_001",
+                    "createdAt": "2026-10-28T11:00:00.000Z",
+                    "updatedAt": "2026-10-28T11:05:00.000Z",
+                    "activatedAt": "2026-10-28T11:05:00.000Z"
+                  }
+                ]
               }
             },
             "headers": {
@@ -2243,6 +2524,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CustomerPlan"
+                },
+                "example": {
+                  "planId": "plan_demo_001",
+                  "offeringId": "offr_premium_weekly_wash",
+                  "packageId": "offr_premium_weekly_wash",
+                  "packageName": "Premium weekly wash",
+                  "vendorId": "vend_demo_001",
+                  "branchId": "branch_demo_001",
+                  "vehicleId": "veh_customer_001",
+                  "vehicleType": "HATCHBACK",
+                  "status": "AWAITING_FIRST_JOB",
+                  "paymentStatus": "PAID",
+                  "billingPeriod": "weekly",
+                  "cadence": "WEEKLY",
+                  "remainingVisits": 6,
+                  "entitlements": [
+                    {
+                      "serviceId": "Exterior wash",
+                      "quantity": 4
+                    },
+                    {
+                      "serviceId": "Interior vacuum",
+                      "quantity": 2
+                    }
+                  ],
+                  "includedServices": [
+                    {
+                      "name": "Exterior wash",
+                      "description": "Foam wash and dry",
+                      "categoryId": "cat_wash",
+                      "tags": [
+                        "exterior"
+                      ],
+                      "visitsPerPeriod": 4,
+                      "durationMinutes": 30
+                    },
+                    {
+                      "name": "Interior vacuum",
+                      "categoryId": "cat_detail",
+                      "visitsPerPeriod": 2,
+                      "durationMinutes": 25
+                    }
+                  ],
+                  "visitWindowId": "morning",
+                  "visitWindow": {
+                    "visitWindowId": "morning",
+                    "label": "Morning (8:00\u201312:00)",
+                    "startTime": "08:00",
+                    "endTime": "12:00"
+                  },
+                  "location": {
+                    "fulfilmentType": "community",
+                    "communityId": "comm_demo_001"
+                  },
+                  "pricingSnapshot": {
+                    "totalAmount": 1499,
+                    "totalMinor": 1499,
+                    "currency": "INR",
+                    "packageId": "offr_premium_weekly_wash",
+                    "offeringId": "offr_premium_weekly_wash",
+                    "packageName": "Premium weekly wash",
+                    "packageVersion": 1,
+                    "vehicleType": "HATCHBACK",
+                    "durationMinutes": 170
+                  },
+                  "autoRenew": true,
+                  "firstJobId": "book_first_job_001",
+                  "createdAt": "2026-10-28T11:00:00.000Z",
+                  "updatedAt": "2026-10-28T11:05:00.000Z",
+                  "activatedAt": "2026-10-28T11:05:00.000Z"
                 }
               }
             },

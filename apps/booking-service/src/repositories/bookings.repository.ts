@@ -128,6 +128,64 @@ export class BookingsRepository extends BaseRepository {
     return BookingsMapper.toDomain(detailsItem);
   }
 
+  /**
+   * Persists a package-plan first job without Availability capacity reservation.
+   * Exact visit times remain provider-coordinated; slotId stays empty.
+   */
+  async createPackageLinkedBooking(booking: Booking): Promise<Booking> {
+    const id = booking.id!;
+    const timestamp = booking.createdAt || new Date().toISOString();
+    const detailsItem = BookingsMapper.toDdbItem(booking, 1, timestamp);
+    const customerItem = BookingsMapper.toCustomerLookupDdb(booking, timestamp);
+    const vendorItem = BookingsMapper.toVendorLookupDdb(booking, timestamp);
+    const auditItem = {
+      PK: `BOOKING#${id}`,
+      SK: `AUDIT#${timestamp}`,
+      GSI1PK: `BOOKING#${id}`,
+      GSI1SK: `AUDIT#${timestamp}`,
+      bookingId: id,
+      action: 'CREATE_PACKAGE_JOB',
+      performedBy: 'system',
+      timestamp,
+      details: `Package plan first job created for plan ${booking.planId}`,
+      entityType: 'AuditLog',
+    };
+
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: detailsItem,
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: customerItem,
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: vendorItem,
+            ConditionExpression: 'attribute_not_exists(PK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: auditItem,
+          },
+        },
+      ],
+    });
+
+    return BookingsMapper.toDomain(detailsItem);
+  }
+
   /** Access pattern: customer bookings via GSI1 (GSI1PK = CUSTOMER#id, date-sorted GSI1SK). */
   async getCustomerBookings(customerId: string): Promise<Booking[]> {
     const params: QueryCommandInput = {

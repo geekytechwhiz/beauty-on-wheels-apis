@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.4",
+  "openapi": "3.0.0",
   "components": {
     "schemas": {
       "Category": {
@@ -125,7 +125,8 @@
                 },
                 "durationMinutes": {
                   "type": "integer",
-                  "minimum": 1
+                  "minimum": 1,
+                  "description": "Total package duration across visits in the billing period for this vehicle (not per-visit)"
                 }
               }
             }
@@ -164,7 +165,40 @@
                 },
                 "durationMinutes": {
                   "type": "integer",
-                  "minimum": 1
+                  "minimum": 1,
+                  "description": "Duration of one visit of this included service"
+                }
+              }
+            }
+          },
+          "visitWindows": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "description": "Package-defined preferred visit windows (not confirmed slots)",
+            "items": {
+              "type": "object",
+              "required": [
+                "visitWindowId",
+                "label"
+              ],
+              "properties": {
+                "visitWindowId": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "allDay": {
+                  "type": "boolean"
+                },
+                "startTime": {
+                  "type": "string",
+                  "pattern": "^\\\\d{2}:\\\\d{2}$"
+                },
+                "endTime": {
+                  "type": "string",
+                  "pattern": "^\\\\d{2}:\\\\d{2}$"
                 }
               }
             }
@@ -191,20 +225,20 @@
         },
         "example": {
           "offeringType": "PACKAGE",
-          "name": "Premium monthly wash",
-          "description": "Interior and exterior wash package",
-          "billingPeriod": "monthly",
+          "name": "Premium weekly wash",
+          "description": "Interior and exterior wash package billed weekly",
+          "billingPeriod": "weekly",
           "currency": "INR",
           "vehiclePricing": [
             {
               "vehicleType": "HATCHBACK",
               "price": 149900,
-              "durationMinutes": 45
+              "durationMinutes": 170
             },
             {
               "vehicleType": "SUV",
               "price": 199900,
-              "durationMinutes": 60
+              "durationMinutes": 200
             }
           ],
           "includedServices": [
@@ -223,6 +257,19 @@
               "categoryId": "cat_detail",
               "visitsPerPeriod": 2,
               "durationMinutes": 25
+            }
+          ],
+          "visitWindows": [
+            {
+              "visitWindowId": "morning",
+              "label": "Morning (8:00\u201312:00)",
+              "startTime": "08:00",
+              "endTime": "12:00"
+            },
+            {
+              "visitWindowId": "anytime",
+              "label": "Anytime",
+              "allDay": true
             }
           ],
           "status": "published"
@@ -272,6 +319,29 @@
               "type": "object"
             }
           },
+          "visitWindows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "visitWindowId": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "allDay": {
+                  "type": "boolean"
+                },
+                "startTime": {
+                  "type": "string"
+                },
+                "endTime": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -292,6 +362,24 @@
       },
       "Offering": {
         "type": "object",
+        "required": [
+          "offeringId",
+          "offeringType",
+          "vendorId",
+          "categoryId",
+          "name",
+          "billingPeriod",
+          "currency",
+          "vehiclePricing",
+          "vehicleTypes",
+          "includedServices",
+          "status",
+          "active",
+          "version",
+          "displayOrder",
+          "createdAt",
+          "updatedAt"
+        ],
         "properties": {
           "offeringId": {
             "type": "string"
@@ -301,7 +389,8 @@
             "enum": [
               "PACKAGE",
               "SERVICE"
-            ]
+            ],
+            "description": "PACKAGE is the supported create/detail type; SERVICE is legacy/reserved."
           },
           "vendorId": {
             "type": "string"
@@ -316,7 +405,13 @@
             "type": "string"
           },
           "billingPeriod": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "oneTime",
+              "weekly",
+              "monthly",
+              "yearly"
+            ]
           },
           "currency": {
             "type": "string"
@@ -325,16 +420,22 @@
             "type": "array",
             "items": {
               "type": "object",
+              "required": [
+                "vehicleType",
+                "price",
+                "durationMinutes"
+              ],
               "properties": {
                 "vehicleType": {
                   "type": "string"
                 },
                 "price": {
                   "type": "integer",
-                  "description": "Minor units"
+                  "description": "Final customer price in minor units"
                 },
                 "durationMinutes": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Total package duration across visits in the billing period"
                 }
               }
             }
@@ -348,7 +449,65 @@
           "includedServices": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "object",
+              "required": [
+                "name",
+                "categoryId",
+                "visitsPerPeriod",
+                "durationMinutes"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "visitsPerPeriod": {
+                  "type": "integer"
+                },
+                "durationMinutes": {
+                  "type": "integer",
+                  "description": "Duration of one visit"
+                }
+              }
+            }
+          },
+          "visitWindows": {
+            "type": "array",
+            "description": "Package-defined preferred visit windows (not confirmed slots)",
+            "items": {
+              "type": "object",
+              "required": [
+                "visitWindowId",
+                "label"
+              ],
+              "properties": {
+                "visitWindowId": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "allDay": {
+                  "type": "boolean"
+                },
+                "startTime": {
+                  "type": "string"
+                },
+                "endTime": {
+                  "type": "string"
+                }
+              }
             }
           },
           "status": {
@@ -370,10 +529,12 @@
             "type": "integer"
           },
           "createdAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "legacySource": {
             "type": "string",
@@ -382,15 +543,379 @@
               "PACKAGE"
             ]
           }
+        },
+        "example": {
+          "offeringId": "offr_premium_weekly_wash",
+          "offeringType": "PACKAGE",
+          "vendorId": "vend_demo_001",
+          "categoryId": "cat_wash",
+          "name": "Premium weekly wash",
+          "description": "Interior and exterior wash package billed weekly",
+          "billingPeriod": "weekly",
+          "currency": "INR",
+          "vehiclePricing": [
+            {
+              "vehicleType": "HATCHBACK",
+              "price": 149900,
+              "durationMinutes": 170
+            },
+            {
+              "vehicleType": "SUV",
+              "price": 199900,
+              "durationMinutes": 200
+            }
+          ],
+          "vehicleTypes": [
+            "HATCHBACK",
+            "SUV"
+          ],
+          "includedServices": [
+            {
+              "name": "Exterior wash",
+              "description": "Foam wash and dry",
+              "categoryId": "cat_wash",
+              "tags": [
+                "exterior"
+              ],
+              "visitsPerPeriod": 4,
+              "durationMinutes": 30
+            },
+            {
+              "name": "Interior vacuum",
+              "categoryId": "cat_detail",
+              "visitsPerPeriod": 2,
+              "durationMinutes": 25
+            }
+          ],
+          "visitWindows": [
+            {
+              "visitWindowId": "morning",
+              "label": "Morning (8:00\u201312:00)",
+              "startTime": "08:00",
+              "endTime": "12:00"
+            },
+            {
+              "visitWindowId": "anytime",
+              "label": "Anytime",
+              "allDay": true
+            }
+          ],
+          "status": "published",
+          "active": true,
+          "version": 1,
+          "displayOrder": 0,
+          "createdAt": "2026-10-28T10:00:00.000Z",
+          "updatedAt": "2026-10-28T10:00:00.000Z"
         }
       },
-      "OfferingPage": {
+      "MarketplaceOffering": {
         "type": "object",
+        "required": [
+          "offeringId",
+          "serviceId",
+          "name",
+          "categoryId",
+          "vendorId",
+          "branchId",
+          "vehicleTypes",
+          "displayPrice",
+          "currency",
+          "durationMinutes",
+          "status"
+        ],
+        "properties": {
+          "offeringId": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "vendorId": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "string"
+          },
+          "vehicleTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "displayPrice": {
+            "type": "number",
+            "description": "Lowest configured final customer price (discovery projection)"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "type": "integer"
+          },
+          "distanceKm": {
+            "type": "number"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active"
+            ],
+            "description": "Discovery only surfaces customer-eligible published offerings"
+          },
+          "imageUrl": {
+            "type": "object",
+            "properties": {
+              "alt": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "contentType": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "example": {
+          "offeringId": "offr_premium_weekly_wash",
+          "serviceId": "offr_premium_weekly_wash",
+          "name": "Premium weekly wash",
+          "description": "Interior and exterior wash package billed weekly",
+          "categoryId": "cat_wash",
+          "vendorId": "vend_demo_001",
+          "branchId": "branch_demo_001",
+          "vehicleTypes": [
+            "HATCHBACK",
+            "SUV"
+          ],
+          "displayPrice": 1499,
+          "currency": "INR",
+          "durationMinutes": 170,
+          "status": "active",
+          "imageUrl": {
+            "alt": "Premium weekly wash",
+            "url": "https://cdn.example.com/offerings/premium-weekly-wash.jpg"
+          }
+        }
+      },
+      "MarketplaceOfferingsPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore"
+        ],
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "object",
+              "properties": {
+                "offeringId": {
+                  "type": "string"
+                },
+                "serviceId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "vendorId": {
+                  "type": "string"
+                },
+                "branchId": {
+                  "type": "string"
+                },
+                "vehicleTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "displayPrice": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "durationMinutes": {
+                  "type": "integer"
+                },
+                "distanceKm": {
+                  "type": "number"
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "reviewCount": {
+                  "type": "integer"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active"
+                  ]
+                },
+                "imageUrl": {
+                  "type": "object",
+                  "properties": {
+                    "alt": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "contentType": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "offeringId": "offr_premium_weekly_wash",
+              "serviceId": "offr_premium_weekly_wash",
+              "name": "Premium weekly wash",
+              "description": "Interior and exterior wash package billed weekly",
+              "categoryId": "cat_wash",
+              "vendorId": "vend_demo_001",
+              "branchId": "branch_demo_001",
+              "vehicleTypes": [
+                "HATCHBACK",
+                "SUV"
+              ],
+              "displayPrice": 1499,
+              "currency": "INR",
+              "durationMinutes": 170,
+              "status": "active",
+              "imageUrl": {
+                "alt": "Premium weekly wash",
+                "url": "https://cdn.example.com/offerings/premium-weekly-wash.jpg"
+              }
+            }
+          ],
+          "hasMore": false
+        }
+      },
+      "OfferingPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "offeringId": {
+                  "type": "string"
+                },
+                "offeringType": {
+                  "type": "string",
+                  "enum": [
+                    "PACKAGE"
+                  ]
+                },
+                "vendorId": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "billingPeriod": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "vehiclePricing": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "vehicleTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "includedServices": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "visitWindows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "draft",
+                    "published",
+                    "paused",
+                    "archived"
+                  ]
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "displayOrder": {
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              }
             }
           },
           "nextToken": {
@@ -399,6 +924,74 @@
           "total": {
             "type": "integer"
           }
+        },
+        "example": {
+          "items": [
+            {
+              "offeringId": "offr_premium_weekly_wash",
+              "offeringType": "PACKAGE",
+              "vendorId": "vend_demo_001",
+              "categoryId": "cat_wash",
+              "name": "Premium weekly wash",
+              "description": "Interior and exterior wash package billed weekly",
+              "billingPeriod": "weekly",
+              "currency": "INR",
+              "vehiclePricing": [
+                {
+                  "vehicleType": "HATCHBACK",
+                  "price": 149900,
+                  "durationMinutes": 170
+                },
+                {
+                  "vehicleType": "SUV",
+                  "price": 199900,
+                  "durationMinutes": 200
+                }
+              ],
+              "vehicleTypes": [
+                "HATCHBACK",
+                "SUV"
+              ],
+              "includedServices": [
+                {
+                  "name": "Exterior wash",
+                  "description": "Foam wash and dry",
+                  "categoryId": "cat_wash",
+                  "tags": [
+                    "exterior"
+                  ],
+                  "visitsPerPeriod": 4,
+                  "durationMinutes": 30
+                },
+                {
+                  "name": "Interior vacuum",
+                  "categoryId": "cat_detail",
+                  "visitsPerPeriod": 2,
+                  "durationMinutes": 25
+                }
+              ],
+              "visitWindows": [
+                {
+                  "visitWindowId": "morning",
+                  "label": "Morning (8:00\u201312:00)",
+                  "startTime": "08:00",
+                  "endTime": "12:00"
+                },
+                {
+                  "visitWindowId": "anytime",
+                  "label": "Anytime",
+                  "allDay": true
+                }
+              ],
+              "status": "published",
+              "active": true,
+              "version": 1,
+              "displayOrder": 0,
+              "createdAt": "2026-10-28T10:00:00.000Z",
+              "updatedAt": "2026-10-28T10:00:00.000Z"
+            }
+          ],
+          "total": 1
         }
       },
       "Service": {
@@ -1305,7 +1898,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-969df183-e47d-405d-aee8-84d14671dc4d": {
+      "status-473d7798-67a5-44c3-9962-17ec74fd64b4": {
         "type": "string",
         "enum": [
           "draft",
@@ -1868,7 +2461,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OfferingPage"
+                  "$ref": "#/components/schemas/MarketplaceOfferingsPage"
                 }
               }
             },
@@ -1928,6 +2521,57 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateOfferingRequest"
+              },
+              "example": {
+                "offeringType": "PACKAGE",
+                "name": "Premium weekly wash",
+                "description": "Interior and exterior wash package billed weekly",
+                "billingPeriod": "weekly",
+                "currency": "INR",
+                "vehiclePricing": [
+                  {
+                    "vehicleType": "HATCHBACK",
+                    "price": 149900,
+                    "durationMinutes": 170
+                  },
+                  {
+                    "vehicleType": "SUV",
+                    "price": 199900,
+                    "durationMinutes": 200
+                  }
+                ],
+                "includedServices": [
+                  {
+                    "name": "Exterior wash",
+                    "description": "Foam wash and dry",
+                    "categoryId": "cat_wash",
+                    "tags": [
+                      "exterior"
+                    ],
+                    "visitsPerPeriod": 4,
+                    "durationMinutes": 30
+                  },
+                  {
+                    "name": "Interior vacuum",
+                    "categoryId": "cat_detail",
+                    "visitsPerPeriod": 2,
+                    "durationMinutes": 25
+                  }
+                ],
+                "visitWindows": [
+                  {
+                    "visitWindowId": "morning",
+                    "label": "Morning (8:00\u201312:00)",
+                    "startTime": "08:00",
+                    "endTime": "12:00"
+                  },
+                  {
+                    "visitWindowId": "anytime",
+                    "label": "Anytime",
+                    "allDay": true
+                  }
+                ],
+                "status": "published"
               }
             }
           }
@@ -1939,6 +2583,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Offering"
+                },
+                "example": {
+                  "offeringId": "offr_premium_weekly_wash",
+                  "offeringType": "PACKAGE",
+                  "vendorId": "vend_demo_001",
+                  "categoryId": "cat_wash",
+                  "name": "Premium weekly wash",
+                  "description": "Interior and exterior wash package billed weekly",
+                  "billingPeriod": "weekly",
+                  "currency": "INR",
+                  "vehiclePricing": [
+                    {
+                      "vehicleType": "HATCHBACK",
+                      "price": 149900,
+                      "durationMinutes": 170
+                    },
+                    {
+                      "vehicleType": "SUV",
+                      "price": 199900,
+                      "durationMinutes": 200
+                    }
+                  ],
+                  "vehicleTypes": [
+                    "HATCHBACK",
+                    "SUV"
+                  ],
+                  "includedServices": [
+                    {
+                      "name": "Exterior wash",
+                      "description": "Foam wash and dry",
+                      "categoryId": "cat_wash",
+                      "tags": [
+                        "exterior"
+                      ],
+                      "visitsPerPeriod": 4,
+                      "durationMinutes": 30
+                    },
+                    {
+                      "name": "Interior vacuum",
+                      "categoryId": "cat_detail",
+                      "visitsPerPeriod": 2,
+                      "durationMinutes": 25
+                    }
+                  ],
+                  "visitWindows": [
+                    {
+                      "visitWindowId": "morning",
+                      "label": "Morning (8:00\u201312:00)",
+                      "startTime": "08:00",
+                      "endTime": "12:00"
+                    },
+                    {
+                      "visitWindowId": "anytime",
+                      "label": "Anytime",
+                      "allDay": true
+                    }
+                  ],
+                  "status": "published",
+                  "active": true,
+                  "version": 1,
+                  "displayOrder": 0,
+                  "createdAt": "2026-10-28T10:00:00.000Z",
+                  "updatedAt": "2026-10-28T10:00:00.000Z"
                 }
               }
             },
@@ -2067,6 +2774,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Offering"
+                },
+                "example": {
+                  "offeringId": "offr_premium_weekly_wash",
+                  "offeringType": "PACKAGE",
+                  "vendorId": "vend_demo_001",
+                  "categoryId": "cat_wash",
+                  "name": "Premium weekly wash",
+                  "description": "Interior and exterior wash package billed weekly",
+                  "billingPeriod": "weekly",
+                  "currency": "INR",
+                  "vehiclePricing": [
+                    {
+                      "vehicleType": "HATCHBACK",
+                      "price": 149900,
+                      "durationMinutes": 170
+                    },
+                    {
+                      "vehicleType": "SUV",
+                      "price": 199900,
+                      "durationMinutes": 200
+                    }
+                  ],
+                  "vehicleTypes": [
+                    "HATCHBACK",
+                    "SUV"
+                  ],
+                  "includedServices": [
+                    {
+                      "name": "Exterior wash",
+                      "description": "Foam wash and dry",
+                      "categoryId": "cat_wash",
+                      "tags": [
+                        "exterior"
+                      ],
+                      "visitsPerPeriod": 4,
+                      "durationMinutes": 30
+                    },
+                    {
+                      "name": "Interior vacuum",
+                      "categoryId": "cat_detail",
+                      "visitsPerPeriod": 2,
+                      "durationMinutes": 25
+                    }
+                  ],
+                  "visitWindows": [
+                    {
+                      "visitWindowId": "morning",
+                      "label": "Morning (8:00\u201312:00)",
+                      "startTime": "08:00",
+                      "endTime": "12:00"
+                    },
+                    {
+                      "visitWindowId": "anytime",
+                      "label": "Anytime",
+                      "allDay": true
+                    }
+                  ],
+                  "status": "published",
+                  "active": true,
+                  "version": 1,
+                  "displayOrder": 0,
+                  "createdAt": "2026-10-28T10:00:00.000Z",
+                  "updatedAt": "2026-10-28T10:00:00.000Z"
                 }
               }
             },
@@ -2136,6 +2906,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Offering"
+                },
+                "example": {
+                  "offeringId": "offr_premium_weekly_wash",
+                  "offeringType": "PACKAGE",
+                  "vendorId": "vend_demo_001",
+                  "categoryId": "cat_wash",
+                  "name": "Premium weekly wash",
+                  "description": "Interior and exterior wash package billed weekly",
+                  "billingPeriod": "weekly",
+                  "currency": "INR",
+                  "vehiclePricing": [
+                    {
+                      "vehicleType": "HATCHBACK",
+                      "price": 149900,
+                      "durationMinutes": 170
+                    },
+                    {
+                      "vehicleType": "SUV",
+                      "price": 199900,
+                      "durationMinutes": 200
+                    }
+                  ],
+                  "vehicleTypes": [
+                    "HATCHBACK",
+                    "SUV"
+                  ],
+                  "includedServices": [
+                    {
+                      "name": "Exterior wash",
+                      "description": "Foam wash and dry",
+                      "categoryId": "cat_wash",
+                      "tags": [
+                        "exterior"
+                      ],
+                      "visitsPerPeriod": 4,
+                      "durationMinutes": 30
+                    },
+                    {
+                      "name": "Interior vacuum",
+                      "categoryId": "cat_detail",
+                      "visitsPerPeriod": 2,
+                      "durationMinutes": 25
+                    }
+                  ],
+                  "visitWindows": [
+                    {
+                      "visitWindowId": "morning",
+                      "label": "Morning (8:00\u201312:00)",
+                      "startTime": "08:00",
+                      "endTime": "12:00"
+                    },
+                    {
+                      "visitWindowId": "anytime",
+                      "label": "Anytime",
+                      "allDay": true
+                    }
+                  ],
+                  "status": "published",
+                  "active": true,
+                  "version": 1,
+                  "displayOrder": 0,
+                  "createdAt": "2026-10-28T10:00:00.000Z",
+                  "updatedAt": "2026-10-28T10:00:00.000Z"
                 }
               }
             },
@@ -2279,7 +3112,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-969df183-e47d-405d-aee8-84d14671dc4d"
+              "$ref": "#/components/schemas/status-473d7798-67a5-44c3-9962-17ec74fd64b4"
             }
           },
           {

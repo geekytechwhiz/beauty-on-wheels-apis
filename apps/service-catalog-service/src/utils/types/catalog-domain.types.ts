@@ -69,6 +69,14 @@ export interface CategoryEntity extends CatalogBaseEntity {
  * Price and duration for one vehicle type on a service offering.
  * Vehicle type codes come from the shared vehicle-type registry.
  */
+/**
+ * Price and duration for one vehicle type.
+ *
+ * For PACKAGE offerings, `durationMinutes` is the total package duration across
+ * visits in the billing period for that vehicle (e.g. weekly total). It is not
+ * guaranteed to equal a single visit; per-visit duration lives on
+ * `includedServices[].durationMinutes`.
+ */
 export interface VehiclePricing {
     vehicleType: string;
     price: number;
@@ -144,6 +152,8 @@ export interface PackageEntity extends CatalogBaseEntity {
 /**
  * Inline service description embedded on a PACKAGE offering.
  * Not a separate SERVICE row — providers do not create linked service ids.
+ *
+ * `durationMinutes` is the duration of a single visit of this included service.
  */
 export interface IncludedServiceDescription {
     name: string;
@@ -151,7 +161,23 @@ export interface IncludedServiceDescription {
     categoryId: string;
     tags?: string[];
     visitsPerPeriod: number;
+    /** Duration of one visit of this included service (not the package total). */
     durationMinutes: number;
+}
+
+/**
+ * Package-defined preferred visit window. Selection is a preference for the
+ * provider to coordinate against — not a confirmed availability slot.
+ */
+export interface OfferingVisitWindow {
+    visitWindowId: string;
+    label: string;
+    /** When true, the preference is any time during the day; omit start/end. */
+    allDay?: boolean;
+    /** Local HH:mm bound when not all-day. */
+    startTime?: string;
+    /** Local HH:mm bound when not all-day. */
+    endTime?: string;
 }
 
 /**
@@ -169,14 +195,22 @@ export interface OfferingEntity extends CatalogBaseEntity {
     description?: string;
     billingPeriod: 'oneTime' | 'weekly' | 'monthly' | 'yearly';
     currency: string;
-    /** Per-vehicle price (minor units) and duration. */
+    /**
+     * Per-vehicle final customer price (integer minor units) and package-total
+     * duration for the billing period. See VehiclePricing docs.
+     */
     vehiclePricing: VehiclePricing[];
     vehicleTypes: string[];
     /** Lowest configured minor-unit price (discovery / legacy helpers). */
     basePrice: number;
-    /** Shortest configured duration. */
+    /** Shortest configured vehicle package-total duration (discovery helper). */
     durationMinutes: number;
     includedServices: IncludedServiceDescription[];
+    /**
+     * Package-defined preferred visit windows. Absent or empty means the
+     * provider coordinates windows outside the catalog contract.
+     */
+    visitWindows?: OfferingVisitWindow[];
     status: 'draft' | 'published' | 'paused' | 'archived';
     /** True when status is published — kept for discovery eligibility helpers. */
     active: boolean;

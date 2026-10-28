@@ -2,44 +2,51 @@ import { z } from 'zod';
 import { LambdaRequest } from '@api-hub/utils';
 import { EventSchemaError } from '@api-hub/middleware';
 
-export const PLAN_CADENCES = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const;
-export const VISIT_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
-
 const fulfilmentTypeSchema = z
   .enum(['community', 'address', 'COMMUNITY', 'ADDRESS'])
   .transform((value) => value.toLowerCase() as 'community' | 'address');
 
-const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'time must be HH:mm');
-
 /**
- * Create customer plan.
+ * Create a package plan (not an ON_DEMAND booking).
  *
- * `branchId` is an addition to the approved proposal: the vendor checkout
- * eligibility read is branch-scoped, so a plan must name the branch (taken
- * from the same discovery row the customer selected the package from).
+ * Identity comes from the authorizer. Vendor and final price are resolved from
+ * the catalog offering + selected vehicle. `visitWindowId` is a package-defined
+ * preference, not a dated availability slot. `autoRenew` is stored as selected.
+ *
+ * `packageId` is accepted as an alias of `offeringId` for UI compatibility.
  */
 export const CreateCustomerPlanSchema = z.object({
   vendorId: z.string().trim().min(1),
   branchId: z.string().trim().min(1),
-  packageId: z.string().trim().min(1),
+  offeringId: z.string().trim().min(1).optional(),
+  packageId: z.string().trim().min(1).optional(),
   vehicleId: z.string().trim().min(1),
   location: z.object({
     fulfilmentType: fulfilmentTypeSchema,
     communityId: z.string().trim().min(1).optional(),
     addressId: z.string().trim().min(1).optional(),
   }).strict(),
-  cadence: z.enum(PLAN_CADENCES),
-  visitWindow: z.object({
-    preferredDays: z.array(z.enum(VISIT_DAYS)).min(1).max(7),
-    startTime: timeSchema,
-    endTime: timeSchema,
-    timezone: z.string().trim().min(1),
-  }).strict(),
+  visitWindowId: z.string().trim().min(1),
+  autoRenew: z.boolean(),
   expectedPrice: z.object({
     totalMinor: z.number().int().nonnegative(),
     currency: z.string().regex(/^[A-Za-z]{3}$/),
   }).strict(),
 }).strict().superRefine((value, context) => {
+  if (!value.offeringId && !value.packageId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['offeringId'],
+      message: 'offeringId is required',
+    });
+  }
+  if (value.offeringId && value.packageId && value.offeringId !== value.packageId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['packageId'],
+      message: 'packageId must match offeringId when both are provided',
+    });
+  }
   if (value.location.fulfilmentType === 'community' && !value.location.communityId) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -54,47 +61,22 @@ export const CreateCustomerPlanSchema = z.object({
       message: 'addressId is required when fulfilmentType is address',
     });
   }
-  try {
-    Intl.DateTimeFormat('en-US', { timeZone: value.visitWindow.timezone });
-  } catch {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['visitWindow', 'timezone'],
-      message: 'timezone must be a valid IANA time zone',
-    });
-  }
-  if (new Set(value.visitWindow.preferredDays).size !== value.visitWindow.preferredDays.length) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['visitWindow', 'preferredDays'],
-      message: 'preferredDays must not contain duplicates',
-    });
-  }
-  const start = minutesOf(value.visitWindow.startTime);
-  const end = minutesOf(value.visitWindow.endTime);
-  if (start === undefined) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['visitWindow', 'startTime'], message: 'startTime must be a valid HH:mm time' });
-  }
-  if (end === undefined) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['visitWindow', 'endTime'], message: 'endTime must be a valid HH:mm time' });
-  }
-  if (start !== undefined && end !== undefined && end <= start) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['visitWindow', 'endTime'], message: 'endTime must be after startTime' });
-  }
 });
 
-function minutesOf(value: string): number | undefined {
-  const [hour, minute] = value.split(':').map(Number);
-  if (hour > 23 || minute > 59) return undefined;
-  return hour * 60 + minute;
-}
-
-export type CreateCustomerPlanCommand = z.infer<typeof CreateCustomerPlanSchema>;
+export type CreateCustomerPlanCommand = z.infer<typeof CreateCustomerPlanSchema> & {
+  offeringId: string;
+  packageId: string;
+};
 
 export const validateCreateCustomerPlan = (req: LambdaRequest): CreateCustomerPlanCommand => {
   const result = CreateCustomerPlanSchema.safeParse(req.body);
   if (!result.success) {
     throw new EventSchemaError('Request validation failed', result.error);
   }
-  return result.data;
+  const offeringId = (result.data.offeringId ?? result.data.packageId)!.trim();
+  return {
+    ...result.data,
+    offeringId,
+    packageId: offeringId,
+  };
 };

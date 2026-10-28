@@ -20,9 +20,13 @@ import {
 import {
   assertPackageSellable,
   assertPlanExpectedPrice,
+  billingPeriodEndIso,
+  billingPeriodToCadence,
   buildPlanPricingSnapshot,
   deriveEntitlements,
+  mapIncludedServices,
   planRequestFingerprint,
+  resolveVisitWindow,
   toPlanResponse,
   totalVisits,
 } from '../domain/customer-plan';
@@ -56,10 +60,9 @@ export class CustomerPlansService {
   ) {}
 
   /**
-   * Creates a PENDING_PAYMENT plan. A package is never converted into an
-   * ON_DEMAND booking and no slot is reserved: visit windows are
-   * provider-coordinated. See `domain/customer-plan.ts` for the provisional
-   * cadence/entitlement policy.
+   * Creates a PENDING_PAYMENT package plan. Does not reserve Availability slots;
+   * visitWindowId is a catalog preference the provider coordinates against.
+   * Final price comes from the offering vehicle price for the customer's vehicle.
    */
   async create(request: LambdaRequest): Promise<CustomerPlanResponse> {
     const customerId = requireCustomerId(request);
@@ -79,7 +82,7 @@ export class CustomerPlansService {
       this.vendors.getCheckoutEligibility(command.vendorId, command.branchId),
       this.users.getProfile(customerId, authHeader),
       this.packages.getPackage({
-        packageId: command.packageId,
+        packageId: command.offeringId,
         vendorId: command.vendorId,
         authorizationHeader: authHeader,
       }),
@@ -93,7 +96,8 @@ export class CustomerPlansService {
       await this.users.assertAddress(customerId, command.location.addressId, authHeader);
     }
     assertPackageSellable(catalogPackage, command);
-    const pricingSnapshot = buildPlanPricingSnapshot(catalogPackage);
+    const visitWindow = resolveVisitWindow(catalogPackage, command.visitWindowId);
+    const pricingSnapshot = buildPlanPricingSnapshot(catalogPackage, vehicle.vehicleType);
     assertPlanExpectedPrice(command.expectedPrice, pricingSnapshot);
 
     const entitlements = deriveEntitlements(catalogPackage.items);
@@ -103,17 +107,23 @@ export class CustomerPlansService {
       customerId,
       vendorId: command.vendorId,
       branchId: command.branchId,
-      packageId: command.packageId,
+      packageId: command.offeringId,
+      offeringId: command.offeringId,
       packageName: catalogPackage.name,
       vehicleId: command.vehicleId,
+      vehicleType: vehicle.vehicleType,
       status: 'PENDING_PAYMENT',
       paymentStatus: 'PENDING',
-      cadence: command.cadence,
+      billingPeriod: catalogPackage.billingPeriod,
+      cadence: billingPeriodToCadence(catalogPackage.billingPeriod),
       remainingVisits: totalVisits(entitlements),
       entitlements,
-      visitWindow: command.visitWindow,
+      includedServices: mapIncludedServices(catalogPackage),
+      visitWindowId: command.visitWindowId,
+      visitWindow,
       location: command.location,
       pricingSnapshot,
+      autoRenew: command.autoRenew === true,
       version: 1,
       createdAt: now,
       updatedAt: now,
@@ -130,7 +140,13 @@ export class CustomerPlansService {
       throw error;
     }
 
-    this.logger.info({ event: 'customer_plan_created', planId: record.planId, packageId: record.packageId });
+    this.logger.info({
+      event: 'customer_plan_created',
+      planId: record.planId,
+      offeringId: record.offeringId,
+      visitWindowId: record.visitWindowId,
+      autoRenew: record.autoRenew,
+    });
     return toPlanResponse(record);
   }
 
@@ -138,7 +154,6 @@ export class CustomerPlansService {
   async list(request: LambdaRequest): Promise<CustomerPlanResponse[]> {
     const customerId = requireCustomerId(request);
     const plans = await this.plans.listCustomerPlans(customerId);
-    // Defence in depth: the query is customer-scoped, but never emit another owner's row.
     return plans.filter((plan) => plan.customerId === customerId).map(toPlanResponse);
   }
 
@@ -152,6 +167,42 @@ export class CustomerPlansService {
       throw new ForbiddenError('Not authorized to access this plan');
     }
     return toPlanResponse(plan);
+  }
+
+  /**
+   * Anchors billing to the server-recorded start of the first job.
+   * Called when the linked booking transitions to IN_PROGRESS.
+   */
+  async markFirstJobStarted(planId: string, firstJobId: string, startedAt: string): Promise<CustomerPlanRecord | null> {
+    const plan = await this.plans.getPlan(planId);
+    if (!plan) return null;
+    if (plan.firstJobId && plan.firstJobId !== firstJobId) {
+      throw new BookingError(
+        'FIRST_JOB_MISMATCH',
+        'Booking is not the first job linked to this plan',
+        409,
+        'firstJobId',
+        false,
+      );
+    }
+    if (plan.status === 'ACTIVE' && plan.billingPeriodStart) {
+      return plan;
+    }
+    if (plan.paymentStatus !== 'PAID') {
+      throw new BookingError('PLAN_NOT_PAID', 'Plan must be paid before the first job can start billing', 409);
+    }
+    const next: CustomerPlanRecord = {
+      ...plan,
+      status: 'ACTIVE',
+      firstJobId: firstJobId,
+      billingPeriodStart: startedAt,
+      billingPeriodEnd: billingPeriodEndIso(startedAt, plan.billingPeriod),
+      updatedAt: startedAt,
+      version: plan.version + 1,
+      // autoRenew is stored as selected; renewal execution is out of scope here.
+      autoRenew: plan.autoRenew === true,
+    };
+    return this.plans.savePlan(next, plan.version);
   }
 
   private async resume(record: CustomerPlanIdempotencyItem, hash: string): Promise<CustomerPlanResponse> {

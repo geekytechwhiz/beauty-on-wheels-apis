@@ -22,8 +22,12 @@ export type VehicleType =
 
 export interface VehiclePricing {
   vehicleType: VehicleType;
-  /** Integer minor units for managed offerings; major units on legacy discovery rows. */
+  /** Integer minor units for managed offerings; major units on legacy discovery rows. Final customer price. */
   price: number;
+  /**
+   * Total package duration across visits in the billing period for this vehicle.
+   * Per-visit duration is on IncludedService.durationMinutes.
+   */
   durationMinutes: number;
 }
 
@@ -33,7 +37,17 @@ export interface IncludedService {
   categoryId: string;
   tags?: string[];
   visitsPerPeriod: number;
+  /** Duration of one visit of this included service. */
   durationMinutes: number;
+}
+
+/** Package-defined preferred visit window (not a confirmed availability slot). */
+export interface OfferingVisitWindow {
+  visitWindowId: string;
+  label: string;
+  allDay?: boolean;
+  startTime?: string;
+  endTime?: string;
 }
 
 export type OfferingType = 'PACKAGE' | 'SERVICE';
@@ -50,6 +64,7 @@ export interface CreateOfferingRequest {
   currency?: string;
   vehiclePricing: VehiclePricing[];
   includedServices: IncludedService[];
+  visitWindows?: OfferingVisitWindow[];
   status?: 'draft' | 'published';
   displayOrder?: number;
   communityIds?: string[];
@@ -62,6 +77,7 @@ export interface PatchOfferingRequest {
   currency?: string;
   vehiclePricing?: VehiclePricing[];
   includedServices?: IncludedService[];
+  visitWindows?: OfferingVisitWindow[];
   status?: OfferingStatus;
   displayOrder?: number;
   expectedVersion?: number;
@@ -79,6 +95,7 @@ export interface Offering {
   vehiclePricing: VehiclePricing[];
   vehicleTypes: VehicleType[];
   includedServices: IncludedService[];
+  visitWindows?: OfferingVisitWindow[];
   status: OfferingStatus;
   active: boolean;
   version: number;
@@ -92,6 +109,36 @@ export interface OfferingPage {
   items: Offering[];
   nextToken?: string;
   total: number;
+}
+
+/** Customer marketplace discovery projection (GET /offerings). */
+export interface MarketplaceOffering {
+  offeringId: string;
+  serviceId: string;
+  name: string;
+  description?: string;
+  categoryId: string;
+  vendorId: string;
+  branchId: string;
+  vehicleTypes: VehicleType[] | string[];
+  displayPrice: number;
+  currency: string;
+  durationMinutes: number;
+  distanceKm?: number;
+  rating?: number;
+  reviewCount?: number;
+  status: 'active';
+  imageUrl: {
+    alt: string;
+    url: string;
+    contentType?: string;
+  };
+}
+
+export interface MarketplaceOfferingsPage {
+  items: MarketplaceOffering[];
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 /** @deprecated Legacy shape retained for discovery projection helpers. */

@@ -81,6 +81,9 @@ export interface Booking {
   serviceIds?: string[];
   offeringId?: string;
   offeringVersion?: number;
+  /** Linked package plan when this booking is a package job. */
+  planId?: string;
+  packageId?: string;
   service?: BookingServiceSnapshot;
   addOns?: BookingAddOnSnapshot[];
   schedule?: BookingSchedule;

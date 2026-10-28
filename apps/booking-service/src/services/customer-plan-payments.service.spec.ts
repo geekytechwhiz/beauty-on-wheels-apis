@@ -1,6 +1,7 @@
 import { LambdaRequest } from '@api-hub/utils';
 
 import { CustomerPlanPaymentsService } from './customer-plan-payments.service';
+import { BookingsRepository } from '../repositories/bookings.repository';
 import { CustomerPlansRepository } from '../repositories/customer-plans.repository';
 import { CustomerPlanRecord, PlanPaymentRecord } from '../types/customer-plan.types';
 
@@ -15,13 +16,37 @@ function request(options: { customerId?: string; key?: string | null; body?: unk
 }
 
 const plan: CustomerPlanRecord = {
-  planId: 'plan-1', customerId: 'customer-1', vendorId: 'vendor_1', branchId: 'branch_1', packageId: 'pkg', vehicleId: 'veh_1',
-  status: 'PENDING_PAYMENT', paymentStatus: 'PENDING', cadence: 'WEEKLY', remainingVisits: 3,
+  planId: 'plan-1',
+  customerId: 'customer-1',
+  vendorId: 'vendor_1',
+  branchId: 'branch_1',
+  packageId: 'pkg',
+  offeringId: 'pkg',
+  vehicleId: 'veh_1',
+  vehicleType: 'SEDAN',
+  status: 'PENDING_PAYMENT',
+  paymentStatus: 'PENDING',
+  billingPeriod: 'weekly',
+  cadence: 'WEEKLY',
+  remainingVisits: 3,
   entitlements: [{ serviceId: 'svc', quantity: 3 }],
-  visitWindow: { preferredDays: ['MON'], startTime: '09:00', endTime: '12:00', timezone: 'Asia/Kolkata' },
+  includedServices: [{ name: 'svc', categoryId: 'cat', visitsPerPeriod: 3, durationMinutes: 30 }],
+  visitWindowId: 'morning',
+  visitWindow: { visitWindowId: 'morning', label: 'Morning', startTime: '09:00', endTime: '12:00' },
   location: { fulfilmentType: 'community', communityId: 'comm_1' },
-  pricingSnapshot: { totalAmount: 1999, totalMinor: 1999, currency: 'INR', packageId: 'pkg' },
-  version: 1, createdAt: '2026-10-28T00:00:00.000Z', updatedAt: '2026-10-28T00:00:00.000Z',
+  pricingSnapshot: {
+    totalAmount: 1999,
+    totalMinor: 1999,
+    currency: 'INR',
+    packageId: 'pkg',
+    offeringId: 'pkg',
+    vehicleType: 'SEDAN',
+    durationMinutes: 170,
+  },
+  autoRenew: false,
+  version: 1,
+  createdAt: '2026-10-28T00:00:00.000Z',
+  updatedAt: '2026-10-28T00:00:00.000Z',
 };
 
 const pendingPayment: PlanPaymentRecord = {
@@ -32,6 +57,7 @@ const pendingPayment: PlanPaymentRecord = {
 
 describe('CustomerPlanPaymentsService', () => {
   let plans: jest.Mocked<CustomerPlansRepository>;
+  let bookings: jest.Mocked<BookingsRepository>;
   let service: CustomerPlanPaymentsService;
 
   beforeEach(() => {
@@ -44,7 +70,10 @@ describe('CustomerPlanPaymentsService', () => {
       savePayment: jest.fn().mockImplementation(async (record: PlanPaymentRecord) => record),
       savePlan: jest.fn().mockImplementation(async (record: CustomerPlanRecord) => record),
     } as unknown as jest.Mocked<CustomerPlansRepository>;
-    service = new CustomerPlanPaymentsService(plans);
+    bookings = {
+      createPackageLinkedBooking: jest.fn().mockImplementation(async (booking) => booking),
+    } as unknown as jest.Mocked<BookingsRepository>;
+    service = new CustomerPlanPaymentsService(plans, bookings);
   });
 
   it('initiates a payment with the amount taken from the plan snapshot', async () => {
@@ -62,20 +91,39 @@ describe('CustomerPlanPaymentsService', () => {
     expect(plans.createPayment).not.toHaveBeenCalled();
   });
 
-  it('refuses another customer and an already active plan', async () => {
+  it('refuses another customer and an already paid plan', async () => {
     await expect(service.initiate(request({ customerId: 'customer-2' }))).rejects.toMatchObject({ statusCode: 403 });
-    plans.getPlan.mockResolvedValue({ ...plan, status: 'ACTIVE', paymentStatus: 'PAID' });
+    plans.getPlan.mockResolvedValue({ ...plan, status: 'AWAITING_FIRST_JOB', paymentStatus: 'PAID', firstJobId: 'job-1' });
     await expect(service.initiate(request())).rejects.toThrow('already paid');
   });
 
-  it('activates the plan when sandbox completion succeeds', async () => {
+  it('marks the plan AWAITING_FIRST_JOB and links the first job when sandbox completion succeeds', async () => {
     const result = await service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } }));
 
     expect(result.status).toBe('PAID');
+    expect(bookings.createPackageLinkedBooking).toHaveBeenCalledWith(expect.objectContaining({
+      planId: 'plan-1',
+      packageId: 'pkg',
+      offeringId: 'pkg',
+      paymentStatus: 'PAID',
+      bookingStatus: 'CONFIRMED',
+      serviceIds: [],
+      slotId: '',
+    }));
     expect(plans.savePlan).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'ACTIVE', paymentStatus: 'PAID', remainingVisits: 3, version: 2 }),
+      expect.objectContaining({
+        status: 'AWAITING_FIRST_JOB',
+        paymentStatus: 'PAID',
+        remainingVisits: 3,
+        version: 2,
+        firstJobId: expect.any(String),
+        autoRenew: false,
+      }),
       1,
     );
+    const saved = plans.savePlan.mock.calls[0][0] as CustomerPlanRecord;
+    expect(saved.billingPeriodStart).toBeUndefined();
+    expect(saved.billingPeriodEnd).toBeUndefined();
   });
 
   it('keeps the plan PENDING_PAYMENT when the payment fails or is cancelled', async () => {
@@ -84,6 +132,7 @@ describe('CustomerPlanPaymentsService', () => {
     const cancelled = await service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'CANCELLED' } }));
     expect(cancelled.status).toBe('CANCELLED');
     expect(plans.savePlan).not.toHaveBeenCalled();
+    expect(bookings.createPackageLinkedBooking).not.toHaveBeenCalled();
   });
 
   it('does not activate when the stored payment amount disagrees with the plan snapshot', async () => {

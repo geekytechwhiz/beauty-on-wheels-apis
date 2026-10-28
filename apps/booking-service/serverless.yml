@@ -565,21 +565,29 @@ custom:
                 timezone:
                   type: string
       - name: CreateCustomerPlanRequest
-        description: Purchase a catalog package as a recurring customer plan. Not an ON_DEMAND booking.
+        description: >
+          Purchase a catalog PACKAGE offering as a customer plan. Not an ON_DEMAND booking
+          and not Availability slot reservation. visitWindowId is a catalog preference;
+          the provider coordinates exact visit times. Final price comes from the offering
+          vehicle price for the selected vehicle.
         content:
           application/json:
             schema:
               type: object
               additionalProperties: false
-              required: [vendorId, branchId, packageId, vehicleId, location, cadence, visitWindow, expectedPrice]
+              required: [vendorId, branchId, vehicleId, location, visitWindowId, autoRenew, expectedPrice]
               properties:
                 vendorId:
                   type: string
                 branchId:
                   type: string
-                  description: Addition to the approved proposal; vendor checkout eligibility is branch-scoped.
+                  description: Vendor checkout eligibility is branch-scoped.
+                offeringId:
+                  type: string
+                  description: Catalog PACKAGE offering id (preferred).
                 packageId:
                   type: string
+                  description: Alias of offeringId for UI compatibility.
                 vehicleId:
                   type: string
                 location:
@@ -594,24 +602,12 @@ custom:
                       type: string
                     addressId:
                       type: string
-                cadence:
+                visitWindowId:
                   type: string
-                  enum: [WEEKLY, BIWEEKLY, MONTHLY]
-                visitWindow:
-                  type: object
-                  required: [preferredDays, startTime, endTime, timezone]
-                  properties:
-                    preferredDays:
-                      type: array
-                      items:
-                        type: string
-                        enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
-                    startTime:
-                      type: string
-                    endTime:
-                      type: string
-                    timezone:
-                      type: string
+                  description: Stable id from the offering visitWindows preference list.
+                autoRenew:
+                  type: boolean
+                  description: Customer renewal choice; applied only when true.
                 expectedPrice:
                   type: object
                   additionalProperties: false
@@ -620,17 +616,37 @@ custom:
                     totalMinor:
                       type: integer
                       minimum: 0
+                      description: >
+                        Final customer price for the selected vehicle after catalog minor→major
+                        conversion (INR rupees integer). Must match the resolved offering price.
                     currency:
                       type: string
                       pattern: '^[A-Za-z]{3}$'
+              example:
+                vendorId: vend_demo_001
+                branchId: branch_demo_001
+                offeringId: offr_premium_weekly_wash
+                vehicleId: veh_customer_001
+                location:
+                  fulfilmentType: community
+                  communityId: comm_demo_001
+                visitWindowId: morning
+                autoRenew: true
+                expectedPrice:
+                  totalMinor: 1499
+                  currency: INR
       - name: CustomerPlan
-        description: Customer package plan
+        description: >
+          Saved package plan. Billing period start/end and ACTIVE status are set when the
+          linked first job starts (IN_PROGRESS), not at plan creation or payment time.
         content:
           application/json:
             schema:
               type: object
               properties:
                 planId:
+                  type: string
+                offeringId:
                   type: string
                 packageId:
                   type: string
@@ -642,15 +658,20 @@ custom:
                   type: string
                 vehicleId:
                   type: string
+                vehicleType:
+                  type: string
                 status:
                   type: string
-                  enum: [PENDING_PAYMENT, ACTIVE]
+                  enum: [PENDING_PAYMENT, AWAITING_FIRST_JOB, ACTIVE]
                 paymentStatus:
                   type: string
                   enum: [PENDING, PAID]
+                billingPeriod:
+                  type: string
+                  enum: [oneTime, weekly, monthly, yearly]
                 cadence:
                   type: string
-                  enum: [WEEKLY, BIWEEKLY, MONTHLY]
+                  enum: [WEEKLY, BIWEEKLY, MONTHLY, YEARLY, ONE_TIME]
                 remainingVisits:
                   type: integer
                 entitlements:
@@ -662,19 +683,45 @@ custom:
                         type: string
                       quantity:
                         type: integer
+                includedServices:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      categoryId:
+                        type: string
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                      visitsPerPeriod:
+                        type: integer
+                      durationMinutes:
+                        type: integer
+                        description: One visit duration
+                visitWindowId:
+                  type: string
                 visitWindow:
                   type: object
-                  required: [preferredDays, startTime, endTime, timezone]
                   properties:
-                    preferredDays:
-                      type: array
-                      items:
-                        type: string
-                        enum: [MON, TUE, WED, THU, FRI, SAT, SUN]
+                    visitWindowId:
+                      type: string
+                    label:
+                      type: string
+                    allDay:
+                      type: boolean
                     startTime:
                       type: string
                     endTime:
                       type: string
+                    preferredDays:
+                      type: array
+                      items:
+                        type: string
                     timezone:
                       type: string
                 location:
@@ -697,16 +744,88 @@ custom:
                       type: string
                     packageId:
                       type: string
+                    offeringId:
+                      type: string
                     packageName:
                       type: string
                     packageVersion:
                       type: integer
+                    vehicleType:
+                      type: string
+                    durationMinutes:
+                      type: integer
+                      description: Package-total duration for the selected vehicle
+                autoRenew:
+                  type: boolean
+                firstJobId:
+                  type: string
+                billingPeriodStart:
+                  type: string
+                  description: Set when the first job starts
+                billingPeriodEnd:
+                  type: string
                 createdAt:
                   type: string
                 updatedAt:
                   type: string
                 activatedAt:
                   type: string
+                  description: Payment completion time (plan may still await first job)
+              example:
+                planId: plan_demo_001
+                offeringId: offr_premium_weekly_wash
+                packageId: offr_premium_weekly_wash
+                packageName: Premium weekly wash
+                vendorId: vend_demo_001
+                branchId: branch_demo_001
+                vehicleId: veh_customer_001
+                vehicleType: HATCHBACK
+                status: AWAITING_FIRST_JOB
+                paymentStatus: PAID
+                billingPeriod: weekly
+                cadence: WEEKLY
+                remainingVisits: 6
+                entitlements:
+                  - serviceId: Exterior wash
+                    quantity: 4
+                  - serviceId: Interior vacuum
+                    quantity: 2
+                includedServices:
+                  - name: Exterior wash
+                    description: Foam wash and dry
+                    categoryId: cat_wash
+                    tags:
+                      - exterior
+                    visitsPerPeriod: 4
+                    durationMinutes: 30
+                  - name: Interior vacuum
+                    categoryId: cat_detail
+                    visitsPerPeriod: 2
+                    durationMinutes: 25
+                visitWindowId: morning
+                visitWindow:
+                  visitWindowId: morning
+                  label: Morning (8:00–12:00)
+                  startTime: '08:00'
+                  endTime: '12:00'
+                location:
+                  fulfilmentType: community
+                  communityId: comm_demo_001
+                pricingSnapshot:
+                  totalAmount: 1499
+                  totalMinor: 1499
+                  currency: INR
+                  packageId: offr_premium_weekly_wash
+                  offeringId: offr_premium_weekly_wash
+                  packageName: Premium weekly wash
+                  packageVersion: 1
+                  vehicleType: HATCHBACK
+                  durationMinutes: 170
+                autoRenew: true
+                firstJobId: book_first_job_001
+                createdAt: '2026-10-28T11:00:00.000Z'
+                updatedAt: '2026-10-28T11:05:00.000Z'
+                activatedAt: '2026-10-28T11:05:00.000Z'
       - name: BookingChangeRequest
         description: Preview or commit a provider/service change on an owned PENDING_PAYMENT or CONFIRMED booking.
         content:

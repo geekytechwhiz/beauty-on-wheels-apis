@@ -47,6 +47,7 @@ import { VendorGateway, getVendorGateway } from "../integrations/vendor.client";
 import { BookingsMapper } from "../mappers/bookings.mapper";
 import { validateCreateBooking } from "../schemas/bookings.schema";
 import { BookingDdbItem, BookingIdempotencyItem } from "../types/repository.types";
+import { getCustomerPlansService } from "./customer-plans.service";
 
 const baseLogger = createLogger({
     service: "bookings-service",
@@ -580,6 +581,14 @@ export class BookingsService {
         try {
             await this.repository.updateBookingStatus(targetStatus, original);
 
+            if (targetStatus === 'IN_PROGRESS' && original.planId) {
+                await getCustomerPlansService().markFirstJobStarted(
+                    original.planId,
+                    original.id,
+                    new Date().toISOString(),
+                );
+            }
+
             this.logger.info({
                 event: "transitionStatus_success",
                 bookingId,
@@ -643,7 +652,10 @@ export class BookingsService {
     }
 
     private async cancelAndRelease(original: BookingDdbItem): Promise<void> {
-        await this.availability.releaseAllocation(original.allocationId ?? original.id);
+        // Package-plan jobs do not reserve Availability capacity.
+        if (!original.planId && !original.packageId) {
+            await this.availability.releaseAllocation(original.allocationId ?? original.id);
+        }
         await this.repository.cancelBooking(original);
     }
 

@@ -30,24 +30,25 @@ Optional community coverage routes remain under `/offerings/{offeringId}/communi
 Create packages directly as offerings. There is no separate `/services` or `/packages` HTTP API.
 
 - `offeringType`: `PACKAGE` (supported). `SERVICE` is reserved for a future shape on the same resource.
-- `includedServices`: inline service descriptions (`name`, `description`, platform `categoryId`, `tags`, `visitsPerPeriod`, `durationMinutes`). Providers do not create linked service records.
-- `vehiclePricing`: per vehicle type with **integer minor units** and explicit `currency` (default `INR`).
-- `billingPeriod`: `oneTime` | `weekly` | `monthly` | `yearly`
-- Lifecycle: `draft` → `published` → `paused` / `archived`. Version increments when price, composition, or status-relevant fields change.
-- Capacity and real-time availability belong to Availability Service, not this catalog.
+- `includedServices`: inline service descriptions (`name`, `description`, platform `categoryId`, `tags`, `visitsPerPeriod`, `durationMinutes`). Providers do not create linked service records. `includedServices[].durationMinutes` is **one visit’s duration**.
+- `vehiclePricing`: per vehicle type with **integer minor units** (final customer price) and explicit `currency` (default `INR`). `vehiclePricing[].durationMinutes` is the **total package duration across visits in the billing period** for that vehicle (for example, a weekly package whose visits sum to 170 minutes uses `170` here). It is not labeled as per-visit duration.
+- `visitWindows`: optional package-defined preferred visit windows (`visitWindowId`, `label`, and either `allDay: true` or `startTime`/`endTime`). Selection is a preference for the provider to coordinate; not a confirmed availability slot.
+- `billingPeriod`: `oneTime` | `weekly` | `monthly` | `yearly`. Name/description must not contradict the period (for example, “daily” with `weekly`).
+- Lifecycle: `draft` → `published` → `paused` / `archived`. Only `published` offerings are customer-eligible (`active: true`). Version increments when price, composition, visit windows, or status-relevant fields change.
+- Capacity and real-time availability belong to Availability Service, not this catalog. Pricing Service is not used for package final price.
 
 Example create body:
 
 ```json
 {
   "offeringType": "PACKAGE",
-  "name": "Premium monthly wash",
-  "description": "Interior and exterior wash package",
-  "billingPeriod": "monthly",
+  "name": "Premium weekly wash",
+  "description": "Interior and exterior wash package billed weekly",
+  "billingPeriod": "weekly",
   "currency": "INR",
   "vehiclePricing": [
-    { "vehicleType": "HATCHBACK", "price": 149900, "durationMinutes": 45 },
-    { "vehicleType": "SUV", "price": 199900, "durationMinutes": 60 }
+    { "vehicleType": "HATCHBACK", "price": 149900, "durationMinutes": 170 },
+    { "vehicleType": "SUV", "price": 199900, "durationMinutes": 200 }
   ],
   "includedServices": [
     {
@@ -65,13 +66,26 @@ Example create body:
       "durationMinutes": 25
     }
   ],
+  "visitWindows": [
+    {
+      "visitWindowId": "morning",
+      "label": "Morning (8:00–12:00)",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "visitWindowId": "anytime",
+      "label": "Anytime",
+      "allDay": true
+    }
+  ],
   "status": "published"
 }
 ```
 
 ## Marketplace discovery
 
-`GET /offerings` reads the discovery projection on GSI2 (`DISCOVERY#ALL`, or `DISCOVERY#CATEGORY#<categoryId>`). Published offerings project onto that index using the offering id. Community enforcement via GSI3 is controlled by `COMMUNITY_OFFERING_ENFORCEMENT`.
+`GET /offerings` reads the discovery projection on GSI2 (`DISCOVERY#ALL`, or `DISCOVERY#CATEGORY#<categoryId>`). Only published offerings project onto that index. The list response is a discovery page (`items`, `hasMore`, optional `nextCursor`) — not the full PACKAGE detail. Use `GET /offerings/{id}` for `includedServices`, `visitWindows`, vehicle-specific pricing, billing period, currency, and publication/active state. `GET /offerings/{id}` returns published offerings to any authenticated caller; draft/paused/archived are owner-only. Community enforcement via GSI3 is controlled by `COMMUNITY_OFFERING_ENFORCEMENT`.
 
 ## Removed HTTP surfaces
 

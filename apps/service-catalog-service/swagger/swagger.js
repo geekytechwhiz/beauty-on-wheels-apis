@@ -729,122 +729,7 @@
         "produces": [
           "application/json"
         ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "0",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "1",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "2",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "3",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "4",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "5",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "6",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "7",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "8",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "9",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "10",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "11",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "12",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "13",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "14",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "15",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "16",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "17",
-            "type": "string",
-            "required": false
-          },
-          {
-            "in": "query",
-            "name": "18",
-            "type": "string",
-            "required": false
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "OK"
@@ -1170,11 +1055,12 @@
         },
         "price": {
           "title": "VehiclePricing.price",
-          "description": "Integer minor units for managed offerings; major units on legacy discovery rows.",
+          "description": "Integer minor units for managed offerings; major units on legacy discovery rows. Final customer price.",
           "type": "number"
         },
         "durationMinutes": {
           "title": "VehiclePricing.durationMinutes",
+          "description": "Total package duration across visits in the billing period for this vehicle.\nPer-visit duration is on IncludedService.durationMinutes.",
           "type": "number"
         }
       },
@@ -1215,6 +1101,7 @@
         },
         "durationMinutes": {
           "title": "IncludedService.durationMinutes",
+          "description": "Duration of one visit of this included service.",
           "type": "number"
         }
       },
@@ -1226,6 +1113,38 @@
       ],
       "additionalProperties": false,
       "title": "IncludedService",
+      "type": "object"
+    },
+    "OfferingVisitWindow": {
+      "properties": {
+        "visitWindowId": {
+          "title": "OfferingVisitWindow.visitWindowId",
+          "type": "string"
+        },
+        "label": {
+          "title": "OfferingVisitWindow.label",
+          "type": "string"
+        },
+        "allDay": {
+          "title": "OfferingVisitWindow.allDay",
+          "type": "boolean"
+        },
+        "startTime": {
+          "title": "OfferingVisitWindow.startTime",
+          "type": "string"
+        },
+        "endTime": {
+          "title": "OfferingVisitWindow.endTime",
+          "type": "string"
+        }
+      },
+      "required": [
+        "visitWindowId",
+        "label"
+      ],
+      "additionalProperties": false,
+      "title": "OfferingVisitWindow",
+      "description": "Package-defined preferred visit window (not a confirmed availability slot).",
       "type": "object"
     },
     "OfferingType": {
@@ -1297,6 +1216,14 @@
           "title": "CreateOfferingRequest.includedServices",
           "type": "array"
         },
+        "visitWindows": {
+          "items": {
+            "$ref": "#/definitions/OfferingVisitWindow",
+            "title": "CreateOfferingRequest.visitWindows.[]"
+          },
+          "title": "CreateOfferingRequest.visitWindows",
+          "type": "array"
+        },
         "status": {
           "enum": [
             "draft",
@@ -1361,6 +1288,14 @@
             "title": "PatchOfferingRequest.includedServices.[]"
           },
           "title": "PatchOfferingRequest.includedServices",
+          "type": "array"
+        },
+        "visitWindows": {
+          "items": {
+            "$ref": "#/definitions/OfferingVisitWindow",
+            "title": "PatchOfferingRequest.visitWindows.[]"
+          },
+          "title": "PatchOfferingRequest.visitWindows",
           "type": "array"
         },
         "status": {
@@ -1436,6 +1371,14 @@
             "title": "Offering.includedServices.[]"
           },
           "title": "Offering.includedServices",
+          "type": "array"
+        },
+        "visitWindows": {
+          "items": {
+            "$ref": "#/definitions/OfferingVisitWindow",
+            "title": "Offering.visitWindows.[]"
+          },
+          "title": "Offering.visitWindows",
           "type": "array"
         },
         "status": {

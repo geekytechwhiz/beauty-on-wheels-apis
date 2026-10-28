@@ -15,9 +15,14 @@ import { assertProviderAmountMatches, toProviderMinor } from '../domain/money';
 import { BookingError } from '../errors';
 import { getRazorpayGateway } from '../integrations/razorpay.client';
 import {
+  BookingsRepository,
+  getBookingsRepository,
+} from '../repositories/bookings.repository';
+import {
   CustomerPlansRepository,
   getCustomerPlansRepository,
 } from '../repositories/customer-plans.repository';
+import { Booking } from '../types/api-types';
 import { CustomerPlanRecord, PlanPaymentRecord } from '../types/customer-plan.types';
 import { pathId, resolveProvider, sandboxEnabled } from './payments.service';
 
@@ -30,15 +35,19 @@ export type CustomerPlanPaymentResponse = Omit<PlanPaymentRecord, 'customerId' |
 
 /**
  * Plan payments mirror booking payments (initiate / get / sandbox-complete /
- * provider confirm). The amount always comes from the plan pricing snapshot;
- * a successful payment activates the plan. A failed, cancelled, or expired
- * payment leaves the plan PENDING_PAYMENT so the customer can retry with a new
- * Idempotency-Key. No refund or cancellation behaviour is defined here.
+ * provider confirm). The amount always comes from the plan pricing snapshot.
+ * A successful payment marks the plan paid, links the first provider-coordinated
+ * job, and leaves the plan AWAITING_FIRST_JOB until that job starts.
+ * A failed, cancelled, or expired payment leaves the plan PENDING_PAYMENT so
+ * the customer can retry with a new Idempotency-Key.
  */
 export class CustomerPlanPaymentsService {
   private readonly logger = createChildLogger(baseLogger, { service: 'CustomerPlanPaymentsService' });
 
-  constructor(private readonly plans: CustomerPlansRepository = getCustomerPlansRepository()) {}
+  constructor(
+    private readonly plans: CustomerPlansRepository = getCustomerPlansRepository(),
+    private readonly bookings: BookingsRepository = getBookingsRepository(),
+  ) {}
 
   async initiate(request: LambdaRequest): Promise<CustomerPlanPaymentResponse> {
     const customerId = requireCustomerId(request);
@@ -52,7 +61,7 @@ export class CustomerPlanPaymentsService {
     if (replay) return toResponse(await this.reconcileExpiry(replay));
 
     const plan = await this.requireOwnedPlan(planId, customerId, 'Not authorized to pay for this plan');
-    if (plan.paymentStatus === 'PAID' || plan.status === 'ACTIVE') {
+    if (plan.paymentStatus === 'PAID' || plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB') {
       throw new BusinessRuleError('Plan is already paid');
     }
     if (plan.status !== 'PENDING_PAYMENT') {
@@ -207,19 +216,38 @@ export class CustomerPlanPaymentsService {
   }
 
   private async activate(plan: CustomerPlanRecord): Promise<void> {
-    if (plan.status === 'ACTIVE' && plan.paymentStatus === 'PAID') return;
+    if (
+      (plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB')
+      && plan.paymentStatus === 'PAID'
+      && plan.firstJobId
+    ) {
+      return;
+    }
     const now = new Date().toISOString();
+    const firstJobId = plan.firstJobId ?? randomUUID();
+    if (!plan.firstJobId) {
+      await this.bookings.createPackageLinkedBooking(buildFirstJobBooking(plan, firstJobId, now));
+    }
     await this.plans.savePlan(
       {
         ...plan,
-        status: 'ACTIVE',
+        status: 'AWAITING_FIRST_JOB',
         paymentStatus: 'PAID',
+        firstJobId,
         activatedAt: now,
         updatedAt: now,
         version: plan.version + 1,
+        // Billing period start/end stay unset until the first job starts.
+        autoRenew: plan.autoRenew === true,
       },
       plan.version,
     );
+    this.logger.info({
+      event: 'customer_plan_awaiting_first_job',
+      planId: plan.planId,
+      firstJobId,
+      autoRenew: plan.autoRenew === true,
+    });
   }
 
   private async reconcileExpiry(payment: PlanPaymentRecord): Promise<PlanPaymentRecord> {
@@ -254,6 +282,61 @@ function toResponse(record: PlanPaymentRecord): CustomerPlanPaymentResponse {
     ...rest,
     providerAmountMinor: record.providerAmountMinor,
     sandboxEnabled: sandboxEnabled(),
+  };
+}
+
+/** First package job: paid/confirmed, no Availability slot; times are provider-coordinated. */
+function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: string): Booking {
+  const offeringId = plan.offeringId || plan.packageId;
+  const totalAmount = plan.pricingSnapshot.totalAmount;
+  return {
+    id: bookingId,
+    reference: `BOW-PKG-${bookingId.slice(0, 8).toUpperCase()}`,
+    customerId: plan.customerId,
+    vendorId: plan.vendorId,
+    branchId: plan.branchId,
+    vehicleId: plan.vehicleId,
+    vehicleDetails: {
+      bodyCategory: plan.vehicleType,
+      type: plan.vehicleType,
+    },
+    // Package jobs are not on-demand bookings: no serviceIds or Availability slotId.
+    serviceIds: [],
+    offeringId,
+    offeringVersion: plan.pricingSnapshot.packageVersion,
+    planId: plan.planId,
+    packageId: plan.packageId,
+    service: {
+      serviceId: offeringId,
+      name: plan.packageName || offeringId,
+      offeringId,
+      durationMinutes: plan.pricingSnapshot.durationMinutes
+        ?? ((plan.includedServices ?? []).reduce(
+          (sum, entry) => sum + entry.durationMinutes * entry.visitsPerPeriod,
+          0,
+        ) || 1),
+    },
+    bookingDate: now.slice(0, 10),
+    slotId: '',
+    location: plan.location,
+    notes: `Package plan first job (visit preference: ${plan.visitWindow.label})`,
+    pricingSnapshot: {
+      offeringId,
+      offeringVersion: plan.pricingSnapshot.packageVersion ?? 1,
+      catalogVersion: plan.pricingSnapshot.packageVersion ?? 1,
+      vendorPricingVersion: 0,
+      baseAmount: totalAmount,
+      discountAmount: 0,
+      taxAmount: 0,
+      totalAmount,
+      totalMinor: plan.pricingSnapshot.totalMinor,
+      currency: plan.pricingSnapshot.currency,
+    },
+    totalAmount,
+    paymentStatus: 'PAID',
+    bookingStatus: 'CONFIRMED',
+    createdAt: now,
+    updatedAt: now,
   };
 }
 

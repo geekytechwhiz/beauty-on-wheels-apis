@@ -78,6 +78,9 @@ export interface BookingDdbItem {
   serviceIds: string[];
   offeringId?: string;
   offeringVersion?: number;
+  /** Present when this booking is the first (or subsequent) job for a package plan. */
+  planId?: string;
+  packageId?: string;
   service?: BookingServiceSnapshotDdb;
   addOns?: BookingAddOnSnapshotDdb[];
   schedule?: BookingScheduleDdb;
@@ -117,6 +120,8 @@ export interface BookingLookupDdbItem {
   serviceIds: string[];
   offeringId?: string;
   offeringVersion?: number;
+  planId?: string;
+  packageId?: string;
   service?: BookingServiceSnapshotDdb;
   addOns?: BookingAddOnSnapshotDdb[];
   schedule?: BookingScheduleDdb;

@@ -1052,6 +1052,15 @@
           "title": "Booking.offeringVersion",
           "type": "number"
         },
+        "planId": {
+          "title": "Booking.planId",
+          "description": "Linked package plan when this booking is a package job.",
+          "type": "string"
+        },
+        "packageId": {
+          "title": "Booking.packageId",
+          "type": "string"
+        },
         "service": {
           "$ref": "#/definitions/BookingServiceSnapshot",
           "title": "Booking.service"

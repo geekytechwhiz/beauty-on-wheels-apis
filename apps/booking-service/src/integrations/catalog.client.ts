@@ -22,16 +22,47 @@ export interface CatalogGateway {
   }): Promise<CatalogPrice>;
 }
 
+export interface CatalogPackageVisitWindow {
+  visitWindowId: string;
+  label: string;
+  allDay?: boolean;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface CatalogPackageIncludedService {
+  name: string;
+  description?: string;
+  categoryId: string;
+  tags?: string[];
+  visitsPerPeriod: number;
+  durationMinutes: number;
+}
+
+export interface CatalogPackageVehiclePrice {
+  vehicleType: string;
+  /** Catalog integer amount (INR rupees), same convention as booking prices. */
+  price: number;
+  /** Total package duration across visits in the billing period for this vehicle. */
+  durationMinutes: number;
+}
+
 /** Vendor-owned catalog package with its composition, as read from offering detail. */
 export interface CatalogPackage {
   id: string;
   vendorId: string;
   name: string;
+  description?: string;
   active: boolean;
-  /** Catalog integer amount (INR rupees), the same convention as booking prices. */
+  billingPeriod: 'oneTime' | 'weekly' | 'monthly' | 'yearly';
+  /** Catalog integer amount (INR rupees) for the selected or first vehicle price. */
   discountedPrice: number;
   currency: string;
   version?: number;
+  vehiclePricing: CatalogPackageVehiclePrice[];
+  vehicleTypes: string[];
+  includedServices: CatalogPackageIncludedService[];
+  visitWindows: CatalogPackageVisitWindow[];
   items: Array<{ refId: string; itemType: 'SERVICE' | 'ADDON'; quantity?: number }>;
 }
 
@@ -138,32 +169,130 @@ export function parsePackageFromOffering(body: unknown, packageId: string, vendo
   }
   const response = asRecord(body);
   const record = asRecord(response.data !== undefined ? response.data : body);
-  const included = Array.isArray(record.includedServices) ? record.includedServices : [];
-  const items = included.map((entry, index) => {
-    const item = asRecord(entry);
-    const name = typeof item.name === 'string' ? item.name : `item-${index + 1}`;
-    return {
-      refId: name,
-      itemType: 'SERVICE' as const,
-      quantity: typeof item.visitsPerPeriod === 'number' && Number.isInteger(item.visitsPerPeriod) && item.visitsPerPeriod > 0
-        ? item.visitsPerPeriod
-        : 1,
-    };
-  });
-  const price = offering.vehiclePricing[0]?.price;
-  if (price === undefined) {
+  const status = typeof record.status === 'string' ? record.status : undefined;
+  if (status && status !== 'published') {
+    throw new BookingError('PACKAGE_INACTIVE', 'Package is not active', 409, 'packageId', false);
+  }
+
+  const includedServices = parseIncludedServices(record.includedServices);
+  const items = includedServices.map((entry) => ({
+    refId: entry.name,
+    itemType: 'SERVICE' as const,
+    quantity: entry.visitsPerPeriod,
+  }));
+  const vehiclePricing = offering.vehiclePricing.map((entry) => ({
+    vehicleType: entry.vehicleType,
+    price: entry.price,
+    durationMinutes: entry.durationMinutes,
+  }));
+  if (vehiclePricing.length === 0) {
     throw new BookingError('CATALOG_PRICING_UNAVAILABLE', 'Service Catalog package did not include a valid price', 502);
   }
+  const billingPeriod = parseBillingPeriod(record.billingPeriod);
+  const visitWindows = parseVisitWindows(record.visitWindows);
+
   return {
     id: offering.id,
     vendorId: offering.vendorId ?? vendorId,
     name: offering.name ?? packageId,
+    ...(typeof record.description === 'string' ? { description: record.description } : {}),
     active: offering.active,
-    discountedPrice: price,
+    billingPeriod,
+    discountedPrice: vehiclePricing[0].price,
     currency: offering.currency ?? 'INR',
     ...(offering.version !== undefined ? { version: offering.version } : {}),
+    vehiclePricing,
+    vehicleTypes: vehiclePricing.map((entry) => entry.vehicleType),
+    includedServices,
+    visitWindows,
     items: items.length > 0 ? items : [{ refId: offering.id, itemType: 'SERVICE' }],
   };
+}
+
+function parseBillingPeriod(value: unknown): CatalogPackage['billingPeriod'] {
+  if (value === 'oneTime' || value === 'weekly' || value === 'monthly' || value === 'yearly') {
+    return value;
+  }
+  // Legacy bridged packages without billingPeriod default to oneTime.
+  return 'oneTime';
+}
+
+function parseIncludedServices(value: unknown): CatalogPackageIncludedService[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry, index) => {
+    const item = asRecord(entry);
+    const name = typeof item.name === 'string' && item.name.trim()
+      ? item.name.trim()
+      : `item-${index + 1}`;
+    const visitsPerPeriod = typeof item.visitsPerPeriod === 'number'
+      && Number.isInteger(item.visitsPerPeriod)
+      && item.visitsPerPeriod > 0
+      ? item.visitsPerPeriod
+      : 1;
+    const durationMinutes = typeof item.durationMinutes === 'number'
+      && Number.isInteger(item.durationMinutes)
+      && item.durationMinutes > 0
+      ? item.durationMinutes
+      : 1;
+    const categoryId = typeof item.categoryId === 'string' && item.categoryId.trim()
+      ? item.categoryId.trim()
+      : 'unknown';
+    return {
+      name,
+      ...(typeof item.description === 'string' ? { description: item.description } : {}),
+      categoryId,
+      ...(Array.isArray(item.tags)
+        ? { tags: item.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) }
+        : {}),
+      visitsPerPeriod,
+      durationMinutes,
+    };
+  });
+}
+
+function parseVisitWindows(value: unknown): CatalogPackageVisitWindow[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new BookingError(
+      'CATALOG_PRICING_UNAVAILABLE',
+      'Service Catalog returned invalid visit windows',
+      502,
+    );
+  }
+  const seen = new Set<string>();
+  return value.map((entry) => {
+    const item = asRecord(entry);
+    const visitWindowId = typeof item.visitWindowId === 'string' ? item.visitWindowId.trim() : '';
+    const label = typeof item.label === 'string' ? item.label.trim() : '';
+    if (!visitWindowId || !label || seen.has(visitWindowId)) {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Service Catalog returned invalid visit windows',
+        502,
+      );
+    }
+    seen.add(visitWindowId);
+    if (item.allDay === true) {
+      return { visitWindowId, label, allDay: true };
+    }
+    if (typeof item.startTime !== 'string' || typeof item.endTime !== 'string') {
+      throw new BookingError(
+        'CATALOG_PRICING_UNAVAILABLE',
+        'Service Catalog returned invalid visit windows',
+        502,
+      );
+    }
+    return {
+      visitWindowId,
+      label,
+      startTime: item.startTime,
+      endTime: item.endTime,
+    };
+  });
 }
 
 export function parseOffering(

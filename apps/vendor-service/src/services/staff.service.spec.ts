@@ -6,10 +6,13 @@ import {
   UnauthorizedError,
 } from '@api-hub/utils';
 
+import { ValidationError } from '@api-hub/utils';
+
 import { StaffService } from './staff.service';
+import { CrewRepository } from '../repositories/crew.repository';
 import { StaffRepository } from '../repositories/staff.repository';
 import { VendorsRepository } from '../repositories/vendors.repository';
-import { StaffDdbItem, VendorDdbItem } from '../types/repository.types';
+import { CrewDdbItem, StaffDdbItem, VendorDdbItem } from '../types/repository.types';
 
 function authRequest(overrides: Record<string, unknown> = {}): LambdaRequest {
   return {
@@ -69,6 +72,7 @@ function staffItem(overrides: Partial<StaffDdbItem> = {}): StaffDdbItem {
 describe('StaffService', () => {
   let repository: jest.Mocked<StaffRepository>;
   let vendorsRepository: jest.Mocked<VendorsRepository>;
+  let crews: jest.Mocked<CrewRepository>;
   let service: StaffService;
 
   beforeEach(() => {
@@ -77,6 +81,8 @@ describe('StaffService', () => {
       getStaff: jest.fn(),
       listStaff: jest.fn(),
       findStaffByUserId: jest.fn(),
+      findStaffByPhone: jest.fn().mockResolvedValue(null),
+      listMembershipsByUserId: jest.fn().mockResolvedValue([]),
       updateStaff: jest.fn(),
     } as unknown as jest.Mocked<StaffRepository>;
 
@@ -84,7 +90,11 @@ describe('StaffService', () => {
       getVendorById: jest.fn().mockResolvedValue(vendorItem()),
     } as unknown as jest.Mocked<VendorsRepository>;
 
-    service = new StaffService(repository, vendorsRepository);
+    crews = {
+      listAllCrews: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<CrewRepository>;
+
+    service = new StaffService(repository, vendorsRepository, crews);
   });
 
   describe('listvendorstaff', () => {
@@ -173,6 +183,37 @@ describe('StaffService', () => {
         ),
       ).rejects.toThrow(ConflictError);
       expect(repository.createStaff).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid Indian mobile number', async () => {
+      await expect(
+        service.createvendorstaff(
+          authRequest({ body: { name: 'Ananya Reddy', phoneNumber: '12345' } }),
+        ),
+      ).rejects.toThrow(ValidationError);
+      expect(repository.createStaff).not.toHaveBeenCalled();
+    });
+
+    it('rejects a duplicate mobile number for the vendor', async () => {
+      repository.findStaffByPhone.mockResolvedValue(staffItem());
+
+      await expect(
+        service.createvendorstaff(
+          authRequest({ body: { name: 'Another Person', phoneNumber: '9900112233' } }),
+        ),
+      ).rejects.toThrow(ConflictError);
+      expect(repository.createStaff).not.toHaveBeenCalled();
+    });
+
+    it('stores the mobile number in E.164 form', async () => {
+      repository.createStaff.mockResolvedValue(undefined);
+
+      const result = await service.createvendorstaff(
+        authRequest({ body: { name: 'Ananya Reddy', phoneNumber: '9900112233' } }),
+      );
+
+      expect(result.phoneNumber).toBe('+919900112233');
+      expect(result.status).toBe('ACTIVE');
     });
 
     it('rejects staff creation when the caller is unauthenticated', async () => {
@@ -269,7 +310,66 @@ describe('StaffService', () => {
           staffId: 'staff-1',
           status: 'INACTIVE',
         }),
+        { releasePhone: true },
       );
+    });
+
+    it('rejects deactivation while the staff member is on an active crew', async () => {
+      repository.getStaff.mockResolvedValue(staffItem());
+      crews.listAllCrews.mockResolvedValue([{
+        PK: 'VENDOR#vendor-1',
+        SK: 'CREW#crew-1',
+        crewId: 'crew-1',
+        vendorId: 'vendor-1',
+        name: 'Morning Crew A',
+        vanLabel: 'Van KL-07',
+        staffIds: ['staff-1', 'staff-2'],
+        status: 'ACTIVE',
+        revision: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        entityType: 'Crew',
+      } satisfies CrewDdbItem]);
+
+      await expect(
+        service.deactivatevendorstaff(
+          authRequest({
+            pathParameters: { vendorId: 'vendor-1', staffId: 'staff-1' },
+            params: { vendorId: 'vendor-1', staffId: 'staff-1' },
+          }),
+        ),
+      ).rejects.toThrow(ConflictError);
+      expect(repository.updateStaff).not.toHaveBeenCalled();
+    });
+
+    it('allows an active staff member with staff:view to read, and denies management', async () => {
+      repository.getStaff.mockResolvedValue(staffItem());
+      repository.listMembershipsByUserId.mockResolvedValue([{
+        PK: 'STAFF_USER#staff-user',
+        SK: 'VENDOR#vendor-1',
+        userId: 'staff-user',
+        vendorId: 'vendor-1',
+        staffId: 'staff-9',
+        status: 'ACTIVE',
+        entityType: 'StaffMembership',
+      }]);
+      vendorsRepository.getVendorById.mockResolvedValue({
+        ...vendorItem(),
+        ownerUserId: 'someone-else',
+      });
+      const reader = authRequest({
+        context: {
+          userContext: { userId: 'staff-user' },
+          authContext: { identityId: 'sub', userId: 'staff-user', roles: [], permissions: ['staff:view'], claims: {} },
+        },
+        pathParameters: { vendorId: 'vendor-1', staffId: 'staff-1' },
+        params: { vendorId: 'vendor-1', staffId: 'staff-1' },
+      });
+
+      await expect(service.getvendorstaff(reader)).resolves.toMatchObject({ staffId: 'staff-1' });
+      await expect(
+        service.deactivatevendorstaff(reader),
+      ).rejects.toThrow(ForbiddenError);
     });
   });
 });

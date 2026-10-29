@@ -21,6 +21,25 @@ export const OWNER_VISIT_PERMISSIONS = [
 
 export const STAFF_VISIT_PERMISSIONS = [VISIT_PERMISSION.VIEW];
 
+/** Vendor-scoped capabilities. Names follow the existing `resource:action` registry. */
+export const VENDOR_CAPABILITY = {
+  STAFF_VIEW: 'staff:view',
+  STAFF_MANAGE: 'staff:manage',
+  CREW_VIEW: 'crew:view',
+  CREW_MANAGE: 'crew:manage',
+} as const;
+
+export type VendorCapability =
+  (typeof VENDOR_CAPABILITY)[keyof typeof VENDOR_CAPABILITY];
+
+export const OWNER_WORKSPACE_PERMISSIONS = [
+  ...OWNER_VISIT_PERMISSIONS,
+  VENDOR_CAPABILITY.STAFF_VIEW,
+  VENDOR_CAPABILITY.STAFF_MANAGE,
+  VENDOR_CAPABILITY.CREW_VIEW,
+  VENDOR_CAPABILITY.CREW_MANAGE,
+];
+
 export type VendorMembershipRole =
   (typeof VENDOR_MEMBERSHIP_ROLE)[keyof typeof VENDOR_MEMBERSHIP_ROLE];
 

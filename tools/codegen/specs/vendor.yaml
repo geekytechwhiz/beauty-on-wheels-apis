@@ -36,6 +36,8 @@ tags:
     description: Vendor operating schedule management
   - name: Staff
     description: Vendor staff and worker management
+  - name: Crews
+    description: Vendor crews that will operate together. Scheduling is not part of this resource.
   - name: Capabilities
     description: Vendor service and vehicle capabilities
   - name: Documents
@@ -606,15 +608,182 @@ paths:
       summary: Deactivate vendor staff member
       operationId: deactivateVendorStaff
       description: |
-        Deactivates the staff member.
-        Historical booking/job references should remain intact.
+        Sets the staff member to INACTIVE and keeps the record.
+        Historical booking and crew references stay intact.
+        The call is rejected while the staff member belongs to an active crew.
+        No invitation message is sent when a staff record is created.
       responses:
         '204':
           description: Staff member deactivated successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+
+  /vendors/{vendorId}/crews:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+
+    get:
+      tags:
+        - Crews
+      summary: List vendor crews
+      operationId: listVendorCrews
+      description: |
+        Returns crews owned by the vendor. Each item includes member names
+        for staff of this vendor. Requires authentication. The caller must be
+        the vendor owner, an admin, or an active staff member whose token
+        includes `crew:view`.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CrewStatus'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Crews retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Crews
+      summary: Create vendor crew
+      operationId: createVendorCrew
+      description: |
+        Creates an active crew with at least two active staff members of this
+        vendor. Owner or admin only. `vanLabel` is a display label, not a fleet record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCrewRequest'
+            example:
+              name: Morning Crew A
+              vanLabel: Van KL-07-AB-1234
+              staffIds:
+                - staff_001
+                - staff_002
+      responses:
+        '201':
+          description: Crew created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+
+  /vendors/{vendorId}/crews/{crewId}:
+    parameters:
+      - $ref: '#/components/parameters/VendorId'
+      - $ref: '#/components/parameters/CrewId'
+
+    get:
+      tags:
+        - Crews
+      summary: Get vendor crew
+      operationId: getVendorCrew
+      description: Returns the crew only when it belongs to the path vendor and the caller can read crews.
+      responses:
+        '200':
+          description: Crew retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Crews
+      summary: Update vendor crew
+      operationId: updateVendorCrew
+      description: |
+        Updates name, van label, members, or status. The final crew state is validated.
+        Send `revision` from the last read to reject a concurrent update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCrewRequest'
+      responses:
+        '200':
+          description: Crew updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Crews
+      summary: Deactivate vendor crew
+      operationId: deactivateVendorCrew
+      description: |
+        Sets the crew to INACTIVE and keeps the record, including staff ids,
+        so later scheduling can still refer to it.
+      responses:
+        '204':
+          description: Crew deactivated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
 
   /vendors/{vendorId}/capabilities:
@@ -1001,6 +1170,14 @@ components:
         type: string
       example: STF_01JXYZ123456789
 
+    CrewId:
+      name: crewId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: crew_001
+
     DocumentId:
       name: documentId
       in: path
@@ -1181,6 +1358,12 @@ components:
         - BIKE
 
     StaffStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+
+    CrewStatus:
       type: string
       enum:
         - ACTIVE
@@ -1594,6 +1777,7 @@ components:
 
         phoneNumber:
           type: string
+          description: Indian mobile number. Stored as E.164, for example +919876543210.
 
         email:
           type: string
@@ -1687,6 +1871,128 @@ components:
           items:
             $ref: '#/components/schemas/Staff'
 
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+
+    CreateCrewRequest:
+      type: object
+      required:
+        - name
+        - vanLabel
+        - staffIds
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Morning Crew A
+        vanLabel:
+          type: string
+          minLength: 1
+          maxLength: 80
+          example: Van KL-07-AB-1234
+        staffIds:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items:
+            type: string
+          example:
+            - staff_001
+            - staff_002
+
+    UpdateCrewRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        vanLabel:
+          type: string
+          minLength: 1
+          maxLength: 80
+        staffIds:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/CrewStatus'
+        revision:
+          type: integer
+          minimum: 0
+          description: Last seen crew revision. A mismatch returns 409.
+
+    CrewMember:
+      type: object
+      required:
+        - staffId
+        - status
+      properties:
+        staffId:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/StaffStatus'
+
+    Crew:
+      type: object
+      required:
+        - crewId
+        - vendorId
+        - name
+        - vanLabel
+        - staffIds
+        - members
+        - status
+        - revision
+        - createdAt
+        - updatedAt
+      properties:
+        crewId:
+          type: string
+        vendorId:
+          type: string
+        name:
+          type: string
+        vanLabel:
+          type: string
+        staffIds:
+          type: array
+          items:
+            type: string
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrewMember'
+        status:
+          $ref: '#/components/schemas/CrewStatus'
+        revision:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CrewResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Crew'
+
+    CrewListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Crew'
         pagination:
           $ref: '#/components/schemas/Pagination'
 

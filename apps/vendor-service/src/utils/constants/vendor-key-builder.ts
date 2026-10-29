@@ -9,6 +9,8 @@ export const VENDOR_BRANCH_ENTITY_TYPE = 'VendorBranch' as const;
 export const VENDOR_DOCUMENT_ENTITY_TYPE = 'VendorDocument' as const;
 export const SERVICE_AREA_ENTITY_TYPE = 'ServiceArea' as const;
 export const STAFF_ENTITY_TYPE = 'Staff' as const;
+export const STAFF_PHONE_ENTITY_TYPE = 'StaffPhone' as const;
+export const CREW_ENTITY_TYPE = 'Crew' as const;
 export const VENDOR_CAPABILITIES_ENTITY_TYPE = 'VendorCapabilities' as const;
 export const VENDOR_OPERATING_HOURS_ENTITY_TYPE = 'VendorOperatingHours' as const;
 export const VENDOR_STATUS_HISTORY_ENTITY_TYPE = 'VendorStatusHistory' as const;
@@ -25,6 +27,8 @@ export const BRANCH_SK_PREFIX = 'BRANCH#';
 export const DOCUMENT_SK_PREFIX = 'DOCUMENT#';
 export const SERVICE_AREA_SK_PREFIX = 'SERVICE_AREA#';
 export const STAFF_SK_PREFIX = 'STAFF#';
+export const STAFF_PHONE_SK_PREFIX = 'STAFF_PHONE#';
+export const CREW_SK_PREFIX = 'CREW#';
 export const STATUS_HISTORY_SK_PREFIX = 'STATUS_HISTORY#';
 export const COMMUNITY_SK_PREFIX = 'COMMUNITY#';
 
@@ -60,6 +64,12 @@ export const VendorKeyBuilder = {
   staffSk: (staffId: string) => `${STAFF_SK_PREFIX}${staffId}`,
 
   staffSkPrefix: () => STAFF_SK_PREFIX,
+
+  staffPhoneSk: (phoneNumber: string) => `${STAFF_PHONE_SK_PREFIX}${phoneNumber}`,
+
+  crewSk: (crewId: string) => `${CREW_SK_PREFIX}${crewId}`,
+
+  crewSkPrefix: () => CREW_SK_PREFIX,
 
   capabilitiesSk: () => VENDOR_CAPABILITIES_SK,
 

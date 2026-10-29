@@ -40,7 +40,7 @@ import {
 } from '../domain/vendor-aggregate';
 import {
   isOnboardingComplete,
-  OWNER_VISIT_PERMISSIONS,
+  OWNER_WORKSPACE_PERMISSIONS,
   resolveVendorNextAction,
   resolveVendorSelfStatus,
   STAFF_VISIT_PERMISSIONS,
@@ -168,7 +168,7 @@ export class VendorsService {
       nextAction: resolveVendorNextAction(vendor),
       membership: {
         role: VENDOR_MEMBERSHIP_ROLE.OWNER,
-        permissions: [...OWNER_VISIT_PERMISSIONS],
+        permissions: [...OWNER_WORKSPACE_PERMISSIONS],
       },
     };
   }

@@ -408,6 +408,8 @@ describe('VendorsService', () => {
         nextAction: 'OPEN_VENDOR_DASHBOARD',
       });
       expect(result.membership?.permissions).not.toContain('visits:publish');
+      expect(result.membership?.permissions).not.toContain('staff:manage');
+      expect(result.membership?.permissions).not.toContain('crew:manage');
     });
 
     it('returns start onboarding when the user has no vendor', async () => {
@@ -457,6 +459,10 @@ describe('VendorsService', () => {
       const result = await service.getMyVendor(authRequest());
       expect(result.status).toBe('ACTIVE');
       expect(result.nextAction).toBe('OPEN_VENDOR_DASHBOARD');
+      expect(result.membership).toMatchObject({
+        role: 'owner',
+        permissions: expect.arrayContaining(['staff:view', 'staff:manage', 'crew:view', 'crew:manage']),
+      });
     });
 
     it('returns setup when an approved vendor is not operationally eligible', async () => {

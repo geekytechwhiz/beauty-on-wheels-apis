@@ -11,6 +11,7 @@ export {
 export {
   assertAdminAccess,
   assertVendorAccess,
+  assertVendorAction,
   getCallerRoles,
   isAdminCaller,
   isVendorOwner,

@@ -26,6 +26,9 @@ Vendor-owned records live in a single partition `VENDOR#{vendorId}`. Singleton s
 | 11 | List documents | Query | base | `PK=VENDOR#{vendorId}` AND `begins_with(SK, DOCUMENT#)` |
 | 12 | Get/update/delete document | GetItem / Put / Delete | base | `SK=DOCUMENT#{documentId}` |
 | 13 | List staff | Query | base | `begins_with(SK, STAFF#)` |
+| 13b | Staff phone uniqueness | GetItem | base | `SK=STAFF_PHONE#{e164}` |
+| 13c | List crews | Query | base | `begins_with(SK, CREW#)` |
+| 13d | Get/update crew | GetItem / Put | base | `SK=CREW#{crewId}` |
 | 14 | List capabilities assignment | GetItem | base | `SK=CAPABILITIES` |
 | 15 | List service areas | Query | base | `begins_with(SK, SERVICE_AREA#)` |
 | 16 | List vendors by lifecycle | Query | GSI1 | `GSI1PK=VENDOR`, `begins_with(GSI1SK, STATUS#{status}#)` |
@@ -44,6 +47,8 @@ No additional GSIs: owner lookup reuses GSI1 with a different `GSI1PK` namespace
 | `VENDOR#{vendorId}` | `BRANCH#{branchId}` | `VendorBranch` | One of many branches |
 | `VENDOR#{vendorId}` | `DOCUMENT#{documentId}` | `VendorDocument` | Document metadata + S3 object key |
 | `VENDOR#{vendorId}` | `STAFF#{staffId}` | `Staff` | Staff record; `userId` only when portal access is required |
+| `VENDOR#{vendorId}` | `STAFF_PHONE#{e164}` | `StaffPhone` | One active mobile number per vendor. Removed when the staff member is deactivated |
+| `VENDOR#{vendorId}` | `CREW#{crewId}` | `Crew` | Crew name, van label, staff ids, status, and revision. Deactivation keeps the item |
 | `VENDOR#{vendorId}` | `CAPABILITIES` | `VendorCapabilities` | Assignment IDs only (master catalog is not stored here) |
 | `VENDOR#{vendorId}` | `SERVICE_AREA#{serviceAreaId}` | `ServiceArea` | Vendor-owned coverage area |
 | `VENDOR#{vendorId}` | `HOURS` | `VendorOperatingHours` | Weekly operating schedule |

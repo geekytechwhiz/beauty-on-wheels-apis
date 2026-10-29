@@ -3,6 +3,7 @@ import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils
 import {
   assertAdminAccess,
   assertVendorAccess,
+  assertVendorAction,
 } from './authorization';
 
 function request(overrides: Record<string, unknown> = {}): LambdaRequest {
@@ -96,6 +97,51 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
         }),
       ),
     ).toBe('admin-1');
+  });
+
+  it('lets an active staff member read only with an explicit view capability', () => {
+    const staffRequest = request({
+      context: {
+        authContext: {
+          identityId: 'sub-2',
+          userId: 'staff-user',
+          roles: [],
+          permissions: ['staff:view'],
+          claims: {},
+        },
+        userContext: { userId: 'staff-user' },
+      },
+    });
+    expect(assertVendorAction(
+      staffRequest,
+      vendor,
+      'staff:view',
+      { vendorId: 'vendor-1', status: 'ACTIVE' },
+    )).toBe('staff-user');
+    expect(() => assertVendorAction(
+      staffRequest,
+      vendor,
+      'staff:manage',
+      { vendorId: 'vendor-1', status: 'ACTIVE' },
+    )).toThrow(ForbiddenError);
+  });
+
+  it('denies staff view for an inactive membership or another vendor', () => {
+    const staffRequest = request({
+      context: { userContext: { userId: 'staff-user', permissions: ['crew:view'] } },
+    });
+    expect(() => assertVendorAction(
+      staffRequest,
+      vendor,
+      'crew:view',
+      { vendorId: 'vendor-1', status: 'INACTIVE' },
+    )).toThrow(ForbiddenError);
+    expect(() => assertVendorAction(
+      staffRequest,
+      vendor,
+      'crew:view',
+      { vendorId: 'vendor-2', status: 'ACTIVE' },
+    )).toThrow(ForbiddenError);
   });
 
   it('allows an admin caller to access a vendor they do not own', () => {

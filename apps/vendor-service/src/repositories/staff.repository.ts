@@ -1,10 +1,14 @@
 import { BaseRepository } from '@api-hub/utils';
-import { QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import { QueryCommandInput, TransactWriteCommandInput } from '@aws-sdk/lib-dynamodb';
 
 import { env } from '../configs/env.config';
+import { indianMobilesMatch } from '../domain/indian-mobile';
 import { StaffStatus } from '../types/api-types';
-import { StaffDdbItem } from '../types/repository.types';
-import { VendorKeyBuilder } from '../utils/constants/vendor-key-builder';
+import { StaffDdbItem, StaffPhoneDdbItem } from '../types/repository.types';
+import {
+  STAFF_PHONE_ENTITY_TYPE,
+  VendorKeyBuilder,
+} from '../utils/constants/vendor-key-builder';
 
 export interface StaffListQueryParams {
   vendorId: string;
@@ -47,6 +51,13 @@ export class StaffRepository extends BaseRepository {
             Item: item,
             ConditionExpression:
               'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: this.phoneItem(item),
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
           },
         },
         ...(membership ? [{
@@ -109,10 +120,14 @@ export class StaffRepository extends BaseRepository {
     return this.queryOne<StaffDdbItem>(queryParams);
   }
 
-  async updateStaff(item: StaffDdbItem): Promise<void> {
+  async updateStaff(
+    item: StaffDdbItem,
+    options?: { previousPhone?: string; releasePhone?: boolean },
+  ): Promise<void> {
     const membership = this.membershipItem(item);
     await this.transactWrite({
       TransactItems: [
+        ...this.phoneChanges(item, options),
         {
           Put: {
             TableName: this.getTableName(),
@@ -130,6 +145,36 @@ export class StaffRepository extends BaseRepository {
     });
   }
 
+  async listAllStaff(vendorId: string): Promise<StaffDdbItem[]> {
+    return this.queryAll<StaffDdbItem>({
+      TableName: this.getTableName(),
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+      ExpressionAttributeValues: {
+        ':pk': VendorKeyBuilder.vendorPk(vendorId),
+        ':skPrefix': VendorKeyBuilder.staffSkPrefix(),
+      },
+    });
+  }
+
+  async findStaffByPhone(
+    vendorId: string,
+    phoneNumber: string,
+  ): Promise<StaffDdbItem | null> {
+    const lock = await this.get<StaffPhoneDdbItem>(this.getTableName(), {
+      PK: VendorKeyBuilder.vendorPk(vendorId),
+      SK: VendorKeyBuilder.staffPhoneSk(phoneNumber),
+    });
+    if (lock?.staffId) {
+      const linked = await this.getStaff(vendorId, lock.staffId);
+      if (linked) return linked;
+    }
+
+    const items = await this.listAllStaff(vendorId);
+    return items.find((item) => (
+      item.status !== 'INACTIVE' && indianMobilesMatch(item.phoneNumber, phoneNumber)
+    )) ?? null;
+  }
+
   async listMembershipsByUserId(userId: string): Promise<StaffMembershipItem[]> {
     const result = await this.queryAll<StaffMembershipItem>({
       TableName: this.getTableName(),
@@ -140,6 +185,58 @@ export class StaffRepository extends BaseRepository {
       },
     });
     return result;
+  }
+
+  private phoneItem(item: StaffDdbItem): StaffPhoneDdbItem {
+    return {
+      PK: VendorKeyBuilder.vendorPk(item.vendorId),
+      SK: VendorKeyBuilder.staffPhoneSk(item.phoneNumber),
+      vendorId: item.vendorId,
+      staffId: item.staffId,
+      phoneNumber: item.phoneNumber,
+      entityType: STAFF_PHONE_ENTITY_TYPE,
+    };
+  }
+
+  private phoneChanges(
+    item: StaffDdbItem,
+    options?: { previousPhone?: string; releasePhone?: boolean },
+  ): NonNullable<TransactWriteCommandInput['TransactItems']> {
+    if (options?.releasePhone) {
+      const phones = new Set(
+        [item.phoneNumber, options.previousPhone].filter((phone): phone is string => Boolean(phone)),
+      );
+      return [...phones].map((phoneNumber) => ({
+        Delete: {
+          TableName: this.getTableName(),
+          Key: {
+            PK: VendorKeyBuilder.vendorPk(item.vendorId),
+            SK: VendorKeyBuilder.staffPhoneSk(phoneNumber),
+          },
+        },
+      }));
+    }
+    if (!options?.previousPhone || options.previousPhone === item.phoneNumber) {
+      return [];
+    }
+    return [
+      {
+        Put: {
+          TableName: this.getTableName(),
+          Item: this.phoneItem(item),
+          ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+        },
+      },
+      {
+        Delete: {
+          TableName: this.getTableName(),
+          Key: {
+            PK: VendorKeyBuilder.vendorPk(item.vendorId),
+            SK: VendorKeyBuilder.staffPhoneSk(options.previousPhone),
+          },
+        },
+      },
+    ];
   }
 
   private membershipItem(item: StaffDdbItem): StaffMembershipItem | undefined {

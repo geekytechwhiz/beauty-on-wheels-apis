@@ -2,6 +2,7 @@ import {
   Address,
   BankAccountType,
   DayOfWeek,
+  CrewStatus,
   DocumentStatus,
   DocumentType,
   GeoLocation,
@@ -196,6 +197,30 @@ export interface StaffDdbItem {
   entityType: 'Staff';
 }
 
+export interface StaffPhoneDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  staffId: string;
+  phoneNumber: string;
+  entityType: 'StaffPhone';
+}
+
+export interface CrewDdbItem {
+  PK: string;
+  SK: string;
+  crewId: string;
+  vendorId: string;
+  name: string;
+  vanLabel: string;
+  staffIds: string[];
+  status: CrewStatus;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  entityType: 'Crew';
+}
+
 export interface VendorStatusReviewRecord {
   previousStatus: VendorStatus;
   newStatus: VendorStatus;
@@ -287,6 +312,8 @@ export type VendorChildDdbItem =
   | VendorDocumentDdbItem
   | ServiceAreaDdbItem
   | StaffDdbItem
+  | StaffPhoneDdbItem
+  | CrewDdbItem
   | VendorCapabilitiesDdbItem
   | VendorOperatingHoursDdbItem
   | VendorStatusHistoryDdbItem

@@ -18,7 +18,10 @@ import {
   VendorsRepository,
   getVendorsRepository,
 } from '../repositories/vendors.repository';
+import { normalizeIndianMobile } from '../domain/indian-mobile';
+import { VENDOR_CAPABILITY, VendorCapability } from '../domain/vendor-self';
 import { StaffMapper } from '../mappers/staff.mapper';
+import { CrewRepository, getCrewRepository } from '../repositories/crew.repository';
 import {
   CreateStaffRequest,
   Staff,
@@ -26,13 +29,16 @@ import {
   StaffStatus,
   UpdateStaffRequest,
 } from '../types/api-types';
+import { VendorDdbItem } from '../types/repository.types';
 import {
-  assertVendorAccess,
+  assertVendorAction,
   decodeCursor,
   encodeCursor,
   getAuthenticatedUserId,
   getPathParam,
   getVendorId,
+  isAdminCaller,
+  isVendorOwner,
   parseLimit,
 } from '../utils/helpers';
 
@@ -51,15 +57,44 @@ export class StaffService {
   constructor(
     private readonly repository: StaffRepository = getStaffRepository(),
     private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
+    private readonly crews: CrewRepository = getCrewRepository(),
   ) {}
 
-  private async requireAccessibleVendor(request: LambdaRequest, vendorId: string) {
+  private async requireVendorAction(
+    request: LambdaRequest,
+    vendorId: string,
+    action: VendorCapability,
+  ): Promise<VendorDdbItem> {
+    const userId = getAuthenticatedUserId(request);
     const item = await this.vendorsRepository.getVendorById(vendorId);
     if (!item) {
       throw new NotFoundError('Vendor not found');
     }
-    assertVendorAccess(request, item);
+    if (!isVendorOwner(item, userId) && !isAdminCaller(request)) {
+      const memberships = await this.repository.listMembershipsByUserId(userId);
+      const membership = memberships.find((entry) => entry.vendorId === vendorId);
+      assertVendorAction(request, item, action, membership);
+    }
     return item;
+  }
+
+  private async assertPhoneAvailable(vendorId: string, phoneNumber: string, staffId?: string) {
+    const existing = await this.repository.findStaffByPhone(vendorId, phoneNumber);
+    if (existing && existing.staffId !== staffId && existing.status !== 'INACTIVE') {
+      throw new ConflictError('A staff member with this mobile number already exists');
+    }
+  }
+
+  private async assertNotOnActiveCrew(vendorId: string, staffId: string) {
+    const crews = await this.crews.listAllCrews(vendorId);
+    const blocking = crews.filter((crew) => (
+      crew.status === 'ACTIVE' && crew.staffIds.includes(staffId)
+    ));
+    if (blocking.length > 0) {
+      throw new ConflictError(
+        'Remove this staff member from active crews before deactivating them',
+      );
+    }
   }
 
   private toListResponse(result: StaffPageResult): StaffListResponse {
@@ -90,7 +125,7 @@ export class StaffService {
     });
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
+      await this.requireVendorAction(request, vendorId, VENDOR_CAPABILITY.STAFF_VIEW);
 
       if (status && !VALID_STAFF_STATUSES.includes(status as StaffStatus)) {
         throw new ValidationError(
@@ -140,8 +175,10 @@ export class StaffService {
     });
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
+      await this.requireVendorAction(request, vendorId, VENDOR_CAPABILITY.STAFF_MANAGE);
 
+      const phoneNumber = normalizeIndianMobile(body.phoneNumber);
+      await this.assertPhoneAvailable(vendorId, phoneNumber);
       const portalUserId = body.userId?.trim() || undefined;
       if (portalUserId) {
         const existingByUser = await this.repository.findStaffByUserId(
@@ -156,13 +193,20 @@ export class StaffService {
       }
 
       const staffId = randomUUID();
-      const ddbItem = StaffMapper.toDdbItem(body, vendorId, staffId);
+      const ddbItem = StaffMapper.toDdbItem(
+        { ...body, name: body.name.trim(), phoneNumber },
+        vendorId,
+        staffId,
+      );
 
       try {
         await this.repository.createStaff(ddbItem);
       } catch (err) {
         if (isConditionalWriteConflictAtIndex(err, 0)) {
           throw new NotFoundError('Vendor not found');
+        }
+        if (isConditionalWriteConflictAtIndex(err, 2)) {
+          throw new ConflictError('A staff member with this mobile number already exists');
         }
         if (err instanceof ConditionalWriteConflictError) {
           throw new ConflictError('Staff member already exists');
@@ -203,7 +247,7 @@ export class StaffService {
     });
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
+      await this.requireVendorAction(request, vendorId, VENDOR_CAPABILITY.STAFF_VIEW);
       const item = await this.repository.getStaff(vendorId, staffId);
       if (!item) {
         throw new NotFoundError('Staff member not found');
@@ -243,17 +287,37 @@ export class StaffService {
     });
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
+      await this.requireVendorAction(request, vendorId, VENDOR_CAPABILITY.STAFF_MANAGE);
       const existing = await this.repository.getStaff(vendorId, staffId);
       if (!existing) {
         throw new NotFoundError('Staff member not found');
       }
 
-      const updated = StaffMapper.applyUpdate(existing, body);
+      const phoneNumber = body.phoneNumber === undefined
+        ? undefined
+        : normalizeIndianMobile(body.phoneNumber);
+      const updates: UpdateStaffRequest = {
+        ...body,
+        ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+        ...(phoneNumber !== undefined ? { phoneNumber } : {}),
+      };
+      const updated = StaffMapper.applyUpdate(existing, updates);
+      if (updated.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
+        await this.assertNotOnActiveCrew(vendorId, staffId);
+      }
+      if (updated.status !== 'INACTIVE') {
+        await this.assertPhoneAvailable(vendorId, updated.phoneNumber, staffId);
+      }
 
       try {
-        await this.repository.updateStaff(updated);
+        await this.repository.updateStaff(updated, {
+          previousPhone: existing.phoneNumber,
+          releasePhone: updated.status === 'INACTIVE' && existing.status !== 'INACTIVE',
+        });
       } catch (err) {
+        if (phoneNumber && phoneNumber !== existing.phoneNumber && isConditionalWriteConflictAtIndex(err, 0)) {
+          throw new ConflictError('A staff member with this mobile number already exists');
+        }
         if (err instanceof ConditionalWriteConflictError) {
           throw new ConflictError('Staff update conflict');
         }
@@ -293,16 +357,19 @@ export class StaffService {
     });
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
+      await this.requireVendorAction(request, vendorId, VENDOR_CAPABILITY.STAFF_MANAGE);
       const existing = await this.repository.getStaff(vendorId, staffId);
       if (!existing) {
         throw new NotFoundError('Staff member not found');
       }
 
+      if (existing.status !== 'INACTIVE') {
+        await this.assertNotOnActiveCrew(vendorId, staffId);
+      }
       const updated = StaffMapper.applyDeactivate(existing);
 
       try {
-        await this.repository.updateStaff(updated);
+        await this.repository.updateStaff(updated, { releasePhone: existing.status !== 'INACTIVE' });
       } catch (err) {
         if (err instanceof ConditionalWriteConflictError) {
           throw new NotFoundError('Staff member not found');

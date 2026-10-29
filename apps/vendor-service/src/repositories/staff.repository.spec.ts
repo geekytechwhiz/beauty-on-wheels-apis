@@ -49,9 +49,11 @@ describe('StaffRepository', () => {
     const input = ddbMock.call(0).args[0].input as {
       TransactItems: Array<Record<string, any>>;
     };
-    expect(input.TransactItems).toHaveLength(2);
+    expect(input.TransactItems).toHaveLength(3);
     expect(input.TransactItems[0].ConditionCheck.Key.SK).toBe('PROFILE');
     expect(input.TransactItems[1].Put.Item.entityType).toBe('Staff');
+    expect(input.TransactItems[2].Put.Item.entityType).toBe('StaffPhone');
+    expect(input.TransactItems[2].Put.Item.SK).toBe('STAFF_PHONE#+919900112233');
     expect(input.TransactItems[1].Put.Item.SK).toBe('STAFF#staff-1');
     expect(input.TransactItems[1].Put.Item.userId).toBeUndefined();
   });

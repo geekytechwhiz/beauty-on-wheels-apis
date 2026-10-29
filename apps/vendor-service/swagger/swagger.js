@@ -1304,7 +1304,7 @@
       },
       "post": {
         "summary": "Add vendor staff member",
-        "description": "",
+        "description": "Creates a staff record for this vendor. No invitation message is sent. The record is ACTIVE unless a supported status is supplied. phoneNumber is stored as an Indian E.164 mobile.",
         "tags": [
           "Staff"
         ],
@@ -1507,7 +1507,7 @@
       },
       "delete": {
         "summary": "Deactivate vendor staff member",
-        "description": "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n",
+        "description": "Sets the staff member to INACTIVE and keeps the record. Deactivation is rejected while the staff member belongs to an active crew.",
         "tags": [
           "Staff"
         ],
@@ -1541,6 +1541,256 @@
           },
           "404": {
             "description": "404 response"
+          },
+          "409": {
+            "description": "Staff member still belongs to an active crew"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/crews": {
+      "get": {
+        "summary": "List vendor crews",
+        "description": "Returns crews owned by the vendor. Each crew includes member names for staff of this vendor. Owner and admin callers can read. Active staff can read only when the token includes crew:view.",
+        "tags": [
+          "Crews"
+        ],
+        "operationId": "listvendorcrews.get./vendors/{vendorId}/crews",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crews retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/CrewListResponse"
+            }
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot read crews for this vendor"
+          },
+          "404": {
+            "description": "Vendor not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create vendor crew",
+        "description": "Creates an active crew of at least two active staff members of this vendor. Owner or admin only. A van label is stored as text; this is not a fleet record.",
+        "tags": [
+          "Crews"
+        ],
+        "operationId": "createvendorcrew.post./vendors/{vendorId}/crews",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateCrewRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Crew created successfully",
+            "schema": {
+              "$ref": "#/definitions/CrewResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid crew"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot manage crews for this vendor"
+          },
+          "404": {
+            "description": "Vendor not found"
+          },
+          "409": {
+            "description": "Crew already exists"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/crews/{crewId}": {
+      "get": {
+        "summary": "Get vendor crew",
+        "description": "Returns the crew when it belongs to the path vendor and the caller can read crews.",
+        "tags": [
+          "Crews"
+        ],
+        "operationId": "getvendorcrew.get./vendors/{vendorId}/crews/{crewId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "crewId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crew retrieved successfully",
+            "schema": {
+              "$ref": "#/definitions/CrewResponse"
+            }
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot read crews for this vendor"
+          },
+          "404": {
+            "description": "Crew not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update vendor crew",
+        "description": "Updates name, van label, members, or status. The final crew must still be valid. Send revision to detect a concurrent update.",
+        "tags": [
+          "Crews"
+        ],
+        "operationId": "updatevendorcrew.patch./vendors/{vendorId}/crews/{crewId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateCrewRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "crewId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crew updated successfully",
+            "schema": {
+              "$ref": "#/definitions/CrewResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid crew"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot manage crews for this vendor"
+          },
+          "404": {
+            "description": "Crew not found"
+          },
+          "409": {
+            "description": "Crew was updated by someone else"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate vendor crew",
+        "description": "Sets the crew to INACTIVE and keeps the record, including staff ids, for later scheduling history.",
+        "tags": [
+          "Crews"
+        ],
+        "operationId": "deactivatevendorcrew.delete./vendors/{vendorId}/crews/{crewId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "crewId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Crew deactivated successfully"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot manage crews for this vendor"
+          },
+          "404": {
+            "description": "Crew not found"
+          },
+          "409": {
+            "description": "Crew was updated by someone else"
           }
         }
       }
@@ -2590,6 +2840,14 @@
         "INACTIVE"
       ],
       "title": "StaffStatus",
+      "type": "string"
+    },
+    "CrewStatus": {
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ],
+      "title": "CrewStatus",
       "type": "string"
     },
     "DayOfWeek": {
@@ -4494,6 +4752,174 @@
       },
       "additionalProperties": false,
       "title": "StaffListResponse",
+      "type": "object"
+    },
+    "CreateCrewRequest": {
+      "properties": {
+        "name": {
+          "title": "CreateCrewRequest.name",
+          "type": "string"
+        },
+        "vanLabel": {
+          "title": "CreateCrewRequest.vanLabel",
+          "type": "string"
+        },
+        "staffIds": {
+          "items": {
+            "title": "CreateCrewRequest.staffIds.[]",
+            "type": "string"
+          },
+          "title": "CreateCrewRequest.staffIds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "vanLabel",
+        "staffIds"
+      ],
+      "additionalProperties": false,
+      "title": "CreateCrewRequest",
+      "type": "object"
+    },
+    "UpdateCrewRequest": {
+      "properties": {
+        "name": {
+          "title": "UpdateCrewRequest.name",
+          "type": "string"
+        },
+        "vanLabel": {
+          "title": "UpdateCrewRequest.vanLabel",
+          "type": "string"
+        },
+        "staffIds": {
+          "items": {
+            "title": "UpdateCrewRequest.staffIds.[]",
+            "type": "string"
+          },
+          "title": "UpdateCrewRequest.staffIds",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/CrewStatus",
+          "title": "UpdateCrewRequest.status"
+        },
+        "revision": {
+          "title": "UpdateCrewRequest.revision",
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "title": "UpdateCrewRequest",
+      "type": "object"
+    },
+    "CrewMember": {
+      "properties": {
+        "staffId": {
+          "title": "CrewMember.staffId",
+          "type": "string"
+        },
+        "name": {
+          "title": "CrewMember.name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/StaffStatus",
+          "title": "CrewMember.status"
+        }
+      },
+      "required": [
+        "staffId",
+        "status"
+      ],
+      "additionalProperties": false,
+      "title": "CrewMember",
+      "type": "object"
+    },
+    "Crew": {
+      "properties": {
+        "crewId": {
+          "title": "Crew.crewId",
+          "type": "string"
+        },
+        "vendorId": {
+          "title": "Crew.vendorId",
+          "type": "string"
+        },
+        "name": {
+          "title": "Crew.name",
+          "type": "string"
+        },
+        "vanLabel": {
+          "title": "Crew.vanLabel",
+          "type": "string"
+        },
+        "staffIds": {
+          "items": {
+            "title": "Crew.staffIds.[]",
+            "type": "string"
+          },
+          "title": "Crew.staffIds",
+          "type": "array"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/definitions/CrewMember",
+            "title": "Crew.members.[]"
+          },
+          "title": "Crew.members",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/CrewStatus",
+          "title": "Crew.status"
+        },
+        "revision": {
+          "title": "Crew.revision",
+          "type": "number"
+        },
+        "createdAt": {
+          "title": "Crew.createdAt",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "Crew.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "crewId",
+        "vendorId",
+        "name",
+        "vanLabel",
+        "staffIds",
+        "members",
+        "status",
+        "revision",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "Crew",
+      "type": "object"
+    },
+    "CrewListResponse": {
+      "properties": {
+        "data": {
+          "items": {
+            "$ref": "#/definitions/Crew",
+            "title": "CrewListResponse.data.[]"
+          },
+          "title": "CrewListResponse.data",
+          "type": "array"
+        },
+        "pagination": {
+          "$ref": "#/definitions/Pagination",
+          "title": "CrewListResponse.pagination"
+        }
+      },
+      "additionalProperties": false,
+      "title": "CrewListResponse",
       "type": "object"
     },
     "CapabilityDefinition": {

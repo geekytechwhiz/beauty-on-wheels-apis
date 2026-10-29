@@ -1,5 +1,6 @@
 import { ForbiddenError, LambdaRequest } from '@api-hub/utils';
 
+import { VENDOR_CAPABILITY, VendorCapability } from '../../domain/vendor-self';
 import { VendorDdbItem } from '../../types/repository.types';
 import {
   getAuthenticatedUserId,
@@ -51,6 +52,50 @@ export function assertVendorAccess(
   const authenticatedUserId = getAuthenticatedUserId(request);
 
   if (isVendorOwner(vendor, authenticatedUserId) || isAdminCaller(request)) {
+    return authenticatedUserId;
+  }
+
+  throw new ForbiddenError('Not authorized to access this vendor');
+}
+
+const MANAGER_ONLY = new Set<VendorCapability>([
+  VENDOR_CAPABILITY.STAFF_MANAGE,
+  VENDOR_CAPABILITY.CREW_MANAGE,
+]);
+
+export interface VendorMembershipGrant {
+  vendorId: string;
+  status: string;
+}
+
+/**
+ * Owner and admin callers pass. An active staff member may read only when the
+ * token carries that view capability. Staff cannot manage staff or crews.
+ * The path vendor id is the only vendor considered.
+ */
+export function assertVendorAction(
+  request: LambdaRequest,
+  vendor: Pick<VendorDdbItem, 'ownerUserId' | 'vendorId'>,
+  action: VendorCapability,
+  membership?: VendorMembershipGrant,
+): string {
+  const authenticatedUserId = getAuthenticatedUserId(request);
+
+  if (isVendorOwner(vendor, authenticatedUserId) || isAdminCaller(request)) {
+    return authenticatedUserId;
+  }
+
+  const activeHere = Boolean(
+    membership
+    && membership.vendorId === vendor.vendorId
+    && membership.status === 'ACTIVE',
+  );
+  const granted = new Set([
+    ...asStringArray(request.context.authContext?.permissions),
+    ...asStringArray(request.context.userContext?.permissions),
+  ]);
+
+  if (activeHere && !MANAGER_ONLY.has(action) && granted.has(action)) {
     return authenticatedUserId;
   }
 

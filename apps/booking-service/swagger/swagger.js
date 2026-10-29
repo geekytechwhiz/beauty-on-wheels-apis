@@ -684,14 +684,14 @@
           },
           {
             "in": "query",
-            "name": "0",
-            "type": "string",
+            "name": "limit",
+            "type": "integer",
             "description": "Page size (1-100, default 50)",
             "required": false
           },
           {
             "in": "query",
-            "name": "1",
+            "name": "cursor",
             "type": "string",
             "description": "Opaque pagination cursor",
             "required": false

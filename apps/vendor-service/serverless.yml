@@ -138,7 +138,7 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels - Vendor Service API
-    description: Vendor profiles, onboarding, communities, service areas, staff, capabilities, branches, documents, and bank details.
+    description: Vendor profiles, onboarding, communities, service areas, staff, crews, capabilities, branches, documents, and bank details.
     securitySchemes:
       bearerAuth:
         type: http
@@ -169,6 +169,8 @@ custom:
         description: Weekly operating hours
       - name: Staff
         description: Vendor staff
+      - name: Crews
+        description: Vendor crews. A van label is text only. Scheduling is not stored here.
       - name: Capabilities
         description: Vehicle types, services, and packages the vendor offers
       - name: Branches
@@ -1135,6 +1137,140 @@ custom:
                     required:
                       - name
                       - phoneNumber
+                pagination:
+                  type: object
+                  properties:
+                    nextCursor:
+                      type: string
+                    hasMore:
+                      type: boolean
+      - name: CreateCrewRequest
+        description: Create a vendor crew
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                vanLabel:
+                  type: string
+                staffIds:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: string
+              required:
+                - name
+                - vanLabel
+                - staffIds
+      - name: UpdateCrewRequest
+        description: Patch a vendor crew
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                vanLabel:
+                  type: string
+                staffIds:
+                  type: array
+                  items:
+                    type: string
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                revision:
+                  type: integer
+      - name: CrewResponse
+        description: Vendor crew
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                crewId:
+                  type: string
+                vendorId:
+                  type: string
+                name:
+                  type: string
+                vanLabel:
+                  type: string
+                staffIds:
+                  type: array
+                  items:
+                    type: string
+                members:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      staffId:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INACTIVE
+                    required:
+                      - staffId
+                      - status
+                status:
+                  type: string
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                revision:
+                  type: integer
+                createdAt:
+                  type: string
+                updatedAt:
+                  type: string
+              required:
+                - crewId
+                - vendorId
+                - name
+                - vanLabel
+                - staffIds
+                - status
+      - name: CrewListResponse
+        description: Vendor crew page
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      crewId:
+                        type: string
+                      vendorId:
+                        type: string
+                      name:
+                        type: string
+                      vanLabel:
+                        type: string
+                      staffIds:
+                        type: array
+                        items:
+                          type: string
+                      status:
+                        type: string
+                        enum:
+                          - ACTIVE
+                          - INACTIVE
+                      revision:
+                        type: integer
                 pagination:
                   type: object
                   properties:
@@ -3666,6 +3802,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Add vendor staff member"
+          description: "Creates a staff record for this vendor. No invitation message is sent. The record is ACTIVE unless a supported status is supplied. phoneNumber is stored as an Indian E.164 mobile."
           swaggerTags:
             - Staff
           bodyType: CreateStaffRequest
@@ -3907,7 +4044,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Deactivate vendor staff member"
-          description: "Deactivates the staff member.\nHistorical booking/job references should remain intact.\n"
+          description: "Sets the staff member to INACTIVE and keeps the record. Deactivation is rejected while the staff member belongs to an active crew."
           swaggerTags:
             - Staff
           responseData:
@@ -3917,6 +4054,8 @@ functions:
               description: ""
             404:
               description: ""
+            409:
+              description: "Staff member still belongs to an active crew"
           documentation:
             summary: Deactivate vendor staff member
             description: Deactivates the staff member. Historical booking/job references should remain intact.
@@ -3943,6 +4082,346 @@ functions:
                   type: string
               - name: staffId
                 description: staffId
+                schema:
+                  type: string
+
+
+  listvendorcrews:
+    handler: src/handlers/crew-handler.handleListvendorcrews
+    events:
+      - http:
+          path: /vendors/{vendorId}/crews
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor crews"
+          description: "Returns crews owned by the vendor. Each crew includes member names for staff of this vendor. Owner and admin callers can read. Active staff can read only when the token includes crew:view."
+          swaggerTags:
+            - Crews
+          responseData:
+            200:
+              description: "Crews retrieved successfully"
+              bodyType: CrewListResponse
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller cannot read crews for this vendor"
+            404:
+              description: "Vendor not found"
+          documentation:
+            summary: List vendor crews
+            description: "Returns crews owned by the vendor, including member names. Paginated with limit and cursor."
+            tags:
+              - Crews
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Crews retrieved successfully
+                responseModels:
+                  application/json: CrewListResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read crews for this vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Vendor not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            queryParams:
+              - name: status
+                description: ACTIVE or INACTIVE
+                schema:
+                  type: string
+              - name: limit
+                description: Page size
+                schema:
+                  type: integer
+              - name: cursor
+                description: Pagination cursor
+                schema:
+                  type: string
+
+  createvendorcrew:
+    handler: src/handlers/crew-handler.handleCreatevendorcrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/crews
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Create vendor crew"
+          description: "Creates an active crew of at least two active staff members of this vendor. Owner or admin only. A van label is stored as text; this is not a fleet record."
+          swaggerTags:
+            - Crews
+          bodyType: CreateCrewRequest
+          responseData:
+            201:
+              description: "Crew created successfully"
+              bodyType: CrewResponse
+            400:
+              description: "Invalid crew"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller cannot manage crews for this vendor"
+            404:
+              description: "Vendor not found"
+            409:
+              description: "Crew already exists"
+          documentation:
+            summary: Create vendor crew
+            description: "Creates a crew. Members are staff ids of this vendor and must be active. Duplicate members are rejected."
+            tags:
+              - Crews
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Crew created successfully
+                responseModels:
+                  application/json: CrewResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid crew
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot manage crews for this vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Vendor not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Crew already exists
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Create vendor crew
+              required: true
+            requestModels:
+              application/json: CreateCrewRequest
+
+  getvendorcrew:
+    handler: src/handlers/crew-handler.handleGetvendorcrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/crews/{crewId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get vendor crew"
+          description: "Returns the crew when it belongs to the path vendor and the caller can read crews."
+          swaggerTags:
+            - Crews
+          responseData:
+            200:
+              description: "Crew retrieved successfully"
+              bodyType: CrewResponse
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller cannot read crews for this vendor"
+            404:
+              description: "Crew not found"
+          documentation:
+            summary: Get vendor crew
+            description: "Returns one vendor-owned crew."
+            tags:
+              - Crews
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Crew retrieved successfully
+                responseModels:
+                  application/json: CrewResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot read crews for this vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Crew not found
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: crewId
+                description: crewId
+                schema:
+                  type: string
+
+  updatevendorcrew:
+    handler: src/handlers/crew-handler.handleUpdatevendorcrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/crews/{crewId}
+          method: patch
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Update vendor crew"
+          description: "Updates name, van label, members, or status. The final crew must still be valid. Send revision to detect a concurrent update."
+          swaggerTags:
+            - Crews
+          bodyType: UpdateCrewRequest
+          responseData:
+            200:
+              description: "Crew updated successfully"
+              bodyType: CrewResponse
+            400:
+              description: "Invalid crew"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller cannot manage crews for this vendor"
+            404:
+              description: "Crew not found"
+            409:
+              description: "Crew was updated by someone else"
+          documentation:
+            summary: Update vendor crew
+            description: "Partial update. Membership replaces staffIds when that field is sent. revision conflicts return 409."
+            tags:
+              - Crews
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Crew updated successfully
+                responseModels:
+                  application/json: CrewResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid crew
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot manage crews for this vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Crew not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Crew was updated by someone else
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: crewId
+                description: crewId
+                schema:
+                  type: string
+            requestBody:
+              description: Update vendor crew
+              required: true
+            requestModels:
+              application/json: UpdateCrewRequest
+
+  deactivatevendorcrew:
+    handler: src/handlers/crew-handler.handleDeactivatevendorcrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/crews/{crewId}
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Deactivate vendor crew"
+          description: "Sets the crew to INACTIVE and keeps the record, including staff ids, for later scheduling history."
+          swaggerTags:
+            - Crews
+          responseData:
+            204:
+              description: "Crew deactivated successfully"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller cannot manage crews for this vendor"
+            404:
+              description: "Crew not found"
+            409:
+              description: "Crew was updated by someone else"
+          documentation:
+            summary: Deactivate vendor crew
+            description: "Soft deactivation. The crew record and its staff ids remain."
+            tags:
+              - Crews
+            methodResponses:
+              - statusCode: "204"
+                responseBody:
+                  description: Crew deactivated successfully
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller cannot manage crews for this vendor
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Crew not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Crew was updated by someone else
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+              - name: crewId
+                description: crewId
                 schema:
                   type: string
 

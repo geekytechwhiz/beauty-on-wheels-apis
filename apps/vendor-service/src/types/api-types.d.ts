@@ -13,6 +13,8 @@ export type VehicleType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'MUV' | 'LUXURY' | 'BI
 
 export type StaffStatus = 'ACTIVE' | 'INACTIVE';
 
+export type CrewStatus = 'ACTIVE' | 'INACTIVE';
+
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
 export type OnboardingSection =
@@ -477,6 +479,44 @@ export interface StaffResponse {
 
 export interface StaffListResponse {
   data?: Staff[];
+  pagination?: Pagination;
+}
+
+export interface CreateCrewRequest {
+  name: string;
+  vanLabel: string;
+  staffIds: string[];
+}
+
+export interface UpdateCrewRequest {
+  name?: string;
+  vanLabel?: string;
+  staffIds?: string[];
+  status?: CrewStatus;
+  revision?: number;
+}
+
+export interface CrewMember {
+  staffId: string;
+  name?: string;
+  status: StaffStatus;
+}
+
+export interface Crew {
+  crewId: string;
+  vendorId: string;
+  name: string;
+  vanLabel: string;
+  staffIds: string[];
+  members: CrewMember[];
+  status: CrewStatus;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrewListResponse {
+  data?: Crew[];
   pagination?: Pagination;
 }
 

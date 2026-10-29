@@ -54,6 +54,15 @@ export interface PackageVisitRecord {
   planId: string;
   customerId: string;
   vendorId: string;
+  /** Copied from the parent plan. Missing on visits materialized before the operational snapshot. */
+  communityId?: string;
+  visitWindowId?: string;
+  visitWindowName?: string;
+  vehicleId?: string;
+  vehicleType?: string;
+  /** Uppercase registration used for vendor search. */
+  registrationNumber?: string;
+  vehicleDisplayName?: string;
   /** Stable catalog entitlement id (serviceKey or slug). */
   serviceId: string;
   serviceName: string;

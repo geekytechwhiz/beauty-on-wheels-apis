@@ -53,6 +53,49 @@ export interface MaterializeVisitInput {
   now: string;
 }
 
+/** Plan fields the vendor list can filter without reading another service. */
+export function operationalSnapshot(plan: CustomerPlanRecord): Pick<
+  PackageVisitRecord,
+  | 'communityId'
+  | 'visitWindowId'
+  | 'visitWindowName'
+  | 'vehicleId'
+  | 'vehicleType'
+  | 'registrationNumber'
+  | 'vehicleDisplayName'
+> {
+  return {
+    ...(plan.location.communityId ? { communityId: plan.location.communityId } : {}),
+    ...(plan.visitWindowId ? { visitWindowId: plan.visitWindowId } : {}),
+    ...(plan.visitWindow?.label ? { visitWindowName: plan.visitWindow.label } : {}),
+    ...(plan.vehicleId ? { vehicleId: plan.vehicleId } : {}),
+    ...(plan.vehicleType ? { vehicleType: plan.vehicleType } : {}),
+    ...(plan.vehicleRegistrationNumber
+      ? { registrationNumber: plan.vehicleRegistrationNumber.trim().toUpperCase() }
+      : {}),
+    ...(plan.vehicleDisplayName ? { vehicleDisplayName: plan.vehicleDisplayName } : {}),
+  };
+}
+
+/** Fills snapshot fields from the parent plan when the visit row predates the snapshot. */
+export function enrichVisitFromPlan(
+  visit: PackageVisitRecord,
+  plan: CustomerPlanRecord | null | undefined,
+): PackageVisitRecord {
+  if (!plan || plan.planId !== visit.planId || plan.vendorId !== visit.vendorId) return visit;
+  const snapshot = operationalSnapshot(plan);
+  return {
+    ...visit,
+    communityId: visit.communityId ?? snapshot.communityId,
+    visitWindowId: visit.visitWindowId ?? snapshot.visitWindowId,
+    visitWindowName: visit.visitWindowName ?? snapshot.visitWindowName,
+    vehicleId: visit.vehicleId ?? snapshot.vehicleId,
+    vehicleType: visit.vehicleType ?? snapshot.vehicleType,
+    registrationNumber: visit.registrationNumber ?? snapshot.registrationNumber,
+    vehicleDisplayName: visit.vehicleDisplayName ?? snapshot.vehicleDisplayName,
+  };
+}
+
 /**
  * One visit row per entitlement unit. Prefer includedServices (name + duration)
  * keyed by entitlement serviceId; fall back to entitlement-only rows.
@@ -72,6 +115,7 @@ export function materializePackageVisits(input: MaterializeVisitInput): PackageV
         planId: plan.planId,
         customerId: plan.customerId,
         vendorId: plan.vendorId,
+        ...operationalSnapshot(plan),
         serviceId: entitlement.serviceId,
         serviceName: nameByService.get(entitlement.serviceId) ?? entitlement.serviceId,
         sequence,

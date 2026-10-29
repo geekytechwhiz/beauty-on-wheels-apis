@@ -30,6 +30,7 @@ provider:
     CATALOG_BASE_URL: ${env:CATALOG_BASE_URL, ''}
     VENDOR_BASE_URL: ${env:VENDOR_BASE_URL, ''}
     VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: vendor-service-api-${self:provider.stage}-getCheckoutEligibility
+    VENDOR_OPERATIONAL_ACCESS_FUNCTION: vendor-service-api-${self:provider.stage}-getOperationalAccess
     USER_BASE_URL: ${env:USER_BASE_URL, ''}
     VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
     AVAILABILITY_BASE_URL: ${env:AVAILABILITY_BASE_URL, ''}
@@ -69,6 +70,7 @@ provider:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_CONSUME_HOLD_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RELEASE_ALLOCATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
 
 custom:
   httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
@@ -2144,6 +2146,189 @@ functions:
             pathParams:
               - name: bookingId
                 description: bookingId
+                schema:
+                  type: string
+
+  listvendorpackagevisits:
+    handler: src/handlers/vendor-package-visits.handleListVendorPackageVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor package visits"
+          description: "Owner-only scheduled package visits for the caller's vendor. Dated rows come from GSI3 or GSI1. UNSCHEDULED entitlements are excluded. Staff and other vendors receive 403."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            date:
+              required: false
+              type: string
+              description: Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata when no range is sent.
+            fromDate:
+              required: false
+              type: string
+              description: Inclusive start date. Cannot be combined with date.
+            toDate:
+              required: false
+              type: string
+              description: Inclusive end date.
+            communityId:
+              required: false
+              type: string
+            visitWindowId:
+              required: false
+              type: string
+            status:
+              required: false
+              type: string
+              description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, or MISSED.
+            search:
+              required: false
+              type: string
+              description: Case-insensitive vehicle registration substring.
+            limit:
+              required: false
+              type: integer
+              description: Page size 1-50. Default 20.
+            nextToken:
+              required: false
+              type: string
+              description: Opaque pagination token.
+          responseData:
+            200:
+              description: "Scheduled package visits"
+            400:
+              description: "Invalid filter"
+            401:
+              description: "Unauthenticated"
+            403:
+              description: "Staff, another vendor, or no membership"
+          documentation:
+            summary: List vendor package visits
+            description: Owner-only scheduled package visits. Does not change GET /vendors/{vendorId}/bookings.
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: date
+                required: false
+                schema:
+                  type: string
+              - name: fromDate
+                required: false
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                schema:
+                  type: string
+              - name: communityId
+                required: false
+                schema:
+                  type: string
+              - name: visitWindowId
+                required: false
+                schema:
+                  type: string
+              - name: status
+                required: false
+                schema:
+                  type: string
+                  enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+              - name: search
+                required: false
+                schema:
+                  type: string
+              - name: limit
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+              - name: nextToken
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: items and nextToken
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid filter
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership.
+                schema:
+                  type: string
+
+  summarizevendorpackagevisits:
+    handler: src/handlers/vendor-package-visits.handleSummarizeVendorPackageVisits
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits/summary
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Summarize vendor package visits"
+          description: "Owner-only totals for a bounded date range. Default is today through the next six days in Asia/Kolkata. Expected excludes CANCELLED and UNSCHEDULED. Completion percent is completed/expected, or 0 when expected is 0. A range that exceeds the read cap returns 409 instead of partial totals."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            fromDate:
+              required: false
+              type: string
+            toDate:
+              required: false
+              type: string
+          responseData:
+            200:
+              description: "Operational summary"
+            400:
+              description: "Invalid range"
+            403:
+              description: "Forbidden"
+            409:
+              description: "Range is too large to total"
+          documentation:
+            summary: Summarize vendor package visits
+            description: Today metrics, community progress, and seven-day demand. This path is not a visit id.
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: fromDate
+                required: false
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operational summary
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid range
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership.
                 schema:
                   type: string
 

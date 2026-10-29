@@ -21,6 +21,7 @@ import {
   assertSchedulePayload,
   assertVisitTransition,
   computeVisitProgress,
+  operationalSnapshot,
   toVisitResponse,
   validityEndsAt,
 } from '../domain/package-visit';
@@ -138,6 +139,7 @@ export class PackageVisitsService {
     };
     const next: PackageVisitRecord = {
       ...visit,
+      ...operationalSnapshot(plan),
       status: PACKAGE_VISIT_STATUS.SCHEDULED,
       schedule: nextSchedule,
       scheduleHistory: appendScheduleHistory(visit, {
@@ -248,6 +250,7 @@ export class PackageVisitsService {
     };
     const next: PackageVisitRecord = {
       ...visit,
+      ...operationalSnapshot(plan),
       status: PACKAGE_VISIT_STATUS.SCHEDULED,
       schedule: nextSchedule,
       scheduleHistory: appendScheduleHistory(visit, {

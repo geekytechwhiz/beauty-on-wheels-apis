@@ -5715,6 +5715,10 @@ functions:
     handler: src/handlers/internal.getCheckoutEligibility
     description: Internal IAM invoke for vendor and branch checkout eligibility. No HTTP route.
 
+  getOperationalAccess:
+    handler: src/handlers/internal.getOperationalAccess
+    description: Internal IAM invoke. Resolves owner or staff membership from the authenticated user id. No HTTP route.
+
   getDiscoveryFacts:
     handler: src/handlers/internal.getDiscoveryFacts
     description: Internal IAM invoke for vendor approval, branches, coverage, and service prices. No HTTP route.

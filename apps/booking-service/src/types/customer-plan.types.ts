@@ -72,6 +72,10 @@ export interface CustomerPlanRecord {
   packageName?: string;
   vehicleId: string;
   vehicleType: string;
+  /** Uppercase registration captured at purchase. Absent on plans created before the snapshot. */
+  vehicleRegistrationNumber?: string;
+  /** Brand and model captured at purchase. Absent when the vehicle service did not return them. */
+  vehicleDisplayName?: string;
   status: CustomerPlanStatus;
   paymentStatus: CustomerPlanPaymentStatus;
   /** Catalog billing period (camelCase), authoritative for renewal length. */

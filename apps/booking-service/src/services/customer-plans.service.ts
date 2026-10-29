@@ -107,6 +107,8 @@ export class CustomerPlansService {
     const entitlements = resolvePlanEntitlements(catalogPackage);
     const now = new Date().toISOString();
     const total = totalVisits(entitlements);
+    const vehicleDisplayName = [vehicle.brand, vehicle.model].filter((part) => part?.trim()).join(' ');
+    const registration = vehicle.registrationNumber?.trim().toUpperCase();
     const record: CustomerPlanRecord = {
       planId: randomUUID(),
       customerId,
@@ -116,6 +118,8 @@ export class CustomerPlansService {
       packageName: catalogPackage.name,
       vehicleId: command.vehicleId,
       vehicleType: vehicle.vehicleType,
+      ...(registration ? { vehicleRegistrationNumber: registration } : {}),
+      ...(vehicleDisplayName ? { vehicleDisplayName } : {}),
       status: 'PENDING_PAYMENT',
       paymentStatus: 'PENDING',
       billingPeriod: catalogPackage.billingPeriod,

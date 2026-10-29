@@ -494,4 +494,45 @@ describe('VendorsService', () => {
       });
     });
   });
+
+  describe('resolveOperationalAccess', () => {
+    it('returns the owned vendor and does not accept a caller-supplied vendor id', async () => {
+      repository.listOwnersByUserId.mockResolvedValue([{
+        PK: 'VENDOR#vendor-1',
+        SK: 'OWNER',
+        vendorId: 'vendor-1',
+        userId: 'user-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        GSI1PK: 'OWNER#user-1',
+        GSI1SK: 'VENDOR#vendor-1',
+        entityType: 'VendorOwner',
+      }]);
+      repository.getVendorsByIds.mockResolvedValue([{ ...vendorItem(), status: 'ACTIVE' }]);
+      await expect(service.resolveOperationalAccess('user-1')).resolves.toEqual({
+        role: 'owner',
+        vendorId: 'vendor-1',
+        active: true,
+      });
+    });
+
+    it('identifies active staff without owner access', async () => {
+      repository.getVendorById.mockResolvedValue({ ...vendorItem(), status: 'ACTIVE' });
+      staffRepository.listMembershipsByUserId.mockResolvedValue([{
+        PK: 'STAFF_USER#user-1',
+        SK: 'VENDOR#vendor-1',
+        userId: 'user-1',
+        vendorId: 'vendor-1',
+        staffId: 'staff-1',
+        status: 'ACTIVE',
+        entityType: 'StaffMembership',
+      }]);
+      await expect(service.resolveOperationalAccess('user-1')).resolves.toMatchObject({
+        role: 'staff',
+        vendorId: 'vendor-1',
+        staffId: 'staff-1',
+        active: true,
+      });
+    });
+  });
 });

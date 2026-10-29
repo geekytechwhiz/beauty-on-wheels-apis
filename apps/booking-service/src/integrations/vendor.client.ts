@@ -17,7 +17,19 @@ export interface VendorGateway {
   getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility>;
 }
 
-export class LambdaVendorGateway implements VendorGateway {
+export interface OperationalAccess {
+  role: 'owner' | 'staff' | 'none';
+  vendorId?: string;
+  staffId?: string;
+  active: boolean;
+}
+
+export interface OperationalAccessGateway {
+  /** Membership for the authenticated user id. The path vendor id is not an input. */
+  getOperationalAccess(userId: string): Promise<OperationalAccess>;
+}
+
+export class LambdaVendorGateway implements VendorGateway, OperationalAccessGateway {
   constructor(private readonly lambda: LambdaClient = new LambdaClient({})) {}
 
   async getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility> {
@@ -79,6 +91,60 @@ export class LambdaVendorGateway implements VendorGateway {
     }
     return parseCheckoutEligibility(parsed, vendorId, branchId);
   }
+
+  async getOperationalAccess(userId: string): Promise<OperationalAccess> {
+    const functionName = env.VENDOR_OPERATIONAL_ACCESS_FUNCTION.trim();
+    if (!functionName) {
+      throw new BookingError(
+        'DEPENDENCY_UNAVAILABLE',
+        'VENDOR_OPERATIONAL_ACCESS_FUNCTION is not configured',
+        502,
+        undefined,
+        true,
+      );
+    }
+    let output;
+    try {
+      // Lambda invoke, not DynamoDB.
+      // eslint-disable-next-line mvrx/no-direct-dynamodb
+      output = await this.lambda.send(new InvokeCommand({
+        FunctionName: functionName,
+        InvocationType: 'RequestResponse',
+        Payload: Buffer.from(JSON.stringify({ userId })),
+      }));
+    } catch {
+      throw new BookingError(
+        'DEPENDENCY_UNAVAILABLE',
+        'Vendor Service could not be invoked',
+        502,
+        undefined,
+        true,
+      );
+    }
+    if (output.FunctionError) {
+      throw new BookingError(
+        'DEPENDENCY_UNAVAILABLE',
+        'Vendor Service failed while reading vendor membership',
+        502,
+        undefined,
+        true,
+      );
+    }
+    const raw = output.Payload ? Buffer.from(output.Payload).toString('utf8') : '';
+    let parsed: unknown = {};
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        throw new BookingError(
+          'DEPENDENCY_UNAVAILABLE',
+          'Vendor Service returned an unreadable membership response',
+          502,
+        );
+      }
+    }
+    return parseOperationalAccess(parsed);
+  }
 }
 
 export function parseCheckoutEligibility(
@@ -137,6 +203,28 @@ export function parseCheckoutEligibility(
   };
 }
 
+export function parseOperationalAccess(payload: unknown): OperationalAccess {
+  const envelope = asRecord(payload);
+  if (envelope.error) {
+    throw mapVendorFailure(envelope.error);
+  }
+  const body = asRecord(envelope.data ?? payload);
+  const role = body.role;
+  if (role !== 'owner' && role !== 'staff' && role !== 'none') {
+    throw new BookingError(
+      'DEPENDENCY_UNAVAILABLE',
+      'Vendor Service did not return membership',
+      502,
+    );
+  }
+  return {
+    role,
+    active: body.active === true,
+    ...(typeof body.vendorId === 'string' && body.vendorId.trim() ? { vendorId: body.vendorId.trim() } : {}),
+    ...(typeof body.staffId === 'string' && body.staffId.trim() ? { staffId: body.staffId.trim() } : {}),
+  };
+}
+
 export function mapVendorFailure(error: unknown): BookingError {
   const record = asRecord(error);
   const code = typeof record.code === 'string' ? record.code : '';
@@ -180,4 +268,16 @@ export function getVendorGateway(): VendorGateway {
     gateway = new LambdaVendorGateway();
   }
   return gateway;
+}
+
+export function getOperationalAccessGateway(): OperationalAccessGateway {
+  const current = getVendorGateway();
+  if ('getOperationalAccess' in current) return current as OperationalAccessGateway;
+  throw new BookingError(
+    'DEPENDENCY_UNAVAILABLE',
+    'Vendor membership lookup is not configured',
+    502,
+    undefined,
+    true,
+  );
 }

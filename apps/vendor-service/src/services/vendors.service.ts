@@ -745,6 +745,41 @@ export class VendorsService {
 
     return VendorsMapper.toDomain(updated);
   }
+
+  /**
+   * Owner or staff membership for an authenticated user id.
+   * The caller supplies the user id from the authorizer, never a client vendor id.
+   */
+  async resolveOperationalAccess(userId: string): Promise<{
+    role: 'owner' | 'staff' | 'none';
+    vendorId?: string;
+    staffId?: string;
+    active: boolean;
+  }> {
+    const trimmed = userId.trim();
+    if (!trimmed) {
+      return { role: 'none', active: false };
+    }
+    const owned = await this.lookupOwnedVendor(trimmed);
+    if (owned) {
+      return {
+        role: 'owner',
+        vendorId: owned.vendorId,
+        active: owned.status === 'ACTIVE',
+      };
+    }
+    const memberships = await this.staff.listMembershipsByUserId(trimmed);
+    const membership = memberships.find((item) => item.status === 'ACTIVE') ?? memberships[0];
+    if (!membership) return { role: 'none', active: false };
+    const employer = await this.repository.getVendorById(membership.vendorId);
+    if (!employer) return { role: 'none', active: false };
+    return {
+      role: 'staff',
+      vendorId: employer.vendorId,
+      staffId: membership.staffId,
+      active: membership.status === 'ACTIVE' && employer.status === 'ACTIVE',
+    };
+  }
 }
 
 let service: VendorsService;

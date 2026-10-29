@@ -2,6 +2,7 @@
 import { BaseError } from '@api-hub/utils';
 
 import { getCheckoutEligibilityService } from '../services/checkout-eligibility.service';
+import { getVendorsService } from '../services/vendors.service';
 import { getCommunitiesRepository } from '../repositories/communities.repository';
 import { getDiscoveryFactsService } from '../services/discovery-facts.service';
 import { getPricingConfigurationService } from '../services/pricing-configuration.service';
@@ -46,6 +47,22 @@ export const getCheckoutEligibility = async (event: {
       ? event.branchId.trim()
       : undefined;
     const data = await getCheckoutEligibilityService().get(vendorId, branchId);
+    return { data };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+/**
+ * Owner or staff membership for a verified application user id.
+ * No HTTP route. Booking compares the result with the path vendor id.
+ */
+export const getOperationalAccess = async (event: {
+  userId?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    const userId = requireId(event?.userId, 'userId');
+    const data = await getVendorsService().resolveOperationalAccess(userId);
     return { data };
   } catch (error) {
     return failure(error);

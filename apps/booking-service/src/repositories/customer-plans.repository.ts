@@ -239,6 +239,54 @@ export class CustomerPlansRepository extends BaseRepository {
   }
 
   /**
+   * Scheduled visits for one day (GSI3) or an inclusive date range (GSI1).
+   * UNSCHEDULED rows use GSI1SK `VISIT#UNSCHEDULED#...` and are outside both key ranges.
+   */
+  async queryVendorScheduledVisits(input: {
+    vendorId: string;
+    fromDate: string;
+    toDate: string;
+    limit: number;
+    exclusiveStartKey?: Record<string, unknown>;
+  }): Promise<{ items: PackageVisitPageRow[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const singleDay = input.fromDate === input.toDate;
+    const params: QueryCommandInput = singleDay
+      ? {
+        TableName: this.getTableName(),
+        IndexName: 'GSI3',
+        KeyConditionExpression: 'GSI3PK = :pk AND begins_with(GSI3SK, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': `VENDOR#${input.vendorId}#DATE#${input.fromDate}`,
+          ':prefix': 'VISIT#',
+        },
+        ScanIndexForward: true,
+        Limit: input.limit,
+        ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+      }
+      : {
+        TableName: this.getTableName(),
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK BETWEEN :from AND :to',
+        ExpressionAttributeValues: {
+          ':pk': `VENDOR#${input.vendorId}`,
+          ':from': `VISIT#${input.fromDate}`,
+          ':to': `VISIT#${input.toDate}#\uffff`,
+        },
+        ScanIndexForward: true,
+        Limit: input.limit,
+        ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+      };
+    const page = await this.queryPage<PackageVisitDdbItem>(params);
+    return {
+      items: page.items.map((item) => ({
+        record: toVisitRecord(item),
+        resumeKey: singleDay ? gsi3ResumeKey(item) : gsi1ResumeKey(item),
+      })),
+      ...(page.lastEvaluatedKey ? { lastEvaluatedKey: page.lastEvaluatedKey } : {}),
+    };
+  }
+
+  /**
    * Creates visit rows idempotently. Chunks TransactWrite (max 100 items).
    * Conditional put so payment retries do not duplicate visits.
    */
@@ -379,6 +427,29 @@ function toVisitItem(record: PackageVisitRecord): PackageVisitDdbItem {
     item.GSI3SK = `VISIT#${startTime}#${record.visitId}`;
   }
   return item;
+}
+
+export interface PackageVisitPageRow {
+  record: PackageVisitRecord;
+  resumeKey: Record<string, unknown>;
+}
+
+function gsi1ResumeKey(item: PackageVisitDdbItem): Record<string, unknown> {
+  return {
+    PK: item.PK,
+    SK: item.SK,
+    GSI1PK: item.GSI1PK,
+    GSI1SK: item.GSI1SK,
+  };
+}
+
+function gsi3ResumeKey(item: PackageVisitDdbItem): Record<string, unknown> {
+  return {
+    PK: item.PK,
+    SK: item.SK,
+    GSI3PK: item.GSI3PK,
+    GSI3SK: item.GSI3SK,
+  };
 }
 
 function toVisitRecord(item: PackageVisitDdbItem): PackageVisitRecord {

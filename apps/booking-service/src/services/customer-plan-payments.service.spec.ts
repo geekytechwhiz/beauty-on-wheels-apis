@@ -19,7 +19,6 @@ const plan: CustomerPlanRecord = {
   planId: 'plan-1',
   customerId: 'customer-1',
   vendorId: 'vendor_1',
-  branchId: 'branch_1',
   packageId: 'pkg',
   offeringId: 'pkg',
   vehicleId: 'veh_1',
@@ -69,6 +68,8 @@ describe('CustomerPlanPaymentsService', () => {
       getPayment: jest.fn().mockResolvedValue(pendingPayment),
       savePayment: jest.fn().mockImplementation(async (record: PlanPaymentRecord) => record),
       savePlan: jest.fn().mockImplementation(async (record: CustomerPlanRecord) => record),
+      createVisitsIfAbsent: jest.fn().mockImplementation(async (visits) => visits),
+      listVisits: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<CustomerPlansRepository>;
     bookings = {
       createPackageLinkedBooking: jest.fn().mockImplementation(async (booking) => booking),
@@ -97,10 +98,11 @@ describe('CustomerPlanPaymentsService', () => {
     await expect(service.initiate(request())).rejects.toThrow('already paid');
   });
 
-  it('marks the plan AWAITING_FIRST_JOB and links the first job when sandbox completion succeeds', async () => {
+  it('marks the plan AWAITING_FIRST_JOB, materializes visits, and links the first job when sandbox completion succeeds', async () => {
     const result = await service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } }));
 
     expect(result.status).toBe('PAID');
+    expect(plans.createVisitsIfAbsent).toHaveBeenCalled();
     expect(bookings.createPackageLinkedBooking).toHaveBeenCalledWith(expect.objectContaining({
       planId: 'plan-1',
       packageId: 'pkg',
@@ -110,6 +112,7 @@ describe('CustomerPlanPaymentsService', () => {
       serviceIds: [],
       slotId: '',
     }));
+    expect(bookings.createPackageLinkedBooking.mock.calls[0][0]).not.toHaveProperty('branchId');
     expect(plans.savePlan).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'AWAITING_FIRST_JOB',
@@ -118,6 +121,7 @@ describe('CustomerPlanPaymentsService', () => {
         version: 2,
         firstJobId: expect.any(String),
         autoRenew: false,
+        visitProgress: expect.objectContaining({ totalVisits: 3, unscheduledVisits: 3 }),
       }),
       1,
     );

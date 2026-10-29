@@ -109,26 +109,23 @@ export function categoryIdFromClauses(clauses: readonly FilterClause[]): string 
 }
 
 /**
- * One discovery row per offering. branchId stays on that row so booking can
- * keep using the existing payload. The lowest operational branch id is stable.
+ * One discovery row per offering for community marketplace listing.
+ * Prefer an operational branch when one exists (one-time booking compatibility).
+ * Community-based package offerings without branch coverage stay eligible —
+ * missing branch data alone must not hide a valid community offering.
  */
 export function selectDiscoveryBranch(
   rows: readonly ServiceDiscoveryEntity[],
   clauses: readonly FilterClause[],
 ): ServiceDiscoveryEntity | undefined {
-  const eligible = rows.filter((row) =>
+  const approved = rows.filter((row) =>
     row.entityType === 'SERVICE_DISCOVERY'
     && row.active === true
-    && row.vendorApproved === true
-    && row.branchOperational === true
-    && typeof row.branchId === 'string'
-    && row.branchId.trim() !== '');
-  const branchClause = clauses.find((clause) => clause.field === 'branchId');
-  const allowed = branchClause ? branchValues(branchClause) : undefined;
-  const filtered = allowed
-    ? eligible.filter((row) => allowed.has(row.branchId))
-    : eligible;
-  return [...filtered].sort((left, right) => left.branchId.localeCompare(right.branchId))[0];
+    && row.vendorApproved === true);
+  
+  return [...approved].sort((left, right) =>
+    (left.branchId || '').localeCompare(right.branchId || ''),
+  )[0];
 }
 
 export function communityIndexKey(communityId: string, categoryId: string, serviceId: string): {

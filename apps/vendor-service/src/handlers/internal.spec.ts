@@ -2,7 +2,7 @@ import { getCheckoutEligibility, getPricingConfiguration } from './internal';
 
 jest.mock('../services/checkout-eligibility.service', () => ({
   getCheckoutEligibilityService: () => ({
-    get: jest.fn(async (vendorId: string, branchId: string) => {
+    get: jest.fn(async (vendorId: string, branchId?: string) => {
       if (branchId === 'missing') {
         const { BaseError } = jest.requireActual('@api-hub/utils');
         throw new BaseError('Branch does not belong to the selected vendor', 409, 'VENDOR_BRANCH_MISMATCH');
@@ -13,7 +13,7 @@ jest.mock('../services/checkout-eligibility.service', () => ({
         operationalStatus: 'ONLINE',
         onboardingStatus: 'COMPLETED',
         communityIds: ['community-1'],
-        branchId,
+        ...(branchId ? { branchId } : {}),
       };
     }),
   }),
@@ -41,6 +41,17 @@ describe('vendor internal handlers', () => {
     expect(result).toEqual({
       data: expect.objectContaining({ vendorId: 'vendor-1', branchId: 'branch-1' }),
     });
+  });
+
+  it('reads vendor-only eligibility when branchId is omitted', async () => {
+    const result = await getCheckoutEligibility({
+      vendorId: 'vendor-1',
+    });
+
+    expect(result).toEqual({
+      data: expect.objectContaining({ vendorId: 'vendor-1' }),
+    });
+    expect((result as { data: Record<string, unknown> }).data).not.toHaveProperty('branchId');
   });
 
   it('returns a branch ownership failure instead of an HTTP response', async () => {

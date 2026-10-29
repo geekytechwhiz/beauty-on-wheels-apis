@@ -27,6 +27,29 @@ describe('vendor eligibility client', () => {
     });
   });
 
+  it('reads vendor-only eligibility when branchId is omitted', () => {
+    const result = parseCheckoutEligibility({
+      data: {
+        vendorId: 'vendor-1',
+        status: 'ACTIVE',
+        operationalStatus: 'ONLINE',
+        onboardingStatus: 'COMPLETED',
+        communityIds: ['community-1'],
+      },
+    }, 'vendor-1');
+
+    expect(result).toEqual({
+      vendor: {
+        vendorId: 'vendor-1',
+        status: 'ACTIVE',
+        operationalStatus: 'ONLINE',
+        onboardingStatus: 'COMPLETED',
+        communityIds: ['community-1'],
+      },
+    });
+    expect(result).not.toHaveProperty('branch');
+  });
+
   it('maps branch ownership and vendor lookup failures', () => {
     expect(mapVendorFailure({ code: 'VENDOR_BRANCH_MISMATCH', statusCode: 409 }).code)
       .toBe('VENDOR_BRANCH_MISMATCH');

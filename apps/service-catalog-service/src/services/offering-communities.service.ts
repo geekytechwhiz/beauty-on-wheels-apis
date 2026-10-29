@@ -83,7 +83,6 @@ export class OfferingCommunitiesService {
   constructor(
     private readonly communities: OfferingCommunitiesRepository = getOfferingCommunitiesRepository(),
     private readonly services: ServicesRepository = getServicesRepository(),
-    private readonly offerings: CatalogOfferingsRepository = getCatalogOfferingsRepository(),
     private readonly directory: CommunityDirectorySource = getCommunityDirectorySource(),
     private readonly coverage: VendorCoverageSource = getVendorCoverageSource(),
     private readonly now: () => string = () => new Date().toISOString(),
@@ -469,38 +468,10 @@ export class OfferingCommunitiesService {
     vendorId: string,
   ): Promise<ServiceEntity> {
     const service = await this.services.findByServiceId(serviceId, true);
-    if (service && service.vendorId === vendorId) {
-      return service;
+    if (!service || service.vendorId !== vendorId) {
+      throw new NotFoundError(`Service not found: ${serviceId}`);
     }
-
-    const offering = await this.offerings.findById(serviceId, true);
-    if (offering && offering.vendorId === vendorId) {
-      return {
-        PK: CatalogKeyBuilder.categoryPk(offering.categoryId),
-        SK: CatalogKeyBuilder.serviceSk(offering.offeringId),
-        entityType: 'SERVICE',
-        vendorId: offering.vendorId,
-        categoryId: offering.categoryId,
-        serviceId: offering.offeringId,
-        name: offering.name,
-        description: offering.description,
-        vehiclePricing: offering.vehiclePricing.map((entry) => ({
-          vehicleType: entry.vehicleType,
-          price: paiseToRupees(entry.price),
-          durationMinutes: entry.durationMinutes,
-        })),
-        durationMinutes: offering.durationMinutes,
-        vehicleTypes: [...offering.vehicleTypes],
-        basePrice: paiseToRupees(offering.basePrice),
-        displayOrder: offering.displayOrder,
-        active: offering.active,
-        version: offering.version,
-        createdAt: offering.createdAt,
-        updatedAt: offering.updatedAt,
-      };
-    }
-
-    throw new NotFoundError(`Offering not found: ${serviceId}`);
+    return service;
   }
 }
 

@@ -567,21 +567,19 @@ custom:
       - name: CreateCustomerPlanRequest
         description: >
           Purchase a catalog PACKAGE offering as a customer plan. Not an ON_DEMAND booking
-          and not Availability slot reservation. visitWindowId is a catalog preference;
+          and not Availability slot or branch reservation. visitWindowId is a catalog preference;
           the provider coordinates exact visit times. Final price comes from the offering
-          vehicle price for the selected vehicle.
+          vehicle price for the selected vehicle. Community eligibility is validated against
+          the offering; branchId is not accepted.
         content:
           application/json:
             schema:
               type: object
               additionalProperties: false
-              required: [vendorId, branchId, vehicleId, location, visitWindowId, autoRenew, expectedPrice]
+              required: [vendorId, vehicleId, location, visitWindowId, autoRenew, expectedPrice]
               properties:
                 vendorId:
                   type: string
-                branchId:
-                  type: string
-                  description: Vendor checkout eligibility is branch-scoped.
                 offeringId:
                   type: string
                   description: Catalog PACKAGE offering id (preferred).
@@ -624,7 +622,6 @@ custom:
                       pattern: '^[A-Za-z]{3}$'
               example:
                 vendorId: vend_demo_001
-                branchId: branch_demo_001
                 offeringId: offr_premium_weekly_wash
                 vehicleId: veh_customer_001
                 location:
@@ -639,6 +636,7 @@ custom:
         description: >
           Saved package plan. Billing period start/end and ACTIVE status are set when the
           linked first job starts (IN_PROGRESS), not at plan creation or payment time.
+          Package plans are community-based; branchId is not required.
         content:
           application/json:
             schema:
@@ -653,8 +651,6 @@ custom:
                 packageName:
                   type: string
                 vendorId:
-                  type: string
-                branchId:
                   type: string
                 vehicleId:
                   type: string
@@ -777,7 +773,6 @@ custom:
                 packageId: offr_premium_weekly_wash
                 packageName: Premium weekly wash
                 vendorId: vend_demo_001
-                branchId: branch_demo_001
                 vehicleId: veh_customer_001
                 vehicleType: HATCHBACK
                 status: AWAITING_FIRST_JOB
@@ -1737,6 +1732,332 @@ functions:
                   type: string
               - name: paymentId
                 description: paymentId
+                schema:
+                  type: string
+
+  listplanvisits:
+    handler: src/handlers/customer-plans.handleListPlanVisits
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List package visits"
+          description: "Lists entitlement visit rows for a paid package plan. Customer owner or vendor staff. Supports limit and cursor pagination."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            limit:
+              required: false
+              type: integer
+              description: Page size (1-100, default 50)
+            cursor:
+              required: false
+              type: string
+              description: Opaque pagination cursor
+          responseData:
+            200:
+              description: "List package visits"
+          documentation:
+            summary: List package visits
+            description: Lists entitlement visit rows for a paid package plan. Customer owner or vendor staff. Supports limit and cursor pagination.
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: limit
+                description: Page size (1-100, default 50)
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+              - name: cursor
+                description: Opaque pagination cursor
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: List package visits
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+
+  getplanvisit:
+    handler: src/handlers/customer-plans.handleGetPlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get package visit"
+          description: "Returns one package visit with schedule and audit fields."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Get package visit"
+          documentation:
+            summary: Get package visit
+            description: Returns one package visit with schedule and audit fields.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Get package visit
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  scheduleplanvisit:
+    handler: src/handlers/customer-plans.handleSchedulePlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}/schedule
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Schedule a package visit"
+          description: "Vendor staff only. Reserves Availability capacity for the visit (bookingId=visitId) then marks SCHEDULED. Idempotency-Key required."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            201:
+              description: "Visit scheduled"
+          documentation:
+            summary: Schedule a package visit
+            description: Vendor staff only. Reserves Availability capacity for the visit (bookingId=visitId) then marks SCHEDULED. Idempotency-Key required.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Visit scheduled
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  rescheduleplanvisit:
+    handler: src/handlers/customer-plans.handleReschedulePlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}/reschedule
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Reschedule a package visit"
+          description: "Reserves the replacement slot before releasing the old reservation. Idempotency-Key required."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit rescheduled"
+          documentation:
+            summary: Reschedule a package visit
+            description: Reserves the replacement slot before releasing the old reservation. Idempotency-Key required.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Visit rescheduled
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  cancelplanvisit:
+    handler: src/handlers/customer-plans.handleCancelPlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}/cancel
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Cancel a package visit"
+          description: "Cancels a visit and releases any Availability reservation. Does not consume entitlement."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit cancelled"
+          documentation:
+            summary: Cancel a package visit
+            description: Cancels a visit and releases any Availability reservation. Does not consume entitlement.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Visit cancelled
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  startplanvisit:
+    handler: src/handlers/customer-plans.handleStartPlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}/start
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Start a package visit"
+          description: "Vendor staff only. Transitions SCHEDULED → IN_PROGRESS and may activate the parent plan."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit started"
+          documentation:
+            summary: Start a package visit
+            description: Vendor staff only. Transitions SCHEDULED → IN_PROGRESS and may activate the parent plan.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Visit started
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  completeplanvisit:
+    handler: src/handlers/customer-plans.handleCompletePlanVisit
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/{visitId}/complete
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Complete a package visit"
+          description: "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit completed"
+          documentation:
+            summary: Complete a package visit
+            description: Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Visit completed
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
+                schema:
+                  type: string
+              - name: visitId
+                description: visitId
+                schema:
+                  type: string
+
+  confirmplanvisitschedules:
+    handler: src/handlers/customer-plans.handleConfirmPlanVisitSchedules
+    events:
+      - http:
+          path: /customer-plans/{planId}/visits/confirm-schedules
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Confirm schedules for multiple package visits"
+          description: "Vendor staff only. Sequentially reserves each visit. Returns PARTIAL scheduleState when some reservations fail; never marks COMPLETE while UNSCHEDULED visits remain. Idempotency-Key required."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            201:
+              description: "Schedule confirmation result"
+          documentation:
+            summary: Confirm schedules for multiple package visits
+            description: Vendor staff only. Sequentially reserves each visit. Returns PARTIAL scheduleState when some reservations fail; never marks COMPLETE while UNSCHEDULED visits remain. Idempotency-Key required.
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Schedule confirmation result
+              - statusCode: "400"
+                responseBody:
+                  description: Request failed
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: planId
+                description: planId
                 schema:
                   type: string
 

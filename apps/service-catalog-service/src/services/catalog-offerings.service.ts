@@ -4,6 +4,7 @@ import {
   BaseError,
   ConflictError,
   ConditionalWriteConflictError,
+  ForbiddenError,
   LambdaRequest,
   NotFoundError,
 } from '@api-hub/utils';
@@ -62,6 +63,10 @@ import {
   PackageEntity,
   ServiceEntity,
 } from '../utils/types/catalog-domain.types';
+import {
+  deriveOfferingEntitlements,
+  type OfferingEntitlement,
+} from '../domain/offering-entitlements';
 import { resolveVehiclePricing } from '../domain/vehicle-pricing';
 
 const baseLogger = createLogger({
@@ -75,6 +80,12 @@ export interface OfferingVisitWindowResponse {
   allDay?: boolean;
   startTime?: string;
   endTime?: string;
+}
+
+export interface OfferingCommunityEligibility {
+  communityId: string;
+  status: string;
+  approvalStatus?: string;
 }
 
 export interface OfferingApiResponse {
@@ -97,8 +108,17 @@ export interface OfferingApiResponse {
   }>;
   vehicleTypes: string[];
   includedServices: ValidatedIncludedService[];
+  /** Computed entitlement identities and quantities for booking/plan clients. */
+  entitlements: OfferingEntitlement[];
+  /** Optional package validity in days (purchase window for oneTime packages). */
+  validityDays?: number;
   /** Package-defined preferred visit windows (not confirmed slots). */
   visitWindows?: OfferingVisitWindowResponse[];
+  /**
+   * Community eligibility for booking. branchId is intentionally absent —
+   * package offerings are community-based.
+   */
+  communities?: OfferingCommunityEligibility[];
   status: OfferingLifecycleStatus;
   active: boolean;
   version: number;
@@ -127,12 +147,17 @@ export class CatalogOfferingsService {
     const caller = await resolveCallerVendor(request);
     const body = validateCreateOffering(request);
 
+    // if (body.vendorId !== caller.vendorId) { // TODO: Uncomment this when we have a way to authenticate the caller
+    //   throw new ForbiddenError('Not authorized to create offerings for this vendor');
+    // }
+
+    await this.assertCategoryActive(body.categoryId);
     await this.assertCategories(body.includedServices);
-    await this.assertNameUnique(body.name, caller.vendorId);
+    await this.assertNameUnique(body.name, body.vendorId);
 
     const now = new Date().toISOString();
     const offeringId = randomUUID();
-    const entity = buildOfferingEntity(offeringId, caller.vendorId, body, now);
+    const entity = buildOfferingEntity(offeringId, body, now);
 
     try {
       await this.offerings.createOffering(entity);
@@ -164,7 +189,8 @@ export class CatalogOfferingsService {
     this.logger.info({
       event: 'offering_created',
       offeringId,
-      vendorId: caller.vendorId,
+      vendorId: body.vendorId,
+      categoryId: body.categoryId,
       offeringType: entity.offeringType,
       status: entity.status,
     });
@@ -186,7 +212,8 @@ export class CatalogOfferingsService {
       if (!isOwner && modern.status !== OFFERING_STATUS.PUBLISHED) {
         throw new NotFoundError(`Offering not found: ${offeringId}`);
       }
-      return mapOffering(modern);
+      const communities = await this.communities.listViews(offeringId, consistent);
+      return mapOffering(modern, communities);
     }
 
     return this.loadLegacyOffering(offeringId, callerVendorId, consistent);
@@ -331,18 +358,22 @@ export class CatalogOfferingsService {
     return entity;
   }
 
+  private async assertCategoryActive(categoryId: string): Promise<void> {
+    const category = await this.categories.findById(categoryId);
+    if (!category) {
+      throw new NotFoundError(`Category not found: ${categoryId}`);
+    }
+    if (!category.active) {
+      throw new ConflictError(`Category is not active: ${categoryId}`);
+    }
+  }
+
   private async assertCategories(
     included: readonly ValidatedIncludedService[],
   ): Promise<void> {
     const unique = [...new Set(included.map((item) => item.categoryId))];
     for (const categoryId of unique) {
-      const category = await this.categories.findById(categoryId);
-      if (!category) {
-        throw new NotFoundError(`Category not found: ${categoryId}`);
-      }
-      if (!category.active) {
-        throw new ConflictError(`Category is not active: ${categoryId}`);
-      }
+      await this.assertCategoryActive(categoryId);
     }
   }
 
@@ -408,13 +439,23 @@ export class CatalogOfferingsService {
     callerVendorId: string | undefined,
     consistent: boolean,
   ): Promise<OfferingApiResponse> {
+    const communities = await this.communities.listViews(offeringId, consistent);
+    const communityPayload = communities.map((entry) => ({
+      communityId: entry.communityId,
+      status: entry.status,
+      ...(entry.approvalStatus === undefined ? {} : { approvalStatus: entry.approvalStatus }),
+    }));
+
     const service = await this.services.findByServiceId(offeringId, consistent);
     if (service) {
       const isOwner = callerVendorId !== undefined && service.vendorId === callerVendorId;
       if (!service.active && !isOwner) {
         throw new NotFoundError(`Offering not found: ${offeringId}`);
       }
-      return mapLegacyService(service);
+      return {
+        ...mapLegacyService(service),
+        ...(communityPayload.length > 0 ? { communities: communityPayload } : {}),
+      };
     }
 
     const pkg = await this.packages.findById(offeringId);
@@ -424,7 +465,10 @@ export class CatalogOfferingsService {
         throw new NotFoundError(`Offering not found: ${offeringId}`);
       }
       const items = await this.packages.listPackageItems(offeringId);
-      return mapLegacyPackage(pkg, items.map((item) => item.refId));
+      return {
+        ...mapLegacyPackage(pkg, items.map((item) => item.refId)),
+        ...(communityPayload.length > 0 ? { communities: communityPayload } : {}),
+      };
     }
 
     throw new NotFoundError(`Offering not found: ${offeringId}`);
@@ -433,11 +477,10 @@ export class CatalogOfferingsService {
 
 function buildOfferingEntity(
   offeringId: string,
-  vendorId: string,
   input: ValidatedCreateOffering,
   now: string,
 ): OfferingEntity {
-  const categoryId = input.includedServices[0].categoryId;
+  const { vendorId, categoryId } = input;
   const vehicleTypes = input.vehiclePricing.map((entry) => entry.vehicleType);
   const basePrice = Math.min(...input.vehiclePricing.map((entry) => entry.price));
   const durationMinutes = Math.min(
@@ -457,6 +500,7 @@ function buildOfferingEntity(
     ...(input.description === undefined ? {} : { description: input.description }),
     billingPeriod: input.billingPeriod,
     currency: input.currency,
+    ...(input.validityDays === undefined ? {} : { validityDays: input.validityDays }),
     vehiclePricing: input.vehiclePricing.map((entry) => ({ ...entry })),
     vehicleTypes,
     basePrice,
@@ -496,6 +540,7 @@ function mergeOffering(
   const currency = updates.currency ?? existing.currency;
   const description = updates.description ?? existing.description;
   const visitWindows = updates.visitWindows ?? existing.visitWindows;
+  const validityDays = updates.validityDays ?? existing.validityDays;
   const categoryId = includedServices[0]?.categoryId ?? existing.categoryId;
   const vehicleTypes = vehiclePricing.map((entry) => entry.vehicleType);
   const basePrice = Math.min(...vehiclePricing.map((entry) => entry.price));
@@ -510,6 +555,7 @@ function mergeOffering(
     || (updates.vehiclePricing !== undefined)
     || (updates.includedServices !== undefined)
     || (updates.visitWindows !== undefined)
+    || (updates.validityDays !== undefined && updates.validityDays !== existing.validityDays)
     || (updates.status !== undefined && updates.status !== existing.status);
 
   return {
@@ -519,6 +565,7 @@ function mergeOffering(
     billingPeriod,
     currency,
     categoryId,
+    ...(validityDays === undefined ? {} : { validityDays }),
     vehiclePricing: vehiclePricing.map((entry) => ({ ...entry })),
     vehicleTypes,
     basePrice,
@@ -570,7 +617,10 @@ function offeringAsServiceProjection(offering: OfferingEntity): ServiceEntity {
   };
 }
 
-function mapOffering(entity: OfferingEntity): OfferingApiResponse {
+function mapOffering(
+  entity: OfferingEntity,
+  communities: ReadonlyArray<{ communityId: string; status: string; approvalStatus?: string }> = [],
+): OfferingApiResponse {
   return {
     offeringId: entity.offeringId,
     offeringType: entity.offeringType,
@@ -580,12 +630,23 @@ function mapOffering(entity: OfferingEntity): OfferingApiResponse {
     ...(entity.description === undefined ? {} : { description: entity.description }),
     billingPeriod: entity.billingPeriod,
     currency: entity.currency,
+    ...(entity.validityDays === undefined ? {} : { validityDays: entity.validityDays }),
     vehiclePricing: entity.vehiclePricing.map((entry) => ({ ...entry })),
     vehicleTypes: [...entity.vehicleTypes],
     includedServices: entity.includedServices.map((entry) => ({ ...entry })),
+    entitlements: deriveOfferingEntitlements(entity.includedServices),
     ...(entity.visitWindows === undefined
       ? {}
       : { visitWindows: entity.visitWindows.map((entry) => ({ ...entry })) }),
+    ...(communities.length > 0
+      ? {
+        communities: communities.map((entry) => ({
+          communityId: entry.communityId,
+          status: entry.status,
+          ...(entry.approvalStatus === undefined ? {} : { approvalStatus: entry.approvalStatus }),
+        })),
+      }
+      : {}),
     status: entity.status,
     active: entity.active,
     version: entity.version,
@@ -655,6 +716,12 @@ function mapLegacyService(entity: ServiceEntity): OfferingApiResponse {
       visitsPerPeriod: 1,
       durationMinutes: entity.durationMinutes,
     }],
+    entitlements: deriveOfferingEntitlements([{
+      name: entity.name,
+      categoryId: entity.categoryId,
+      visitsPerPeriod: 1,
+      durationMinutes: entity.durationMinutes,
+    }]),
     status: entity.active ? OFFERING_STATUS.PUBLISHED : OFFERING_STATUS.PAUSED,
     active: entity.active,
     version: entity.version ?? INITIAL_CATALOG_VERSION,
@@ -691,6 +758,12 @@ function mapLegacyPackage(
       visitsPerPeriod: 1,
       durationMinutes: 60,
     })),
+    entitlements: deriveOfferingEntitlements(refIds.map((refId) => ({
+      name: refId,
+      categoryId: 'legacy',
+      visitsPerPeriod: 1,
+      durationMinutes: 60,
+    }))),
     status: entity.active ? OFFERING_STATUS.PUBLISHED : OFFERING_STATUS.PAUSED,
     active: entity.active,
     version: entity.version ?? INITIAL_CATALOG_VERSION,

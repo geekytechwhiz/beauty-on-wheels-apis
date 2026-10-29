@@ -39,6 +39,8 @@ export interface PlanIncludedService {
   description?: string;
   categoryId: string;
   tags?: string[];
+  /** Stable catalog entitlement id when provided by the offering. */
+  serviceKey?: string;
   visitsPerPeriod: number;
   /** Duration of one visit of this included service. */
   durationMinutes: number;
@@ -62,7 +64,8 @@ export interface CustomerPlanRecord {
   planId: string;
   customerId: string;
   vendorId: string;
-  branchId: string;
+  /** Optional legacy field. Package plans are community-based and do not require a branch. */
+  branchId?: string;
   /** Catalog offering id (PACKAGE). Kept as packageId for UI compatibility. */
   packageId: string;
   offeringId: string;
@@ -88,6 +91,26 @@ export interface CustomerPlanRecord {
   /** Set when the first job transitions to IN_PROGRESS. */
   billingPeriodStart?: string;
   billingPeriodEnd?: string;
+  /** Catalog validity window in days; snapshotted at purchase. */
+  validityDays?: number;
+  /** ISO end of package validity (set when paid/activated). */
+  validUntil?: string;
+  /**
+   * Multi-visit schedule orchestration state.
+   * NONE until vendor confirms dates; PARTIAL when some visits reserved; COMPLETE when none remain UNSCHEDULED.
+   */
+  scheduleState?: 'NONE' | 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE';
+  /** Denormalized visit progress; authoritative source remains PackageVisit rows. */
+  visitProgress?: {
+    totalVisits: number;
+    remainingVisits: number;
+    completedVisits: number;
+    cancelledVisits: number;
+    missedVisits: number;
+    scheduledVisits: number;
+    unscheduledVisits: number;
+    inProgressVisits: number;
+  };
   version: number;
   createdAt: string;
   updatedAt: string;

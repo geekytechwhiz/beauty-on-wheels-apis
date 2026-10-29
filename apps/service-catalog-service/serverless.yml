@@ -31,8 +31,6 @@ provider:
     EVENT_BUS_NAME:
       Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
     VENDOR_BASE_URL: https://ysnqqonq60.execute-api.us-east-1.amazonaws.com/dev
-    # Turn on only after GSI3 is ACTIVE and the offering-community backfill is verified.
-    COMMUNITY_OFFERING_ENFORCEMENT: 'false'
     # dev approves new mappings. stg and prd keep admin approval. Any other stage stays false.
     COMMUNITY_OFFERING_AUTO_APPROVE: ${self:custom.communityOfferingAutoApprove.${self:provider.stage}, 'false'}
     COMMUNITY_DIRECTORY_FUNCTION: vendor-service-api-${self:provider.stage}-lookupActiveCommunities
@@ -203,12 +201,26 @@ custom:
             schema:
               type: object
               required:
+                - vendorId
+                - categoryId
                 - offeringType
                 - name
                 - billingPeriod
                 - vehiclePricing
                 - includedServices
               properties:
+                vendorId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+                  description: Owning vendor. Must match the authenticated caller's vendor from `/vendors/me`.
+                categoryId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+                  description: Platform-managed category for the offering. Must exist and be active.
                 offeringType:
                   type: string
                   enum:
@@ -232,6 +244,11 @@ custom:
                   minLength: 3
                   maxLength: 3
                   default: INR
+                validityDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 730
+                  description: Purchase validity window in days for oneTime packages; optional metadata for recurring periods
                 vehiclePricing:
                   type: array
                   minItems: 1
@@ -281,6 +298,12 @@ custom:
                         type: array
                         items:
                           type: string
+                      serviceKey:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                        pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+                        description: Stable entitlement identity; unique within the offering when set
                       visitsPerPeriod:
                         type: integer
                         minimum: 1
@@ -326,6 +349,8 @@ custom:
                   items:
                     type: string
               example:
+                vendorId: vend_demo_001
+                categoryId: cat_wash
                 offeringType: PACKAGE
                 name: Premium weekly wash
                 description: Interior and exterior wash package billed weekly
@@ -379,6 +404,10 @@ custom:
                     - yearly
                 currency:
                   type: string
+                validityDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 730
                 vehiclePricing:
                   type: array
                   items:
@@ -394,6 +423,17 @@ custom:
                   type: array
                   items:
                     type: object
+                    properties:
+                      name:
+                        type: string
+                      serviceKey:
+                        type: string
+                      visitsPerPeriod:
+                        type: integer
+                      durationMinutes:
+                        type: integer
+                      categoryId:
+                        type: string
                 visitWindows:
                   type: array
                   items:
@@ -426,6 +466,8 @@ custom:
           Catalog PACKAGE offering. vehiclePricing.durationMinutes is package-total
           duration for the billing period; includedServices.durationMinutes is per visit.
           vehiclePricing[].price is the final customer price in integer minor units.
+          branchId is not part of package detail; community eligibility is returned as
+          communities when mappings exist.
         content:
           application/json:
             schema:
@@ -441,6 +483,7 @@ custom:
                 - vehiclePricing
                 - vehicleTypes
                 - includedServices
+                - entitlements
                 - status
                 - active
                 - version
@@ -473,6 +516,10 @@ custom:
                     - yearly
                 currency:
                   type: string
+                validityDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 730
                 vehiclePricing:
                   type: array
                   items:
@@ -514,11 +561,38 @@ custom:
                         type: array
                         items:
                           type: string
+                      serviceKey:
+                        type: string
+                        description: Stable entitlement identity when set on the included service
                       visitsPerPeriod:
                         type: integer
                       durationMinutes:
                         type: integer
                         description: Duration of one visit
+                entitlements:
+                  type: array
+                  description: Computed entitlement identities and quantities derived from includedServices
+                  items:
+                    type: object
+                    required:
+                      - serviceId
+                      - quantity
+                      - name
+                      - durationMinutes
+                      - categoryId
+                    properties:
+                      serviceId:
+                        type: string
+                        description: serviceKey when set, otherwise slugified included service name
+                      quantity:
+                        type: integer
+                        minimum: 1
+                      name:
+                        type: string
+                      durationMinutes:
+                        type: integer
+                      categoryId:
+                        type: string
                 visitWindows:
                   type: array
                   description: Package-defined preferred visit windows (not confirmed slots)
@@ -538,6 +612,28 @@ custom:
                         type: string
                       endTime:
                         type: string
+                communities:
+                  type: array
+                  description: Community eligibility mappings for booking. branchId is not returned on package detail.
+                  items:
+                    type: object
+                    required:
+                      - communityId
+                      - status
+                    properties:
+                      communityId:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - active
+                          - inactive
+                      approvalStatus:
+                        type: string
+                        enum:
+                          - pending
+                          - approved
+                          - rejected
                 status:
                   type: string
                   enum:
@@ -587,12 +683,24 @@ custom:
                     categoryId: cat_wash
                     tags:
                       - exterior
+                    serviceKey: ext_wash
                     visitsPerPeriod: 4
                     durationMinutes: 30
                   - name: Interior vacuum
                     categoryId: cat_detail
                     visitsPerPeriod: 2
                     durationMinutes: 25
+                entitlements:
+                  - serviceId: ext_wash
+                    quantity: 4
+                    name: Exterior wash
+                    durationMinutes: 30
+                    categoryId: cat_wash
+                  - serviceId: interior-vacuum
+                    quantity: 2
+                    name: Interior vacuum
+                    durationMinutes: 25
+                    categoryId: cat_detail
                 visitWindows:
                   - visitWindowId: morning
                     label: Morning (8:00–12:00)
@@ -601,6 +709,10 @@ custom:
                   - visitWindowId: anytime
                     label: Anytime
                     allDay: true
+                communities:
+                  - communityId: comm_demo_001
+                    status: active
+                    approvalStatus: approved
                 status: published
                 active: true
                 version: 1
@@ -610,7 +722,9 @@ custom:
       - name: MarketplaceOffering
         description: >
           Customer marketplace discovery projection for GET /offerings. Full PACKAGE
-          detail (includedServices, visitWindows, vehiclePricing) is on GET /offerings/{offeringId}.
+          detail (includedServices, visitWindows, vehiclePricing, communities) is on
+          GET /offerings/{offeringId}. branchId is optional — community package rows
+          may omit branch coverage.
         content:
           application/json:
             schema:
@@ -621,7 +735,6 @@ custom:
                 - name
                 - categoryId
                 - vendorId
-                - branchId
                 - vehicleTypes
                 - displayPrice
                 - currency
@@ -642,6 +755,7 @@ custom:
                   type: string
                 branchId:
                   type: string
+                  description: Present when discovery has an operational branch; omitted for community-only packages.
                 vehicleTypes:
                   type: array
                   items:
@@ -1702,10 +1816,20 @@ functions:
               description: OK
           documentation:
             summary: Discover marketplace offerings
-            description: Customer marketplace list of bookable service offerings with optional geo, price, and community filters.
+            description: >
+              Customer marketplace list of bookable offerings for one community.
+              communityId is required. Discovery queries the community mapping
+              index (GSI3) and does not fall back to global DISCOVERY#ALL.
+              Optional filters: search, category, vehicle, price, rating, geo,
+              availability, sort, and pagination.
             tags:
               - Offerings
             queryParams:
+              - name: communityId
+                description: Required. Customer community used for marketplace discovery.
+                required: true
+                schema:
+                  type: string
               - name: search
                 required: false
                 schema:
@@ -1780,10 +1904,6 @@ functions:
                 required: false
                 schema:
                   type: string
-              - name: communityId
-                required: false
-                schema:
-                  type: string
             methodResponses:
               - statusCode: "200"
                 responseBody:
@@ -1792,7 +1912,7 @@ functions:
                   application/json: MarketplaceOfferingsPage
               - statusCode: "400"
                 responseBody:
-                  description: Request failed
+                  description: Missing or invalid communityId, or other validation failure
                 responseModels:
                   application/json: ErrorResponse
 
@@ -1817,10 +1937,11 @@ functions:
           documentation:
             summary: Create a provider offering
             description: |
-              Creates a PACKAGE offering for the authenticated provider. vendorId is taken from
-              the caller via Vendor Service `/vendors/me` and must not be supplied by the client.
-              Prices are integer minor units with an explicit currency. Included services are
-              inline descriptions (no separate service ids).
+              Creates a PACKAGE offering for the authenticated provider. Requires vendorId and
+              top-level categoryId. vendorId must match the caller's vendor from Vendor Service
+              `/vendors/me`. categoryId must exist and be active. Prices are integer minor units
+              with an explicit currency. Included services are inline descriptions (no separate
+              service ids).
             tags:
               - Offerings
             requestBody:

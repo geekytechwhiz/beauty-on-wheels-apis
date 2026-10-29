@@ -237,6 +237,20 @@ describe('reserveBooking capacity blocks', () => {
     expect(lookup?.slotIds).toEqual([result.slotId]);
   });
 
+  it('persists package visit correlation metadata on allocation records', async () => {
+    await openHours();
+    await generate(30, 2);
+    await reserve({
+      bookingId: 'visit-1',
+      packageVisitId: 'visit-1',
+      planId: 'plan-1',
+    });
+    const lookup = memory.dump().find((item) => item.entityType === 'AllocationLookup');
+    const allocation = memory.dump().find((item) => item.entityType === 'SlotAllocation');
+    expect(lookup).toMatchObject({ packageVisitId: 'visit-1', planId: 'plan-1' });
+    expect(allocation).toMatchObject({ packageVisitId: 'visit-1', planId: 'plan-1' });
+  });
+
   it.each([
     [45, '09:45', ['09:00', '09:30']],
     [60, '10:00', ['09:00', '09:30']],

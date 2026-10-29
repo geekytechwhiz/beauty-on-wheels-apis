@@ -12,10 +12,11 @@ import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { authorizationHeader, headerValue, requireCustomerId } from '../auth/access';
 import {
-  assertBranch,
   assertLocation,
+  assertOfferingCommunity,
   assertVehicleOwnership,
   assertVendorEligible,
+  communityOfferingEnforcementEnabled,
 } from '../domain/create-booking';
 import {
   assertPackageSellable,
@@ -23,9 +24,9 @@ import {
   billingPeriodEndIso,
   billingPeriodToCadence,
   buildPlanPricingSnapshot,
-  deriveEntitlements,
   mapIncludedServices,
   planRequestFingerprint,
+  resolvePlanEntitlements,
   resolveVisitWindow,
   toPlanResponse,
   totalVisits,
@@ -60,9 +61,10 @@ export class CustomerPlansService {
   ) {}
 
   /**
-   * Creates a PENDING_PAYMENT package plan. Does not reserve Availability slots;
-   * visitWindowId is a catalog preference the provider coordinates against.
-   * Final price comes from the offering vehicle price for the customer's vehicle.
+   * Creates a PENDING_PAYMENT package plan. Does not reserve Availability slots
+   * or require a vendor branch; visitWindowId is a catalog preference the provider
+   * coordinates against. Final price comes from the offering vehicle price for
+   * the customer's vehicle. Community eligibility is validated against the offering.
    */
   async create(request: LambdaRequest): Promise<CustomerPlanResponse> {
     const customerId = requireCustomerId(request);
@@ -79,7 +81,7 @@ export class CustomerPlansService {
 
     const [vehicle, eligibility, profile, catalogPackage] = await Promise.all([
       this.vehicles.getVehicle(command.vehicleId, authHeader),
-      this.vendors.getCheckoutEligibility(command.vendorId, command.branchId),
+      this.vendors.getCheckoutEligibility(command.vendorId),
       this.users.getProfile(customerId, authHeader),
       this.packages.getPackage({
         packageId: command.offeringId,
@@ -90,23 +92,25 @@ export class CustomerPlansService {
 
     assertVehicleOwnership(vehicle, customerId, command.vehicleId);
     assertVendorEligible(eligibility.vendor, command.vendorId);
-    assertBranch(eligibility.branch, command);
     assertLocation(command, eligibility.vendor, profile);
-    if (command.location.addressId) {
-      await this.users.assertAddress(customerId, command.location.addressId, authHeader);
-    }
     assertPackageSellable(catalogPackage, command);
+    assertOfferingCommunity({
+      enforced: communityOfferingEnforcementEnabled(),
+      fulfilmentType: command.location.fulfilmentType,
+      communityId: command.location.communityId,
+      communities: catalogPackage.communities,
+    });
     const visitWindow = resolveVisitWindow(catalogPackage, command.visitWindowId);
     const pricingSnapshot = buildPlanPricingSnapshot(catalogPackage, vehicle.vehicleType);
     assertPlanExpectedPrice(command.expectedPrice, pricingSnapshot);
 
-    const entitlements = deriveEntitlements(catalogPackage.items);
+    const entitlements = resolvePlanEntitlements(catalogPackage);
     const now = new Date().toISOString();
+    const total = totalVisits(entitlements);
     const record: CustomerPlanRecord = {
       planId: randomUUID(),
       customerId,
       vendorId: command.vendorId,
-      branchId: command.branchId,
       packageId: command.offeringId,
       offeringId: command.offeringId,
       packageName: catalogPackage.name,
@@ -116,7 +120,7 @@ export class CustomerPlansService {
       paymentStatus: 'PENDING',
       billingPeriod: catalogPackage.billingPeriod,
       cadence: billingPeriodToCadence(catalogPackage.billingPeriod),
-      remainingVisits: totalVisits(entitlements),
+      remainingVisits: total,
       entitlements,
       includedServices: mapIncludedServices(catalogPackage),
       visitWindowId: command.visitWindowId,
@@ -124,6 +128,20 @@ export class CustomerPlansService {
       location: command.location,
       pricingSnapshot,
       autoRenew: command.autoRenew === true,
+      ...(catalogPackage.validityDays === undefined
+        ? {}
+        : { validityDays: catalogPackage.validityDays }),
+      scheduleState: 'NONE',
+      visitProgress: {
+        totalVisits: total,
+        remainingVisits: total,
+        completedVisits: 0,
+        cancelledVisits: 0,
+        missedVisits: 0,
+        scheduledVisits: 0,
+        unscheduledVisits: total,
+        inProgressVisits: 0,
+      },
       version: 1,
       createdAt: now,
       updatedAt: now,
@@ -145,6 +163,7 @@ export class CustomerPlansService {
       planId: record.planId,
       offeringId: record.offeringId,
       visitWindowId: record.visitWindowId,
+      communityId: record.location.communityId,
       autoRenew: record.autoRenew,
     });
     return toPlanResponse(record);

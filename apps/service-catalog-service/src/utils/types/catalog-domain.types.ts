@@ -160,6 +160,8 @@ export interface IncludedServiceDescription {
     description?: string;
     categoryId: string;
     tags?: string[];
+    /** Stable entitlement identity when set; unique within the offering. */
+    serviceKey?: string;
     visitsPerPeriod: number;
     /** Duration of one visit of this included service (not the package total). */
     durationMinutes: number;
@@ -194,6 +196,11 @@ export interface OfferingEntity extends CatalogBaseEntity {
     name: string;
     description?: string;
     billingPeriod: 'oneTime' | 'weekly' | 'monthly' | 'yearly';
+    /**
+     * Optional package validity in days (e.g. purchase window for oneTime packages).
+     * Optional metadata for recurring billing periods.
+     */
+    validityDays?: number;
     currency: string;
     /**
      * Per-vehicle final customer price (integer minor units) and package-total

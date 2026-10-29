@@ -35,8 +35,18 @@ export interface CatalogPackageIncludedService {
   description?: string;
   categoryId: string;
   tags?: string[];
+  /** Stable entitlement id when provided by catalog. */
+  serviceKey?: string;
   visitsPerPeriod: number;
   durationMinutes: number;
+}
+
+export interface CatalogPackageEntitlement {
+  serviceId: string;
+  quantity: number;
+  name?: string;
+  durationMinutes?: number;
+  categoryId?: string;
 }
 
 export interface CatalogPackageVehiclePrice {
@@ -63,7 +73,13 @@ export interface CatalogPackage {
   vehicleTypes: string[];
   includedServices: CatalogPackageIncludedService[];
   visitWindows: CatalogPackageVisitWindow[];
+  /** Authoritative entitlement list from offering detail when present. */
+  entitlements?: CatalogPackageEntitlement[];
+  /** Purchase validity window in days (snapshotted onto the plan). */
+  validityDays?: number;
   items: Array<{ refId: string; itemType: 'SERVICE' | 'ADDON'; quantity?: number }>;
+  /** Community eligibility mappings from offering detail. */
+  communities?: Array<{ communityId: string; status: string; approvalStatus?: string }>;
 }
 
 export interface CatalogPackageGateway {
@@ -176,7 +192,7 @@ export function parsePackageFromOffering(body: unknown, packageId: string, vendo
 
   const includedServices = parseIncludedServices(record.includedServices);
   const items = includedServices.map((entry) => ({
-    refId: entry.name,
+    refId: entry.serviceKey ?? entry.name,
     itemType: 'SERVICE' as const,
     quantity: entry.visitsPerPeriod,
   }));
@@ -190,6 +206,12 @@ export function parsePackageFromOffering(body: unknown, packageId: string, vendo
   }
   const billingPeriod = parseBillingPeriod(record.billingPeriod);
   const visitWindows = parseVisitWindows(record.visitWindows);
+  const entitlements = parseEntitlements(record.entitlements);
+  const validityDays = typeof record.validityDays === 'number'
+    && Number.isInteger(record.validityDays)
+    && record.validityDays >= 1
+    ? record.validityDays
+    : undefined;
 
   return {
     id: offering.id,
@@ -205,7 +227,10 @@ export function parsePackageFromOffering(body: unknown, packageId: string, vendo
     vehicleTypes: vehiclePricing.map((entry) => entry.vehicleType),
     includedServices,
     visitWindows,
+    ...(entitlements.length > 0 ? { entitlements } : {}),
+    ...(validityDays === undefined ? {} : { validityDays }),
     items: items.length > 0 ? items : [{ refId: offering.id, itemType: 'SERVICE' }],
+    ...(offering.communities ? { communities: offering.communities } : {}),
   };
 }
 
@@ -239,6 +264,9 @@ function parseIncludedServices(value: unknown): CatalogPackageIncludedService[] 
     const categoryId = typeof item.categoryId === 'string' && item.categoryId.trim()
       ? item.categoryId.trim()
       : 'unknown';
+    const serviceKey = typeof item.serviceKey === 'string' && item.serviceKey.trim()
+      ? item.serviceKey.trim()
+      : undefined;
     return {
       name,
       ...(typeof item.description === 'string' ? { description: item.description } : {}),
@@ -246,9 +274,29 @@ function parseIncludedServices(value: unknown): CatalogPackageIncludedService[] 
       ...(Array.isArray(item.tags)
         ? { tags: item.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) }
         : {}),
+      ...(serviceKey === undefined ? {} : { serviceKey }),
       visitsPerPeriod,
       durationMinutes,
     };
+  });
+}
+
+function parseEntitlements(value: unknown): CatalogPackageEntitlement[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const item = asRecord(entry);
+    const serviceId = typeof item.serviceId === 'string' ? item.serviceId.trim() : '';
+    const quantity = typeof item.quantity === 'number' && Number.isInteger(item.quantity) && item.quantity > 0
+      ? item.quantity
+      : 0;
+    if (!serviceId || quantity < 1) return [];
+    return [{
+      serviceId,
+      quantity,
+      ...(typeof item.name === 'string' ? { name: item.name } : {}),
+      ...(typeof item.durationMinutes === 'number' ? { durationMinutes: item.durationMinutes } : {}),
+      ...(typeof item.categoryId === 'string' ? { categoryId: item.categoryId } : {}),
+    }];
   });
 }
 

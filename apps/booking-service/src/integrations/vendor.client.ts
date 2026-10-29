@@ -6,17 +6,21 @@ import { BookingError } from '../errors';
 
 export interface CheckoutEligibility {
   vendor: VendorSnapshot;
-  branch: BranchSnapshot;
+  branch?: BranchSnapshot;
 }
 
 export interface VendorGateway {
-  getCheckoutEligibility(vendorId: string, branchId: string): Promise<CheckoutEligibility>;
+  /**
+   * Vendor checkout eligibility. Pass `branchId` for one-time bookings.
+   * Package plans omit `branchId` and validate vendor status only.
+   */
+  getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility>;
 }
 
 export class LambdaVendorGateway implements VendorGateway {
   constructor(private readonly lambda: LambdaClient = new LambdaClient({})) {}
 
-  async getCheckoutEligibility(vendorId: string, branchId: string): Promise<CheckoutEligibility> {
+  async getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility> {
     const functionName = env.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION.trim();
     if (!functionName) {
       throw new BookingError(
@@ -35,7 +39,10 @@ export class LambdaVendorGateway implements VendorGateway {
       output = await this.lambda.send(new InvokeCommand({
         FunctionName: functionName,
         InvocationType: 'RequestResponse',
-        Payload: Buffer.from(JSON.stringify({ vendorId, branchId })),
+        Payload: Buffer.from(JSON.stringify({
+          vendorId,
+          ...(branchId ? { branchId } : {}),
+        })),
       }));
     } catch {
       throw new BookingError(
@@ -77,7 +84,7 @@ export class LambdaVendorGateway implements VendorGateway {
 export function parseCheckoutEligibility(
   payload: unknown,
   vendorId: string,
-  branchId: string,
+  branchId?: string,
 ): CheckoutEligibility {
   const envelope = asRecord(payload);
   if (envelope.error) {
@@ -93,14 +100,16 @@ export function parseCheckoutEligibility(
       502,
     );
   }
-  if (typeof body.branchId !== 'string' || body.branchId !== branchId) {
-    throw new BookingError(
-      'VENDOR_BRANCH_MISMATCH',
-      'Branch does not belong to the selected vendor',
-      409,
-      'branchId',
-      false,
-    );
+  if (branchId) {
+    if (typeof body.branchId !== 'string' || body.branchId !== branchId) {
+      throw new BookingError(
+        'VENDOR_BRANCH_MISMATCH',
+        'Branch does not belong to the selected vendor',
+        409,
+        'branchId',
+        false,
+      );
+    }
   }
   const resolvedVendorId = typeof body.vendorId === 'string' ? body.vendorId : vendorId;
   return {
@@ -115,12 +124,16 @@ export function parseCheckoutEligibility(
         ? body.communityIds.filter((value): value is string => typeof value === 'string')
         : [],
     },
-    branch: {
-      branchId: body.branchId,
-      vendorId: resolvedVendorId,
-      ...(typeof body.branchName === 'string' ? { branchName: body.branchName }
-        : typeof body.name === 'string' ? { branchName: body.name } : {}),
-    },
+    ...(typeof body.branchId === 'string' && body.branchId.trim()
+      ? {
+        branch: {
+          branchId: body.branchId,
+          vendorId: resolvedVendorId,
+          ...(typeof body.branchName === 'string' ? { branchName: body.branchName }
+            : typeof body.name === 'string' ? { branchName: body.name } : {}),
+        },
+      }
+      : {}),
   };
 }
 

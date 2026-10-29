@@ -115,7 +115,10 @@ export function parseOfferingsQuery(input: unknown): ParsedOfferingsQuery {
   }
 
   const communityId = optionalText(source.communityId, 'communityId');
-  if (communityId && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(communityId)) {
+  if (!communityId) {
+    throw new ValidationError('communityId is required');
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(communityId)) {
     throw new ValidationError('Invalid communityId');
   }
   const sorts = parseSort(source.sort, Boolean(location), Boolean(search));
@@ -135,7 +138,7 @@ export function parseOfferingsQuery(input: unknown): ParsedOfferingsQuery {
     sorts,
     limit,
     ...(cursor ? { cursor } : {}),
-    ...(communityId ? { communityId } : {}),
+    communityId,
   };
 }
 

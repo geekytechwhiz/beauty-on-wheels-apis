@@ -68,7 +68,8 @@ export interface ParsedOfferingsQuery {
   sorts: SortSpec[];
   limit: number;
   cursor?: string;
-  communityId?: string;
+  /** Required for customer marketplace discovery (community GSI3 path). */
+  communityId: string;
 }
 
 export interface OfferingCandidate {
@@ -88,7 +89,8 @@ export interface OfferingView {
   description?: string;
   categoryId: string;
   vendorId: string;
-  branchId: string;
+  /** Present when discovery has an operational branch; omitted for community-only packages. */
+  branchId?: string;
   vehicleTypes: string[];
   displayPrice: number;
   currency: string;

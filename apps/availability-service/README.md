@@ -10,6 +10,17 @@ availability
 
 Bootstrap Completed
 
+## Package visit capacity reservations
+
+Booking Service reserves slot capacity for package visits through the internal `reserveBooking` handler. The idempotency key is **`bookingId`**, which equals the package **`visitId`** on initial schedule. Reschedule uses a derived `bookingId` (`{visitId}-rs-{idempotencyKeyPrefix}`) so the new slot is held before the prior allocation is released.
+
+Optional correlation metadata on the reserve payload is persisted on allocation records when present:
+
+- `packageVisitId` — the visit being scheduled or rescheduled
+- `planId` — the owning customer plan
+
+One-time bookings omit these fields; capacity writes and idempotent replay by `bookingId` behave as before.
+
 ## Next Step
 
 Run

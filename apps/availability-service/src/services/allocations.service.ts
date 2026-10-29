@@ -113,6 +113,8 @@ export class AllocationsService {
     timezone?: string;
     durationMinutes?: number;
     communityId?: string;
+    packageVisitId?: string;
+    planId?: string;
   }) {
     const bookingId = requirePathId(input.bookingId ?? '', 'bookingId');
     const required = ['customerId', 'vendorId', 'branchId', 'offeringId', 'vehicleType', 'date', 'startTime', 'timezone'] as const;
@@ -136,6 +138,10 @@ export class AllocationsService {
       timezone: input.timezone!,
       durationMinutes: input.durationMinutes!,
       ...(typeof input.communityId === 'string' ? { communityId: input.communityId } : {}),
+    };
+    const correlationMetadata = {
+      ...(typeof input.packageVisitId === 'string' ? { packageVisitId: input.packageVisitId } : {}),
+      ...(typeof input.planId === 'string' ? { planId: input.planId } : {}),
     };
     const existing = await this.allocations.getByBookingId(bookingId);
     if (existing) {
@@ -219,6 +225,7 @@ export class AllocationsService {
       status: 'confirmed',
       createdAt: now,
       updatedAt: now,
+      ...correlationMetadata,
     };
     const allocationLookup: AllocationLookupItem = {
       PK: AvailabilityKeyBuilder.allocationLookupPk(bookingId),
@@ -244,6 +251,7 @@ export class AllocationsService {
       canonicalSk: allocation.SK,
       createdAt: now,
       updatedAt: now,
+      ...correlationMetadata,
     };
     try {
       await this.allocations.reserveBooking({

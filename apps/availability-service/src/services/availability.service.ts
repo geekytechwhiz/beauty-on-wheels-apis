@@ -49,7 +49,7 @@ export class AvailabilityService {
       }
       return { items };
     }
-    assertBranch(branchId);
+  
     const hours = await this.repository.getWorkingHours(vendorId, branchId);
     if (!hours) {
       throw new NotFoundError('Working hours not found');
@@ -73,7 +73,7 @@ export class AvailabilityService {
     if (!branchId) {
       throw new ValidationError('branchId is required');
     }
-    assertBranch(branchId);
+ 
     const existing = await this.repository.getWorkingHours(vendorId, branchId);
     const userId = assertCanManageSchedule(request, existing);
     const timezone = body.timezone?.trim() || existing?.timezone;
@@ -173,12 +173,7 @@ export class AvailabilityService {
     return result;
   }
 }
-
-function assertBranch(branchId: string): void {
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(branchId)) {
-    throw new ValidationError('branchId is invalid');
-  }
-}
+ 
 
 function normalizeWeek(hours: WorkingHoursInterval[]): WorkingHoursInterval[] {
   if (!Array.isArray(hours) || hours.length === 0) {

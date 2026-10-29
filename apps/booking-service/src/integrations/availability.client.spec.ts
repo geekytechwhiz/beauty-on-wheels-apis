@@ -57,6 +57,27 @@ describe('availability gateway', () => {
     expect(JSON.stringify(payload)).not.toContain('secret-token');
   });
 
+  it('forwards package visit correlation fields in the Lambda payload', async () => {
+    const send = jest.fn().mockResolvedValue({
+      Payload: Buffer.from(JSON.stringify({
+        slotId: 'slot_0900',
+        endTime: '09:45',
+      })),
+    });
+    const gateway = new HttpAvailabilityGateway({ send } as unknown as LambdaClient);
+    await gateway.reserveBooking({
+      ...input,
+      packageVisitId: 'visit-1',
+      planId: 'plan-1',
+    });
+    const payload = JSON.parse(Buffer.from(send.mock.calls[0][0].input.Payload).toString()) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      bookingId: 'booking-1',
+      packageVisitId: 'visit-1',
+      planId: 'plan-1',
+    });
+  });
+
   it('maps released and capacity failures to the booking slot conflict', () => {
     expect(mapReservationFailure('Slot capacity has been exceeded').statusCode).toBe(409);
     expect(mapReservationFailure('Booking capacity reservation was released').code).toBe('SLOT_UNAVAILABLE');

@@ -27,11 +27,6 @@ export const env = {
   /** Vendor HTTP API used to verify owner membership, communities, and staff. */
   VENDOR_BASE_URL: process.env.VENDOR_BASE_URL || '',
   /**
-   * When true, GET /offerings?communityId= queries GSI3.
-   * Leave false until GSI3 is ACTIVE and the backfill has been verified.
-   */
-  COMMUNITY_OFFERING_ENFORCEMENT: process.env.COMMUNITY_OFFERING_ENFORCEMENT || 'false',
-  /**
    * When the value is exactly `true`, newly created offering-community
    * mappings are stored as approved. Any other value, including a missing
    * variable, requires admin approval. This does not rewrite existing rows.

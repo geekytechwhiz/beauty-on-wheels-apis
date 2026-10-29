@@ -5,6 +5,7 @@ import {
   billingPeriodToCadence,
   buildPlanPricingSnapshot,
   deriveEntitlements,
+  resolvePlanEntitlements,
   resolveVehiclePrice,
   resolveVisitWindow,
   totalVisits,
@@ -46,6 +47,24 @@ describe('customer plan domain', () => {
     expect(totalVisits(entitlements)).toBe(5);
   });
 
+  it('prefers catalog entitlements or includedServices serviceKey over raw items', () => {
+    expect(resolvePlanEntitlements({
+      ...pkg,
+      entitlements: [{ serviceId: 'exterior-wash', quantity: 8 }],
+      includedServices: [
+        { name: 'Exterior wash', serviceKey: 'exterior-wash', categoryId: 'cat', visitsPerPeriod: 8, durationMinutes: 30 },
+      ],
+      validityDays: 30,
+    })).toEqual([{ serviceId: 'exterior-wash', quantity: 8 }]);
+    expect(resolvePlanEntitlements({
+      ...pkg,
+      entitlements: undefined,
+      includedServices: [
+        { name: 'Exterior wash', serviceKey: 'exterior-wash', categoryId: 'cat', visitsPerPeriod: 8, durationMinutes: 30 },
+      ],
+    })).toEqual([{ serviceId: 'exterior-wash', quantity: 8 }]);
+  });
+
   it('snapshots the vehicle-matched catalog integer price without rescaling', () => {
     expect(buildPlanPricingSnapshot(pkg, 'SUV')).toMatchObject({
       totalAmount: 2499,
@@ -83,7 +102,12 @@ describe('customer plan domain', () => {
 
   it('rejects packages with no service entitlements', () => {
     expect(() => assertPackageSellable(
-      { ...pkg, items: [{ refId: 'addon_1', itemType: 'ADDON' }] },
+      {
+        ...pkg,
+        items: [{ refId: 'addon_1', itemType: 'ADDON' }],
+        includedServices: [],
+        entitlements: [],
+      },
       { vendorId: 'vendor_1', packageId: 'pkg_1', offeringId: 'pkg_1' },
     )).toThrow('no service entitlements');
   });

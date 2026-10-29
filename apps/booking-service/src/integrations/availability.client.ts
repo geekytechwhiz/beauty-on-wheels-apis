@@ -16,6 +16,8 @@ export interface ReserveBookingInput {
   timezone: string;
   durationMinutes: number;
   communityId?: string;
+  packageVisitId?: string;
+  planId?: string;
   authorizationHeader?: string;
 }
 
@@ -58,6 +60,8 @@ export class HttpAvailabilityGateway implements AvailabilityGateway {
           timezone: input.timezone,
           durationMinutes: input.durationMinutes,
           ...(input.communityId ? { communityId: input.communityId } : {}),
+          ...(input.packageVisitId ? { packageVisitId: input.packageVisitId } : {}),
+          ...(input.planId ? { planId: input.planId } : {}),
         },
       );
       return parseReservation(body, input);

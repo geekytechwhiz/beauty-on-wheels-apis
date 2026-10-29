@@ -184,16 +184,7 @@ export function assertVendorEligible(vendor: VendorSnapshot, vendorId: string): 
   }
 }
 
-export function assertBranch(branch: BranchSnapshot, command: Pick<CreateBookingCommand, 'vendorId' | 'branchId'>): void {
-  if (branch.branchId !== command.branchId || branch.vendorId !== command.vendorId) {
-    throw new BookingError(
-      'VENDOR_BRANCH_MISMATCH',
-      'Branch does not belong to the selected vendor',
-      409,
-      'branchId',
-    );
-  }
-}
+ 
 
 export function communityOfferingEnforcementEnabled(): boolean {
   return process.env.COMMUNITY_OFFERING_ENFORCEMENT === 'true';

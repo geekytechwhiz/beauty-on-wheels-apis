@@ -36,9 +36,20 @@ export interface IncludedService {
   description?: string;
   categoryId: string;
   tags?: string[];
+  /** Stable entitlement identity; unique within the offering when set. */
+  serviceKey?: string;
   visitsPerPeriod: number;
   /** Duration of one visit of this included service. */
   durationMinutes: number;
+}
+
+/** Computed from includedServices for booking and plan clients. */
+export interface OfferingEntitlement {
+  serviceId: string;
+  quantity: number;
+  name: string;
+  durationMinutes: number;
+  categoryId: string;
 }
 
 /** Package-defined preferred visit window (not a confirmed availability slot). */
@@ -57,11 +68,15 @@ export type OfferingStatus = 'draft' | 'published' | 'paused' | 'archived';
 export type BillingPeriod = 'oneTime' | 'weekly' | 'monthly' | 'yearly';
 
 export interface CreateOfferingRequest {
+  vendorId: string;
+  categoryId: string;
   offeringType: 'PACKAGE';
   name: string;
   description?: string;
   billingPeriod: BillingPeriod;
   currency?: string;
+  /** Purchase validity window in days for oneTime packages; optional metadata otherwise. */
+  validityDays?: number;
   vehiclePricing: VehiclePricing[];
   includedServices: IncludedService[];
   visitWindows?: OfferingVisitWindow[];
@@ -75,6 +90,7 @@ export interface PatchOfferingRequest {
   description?: string;
   billingPeriod?: BillingPeriod;
   currency?: string;
+  validityDays?: number;
   vehiclePricing?: VehiclePricing[];
   includedServices?: IncludedService[];
   visitWindows?: OfferingVisitWindow[];
@@ -92,9 +108,11 @@ export interface Offering {
   description?: string;
   billingPeriod: BillingPeriod;
   currency: string;
+  validityDays?: number;
   vehiclePricing: VehiclePricing[];
   vehicleTypes: VehicleType[];
   includedServices: IncludedService[];
+  entitlements: OfferingEntitlement[];
   visitWindows?: OfferingVisitWindow[];
   status: OfferingStatus;
   active: boolean;
@@ -119,7 +137,8 @@ export interface MarketplaceOffering {
   description?: string;
   categoryId: string;
   vendorId: string;
-  branchId: string;
+  /** Optional — community package discovery may omit branch coverage. */
+  branchId?: string;
   vehicleTypes: VehicleType[] | string[];
   displayPrice: number;
   currency: string;

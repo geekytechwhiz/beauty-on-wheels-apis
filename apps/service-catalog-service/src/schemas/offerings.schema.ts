@@ -20,6 +20,13 @@ import {
 
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'time must be HH:mm');
 
+const OFFERING_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+const offeringIdSchema = (field: string) =>
+  z.string().min(1, `${field} is required`).regex(OFFERING_ID_PATTERN, `${field} is invalid`);
+
+const validityDaysSchema = z.number().int().min(1).max(730);
+
 const VehiclePriceSchema = z.object({
   vehicleType: z.string().min(1),
   /** Integer minor units (paise for INR). Final customer price for this vehicle. */
@@ -36,6 +43,7 @@ const IncludedServiceSchema = z.object({
   description: z.string().max(500).optional(),
   categoryId: z.string().min(1),
   tags: z.array(z.string().min(1).max(50)).max(20).optional(),
+  serviceKey: offeringIdSchema('serviceKey').optional(),
   visitsPerPeriod: z.number().int().positive(),
   /** Duration of one visit of this included service. */
   durationMinutes: z.number().int().positive(),
@@ -90,6 +98,8 @@ const VisitWindowSchema = z.object({
 });
 
 export const CreateOfferingSchema = z.object({
+  vendorId: offeringIdSchema('vendorId'),
+  categoryId: offeringIdSchema('categoryId'),
   offeringType: z.enum(SUPPORTED_OFFERING_TYPES),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
@@ -100,6 +110,7 @@ export const CreateOfferingSchema = z.object({
     BILLING_PERIOD.YEARLY,
   ]),
   currency: z.string().length(3).optional().default(DEFAULT_OFFERING_CURRENCY),
+  validityDays: validityDaysSchema.optional(),
   vehiclePricing: z.array(VehiclePriceSchema).min(1),
   includedServices: z.array(IncludedServiceSchema).min(1),
   visitWindows: z.array(VisitWindowSchema).min(1).max(20).optional(),
@@ -121,6 +132,7 @@ export const PatchOfferingSchema = z.object({
     BILLING_PERIOD.YEARLY,
   ]).optional(),
   currency: z.string().length(3).optional(),
+  validityDays: validityDaysSchema.optional(),
   vehiclePricing: z.array(VehiclePriceSchema).min(1).optional(),
   includedServices: z.array(IncludedServiceSchema).min(1).optional(),
   visitWindows: z.array(VisitWindowSchema).min(1).max(20).optional(),
@@ -143,6 +155,7 @@ export interface ValidatedIncludedService {
   description?: string;
   categoryId: string;
   tags?: string[];
+  serviceKey?: string;
   visitsPerPeriod: number;
   durationMinutes: number;
 }
@@ -162,11 +175,14 @@ export interface ValidatedVisitWindow {
 }
 
 export interface ValidatedCreateOffering {
+  vendorId: string;
+  categoryId: string;
   offeringType: SupportedOfferingType;
   name: string;
   description?: string;
   billingPeriod: BillingPeriod;
   currency: string;
+  validityDays?: number;
   vehiclePricing: ValidatedVehiclePrice[];
   includedServices: ValidatedIncludedService[];
   visitWindows?: ValidatedVisitWindow[];
@@ -180,6 +196,7 @@ export interface ValidatedPatchOffering {
   description?: string;
   billingPeriod?: BillingPeriod;
   currency?: string;
+  validityDays?: number;
   vehiclePricing?: ValidatedVehiclePrice[];
   includedServices?: ValidatedIncludedService[];
   visitWindows?: ValidatedVisitWindow[];
@@ -214,11 +231,16 @@ export function validateCreateOffering(req: LambdaRequest): ValidatedCreateOffer
     );
   }
   return {
+    vendorId: result.data.vendorId.trim(),
+    categoryId: result.data.categoryId.trim(),
     offeringType: result.data.offeringType,
     name,
     ...(description === undefined ? {} : { description }),
     billingPeriod: result.data.billingPeriod,
     currency: result.data.currency.trim().toUpperCase(),
+    ...(result.data.validityDays === undefined
+      ? {}
+      : { validityDays: result.data.validityDays }),
     vehiclePricing: assertVehiclePrices(result.data.vehiclePricing),
     includedServices: assertIncludedServices(result.data.includedServices),
     ...(visitWindows === undefined ? {} : { visitWindows }),
@@ -251,6 +273,9 @@ export function validatePatchOffering(req: LambdaRequest): ValidatedPatchOfferin
     ...(result.data.currency === undefined
       ? {}
       : { currency: result.data.currency.trim().toUpperCase() }),
+    ...(result.data.validityDays === undefined
+      ? {}
+      : { validityDays: result.data.validityDays }),
     ...(result.data.vehiclePricing === undefined
       ? {}
       : { vehiclePricing: assertVehiclePrices(result.data.vehiclePricing) }),
@@ -304,10 +329,12 @@ function assertIncludedServices(
     description?: string;
     categoryId: string;
     tags?: string[];
+    serviceKey?: string;
     visitsPerPeriod: number;
     durationMinutes: number;
   }[],
 ): ValidatedIncludedService[] {
+  const seenServiceKeys = new Set<string>();
   return values.map((entry) => {
     assertPositiveDuration(entry.durationMinutes);
     if (!Number.isInteger(entry.visitsPerPeriod) || entry.visitsPerPeriod < 1) {
@@ -317,6 +344,19 @@ function assertIncludedServices(
         'VALIDATION_ERROR',
       );
     }
+    let serviceKey: string | undefined;
+    if (entry.serviceKey !== undefined) {
+      const trimmed = entry.serviceKey.trim();
+      if (seenServiceKeys.has(trimmed)) {
+        throw new BaseError(
+          `Duplicate serviceKey: ${trimmed}`,
+          400,
+          'VALIDATION_ERROR',
+        );
+      }
+      seenServiceKeys.add(trimmed);
+      serviceKey = trimmed;
+    }
     return {
       name: assertCatalogName(entry.name),
       ...(entry.description === undefined ? {} : { description: entry.description }),
@@ -324,6 +364,7 @@ function assertIncludedServices(
       ...(entry.tags === undefined
         ? {}
         : { tags: [...new Set(entry.tags.map((tag) => tag.trim()).filter(Boolean))] }),
+      ...(serviceKey === undefined ? {} : { serviceKey }),
       visitsPerPeriod: entry.visitsPerPeriod,
       durationMinutes: entry.durationMinutes,
     };

@@ -12,6 +12,11 @@ import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { headerValue, requireCustomerId } from '../auth/access';
 import { assertProviderAmountMatches, toProviderMinor } from '../domain/money';
+import {
+  computeVisitProgress,
+  materializePackageVisits,
+  validityEndsAt,
+} from '../domain/package-visit';
 import { BookingError } from '../errors';
 import { getRazorpayGateway } from '../integrations/razorpay.client';
 import {
@@ -216,18 +221,52 @@ export class CustomerPlanPaymentsService {
   }
 
   private async activate(plan: CustomerPlanRecord): Promise<void> {
-    if (
-      (plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB')
-      && plan.paymentStatus === 'PAID'
-      && plan.firstJobId
-    ) {
-      return;
-    }
     const now = new Date().toISOString();
-    const firstJobId = plan.firstJobId ?? randomUUID();
+    const alreadyPaid = (plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB')
+      && plan.paymentStatus === 'PAID'
+      && Boolean(plan.firstJobId);
+
+    // Always ensure visit entitlement rows exist (idempotent).
+    const visits = await this.plans.createVisitsIfAbsent(
+      materializePackageVisits({ plan, now }),
+    );
+    const progress = computeVisitProgress(visits);
+    const firstVisitId = visits[0]?.visitId;
+    const firstJobId = plan.firstJobId ?? firstVisitId ?? randomUUID();
+
     if (!plan.firstJobId) {
       await this.bookings.createPackageLinkedBooking(buildFirstJobBooking(plan, firstJobId, now));
     }
+    if (alreadyPaid) {
+      // Payment replay: visits may have been missing on older activations.
+      if (!plan.visitProgress || plan.remainingVisits !== progress.remainingVisits) {
+        await this.plans.savePlan(
+          {
+            ...plan,
+            remainingVisits: progress.remainingVisits,
+            scheduleState: progress.scheduleState,
+            visitProgress: {
+              totalVisits: progress.totalVisits,
+              remainingVisits: progress.remainingVisits,
+              completedVisits: progress.completedVisits,
+              cancelledVisits: progress.cancelledVisits,
+              missedVisits: progress.missedVisits,
+              scheduledVisits: progress.scheduledVisits,
+              unscheduledVisits: progress.unscheduledVisits,
+              inProgressVisits: progress.inProgressVisits,
+            },
+            ...(plan.validityDays && !plan.validUntil
+              ? { validUntil: validityEndsAt(plan.activatedAt ?? now, plan.validityDays) }
+              : {}),
+            updatedAt: now,
+            version: plan.version + 1,
+          },
+          plan.version,
+        ).catch(() => undefined);
+      }
+      return;
+    }
+
     await this.plans.savePlan(
       {
         ...plan,
@@ -235,9 +274,23 @@ export class CustomerPlanPaymentsService {
         paymentStatus: 'PAID',
         firstJobId,
         activatedAt: now,
+        ...(plan.validityDays
+          ? { validUntil: validityEndsAt(now, plan.validityDays) }
+          : {}),
+        scheduleState: progress.scheduleState,
+        remainingVisits: progress.remainingVisits,
+        visitProgress: {
+          totalVisits: progress.totalVisits,
+          remainingVisits: progress.remainingVisits,
+          completedVisits: progress.completedVisits,
+          cancelledVisits: progress.cancelledVisits,
+          missedVisits: progress.missedVisits,
+          scheduledVisits: progress.scheduledVisits,
+          unscheduledVisits: progress.unscheduledVisits,
+          inProgressVisits: progress.inProgressVisits,
+        },
         updatedAt: now,
         version: plan.version + 1,
-        // Billing period start/end stay unset until the first job starts.
         autoRenew: plan.autoRenew === true,
       },
       plan.version,
@@ -246,6 +299,7 @@ export class CustomerPlanPaymentsService {
       event: 'customer_plan_awaiting_first_job',
       planId: plan.planId,
       firstJobId,
+      visitCount: visits.length,
       autoRenew: plan.autoRenew === true,
     });
   }
@@ -285,7 +339,7 @@ function toResponse(record: PlanPaymentRecord): CustomerPlanPaymentResponse {
   };
 }
 
-/** First package job: paid/confirmed, no Availability slot; times are provider-coordinated. */
+/** First package job: paid/confirmed, no Availability slot or branch; times are provider-coordinated. */
 function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: string): Booking {
   const offeringId = plan.offeringId || plan.packageId;
   const totalAmount = plan.pricingSnapshot.totalAmount;
@@ -294,7 +348,7 @@ function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: 
     reference: `BOW-PKG-${bookingId.slice(0, 8).toUpperCase()}`,
     customerId: plan.customerId,
     vendorId: plan.vendorId,
-    branchId: plan.branchId,
+    ...(plan.branchId ? { branchId: plan.branchId } : {}),
     vehicleId: plan.vehicleId,
     vehicleDetails: {
       bodyCategory: plan.vehicleType,

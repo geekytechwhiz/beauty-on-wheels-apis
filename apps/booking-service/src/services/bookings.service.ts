@@ -176,7 +176,7 @@ export class BookingsService {
 
         assertVehicleOwnership(vehicle, customerId, command.vehicleId);
         assertVendorEligible(eligibility.vendor, command.vendorId);
-        assertBranch(eligibility.branch, command);
+      
         assertOffering(offering, command, vehicle.vehicleType);
         assertLocation(command, eligibility.vendor, profile);
         assertOfferingCommunity({

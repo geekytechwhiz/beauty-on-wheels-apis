@@ -14,6 +14,17 @@ Bootstrap Completed
 
 Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, and `expectedPrice.totalMinor`. Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs. The persisted booking is a `PENDING_PAYMENT` immutable snapshot; only the trusted payment Lambda or the sandbox-complete path (when `PAYMENT_SANDBOX_ENABLED=true`) can confirm it.
 
+Package plans (`POST /customer-plans`) purchase a catalog PACKAGE offering. They are community-based at purchase (no `branchId` required). After payment, Booking materializes one **PackageVisit** row per entitlement unit (`UNSCHEDULED`). Vendors schedule visits via `/customer-plans/{planId}/visits/...`, which reserves Availability capacity (`bookingId = visitId`, plus `planId` / `packageVisitId` metadata). Entitlement is consumed only on vendor **complete** (idempotent). Multi-visit confirm-schedules is sequential and may return `scheduleState: PARTIAL` when some reservations fail.
+
+Visit routes (customer owner or vendor staff; start/complete/schedule are vendor staff only):
+
+- `GET /customer-plans/{planId}/visits` — paginated visit list
+- `GET /customer-plans/{planId}/visits/{visitId}`
+- `POST .../schedule`, `.../reschedule`, `.../cancel`, `.../start`, `.../complete`
+- `POST /customer-plans/{planId}/visits/confirm-schedules` — batch schedule with partial-failure reporting
+
+Visit statuses: `UNSCHEDULED` → `SCHEDULED` → `IN_PROGRESS` → `COMPLETED` (also `CANCELLED` / `MISSED`).
+
 Customer payment HTTP paths:
 
 - `POST /bookings/{bookingId}/payments` — initiate payment bound to the booking snapshot amount (Idempotency-Key required).

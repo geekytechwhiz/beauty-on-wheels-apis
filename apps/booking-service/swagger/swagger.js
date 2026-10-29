@@ -661,6 +661,288 @@
         }
       }
     },
+    "/customer-plans/{planId}/visits": {
+      "get": {
+        "summary": "List package visits",
+        "description": "Lists entitlement visit rows for a paid package plan. Customer owner or vendor staff. Supports limit and cursor pagination.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "listplanvisits.get./customer-plans/{planId}/visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "0",
+            "type": "string",
+            "description": "Page size (1-100, default 50)",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "1",
+            "type": "string",
+            "description": "Opaque pagination cursor",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List package visits"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}": {
+      "get": {
+        "summary": "Get package visit",
+        "description": "Returns one package visit with schedule and audit fields.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "getplanvisit.get./customer-plans/{planId}/visits/{visitId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get package visit"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/schedule": {
+      "post": {
+        "summary": "Schedule a package visit",
+        "description": "Vendor staff only. Reserves Availability capacity for the visit (bookingId=visitId) then marks SCHEDULED. Idempotency-Key required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "scheduleplanvisit.post./customer-plans/{planId}/visits/{visitId}/schedule",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Visit scheduled"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/reschedule": {
+      "post": {
+        "summary": "Reschedule a package visit",
+        "description": "Reserves the replacement slot before releasing the old reservation. Idempotency-Key required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "rescheduleplanvisit.post./customer-plans/{planId}/visits/{visitId}/reschedule",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit rescheduled"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/cancel": {
+      "post": {
+        "summary": "Cancel a package visit",
+        "description": "Cancels a visit and releases any Availability reservation. Does not consume entitlement.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "cancelplanvisit.post./customer-plans/{planId}/visits/{visitId}/cancel",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit cancelled"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/start": {
+      "post": {
+        "summary": "Start a package visit",
+        "description": "Vendor staff only. Transitions SCHEDULED → IN_PROGRESS and may activate the parent plan.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "startplanvisit.post./customer-plans/{planId}/visits/{visitId}/start",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit started"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/complete": {
+      "post": {
+        "summary": "Complete a package visit",
+        "description": "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "completeplanvisit.post./customer-plans/{planId}/visits/{visitId}/complete",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit completed"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/confirm-schedules": {
+      "post": {
+        "summary": "Confirm schedules for multiple package visits",
+        "description": "Vendor staff only. Sequentially reserves each visit. Returns PARTIAL scheduleState when some reservations fail; never marks COMPLETE while UNSCHEDULED visits remain. Idempotency-Key required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "confirmplanvisitschedules.post./customer-plans/{planId}/visits/confirm-schedules",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Schedule confirmation result"
+          }
+        }
+      }
+    },
     "/bookings/{bookingId}/changes/preview": {
       "post": {
         "summary": "Preview booking provider/service change",

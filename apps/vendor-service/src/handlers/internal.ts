@@ -42,7 +42,9 @@ export const getCheckoutEligibility = async (event: {
 } | null): Promise<unknown> => {
   try {
     const vendorId = requireId(event?.vendorId, 'vendorId');
-    const branchId = requireId(event?.branchId, 'branchId');
+    const branchId = typeof event?.branchId === 'string' && event.branchId.trim()
+      ? event.branchId.trim()
+      : undefined;
     const data = await getCheckoutEligibilityService().get(vendorId, branchId);
     return { data };
   } catch (error) {

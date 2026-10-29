@@ -396,7 +396,7 @@ export class BookingChangesService {
     ]);
     assertVehicleOwnership(vehicle, customerId, original.vehicleId);
     assertVendorEligible(eligibility.vendor, command.vendorId);
-    assertBranch(eligibility.branch, command);
+ 
     assertOffering(offering, command, vehicle.vehicleType);
     assertLocation({ location }, eligibility.vendor, profile);
     assertOfferingCommunity({

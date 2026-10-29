@@ -16,10 +16,23 @@ export class OfferingCommunitiesController {
   ) {}
 
   async add(request: LambdaRequest) {
-    const vendorId = requireVendorId(request.params?.vendorId);
-    const offeringId = requireOfferingId(request);
+    const offeringRequest = request.body  
+    const vendorId = offeringRequest?.vendorId;
+    const offeringId = offeringRequest?.offeringId;
+    if (!vendorId || !offeringId) {
+      throw new ValidationError('vendorId and offeringId are required');
+    }
     const service = await this.communities.requireOwnedService(offeringId, vendorId);
-    const communityIds = readCommunityIds(request.body);
+    const communityIds = offeringRequest?.communityIds;
+    if (!communityIds) {
+      throw new ValidationError('communityIds are required');
+    }
+    if (!Array.isArray(communityIds)) {
+      throw new ValidationError('communityIds must be an array');
+    }
+    if (communityIds.some((id) => typeof id !== 'string')) {
+      throw new ValidationError('communityIds must be an array of strings');
+    }
     return { communities: await this.communities.addCommunities(service, communityIds) };
   }
 

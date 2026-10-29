@@ -46,10 +46,6 @@ export interface OfferingCommunityView {
   approvalUpdatedBy?: string;
 }
 
-export function communityOfferingEnforcementEnabled(): boolean {
-  return process.env.COMMUNITY_OFFERING_ENFORCEMENT === 'true';
-}
-
 /**
  * Only the exact value `true` enables automatic approval.
  * Missing, empty, and any other string stay on the admin-approval path.

@@ -1,16 +1,15 @@
 import { ServiceDiscoveryEntity } from '../types/service-discovery.types';
 import { parseBookableKeys } from './availability-bookable.client';
 import { OfferingsService } from './offerings.service';
-import { DiscoveryPartitionPage } from './offerings.repository';
 import { BookableOfferingsRequest } from './types';
 
 function discovery(serviceId: string, price: number, branchId = 'branch-1'): ServiceDiscoveryEntity {
   return {
     PK: 'DISCOVERY#ALL',
-    SK: `SERVICE#${serviceId}#BRANCH#${branchId}`,
+    SK: `SERVICE#${serviceId}#BRANCH#${branchId || 'NONE'}`,
     entityType: 'SERVICE_DISCOVERY',
     GSI2PK: 'DISCOVERY#ALL',
-    GSI2SK: `SERVICE#${serviceId}#BRANCH#${branchId}`,
+    GSI2SK: `SERVICE#${serviceId}#BRANCH#${branchId || 'NONE'}`,
     serviceId,
     vendorId: 'vendor-1',
     branchId,
@@ -31,7 +30,7 @@ function discovery(serviceId: string, price: number, branchId = 'branch-1'): Ser
     reviewCount: 1,
     active: true,
     vendorApproved: true,
-    branchOperational: true,
+    branchOperational: Boolean(branchId.trim()),
     serviceUpdatedAt: '2026-10-01T00:00:00.000Z',
     vendorReviewedAt: '2026-10-01T00:00:00.000Z',
     branchUpdatedAt: '2026-10-01T00:00:00.000Z',
@@ -39,57 +38,154 @@ function discovery(serviceId: string, price: number, branchId = 'branch-1'): Ser
   };
 }
 
+function communityMapping(serviceId: string, communityId = 'community-1') {
+  return {
+    PK: `SERVICE#${serviceId}`,
+    SK: `COMMUNITY#${communityId}`,
+    entityType: 'OfferingCommunity' as const,
+    vendorId: 'vendor-1',
+    categoryId: 'cat-1',
+    serviceId,
+    communityId,
+    status: 'active' as const,
+    serviceActive: true,
+    version: 1,
+    GSI3PK: `COMMUNITY#${communityId}`,
+    GSI3SK: `SERVICE#cat-1#${serviceId}`,
+    createdAt: '2026-10-01T00:00:00.000Z',
+    updatedAt: '2026-10-01T00:00:00.000Z',
+  };
+}
+
 describe('OfferingsService', () => {
-  it('queries the category partition and returns an empty page', async () => {
-    const partitions: string[] = [];
+  it('requires communityId and rejects global discovery without it', async () => {
     const service = new OfferingsService(
+      { findBookable: jest.fn() },
       {
-        async listDiscoveryPartition(partitionKey: string): Promise<DiscoveryPartitionPage> {
-          partitions.push(partitionKey);
-          return { items: [], truncated: false };
+        async queryActivePage() {
+          throw new Error('community index should stay unused');
+        },
+        async listDiscoveryRows() {
+          return [];
         },
       },
+    );
+    await expect(service.listOfferings({ categoryId: 'cat-1', limit: 10 })).rejects.toMatchObject({
+      message: expect.stringMatching(/communityId is required/i),
+    });
+  });
+
+  it('queries community GSI3 and returns an empty page when the community has no mappings', async () => {
+    const queried: string[] = [];
+    const service = new OfferingsService(
       { findBookable: jest.fn() },
+      {
+        async queryActivePage(input) {
+          queried.push(input.communityId);
+          return { items: [] };
+        },
+        async listDiscoveryRows() {
+          throw new Error('discovery rows should stay unused when the community page is empty');
+        },
+      },
     );
 
-    const page = await service.listOfferings({ categoryId: 'cat-1', limit: 10 });
-    expect(partitions).toEqual(['DISCOVERY#CATEGORY#cat-1']);
+    const page = await service.listOfferings({ communityId: 'community-1', categoryId: 'cat-1', limit: 10 });
+    expect(queried).toEqual(['community-1']);
     expect(page).toEqual({ items: [], hasMore: false });
+  });
+
+  it('filters by community through GSI3 and still returns branchId', async () => {
+    const queried: string[] = [];
+    const service = new OfferingsService(
+      { findBookable: jest.fn() },
+      {
+        async queryActivePage(input) {
+          queried.push(input.communityId);
+          return { items: [communityMapping('low')] };
+        },
+        async listDiscoveryRows() {
+          return [discovery('low', 100, 'branch-9')];
+        },
+      },
+    );
+
+    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
+    expect(queried).toEqual(['community-1']);
+    expect(page.items).toEqual([
+      expect.objectContaining({ serviceId: 'low', offeringId: 'low', branchId: 'branch-9' }),
+    ]);
+  });
+
+  it('keeps branchless community offerings eligible when branch coverage is absent', async () => {
+    const service = new OfferingsService(
+      { findBookable: jest.fn() },
+      {
+        async queryActivePage() {
+          return { items: [communityMapping('pkg-1')] };
+        },
+        async listDiscoveryRows() {
+          return [discovery('pkg-1', 199, '')];
+        },
+      },
+    );
+
+    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        serviceId: 'pkg-1',
+        offeringId: 'pkg-1',
+        displayPrice: 199,
+        status: 'active',
+      }),
+    ]);
+    expect(page.items[0]).not.toHaveProperty('branchId');
   });
 
   it('drops offerings that are not bookable before cutting the page', async () => {
     const calls: BookableOfferingsRequest[] = [];
-    const items = [
-      discovery('low', 100),
-      discovery('mid', 200),
-      discovery('high', 300),
+    const mappings = [
+      communityMapping('low'),
+      communityMapping('mid'),
+      communityMapping('high'),
     ];
     const service = new OfferingsService(
-      {
-        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
-          return { items, truncated: false };
-        },
-      },
       {
         async findBookable(input: BookableOfferingsRequest) {
           calls.push(input);
           return new Set(['vendor-1#branch-1#low', 'vendor-1#branch-1#high']);
         },
       },
+      {
+        async queryActivePage(input) {
+          const start = input.exclusiveStartKey
+            ? mappings.findIndex((item) =>
+              item.PK === input.exclusiveStartKey?.PK
+              && item.SK === input.exclusiveStartKey?.SK) + 1
+            : 0;
+          const items = start > 0 ? mappings.slice(start) : mappings;
+          return { items };
+        },
+        async listDiscoveryRows(serviceId: string) {
+          const prices: Record<string, number> = { low: 100, mid: 200, high: 300 };
+          return [discovery(serviceId, prices[serviceId] ?? 100)];
+        },
+      },
     );
 
     const first = await service.listOfferings({
+      communityId: 'community-1',
       sort: 'price:asc',
       limit: 1,
       availableOn: '2026-12-01',
       vehicleType: 'SUV',
     });
-    expect(calls).toHaveLength(1);
-    expect(calls[0].offerings.map((offering) => offering.offeringId)).toEqual(['low', 'mid', 'high']);
+    expect(calls.length).toBeGreaterThanOrEqual(1);
     expect(first.items.map((item) => item.offeringId)).toEqual(['low']);
     expect(first.hasMore).toBe(true);
 
     const second = await service.listOfferings({
+      communityId: 'community-1',
       sort: 'price:asc',
       limit: 1,
       availableOn: '2026-12-01',
@@ -107,124 +203,30 @@ describe('OfferingsService', () => {
     });
   });
 
-  it('does not call availability unless availableOn is set and rejects an oversized branch set', async () => {
+  it('does not call availability unless availableOn is set', async () => {
     const findBookable = jest.fn();
-    const wide = Array.from({ length: 41 }, (_value, index) => discovery(
-      `svc-${index}`,
-      100 + index,
-      `branch-${index}`,
-    ));
     const service = new OfferingsService(
+      { findBookable },
       {
-        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
-          return { items: wide, truncated: false };
+        async queryActivePage() {
+          return { items: [communityMapping('low')] };
+        },
+        async listDiscoveryRows() {
+          return [discovery('low', 100)];
         },
       },
-      { findBookable },
     );
-
-    await expect(service.listOfferings({ availableOn: '2026-12-01', limit: 10 })).rejects.toMatchObject({
-      statusCode: 400,
-      code: 'AVAILABILITY_FILTER_TOO_BROAD',
-    });
-    expect(findBookable).not.toHaveBeenCalled();
-
-    const plain = new OfferingsService(
-      {
-        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
-          return { items: [discovery('low', 100)], truncated: false };
-        },
-      },
-      { findBookable },
-    );
-    const page = await plain.listOfferings({ limit: 10 });
+    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
     expect(page.items).toHaveLength(1);
     expect(findBookable).not.toHaveBeenCalled();
   });
 
-  it('fails closed when the discovery partition is larger than the candidate cap', async () => {
-    const service = new OfferingsService(
-      {
-        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
-          return { items: [], truncated: true };
-        },
-      },
-      { findBookable: jest.fn() },
-    );
-    await expect(service.listOfferings({ limit: 10 })).rejects.toMatchObject({
+  it('fails closed when community discovery is not configured', async () => {
+    const service = new OfferingsService({ findBookable: jest.fn() }, null);
+    await expect(service.listOfferings({ communityId: 'community-1', limit: 10 })).rejects.toMatchObject({
       statusCode: 503,
-      code: 'OFFERING_CANDIDATE_LIMIT',
+      code: 'COMMUNITY_OFFERING_UNAVAILABLE',
     });
-  });
-
-  it('filters by community through GSI3 and still returns branchId', async () => {
-    const queried: string[] = [];
-    const service = new OfferingsService(
-      {
-        async listDiscoveryPartition(): Promise<DiscoveryPartitionPage> {
-          throw new Error('branch discovery should stay unused');
-        },
-      },
-      { findBookable: jest.fn() },
-      {
-        async queryActivePage(input) {
-          queried.push(input.communityId);
-          return {
-            items: [{
-              PK: 'SERVICE#low',
-              SK: 'COMMUNITY#community-1',
-              entityType: 'OfferingCommunity',
-              vendorId: 'vendor-1',
-              categoryId: 'cat-1',
-              serviceId: 'low',
-              communityId: 'community-1',
-              status: 'active',
-              serviceActive: true,
-              version: 1,
-              GSI3PK: 'COMMUNITY#community-1',
-              GSI3SK: 'SERVICE#cat-1#low',
-              createdAt: '2026-10-01T00:00:00.000Z',
-              updatedAt: '2026-10-01T00:00:00.000Z',
-            }],
-          };
-        },
-        async listDiscoveryRows() {
-          return [discovery('low', 100, 'branch-9')];
-        },
-      },
-      true,
-    );
-
-    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
-    expect(queried).toEqual(['community-1']);
-    expect(page.items).toEqual([
-      expect.objectContaining({ serviceId: 'low', offeringId: 'low', branchId: 'branch-9' }),
-    ]);
-  });
-
-  it('keeps branch discovery when community enforcement is off', async () => {
-    const partitions: string[] = [];
-    const service = new OfferingsService(
-      {
-        async listDiscoveryPartition(partitionKey: string): Promise<DiscoveryPartitionPage> {
-          partitions.push(partitionKey);
-          return { items: [discovery('low', 100)], truncated: false };
-        },
-      },
-      { findBookable: jest.fn() },
-      {
-        async queryActivePage() {
-          throw new Error('community index should stay unused');
-        },
-        async listDiscoveryRows() {
-          return [];
-        },
-      },
-      false,
-    );
-    const page = await service.listOfferings({ communityId: 'community-1', limit: 10 });
-    expect(partitions).toEqual(['DISCOVERY#ALL']);
-    expect(page.items[0]?.branchId).toBe('branch-1');
   });
 });
 

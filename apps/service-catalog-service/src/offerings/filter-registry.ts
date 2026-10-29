@@ -18,6 +18,7 @@ import {
   ParsedOfferingsQuery,
   offeringKey,
 } from './types';
+import { logger } from '@api-hub/observability';
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const MONEY_PATTERN = /^(?:0|[1-9]\d{0,6})(?:\.\d{1,2})?$/;
@@ -126,6 +127,7 @@ export function applyCatalogFilters(
   const matches: OfferingCandidate[] = [];
 
   for (const entity of items) {
+    logger.info({ event: 'applyCatalogFiltersentity', entity });
     if (!isMarketplaceEligible(entity)) {
       continue;
     }
@@ -173,8 +175,7 @@ export function applyCatalogFilters(
 function isMarketplaceEligible(entity: ServiceDiscoveryEntity): boolean {
   return entity.entityType === 'SERVICE_DISCOVERY'
     && entity.active === true
-    && entity.vendorApproved === true
-    && entity.branchOperational === true;
+    && entity.vendorApproved === true 
 }
 
 function matchesClauses(

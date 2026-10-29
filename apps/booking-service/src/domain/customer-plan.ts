@@ -39,9 +39,30 @@ export function mapIncludedServices(pkg: CatalogPackage): PlanIncludedService[] 
     ...(entry.description === undefined ? {} : { description: entry.description }),
     categoryId: entry.categoryId,
     ...(entry.tags === undefined ? {} : { tags: [...entry.tags] }),
+    ...(entry.serviceKey === undefined ? {} : { serviceKey: entry.serviceKey }),
     visitsPerPeriod: entry.visitsPerPeriod,
     durationMinutes: entry.durationMinutes,
   }));
+}
+
+/**
+ * Prefer catalog entitlements (serviceKey-based) when present; otherwise derive
+ * from package items / included service names.
+ */
+export function resolvePlanEntitlements(pkg: CatalogPackage): PlanEntitlement[] {
+  if (pkg.entitlements && pkg.entitlements.length > 0) {
+    return pkg.entitlements.map((entry) => ({
+      serviceId: entry.serviceId,
+      quantity: entry.quantity,
+    }));
+  }
+  if (pkg.includedServices.length > 0) {
+    return pkg.includedServices.map((entry) => ({
+      serviceId: entry.serviceKey ?? entry.name,
+      quantity: entry.visitsPerPeriod,
+    }));
+  }
+  return deriveEntitlements(pkg.items);
 }
 
 export function billingPeriodToCadence(billingPeriod: PlanBillingPeriod): PlanCadence {
@@ -132,7 +153,7 @@ export function assertPackageSellable(
   if (!pkg.active) {
     throw new BookingError('PACKAGE_INACTIVE', 'Package is not active', 409, 'offeringId', false);
   }
-  if (totalVisits(deriveEntitlements(pkg.items)) < 1) {
+  if (totalVisits(resolvePlanEntitlements(pkg)) < 1) {
     throw new BookingError('PACKAGE_NOT_PURCHASABLE', 'Package has no service entitlements', 409, 'offeringId', false);
   }
 }

@@ -12,10 +12,9 @@ import { validateCreateCustomerPlan } from '../schemas/customer-plans.schema';
 
 const command = {
   vendorId: 'vendor_1',
-  branchId: 'branch_1',
   offeringId: 'pkg_weekly_wash',
   vehicleId: 'veh_1',
-  location: { fulfilmentType: 'community', communityId: 'comm_1', addressId: 'addr_1' },
+  location: { fulfilmentType: 'community', communityId: 'comm_1' },
   visitWindowId: 'morning',
   autoRenew: true,
   expectedPrice: { totalMinor: 1999, currency: 'INR' },
@@ -47,6 +46,7 @@ const catalogPackage: CatalogPackage = {
     { refId: 'svc_wax', itemType: 'SERVICE', quantity: 1 },
     { refId: 'addon_foam', itemType: 'ADDON' },
   ],
+  communities: [{ communityId: 'comm_1', status: 'active', approvalStatus: 'approved' }],
 };
 
 function request(body: unknown = command, options: { customerId?: string; key?: string | null; planId?: string } = {}): LambdaRequest {
@@ -64,7 +64,6 @@ function planRecord(overrides: Partial<CustomerPlanRecord> = {}): CustomerPlanRe
     planId: 'plan-1',
     customerId: 'customer-1',
     vendorId: 'vendor_1',
-    branchId: 'branch_1',
     packageId: 'pkg_weekly_wash',
     offeringId: 'pkg_weekly_wash',
     vehicleId: 'veh_1',
@@ -116,7 +115,6 @@ describe('CustomerPlansService', () => {
     vendors = {
       getCheckoutEligibility: jest.fn().mockResolvedValue({
         vendor: { vendorId: 'vendor_1', vendorName: 'Beauty Wheels', status: 'ACTIVE', operationalStatus: 'ONLINE', communityIds: ['comm_1'] },
-        branch: { branchId: 'branch_1', vendorId: 'vendor_1', branchName: 'Indiranagar' },
       }),
     };
     users = { getProfile: jest.fn().mockResolvedValue({ communityIds: ['comm_1'] }), assertAddress: jest.fn().mockResolvedValue(undefined) };
@@ -125,7 +123,7 @@ describe('CustomerPlansService', () => {
   });
 
   describe('create', () => {
-    it('creates a PENDING_PAYMENT plan with vehicle-matched price and visitWindowId', async () => {
+    it('creates a PENDING_PAYMENT plan with vehicle-matched price and visitWindowId without a branch', async () => {
       const result = await service.create(request());
 
       expect(result).toMatchObject({
@@ -139,6 +137,7 @@ describe('CustomerPlansService', () => {
         cadence: 'WEEKLY',
         remainingVisits: 3,
         visitWindowId: 'morning',
+        location: { fulfilmentType: 'community', communityId: 'comm_1' },
         autoRenew: true,
         entitlements: [{ serviceId: 'svc_wash', quantity: 2 }, { serviceId: 'svc_wax', quantity: 1 }],
         pricingSnapshot: {
@@ -153,8 +152,15 @@ describe('CustomerPlansService', () => {
       });
       expect(result.planId).toEqual(expect.any(String));
       expect(result).not.toHaveProperty('customerId');
+      expect(result).not.toHaveProperty('branchId');
       expect(result).not.toHaveProperty('billingPeriodStart');
-      expect(plans.createPlan).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', autoRenew: true }), expect.any(String), 'idem-1');
+      expect(vendors.getCheckoutEligibility).toHaveBeenCalledWith('vendor_1');
+      expect(plans.createPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ customerId: 'customer-1', autoRenew: true }),
+        expect.any(String),
+        'idem-1',
+      );
+      expect(plans.createPlan.mock.calls[0][0]).not.toHaveProperty('branchId');
       expect(packages.getPackage).toHaveBeenCalledWith(expect.objectContaining({ packageId: 'pkg_weekly_wash', vendorId: 'vendor_1' }));
     });
 

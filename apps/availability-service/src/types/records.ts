@@ -131,6 +131,8 @@ export interface AllocationItem extends KeyedItem {
   endTime?: string;
   timezone?: string;
   durationMinutes?: number;
+  packageVisitId?: string;
+  planId?: string;
   units: number;
   status: AllocationStatus;
   createdAt: string;
@@ -154,6 +156,8 @@ export interface AllocationLookupItem extends KeyedItem {
   endTime?: string;
   timezone?: string;
   durationMinutes?: number;
+  packageVisitId?: string;
+  planId?: string;
   units: number;
   status: AllocationStatus;
   canonicalPk: string;

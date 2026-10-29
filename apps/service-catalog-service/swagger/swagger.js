@@ -1095,6 +1095,11 @@
           "title": "IncludedService.tags",
           "type": "array"
         },
+        "serviceKey": {
+          "title": "IncludedService.serviceKey",
+          "description": "Stable entitlement identity; unique within the offering when set.",
+          "type": "string"
+        },
         "visitsPerPeriod": {
           "title": "IncludedService.visitsPerPeriod",
           "type": "number"
@@ -1113,6 +1118,41 @@
       ],
       "additionalProperties": false,
       "title": "IncludedService",
+      "type": "object"
+    },
+    "OfferingEntitlement": {
+      "properties": {
+        "serviceId": {
+          "title": "OfferingEntitlement.serviceId",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "OfferingEntitlement.quantity",
+          "type": "number"
+        },
+        "name": {
+          "title": "OfferingEntitlement.name",
+          "type": "string"
+        },
+        "durationMinutes": {
+          "title": "OfferingEntitlement.durationMinutes",
+          "type": "number"
+        },
+        "categoryId": {
+          "title": "OfferingEntitlement.categoryId",
+          "type": "string"
+        }
+      },
+      "required": [
+        "serviceId",
+        "quantity",
+        "name",
+        "durationMinutes",
+        "categoryId"
+      ],
+      "additionalProperties": false,
+      "title": "OfferingEntitlement",
+      "description": "Computed from includedServices for booking and plan clients.",
       "type": "object"
     },
     "OfferingVisitWindow": {
@@ -1177,6 +1217,14 @@
     },
     "CreateOfferingRequest": {
       "properties": {
+        "vendorId": {
+          "title": "CreateOfferingRequest.vendorId",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "CreateOfferingRequest.categoryId",
+          "type": "string"
+        },
         "offeringType": {
           "title": "CreateOfferingRequest.offeringType",
           "enum": [
@@ -1199,6 +1247,11 @@
         "currency": {
           "title": "CreateOfferingRequest.currency",
           "type": "string"
+        },
+        "validityDays": {
+          "title": "CreateOfferingRequest.validityDays",
+          "description": "Purchase validity window in days for oneTime packages; optional metadata otherwise.",
+          "type": "number"
         },
         "vehiclePricing": {
           "items": {
@@ -1246,6 +1299,8 @@
         }
       },
       "required": [
+        "vendorId",
+        "categoryId",
         "offeringType",
         "name",
         "billingPeriod",
@@ -1273,6 +1328,10 @@
         "currency": {
           "title": "PatchOfferingRequest.currency",
           "type": "string"
+        },
+        "validityDays": {
+          "title": "PatchOfferingRequest.validityDays",
+          "type": "number"
         },
         "vehiclePricing": {
           "items": {
@@ -1349,6 +1408,10 @@
           "title": "Offering.currency",
           "type": "string"
         },
+        "validityDays": {
+          "title": "Offering.validityDays",
+          "type": "number"
+        },
         "vehiclePricing": {
           "items": {
             "$ref": "#/definitions/VehiclePricing",
@@ -1371,6 +1434,14 @@
             "title": "Offering.includedServices.[]"
           },
           "title": "Offering.includedServices",
+          "type": "array"
+        },
+        "entitlements": {
+          "items": {
+            "$ref": "#/definitions/OfferingEntitlement",
+            "title": "Offering.entitlements.[]"
+          },
+          "title": "Offering.entitlements",
           "type": "array"
         },
         "visitWindows": {
@@ -1425,6 +1496,7 @@
         "vehiclePricing",
         "vehicleTypes",
         "includedServices",
+        "entitlements",
         "status",
         "active",
         "version",
@@ -1461,6 +1533,158 @@
       ],
       "additionalProperties": false,
       "title": "OfferingPage",
+      "type": "object"
+    },
+    "MarketplaceOffering": {
+      "properties": {
+        "offeringId": {
+          "title": "MarketplaceOffering.offeringId",
+          "type": "string"
+        },
+        "serviceId": {
+          "title": "MarketplaceOffering.serviceId",
+          "type": "string"
+        },
+        "name": {
+          "title": "MarketplaceOffering.name",
+          "type": "string"
+        },
+        "description": {
+          "title": "MarketplaceOffering.description",
+          "type": "string"
+        },
+        "categoryId": {
+          "title": "MarketplaceOffering.categoryId",
+          "type": "string"
+        },
+        "vendorId": {
+          "title": "MarketplaceOffering.vendorId",
+          "type": "string"
+        },
+        "branchId": {
+          "title": "MarketplaceOffering.branchId",
+          "description": "Optional — community package discovery may omit branch coverage.",
+          "type": "string"
+        },
+        "vehicleTypes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/definitions/VehicleType",
+                "title": "MarketplaceOffering.vehicleTypes.[]"
+              },
+              "title": "MarketplaceOffering.vehicleTypes.[]",
+              "type": "array"
+            },
+            {
+              "items": {
+                "title": "MarketplaceOffering.vehicleTypes.[]",
+                "type": "string"
+              },
+              "title": "MarketplaceOffering.vehicleTypes.[]",
+              "type": "array"
+            }
+          ],
+          "title": "MarketplaceOffering.vehicleTypes"
+        },
+        "displayPrice": {
+          "title": "MarketplaceOffering.displayPrice",
+          "type": "number"
+        },
+        "currency": {
+          "title": "MarketplaceOffering.currency",
+          "type": "string"
+        },
+        "durationMinutes": {
+          "title": "MarketplaceOffering.durationMinutes",
+          "type": "number"
+        },
+        "distanceKm": {
+          "title": "MarketplaceOffering.distanceKm",
+          "type": "number"
+        },
+        "rating": {
+          "title": "MarketplaceOffering.rating",
+          "type": "number"
+        },
+        "reviewCount": {
+          "title": "MarketplaceOffering.reviewCount",
+          "type": "number"
+        },
+        "status": {
+          "title": "MarketplaceOffering.status",
+          "enum": [
+            "active"
+          ],
+          "type": "string"
+        },
+        "imageUrl": {
+          "properties": {
+            "alt": {
+              "title": "MarketplaceOffering.imageUrl.alt",
+              "type": "string"
+            },
+            "url": {
+              "title": "MarketplaceOffering.imageUrl.url",
+              "type": "string"
+            },
+            "contentType": {
+              "title": "MarketplaceOffering.imageUrl.contentType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "alt",
+            "url"
+          ],
+          "additionalProperties": false,
+          "title": "MarketplaceOffering.imageUrl",
+          "type": "object"
+        }
+      },
+      "required": [
+        "offeringId",
+        "serviceId",
+        "name",
+        "categoryId",
+        "vendorId",
+        "vehicleTypes",
+        "displayPrice",
+        "currency",
+        "durationMinutes",
+        "status",
+        "imageUrl"
+      ],
+      "additionalProperties": false,
+      "title": "MarketplaceOffering",
+      "description": "Customer marketplace discovery projection (GET /offerings).",
+      "type": "object"
+    },
+    "MarketplaceOfferingsPage": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/MarketplaceOffering",
+            "title": "MarketplaceOfferingsPage.items.[]"
+          },
+          "title": "MarketplaceOfferingsPage.items",
+          "type": "array"
+        },
+        "hasMore": {
+          "title": "MarketplaceOfferingsPage.hasMore",
+          "type": "boolean"
+        },
+        "nextCursor": {
+          "title": "MarketplaceOfferingsPage.nextCursor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "hasMore"
+      ],
+      "additionalProperties": false,
+      "title": "MarketplaceOfferingsPage",
       "type": "object"
     },
     "Service": {

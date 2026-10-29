@@ -561,12 +561,13 @@
           "request": {
             "method": "GET",
             "header": [],
-            "description": "Customer marketplace search. categoryId selects the discovery partition. sort and cursor apply to the full filtered set. availableOn asks Availability which of those offerings have a bookable slot.",
+            "description": "Customer marketplace search. communityId is required and selects the community mapping index (GSI3). There is no global DISCOVERY#ALL fallback. Optional categoryId, search, sort, cursor, and availableOn still apply on that community path.",
             "url": {
-              "raw": "{{baseUrl}}/offerings?search=polish&categoryId={{categoryId}}&vehicleType=SUV&vendorId={{vendorId}}&minPrice=100&maxPrice=900&minRating=4&status=active&latitude=12.9716&longitude=77.5946&radiusKm=10&sort=price:asc,rating:desc&limit=20",
+              "raw": "{{baseUrl}}/offerings?communityId={{communityId}}&search=polish&categoryId={{categoryId}}&vehicleType=SUV&vendorId={{vendorId}}&minPrice=100&maxPrice=900&minRating=4&status=active&latitude=12.9716&longitude=77.5946&radiusKm=10&sort=price:asc,rating:desc&limit=20",
               "host": ["{{baseUrl}}"],
               "path": ["offerings"],
               "query": [
+                { "key": "communityId", "value": "{{communityId}}", "description": "Required. Customer community for marketplace discovery." },
                 { "key": "search", "value": "polish", "description": "Matches offering name, description, and keywords stored in searchText." },
                 { "key": "categoryId", "value": "{{categoryId}}" },
                 { "key": "vehicleType", "value": "SUV", "description": "One code or a comma-separated list. Codes: HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE." },
@@ -630,6 +631,7 @@
     {"key": "baseUrl", "value": "http://localhost:3000/dev", "type": "string"},
     {"key": "authToken", "value": "", "type": "string"},
     {"key": "vendorId", "value": "", "type": "string"},
+    {"key": "communityId", "value": "comm_demo_001", "type": "string"},
     {"key": "categoryId", "value": "", "type": "string"},
     {"key": "serviceId", "value": "", "type": "string"},
     {"key": "addonId", "value": "", "type": "string"},

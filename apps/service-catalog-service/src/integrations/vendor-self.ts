@@ -10,7 +10,8 @@ export interface CallerVendorIdentity {
 
 /**
  * Resolves the authenticated provider's vendor from Vendor Service `/vendors/me`.
- * Never trusts a client-supplied vendorId for ownership.
+ * Callers that accept a client-supplied vendorId must still compare it to this
+ * identity before granting ownership.
  */
 export async function resolveCallerVendor(
   request: LambdaRequest,

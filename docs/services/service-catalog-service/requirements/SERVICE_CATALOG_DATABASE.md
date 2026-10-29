@@ -59,11 +59,11 @@ Name uniqueness stays on GSI1. A service name is unique per vendor and category 
 | `GET /packages?vendorId=` | Query GSI2 | `VENDOR#<vendorId>` / `PACKAGE#` |
 | `GET /addons?vendorId=` | Query GSI2 | `VENDOR#<vendorId>` / `ADDON#` |
 | `GET /catalog/discover` | Query GSI2 | `DISCOVERY#ALL` or `DISCOVERY#CATEGORY#<categoryId>` |
-| `GET /offerings` | Query GSI2, then filter and sort the complete partition | `DISCOVERY#CATEGORY#<categoryId>` when `categoryId` is `eq`, otherwise `DISCOVERY#ALL` |
+| `GET /offerings` | Require `communityId`; query GSI3 community mappings, then load discovery rows (no `DISCOVERY#ALL` fallback) | `COMMUNITY#<communityId>` (+ optional category SK prefix) |
 
-`GET /offerings` does not add a GSI. GSI2 sort order is service id and branch id. Display price depends on the selected vehicle type, and distance is calculated, so those sorts are applied after the partition is read. The read stops at 5000 discovery rows. A larger partition returns `503 OFFERING_CANDIDATE_LIMIT` and is the point at which a search index would be required. The query planner selects the partition from the filter registry, so a later partition hint does not require a new handler.
+`GET /offerings` requires `communityId` and pages active community mappings on GSI3. Discovery projection rows are loaded per mapped offering; missing or non-operational branch coverage does not hide a valid community offering. Client filters, search, sort, and pagination still apply on that community path. There is no fallback to GSI2 `DISCOVERY#ALL`.
 
-`availableOn` is not stored on the discovery item. Catalog asks Availability, once, which offerings in the filtered set have a bookable slot. That check is capped at 40 branches and 500 offerings.
+`availableOn` is not stored on the discovery item. Catalog asks Availability which matched offerings have a bookable slot. Branchless community packages are skipped for slot checks because slots remain branch-scoped.
 
 `vehiclePricing` is stored on the service item as a list of maps: `vehicleType`, `price`, and `durationMinutes`. One service is not split into one item per vehicle type. `basePrice` is the lowest price and `durationMinutes` is the shortest duration, so LSI5 still has a single duration. A `vehicleType` list filter does not scan the table. Marketplace discovery stays on `GET /catalog/discover`, which copies each vehicle price onto the discovery projection.
 

@@ -14,7 +14,7 @@ Platform categories and provider offerings for Beauty on Wheels.
 
 ### Offerings
 
-- `GET /offerings` — customer marketplace discovery (filters: `search`, `categoryId`, `vehicleType`, `minPrice`, `maxPrice`, `minRating`, `status`, `sort`, `limit`, pagination, `communityId`, geo, availability)
+- `GET /offerings` — customer marketplace discovery (**requires** `communityId`; filters: `search`, `categoryId`, `vehicleType`, `minPrice`, `maxPrice`, `minRating`, `status`, `sort`, `limit`, pagination, geo, availability)
 - `POST /offerings` — authenticated provider creates a `PACKAGE` offering
 - `GET /offerings/{offeringId}` — offering details
 - `PATCH /offerings/{offeringId}` — provider updates their offering
@@ -30,17 +30,22 @@ Optional community coverage routes remain under `/offerings/{offeringId}/communi
 Create packages directly as offerings. There is no separate `/services` or `/packages` HTTP API.
 
 - `offeringType`: `PACKAGE` (supported). `SERVICE` is reserved for a future shape on the same resource.
-- `includedServices`: inline service descriptions (`name`, `description`, platform `categoryId`, `tags`, `visitsPerPeriod`, `durationMinutes`). Providers do not create linked service records. `includedServices[].durationMinutes` is **one visit’s duration**.
+- `vendorId` / `categoryId`: required on create. `vendorId` must match the authenticated caller from `/vendors/me`. Top-level `categoryId` must exist and be active; it is persisted on the offering.
+- `includedServices`: inline service descriptions (`name`, `description`, platform `categoryId`, optional `serviceKey`, `tags`, `visitsPerPeriod`, `durationMinutes`). Providers do not create linked service records. `includedServices[].durationMinutes` is **one visit’s duration**. `serviceKey` is an optional stable entitlement id (unique within the offering); when omitted, responses derive `entitlements[].serviceId` from the service name.
+- `validityDays`: optional positive integer (1–730). For `oneTime` packages this is the purchase validity window in days; for recurring billing periods it is optional metadata.
+- `entitlements` (response only): computed array of `{ serviceId, quantity, name, durationMinutes, categoryId }` from `includedServices` (`serviceKey` or slugified name, `visitsPerPeriod` as quantity).
 - `vehiclePricing`: per vehicle type with **integer minor units** (final customer price) and explicit `currency` (default `INR`). `vehiclePricing[].durationMinutes` is the **total package duration across visits in the billing period** for that vehicle (for example, a weekly package whose visits sum to 170 minutes uses `170` here). It is not labeled as per-visit duration.
 - `visitWindows`: optional package-defined preferred visit windows (`visitWindowId`, `label`, and either `allDay: true` or `startTime`/`endTime`). Selection is a preference for the provider to coordinate; not a confirmed availability slot.
 - `billingPeriod`: `oneTime` | `weekly` | `monthly` | `yearly`. Name/description must not contradict the period (for example, “daily” with `weekly`).
-- Lifecycle: `draft` → `published` → `paused` / `archived`. Only `published` offerings are customer-eligible (`active: true`). Version increments when price, composition, visit windows, or status-relevant fields change.
+- Lifecycle: `draft` → `published` → `paused` / `archived`. Only `published` offerings are customer-eligible (`active: true`). Version increments when price, composition (including `serviceKey`), `validityDays`, visit windows, or status-relevant fields change.
 - Capacity and real-time availability belong to Availability Service, not this catalog. Pricing Service is not used for package final price.
 
 Example create body:
 
 ```json
 {
+  "vendorId": "vend_demo_001",
+  "categoryId": "cat_wash",
   "offeringType": "PACKAGE",
   "name": "Premium weekly wash",
   "description": "Interior and exterior wash package billed weekly",
@@ -85,7 +90,7 @@ Example create body:
 
 ## Marketplace discovery
 
-`GET /offerings` reads the discovery projection on GSI2 (`DISCOVERY#ALL`, or `DISCOVERY#CATEGORY#<categoryId>`). Only published offerings project onto that index. The list response is a discovery page (`items`, `hasMore`, optional `nextCursor`) — not the full PACKAGE detail. Use `GET /offerings/{id}` for `includedServices`, `visitWindows`, vehicle-specific pricing, billing period, currency, and publication/active state. `GET /offerings/{id}` returns published offerings to any authenticated caller; draft/paused/archived are owner-only. Community enforcement via GSI3 is controlled by `COMMUNITY_OFFERING_ENFORCEMENT`.
+`GET /offerings` requires `communityId` and lists active, approved community mappings on GSI3 (`COMMUNITY#<communityId>`). There is no fallback to global GSI2 (`DISCOVERY#ALL` / `DISCOVERY#CATEGORY#…`) when the community query returns no rows. Missing or invalid `communityId` returns `400`. Only published/active offerings with an indexed community mapping are returned. The list response is a discovery page (`items`, `hasMore`, optional `nextCursor`) — not the full PACKAGE detail. Use `GET /offerings/{id}` for `includedServices`, `visitWindows`, vehicle-specific pricing, billing period, currency, publication/active state, and `communities` eligibility. Package detail does not require `branchId`. Community marketplace listing prefers an operational branch when one exists, but does not hide a valid community offering solely because `branchId` is absent or `branchOperational` is false.
 
 ## Removed HTTP surfaces
 

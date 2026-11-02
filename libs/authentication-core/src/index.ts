@@ -20,6 +20,7 @@ export * from './lib/auth/application-roles';
 export * from './lib/auth/application-user';
 export * from './lib/auth/auth-context';
 export * from './lib/auth/permissions';
+export * from './lib/auth/registration-access';
 export * from './lib/auth/jwks-cache';
 export * from './lib/auth/token-validator';
 export * from './lib/auth/authenticate';

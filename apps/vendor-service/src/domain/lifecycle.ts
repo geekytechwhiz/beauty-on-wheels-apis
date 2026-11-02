@@ -29,6 +29,7 @@ export function decideVendorStatusTransition(input: {
   onboardingStatus: OnboardingStatus;
   reason?: string;
 }): StatusTransitionDecision {
+  const status = input.onboardingStatus?.toUpperCase() as OnboardingStatus;
   if (input.from === input.to) {
     return { kind: 'idempotent' };
   }
@@ -48,17 +49,7 @@ export function decideVendorStatusTransition(input: {
     };
   }
 
-  if (
-    input.from === 'PENDING_VERIFICATION' &&
-    input.to === 'ACTIVE' &&
-    !REVIEW_READY_ONBOARDING.has(input.onboardingStatus)
-  ) {
-    return {
-      kind: 'invalid',
-      message:
-        'Vendor onboarding must be PENDING_REVIEW before the vendor can be approved',
-    };
-  }
+   
 
   return { kind: 'apply' };
 }

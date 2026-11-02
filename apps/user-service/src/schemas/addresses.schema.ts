@@ -11,7 +11,11 @@ export const AddressRequestSchema = z
       .enum([ADDRESS_TYPE.HOME, ADDRESS_TYPE.WORK, ADDRESS_TYPE.BUSINESS])
       .optional(),
 
-    communityId: z.string().trim().min(1),
+    // A legacy standalone address is allowed; a customer can be linked to a
+    // community independently through the canonical membership route.
+    communityId: z.string().trim().min(1).optional(),
+
+    country: z.string().trim().min(2).max(80).optional(),
 
     line1: z.string().trim().min(1).max(200),
 

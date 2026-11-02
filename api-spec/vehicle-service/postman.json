@@ -1,0 +1,1495 @@
+{
+  "item": [
+    {
+      "id": "ea92166e-3fc5-4b35-af3b-6555063d8855",
+      "name": "vehicles",
+      "item": [
+        {
+          "id": "dce4c69a-5486-4679-a1e9-2eb9e0455072",
+          "name": "List my vehicles",
+          "request": {
+            "name": "List my vehicles",
+            "description": {
+              "content": "Requires a bearer access token. Returns only vehicles owned by the authenticated user. Query status (ACTIVE or INACTIVE) or vehicleType. The platform envelope puts the list at data.items.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "vehicles"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "API Gateway id",
+                  "type": "any",
+                  "value": "{{apiId}}",
+                  "key": "apiId"
+                },
+                {
+                  "description": "Deployment stage",
+                  "type": "any",
+                  "value": "{{stage}}",
+                  "key": "stage"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [
+            {
+              "id": "b3bc16c3-7ce0-4c97-bade-0350a7c30996",
+              "name": "Vehicle list in data.items",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "vehicles"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                },
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"registrationNumber\": \"string\",\n  \"vehicleType\": \"LUXURY\",\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"brand\": \"string\",\n  \"model\": \"string\",\n  \"variant\": \"string\",\n  \"color\": \"string\",\n  \"fuelType\": \"CNG\",\n  \"manufactureYear\": 7623,\n  \"defaultVehicle\": false\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "68179821-81eb-454d-b742-53dac03ad743",
+              "name": "Request failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "vehicles"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "body": {}
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                },
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 4123,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "edad3d7f-f033-4fd4-a310-e04998316a84",
+          "name": "Add vehicle",
+          "request": {
+            "name": "Add vehicle",
+            "description": {
+              "content": "Requires a bearer access token. The vehicle is stored for the authenticated user. A client-supplied userId is ignored. HTTP 200 platform envelope; the vehicle is in data.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "vehicles"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "API Gateway id",
+                  "type": "any",
+                  "value": "{{apiId}}",
+                  "key": "apiId"
+                },
+                {
+                  "description": "Deployment stage",
+                  "type": "any",
+                  "value": "{{stage}}",
+                  "key": "stage"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "id": "c4fbae70-e8b0-4c3c-be65-5c7327435f76",
+              "name": "Vehicle created",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "vehicles"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                },
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/plain"
+                }
+              ],
+              "body": "",
+              "cookie": [],
+              "_postman_previewlanguage": "text"
+            },
+            {
+              "id": "dbdaa81a-4fb2-4fe7-8f57-5bd2f9fb0e89",
+              "name": "Request failed",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "vehicles"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "description": {
+                      "content": "Added as a part of security scheme: bearer",
+                      "type": "text/plain"
+                    },
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                },
+                {
+                  "disabled": false,
+                  "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "cookie": [],
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "97295798-d7e4-4db1-b910-79e87fd91eef",
+          "name": "{vehicleId}",
+          "item": [
+            {
+              "id": "69dcecb1-b4ee-4660-929b-f05fa54b6180",
+              "name": "Get vehicle",
+              "request": {
+                "name": "Get vehicle",
+                "description": {
+                  "content": "Get vehicle",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "vehicles",
+                    ":vehicleId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "vehicleId",
+                      "description": "(Required) vehicleId"
+                    },
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": null
+              },
+              "response": [
+                {
+                  "id": "94db9b42-312b-4554-a30e-8edd5e8f0385",
+                  "name": "Vehicle",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET",
+                    "body": {}
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                },
+                {
+                  "id": "b1d09934-0833-4081-a1b5-5eda97a681f3",
+                  "name": "Request failed",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "GET",
+                    "body": {}
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                }
+              ],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "id": "08bb83b1-22d4-469d-a147-1374772a3714",
+              "name": "Update vehicle",
+              "request": {
+                "name": "Update vehicle",
+                "description": {
+                  "content": "Update vehicle",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "vehicles",
+                    ":vehicleId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "vehicleId",
+                      "description": "(Required) vehicleId"
+                    },
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "auth": null,
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "id": "7c675319-62e8-4a45-a320-7e9d0b12d420",
+                  "name": "Updated",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      }
+                    ],
+                    "method": "PUT",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "text/plain"
+                    }
+                  ],
+                  "body": "",
+                  "cookie": [],
+                  "_postman_previewlanguage": "text"
+                },
+                {
+                  "id": "8b98fde3-69ec-4bcc-a988-dd85144c367b",
+                  "name": "Request failed",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PUT",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                }
+              ],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "id": "769fbbcb-af7b-442e-8804-5842f6b51328",
+              "name": "Delete vehicle",
+              "request": {
+                "name": "Delete vehicle",
+                "description": {
+                  "content": "Requires a bearer access token. Deletes a vehicle owned by the authenticated user. Success is HTTP 200 with the platform envelope and data null.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "vehicles",
+                    ":vehicleId"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "vehicleId",
+                      "description": "(Required) vehicleId"
+                    },
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "auth": null
+              },
+              "response": [
+                {
+                  "id": "e872f59a-df8d-409e-b0d8-8467695c81af",
+                  "name": "Deleted",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      }
+                    ],
+                    "method": "DELETE",
+                    "body": {}
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "text/plain"
+                    }
+                  ],
+                  "body": "",
+                  "cookie": [],
+                  "_postman_previewlanguage": "text"
+                },
+                {
+                  "id": "240e29d3-80ac-4710-b36b-aa3bed513b55",
+                  "name": "Request failed",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "DELETE",
+                    "body": {}
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                }
+              ],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            },
+            {
+              "id": "b0287873-f465-4d1f-9fed-a65d64327796",
+              "name": "Set default vehicle",
+              "request": {
+                "name": "Set default vehicle",
+                "description": {
+                  "content": "Set default vehicle",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "path": [
+                    "vehicles",
+                    ":vehicleId",
+                    "default"
+                  ],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "query": [],
+                  "variable": [
+                    {
+                      "disabled": false,
+                      "type": "any",
+                      "value": "<string>",
+                      "key": "vehicleId",
+                      "description": "(Required) vehicleId"
+                    },
+                    {
+                      "description": "API Gateway id",
+                      "type": "any",
+                      "value": "{{apiId}}",
+                      "key": "apiId"
+                    },
+                    {
+                      "description": "Deployment stage",
+                      "type": "any",
+                      "value": "{{stage}}",
+                      "key": "stage"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "auth": null
+              },
+              "response": [
+                {
+                  "id": "07d9c6ab-48ed-4420-ac26-969cf6f6de98",
+                  "name": "Default vehicle updated",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId",
+                        "default"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PUT",
+                    "body": {}
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"registrationNumber\": \"<string>\",\n  \"vehicleType\": \"<string>\",\n  \"id\": \"<string>\",\n  \"userId\": \"<string>\",\n  \"brand\": \"<string>\",\n  \"model\": \"<string>\",\n  \"variant\": \"<string>\",\n  \"color\": \"<string>\",\n  \"fuelType\": \"<string>\",\n  \"manufactureYear\": \"<integer>\",\n  \"defaultVehicle\": \"<boolean>\"\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                },
+                {
+                  "id": "bae410cf-e8e5-4729-ae15-3bc6f725c473",
+                  "name": "Request failed",
+                  "originalRequest": {
+                    "url": {
+                      "path": [
+                        "vehicles",
+                        ":vehicleId",
+                        "default"
+                      ],
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "query": [],
+                      "variable": [
+                        {
+                          "disabled": false,
+                          "type": "any",
+                          "value": "<string>",
+                          "key": "vehicleId",
+                          "description": "(Required) vehicleId"
+                        },
+                        {
+                          "description": "API Gateway id",
+                          "type": "any",
+                          "value": "{{apiId}}",
+                          "key": "apiId"
+                        },
+                        {
+                          "description": "Deployment stage",
+                          "type": "any",
+                          "value": "{{stage}}",
+                          "key": "stage"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "description": {
+                          "content": "Added as a part of security scheme: bearer",
+                          "type": "text/plain"
+                        },
+                        "key": "Authorization",
+                        "value": "Bearer <token>"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "PUT",
+                    "body": {}
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "header": [
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                      "key": "Access-Control-Allow-Origin",
+                      "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+                    },
+                    {
+                      "disabled": false,
+                      "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                      "key": "Access-Control-Allow-Credentials",
+                      "value": "true"
+                    },
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "cookie": [],
+                  "_postman_previewlanguage": "json"
+                }
+              ],
+              "event": [],
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              }
+            }
+          ],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "41baf87f-96c8-4ad0-9291-e920879a7a8a",
+      "name": "List supported vehicle types",
+      "request": {
+        "name": "List supported vehicle types",
+        "description": {
+          "content": "Requires a bearer access token. Canonical success body is the platform envelope. data.items is the vehicle type array. Clients must not expect a bare JSON array.",
+          "type": "text/plain"
+        },
+        "url": {
+          "path": [
+            "vehicle-types"
+          ],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "query": [],
+          "variable": [
+            {
+              "description": "API Gateway id",
+              "type": "any",
+              "value": "{{apiId}}",
+              "key": "apiId"
+            },
+            {
+              "description": "Deployment stage",
+              "type": "any",
+              "value": "{{stage}}",
+              "key": "stage"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "method": "GET",
+        "auth": null
+      },
+      "response": [
+        {
+          "id": "4983a170-7299-4de4-8872-51e1ba3916fb",
+          "name": "Vehicle types in data.items",
+          "originalRequest": {
+            "url": {
+              "path": [
+                "vehicle-types"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "API Gateway id",
+                  "type": "any",
+                  "value": "{{apiId}}",
+                  "key": "apiId"
+                },
+                {
+                  "description": "Deployment stage",
+                  "type": "any",
+                  "value": "{{stage}}",
+                  "key": "stage"
+                }
+              ]
+            },
+            "header": [
+              {
+                "description": {
+                  "content": "Added as a part of security scheme: bearer",
+                  "type": "text/plain"
+                },
+                "key": "Authorization",
+                "value": "Bearer <token>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "disabled": false,
+              "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+              "key": "Access-Control-Allow-Origin",
+              "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+            },
+            {
+              "disabled": false,
+              "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+              "key": "Access-Control-Allow-Credentials",
+              "value": "true"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"items\": [\n    \"BIKE\",\n    \"SEDAN\"\n  ]\n}",
+          "cookie": [],
+          "_postman_previewlanguage": "json"
+        },
+        {
+          "id": "43a88b63-4bb1-4404-bcd5-a7775caa19c4",
+          "name": "Request failed",
+          "originalRequest": {
+            "url": {
+              "path": [
+                "vehicle-types"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "description": "API Gateway id",
+                  "type": "any",
+                  "value": "{{apiId}}",
+                  "key": "apiId"
+                },
+                {
+                  "description": "Deployment stage",
+                  "type": "any",
+                  "value": "{{stage}}",
+                  "key": "stage"
+                }
+              ]
+            },
+            "header": [
+              {
+                "description": {
+                  "content": "Added as a part of security scheme: bearer",
+                  "type": "text/plain"
+                },
+                "key": "Authorization",
+                "value": "Bearer <token>"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "body": {}
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [
+            {
+              "disabled": false,
+              "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+              "key": "Access-Control-Allow-Origin",
+              "value": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+            },
+            {
+              "disabled": false,
+              "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+              "key": "Access-Control-Allow-Credentials",
+              "value": "true"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+          "cookie": [],
+          "_postman_previewlanguage": "json"
+        }
+      ],
+      "event": [],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      }
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "description": {
+        "content": "API Gateway id",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "localhost",
+      "key": "apiId"
+    },
+    {
+      "description": {
+        "content": "Deployment stage",
+        "type": "text/plain"
+      },
+      "type": "any",
+      "value": "dev",
+      "key": "stage"
+    },
+    {
+      "type": "string",
+      "value": "https://{{apiId}}.execute-api.us-east-1.amazonaws.com/{{stage}}",
+      "key": "baseUrl"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "172d9ea2-7ca1-4740-a627-bc630b35e3cc",
+    "name": "Carish vehicle-service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Customer garage vehicles and the canonical vehicle-type list.",
+      "type": "text/plain"
+    }
+  }
+}

@@ -13,6 +13,8 @@ import {
 } from '../repositories/customers.repository';
 import { CustomerProfile, CustomerProfileUpdate } from '../types/api-types';
 import {
+  assertOwnerAdminOrService,
+  assertOwnerOrAdmin,
   getUserId,
   isAdminCaller
 } from '../utils';
@@ -32,7 +34,8 @@ export class CustomersService {
   ) {}
 
   async getCustomer(request: LambdaRequest): Promise<CustomerProfile> {
-    const userId = getUserId(request); 
+    const userId = getUserId(request);
+    assertOwnerAdminOrService(request, userId);
 
     const profile = await this.repository.getProfile(userId);
     if (!profile) {
@@ -49,7 +52,7 @@ export class CustomersService {
 
   async putCustomer(request: LambdaRequest): Promise<CustomerProfile> {
     const userId = getUserId(request);
-    // assertOwnerOrAdmin(request, userId);
+    assertOwnerOrAdmin(request, userId);
 
     const body = (request.body ?? {}) as CustomerProfileUpdate;
     this.assertPrivilegedFields(request, body);

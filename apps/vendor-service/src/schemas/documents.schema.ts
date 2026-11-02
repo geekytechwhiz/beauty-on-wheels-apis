@@ -32,11 +32,10 @@ export const CreateDocumentRequestSchema = z
   })
   .strict();
 
+/** Display name only. File bytes stay on the upload and complete routes. */
 export const UpdateDocumentRequestSchema = z
   .object({
-    fileName: fileNameSchema.optional(),
-    contentType: contentTypeSchema.optional(),
-    fileSize: fileSizeSchema.optional(),
+    fileName: fileNameSchema,
   })
   .strict();
 
@@ -53,5 +52,6 @@ export const validateUpdateDocumentRequest = (req: LambdaRequest) => {
   if (!result.success) {
     throw new EventSchemaError('Request validation failed', result.error);
   }
+  req.body = result.data;
   return result.data;
 };

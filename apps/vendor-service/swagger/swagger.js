@@ -9,7 +9,7 @@
     "/vendors": {
       "post": {
         "summary": "Create vendor",
-        "description": "Creates a vendor profile for the authenticated application user. ownerUserId is taken from the verified user id, not the request body. A second create from the same user returns the existing vendor.",
+        "description": "Creates the caller's initial vendor. A phone-verified REGISTRANT whose authorizer context includes vendor:register may call only this route and receives a DRAFT vendor with an owner membership. The owner id and phone come from Identity, not the body. PAN, GST, and documents are not required. A retry returns the existing vendor. CUSTOMER cannot create a vendor. userType is not authorization. Administrators and callers with vendor:create keep their existing create behavior.",
         "tags": [
           "Vendors"
         ],
@@ -466,62 +466,6 @@
         }
       }
     },
-    "/vendors/{vendorId}/operational-status": {
-      "patch": {
-        "summary": "Update vendor operational status",
-        "description": "Controls whether a vendor is currently accepting work.\n\nThis is different from the administrative vendor lifecycle status.\n",
-        "tags": [
-          "Vendors"
-        ],
-        "operationId": "updatevendoroperationalstatus.patch./vendors/{vendorId}/operational-status",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/UpdateOperationalStatusRequest"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Operational status updated successfully",
-            "schema": {
-              "$ref": "#/definitions/VendorResponse"
-            }
-          },
-          "400": {
-            "description": "400 response"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "404": {
-            "description": "404 response"
-          },
-          "409": {
-            "description": "409 response"
-          },
-          "500": {
-            "description": "500 response"
-          }
-        }
-      }
-    },
     "/vendors/{vendorId}/submit-review": {
       "post": {
         "summary": "Submit vendor for review",
@@ -965,14 +909,14 @@
         }
       }
     },
-    "/vendors/{vendorId}/service-areas": {
+    "/vendors/{vendorId}/community-directory": {
       "get": {
-        "summary": "List vendor service areas",
-        "description": "",
+        "summary": "Search the partner community directory",
+        "description": "Returns active community directory records for an owner, admin, or staff member with communities:view. Staff with visits:view may pass ids to resolve labels and cannot browse. Filters are cityId, localityId, postalCode, search, limit, and cursor. The response omits directory keys and assignment actors.",
         "tags": [
-          "Service Areas"
+          "Communities"
         ],
-        "operationId": "listvendorserviceareas.get./vendors/{vendorId}/service-areas",
+        "operationId": "listPartnerCommunityDirectory.get./vendors/{vendorId}/community-directory",
         "consumes": [
           "application/json"
         ],
@@ -989,19 +933,978 @@
         ],
         "responses": {
           "200": {
-            "description": "Service areas retrieved successfully"
+            "description": "Active communities",
+            "schema": {
+              "$ref": "#/definitions/PartnerCommunityDirectoryPage"
+            }
+          },
+          "400": {
+            "description": "Invalid filter or cursor"
           },
           "401": {
-            "description": "401 response"
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot read this vendor directory"
           },
           "404": {
-            "description": "404 response"
+            "description": "Vendor not found"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/community-coverage": {
+      "get": {
+        "summary": "Read vendor community coverage",
+        "description": "Returns this vendor's community coverage ids, directory labels, and updatedAt. Owner, admin, or communities:view. This is vendor coverage, not an offering-to-community mapping.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "getPartnerCommunityCoverage.get./vendors/{vendorId}/community-coverage",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coverage retrieved",
+            "schema": {
+              "$ref": "#/definitions/PartnerCommunityCoverage"
+            }
           },
-          "500": {
-            "description": "500 response"
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot read this vendor coverage"
+          },
+          "404": {
+            "description": "Vendor not found"
           }
         }
       },
+      "put": {
+        "summary": "Replace vendor community coverage",
+        "description": "Owner, admin, or communities:manage replaces this vendor's coverage. communityIds must already be active directory records. expectedUpdatedAt must match the coverage read. A mismatch returns 409 and writes nothing. This does not change offering-to-community mappings.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "replacePartnerCommunityCoverage.put./vendors/{vendorId}/community-coverage",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReplacePartnerCommunityCoverageRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coverage replaced",
+            "schema": {
+              "$ref": "#/definitions/PartnerCommunityCoverage"
+            }
+          },
+          "400": {
+            "description": "Unknown or inactive community"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller cannot change this vendor coverage"
+          },
+          "404": {
+            "description": "Vendor not found"
+          },
+          "409": {
+            "description": "Coverage changed since it was loaded"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/communities/{communityId}/coverage-approval": {
+      "post": {
+        "summary": "Decide vendor community coverage",
+        "description": "Admin only. Sets APPROVED, REJECTED or SUSPENDED on one vendor community and records actor, time, optional reason and a history row. Setting the current status again is a no-op. Capacity proposals and commitments require APPROVED coverage.",
+        "tags": [
+          "Communities"
+        ],
+        "operationId": "updatecommunitycoverageapproval.post./vendors/{vendorId}/communities/{communityId}/coverage-approval",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CommunityCoverageApprovalRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decide vendor community coverage",
+            "schema": {
+              "$ref": "#/definitions/CommunityCoverageApprovalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals": {
+      "post": {
+        "summary": "Create capacity proposal",
+        "description": "Admin only. Creates a SENT proposal, or a DRAFT when sendImmediately is false. Requires APPROVED coverage for the vendor and community. quantity is visit-slots per service-window day. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "createcapacityproposal.post./capacity-proposals",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateCapacityProposalRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      },
+      "get": {
+        "summary": "List capacity proposals",
+        "description": "Admin only. Filter by vendorId, communityId and status.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "listcapacityproposals.get./capacity-proposals",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vendorId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "communityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List capacity proposals",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalListResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals/{proposalId}/send": {
+      "post": {
+        "summary": "Send capacity proposal",
+        "description": "Admin only. DRAFT to SENT. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "sendcapacityproposal.post./capacity-proposals/{proposalId}/send",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SendCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Send capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals/{proposalId}/ops/accept-counter": {
+      "post": {
+        "summary": "Accept vendor counter",
+        "description": "Admin only. COUNTERED to ACCEPTED. Creates the capacity commitment in one transaction after the crew capacity check. 409 when the quantity would exceed capacity. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "acceptcapacitycounter.post./capacity-proposals/{proposalId}/ops/accept-counter",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AcceptCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accept vendor counter",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals/{proposalId}/ops/revise": {
+      "post": {
+        "summary": "Revise capacity proposal",
+        "description": "Admin only. New quantity, rate or deadline. The proposal goes back to SENT. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "revisecapacityproposal.post./capacity-proposals/{proposalId}/ops/revise",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReviseCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revise capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals/{proposalId}/ops/decline": {
+      "post": {
+        "summary": "Decline capacity proposal (ops)",
+        "description": "Admin only. DRAFT becomes CANCELLED. SENT or COUNTERED becomes DECLINED. No commitment is written. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "declinecapacityproposal.post./capacity-proposals/{proposalId}/ops/decline",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DeclineCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decline capacity proposal (ops)",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-proposals/{proposalId}": {
+      "get": {
+        "summary": "Get capacity proposal",
+        "description": "Admin only.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "getcapacityproposal.get./capacity-proposals/{proposalId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-commitments": {
+      "get": {
+        "summary": "List vendor capacity commitments",
+        "description": "Admin, vendor owner, or active staff with communities:manage.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "listvendorcapacitycommitments.get./vendors/{vendorId}/capacity-commitments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List vendor capacity commitments",
+            "schema": {
+              "$ref": "#/definitions/CapacityCommitmentListResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/capacity-commitments/{commitmentId}": {
+      "get": {
+        "summary": "Get capacity commitment",
+        "description": "Admin, or a principal of the owning vendor.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "getcapacitycommitment.get./capacity-commitments/{commitmentId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "commitmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get capacity commitment",
+            "schema": {
+              "$ref": "#/definitions/CapacityCommitmentResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-proposals": {
+      "get": {
+        "summary": "List vendor capacity proposals",
+        "description": "Vendor owner or active staff with communities:manage. The vendor is the one the caller belongs to. DRAFT proposals are not shown.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "listvendorcapacityproposals.get./vendors/{vendorId}/capacity-proposals",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "communityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List vendor capacity proposals",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalListResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-proposals/{proposalId}": {
+      "get": {
+        "summary": "Get vendor capacity proposal",
+        "description": "Vendor owner or active staff with communities:manage.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "getvendorcapacityproposal.get./vendors/{vendorId}/capacity-proposals/{proposalId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get vendor capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-proposals/{proposalId}/accept": {
+      "post": {
+        "summary": "Accept capacity proposal",
+        "description": "Vendor owner or manager. SENT to ACCEPTED and creates the commitment after the crew capacity check (crews x visits per crew per day, summed over overlapping commitments). 409 when over capacity, expired, or coverage is not approved. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "acceptvendorcapacityproposal.post./vendors/{vendorId}/capacity-proposals/{proposalId}/accept",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AcceptCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accept capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-proposals/{proposalId}/counter": {
+      "post": {
+        "summary": "Counter capacity proposal",
+        "description": "Vendor owner or manager. SENT to COUNTERED with a new quantity and or payoutRate. No commitment is created. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "countervendorcapacityproposal.post./vendors/{vendorId}/capacity-proposals/{proposalId}/counter",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CounterCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counter capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/capacity-proposals/{proposalId}/decline": {
+      "post": {
+        "summary": "Decline capacity proposal",
+        "description": "Vendor owner or manager. SENT to DECLINED. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "declinevendorcapacityproposal.post./vendors/{vendorId}/capacity-proposals/{proposalId}/decline",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DeclineCapacityProposalRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decline capacity proposal",
+            "schema": {
+              "$ref": "#/definitions/CapacityProposalResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/service-areas": {
       "post": {
         "summary": "Add vendor service area",
         "description": "",
@@ -1186,39 +2089,6 @@
       }
     },
     "/vendors/{vendorId}/operating-hours": {
-      "get": {
-        "summary": "Get vendor operating hours",
-        "description": "",
-        "tags": [
-          "Operating Hours"
-        ],
-        "operationId": "getvendoroperatinghours.get./vendors/{vendorId}/operating-hours",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Operating hours retrieved successfully"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "404": {
-            "description": "404 response"
-          }
-        }
-      },
       "put": {
         "summary": "Replace vendor operating hours",
         "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n\nHoliday dates and slot blocks are owned by Availability Service and are not stored here.\n",
@@ -1798,7 +2668,7 @@
     "/capabilities": {
       "get": {
         "summary": "List available capabilities",
-        "description": "Returns capability master data. Vendor assignments store IDs only; service and package definitions remain in Service Catalog.",
+        "description": "Returns the canonical capability catalog by category (vehicleType, washMethod, serviceType) with stable ids and display labels. Vendor assignments store ids only; service and package definitions remain in Service Catalog.",
         "tags": [
           "Capabilities"
         ],
@@ -1907,42 +2777,6 @@
       }
     },
     "/vendors/{vendorId}/services": {
-      "get": {
-        "summary": "List vendor catalog services",
-        "description": "Returns provider-specific catalog service mappings, including disabled offerings and optional price overrides.",
-        "tags": [
-          "Capabilities"
-        ],
-        "operationId": "getvendorservices.get./vendors/{vendorId}/services",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Vendor services retrieved"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          }
-        }
-      },
       "put": {
         "summary": "Replace vendor catalog services",
         "description": "Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price.",
@@ -1999,42 +2833,6 @@
       }
     },
     "/vendors/{vendorId}/packages": {
-      "get": {
-        "summary": "List vendor catalog packages",
-        "description": "",
-        "tags": [
-          "Capabilities"
-        ],
-        "operationId": "getvendorpackages.get./vendors/{vendorId}/packages",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Vendor packages retrieved"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          }
-        }
-      },
       "put": {
         "summary": "Replace vendor catalog packages",
         "description": "Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only.",
@@ -2091,42 +2889,6 @@
       }
     },
     "/vendors/{vendorId}/branches": {
-      "get": {
-        "summary": "List vendor branches",
-        "description": "",
-        "tags": [
-          "Branches"
-        ],
-        "operationId": "listvendorbranches.get./vendors/{vendorId}/branches",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Branches retrieved successfully"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          }
-        }
-      },
       "post": {
         "summary": "Create vendor branch",
         "description": "",
@@ -2789,6 +3551,591 @@
           }
         }
       }
+    },
+    "/vendors/{vendorId}/capacity-change-requests": {
+      "post": {
+        "summary": "Request a capacity change",
+        "description": "Vendor owner or manager only. Asks to raise or lower an ACTIVE commitment. While the request is PENDING the commitment shows CHANGE_PENDING and its quantity does not change. Growth is checked against crew capacity. One pending request per commitment. 409 when the commitment is not active. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "createcapacitychangerequest.post./vendors/{vendorId}/capacity-change-requests",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      },
+      "get": {
+        "summary": "List capacity change requests",
+        "description": "Vendor owner or manager only. Newest first. Includes the replacement coverage decision once decided.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "listcapacitychangerequests.get./vendors/{vendorId}/capacity-change-requests",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/ops/capacity-change-requests": {
+      "get": {
+        "summary": "List capacity change requests for ops",
+        "description": "Admin only. Defaults to PENDING.",
+        "tags": [
+          "Capacity Ops"
+        ],
+        "operationId": "opslistcapacitychangerequests.get./ops/capacity-change-requests",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "Request status.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          }
+        }
+      }
+    },
+    "/ops/capacity-change-requests/{requestId}/approve": {
+      "post": {
+        "summary": "Approve a capacity change request",
+        "description": "Admin only. When the new quantity is below the sold quantity, a replacementCoverageDecision (COVERED_ELSEWHERE or BLOCK_SALES) is required; REJECT or a missing decision returns 409 and nothing changes. Capacity is never reduced silently. The write is conditional on the quantity and sold count read at decision time. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity Ops"
+        ],
+        "operationId": "opsapprovecapacitychangerequest.post./ops/capacity-change-requests/{requestId}/approve",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/capacity-change-requests/{requestId}/reject": {
+      "post": {
+        "summary": "Reject a capacity change request",
+        "description": "Admin only. Restores the commitment to its previous status with the original quantity. Idempotency-Key header is required.",
+        "tags": [
+          "Capacity Ops"
+        ],
+        "operationId": "opsrejectcapacitychangerequest.post./ops/capacity-change-requests/{requestId}/reject",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/generate": {
+      "post": {
+        "summary": "Generate a settlement statement",
+        "description": "Admin only. Creates a PENDING_REVIEW statement from admin-supplied ledger entries (completed visits and adjustments) for a period. Each visit can be settled once; a visit already on a statement returns 409 VISIT_ALREADY_SETTLED. Nothing is marked paid here. Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsgeneratesettlementstatement.post./ops/settlements/statements/generate",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements": {
+      "get": {
+        "summary": "List settlement statements for ops",
+        "description": "Admin only. Defaults to PENDING_REVIEW. The bank account is always masked.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opslistsettlementstatements.get./ops/settlements/statements",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "Statement status.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/settlement-statements": {
+      "get": {
+        "summary": "List vendor settlement statements",
+        "description": "Vendor owner or manager only. Crew and staff receive 403. The payout account is masked like bank details; the full account number is never returned.",
+        "tags": [
+          "Settlement"
+        ],
+        "operationId": "listsettlementstatements.get./vendors/{vendorId}/settlement-statements",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/settlement-statements/{statementId}": {
+      "get": {
+        "summary": "Get a settlement statement",
+        "description": "Vendor owner or manager only. Returns ledger entries, status history, and the transfer reference once paid. The payout account is masked.",
+        "tags": [
+          "Settlement"
+        ],
+        "operationId": "getsettlementstatement.get./vendors/{vendorId}/settlement-statements/{statementId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/{statementId}/approve": {
+      "post": {
+        "summary": "Approve a settlement statement",
+        "description": "Admin only. PENDING_REVIEW or HELD to APPROVED. Requires bank details on file (409 BANK_DETAILS_MISSING). Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsapprovesettlementstatement.post./ops/settlements/statements/{statementId}/approve",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/{statementId}/mark-paid": {
+      "post": {
+        "summary": "Mark a settlement statement paid",
+        "description": "Admin only. APPROVED to PAID, recording the bank transferReference and paidAt (not in the future) with the acting admin in the audit history. Paid is terminal. Repeating the same reference is idempotent; a different reference returns 409 STATEMENT_ALREADY_PAID. This records an out-of-band transfer and does not move money. Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsmarkpaidsettlementstatement.post./ops/settlements/statements/{statementId}/mark-paid",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/{statementId}/hold": {
+      "post": {
+        "summary": "Hold a settlement statement",
+        "description": "Admin only. Pauses a statement that is not yet paid. A reason is required and recorded in history. Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsholdsettlementstatement.post./ops/settlements/statements/{statementId}/hold",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/{statementId}/reject": {
+      "post": {
+        "summary": "Reject a settlement statement",
+        "description": "Admin only. Rejects an unpaid statement and releases its visits so they can be settled on another statement. A reason is required. Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsrejectsettlementstatement.post./ops/settlements/statements/{statementId}/reject",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/settlements/statements/{statementId}/dispute": {
+      "post": {
+        "summary": "Mark a settlement statement disputed",
+        "description": "Admin only. Flags an unpaid statement as disputed. Its visits stay locked. A reason is required. Idempotency-Key header is required.",
+        "tags": [
+          "Settlement Ops"
+        ],
+        "operationId": "opsdisputesettlementstatement.post./ops/settlements/statements/{statementId}/dispute",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "statementId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -2868,7 +4215,8 @@
         "BUSINESS_INFO",
         "COMMUNITIES",
         "DOCUMENTS",
-        "BANK_DETAILS"
+        "BANK_DETAILS",
+        "BASELINE_CAPACITY"
       ],
       "title": "OnboardingSection",
       "type": "string"
@@ -2914,10 +4262,32 @@
       "type": "string"
     },
     "CapabilityCategory": {
-      "title": "CapabilityCategory",
       "enum": [
-        "vehicleType"
+        "vehicleType",
+        "washMethod",
+        "serviceType"
       ],
+      "title": "CapabilityCategory",
+      "type": "string"
+    },
+    "CommunityCoverageApprovalStatus": {
+      "enum": [
+        "REQUESTED",
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "SUSPENDED"
+      ],
+      "title": "CommunityCoverageApprovalStatus",
+      "type": "string"
+    },
+    "CommunityCoverageDecisionStatus": {
+      "enum": [
+        "APPROVED",
+        "REJECTED",
+        "SUSPENDED"
+      ],
+      "title": "CommunityCoverageDecisionStatus",
       "type": "string"
     },
     "Address": {
@@ -4146,6 +5516,39 @@
               },
               "title": "OnboardingResponse.sections.COMMUNITIES",
               "type": "array"
+            },
+            "BASELINE_CAPACITY": {
+              "items": {
+                "properties": {
+                  "communityId": {
+                    "title": "communityId",
+                    "type": "string"
+                  },
+                  "estimatedCrews": {
+                    "title": "estimatedCrews",
+                    "type": "number"
+                  },
+                  "estimatedVisitsPerDay": {
+                    "title": "estimatedVisitsPerDay",
+                    "type": "number"
+                  },
+                  "serviceWindowNotes": {
+                    "title": "serviceWindowNotes",
+                    "type": "string"
+                  },
+                  "notes": {
+                    "title": "notes",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "communityId"
+                ],
+                "additionalProperties": false,
+                "type": "object"
+              },
+              "title": "OnboardingResponse.sections.BASELINE_CAPACITY",
+              "type": "array"
             }
           },
           "additionalProperties": false,
@@ -4933,11 +6336,15 @@
           "title": "CapabilityDefinition.category"
         },
         "code": {
-          "$ref": "#/definitions/VehicleType",
-          "title": "CapabilityDefinition.code"
+          "title": "CapabilityDefinition.code",
+          "type": "string"
         },
         "name": {
           "title": "CapabilityDefinition.name",
+          "type": "string"
+        },
+        "label": {
+          "title": "CapabilityDefinition.label",
           "type": "string"
         }
       },
@@ -4945,20 +6352,73 @@
         "capabilityId",
         "category",
         "code",
-        "name"
+        "name",
+        "label"
       ],
       "additionalProperties": false,
       "title": "CapabilityDefinition",
       "type": "object"
     },
+    "CapabilityCategoryDefinition": {
+      "properties": {
+        "category": {
+          "$ref": "#/definitions/CapabilityCategory",
+          "title": "CapabilityCategoryDefinition.category"
+        },
+        "label": {
+          "title": "CapabilityCategoryDefinition.label",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/CapabilityDefinition",
+            "title": "CapabilityCategoryDefinition.items.[]"
+          },
+          "title": "CapabilityCategoryDefinition.items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "category",
+        "label",
+        "items"
+      ],
+      "additionalProperties": false,
+      "title": "CapabilityCategoryDefinition",
+      "type": "object"
+    },
     "AvailableCapabilities": {
       "properties": {
+        "categories": {
+          "items": {
+            "$ref": "#/definitions/CapabilityCategoryDefinition",
+            "title": "AvailableCapabilities.categories.[]"
+          },
+          "title": "AvailableCapabilities.categories",
+          "type": "array"
+        },
         "vehicleTypes": {
           "items": {
             "$ref": "#/definitions/CapabilityDefinition",
             "title": "AvailableCapabilities.vehicleTypes.[]"
           },
           "title": "AvailableCapabilities.vehicleTypes",
+          "type": "array"
+        },
+        "washMethods": {
+          "items": {
+            "$ref": "#/definitions/CapabilityDefinition",
+            "title": "AvailableCapabilities.washMethods.[]"
+          },
+          "title": "AvailableCapabilities.washMethods",
+          "type": "array"
+        },
+        "serviceTypes": {
+          "items": {
+            "$ref": "#/definitions/CapabilityDefinition",
+            "title": "AvailableCapabilities.serviceTypes.[]"
+          },
+          "title": "AvailableCapabilities.serviceTypes",
           "type": "array"
         },
         "catalogSources": {
@@ -4982,7 +6442,10 @@
         }
       },
       "required": [
+        "categories",
         "vehicleTypes",
+        "washMethods",
+        "serviceTypes",
         "catalogSources"
       ],
       "additionalProperties": false,
@@ -5053,6 +6516,22 @@
           "title": "VendorCapabilities.vehicleTypes",
           "type": "array"
         },
+        "washMethods": {
+          "items": {
+            "title": "VendorCapabilities.washMethods.[]",
+            "type": "string"
+          },
+          "title": "VendorCapabilities.washMethods",
+          "type": "array"
+        },
+        "serviceTypes": {
+          "items": {
+            "title": "VendorCapabilities.serviceTypes.[]",
+            "type": "string"
+          },
+          "title": "VendorCapabilities.serviceTypes",
+          "type": "array"
+        },
         "serviceIds": {
           "items": {
             "title": "VendorCapabilities.serviceIds.[]",
@@ -5110,6 +6589,22 @@
             "title": "UpdateVendorCapabilitiesRequest.vehicleTypes.[]"
           },
           "title": "UpdateVendorCapabilitiesRequest.vehicleTypes",
+          "type": "array"
+        },
+        "washMethods": {
+          "items": {
+            "title": "UpdateVendorCapabilitiesRequest.washMethods.[]",
+            "type": "string"
+          },
+          "title": "UpdateVendorCapabilitiesRequest.washMethods",
+          "type": "array"
+        },
+        "serviceTypes": {
+          "items": {
+            "title": "UpdateVendorCapabilitiesRequest.serviceTypes.[]",
+            "type": "string"
+          },
+          "title": "UpdateVendorCapabilitiesRequest.serviceTypes",
           "type": "array"
         },
         "serviceIds": {
@@ -5213,6 +6708,10 @@
         "operationalStatus": {
           "$ref": "#/definitions/OperationalStatus",
           "title": "VendorCommunityAssignment.operationalStatus"
+        },
+        "approvalStatus": {
+          "$ref": "#/definitions/CommunityCoverageApprovalStatus",
+          "title": "VendorCommunityAssignment.approvalStatus"
         }
       },
       "required": [
@@ -5221,10 +6720,29 @@
         "assignedBy",
         "assignedAt",
         "status",
-        "operationalStatus"
+        "operationalStatus",
+        "approvalStatus"
       ],
       "additionalProperties": false,
       "title": "VendorCommunityAssignment",
+      "type": "object"
+    },
+    "CommunityCoverageApprovalRequest": {
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/CommunityCoverageDecisionStatus",
+          "title": "CommunityCoverageApprovalRequest.status"
+        },
+        "reason": {
+          "title": "CommunityCoverageApprovalRequest.reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "title": "CommunityCoverageApprovalRequest",
       "type": "object"
     },
     "ReplaceVendorCommunitiesRequest": {

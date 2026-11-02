@@ -13,3 +13,4 @@ export * from "./vendors.service";
 export * from "./communities.service";
 export * from './community-schedules.service';
 export * from './booking-readiness.service';
+export * from './capacity-proposals.service';

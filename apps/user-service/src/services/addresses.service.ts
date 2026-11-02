@@ -27,7 +27,7 @@ import {
   AddressRequest,
 } from '../types/api-types';
 import { AddressRecord } from '../types/records';
-import {  getPathParam, getUserId } from '../utils';
+import { assertOwnerOrAdmin, getPathParam, getUserId } from '../utils';
 
 const baseLogger = createLogger({
   service: 'addresses-service',
@@ -49,7 +49,8 @@ export class AddressesService {
   ) {}
 
   async listAddresses(request: LambdaRequest): Promise<AddressListResponse> {
-    const userId = getUserId(request); 
+    const userId = getUserId(request);
+    assertOwnerOrAdmin(request, userId);
     await this.requireProfile(userId);
 
     const records = activeAddresses(await this.addresses.listByUser(userId));
@@ -66,7 +67,8 @@ export class AddressesService {
   }
 
   async getAddress(request: LambdaRequest): Promise<Address> {
-    const userId = getUserId(request); 
+    const userId = getUserId(request);
+    assertOwnerOrAdmin(request, userId);
     await this.requireProfile(userId);
     const addressId = getPathParam(request, 'addressId');
     const address = await this.requireActiveAddress(userId, addressId);
@@ -82,7 +84,7 @@ export class AddressesService {
 
   async createAddress(request: LambdaRequest): Promise<Address> {
     const userId = getUserId(request);
-    // assertOwnerOrAdmin(request, userId);
+    assertOwnerOrAdmin(request, userId);
     const profile = await this.requireProfile(userId);
     const body = request.body as AddressRequest;
     const now = new Date().toISOString();
@@ -134,7 +136,7 @@ export class AddressesService {
 
   async updateAddress(request: LambdaRequest): Promise<Address> {
     const userId = getUserId(request);
-    // assertOwnerOrAdmin(request, userId);
+    assertOwnerOrAdmin(request, userId);
     const profile = await this.requireProfile(userId);
     const addressId = getPathParam(request, 'addressId');
     const current = await this.requireActiveAddress(userId, addressId);
@@ -210,7 +212,7 @@ export class AddressesService {
 
   async deleteAddress(request: LambdaRequest): Promise<{ id: string; deleted: true }> {
     const userId = getUserId(request);
-    // assertOwnerOrAdmin(request, userId);
+    assertOwnerOrAdmin(request, userId);
     const profile = await this.requireProfile(userId);
     const addressId = getPathParam(request, 'addressId');
     const current = await this.requireActiveAddress(userId, addressId);

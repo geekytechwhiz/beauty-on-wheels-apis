@@ -33,6 +33,7 @@ Vendor-owned records live in a single partition `VENDOR#{vendorId}`. Singleton s
 | 15 | List service areas | Query | base | `begins_with(SK, SERVICE_AREA#)` |
 | 16 | List vendors by lifecycle | Query | GSI1 | `GSI1PK=VENDOR`, `begins_with(GSI1SK, STATUS#{status}#)` |
 | 17 | List vendors by city | Query | GSI2 | `GSI2PK=CITY#{city}` on PROFILE (denormalized when ADDRESS is saved) |
+| 18 | Search active community directory | Query | base | Projected `COMMUNITY_*#...#STATUS#ACTIVE` partitions; records originate from User Service community data, never a vendor-owned community master |
 
 No additional GSIs: owner lookup reuses GSI1 with a different `GSI1PK` namespace (`OWNER#{userId}`). City lookup reuses GSI2 on PROFILE after ADDRESS writes.
 
@@ -52,6 +53,7 @@ No additional GSIs: owner lookup reuses GSI1 with a different `GSI1PK` namespace
 | `VENDOR#{vendorId}` | `CAPABILITIES` | `VendorCapabilities` | Assignment IDs only (master catalog is not stored here) |
 | `VENDOR#{vendorId}` | `SERVICE_AREA#{serviceAreaId}` | `ServiceArea` | Vendor-owned coverage area |
 | `VENDOR#{vendorId}` | `HOURS` | `VendorOperatingHours` | Weekly operating schedule |
+| `COMMUNITY#{communityId}` | `META` | `CommunityDirectory` | Safe User Service projection: stable id, name, city/locality ids and names, postal PIN, access type, status, and search text only |
 
 ## GSIs
 
@@ -78,3 +80,7 @@ Document bytes are stored in a private S3 bucket (`DOCUMENT_BUCKET`, also accept
 The object key is `vendors/{vendorId}/documents/{documentId}.{extension}`. Presigned URLs are not stored. `PENDING_UPLOAD` means a URL was issued. `UPLOADED` means the object was verified. Required types are `GST_REGISTRATION`, `BUSINESS_REGISTRATION`, and `COMMERCIAL_INSURANCE`. Submit-review accepts a document only when its status is `UPLOADED`.
 
 No migration is required. New attributes are additive on the existing `DOCUMENT#{documentId}` item.
+
+## Community directory boundary
+
+The vendor directory is a projection of the User Service community record. It may contain only `communityId`, name, city/locality ids and display names, postal PIN, active state, searchable text, and the public access-type label. Association contact details, lead source, sizing, and intake/scouting notes are not copied to Vendor Service. Vendor coverage rows reference the stable `communityId`; coverage remains valid historically after a community is deactivated, while new/replaced coverage accepts only active directory records.

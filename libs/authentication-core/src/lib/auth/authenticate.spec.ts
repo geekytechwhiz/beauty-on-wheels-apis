@@ -7,6 +7,7 @@ import { authorize } from './authorize';
 import { JwksCache, type JwksDocument } from './jwks-cache';
 import type { AuthUserDirectory } from './auth-context';
 import { PERMISSION } from './permissions';
+import { APPLICATION_ROLE } from './application-roles';
 import type { CognitoConfig } from '../config/cognito.config';
 
 const POOL_ID = 'us-east-1_testpool';
@@ -294,6 +295,82 @@ describe('authorize', () => {
     expect(legacyCtx.roles).not.toContain('CUSTOMER');
     expect(legacyCtx.roles).not.toContain('VENDOR');
     expect(legacyCtx.roles).not.toContain('ADMIN');
+  });
+
+  it('issues vendor:register for REGISTRANT and drops directory permissions on that role', async () => {
+    const token = signToken({
+      roles: [APPLICATION_ROLE.REGISTRANT],
+      userType: 'VENDOR',
+    });
+    const userDirectory = directory({
+      findUserByIdentityId: jest.fn().mockResolvedValue({
+        userId: 'u-1',
+        identityId: 'cognito-sub-1',
+        roleId: 'user',
+        status: 'active',
+      }),
+      getUserRoles: jest.fn().mockResolvedValue([APPLICATION_ROLE.REGISTRANT]),
+      getPermissionsForRoles: jest.fn().mockImplementation(async (roleIds: string[]) =>
+        roleIds.includes(APPLICATION_ROLE.REGISTRANT)
+          ? [
+              PERMISSION.VENDOR_READ,
+              PERMISSION.VENDOR_CREATE,
+              PERMISSION.VENDOR_UPDATE,
+            ]
+          : [],
+      ),
+    });
+
+    const ctx = await authenticate(requestWithAuth(`Bearer ${token}`), {
+      userDirectory,
+    });
+    expect(ctx.roles).toEqual([APPLICATION_ROLE.REGISTRANT]);
+    expect(ctx.permissions).toEqual([PERMISSION.VENDOR_REGISTER]);
+    expect(userDirectory.getPermissionsForRoles).toHaveBeenCalledWith([]);
+    expect(ctx.roles).not.toContain(APPLICATION_ROLE.VENDOR);
+    expect(ctx.roles).not.toContain(APPLICATION_ROLE.ADMIN);
+    expect(ctx.roles).not.toContain(APPLICATION_ROLE.CUSTOMER);
+
+    await expect(
+      authorize(
+        requestWithAuth(`Bearer ${token}`),
+        { permissions: [PERMISSION.VENDOR_CREATE] },
+        { userDirectory },
+      ),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      authorize(
+        requestWithAuth(`Bearer ${token}`),
+        { permissions: [PERMISSION.VENDOR_READ] },
+        { userDirectory },
+      ),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      authorize(
+        requestWithAuth(`Bearer ${token}`),
+        { permissions: [PERMISSION.VENDOR_REGISTER] },
+        { userDirectory },
+      ),
+    ).resolves.toMatchObject({ roles: [APPLICATION_ROLE.REGISTRANT] });
+  });
+
+  it('does not treat a VENDOR userType claim as a role or registration permission', async () => {
+    const token = signToken({
+      roles: [APPLICATION_ROLE.CUSTOMER],
+      userType: 'VENDOR',
+    });
+    const userDirectory = directory({
+      getUserRoles: jest.fn().mockResolvedValue([APPLICATION_ROLE.CUSTOMER]),
+      getPermissionsForRoles: jest.fn().mockResolvedValue([]),
+    });
+    const ctx = await authenticate(requestWithAuth(`Bearer ${token}`), {
+      userDirectory,
+    });
+    expect(ctx.roles).toEqual([APPLICATION_ROLE.CUSTOMER]);
+    expect(ctx.permissions).toEqual([]);
+    expect(userDirectory.getPermissionsForRoles).toHaveBeenCalledWith([
+      APPLICATION_ROLE.CUSTOMER,
+    ]);
   });
 
   it('allows an authenticated user with the required permission', async () => {

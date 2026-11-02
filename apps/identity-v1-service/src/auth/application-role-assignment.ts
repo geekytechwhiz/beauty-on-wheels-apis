@@ -26,7 +26,10 @@ export interface ApplicationRoleRepository {
 }
 
 export interface RoleBackfillPlan {
-  /** True when the user has no CUSTOMER, VENDOR, or ADMIN role yet. */
+  /**
+   * True when the user has no CUSTOMER, REGISTRANT, VENDOR, or ADMIN role yet.
+   * REGISTRANT is a registration capability and is not replaced with CUSTOMER.
+   */
   assignCustomer: boolean;
   /**
    * Privileged roles already stored on the profile but missing a USER#/ROLE# item.
@@ -51,10 +54,13 @@ export function planApplicationRoleBackfill(input: {
     input.profileRoleId,
   ]);
   const privileged = explicit.some((role) => PRIVILEGED_ROLES.has(role));
+  const hasRegistrant = mapped.includes(APPLICATION_ROLE.REGISTRANT);
 
   return {
     assignCustomer:
-      !privileged && !mapped.includes(APPLICATION_ROLE.CUSTOMER),
+      !privileged &&
+      !hasRegistrant &&
+      !mapped.includes(APPLICATION_ROLE.CUSTOMER),
     preserve: profile.filter(
       (role) => PRIVILEGED_ROLES.has(role) && !mapped.includes(role),
     ),
@@ -84,21 +90,24 @@ export async function prepareApplicationRolesForToken(
 }
 
 /**
- * Initializes the first application role for a just-created identity. This is
- * deliberately separate from legacy backfill: a persisted userType must never
- * be used to promote or replace roles on an existing identity.
+ * Initializes the first application role for a just-created identity.
+ * userType is registration classification only and never selects a role.
+ * vendorRegistration is set only by phone OTP verification when the stored
+ * challenge userType is VENDOR. That path maps REGISTRANT, not VENDOR.
+ * VENDOR is granted later by vendor email verification or approval, and
+ * ADMIN only by an existing admin.
  */
 export async function initializeApplicationRoleForNewIdentity(
   repository: ApplicationRoleRepository,
-  user: { userId: string; userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN' },
+  user: {
+    userId: string;
+    userType?: 'CUSTOMER' | 'VENDOR' | 'ADMIN';
+    vendorRegistration?: boolean;
+  },
 ): Promise<'created' | 'exists'> {
-  // ADMIN is not a public registration value. Retaining this branch makes the
-  // trusted provisioning path explicit without exposing it through OTP.
-  const role = user.userType === 'VENDOR'
-    ? APPLICATION_ROLE.VENDOR
-    : user.userType === 'ADMIN'
-      ? APPLICATION_ROLE.ADMIN
-      : APPLICATION_ROLE.CUSTOMER;
+  const role = user.vendorRegistration
+    ? APPLICATION_ROLE.REGISTRANT
+    : APPLICATION_ROLE.CUSTOMER;
   return repository.ensureUserRoleMapping(user.userId, role);
 }
 

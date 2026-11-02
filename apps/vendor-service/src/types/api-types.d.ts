@@ -21,7 +21,8 @@ export type OnboardingSection =
   | 'BUSINESS_INFO'
   | 'COMMUNITIES'
   | 'DOCUMENTS'
-  | 'BANK_DETAILS';
+  | 'BANK_DETAILS'
+  | 'BASELINE_CAPACITY';
 
 export type OnboardingStatus = 'DRAFT' | 'IN_PROGRESS' | 'AWAITING_EMAIL_VERIFICATION' | 'PENDING_REVIEW' | 'CHANGES_REQUESTED' | 'COMPLETED';
 
@@ -35,16 +36,59 @@ export type DocumentStatus = 'PENDING_UPLOAD' | 'UPLOADED' | 'VERIFIED' | 'REJEC
 
 export type BankAccountType = 'SAVINGS' | 'CURRENT';
 
-export type CapabilityCategory = 'vehicleType';
+export type CapabilityCategory = 'vehicleType' | 'washMethod' | 'serviceType';
+
+export type CommunityCoverageApprovalStatus = 'REQUESTED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+export type CommunityCoverageDecisionStatus = 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
 export interface Address {
   addressLine1: string;
   addressLine2?: string;
   landmark?: string;
+  locality?: string;
   city: string;
+  district?: string;
   state: string;
   country: string;
   postalCode: string;
+}
+
+export interface VendorOnboardingSnapshot {
+  location: {
+    addressLine1?: string;
+    addressLine2?: string;
+    landmark?: string;
+    locality: string;
+    city: string;
+    district: string;
+    state: string;
+    postalCode: string;
+    countryCode: string;
+  } | null;
+  capabilities: {
+    vehicleTypes: VehicleType[];
+    serviceIds: string[];
+    packageIds: string[];
+    /** Capability ids. Create requests send these as washMethodIds. */
+    washMethods: string[];
+  };
+  communityCoverage: {
+    communityIds: string[];
+    communities: Array<{
+      communityId: string;
+      approvalStatus: CommunityCoverageApprovalStatus;
+    }>;
+  };
+  operatingPreferences: {
+    serviceWindowIds: string[];
+  };
+  /** Null when the partner did not submit indicative capacity. Never a commitment. */
+  initialCapacity: {
+    activeCrewCount: number;
+    indicativeVisitsPerWeek: number;
+    capacityKind: 'indicative';
+  } | null;
 }
 
 export interface GeoLocation {
@@ -77,11 +121,14 @@ export interface CreateVendorRequest {
 }
 
 export interface UpdateVendorRequest {
+  businessType?: businessType;
   businessName?: string;
   contactName?: string;
   phoneNumber?: string;
   email?: string;
   description?: string;
+  gstNumber?: string;
+  panNumber?: string;
   profileImageUrl?: string;
 }
 
@@ -228,7 +275,9 @@ export interface VendorAddress {
   addressLine1: string;
   addressLine2?: string;
   landmark?: string;
+  locality?: string;
   city: string;
+  district?: string;
   state: string;
   country: string;
   postalCode: string;
@@ -305,9 +354,7 @@ export interface CreateDocumentRequest {
 }
 
 export interface UpdateDocumentRequest {
-  fileName?: string;
-  contentType?: string;
-  fileSize?: number;
+  fileName: string;
 }
 
 export interface OnboardingState {
@@ -333,7 +380,32 @@ export interface OnboardingResponse {
     OWNER_DETAILS?: VendorOwner;
     DOCUMENTS?: VendorDocument[];
     BANK_DETAILS?: BankDetails;
-    COMMUNITIES?: Array<{ communityId: string; label?: string }>;
+    COMMUNITIES?: Array<{
+      communityId: string;
+      label?: string;
+      approvalStatus?: CommunityCoverageApprovalStatus;
+    }>;
+    CAPABILITIES?: {
+      vehicleTypes: VehicleType[];
+      serviceIds: string[];
+      packageIds: string[];
+      washMethods: string[];
+    };
+    OPERATING_PREFERENCES?: {
+      serviceWindowIds: string[];
+    };
+    INDICATIVE_CAPACITY?: {
+      activeCrewCount: number;
+      indicativeVisitsPerWeek: number;
+      capacityKind: 'indicative';
+    };
+    BASELINE_CAPACITY?: Array<{
+      communityId: string;
+      estimatedCrews?: number;
+      estimatedVisitsPerDay?: number;
+      serviceWindowNotes?: string;
+      notes?: string;
+    }>;
   };
 }
 
@@ -359,6 +431,7 @@ export interface Vendor {
   applicationId?: string;
   revision?: number;
   communityIds: string[];
+  onboarding?: VendorOnboardingSnapshot;
   latestReview?: VendorStatusReview;
   createdAt: string;
   updatedAt: string;
@@ -428,19 +501,14 @@ export type ServiceArea = CreateServiceAreaRequest & ({
   updatedAt: string;
 });
 
-export interface OperatingHoursRequest {
-  dayOfWeek: DayOfWeek;
-  closed: boolean;
-  openTime?: string;
-  closeTime?: string;
+export interface UpdateVendorOperatingHoursRequest {
+  serviceWindowIds: string[];
 }
 
-export type OperatingHours = OperatingHoursRequest & ({
-  vendorId?: string;
-});
-
-export interface UpdateVendorOperatingHoursRequest {
-  operatingHours: OperatingHoursRequest[];
+export interface VendorOperatingPreferencesSection {
+  vendorId: string;
+  serviceWindowIds: string[];
+  updatedAt: string;
 }
 
 export interface CreateStaffRequest {
@@ -523,12 +591,22 @@ export interface CrewListResponse {
 export interface CapabilityDefinition {
   capabilityId: string;
   category: CapabilityCategory;
-  code: VehicleType;
+  code: string;
   name: string;
+  label: string;
+}
+
+export interface CapabilityCategoryDefinition {
+  category: CapabilityCategory;
+  label: string;
+  items: CapabilityDefinition[];
 }
 
 export interface AvailableCapabilities {
+  categories: CapabilityCategoryDefinition[];
   vehicleTypes: CapabilityDefinition[];
+  washMethods: CapabilityDefinition[];
+  serviceTypes: CapabilityDefinition[];
   catalogSources: {
     services: string;
     packages: string;
@@ -551,6 +629,8 @@ export interface VendorPackageOffering {
 export interface VendorCapabilities {
   vendorId: string;
   vehicleTypes: VehicleType[];
+  washMethods?: string[];
+  serviceTypes?: string[];
   serviceIds: string[];
   packageIds: string[];
   services: VendorServiceOffering[];
@@ -560,17 +640,9 @@ export interface VendorCapabilities {
 
 export interface UpdateVendorCapabilitiesRequest {
   vehicleTypes: VehicleType[];
-  serviceIds?: string[];
-  packageIds?: string[];
-  services?: VendorServiceOffering[];
-  packages?: VendorPackageOffering[];
-}
-
-export interface ReplaceVendorServicesRequest {
+  washMethods: string[];
+  serviceTypes: string[];
   services: VendorServiceOffering[];
-}
-
-export interface ReplaceVendorPackagesRequest {
   packages: VendorPackageOffering[];
 }
 
@@ -581,6 +653,12 @@ export interface VendorCommunityAssignment {
   assignedAt: string;
   status: VendorStatus;
   operationalStatus: OperationalStatus;
+  approvalStatus: CommunityCoverageApprovalStatus;
+}
+
+export interface CommunityCoverageApprovalRequest {
+  status: CommunityCoverageDecisionStatus;
+  reason?: string;
 }
 
 export interface ReplaceVendorCommunitiesRequest {

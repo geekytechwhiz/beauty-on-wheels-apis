@@ -18,3 +18,4 @@ export { handler as vendorLifecycleStreamHandler } from "./vendor-lifecycle-stre
 export * from './booking-readiness-handler';
 export { handler as bookingReadinessStreamHandler } from './booking-readiness-stream';
 export { handler as bookingReadinessEventsHandler } from './booking-readiness-events';
+export * from './capacity-proposals-handler';

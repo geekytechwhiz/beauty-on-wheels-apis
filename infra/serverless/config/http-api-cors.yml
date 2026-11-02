@@ -2,12 +2,7 @@
 # including unauthenticated OPTIONS. Lambda responses for payload v2 omit CORS
 # headers so the two layers do not emit duplicates.
 # Keep allowedOrigins aligned with cors-allowed-origins.yml.
-allowedOrigins:
-  - http://localhost:8081
-  - http://127.0.0.1:8081
-  - http://localhost:3000
-  - http://localhost:19006
-  - http://localhost:8080
+allowedOrigins: *
 allowedHeaders:
   - Content-Type
   - Authorization

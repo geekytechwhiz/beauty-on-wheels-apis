@@ -1,8 +1,10 @@
 import { ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError, ValidationError } from '@api-hub/utils';
 import { randomUUID } from 'crypto';
 
+import { resolveCoverageApprovalStatus } from '../domain/community';
 import { ONBOARDING_SECTION_ORDER, ONBOARDING_STATUS } from '../domain/onboarding';
 import { computeStateFromAggregate, toVendorAggregate, VendorAggregate } from '../domain/vendor-aggregate';
+import { CapabilitiesMapper } from '../mappers/capabilities.mapper';
 import { BankDetailsMapper } from '../mappers/bank-and-branches.mapper';
 import { CommunitiesMapper } from '../mappers/communities.mapper';
 import { DocumentsMapper } from '../mappers/documents.mapper';
@@ -11,13 +13,15 @@ import { CommunitiesRepository, getCommunitiesRepository } from '../repositories
 import { getVendorsRepository, VendorsRepository } from '../repositories/vendors.repository';
 import { UpdateOnboardingRequest } from '../schemas/onboarding.schema';
 import { OnboardingResponse } from '../types/api-types';
-import { VendorBankDdbItem, VendorDdbItem } from '../types/repository.types';
+import { VendorBankDdbItem, VendorBaselineCapacityDdbItem, VendorDdbItem } from '../types/repository.types';
+import { VendorKeyBuilder } from '../utils/constants/vendor-key-builder';
 import { assertVendorAccess, getVendorId } from '../utils/helpers';
 import { MAX_VENDOR_COMMUNITIES, isCommunityId, normalizeCommunityId, uniqueCommunityIds } from '../domain/community';
 import { generateVendorEmailVerificationOtp, hashVendorEmailVerificationToken, hasValidRegisteredEmail, VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES } from '../domain/email-verification';
 
 type ProfilePatch = NonNullable<UpdateOnboardingRequest['sections']['BUSINESS_INFO']>;
 type BankPatch = NonNullable<UpdateOnboardingRequest['sections']['BANK_DETAILS']>;
+type BaselineCapacityPatch = NonNullable<UpdateOnboardingRequest['sections']['BASELINE_CAPACITY']>;
 
 export class OnboardingService {
   constructor(
@@ -66,7 +70,39 @@ export class OnboardingService {
         OWNER_DETAILS: aggregate.owner ? OwnerMapper.toDomain(aggregate.owner) : undefined,
         DOCUMENTS: aggregate.documents.map((document) => DocumentsMapper.toDomain(document)),
         BANK_DETAILS: aggregate.bank ? BankDetailsMapper.toDomain(aggregate.bank) : undefined,
-        COMMUNITIES: (profile.communityIds ?? []).map((communityId) => ({ communityId })),
+        COMMUNITIES: aggregate.communities.length > 0
+          ? aggregate.communities.map((item) => ({
+            communityId: item.communityId,
+            approvalStatus: resolveCoverageApprovalStatus(item),
+          }))
+          : (profile.communityIds ?? []).map((communityId) => ({ communityId })),
+        CAPABILITIES: aggregate.capabilities
+          ? {
+            vehicleTypes: aggregate.capabilities.vehicleTypes,
+            serviceIds: CapabilitiesMapper.toDomain(aggregate.capabilities).serviceIds,
+            packageIds: CapabilitiesMapper.toDomain(aggregate.capabilities).packageIds,
+            washMethods: aggregate.capabilities.washMethods ?? [],
+          }
+          : undefined,
+        OPERATING_PREFERENCES: aggregate.operatingPreferences
+          ? { serviceWindowIds: aggregate.operatingPreferences.serviceWindowIds }
+          : undefined,
+        INDICATIVE_CAPACITY: aggregate.indicativeCapacity
+          ? {
+            activeCrewCount: aggregate.indicativeCapacity.activeCrewCount,
+            indicativeVisitsPerWeek: aggregate.indicativeCapacity.indicativeVisitsPerWeek,
+            capacityKind: 'indicative' as const,
+          }
+          : undefined,
+        BASELINE_CAPACITY: aggregate.baselineCapacity.length > 0
+          ? aggregate.baselineCapacity.map((entry) => ({
+            communityId: entry.communityId,
+            estimatedCrews: entry.estimatedCrews,
+            estimatedVisitsPerDay: entry.estimatedVisitsPerDay,
+            serviceWindowNotes: entry.serviceWindowNotes,
+            notes: entry.notes,
+          }))
+          : undefined,
       } as OnboardingResponse['sections'],
     };
   }
@@ -102,6 +138,18 @@ export class OnboardingService {
       const replacement = await this.replaceCommunities(aggregate, body.sections.COMMUNITIES.communityIds, request);
       puts.push(...replacement.puts);
       deletes.push(...replacement.deletes);
+    }
+    // Optional planning estimates only. Ops may collect these manually when omitted.
+    // This path never creates capacity proposals, commitments, or customer availability.
+    if (body.sections.BASELINE_CAPACITY) {
+      const replacement = this.replaceBaselineCapacity(
+        profile.vendorId,
+        aggregate.baselineCapacity,
+        body.sections.BASELINE_CAPACITY,
+      );
+      puts.push(...replacement.puts);
+      deletes.push(...replacement.deletes);
+      aggregate.baselineCapacity = replacement.next;
     }
 
     const computed = computeStateFromAggregate(aggregate);
@@ -153,6 +201,45 @@ export class OnboardingService {
       accountType: set('accountType', existing?.accountType), createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp, entityType: 'VendorBank',
     };
+  }
+
+  private replaceBaselineCapacity(
+    vendorId: string,
+    current: VendorBaselineCapacityDdbItem[],
+    patch: BaselineCapacityPatch,
+  ) {
+    const requested = patch.communities;
+    if (requested.some((entry) => !isCommunityId(entry.communityId))) {
+      throw new ValidationError('Invalid communityId');
+    }
+    const byCommunity = new Map(requested.map((entry) => [normalizeCommunityId(entry.communityId), entry]));
+    const desiredIds = new Set(byCommunity.keys());
+    const now = new Date().toISOString();
+    const deletes = current
+      .filter((item) => !desiredIds.has(item.communityId))
+      .map((item) => ({ PK: item.PK, SK: item.SK }));
+    const puts: Array<Record<string, unknown>> = [];
+    const next: VendorBaselineCapacityDdbItem[] = [];
+    for (const communityId of desiredIds) {
+      const entry = byCommunity.get(communityId)!;
+      const existing = current.find((item) => item.communityId === communityId);
+      const row: VendorBaselineCapacityDdbItem = {
+        PK: `VENDOR#${vendorId}`,
+        SK: VendorKeyBuilder.baselineCapacitySk(communityId),
+        vendorId,
+        communityId,
+        estimatedCrews: entry.estimatedCrews,
+        estimatedVisitsPerDay: entry.estimatedVisitsPerDay,
+        serviceWindowNotes: entry.serviceWindowNotes,
+        notes: entry.notes,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        entityType: 'VendorBaselineCapacity',
+      };
+      next.push(row);
+      puts.push(row as unknown as Record<string, unknown>);
+    }
+    return { puts, deletes, next };
   }
 
   private async replaceCommunities(aggregate: VendorAggregate, requested: string[], request: LambdaRequest) {

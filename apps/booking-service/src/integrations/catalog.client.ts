@@ -60,7 +60,10 @@ export interface CatalogPackageVehiclePrice {
 /** Vendor-owned catalog package with its composition, as read from offering detail. */
 export interface CatalogPackage {
   id: string;
-  vendorId: string;
+  /** Present for legacy provider packages; omitted for Carish-owned packages. */
+  vendorId?: string;
+  /** Operations-selected fulfilment candidates for a Carish package/community. */
+  fulfilmentVendorIds?: string[];
   name: string;
   description?: string;
   active: boolean;
@@ -85,7 +88,8 @@ export interface CatalogPackage {
 export interface CatalogPackageGateway {
   getPackage(input: {
     packageId: string;
-    vendorId: string;
+    vendorId?: string;
+    communityId?: string;
     authorizationHeader?: string;
   }): Promise<CatalogPackage>;
 }
@@ -93,10 +97,19 @@ export interface CatalogPackageGateway {
 export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway {
   async getPackage(input: {
     packageId: string;
-    vendorId: string;
+    vendorId?: string;
+    communityId?: string;
     authorizationHeader?: string;
   }): Promise<CatalogPackage> {
     const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
+    if (!input.vendorId) {
+      if (!input.communityId) throw new BookingError('PACKAGE_NOT_FOUND', 'Community is required for a platform package', 400, 'location.communityId', false);
+      const body = await requestJson(
+        `${base}/packages/${encodeURIComponent(input.packageId)}?communityId=${encodeURIComponent(input.communityId)}`,
+        { method: 'GET', headers: authHeaders(input.authorizationHeader) },
+      );
+      return parsePlatformPackage(body, input.packageId);
+    }
     try {
       const body = await requestJson(
         `${base}/offerings/${encodeURIComponent(input.packageId)}?consistent=true`,
@@ -172,6 +185,39 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
       }],
     };
   }
+}
+
+function parsePlatformPackage(body: unknown, packageId: string): CatalogPackage {
+  const record = asRecord(asRecord(body).data ?? body);
+  const pricingSource = Array.isArray(record.vehiclePricing)
+    ? record.vehiclePricing
+    : Array.isArray(record.retailPricing)
+      ? record.retailPricing
+      : [];
+  const pricing = pricingSource.map((entry) => {
+    const row = asRecord(entry);
+    const duration = Number(row.durationMinutes);
+    return {
+      vehicleType: String(row.vehicleType ?? ''),
+      price: Number(row.price ?? row.priceMinor),
+      durationMinutes: Number.isInteger(duration) && duration > 0 ? duration : 1,
+    };
+  }).filter((entry) => entry.vehicleType && Number.isInteger(entry.price) && entry.price > 0);
+  const includedServices = Array.isArray(record.includedServices) ? record.includedServices.map((entry, index) => {
+    const item = asRecord(entry);
+    const serviceKey = String(item.serviceKey ?? '');
+    return {
+      name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : (serviceKey || `item-${index + 1}`),
+      serviceKey,
+      categoryId: String(item.categoryId ?? ''),
+      visitsPerPeriod: Number(item.visitsPerPeriod ?? item.visitsPerCadence),
+      durationMinutes: Number(item.durationMinutes),
+      ...(typeof item.description === 'string' ? { description: item.description } : {}),
+    };
+  }).filter((entry) => entry.serviceKey && entry.categoryId && Number.isInteger(entry.visitsPerPeriod) && entry.visitsPerPeriod > 0 && Number.isInteger(entry.durationMinutes) && entry.durationMinutes > 0) : [];
+  const fulfilmentVendorIds = Array.isArray(record.fulfilmentVendorIds) ? record.fulfilmentVendorIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0) : [];
+  if (record.packageId !== packageId || pricing.length === 0 || includedServices.length === 0 || fulfilmentVendorIds.length === 0) throw new BookingError('PACKAGE_NOT_FOUND', 'Package is not available for this community', 404, 'packageId', false);
+  return { id: packageId, name: typeof record.name === 'string' ? record.name : packageId, active: true, billingPeriod: parseBillingPeriod(record.billingPeriod ?? record.billingCadence), discountedPrice: pricing[0].price, currency: typeof record.currency === 'string' ? record.currency : 'INR', ...(typeof record.packageVersion === 'number' ? { version: record.packageVersion } : {}), vehiclePricing: pricing, vehicleTypes: pricing.map((entry) => entry.vehicleType), includedServices, visitWindows: parseVisitWindows(record.visitWindows), entitlements: includedServices.map((entry) => ({ serviceId: entry.serviceKey!, quantity: entry.visitsPerPeriod, name: entry.name, durationMinutes: entry.durationMinutes, categoryId: entry.categoryId })), validityDays: typeof record.validityDays === 'number' ? record.validityDays : undefined, items: includedServices.map((entry) => ({ refId: entry.serviceKey!, itemType: 'SERVICE' as const, quantity: entry.visitsPerPeriod })), fulfilmentVendorIds };
 }
 
 

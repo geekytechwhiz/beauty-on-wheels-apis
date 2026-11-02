@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { authoritativeWindowClock, mergeWindowSnapshot } from './visit-window';
 import { BookingError } from '../errors';
 import {
   CustomerPlanRecord,
@@ -59,15 +60,18 @@ export function operationalSnapshot(plan: CustomerPlanRecord): Pick<
   | 'communityId'
   | 'visitWindowId'
   | 'visitWindowName'
+  | 'visitWindowSnapshot'
   | 'vehicleId'
   | 'vehicleType'
   | 'registrationNumber'
   | 'vehicleDisplayName'
 > {
+  const visitWindowSnapshot = authoritativeWindowClock(plan.visitWindowId, plan.visitWindow);
   return {
     ...(plan.location.communityId ? { communityId: plan.location.communityId } : {}),
     ...(plan.visitWindowId ? { visitWindowId: plan.visitWindowId } : {}),
     ...(plan.visitWindow?.label ? { visitWindowName: plan.visitWindow.label } : {}),
+    ...(visitWindowSnapshot ? { visitWindowSnapshot } : {}),
     ...(plan.vehicleId ? { vehicleId: plan.vehicleId } : {}),
     ...(plan.vehicleType ? { vehicleType: plan.vehicleType } : {}),
     ...(plan.vehicleRegistrationNumber
@@ -89,6 +93,7 @@ export function enrichVisitFromPlan(
     communityId: visit.communityId ?? snapshot.communityId,
     visitWindowId: visit.visitWindowId ?? snapshot.visitWindowId,
     visitWindowName: visit.visitWindowName ?? snapshot.visitWindowName,
+    visitWindowSnapshot: mergeWindowSnapshot(visit.visitWindowSnapshot, snapshot.visitWindowSnapshot),
     vehicleId: visit.vehicleId ?? snapshot.vehicleId,
     vehicleType: visit.vehicleType ?? snapshot.vehicleType,
     registrationNumber: visit.registrationNumber ?? snapshot.registrationNumber,
@@ -100,6 +105,13 @@ export function enrichVisitFromPlan(
  * One visit row per entitlement unit. Prefer includedServices (name + duration)
  * keyed by entitlement serviceId; fall back to entitlement-only rows.
  */
+/**
+ * MVP plan demand in visit-slots: one slot per entitlement unit (same unit as vendor commitments).
+ */
+export function planVisitSlotDemand(plan: Pick<CustomerPlanRecord, 'entitlements'>): number {
+  return plan.entitlements.reduce((sum, entitlement) => sum + entitlement.quantity, 0);
+}
+
 export function materializePackageVisits(input: MaterializeVisitInput): PackageVisitRecord[] {
   const { plan, now } = input;
   const durationByService = durationLookup(plan.includedServices, plan.entitlements);
@@ -241,8 +253,23 @@ export function deriveScheduleState(visits: PackageVisitRecord[]): PackageSchedu
 }
 
 export function toVisitResponse(record: PackageVisitRecord): PackageVisitResponse {
-  const { customerId: _customerId, version: _version, ...response } = record;
+  const {
+    customerId: _customerId,
+    version: _version,
+    crewAssignment: _crewAssignment,
+    reviewNote: _reviewNote,
+    agreedVendorRateMinor: _agreedVendorRateMinor,
+    ...response
+  } = record;
   return response;
+}
+
+/** Drops a crew assignment without changing visit status or the availability reservation. */
+export function withoutCrewAssignment(visit: PackageVisitRecord): PackageVisitRecord {
+  if (!visit.crewAssignment) return visit;
+  const next = { ...visit };
+  delete next.crewAssignment;
+  return next;
 }
 
 export function appendScheduleHistory(

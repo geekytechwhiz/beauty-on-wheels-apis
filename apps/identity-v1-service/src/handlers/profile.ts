@@ -19,7 +19,9 @@ export const handler = withApiHandler(
 export const provisioningStatus = withApiHandler(
   {
     operation: 'getProvisioningStatus',
-    validator: async (request: LambdaRequest) => { await requireAuth(request); },
+    validator: async (request: LambdaRequest) => {
+      await requireAuth(request);
+    },
   },
   async (request: LambdaRequest) => controller.handleGetProvisioningStatus(request),
 );

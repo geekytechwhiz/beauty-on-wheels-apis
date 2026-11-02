@@ -76,7 +76,9 @@ export class VendorsMapper {
       addressLine1: item.addressLine1,
       addressLine2: item.addressLine2,
       landmark: item.landmark,
+      locality: 'locality' in item ? item.locality : undefined,
       city: item.city,
+      district: 'district' in item ? item.district : undefined,
       state: item.state,
       country: item.country,
       postalCode: item.postalCode,
@@ -182,6 +184,7 @@ export class VendorsMapper {
   ): VendorDdbItem {
     return {
       ...existing,
+      businessType: updates.businessType ?? existing.businessType,
       businessName: updates.businessName ?? existing.businessName,
       contactName: updates.contactName ?? existing.contactName,
       phoneNumber: updates.phoneNumber ?? existing.phoneNumber,
@@ -190,6 +193,10 @@ export class VendorsMapper {
         updates.description !== undefined
           ? updates.description
           : existing.description,
+      gstNumber:
+        updates.gstNumber !== undefined ? updates.gstNumber : existing.gstNumber,
+      panNumber:
+        updates.panNumber !== undefined ? updates.panNumber : existing.panNumber,
       profileImageUrl:
         updates.profileImageUrl !== undefined
           ? updates.profileImageUrl
@@ -356,7 +363,9 @@ export class VendorsMapper {
       addressLine1: string;
       addressLine2?: string;
       landmark?: string;
+      locality?: string;
       city: string;
+      district?: string;
       state: string;
       country: string;
       postalCode: string;
@@ -375,7 +384,9 @@ export class VendorsMapper {
       addressLine1: data.addressLine1,
       addressLine2: data.addressLine2,
       landmark: data.landmark,
+      locality: data.locality,
       city: data.city,
+      district: data.district,
       state: data.state,
       country: data.country,
       postalCode: data.postalCode,
@@ -392,7 +403,9 @@ export class VendorsMapper {
       addressLine1: item.addressLine1,
       addressLine2: item.addressLine2,
       landmark: item.landmark,
+      locality: item.locality,
       city: item.city,
+      district: item.district,
       state: item.state,
       country: item.country,
       postalCode: item.postalCode,

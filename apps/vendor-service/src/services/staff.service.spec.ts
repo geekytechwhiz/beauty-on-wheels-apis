@@ -216,6 +216,27 @@ describe('StaffService', () => {
       expect(result.status).toBe('ACTIVE');
     });
 
+    it('denies staff creation for a REGISTRANT who owns the vendor', async () => {
+      await expect(
+        service.createvendorstaff(
+          authRequest({
+            body: { name: 'Ananya Reddy', phoneNumber: '+919900112233' },
+            context: {
+              authContext: {
+                identityId: 'sub-1',
+                userId: 'user-1',
+                roles: ['REGISTRANT'],
+                permissions: ['vendor:register'],
+                claims: {},
+              },
+              userContext: { userId: 'user-1', roles: ['VENDOR'], permissions: ['staff:manage'] },
+            },
+          }),
+        ),
+      ).rejects.toThrow(ForbiddenError);
+      expect(repository.createStaff).not.toHaveBeenCalled();
+    });
+
     it('rejects staff creation when the caller is unauthenticated', async () => {
       await expect(
         service.createvendorstaff(

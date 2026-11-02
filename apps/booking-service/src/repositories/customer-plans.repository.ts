@@ -239,6 +239,31 @@ export class CustomerPlansRepository extends BaseRepository {
   }
 
   /**
+   * One schedule timezone sample for operations summary when the requested range
+   * has no dated rows. Skips UNSCHEDULED GSI1 keys. Newest scheduled first.
+   */
+  async sampleVendorVisitTimezone(vendorId: string): Promise<string | undefined> {
+    const params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': `VENDOR#${vendorId}`,
+        ':prefix': 'VISIT#',
+      },
+      ScanIndexForward: false,
+      Limit: 25,
+    };
+    const page = await this.queryPage<PackageVisitDdbItem>(params);
+    for (const item of page.items) {
+      if (!item.schedule?.date || item.status === 'UNSCHEDULED') continue;
+      const timezone = item.schedule.timezone?.trim();
+      if (timezone) return timezone;
+    }
+    return undefined;
+  }
+
+  /**
    * Scheduled visits for one day (GSI3) or an inclusive date range (GSI1).
    * UNSCHEDULED rows use GSI1SK `VISIT#UNSCHEDULED#...` and are outside both key ranges.
    */
@@ -327,6 +352,28 @@ export class CustomerPlansRepository extends BaseRepository {
       ],
     });
     return next;
+  }
+
+  /**
+   * Writes every visit in one TransactWrite. A version or status mismatch fails the whole group.
+   * Callers keep the batch at or below the DynamoDB transaction item limit.
+   */
+  async saveVisits(updates: Array<{ next: PackageVisitRecord; expectedVersion: number }>): Promise<void> {
+    if (updates.length === 0) return;
+    await this.transactWrite({
+      TransactItems: updates.map((update) => ({
+        Put: {
+          TableName: this.getTableName(),
+          Item: toVisitItem(update.next),
+          ConditionExpression: 'version = :expectedVersion AND #status = :scheduled',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: {
+            ':expectedVersion': update.expectedVersion,
+            ':scheduled': 'SCHEDULED',
+          },
+        },
+      })),
+    });
   }
 
   /**

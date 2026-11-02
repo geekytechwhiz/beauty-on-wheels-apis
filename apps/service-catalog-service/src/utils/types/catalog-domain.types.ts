@@ -16,7 +16,11 @@ export type EntityType =
     | 'SERVICE_VEHICLE'
     | 'ADDON_LOOKUP'
     | 'OfferingCommunity'
-    | 'ServiceCreateIdempotency';
+    | 'ServiceCreateIdempotency'
+    | 'AddonSuggestion'
+    | 'AddonSuggestionLookup'
+    | 'AddonSuggestionIdempotency'
+    | 'AddonSuggestionReviewIdempotency';
 
 export interface CatalogBaseEntity {
     /** DynamoDB partition key */

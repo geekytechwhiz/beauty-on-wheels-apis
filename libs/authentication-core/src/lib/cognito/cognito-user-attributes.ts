@@ -23,7 +23,7 @@ export interface CognitoCreateUserAttributeInput {
  * `email`, `phone_number`, `name`. `sub` is required but assigned by Cognito.
  */
 const INPUT_TO_SCHEMA: Record<
-  keyof CognitoCreateUserAttributeInput,
+  Exclude<keyof CognitoCreateUserAttributeInput, 'markDestinationVerified'>,
   (typeof REQUIRED_WRITABLE_COGNITO_ATTRIBUTES)[number]
 > = {
   email: 'email',

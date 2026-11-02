@@ -31,6 +31,9 @@
       "path": "./tools/mvrx-resource-registry"
     },
     {
+      "path": "./tools/fhir-mapper-generator"
+    },
+    {
       "path": "./packages/fhir"
     },
     {

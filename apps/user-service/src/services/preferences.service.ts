@@ -17,7 +17,7 @@ import {
   OperationalPreferences,
   OperationalPreferencesUpdate,
 } from '../types/api-types';
-import {  getUserId } from '../utils';
+import { assertOwnerOrAdmin, getUserId } from '../utils';
 
 const baseLogger = createLogger({
   service: 'preferences-service',
@@ -35,7 +35,8 @@ export class PreferencesService {
   ) {}
 
   async getPreferences(request: LambdaRequest): Promise<OperationalPreferences> {
-    const userId = getUserId(request); 
+    const userId = getUserId(request);
+    assertOwnerOrAdmin(request, userId);
 
     const record = await this.preferences.getPreferences(userId);
 
@@ -50,7 +51,7 @@ export class PreferencesService {
 
   async putPreferences(request: LambdaRequest): Promise<OperationalPreferences> {
     const userId = getUserId(request);
-    // assertOwnerOrAdmin(request, userId);
+    assertOwnerOrAdmin(request, userId);
 
     const profile = await this.customers.getProfile(userId);
     if (!profile) {

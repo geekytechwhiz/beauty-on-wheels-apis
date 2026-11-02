@@ -1,7 +1,12 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-import { evaluateApiGatewayAuthorizer, toExecuteApiWildcardResource } from './api-gateway-authorizer';
+import { APPLICATION_ROLE } from './application-roles';
+import {
+  authorizerResourceForPrincipal,
+  evaluateApiGatewayAuthorizer,
+  toExecuteApiWildcardResource,
+} from './api-gateway-authorizer';
 import { JwksCache, type JwksDocument } from './jwks-cache';
 import type { AuthUserDirectory } from './auth-context';
 import { PERMISSION } from './permissions';
@@ -310,6 +315,149 @@ describe('evaluateApiGatewayAuthorizer', () => {
       userId: 'u-1',
       roles: JSON.stringify(['VENDOR']),
       permissions: JSON.stringify([PERMISSION.VENDOR_READ, PERMISSION.BOOKING_READ]),
+    });
+  });
+});
+
+describe('REGISTRANT authorizer policy', () => {
+  const postVendors =
+    'arn:aws:execute-api:us-east-1:123456789012:abcdef123/dev/POST/vendors';
+  const getStaff =
+    'arn:aws:execute-api:us-east-1:123456789012:abcdef123/dev/GET/vendors/vendor-1/staff';
+  const getCustomers =
+    'arn:aws:execute-api:us-east-1:123456789012:fedcba999/dev/GET/customers/me';
+
+  function registrantDirectory(phoneVerified = true) {
+    return directory({
+      findUserByIdentityId: jest.fn().mockResolvedValue({
+        userId: 'u-1',
+        identityId: 'cognito-sub-1',
+        roleId: 'user',
+        status: 'active',
+        phoneNumber: '+919876543210',
+        phoneVerified,
+      }),
+      getUserRoles: jest.fn().mockResolvedValue([APPLICATION_ROLE.REGISTRANT]),
+      getPermissionsForRoles: jest.fn().mockImplementation(async (roleIds: string[]) =>
+        roleIds.includes(APPLICATION_ROLE.REGISTRANT)
+          ? [PERMISSION.VENDOR_CREATE, PERMISSION.VENDOR_READ]
+          : [],
+      ),
+    });
+  }
+
+  it('allows all stage routes for a verified REGISTRANT', async () => {
+    const token = signToken({
+      roles: [APPLICATION_ROLE.REGISTRANT],
+      userType: 'VENDOR',
+    });
+    const result = await evaluateApiGatewayAuthorizer(
+      { type: 'TOKEN', methodArn: postVendors, authorizationToken: `Bearer ${token}` },
+      { userDirectory: registrantDirectory(), requireApplicationUser: true, expectedTokenUse: 'access' },
+    );
+    expect(statement(result)).toMatchObject({
+      Effect: 'Allow',
+      Resource: toExecuteApiWildcardResource(postVendors),
+    });
+    expect(statement(result).Resource).toContain('/*/*');
+    expect(result.context).toMatchObject({
+      identityId: 'cognito-sub-1',
+      userId: 'u-1',
+      roles: JSON.stringify([APPLICATION_ROLE.REGISTRANT]),
+      permissions: JSON.stringify([PERMISSION.VENDOR_REGISTER]),
+      phoneNumber: '+919876543210',
+      phoneVerified: 'true',
+    });
+    expect(result.context?.permissions).not.toContain(PERMISSION.VENDOR_CREATE);
+  });
+
+  it('allows a REGISTRANT to invoke another vendor route', async () => {
+    const token = signToken({ roles: [APPLICATION_ROLE.REGISTRANT] });
+    const result = await evaluateApiGatewayAuthorizer(
+      { type: 'TOKEN', methodArn: getStaff, authorizationToken: `Bearer ${token}` },
+      { userDirectory: registrantDirectory(), requireApplicationUser: true },
+    );
+    expect(statement(result).Effect).toBe('Allow');
+    expect(statement(result).Resource).toBe(toExecuteApiWildcardResource(getStaff));
+  });
+
+  it('allows a mapped REGISTRANT when the phone is not verified', async () => {
+    const token = signToken({ roles: [APPLICATION_ROLE.REGISTRANT] });
+    const result = await evaluateApiGatewayAuthorizer(
+      { type: 'TOKEN', methodArn: postVendors, authorizationToken: `Bearer ${token}` },
+      { userDirectory: registrantDirectory(false), requireApplicationUser: true },
+    );
+    expect(statement(result).Effect).toBe('Allow');
+    expect(statement(result).Resource).toBe(toExecuteApiWildcardResource(postVendors));
+    expect(result.context?.phoneVerified).toBe('false');
+  });
+
+  it('allows a REGISTRANT context with no route permission', () => {
+    const decision = authorizerResourceForPrincipal(
+      {
+        roles: [APPLICATION_ROLE.REGISTRANT],
+        permissions: [],
+        phoneVerified: true,
+        phoneNumber: '+919876543210',
+        identityId: 'cognito-sub-1',
+        claims: {},
+      },
+      postVendors,
+    );
+    expect(decision).toEqual({
+      effect: 'Allow',
+      resource: toExecuteApiWildcardResource(postVendors),
+    });
+  });
+
+  it('keeps the stage-wide policy for CUSTOMER even when userType is VENDOR', async () => {
+    const token = signToken({
+      roles: [APPLICATION_ROLE.CUSTOMER],
+      userType: 'VENDOR',
+    });
+    const result = await evaluateApiGatewayAuthorizer(
+      { type: 'TOKEN', methodArn: getCustomers, authorizationToken: `Bearer ${token}` },
+      {
+        userDirectory: directory({
+          getUserRoles: jest.fn().mockResolvedValue([APPLICATION_ROLE.CUSTOMER]),
+          getPermissionsForRoles: jest.fn().mockResolvedValue([]),
+        }),
+        requireApplicationUser: true,
+      },
+    );
+    expect(statement(result)).toMatchObject({
+      Effect: 'Allow',
+      Resource: toExecuteApiWildcardResource(getCustomers),
+    });
+  });
+
+  it('keeps the stage-wide policy for VENDOR and vendor:create', () => {
+    expect(
+      authorizerResourceForPrincipal(
+        {
+          roles: [APPLICATION_ROLE.VENDOR],
+          permissions: [],
+          identityId: 'cognito-sub-1',
+          claims: {},
+        },
+        getStaff,
+      ).resource,
+    ).toBe(toExecuteApiWildcardResource(getStaff));
+    expect(
+      authorizerResourceForPrincipal(
+        {
+          roles: [APPLICATION_ROLE.REGISTRANT],
+          permissions: [PERMISSION.VENDOR_CREATE],
+          phoneVerified: true,
+          phoneNumber: '+919876543210',
+          identityId: 'cognito-sub-1',
+          claims: {},
+        },
+        postVendors,
+      ),
+    ).toEqual({
+      effect: 'Allow',
+      resource: toExecuteApiWildcardResource(postVendors),
     });
   });
 });

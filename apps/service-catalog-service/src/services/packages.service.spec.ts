@@ -1,4 +1,4 @@
-import { BaseError, LambdaRequest } from '@api-hub/utils';
+import { BaseError, ForbiddenError, LambdaRequest } from '@api-hub/utils';
 
 import { PackagesService } from './packages.service';
 import { PackagesRepository } from '../repositories/packages.repository';
@@ -7,7 +7,11 @@ import { AddOnsRepository } from '../repositories/add-ons.repository';
 import { ServiceEntity } from '../utils/types/catalog-domain.types';
 
 function request(body: unknown): LambdaRequest {
-  return { body, params: {}, context: {} } as unknown as LambdaRequest;
+  return {
+    body,
+    params: {},
+    context: { userContext: { userId: 'admin-1', roles: ['catalog_admin'] } },
+  } as unknown as LambdaRequest;
 }
 
 function catalogService(id: string, active = true): ServiceEntity {
@@ -45,6 +49,22 @@ describe('PackagesService validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     packages.findByName.mockResolvedValue(null);
+  });
+
+  it('requires catalog admin access to create packages', async () => {
+    await expect(
+      service.postpackages({
+        body: {
+          vendorId: 'vendor-1',
+          name: 'Premium Complete',
+          discountedPrice: 500,
+          items: [{ serviceId: 'svc-1' }],
+        },
+        params: {},
+        context: { userContext: { userId: 'vendor-1', roles: ['owner'] } },
+      } as unknown as LambdaRequest),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(packages.createPackage).not.toHaveBeenCalled();
   });
 
   it('rejects a package that references a missing service', async () => {

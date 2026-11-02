@@ -384,6 +384,29 @@ describe('DocumentsService', () => {
     expect(repository.deleteDocument).not.toHaveBeenCalled();
   });
 
+  it('updates the display name without issuing an upload URL', async () => {
+    repository.getDocument.mockResolvedValue(
+      documentItem({ status: 'UPLOADED' }),
+    );
+
+    const result = await service.updatevendordocument(
+      authRequest({
+        pathParameters: { documentId: 'doc-1' },
+        body: { fileName: 'gst-certificate-v2.pdf' },
+      }),
+    );
+
+    expect(result.fileName).toBe('gst-certificate-v2.pdf');
+    expect(result.status).toBe('UPLOADED');
+    expect(result.uploadUrl).toBeUndefined();
+    expect(result.objectKey).toBe('vendors/vendor-1/documents/doc-1.pdf');
+    expect(documentStorage.createUploadUrl).not.toHaveBeenCalled();
+    const saved = repository.updateDocument.mock.calls[0][0];
+    expect(saved.documentId).toBe('doc-1');
+    expect(saved.contentType).toBe('application/pdf');
+    expect(saved.status).toBe('UPLOADED');
+  });
+
   it('lists metadata and a download URL only for uploaded documents', async () => {
     repository.listDocuments.mockResolvedValue([
       documentItem({ status: 'PENDING_UPLOAD' }),

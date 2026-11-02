@@ -15,7 +15,10 @@ import { EventSchemaError } from '@api-hub/middleware';
  */
 export const CreateCustomerPlanSchema = z
   .object({
-    vendorId: z.string().trim().min(1),
+    /** Optional for Carish-owned packages; fulfilment partner is resolved server-side. */
+    vendorId: z.string().trim().min(1).optional(),
+    /** Optional concurrency pin for the Carish package contract. */
+    packageVersion: z.number().int().positive().optional(),
     offeringId: z.string().trim().min(1).optional(),
     packageId: z.string().trim().min(1).optional(),
     vehicleId: z.string().trim().min(1),

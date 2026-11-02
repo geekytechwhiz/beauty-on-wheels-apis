@@ -8,8 +8,12 @@ import type { LambdaRequest } from '@api-hub/utils';
 
 import { getIdentityAuthUserDirectory } from './identity-user-directory';
 
+/**
+ * Re-resolve the identity-owned user for the self/profile endpoints.  The
+ * shared authorizer intentionally omits an application user while provisioning
+ * is pending, but these endpoints must remain available to that identity.
+ */
 export async function requireAuth(request: LambdaRequest): Promise<AuthContext> {
-  // Prefers API Gateway authorizer context; JWT/JWKS runs only when that context is absent.
   return authenticate(request, {
     userDirectory: getIdentityAuthUserDirectory(),
     requireApplicationUser: true,

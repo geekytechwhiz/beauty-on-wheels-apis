@@ -9,7 +9,11 @@ import {
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { COMMUNITY_STATUS, ENTITY_TYPE, MAX_COMMUNITY_MEMBERSHIPS } from '../domain/constants';
-import { toCommunity, toMembershipRecord } from '../mappers/communities.mapper';
+import {
+  toCommunity,
+  toCommunityDirectoryItem,
+  toMembershipRecord,
+} from '../mappers/communities.mapper';
 import {
   CommunitiesRepository,
   getCommunitiesRepository,
@@ -29,11 +33,15 @@ import {
 import { CommunityRecord } from '../types/records';
 import {
   assertAdminAccess, 
+  assertOwnerAdminOrService,
   decodeCursor,
   encodeCursor,
+  getAuthenticatedUserId,
   getPathParam,
   getQueryParam,
   getUserId,
+  hasCallerIdentity,
+  isAdminCaller,
   parseLimit,
   UserKeyBuilder,
 } from '../utils';
@@ -61,8 +69,22 @@ export class CommunitiesService {
     const record = this.toRecord({
       communityId,
       name: body.name,
-      code: body.code,
+      code: body.code ?? toCommunityCode(body.name),
+      accessType: body.accessType,
       city: body.city,
+      cityId: body.cityId ?? (body.city ? toLocationId(body.city) : undefined),
+      locality: body.locality,
+      localityId: body.localityId ?? (body.locality ? toLocationId(body.locality) : undefined),
+      postalCode: body.postalCode,
+      streetAddress: body.streetAddress,
+      contactPersonName: body.contactPersonName,
+      contactPersonTitle: body.contactPersonTitle,
+      contactPhone: body.contactPhone,
+      contactEmail: body.contactEmail,
+      totalResidentialUnits: body.totalResidentialUnits,
+      estimatedVehicleCount: body.estimatedVehicleCount,
+      leadSource: body.leadSource,
+      intakeNotes: body.intakeNotes,
       status: COMMUNITY_STATUS.ACTIVE,
       createdAt: now,
       updatedAt: now,
@@ -86,12 +108,17 @@ export class CommunitiesService {
   }
 
   async listCommunities(request: LambdaRequest): Promise<CommunityListResponse> {
-    assertAdminAccess(request);
+    if (!hasCallerIdentity(request)) {
+      getAuthenticatedUserId(request);
+    }
     const statusQuery = getQueryParam(request, 'status');
+    if (statusQuery && !isAdminCaller(request) && statusQuery !== COMMUNITY_STATUS.ACTIVE) {
+      throw new ValidationError('Only an administrator can filter community status');
+    }
     const status =
-      statusQuery === 'all'
+      isAdminCaller(request) && statusQuery === 'all'
         ? undefined
-        : statusQuery === COMMUNITY_STATUS.INACTIVE
+        : isAdminCaller(request) && statusQuery === COMMUNITY_STATUS.INACTIVE
           ? COMMUNITY_STATUS.INACTIVE
           : COMMUNITY_STATUS.ACTIVE;
 
@@ -106,13 +133,19 @@ export class CommunitiesService {
 
     const page = await this.communities.listCommunities({
       status,
+      search: getQueryParam(request, 'search')?.toLowerCase(),
+      cityId: getQueryParam(request, 'cityId'),
+      localityId: getQueryParam(request, 'localityId'),
+      postalCode: getQueryParam(request, 'postalCode'),
       limit: parseLimit(request.params?.limit),
       lastEvaluatedKey: decodeCursor(request.params?.cursor),
     });
     const nextCursor = encodeCursor(page.lastEvaluatedKey);
 
     return {
-      items: page.items.map((item) => toCommunity(item)),
+      items: page.items.map((item) =>
+        isAdminCaller(request) ? toCommunity(item) : toCommunityDirectoryItem(item),
+      ),
       pagination: {
         nextCursor,
         hasMore: Boolean(page.lastEvaluatedKey),
@@ -135,18 +168,35 @@ export class CommunitiesService {
     const record = this.toRecord({
       communityId,
       name: body.name ?? existing.name,
-      code: body.code ?? existing.code,
+      code: body.code ?? existing.code ?? toCommunityCode(body.name ?? existing.name),
+      accessType: body.accessType ?? existing.accessType,
       city: body.city ?? existing.city,
+      cityId: body.cityId ?? existing.cityId ?? (body.city ? toLocationId(body.city) : undefined),
+      locality: body.locality ?? existing.locality,
+      localityId:
+        body.localityId
+        ?? existing.localityId
+        ?? (body.locality ? toLocationId(body.locality) : undefined),
+      postalCode: body.postalCode ?? existing.postalCode,
+      streetAddress: body.streetAddress ?? existing.streetAddress,
+      contactPersonName: body.contactPersonName ?? existing.contactPersonName,
+      contactPersonTitle: body.contactPersonTitle ?? existing.contactPersonTitle,
+      contactPhone: body.contactPhone ?? existing.contactPhone,
+      contactEmail: body.contactEmail ?? existing.contactEmail,
+      totalResidentialUnits: body.totalResidentialUnits ?? existing.totalResidentialUnits,
+      estimatedVehicleCount: body.estimatedVehicleCount ?? existing.estimatedVehicleCount,
+      leadSource: body.leadSource ?? existing.leadSource,
+      intakeNotes: body.intakeNotes ?? existing.intakeNotes,
       status: body.status ?? existing.status,
       createdAt: existing.createdAt,
       updatedAt: now,
     });
 
     try {
-      await this.communities.saveCommunity(record);
+      await this.communities.saveCommunity(record, existing.code);
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
-        throw new NotFoundError('Community not found');
+        throw new ConflictError('Community code is already in use or the community changed');
       }
       throw error;
     }
@@ -173,7 +223,7 @@ export class CommunitiesService {
       status: COMMUNITY_STATUS.INACTIVE,
       updatedAt: now,
     });
-    await this.communities.saveCommunity(record);
+    await this.communities.saveCommunity(record, existing.code);
 
     this.logger.info({
       event: 'delete_community_success',
@@ -184,7 +234,8 @@ export class CommunitiesService {
   }
 
   async getMembership(request: LambdaRequest): Promise<CustomerCommunities> {
-    const userId = getUserId(request); 
+    const userId = getUserId(request);
+    assertOwnerAdminOrService(request, userId);
     const profile = await this.customers.getProfile(userId);
     if (!profile) {
       throw new NotFoundError('Customer profile not found');
@@ -197,8 +248,8 @@ export class CommunitiesService {
   }
 
   async putMembership(request: LambdaRequest): Promise<CustomerCommunities> {
-    assertAdminAccess(request);
     const userId = getUserId(request);
+    assertOwnerAdminOrService(request, userId);
     const profile = await this.customers.getProfile(userId);
     if (!profile) {
       throw new NotFoundError('Customer profile not found');
@@ -261,6 +312,20 @@ export class CommunitiesService {
     name: string;
     code?: string;
     city?: string;
+    cityId?: string;
+    locality?: string;
+    localityId?: string;
+    postalCode?: string;
+    accessType?: CommunityRecord['accessType'];
+    streetAddress?: string;
+    contactPersonName?: string;
+    contactPersonTitle?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    totalResidentialUnits?: number;
+    estimatedVehicleCount?: number;
+    leadSource?: CommunityRecord['leadSource'];
+    intakeNotes?: string;
     status: CommunityRecord['status'];
     createdAt: string;
     updatedAt: string;
@@ -278,8 +343,64 @@ export class CommunitiesService {
       updatedAt: input.updatedAt,
       ...(input.code ? { code: input.code } : {}),
       ...(input.city ? { city: input.city } : {}),
+      ...(input.cityId ? { cityId: input.cityId } : {}),
+      ...(input.locality ? { locality: input.locality } : {}),
+      ...(input.localityId ? { localityId: input.localityId } : {}),
+      ...(input.postalCode ? { postalCode: input.postalCode } : {}),
+      ...(input.accessType ? { accessType: input.accessType } : {}),
+      ...(input.streetAddress ? { streetAddress: input.streetAddress } : {}),
+      ...(input.contactPersonName ? { contactPersonName: input.contactPersonName } : {}),
+      ...(input.contactPersonTitle ? { contactPersonTitle: input.contactPersonTitle } : {}),
+      ...(input.contactPhone ? { contactPhone: input.contactPhone } : {}),
+      ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),
+      ...(input.totalResidentialUnits !== undefined
+        ? { totalResidentialUnits: input.totalResidentialUnits }
+        : {}),
+      ...(input.estimatedVehicleCount !== undefined
+        ? { estimatedVehicleCount: input.estimatedVehicleCount }
+        : {}),
+      ...(input.leadSource ? { leadSource: input.leadSource } : {}),
+      ...(input.intakeNotes ? { intakeNotes: input.intakeNotes } : {}),
+      searchText: [
+        input.name,
+        input.code,
+        input.city,
+        input.cityId,
+        input.locality,
+        input.localityId,
+        input.postalCode,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(' ')
+        .toLowerCase(),
     };
   }
+}
+
+function toCommunityCode(name: string): string {
+  const code = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '');
+  if (!code) throw new ValidationError('Community name must contain letters or digits');
+  return code;
+}
+
+function toLocationId(name: string): string {
+  const normalized = name
+    .trim()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase();
+  if (!normalized) throw new ValidationError('Location must contain letters or digits');
+  return normalized;
 }
 
 let service: CommunitiesService;

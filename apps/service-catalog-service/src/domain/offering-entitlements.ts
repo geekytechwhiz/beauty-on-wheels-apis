@@ -10,7 +10,13 @@ export interface OfferingEntitlement {
 
 /** Stable slug from included service name when serviceKey is absent. */
 export function slugifyIncludedServiceName(name: string): string {
-  const slug = name
+  // Labels may carry a display-only qualifier (for example a duplicate copied
+  // into a draft). Entitlement ids must stay stable for the underlying service
+  // rather than turn a presentation label into a second service identity.
+  const canonicalName = name
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/^\s*another\s+/i, '');
+  const slug = canonicalName
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')

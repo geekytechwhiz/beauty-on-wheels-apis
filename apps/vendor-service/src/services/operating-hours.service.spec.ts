@@ -1,16 +1,11 @@
 import { LambdaRequest } from '@api-hub/utils';
-import {
-  NotFoundError,
-  UnauthorizedError,
-  ValidationError,
-} from '@api-hub/utils';
+import { NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
 
 import { OperatingHoursService } from './operating-hours.service';
-import { OperatingHoursRepository } from '../repositories/operating-hours.repository';
 import { VendorsRepository } from '../repositories/vendors.repository';
 import {
   VendorDdbItem,
-  VendorOperatingHoursDdbItem,
+  VendorOperatingPreferencesDdbItem,
 } from '../types/repository.types';
 
 function authRequest(overrides: Record<string, unknown> = {}): LambdaRequest {
@@ -31,219 +26,109 @@ function vendorItem(): VendorDdbItem {
     SK: 'PROFILE',
     vendorId: 'vendor-1',
     ownerUserId: 'user-1',
-     businessType: 'BUSINESS',
+    businessType: 'BUSINESS',
     businessName: 'Glow',
     contactName: 'Priya',
     phoneNumber: '+919876543210',
     onboardingStatus: 'IN_PROGRESS',
-    currentSection: 'BRANCH',
-    completedSections: ['BUSINESS_INFO', 'OWNER_DETAILS', 'ADDRESS'],
-    addressCity: 'Bengaluru',
-    addressPostalCode: '560001',
-    status: 'ACTIVE',
-    operationalStatus: 'ONLINE',
+    currentSection: 'BUSINESS_INFO',
+    completedSections: ['BUSINESS_INFO'],
+    status: 'PENDING_VERIFICATION',
+    operationalStatus: 'OFFLINE',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     GSI1PK: 'VENDOR',
-    GSI1SK: 'STATUS#ACTIVE#OPERATIONAL#ONLINE#2026-01-01T00:00:00.000Z#vendor-1',
-    GSI2PK: 'CITY#BENGALURU',
-    GSI2SK: 'POSTAL#560001#2026-01-01T00:00:00.000Z#vendor-1',
+    GSI1SK: 'STATUS#PENDING_VERIFICATION#OPERATIONAL#OFFLINE#2026-01-01T00:00:00.000Z#vendor-1',
     entityType: 'Vendor',
   };
 }
 
-function hoursItem(): VendorOperatingHoursDdbItem {
+function preferencesItem(): VendorOperatingPreferencesDdbItem {
   return {
     PK: 'VENDOR#vendor-1',
-    SK: 'HOURS',
+    SK: 'OPERATING_PREFERENCES',
     vendorId: 'vendor-1',
-    operatingHours: [
-      {
-        dayOfWeek: 'MONDAY',
-        closed: false,
-        openTime: '09:00',
-        closeTime: '18:00',
-      },
-      { dayOfWeek: 'SUNDAY', closed: true },
-    ],
+    serviceWindowIds: ['morning'],
     createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    entityType: 'VendorOperatingHours',
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    entityType: 'VendorOperatingPreferences',
   };
 }
 
 describe('OperatingHoursService', () => {
-  let repository: jest.Mocked<OperatingHoursRepository>;
   let vendorsRepository: jest.Mocked<VendorsRepository>;
   let service: OperatingHoursService;
 
   beforeEach(() => {
-    repository = {
-      getOperatingHours: jest.fn(),
-      putOperatingHours: jest.fn(),
-    } as unknown as jest.Mocked<OperatingHoursRepository>;
-
     vendorsRepository = {
       getVendorById: jest.fn().mockResolvedValue(vendorItem()),
+      getOperatingPreferences: jest.fn().mockResolvedValue(preferencesItem()),
+      putOperatingPreferences: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<VendorsRepository>;
-
-    service = new OperatingHoursService(repository, vendorsRepository);
+    service = new OperatingHoursService(vendorsRepository);
   });
 
-  describe('getvendoroperatinghours', () => {
-    it('returns stored weekly hours for the vendor', async () => {
-      repository.getOperatingHours.mockResolvedValue(hoursItem());
-
-      const result = await service.getvendoroperatinghours(authRequest());
-
-      expect(result.data).toHaveLength(2);
-      expect(result.data[0]).toEqual({
-        vendorId: 'vendor-1',
-        dayOfWeek: 'MONDAY',
-        closed: false,
-        openTime: '09:00',
-        closeTime: '18:00',
-      });
-      expect(result.data[1]).toEqual({
-        vendorId: 'vendor-1',
-        dayOfWeek: 'SUNDAY',
-        closed: true,
-      });
-    });
-
-    it('returns an empty schedule when none has been saved', async () => {
-      repository.getOperatingHours.mockResolvedValue(null);
-
-      const result = await service.getvendoroperatinghours(authRequest());
-
-      expect(result).toEqual({ data: [] });
-    });
-
-    it('returns 404 when the vendor does not exist', async () => {
-      vendorsRepository.getVendorById.mockResolvedValue(null);
-
-      await expect(
-        service.getvendoroperatinghours(authRequest()),
-      ).rejects.toThrow(NotFoundError);
-      expect(repository.getOperatingHours).not.toHaveBeenCalled();
-    });
-
-    it('rejects operating-hours reads when the caller is unauthenticated', async () => {
-      await expect(
-        service.getvendoroperatinghours(
-          authRequest({ context: { userContext: {} } }),
-        ),
-      ).rejects.toThrow(UnauthorizedError);
+  it('returns the service windows vendor detail and onboarding read', async () => {
+    const result = await service.getvendoroperatinghours(authRequest());
+    expect(result).toEqual({
+      vendorId: 'vendor-1',
+      serviceWindowIds: ['morning'],
+      updatedAt: '2026-01-02T00:00:00.000Z',
     });
   });
 
-  describe('updatevendoroperatinghours', () => {
-    it('replaces the vendor weekly schedule', async () => {
-      repository.getOperatingHours.mockResolvedValue(null);
-      repository.putOperatingHours.mockResolvedValue(undefined);
+  it('replaces service windows on the preferences item', async () => {
+    const result = await service.updatevendoroperatinghours(
+      authRequest({
+        body: { serviceWindowIds: ['weekday_morning', 'weekend_day'] },
+      }),
+    );
 
-      const result = await service.updatevendoroperatinghours(
-        authRequest({
-          body: {
-            operatingHours: [
-              { dayOfWeek: 'SUNDAY', closed: true },
-              {
-                dayOfWeek: 'MONDAY',
-                closed: false,
-                openTime: '09:00',
-                closeTime: '18:00',
-              },
-            ],
-          },
-        }),
-      );
+    expect(result.serviceWindowIds).toEqual(['weekday_morning', 'weekend_day']);
+    const saved = vendorsRepository.putOperatingPreferences.mock.calls[0][0];
+    expect(saved.entityType).toBe('VendorOperatingPreferences');
+    expect(saved.SK).toBe('OPERATING_PREFERENCES');
+    expect(saved.createdAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(saved.serviceWindowIds).toEqual(['weekday_morning', 'weekend_day']);
+  });
 
-      expect(result.data.map((entry) => entry.dayOfWeek)).toEqual([
-        'MONDAY',
-        'SUNDAY',
-      ]);
-      expect(repository.putOperatingHours).toHaveBeenCalledTimes(1);
-      const saved = repository.putOperatingHours.mock.calls[0][0];
-      expect(saved.PK).toBe('VENDOR#vendor-1');
-      expect(saved.SK).toBe('HOURS');
-      expect(saved.entityType).toBe('VendorOperatingHours');
-      expect(saved.operatingHours[0]).toEqual({
-        dayOfWeek: 'MONDAY',
-        closed: false,
-        openTime: '09:00',
-        closeTime: '18:00',
-      });
-      expect(saved.operatingHours[1]).toEqual({
-        dayOfWeek: 'SUNDAY',
-        closed: true,
-      });
-    });
+  it('does not write when the same windows are sent again', async () => {
+    const result = await service.updatevendoroperatinghours(
+      authRequest({ body: { serviceWindowIds: ['morning'] } }),
+    );
+    expect(result.updatedAt).toBe('2026-01-02T00:00:00.000Z');
+    expect(vendorsRepository.putOperatingPreferences).not.toHaveBeenCalled();
+  });
 
-    it('rejects duplicate days', async () => {
-      await expect(
-        service.updatevendoroperatinghours(
-          authRequest({
-            body: {
-              operatingHours: [
-                {
-                  dayOfWeek: 'MONDAY',
-                  closed: false,
-                  openTime: '09:00',
-                  closeTime: '18:00',
-                },
-                { dayOfWeek: 'MONDAY', closed: true },
-              ],
-            },
-          }),
-        ),
-      ).rejects.toThrow(ValidationError);
-      expect(repository.putOperatingHours).not.toHaveBeenCalled();
-    });
+  it('rejects an unknown or duplicate service window', async () => {
+    await expect(
+      service.updatevendoroperatinghours(
+        authRequest({ body: { serviceWindowIds: ['evening'] } }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      service.updatevendoroperatinghours(
+        authRequest({ body: { serviceWindowIds: ['morning', 'morning'] } }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect(vendorsRepository.putOperatingPreferences).not.toHaveBeenCalled();
+  });
 
-    it('requires open and close times when a day is not closed', async () => {
-      await expect(
-        service.updatevendoroperatinghours(
-          authRequest({
-            body: {
-              operatingHours: [{ dayOfWeek: 'MONDAY', closed: false }],
-            },
-          }),
-        ),
-      ).rejects.toThrow(ValidationError);
-    });
+  it('returns 404 when the vendor does not exist', async () => {
+    vendorsRepository.getVendorById.mockResolvedValue(null);
+    await expect(
+      service.updatevendoroperatinghours(
+        authRequest({ body: { serviceWindowIds: ['morning'] } }),
+      ),
+    ).rejects.toThrow(NotFoundError);
+  });
 
-    it('rejects a close time that is not after open time', async () => {
-      await expect(
-        service.updatevendoroperatinghours(
-          authRequest({
-            body: {
-              operatingHours: [
-                {
-                  dayOfWeek: 'MONDAY',
-                  closed: false,
-                  openTime: '18:00',
-                  closeTime: '09:00',
-                },
-              ],
-            },
-          }),
-        ),
-      ).rejects.toThrow(ValidationError);
-    });
-
-    it('returns 404 when replacing hours for a missing vendor', async () => {
-      vendorsRepository.getVendorById.mockResolvedValue(null);
-
-      await expect(
-        service.updatevendoroperatinghours(
-          authRequest({
-            body: {
-              operatingHours: [{ dayOfWeek: 'SUNDAY', closed: true }],
-            },
-          }),
-        ),
-      ).rejects.toThrow(NotFoundError);
-      expect(repository.putOperatingHours).not.toHaveBeenCalled();
-    });
+  it('rejects an unauthenticated caller', async () => {
+    await expect(
+      service.getvendoroperatinghours({
+        pathParameters: { vendorId: 'vendor-1' },
+        context: {},
+      } as LambdaRequest),
+    ).rejects.toThrow(UnauthorizedError);
   });
 });

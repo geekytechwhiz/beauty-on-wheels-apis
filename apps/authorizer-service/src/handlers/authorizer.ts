@@ -10,6 +10,21 @@ import {
 
 let directory: DynamoDbAuthUserDirectory | undefined;
 
+const IDENTITY_SELF_ROUTES = new Set([
+  'GET/me',
+  'GET/identity/me/provisioning-status',
+]);
+
+/**
+ * An identity is authenticated before its asynchronous application-user link
+ * exists.  Only the Identity service's self/profile routes may be called in
+ * that interval; every other protected route still requires that link.
+ */
+export function requiresApplicationUser(methodArn: string): boolean {
+  const request = methodArn.split('/').slice(2).join('/');
+  return !IDENTITY_SELF_ROUTES.has(request);
+}
+
 function getDirectory(): DynamoDbAuthUserDirectory {
   if (!directory) {
     directory = new DynamoDbAuthUserDirectory();
@@ -27,7 +42,7 @@ export const handleAuthorize = async (
 ): Promise<APIGatewayAuthorizerResult> => {
   return evaluateApiGatewayAuthorizer(event, {
     userDirectory: getDirectory(),
-    requireApplicationUser: true,
+    requireApplicationUser: requiresApplicationUser(event.methodArn),
     expectedTokenUse: 'access',
   });
 };

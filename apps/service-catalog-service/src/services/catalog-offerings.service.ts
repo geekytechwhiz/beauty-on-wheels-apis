@@ -30,6 +30,7 @@ import {
   type DiscoveryFactsSource,
 } from '../integrations/vendor-discovery-facts';
 import { resolveCallerVendor } from '../integrations/vendor-self';
+import { assertCatalogAdmin } from '../utils/helpers/catalog-admin';
 import {
   CatalogOfferingsRepository,
   getCatalogOfferingsRepository,
@@ -144,6 +145,7 @@ export class CatalogOfferingsService {
   ) {}
 
   async create(request: LambdaRequest): Promise<OfferingApiResponse> {
+    assertCatalogAdmin(request);
     const caller = await resolveCallerVendor(request);
     const body = validateCreateOffering(request);
 
@@ -220,6 +222,7 @@ export class CatalogOfferingsService {
   }
 
   async patch(request: LambdaRequest): Promise<OfferingApiResponse> {
+    assertCatalogAdmin(request);
     const offeringId = requiredParam(request, 'offeringId');
     const caller = await resolveCallerVendor(request);
     const body = validatePatchOffering(request);
@@ -280,6 +283,7 @@ export class CatalogOfferingsService {
   }
 
   async archive(request: LambdaRequest): Promise<{ offeringId: string; status: string }> {
+    assertCatalogAdmin(request);
     const offeringId = requiredParam(request, 'offeringId');
     const caller = await resolveCallerVendor(request);
     const existing = await this.requireOwnedOffering(offeringId, caller.vendorId);

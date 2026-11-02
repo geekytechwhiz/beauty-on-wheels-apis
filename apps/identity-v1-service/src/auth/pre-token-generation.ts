@@ -1,4 +1,7 @@
-import { resolveApplicationRoles } from '@api-hub/authentication-core';
+import {
+  primaryApplicationRole,
+  resolveApplicationRoles,
+} from '@api-hub/authentication-core';
 import { createLogger } from '@api-hub/observability';
 
 import {
@@ -55,13 +58,8 @@ export function accessTokenClaimsResponse(
   const roles = resolveApplicationRoles(claims.roles);
   // A scalar role is retained for existing frontend consumers. Prefer the
   // most privileged persisted role while `roles` preserves the full set.
-  const role = roles.includes('ADMIN')
-    ? 'ADMIN'
-    : roles.includes('VENDOR')
-      ? 'VENDOR'
-      : roles.includes('CUSTOMER')
-        ? 'CUSTOMER'
-        : undefined;
+  // REGISTRANT is never reported as VENDOR.
+  const role = primaryApplicationRole(roles);
 
   return {
     ...current,

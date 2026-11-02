@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.4",
+  "openapi": "3.0.0",
   "components": {
     "schemas": {
       "PhoneLookupResult": {
@@ -437,14 +437,86 @@
             "type": "string"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional lowercase slug. Generated from name when omitted.",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "accessType": {
+            "type": "string",
+            "enum": [
+              "APARTMENT_COMPLEX",
+              "GATED_COMMUNITY",
+              "VILLA_COMMUNITY",
+              "INDEPENDENT_HOUSES",
+              "MIXED_RESIDENTIAL"
+            ]
           },
           "city": {
+            "type": "string"
+          },
+          "cityId": {
+            "type": "string"
+          },
+          "locality": {
+            "type": "string"
+          },
+          "localityId": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{5}$"
+          },
+          "streetAddress": {
+            "type": "string"
+          },
+          "contactPersonName": {
+            "type": "string"
+          },
+          "contactPersonTitle": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "totalResidentialUnits": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "estimatedVehicleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leadSource": {
+            "type": "string",
+            "enum": [
+              "FIELD_SCOUTING",
+              "REFERRAL",
+              "ASSOCIATION_OUTREACH",
+              "INBOUND_ENQUIRY",
+              "OTHER"
+            ]
+          },
+          "intakeNotes": {
             "type": "string"
           }
         },
         "required": [
-          "name"
+          "name",
+          "accessType",
+          "city",
+          "locality",
+          "postalCode",
+          "contactPersonName",
+          "contactPersonTitle",
+          "contactPhone",
+          "totalResidentialUnits",
+          "estimatedVehicleCount",
+          "leadSource"
         ]
       },
       "CommunityUpdate": {
@@ -456,7 +528,66 @@
           "code": {
             "type": "string"
           },
+          "accessType": {
+            "type": "string",
+            "enum": [
+              "APARTMENT_COMPLEX",
+              "GATED_COMMUNITY",
+              "VILLA_COMMUNITY",
+              "INDEPENDENT_HOUSES",
+              "MIXED_RESIDENTIAL"
+            ]
+          },
           "city": {
+            "type": "string"
+          },
+          "cityId": {
+            "type": "string"
+          },
+          "locality": {
+            "type": "string"
+          },
+          "localityId": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "streetAddress": {
+            "type": "string"
+          },
+          "contactPersonName": {
+            "type": "string"
+          },
+          "contactPersonTitle": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "totalResidentialUnits": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "estimatedVehicleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leadSource": {
+            "type": "string",
+            "enum": [
+              "FIELD_SCOUTING",
+              "REFERRAL",
+              "ASSOCIATION_OUTREACH",
+              "INBOUND_ENQUIRY",
+              "OTHER"
+            ]
+          },
+          "intakeNotes": {
             "type": "string"
           },
           "status": {
@@ -495,6 +626,65 @@
           },
           "city": {
             "type": "string"
+          },
+          "cityId": {
+            "type": "string"
+          },
+          "locality": {
+            "type": "string"
+          },
+          "localityId": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "accessType": {
+            "type": "string",
+            "enum": [
+              "APARTMENT_COMPLEX",
+              "GATED_COMMUNITY",
+              "VILLA_COMMUNITY",
+              "INDEPENDENT_HOUSES",
+              "MIXED_RESIDENTIAL"
+            ]
+          },
+          "streetAddress": {
+            "type": "string"
+          },
+          "contactPersonName": {
+            "type": "string"
+          },
+          "contactPersonTitle": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "totalResidentialUnits": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "estimatedVehicleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leadSource": {
+            "type": "string",
+            "enum": [
+              "FIELD_SCOUTING",
+              "REFERRAL",
+              "ASSOCIATION_OUTREACH",
+              "INBOUND_ENQUIRY",
+              "OTHER"
+            ]
+          },
+          "intakeNotes": {
+            "type": "string"
           }
         },
         "required": [
@@ -519,12 +709,75 @@
                 "name": {
                   "type": "string"
                 },
+                "code": {
+                  "type": "string"
+                },
                 "status": {
                   "type": "string",
                   "enum": [
                     "active",
                     "inactive"
                   ]
+                },
+                "city": {
+                  "type": "string"
+                },
+                "cityId": {
+                  "type": "string"
+                },
+                "locality": {
+                  "type": "string"
+                },
+                "localityId": {
+                  "type": "string"
+                },
+                "postalCode": {
+                  "type": "string"
+                },
+                "accessType": {
+                  "type": "string",
+                  "enum": [
+                    "APARTMENT_COMPLEX",
+                    "GATED_COMMUNITY",
+                    "VILLA_COMMUNITY",
+                    "INDEPENDENT_HOUSES",
+                    "MIXED_RESIDENTIAL"
+                  ]
+                },
+                "streetAddress": {
+                  "type": "string"
+                },
+                "contactPersonName": {
+                  "type": "string"
+                },
+                "contactPersonTitle": {
+                  "type": "string"
+                },
+                "contactPhone": {
+                  "type": "string"
+                },
+                "contactEmail": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "totalResidentialUnits": {
+                  "type": "integer"
+                },
+                "estimatedVehicleCount": {
+                  "type": "integer"
+                },
+                "leadSource": {
+                  "type": "string",
+                  "enum": [
+                    "FIELD_SCOUTING",
+                    "REFERRAL",
+                    "ASSOCIATION_OUTREACH",
+                    "INBOUND_ENQUIRY",
+                    "OTHER"
+                  ]
+                },
+                "intakeNotes": {
+                  "type": "string"
                 }
               }
             }
@@ -645,7 +898,7 @@
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
-        "example": "http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:19006,http://localhost:8080"
+        "example": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
       },
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
@@ -655,6 +908,27 @@
         "type": "string"
       },
       "addressId": {
+        "type": "string"
+      },
+      "search": {
+        "type": "string"
+      },
+      "cityId": {
+        "type": "string"
+      },
+      "localityId": {
+        "type": "string"
+      },
+      "postalCode": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer"
+      },
+      "cursor": {
         "type": "string"
       },
       "communityId": {
@@ -1927,9 +2201,73 @@
       },
       "get": {
         "summary": "List communities",
-        "description": "Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list.",
+        "description": "Authenticated customers search active communities. Administrators may also query inactive or all communities.",
         "operationId": "listCommunities",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Match community name, code, city, locality, or postal code.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/search"
+            }
+          },
+          {
+            "name": "cityId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cityId"
+            }
+          },
+          {
+            "name": "localityId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/localityId"
+            }
+          },
+          {
+            "name": "postalCode",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/postalCode"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Administrators may use active, inactive, or all.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cursor"
+            }
+          }
+        ],
         "tags": [
           "Communities"
         ],
@@ -1959,7 +2297,7 @@
             }
           },
           "403": {
-            "description": "Administrator access is required",
+            "description": "Authentication is required",
             "content": {
               "application/json": {
                 "schema": {
@@ -1988,7 +2326,7 @@
     "/communities/{communityId}": {
       "get": {
         "summary": "Get community",
-        "description": "Get community",
+        "description": "Admin only. Returns the complete community record, including association contact and internal intake fields.",
         "operationId": "getCommunity",
         "parameters": [
           {
@@ -2030,7 +2368,7 @@
             }
           },
           "403": {
-            "description": "Administrator access is required",
+            "description": "Authentication is required",
             "content": {
               "application/json": {
                 "schema": {
@@ -2373,7 +2711,7 @@
       },
       "put": {
         "summary": "Replace customer community membership",
-        "description": "Admin. Replaces communityIds. Every id must be an active community.",
+        "description": "Owner, admin, or service principal. Replaces communityIds. Every id must be active.",
         "operationId": "putCustomerCommunities",
         "parameters": [
           {
@@ -2391,7 +2729,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Admin. Replaces communityIds. Every id must be an active community.",
+          "description": "Owner, admin, or service principal. Replaces communityIds. Every id must be active.",
           "content": {
             "application/json": {
               "schema": {
@@ -2450,7 +2788,7 @@
             }
           },
           "403": {
-            "description": "Administrator access is required",
+            "description": "Caller cannot update this membership",
             "content": {
               "application/json": {
                 "schema": {

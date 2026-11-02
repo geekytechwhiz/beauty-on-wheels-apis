@@ -19,18 +19,18 @@ import {
 import { CapabilitiesMapper } from '../mappers/capabilities.mapper';
 import {
   AvailableCapabilities,
-  ReplaceVendorPackagesRequest,
-  ReplaceVendorServicesRequest,
   UpdateVendorCapabilitiesRequest,
   VehicleType,
   VendorCapabilities,
-  VendorPackageOffering,
-  VendorServiceOffering,
 } from '../types/api-types';
 import {
   CAPABILITY_CATALOG_SOURCE,
+  CAPABILITY_CATEGORY,
+  isKnownServiceType,
   isKnownVehicleType,
-  listAvailableCapabilities,
+  listCapabilitiesByCategory,
+  listCapabilityCategories,
+  resolveWashMethodId,
 } from '../domain/capabilities-catalog';
 import {
   MAX_CATALOG_MAPPINGS,
@@ -85,7 +85,11 @@ export class CapabilitiesService {
   ): Promise<AvailableCapabilities> {
     getAuthenticatedUserId(request);
     return {
-      vehicleTypes: listAvailableCapabilities(),
+      categories: listCapabilityCategories(),
+      // Per-category lists are kept alongside `categories`; `vehicleTypes` is the legacy key.
+      vehicleTypes: listCapabilitiesByCategory(CAPABILITY_CATEGORY.VEHICLE_TYPE),
+      washMethods: listCapabilitiesByCategory(CAPABILITY_CATEGORY.WASH_METHOD),
+      serviceTypes: listCapabilitiesByCategory(CAPABILITY_CATEGORY.SERVICE_TYPE),
       catalogSources: { ...CAPABILITY_CATALOG_SOURCE },
     };
   }
@@ -117,6 +121,53 @@ export class CapabilitiesService {
     return result;
   }
 
+  /**
+   * Builds the capabilities item for initial vendor creation. Does not persist
+   * and does not require the vendor row to exist yet. Prices are never accepted.
+   */
+  async buildInitialCapabilities(
+    vendorId: string,
+    body: {
+      vehicleTypes: VehicleType[];
+      serviceIds: string[];
+      packageIds: string[];
+      washMethodIds: string[];
+    },
+    request: LambdaRequest,
+  ): Promise<VendorCapabilitiesDdbItem> {
+    const duplicateVehicle = findDuplicateId(body.vehicleTypes);
+    if (duplicateVehicle) {
+      throw new ValidationError(`Duplicate vehicle type: ${duplicateVehicle}`);
+    }
+    const services = this.normalizeServices(
+      body.serviceIds.map((serviceId) => ({ serviceId, categoryId: serviceId, enabled: true })),
+    ).map((entry) => ({ serviceId: entry.serviceId, enabled: true }));
+    const packages = this.normalizePackages(
+      body.packageIds.map((packageId) => ({ packageId, enabled: true })),
+    ).map((entry) => ({ packageId: entry.packageId, enabled: true }));
+    await this.catalog.assertServicesExist(
+      services.map((entry) => ({
+        serviceId: entry.serviceId,
+        categoryId: entry.serviceId,
+        enabled: true,
+      })),
+      readAuthorization(request),
+    );
+    await this.catalog.assertPackagesExist(
+      packages.map((entry) => ({ packageId: entry.packageId, enabled: true })),
+      readAuthorization(request),
+    );
+    return this.versionedItem({
+      vendorId,
+      vehicleTypes: this.normalizeVehicleTypes(body.vehicleTypes),
+      washMethods: this.normalizeWashMethodIds(body.washMethodIds),
+      serviceTypes: [],
+      services,
+      packages,
+      existing: null,
+    });
+  }
+
   async updatevendorcapabilities(
     request: LambdaRequest,
   ): Promise<VendorCapabilities> {
@@ -134,13 +185,19 @@ export class CapabilitiesService {
     await this.requireAccessibleVendor(request, vendorId);
     const existing = await this.repository.getCapabilities(vendorId);
 
-    const services = this.resolveServices(body);
-    const packages = this.resolvePackages(body);
+    const services = this.normalizeServices(body.services);
+    const packages = this.normalizePackages(body.packages);
     await this.validateCatalog(request, services, packages);
 
     const ddbItem = this.versionedItem({
       vendorId,
       vehicleTypes: this.normalizeVehicleTypes(body.vehicleTypes),
+      washMethods: this.normalizeWashMethodIds(body.washMethods),
+      serviceTypes: this.normalizeCatalogIds(
+        body.serviceTypes,
+        isKnownServiceType,
+        'service type',
+      ),
       services,
       packages,
       existing,
@@ -150,91 +207,11 @@ export class CapabilitiesService {
     return CapabilitiesMapper.toDomain(ddbItem);
   }
 
-  async getvendorservices(
-    request: LambdaRequest,
-  ): Promise<{ data: VendorServiceOffering[] }> {
-    const capabilities = await this.getvendorcapabilities(request);
-    return { data: capabilities.services ?? [] };
-  }
-
-  async updatevendorservices(
-    request: LambdaRequest,
-  ): Promise<{ data: VendorServiceOffering[] }> {
-    const vendorId = getVendorId(request);
-    const userId = getAuthenticatedUserId(request);
-    const body = request.body as ReplaceVendorServicesRequest;
-
-    this.logger.info({
-      event: 'VendorCatalogMappingUpdated',
-      outcome: 'start',
-      userId,
-      vendorId,
-      mapping: 'services',
-    });
-
-    await this.requireAccessibleVendor(request, vendorId);
-    const existing = await this.repository.getCapabilities(vendorId);
-    const services = this.normalizeServices(body.services ?? []);
-    const packages = existing
-      ? CapabilitiesMapper.packagesFromItem(existing)
-      : [];
-    await this.validateCatalog(request, services, []);
-
-    const ddbItem = this.versionedItem({
-      vendorId,
-      vehicleTypes: existing?.vehicleTypes ?? [],
-      services,
-      packages,
-      existing,
-    });
-    await this.persist(ddbItem, existing?.updatedAt, vendorId, userId);
-    return { data: CapabilitiesMapper.toDomain(ddbItem).services ?? [] };
-  }
-
-  async getvendorpackages(
-    request: LambdaRequest,
-  ): Promise<{ data: VendorPackageOffering[] }> {
-    const capabilities = await this.getvendorcapabilities(request);
-    return { data: capabilities.packages ?? [] };
-  }
-
-  async updatevendorpackages(
-    request: LambdaRequest,
-  ): Promise<{ data: VendorPackageOffering[] }> {
-    const vendorId = getVendorId(request);
-    const userId = getAuthenticatedUserId(request);
-    const body = request.body as ReplaceVendorPackagesRequest;
-
-    this.logger.info({
-      event: 'VendorCatalogMappingUpdated',
-      outcome: 'start',
-      userId,
-      vendorId,
-      mapping: 'packages',
-    });
-
-    await this.requireAccessibleVendor(request, vendorId);
-    const existing = await this.repository.getCapabilities(vendorId);
-    const services = existing
-      ? CapabilitiesMapper.servicesFromItem(existing)
-      : [];
-    const packages = this.normalizePackages(body.packages ?? []);
-    await this.validateCatalog(request, [], packages);
-
-    const ddbItem = this.versionedItem({
-      vendorId,
-      vehicleTypes: existing?.vehicleTypes ?? [],
-      services,
-      packages,
-      existing,
-    });
-    await this.persist(ddbItem, existing?.updatedAt, vendorId, userId);
-    return { data: CapabilitiesMapper.toDomain(ddbItem).packages ?? [] };
-  }
-
   private versionedItem(input: {
     vendorId: string;
     vehicleTypes: VehicleType[];
+    washMethods?: string[];
+    serviceTypes?: string[];
     services: VendorServiceOfferingRecord[];
     packages: VendorPackageOfferingRecord[];
     existing: VendorCapabilitiesDdbItem | null;
@@ -250,6 +227,8 @@ export class CapabilitiesService {
     return CapabilitiesMapper.toDdbItem({
       vendorId: input.vendorId,
       vehicleTypes: input.vehicleTypes,
+      washMethods: input.washMethods,
+      serviceTypes: input.serviceTypes,
       services: priced.services,
       packages: priced.packages,
       configurationVersion: priced.configurationVersion,
@@ -288,42 +267,52 @@ export class CapabilitiesService {
     });
   }
 
-  private resolveServices(
-    body: UpdateVendorCapabilitiesRequest,
-  ): VendorServiceOfferingRecord[] {
-    if ((body.serviceIds?.length ?? 0) > 0 && !body.services) {
-      throw new ValidationError(
-        'Catalog service mappings require categoryId. Send services[] with serviceId and categoryId.',
-      );
+  private normalizeWashMethodIds(values: string[]): string[] {
+    const duplicate = findDuplicateId(values);
+    if (duplicate) {
+      throw new ValidationError(`Duplicate wash method: ${duplicate}`);
     }
-    if (body.services) {
-      return this.normalizeServices(body.services);
+    const resolved = values.map((value) => {
+      const id = resolveWashMethodId(value);
+      if (!id) {
+        throw new ValidationError(`Unknown wash method: ${value}`);
+      }
+      return id;
+    });
+    if (new Set(resolved).size !== resolved.length) {
+      throw new ValidationError('Duplicate wash method');
     }
-    return [];
+    return resolved;
   }
 
-  private resolvePackages(
-    body: UpdateVendorCapabilitiesRequest,
-  ): VendorPackageOfferingRecord[] {
-    if (body.packages) {
-      return this.normalizePackages(body.packages);
+  private normalizeVehicleTypes(values: VehicleType[]): VehicleType[] {
+    const duplicate = findDuplicateId(values);
+    if (duplicate) {
+      throw new ValidationError(`Duplicate vehicle type: ${duplicate}`);
     }
-    if (body.packageIds?.length) {
-      return this.normalizePackages(
-        body.packageIds.map((packageId) => ({ packageId, enabled: true })),
-      );
-    }
-    return [];
-  }
-
-  private normalizeVehicleTypes(values: VehicleType[] | undefined): VehicleType[] {
-    const vehicleTypes = values ?? [];
-    for (const value of vehicleTypes) {
+    for (const value of values) {
       if (!isKnownVehicleType(value)) {
         throw new ValidationError(`Unknown vehicle type: ${value}`);
       }
     }
-    return [...new Set(vehicleTypes)];
+    return [...values];
+  }
+
+  private normalizeCatalogIds(
+    values: string[],
+    isKnown: (id: string) => boolean,
+    label: string,
+  ): string[] {
+    const duplicate = findDuplicateId(values);
+    if (duplicate) {
+      throw new ValidationError(`Duplicate ${label}: ${duplicate}`);
+    }
+    for (const value of values) {
+      if (!isKnown(value)) {
+        throw new ValidationError(`Unknown ${label}: ${value}`);
+      }
+    }
+    return [...values];
   }
 
   private normalizeServices(
@@ -341,7 +330,7 @@ export class CapabilitiesService {
     }
     const duplicate = findDuplicateId(services.map((entry) => entry.serviceId));
     if (duplicate) {
-      throw new ConflictError(`Duplicate service mapping: ${duplicate}`);
+      throw new ValidationError(`Duplicate service mapping: ${duplicate}`);
     }
 
     return services.map((entry) => {
@@ -379,7 +368,7 @@ export class CapabilitiesService {
     }
     const duplicate = findDuplicateId(packages.map((entry) => entry.packageId));
     if (duplicate) {
-      throw new ConflictError(`Duplicate package mapping: ${duplicate}`);
+      throw new ValidationError(`Duplicate package mapping: ${duplicate}`);
     }
 
     return packages.map((entry) => {

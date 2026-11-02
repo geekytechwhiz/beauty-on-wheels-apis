@@ -262,7 +262,6 @@ export class OtpService {
       destination,
       identityId,
       cognitoUsername,
-      useFixedOtp,
       userType,
     );
     this.logger.info({ event: 'identity_record_created' });
@@ -312,20 +311,24 @@ export class OtpService {
     destination: string,
     identityId: string,
     cognitoUsername: string,
-    useFixedOtp: boolean,
     userType: UserType,
   ): Promise<User> {
     const isEmail = this.isEmailDestination(destination);
+    // The challenge userType classifies the account. Only a verified phone
+    // challenge of VENDOR receives the registration role. Email challenges
+    // and every verify-body field stay out of that decision.
+    const vendorRegistration = !isEmail && userType === 'VENDOR';
 
     try {
       return await this.registrationService.createIdentity({
         email: isEmail ? destination : undefined,
         phoneNumber: isEmail ? undefined : destination,
         emailVerified: isEmail,
-        phoneVerified: true,
+        phoneVerified: !isEmail,
         identityId,
         cognitoUsername,
         userType,
+        vendorRegistration,
       });
     } catch (err) {
       if (err instanceof UserAlreadyExistsException) {

@@ -47,6 +47,10 @@ export const UserKeyBuilder = {
 
   communitySk: () => COMMUNITY_META_SK,
 
+  communityCodePk: (code: string) => `COMMUNITY_CODE#${code.trim()}`,
+
+  communityCodeSk: () => 'CLAIM',
+
   communityListPk: () => COMMUNITY_LIST_PK,
 
   communityListSk: (createdAt: string, communityId: string) =>

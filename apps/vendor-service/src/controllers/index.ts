@@ -11,3 +11,4 @@ export * from "./service-areas.controller";
 export * from "./staff.controller";
 export * from "./vendors.controller";
 export * from "./communities.controller";
+export * from './capacity-proposals.controller';

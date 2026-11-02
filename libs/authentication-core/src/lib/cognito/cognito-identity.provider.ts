@@ -2,7 +2,6 @@
 /* eslint-disable mvrx/no-direct-dynamodb */
 import {
   AdminCreateUserCommand,
-  AdminInitiateAuthCommand,
   AdminSetUserPasswordCommand,
   AdminUserGlobalSignOutCommand,
   AuthFlowType,
@@ -283,20 +282,6 @@ export class CognitoIdentityService implements CognitoAuthClient {
       );
     }
     return parameters;
-  }
-
-  private async adminPasswordAuth(
-    authParameters: Record<string, string>,
-  ): Promise<CognitoTokenSet> {
-    const result = await this.client.send(
-      new AdminInitiateAuthCommand({
-        UserPoolId: this.config.userPoolId,
-        ClientId: this.config.appClientId,
-        AuthFlow: AuthFlowType.ADMIN_USER_PASSWORD_AUTH,
-        AuthParameters: authParameters,
-      }),
-    );
-    return this.toTokenSet(result.AuthenticationResult);
   }
 
   private async userPasswordAuth(

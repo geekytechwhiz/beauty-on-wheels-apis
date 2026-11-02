@@ -16,7 +16,7 @@ import {
   runWithCorsContext,
 } from './cors.helpers';
 
-const EXPO_ORIGIN = 'http://localhost:8081';
+const WEB_ORIGIN = 'https://lustroluxe.com';
 
 function restEvent(origin?: string) {
   return {
@@ -41,12 +41,12 @@ describe('cors helpers', () => {
     else process.env.ALLOWED_ORIGIN = originalAllowed;
   });
 
-  it('allows the Expo Web origin and the headers browsers send', () => {
+  it('allows the deployed web app and the headers browsers send', () => {
     expect(configuredAllowedOrigins()).toEqual(
       DEFAULT_CORS_ALLOWED_ORIGINS_VALUE.split(','),
     );
-    const headers = buildCorsHeaders(restEvent(EXPO_ORIGIN));
-    expect(headers['Access-Control-Allow-Origin']).toBe(EXPO_ORIGIN);
+    const headers = buildCorsHeaders(restEvent(WEB_ORIGIN));
+    expect(headers['Access-Control-Allow-Origin']).toBe(WEB_ORIGIN);
     expect(headers['Access-Control-Allow-Credentials']).toBe('true');
     expect(headers['Access-Control-Allow-Origin']).not.toBe('*');
     for (const name of ['Authorization', 'Content-Type', 'Idempotency-Key']) {
@@ -65,22 +65,22 @@ describe('cors helpers', () => {
 
   it('reflects any origin without a wildcard when the allowlist is *', () => {
     process.env.CORS_ALLOWED_ORIGINS = '*';
-    const headers = buildCorsHeaders(restEvent(EXPO_ORIGIN));
-    expect(headers['Access-Control-Allow-Origin']).toBe(EXPO_ORIGIN);
+    const headers = buildCorsHeaders(restEvent(WEB_ORIGIN));
+    expect(headers['Access-Control-Allow-Origin']).toBe(WEB_ORIGIN);
     expect(headers['Access-Control-Allow-Credentials']).toBe('true');
   });
 
   it('does not add CORS headers on HTTP API v2 responses', () => {
     const event = {
       version: '2.0',
-      headers: { origin: EXPO_ORIGIN },
+      headers: { origin: WEB_ORIGIN },
       requestContext: { http: { method: 'POST' } },
     };
     expect(isHttpApiV2Event(event)).toBe(true);
     expect(buildCorsHeaders(event)).toEqual({});
     expect(corsPreflightResponse({ ...event, requestContext: { http: { method: 'OPTIONS' } } }).headers[
       'Access-Control-Allow-Origin'
-    ]).toBe(EXPO_ORIGIN);
+    ]).toBe(WEB_ORIGIN);
   });
 
   it('treats API Gateway OPTIONS as a preflight and ignores async events', () => {
@@ -110,6 +110,9 @@ describe('cors helpers', () => {
     expect(origins).toContain(DEFAULT_CORS_ALLOWED_ORIGINS_VALUE);
     expect(rest).toContain('allowCredentials: true');
     expect(httpApi).toContain('allowCredentials: true');
+    for (const origin of DEFAULT_CORS_ALLOWED_ORIGINS_VALUE.split(',')) {
+      expect(httpApi).toContain(`- ${origin}`);
+    }
     for (const header of CORS_ALLOW_HEADERS) {
       expect(rest).toContain(`- ${header}`);
       expect(httpApi).toContain(`- ${header}`);
@@ -120,6 +123,20 @@ describe('cors helpers', () => {
       expect(gateway).toContain(method);
     }
     expect(gateway).not.toContain("Access-Control-Allow-Origin: \"'*'\"");
+    expect(gateway).toContain(
+      'gatewayresponse.header.Access-Control-Allow-Origin: method.request.header.Origin',
+    );
+    for (const responseType of [
+      'AUTHORIZER_FAILURE',
+      'AUTHORIZER_CONFIGURATION_ERROR',
+      'INVALID_SIGNATURE',
+    ]) {
+      expect(gateway).toContain(`ResponseType: ${responseType}`);
+    }
+    expect(gateway).toContain(
+      "application/json: '{\"message\":$context.error.messageString}'",
+    );
+    expect(gateway).not.toContain('#set($origin');
   });
 
   it('wires every HTTP service to the shared CORS config', () => {
@@ -144,6 +161,13 @@ describe('cors helpers', () => {
       expect(serverless).not.toContain('cors: true');
       expect(serverless).not.toContain("Access-Control-Allow-Origin: \"'*'\"");
     }
+
+    for (const service of ['service-catalog-service', 'user-service']) {
+      const serverless = readFileSync(join(root, 'apps', service, 'serverless.yml'), 'utf8');
+      expect(serverless).toContain('GatewayResponseAuthorizerFailure:');
+      expect(serverless).toContain('GatewayResponseAuthorizerConfigurationError:');
+      expect(serverless).toContain('GatewayResponseInvalidSignature:');
+    }
   });
 });
 
@@ -159,12 +183,12 @@ describe('response CORS', () => {
     else process.env.CORS_ALLOWED_ORIGINS = originalCors;
   });
 
-  it('adds Expo CORS headers to success and error responses', async () => {
-    const event = restEvent(EXPO_ORIGIN);
+  it('adds CORS headers to success and error responses', async () => {
+    const event = restEvent(WEB_ORIGIN);
     const success = runWithCorsContext(event, () =>
       ApiResponse.ok({ id: 'veh-1' }, 'Created', { correlationId: 'corr-1' }),
     );
-    expect(success.headers?.['Access-Control-Allow-Origin']).toBe(EXPO_ORIGIN);
+    expect(success.headers?.['Access-Control-Allow-Origin']).toBe(WEB_ORIGIN);
     expect(success.headers?.['Access-Control-Allow-Credentials']).toBe('true');
 
     const failure = await handleError(new Error('nope'), {
@@ -173,7 +197,7 @@ describe('response CORS', () => {
       skipLog: true,
     });
     expect(failure.statusCode).toBe(500);
-    expect(failure.headers?.['Access-Control-Allow-Origin']).toBe(EXPO_ORIGIN);
+    expect(failure.headers?.['Access-Control-Allow-Origin']).toBe(WEB_ORIGIN);
     expect(failure.headers?.['Access-Control-Allow-Headers']).toContain('Idempotency-Key');
   });
 });

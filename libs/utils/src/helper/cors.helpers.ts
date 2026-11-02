@@ -1,11 +1,17 @@
 /**
  * Browser origins allowed when CORS_ALLOWED_ORIGINS / ALLOWED_ORIGIN are unset.
- * Includes the Expo Web dev server at http://localhost:8081.
+ * Includes the deployed Lustro Luxe web app plus Expo and Vite local development.
  */
 export const DEFAULT_CORS_ALLOWED_ORIGINS = [
+  'https://lustroluxe.com',
+  'https://www.lustroluxe.com',
   'http://localhost:8081',
   'http://127.0.0.1:8081',
   'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
   'http://localhost:19006',
   'http://localhost:8080',
 ] as const;

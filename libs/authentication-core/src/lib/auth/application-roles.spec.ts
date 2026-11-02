@@ -20,6 +20,14 @@ describe('resolveApplicationRoles', () => {
     ]);
   });
 
+  it('recognizes REGISTRANT and does not collapse it into VENDOR', () => {
+    expect(resolveApplicationRoles(['REGISTRANT', 'vendor'])).toEqual([
+      'REGISTRANT',
+      'VENDOR',
+    ]);
+    expect(resolveApplicationRoles(['PENDING_VENDOR', 'pending_vendor'])).toEqual([]);
+  });
+
   it('returns an empty list when the user only has the generic role', () => {
     expect(resolveApplicationRoles(['user', 'USER', ''])).toEqual([]);
   });

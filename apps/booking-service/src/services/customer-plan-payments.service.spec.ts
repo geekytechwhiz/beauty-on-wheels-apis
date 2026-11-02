@@ -1,9 +1,11 @@
 import { LambdaRequest } from '@api-hub/utils';
 
-import { CustomerPlanPaymentsService } from './customer-plan-payments.service';
+import { BookingError } from '../errors';
+import { VendorGateway } from '../integrations/vendor.client';
 import { BookingsRepository } from '../repositories/bookings.repository';
 import { CustomerPlansRepository } from '../repositories/customer-plans.repository';
 import { CustomerPlanRecord, PlanPaymentRecord } from '../types/customer-plan.types';
+import { CustomerPlanPaymentsService } from './customer-plan-payments.service';
 
 function request(options: { customerId?: string; key?: string | null; body?: unknown; paymentId?: string } = {}): LambdaRequest {
   const key = options.key === undefined ? 'pay-1' : options.key;
@@ -57,6 +59,7 @@ const pendingPayment: PlanPaymentRecord = {
 describe('CustomerPlanPaymentsService', () => {
   let plans: jest.Mocked<CustomerPlansRepository>;
   let bookings: jest.Mocked<BookingsRepository>;
+  let vendors: jest.Mocked<VendorGateway>;
   let service: CustomerPlanPaymentsService;
 
   beforeEach(() => {
@@ -74,7 +77,16 @@ describe('CustomerPlanPaymentsService', () => {
     bookings = {
       createPackageLinkedBooking: jest.fn().mockImplementation(async (booking) => booking),
     } as unknown as jest.Mocked<BookingsRepository>;
-    service = new CustomerPlanPaymentsService(plans, bookings);
+    vendors = {
+      getCheckoutEligibility: jest.fn(),
+      reservePlanCapacity: jest.fn().mockResolvedValue({
+        commitmentId: 'cmt_1',
+        quantity: 10,
+        reservedSoldQuantity: 3,
+        remainingSoldCapacity: 7,
+      }),
+    } as unknown as jest.Mocked<VendorGateway>;
+    service = new CustomerPlanPaymentsService(plans, bookings, vendors);
   });
 
   it('initiates a payment with the amount taken from the plan snapshot', async () => {
@@ -101,6 +113,13 @@ describe('CustomerPlanPaymentsService', () => {
   it('marks the plan AWAITING_FIRST_JOB, materializes visits, and links the first job when sandbox completion succeeds', async () => {
     const result = await service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } }));
 
+    expect(vendors.reservePlanCapacity).toHaveBeenCalledWith({
+      vendorId: 'vendor_1',
+      communityId: 'comm_1',
+      offeringId: 'pkg',
+      demandQuantity: 3,
+      planId: 'plan-1',
+    });
     expect(result.status).toBe('PAID');
     expect(plans.createVisitsIfAbsent).toHaveBeenCalled();
     expect(bookings.createPackageLinkedBooking).toHaveBeenCalledWith(expect.objectContaining({
@@ -155,5 +174,18 @@ describe('CustomerPlanPaymentsService', () => {
   it('rejects another customer completing a payment', async () => {
     await expect(service.sandboxComplete(request({ customerId: 'customer-2', paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } })))
       .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('refuses activation when vendor capacity reservation is unavailable', async () => {
+    vendors.reservePlanCapacity.mockRejectedValue(
+      new BookingError('CAPACITY_UNAVAILABLE', 'No capacity', 409, undefined, false),
+    );
+
+    await expect(
+      service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } })),
+    ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE', statusCode: 409 });
+
+    expect(plans.savePlan).not.toHaveBeenCalled();
+    expect(bookings.createPackageLinkedBooking).not.toHaveBeenCalled();
   });
 });

@@ -31,6 +31,7 @@ import {
 } from '../types/api-types';
 import { VendorDdbItem } from '../types/repository.types';
 import {
+  assertActiveVendorRoute,
   assertVendorAction,
   decodeCursor,
   encodeCursor,
@@ -65,6 +66,7 @@ export class StaffService {
     vendorId: string,
     action: VendorCapability,
   ): Promise<VendorDdbItem> {
+    assertActiveVendorRoute(request);
     const userId = getAuthenticatedUserId(request);
     const item = await this.vendorsRepository.getVendorById(vendorId);
     if (!item) {

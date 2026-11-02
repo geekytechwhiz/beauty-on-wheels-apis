@@ -7,8 +7,6 @@ import {
 
 import {
     validateUpdateVendorCapabilitiesRequest,
-    validateReplaceVendorServicesRequest,
-    validateReplaceVendorPackagesRequest,
 } from "../schemas/capabilities.schema";
 
 const controller =
@@ -42,34 +40,3 @@ export const handleUpdatevendorcapabilities =
             controller.handleUpdatevendorcapabilities(request)
     );
 
-export const handleGetvendorservices = withVendorApiHandler(
-  { operation: 'getvendorservices' },
-  async (request: LambdaRequest) => controller.handleGetvendorservices(request),
-);
-
-export const handleUpdatevendorservices = withVendorApiHandler(
-  {
-    operation: 'updatevendorservices',
-    validator: (request: LambdaRequest) => {
-      validateReplaceVendorServicesRequest(request);
-    },
-  },
-  async (request: LambdaRequest) =>
-    controller.handleUpdatevendorservices(request),
-);
-
-export const handleGetvendorpackages = withVendorApiHandler(
-  { operation: 'getvendorpackages' },
-  async (request: LambdaRequest) => controller.handleGetvendorpackages(request),
-);
-
-export const handleUpdatevendorpackages = withVendorApiHandler(
-  {
-    operation: 'updatevendorpackages',
-    validator: (request: LambdaRequest) => {
-      validateReplaceVendorPackagesRequest(request);
-    },
-  },
-  async (request: LambdaRequest) =>
-    controller.handleUpdatevendorpackages(request),
-);

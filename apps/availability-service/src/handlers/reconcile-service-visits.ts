@@ -1,8 +1,7 @@
 import { withApiHandler } from '@api-hub/middleware';
-import { ForbiddenError, LambdaRequest, ValidationError } from '@api-hub/utils';
+import { LambdaRequest, ValidationError } from '@api-hub/utils';
 import type { ServiceVisitSnapshot } from '@api-hub/event-platform';
 
-import { getAuthenticatedUserId, isAdminCaller, hasVendorRole } from '../auth/access';
 import { applyVisitProjection } from '../domain/visit-projection';
 import { getVisitProjectionRepository } from '../repositories/visit-projections.repository';
 
@@ -16,10 +15,6 @@ export const handleReconcileServiceVisits = withApiHandler(
 );
 
 export async function reconcileServiceVisits(request: LambdaRequest): Promise<{ applied: number; ignored: number }> {
-  getAuthenticatedUserId(request);
-  if (!isAdminCaller(request) && !hasVendorRole(request)) {
-    throw new ForbiddenError('Vendor access is required');
-  }
   const body = (request.body ?? {}) as { visits?: ServiceVisitSnapshot[] };
   if (!Array.isArray(body.visits)) {
     throw new ValidationError('visits is required');

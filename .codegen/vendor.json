@@ -913,8 +913,8 @@
           "repositoryMethod": "updatevendoroperatinghours",
           "method": "PUT",
           "path": "/vendors/{vendorId}/operating-hours",
-          "summary": "Replace vendor operating hours",
-          "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n",
+          "summary": "Replace vendor service windows",
+          "description": "Replaces supported service windows on the operating-preferences record returned by vendor detail and onboarding.",
           "tags": [
             "Operating Hours"
           ],
@@ -925,14 +925,14 @@
             "schema": {
               "type": "object",
               "required": [
-                "operatingHours"
+                "serviceWindowIds"
               ],
               "properties": {
-                "operatingHours": {
+                "serviceWindowIds": {
                   "type": "array",
-                  "minItems": 1,
                   "items": {
-                    "$ref": "#/components/schemas/OperatingHoursRequest"
+                    "type": "string",
+                    "enum": ["morning", "anytime", "weekday_morning", "weekend_day", "night"]
                   }
                 }
               }
@@ -944,9 +944,11 @@
               "type": "object",
               "properties": {
                 "data": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OperatingHours"
+                  "type": "object",
+                  "properties": {
+                    "vendorId": { "type": "string" },
+                    "serviceWindowIds": { "type": "array", "items": { "type": "string" } },
+                    "updatedAt": { "type": "string" }
                   }
                 }
               }
@@ -1290,7 +1292,7 @@
           "method": "PUT",
           "path": "/vendors/{vendorId}/capabilities",
           "summary": "Replace vendor capabilities",
-          "description": "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nserviceIds and packageIds are references to entities owned by the\nService Catalog Service.\n\nThis endpoint does not define pricing or availability.\n",
+          "description": "Replaces the vendor capability selection: vehicle types, wash methods, service types, and catalog service and package selections. Catalog definitions are not modified.",
           "tags": [
             "Capabilities"
           ],
@@ -1989,29 +1991,47 @@
       "type": "object",
       "required": [
         "vehicleTypes",
-        "serviceIds",
-        "packageIds"
+        "washMethods",
+        "serviceTypes",
+        "services",
+        "packages"
       ],
       "properties": {
         "vehicleTypes": {
           "type": "array",
-          "uniqueItems": true,
+          "items": { "$ref": "#/components/schemas/VehicleType" }
+        },
+        "washMethods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "serviceTypes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "services": {
+          "type": "array",
           "items": {
-            "$ref": "#/components/schemas/VehicleType"
+            "type": "object",
+            "required": ["serviceId", "categoryId"],
+            "properties": {
+              "serviceId": { "type": "string" },
+              "categoryId": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "priceOverride": { "type": "number" }
+            }
           }
         },
-        "serviceIds": {
+        "packages": {
           "type": "array",
-          "uniqueItems": true,
           "items": {
-            "type": "string"
-          }
-        },
-        "packageIds": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string"
+            "type": "object",
+            "required": ["packageId"],
+            "properties": {
+              "packageId": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "priceOverride": { "type": "number" }
+            }
           }
         }
       }

@@ -79,21 +79,28 @@ export class CustomerPlansService {
     const existing = await this.plans.getIdempotency(customerId, idempotencyKey);
     if (existing) return this.resume(existing, hash);
 
-    const [vehicle, eligibility, profile, catalogPackage] = await Promise.all([
+    const [vehicle, profile, catalogPackage] = await Promise.all([
       this.vehicles.getVehicle(command.vehicleId, authHeader),
-      this.vendors.getCheckoutEligibility(command.vendorId),
       this.users.getProfile(customerId, authHeader),
       this.packages.getPackage({
         packageId: command.offeringId,
         vendorId: command.vendorId,
+        communityId: command.location.communityId,
         authorizationHeader: authHeader,
       }),
     ]);
 
+    const vendorId = command.vendorId ?? catalogPackage.fulfilmentVendorIds?.[0];
+    if (!vendorId) throw new BookingError('PACKAGE_NOT_AVAILABLE', 'Package has no available fulfilment partner', 409, 'packageId', false);
+    const eligibility = await this.vendors.getCheckoutEligibility(vendorId);
+
     assertVehicleOwnership(vehicle, customerId, command.vehicleId);
-    assertVendorEligible(eligibility.vendor, command.vendorId);
+    assertVendorEligible(eligibility.vendor, vendorId);
     assertLocation(command, eligibility.vendor, profile);
-    assertPackageSellable(catalogPackage, command);
+    assertPackageSellable(catalogPackage, { ...command, vendorId });
+    if (command.packageVersion !== undefined && catalogPackage.version !== command.packageVersion) {
+      throw new BookingError('PACKAGE_VERSION_MISMATCH', 'Package terms changed; refresh and retry', 409, 'packageVersion', false);
+    }
     assertOfferingCommunity({
       enforced: communityOfferingEnforcementEnabled(),
       fulfilmentType: command.location.fulfilmentType,
@@ -112,7 +119,7 @@ export class CustomerPlansService {
     const record: CustomerPlanRecord = {
       planId: randomUUID(),
       customerId,
-      vendorId: command.vendorId,
+      vendorId,
       packageId: command.offeringId,
       offeringId: command.offeringId,
       packageName: catalogPackage.name,

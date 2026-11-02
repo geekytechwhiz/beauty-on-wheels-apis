@@ -102,8 +102,51 @@ describe('Services Unit Tests', () => {
                 expect.stringMatching(/^u-/),
                 'CUSTOMER',
             );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'REGISTRANT',
+            );
             const created = mockRepo.createUser.mock.calls[0][0] as User;
             expect(created.roleId).toBe('user');
+        });
+
+        it('keeps CUSTOMER when the registration body claims a vendor role', async () => {
+            mockRepo.getUserByEmail.mockResolvedValue(null);
+            mockRepo.getUserByUsername.mockResolvedValue(null);
+            mockRepo.getUserByPhone.mockResolvedValue(null);
+            mockRepo.createUser.mockResolvedValue({} as User);
+
+            const service = new RegistrationService(mockRepo);
+            const result = await service.register({
+                body: {
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    email: 'john@example.com',
+                    phone: '+1234567890',
+                    password: 'password123',
+                    userType: 'VENDOR',
+                    role: 'ADMIN',
+                    permissions: ['vendor:create'],
+                },
+            } as unknown as LambdaRequest);
+
+            expect(result.roles).toEqual(['CUSTOMER']);
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                expect.stringMatching(/^u-/),
+                'CUSTOMER',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'REGISTRANT',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'VENDOR',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'ADMIN',
+            );
         });
 
         it('throws if email exists', async () => {
@@ -597,26 +640,78 @@ describe('Services Unit Tests', () => {
             );
         });
 
-        it('stores the challenge userType and assigns that application role on a new identity', async () => {
+        it('grants REGISTRANT from a verified phone challenge and ignores the verify body', async () => {
+            const mapped = new Set<string>();
+            mockRepo.ensureUserRoleMapping.mockImplementation(async (_userId, roleId) => {
+                mapped.add(roleId);
+                return 'created';
+            });
+            mockRepo.getUserRoles.mockImplementation(async () => [...mapped]);
             mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
             mockRepo.verifyOtp.mockResolvedValue(true);
             mockRepo.getUserByPhone.mockResolvedValue(null);
 
             await otpService().postverify({
-                body: { destination: '+1234567890', otp: '123456', userType: 'CUSTOMER' },
+                body: {
+                    destination: '+1234567890',
+                    otp: '123456',
+                    userType: 'ADMIN',
+                    role: 'VENDOR',
+                    permissions: ['vendor:create'],
+                },
             } as unknown as LambdaRequest);
 
             expect(mockRepo.createUser).toHaveBeenCalledWith(
-                expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
+                expect.objectContaining({
+                    userType: 'VENDOR',
+                    phoneVerified: true,
+                    identityId: 'cognito-sub-1',
+                }),
                 expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
             );
-            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+            expect([...mapped]).toEqual(['REGISTRANT']);
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
                 expect.any(String),
                 'VENDOR',
             );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.any(String),
+                'ADMIN',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.any(String),
+                'CUSTOMER',
+            );
+        });
+
+        it('keeps CUSTOMER for an email challenge even when its userType is VENDOR', async () => {
+            const mapped = new Set<string>();
+            mockRepo.ensureUserRoleMapping.mockImplementation(async (_userId, roleId) => {
+                mapped.add(roleId);
+                return 'created';
+            });
+            mockRepo.getUserRoles.mockImplementation(async () => [...mapped]);
+            mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
+            mockRepo.verifyOtp.mockResolvedValue(true);
+            mockRepo.getUserByEmail.mockResolvedValue(null);
+
+            await otpService().postverify({
+                body: { destination: 'owner@example.com', otp: '123456' },
+            } as unknown as LambdaRequest);
+
+            expect(mockRepo.createUser).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userType: 'VENDOR',
+                    emailVerified: true,
+                    phoneVerified: false,
+                }),
+                expect.any(Object),
+            );
+            expect([...mapped]).toEqual(['CUSTOMER']);
         });
 
         it('does not overwrite an existing user type with a new challenge', async () => {
+            mockRepo.getUserRoles.mockResolvedValue(['CUSTOMER']);
             mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
             mockRepo.verifyOtp.mockResolvedValue(true);
             mockRepo.getUserByPhone.mockResolvedValue({
@@ -635,6 +730,18 @@ describe('Services Unit Tests', () => {
                 1,
             );
             expect(mockRepo.createUser).not.toHaveBeenCalled();
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'VENDOR',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'ADMIN',
+            );
+            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'REGISTRANT',
+            );
         });
 
         it('does not issue a token when persisting an existing identity verification fails', async () => {
@@ -927,6 +1034,34 @@ describe('Services Unit Tests', () => {
             expect(result.roles).toEqual(['CUSTOMER', 'VENDOR']);
             expect(result.userType).toBe('VENDOR');
             expect(result).not.toHaveProperty('passwordHash');
+        });
+
+        it('returns REGISTRANT without turning a VENDOR userType into the VENDOR role', async () => {
+            mockProfileRepo.getProfile.mockResolvedValue({
+                userId: 'u-123',
+                firstName: 'Ari',
+                lastName: 'Shah',
+            });
+            mockProfileRepo.getUser.mockResolvedValue({
+                userId: 'u-123',
+                email: '',
+                username: '+919876543210',
+                phoneNumber: '+919876543210',
+                passwordHash: 'secret:hash',
+                status: 'ACTIVE',
+                phoneVerified: true,
+                version: 1,
+                roleId: 'user',
+                userType: 'VENDOR',
+            } as User);
+            mockProfileRepo.getUserRoles.mockResolvedValue(['REGISTRANT', 'user']);
+
+            const result = await new ProfileService(mockProfileRepo).getme({
+                context: { userContext: { userId: 'u-123' } },
+            } as unknown as LambdaRequest);
+
+            expect(result.userType).toBe('VENDOR');
+            expect(result.roles).toEqual(['REGISTRANT']);
         });
 
         it('rejects /me when the token has no user', async () => {

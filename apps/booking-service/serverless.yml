@@ -15,7 +15,7 @@ provider:
   runtime: nodejs22.x
 
   stage: ${opt:stage,'dev'}
-
+  profile: ci-user-bw
   region: ${opt:region,'us-east-1'}
 
   versionFunctions: false
@@ -31,6 +31,9 @@ provider:
     VENDOR_BASE_URL: ${env:VENDOR_BASE_URL, ''}
     VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: vendor-service-api-${self:provider.stage}-getCheckoutEligibility
     VENDOR_OPERATIONAL_ACCESS_FUNCTION: vendor-service-api-${self:provider.stage}-getOperationalAccess
+    VENDOR_SCHEDULING_CREWS_FUNCTION: vendor-service-api-${self:provider.stage}-listSchedulingCrews
+    VENDOR_RESERVE_CAPACITY_FUNCTION: vendor-service-api-${self:provider.stage}-reserveSoldCapacity
+    TRAVEL_BUFFER_MINUTES: ${env:TRAVEL_BUFFER_MINUTES, '30'}
     USER_BASE_URL: ${env:USER_BASE_URL, ''}
     VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
     AVAILABILITY_BASE_URL: ${env:AVAILABILITY_BASE_URL, ''}
@@ -41,6 +44,8 @@ provider:
     COMMUNITY_OFFERING_ENFORCEMENT: 'false'
     # Sandbox payment completion for local/dev/staging. Set false when a real gateway owns confirmation.
     PAYMENT_SANDBOX_ENABLED: ${env:PAYMENT_SANDBOX_ENABLED, 'true'}
+    EVIDENCE_BUCKET: !Ref BookingEvidenceBucket
+    EVIDENCE_UPLOAD_URL_EXPIRY: '900'
     # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
 
   iam:
@@ -64,6 +69,13 @@ provider:
             - !Join [ "/", [ !GetAtt BookingTable.Arn, "index", "*" ] ]
         - Effect: Allow
           Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource:
+            - !Join [ "", [ !GetAtt BookingEvidenceBucket.Arn, "/visit-evidence/*" ] ]
+            - !Join [ "", [ !GetAtt BookingEvidenceBucket.Arn, "/issues/*" ] ]
+        - Effect: Allow
+          Action:
             - lambda:InvokeFunction
           Resource:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RESERVE_BOOKING_FUNCTION}
@@ -71,6 +83,8 @@ provider:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_RELEASE_ALLOCATION_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_SCHEDULING_CREWS_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RESERVE_CAPACITY_FUNCTION}
 
 custom:
   httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
@@ -497,6 +511,108 @@ custom:
                           - IN_PROGRESS
                           - COMPLETED
                           - CANCELLED
+      - name: VendorOperationsSummaryResponse
+        description: Manager Home operations summary for package visits and one-time bookings
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - fromDate
+                - toDate
+                - timezone
+                - metrics
+                - needsAttention
+                - communities
+              properties:
+                fromDate:
+                  type: string
+                  format: date
+                toDate:
+                  type: string
+                  format: date
+                timezone:
+                  type: string
+                  description: Resolved vendor IANA timezone
+                metrics:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - expected
+                    - completed
+                    - inProgress
+                    - waiting
+                    - missed
+                    - cancelled
+                  properties:
+                    expected:
+                      type: integer
+                      minimum: 0
+                    completed:
+                      type: integer
+                      minimum: 0
+                    inProgress:
+                      type: integer
+                      minimum: 0
+                    waiting:
+                      type: integer
+                      minimum: 0
+                    missed:
+                      type: integer
+                      minimum: 0
+                    cancelled:
+                      type: integer
+                      minimum: 0
+                needsAttention:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - communityId
+                      - visitWindowId
+                      - visitWindowName
+                      - waiting
+                    properties:
+                      communityId:
+                        type: string
+                        nullable: true
+                      visitWindowId:
+                        type: string
+                        nullable: true
+                      visitWindowName:
+                        type: string
+                        nullable: true
+                      waiting:
+                        type: integer
+                        minimum: 1
+                communities:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - communityId
+                      - scheduled
+                      - completed
+                      - inProgress
+                      - waiting
+                    properties:
+                      communityId:
+                        type: string
+                      scheduled:
+                        type: integer
+                        minimum: 0
+                      completed:
+                        type: integer
+                        minimum: 0
+                      inProgress:
+                        type: integer
+                        minimum: 0
+                      waiting:
+                        type: integer
+                        minimum: 0
       - name: ErrorResponse
         description: Platform error envelope
         content:
@@ -923,6 +1039,246 @@ custom:
                   type: string
                   enum: [UNRESOLVED]
                 settlementExecuted:
+                  type: boolean
+      - name: CrewAssignmentRequest
+        description: Assign or clear a crew on scheduled package visits
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - scheduledDate
+                - communityId
+                - visitWindowId
+                - crewId
+                - visitIds
+              properties:
+                scheduledDate:
+                  type: string
+                communityId:
+                  type: string
+                visitWindowId:
+                  type: string
+                crewId:
+                  type: string
+                visitIds:
+                  type: array
+                  items:
+                    type: string
+                mode:
+                  type: string
+                  enum: [assign, unassign]
+                replaceExisting:
+                  type: boolean
+      - name: CreateVendorIssueRequest
+        description: Details for a vendor or crew issue
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [type, description]
+              properties:
+                type:
+                  type: string
+                  enum: [ACCESS_PROBLEM, CUSTOMER_UNAVAILABLE, EQUIPMENT_PROBLEM, SAFETY_CONCERN, VEHICLE_DAMAGE, CAPACITY_SHORTFALL, PAYMENT_QUERY, OTHER]
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                requestedHelp:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                visitId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                communityId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                commitmentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+      - name: IssueAttachmentUploadUrlRequest
+        description: Content type for a vendor issue attachment
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [contentType]
+              properties:
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, application/pdf]
+      - name: ConfirmIssueAttachmentRequest
+        description: Uploaded vendor issue attachment to register
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [objectKey, contentType]
+              properties:
+                objectKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, application/pdf]
+      - name: VisitEvidenceUploadUrlRequest
+        description: Content type for visit completion evidence
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [contentType]
+              properties:
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, application/pdf]
+      - name: TriageIssueRequest
+        description: Optional note when triaging an issue
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      - name: AssignIssueRequest
+        description: Assign an issue to an operations user
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assigneeUserId]
+              properties:
+                assigneeUserId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      - name: ResolveIssueRequest
+        description: Resolution outcome and optional note
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [outcome]
+              properties:
+                outcome:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      - name: RequestIssueActionRequest
+        description: Required action requested from the vendor
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [note]
+              properties:
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      - name: CompletionReviewRequest
+        description: Decision for reviewing a completed package visit
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [APPROVED, REJECTED]
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      - name: StaffAssignedWork
+        description: Visits assigned to the signed-in staff member's active crews
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timezone:
+                  type: string
+                fromDate:
+                  type: string
+                toDate:
+                  type: string
+                staffId:
+                  type: string
+                reason:
+                  type: string
+                  enum: [noCrewAssignment]
+                complete:
+                  type: boolean
+                ordering:
+                  type: string
+                  enum: [list]
+                crews:
+                  type: array
+                  items:
+                    type: object
+                metrics:
+                  type: object
+                items:
+                  type: array
+                  items:
+                    type: object
+                nextToken:
+                  type: string
+                  nullable: true
+      - name: StaffVisitAction
+        description: Staff package-visit status change. Does not include customer identity.
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - visitId
+                - status
+                - entitlementConsumed
+                - idempotent
+              properties:
+                visitId:
+                  type: string
+                status:
+                  type: string
+                  enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+                startedAt:
+                  type: string
+                completedAt:
+                  type: string
+                missedAt:
+                  type: string
+                entitlementConsumed:
+                  type: boolean
+                idempotent:
                   type: boolean
 functions:
 
@@ -1998,7 +2354,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Complete a package visit"
-          description: "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits."
+          description: "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it."
           swaggerTags:
             - Customer Plans
           responseData:
@@ -2006,7 +2362,7 @@ functions:
               description: "Visit completed"
           documentation:
             summary: Complete a package visit
-            description: Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits.
+            description: "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it."
             tags:
               - Customer Plans
             methodResponses:
@@ -2332,6 +2688,1366 @@ functions:
                 schema:
                   type: string
 
+  summarizevendoroperations:
+    handler: src/handlers/vendor-operations-summary.handleSummarizeVendorOperations
+    events:
+      - http:
+          path: /vendors/{vendorId}/operations/summary
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Summarize vendor operations"
+          description: "Read-only owner/admin summary of package visits and one-time bookings for Manager Home. Both fromDate and toDate are required."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            fromDate:
+              required: true
+              type: string
+              description: Inclusive start date YYYY-MM-DD
+            toDate:
+              required: true
+              type: string
+              description: Inclusive end date YYYY-MM-DD
+          responseData:
+            200:
+              description: "Operations summary"
+              bodyType: VendorOperationsSummaryResponse
+            400:
+              description: "Invalid or reversed date range"
+            403:
+              description: "Forbidden"
+            409:
+              description: "Timezone unresolved/ambiguous or range too large"
+          documentation:
+            summary: Summarize vendor operations
+            description: Read-only owner/admin summary of package visits and one-time bookings for Manager Home. Both fromDate and toDate are required.
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: fromDate
+                required: true
+                description: Inclusive start date YYYY-MM-DD
+                schema:
+                  type: string
+                  format: date
+              - name: toDate
+                required: true
+                description: Inclusive end date YYYY-MM-DD
+                schema:
+                  type: string
+                  format: date
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operations summary
+                responseModels:
+                  application/json: VendorOperationsSummaryResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid or reversed date range
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Timezone unresolved/ambiguous or range too large
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership, or the caller must be a platform admin.
+                schema:
+                  type: string
+
+  listvendorpackagevisitassignments:
+    handler: src/handlers/crew-assignments.handleListCrewAssignments
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits/assignments
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List crew assignments"
+          description: "Owner-only crew assignments for scheduled package visits. Grouped by date, community, and visit window. Workload uses stored visit durations. Van labels are display text and are not conflict-checked. Staff cannot call this route."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            fromDate:
+              required: false
+              type: string
+              description: Inclusive YYYY-MM-DD. Defaults to today in Asia/Kolkata.
+            toDate:
+              required: false
+              type: string
+              description: Inclusive YYYY-MM-DD. Defaults to two days after fromDate. Maximum 14 days.
+          responseData:
+            200:
+              description: "Assignment schedule"
+            400:
+              description: "Invalid range"
+            403:
+              description: "Staff or another vendor"
+          documentation:
+            summary: List crew assignments
+            description: "Reads PackageVisit rows on GSI3. Does not create a schedule table. Capacity and travel-buffer results are advisory. Overlap conflicts already stored are reported on each day. vanIdentity is displayLabelOnly because crews have no stable van id."
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: fromDate
+                required: false
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Days, groups, workload, travel warnings, and conflicts
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership.
+                schema:
+                  type: string
+
+  assignvendorpackagevisits:
+    handler: src/handlers/crew-assignments.handleAssignCrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits/assignments
+          method: put
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Assign a crew to package visits"
+          description: "Assigns or clears a crew on existing scheduled PackageVisit rows. Does not reschedule the customer, release availability, or consume entitlements. Overlapping crew or staff assignments return 409. Capacity overload and a short travel buffer are warnings and still save. Repeating the same assignment is idempotent. At most 25 visits, written in one transaction."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Assignment saved"
+            400:
+              description: "Invalid body"
+            403:
+              description: "Staff, another vendor, or a visit from another vendor"
+            404:
+              description: "Crew or visit not found"
+            409:
+              description: "Inactive crew, crew size, overlap, or concurrent update"
+          documentation:
+            summary: Assign a crew to package visits
+            description: "Owner-only. mode assign updates crewAssignment. mode unassign clears it. replaceExisting is required to move a visit off another crew. Authorization uses vendor membership lookup, not assertAdminAccess. Platform admin override uses the authorizer role."
+            tags:
+              - Customer Plans
+            requestModels:
+              application/json: CrewAssignmentRequest
+            requestBody:
+              description: "scheduledDate, communityId, visitWindowId, crewId, and visitIds. Optional mode assign|unassign and replaceExisting."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Saved assignment, workload, and travel warnings
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid body
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Crew or visit not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Conflict
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership.
+                schema:
+                  type: string
+
+  unassignvendorpackagevisit:
+    handler: src/handlers/crew-assignments.handleUnassignCrew
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits/{visitId}/assignment
+          method: delete
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Remove a crew assignment"
+          description: "Clears crewAssignment on one SCHEDULED visit. The customer visit and availability reservation stay in place. Already-clear visits succeed without another write."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Assignment removed"
+            403:
+              description: "Forbidden"
+            404:
+              description: "Visit not found"
+            409:
+              description: "Visit is not scheduled, or it changed concurrently"
+          documentation:
+            summary: Remove a crew assignment
+            description: "Owner-only. Does not cancel the visit or release the availability reservation. In-progress and completed visits cannot be unassigned."
+            tags:
+              - Customer Plans
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Removal result
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Visit not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Conflict
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: Vendor id. Must match the caller's owner membership.
+                schema:
+                  type: string
+              - name: visitId
+                description: Package visit id.
+                schema:
+                  type: string
+
+  liststaffassignedwork:
+    handler: src/handlers/staff-assigned-work.handleListStaffAssignedWork
+    events:
+      - http:
+          path: /staff/me/package-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List the signed-in staff member's assigned package visits"
+          description: "Authenticated staff only. The caller cannot send vendorId, staffId, or crewId. Identity userId is resolved to an active staff record and that staff member's active crews. Owners, inactive staff, and other vendors receive 403. No crew assignment returns 200 with reason noCrewAssignment and an empty list. Defaults to today in Asia/Kolkata. Metrics count the full filtered range, not the current page. ordering is list, not an optimized wash sequence. Missing visit-window clocks are omitted rather than inferred from a label or a slot time. Vehicle registration, display name, and type are returned when stored on the visit. communityId is returned when stored. Customer name, street address, coordinates, and community name are not on the package visit and are omitted."
+          swaggerTags:
+            - Customer Plans
+          queryStringParameters:
+            date:
+              required: false
+              type: string
+              description: Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata. Cannot be combined with fromDate or toDate.
+            fromDate:
+              required: false
+              type: string
+              description: Inclusive start date. Maximum range is 14 days.
+            toDate:
+              required: false
+              type: string
+              description: Inclusive end date.
+            status:
+              required: false
+              type: string
+              description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or UNSCHEDULED.
+            limit:
+              required: false
+              type: integer
+              description: Page size 1-50. Default 20. Metrics still cover the full range.
+            nextToken:
+              required: false
+              type: string
+              description: Opaque pagination token for the next page of items.
+          responseData:
+            200:
+              description: "Assigned visits for the caller's crews"
+            400:
+              description: "Invalid date, status, limit, or nextToken"
+            401:
+              description: "Unauthenticated"
+            403:
+              description: "Owner, inactive staff, inactive vendor, or no staff membership"
+            409:
+              description: "Date range is too large to total"
+          documentation:
+            summary: List assigned package visits for the signed-in staff member
+            description: "Resolves staff membership from the authorizer user id through Vendor Service. Returns visits whose crewAssignment matches an active crew that includes this active staff member. Community names are not looked up. windowTimeKnown is false when the plan did not store a start and end. crossesMidnight is true when the stored end is earlier than the start on the clock."
+            tags:
+              - Customer Plans
+            queryParams:
+              - name: date
+                required: false
+                schema:
+                  type: string
+              - name: fromDate
+                required: false
+                schema:
+                  type: string
+              - name: toDate
+                required: false
+                schema:
+                  type: string
+              - name: status
+                required: false
+                schema:
+                  type: string
+                  enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+              - name: limit
+                required: false
+                schema:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+              - name: nextToken
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "crews, metrics for the full range, items for this page, and nextToken. reason noCrewAssignment when the staff member has no active crew."
+                responseModels:
+                  application/json: StaffAssignedWork
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid filter
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Unauthenticated
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Range is too large to total
+                responseModels:
+                  application/json: ErrorResponse
+
+  startstaffpackagevisit:
+    handler: src/handlers/staff-assigned-work.handleStartStaffVisit
+    events:
+      - http:
+          path: /staff/me/package-visits/{visitId}/start
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Start an assigned package visit"
+          description: "Authenticated staff only. Resolves the caller from the authorizer user id. Ignores any staffId, vendorId, or timestamp in the body. The visit must be assigned to an active crew that includes this active staff member. SCHEDULED becomes IN_PROGRESS. An in-progress visit returns idempotent true without another write. Server startedAt and startedBy are stored. One-time bookings are not updated."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit is in progress"
+            401:
+              description: "Unauthenticated"
+            403:
+              description: "Not active staff, or the visit is not on the caller's crew"
+            404:
+              description: "Visit not found for this staff member's vendor"
+            409:
+              description: "Status cannot move to IN_PROGRESS"
+          documentation:
+            summary: Start an assigned package visit
+            description: "SCHEDULED to IN_PROGRESS using the server clock. Already in progress is idempotent. Does not consume entitlement."
+            tags:
+              - Customer Plans
+            pathParams:
+              - name: visitId
+                description: Package visit id.
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "visitId, status IN_PROGRESS, startedAt, entitlementConsumed false, and idempotent."
+                responseModels:
+                  application/json: StaffVisitAction
+              - statusCode: "403"
+                responseBody:
+                  description: Forbidden
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Visit not found
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Invalid transition
+                responseModels:
+                  application/json: ErrorResponse
+
+  completestaffpackagevisit:
+    handler: src/handlers/staff-assigned-work.handleCompleteStaffVisit
+    events:
+      - http:
+          path: /staff/me/package-visits/{visitId}/complete
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Complete an assigned package visit"
+          description: "Authenticated staff only. Same identity rules as start. Requires Idempotency-Key. IN_PROGRESS becomes COMPLETED and consumes one package entitlement. A visit that is already COMPLETED with entitlementConsumed returns idempotent true and does not consume again. A client timestamp is ignored. One-time booking completion is a different route and is not called. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit is completed"
+            400:
+              description: "Idempotency-Key is missing"
+            401:
+              description: "Unauthenticated"
+            403:
+              description: "Not active staff, or the visit is not on the caller's crew"
+            404:
+              description: "Visit not found for this staff member's vendor"
+            409:
+              description: "Status cannot move to COMPLETED, or a concurrent write conflict"
+          documentation:
+            summary: Complete an assigned package visit
+            description: "IN_PROGRESS to COMPLETED. Entitlement is consumed once by the existing package-visit completion write. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it."
+            tags:
+              - Customer Plans
+            pathParams:
+              - name: visitId
+                description: Package visit id.
+                schema:
+                  type: string
+            requestHeaders:
+              - name: Idempotency-Key
+                description: Required. Retries of an already completed visit return the stored visit.
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "visitId, status COMPLETED, completedAt, entitlementConsumed true, and idempotent."
+                responseModels:
+                  application/json: StaffVisitAction
+              - statusCode: "400"
+                responseBody:
+                  description: Missing idempotency key, or an invalid or incomplete checklist
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Invalid transition, open blocking issue, evidence not uploaded, or concurrent conflict
+                responseModels:
+                  application/json: ErrorResponse
+
+  missstaffpackagevisit:
+    handler: src/handlers/staff-assigned-work.handleMissStaffVisit
+    events:
+      - http:
+          path: /staff/me/package-visits/{visitId}/miss
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Mark an assigned package visit missed"
+          description: "Authenticated staff only. Same identity rules as start. SCHEDULED becomes MISSED only when the server clock is past the stored visit-window end. A missing window clock returns 409 WINDOW_CLOCK_UNKNOWN. An open window returns 409 WINDOW_NOT_ELAPSED. Body timestamps are ignored. entitlementConsumed stays false, so the entitlement is not consumed. The availability reservation is not released. Already missed returns idempotent true. IN_PROGRESS cannot move to MISSED."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Visit is missed"
+            401:
+              description: "Unauthenticated"
+            403:
+              description: "Not active staff, or the visit is not on the caller's crew"
+            404:
+              description: "Visit not found for this staff member's vendor"
+            409:
+              description: "Window has not ended, the clock is unknown, or the status cannot move to MISSED"
+          documentation:
+            summary: Mark an assigned package visit missed
+            description: "SCHEDULED to MISSED using the stored window and the server clock. Does not consume entitlement."
+            tags:
+              - Customer Plans
+            pathParams:
+              - name: visitId
+                description: Package visit id.
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "visitId, status MISSED, missedAt, entitlementConsumed false, and idempotent."
+                responseModels:
+                  application/json: StaffVisitAction
+              - statusCode: "409"
+                responseBody:
+                  description: Window or transition conflict
+                responseModels:
+                  application/json: ErrorResponse
+
+  createvendorissue:
+    handler: src/handlers/vendor-issues.handleCreateVendorIssue
+    events:
+      - http:
+          path: /vendors/{vendorId}/issues
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "File a vendor or crew issue"
+          description: "Owner or assigned crew. Crew may only file for a visit assigned to one of their crews; the vendor is taken from the signed-in principal, never from the body. Filing an issue never completes or changes the linked visit, but an open issue blocks completion of that visit. Idempotency-Key header is required; a reused key with a different body returns 409."
+          swaggerTags:
+            - Vendor Issues
+          responseData:
+            201:
+              description: "Created"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: File a vendor or crew issue
+            description: "Owner or assigned crew. Crew may only file for a visit assigned to one of their crews; the vendor is taken from the signed-in principal, never from the body. Filing an issue never completes or changes the linked visit, but an open issue blocks completion of that visit. Idempotency-Key header is required; a reused key with a different body returns 409."
+            requestModels:
+              application/json: CreateVendorIssueRequest
+            tags:
+              - Vendor Issues
+            requestBody:
+              description: "type, description, optional requestedHelp, visitId, communityId, commitmentId."
+              required: true
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: "Created"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+
+  listvendorissues:
+    handler: src/handlers/vendor-issues.handleListVendorIssues
+    events:
+      - http:
+          path: /vendors/{vendorId}/issues
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List vendor issues"
+          description: "Owner sees all vendor issues. Crew sees only issues they filed or that link to a visit on their crews. Internal notes and assignee ids are never returned."
+          swaggerTags:
+            - Vendor Issues
+          queryStringParameters:
+            status:
+              required: false
+              type: string
+              description: "Filter by issue status."
+            visitId:
+              required: false
+              type: string
+              description: "Only issues linked to this package visit."
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+          documentation:
+            summary: List vendor issues
+            description: "Owner sees all vendor issues. Crew sees only issues they filed or that link to a visit on their crews. Internal notes and assignee ids are never returned."
+            tags:
+              - Vendor Issues
+            queryParams:
+              - name: status
+                required: false
+                schema:
+                  type: string
+                  enum: [OPEN, TRIAGED, ACTION_REQUIRED, RESOLVED]
+              - name: visitId
+                required: false
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+
+  getvendorissue:
+    handler: src/handlers/vendor-issues.handleGetVendorIssue
+    events:
+      - http:
+          path: /vendors/{vendorId}/issues/{issueId}
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get a vendor issue"
+          description: "Same scoping as the list route. Returns status, history and attachment metadata without internal ops notes."
+          swaggerTags:
+            - Vendor Issues
+          responseData:
+            200:
+              description: "Success"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+          documentation:
+            summary: Get a vendor issue
+            description: "Same scoping as the list route. Returns status, history and attachment metadata without internal ops notes."
+            tags:
+              - Vendor Issues
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  createissueattachmentuploadurl:
+    handler: src/handlers/vendor-issues.handleCreateIssueAttachmentUploadUrl
+    events:
+      - http:
+          path: /vendors/{vendorId}/issues/{issueId}/attachments/upload-url
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get an attachment upload URL"
+          description: "Returns a short-lived presigned S3 PUT URL for one image or PDF. Binary content is never stored in DynamoDB. Register the upload with the confirm route afterwards. 501 when the evidence bucket is not configured. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+            501:
+              description: "Not configured"
+          documentation:
+            summary: Get an attachment upload URL
+            description: "Returns a short-lived presigned S3 PUT URL for one image or PDF. Binary content is never stored in DynamoDB. Register the upload with the confirm route afterwards. 501 when the evidence bucket is not configured. Idempotency-Key header is required."
+            requestModels:
+              application/json: IssueAttachmentUploadUrlRequest
+            tags:
+              - Vendor Issues
+            requestBody:
+              description: "contentType: image/jpeg, image/png, image/webp or application/pdf."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "501"
+                responseBody:
+                  description: "Not configured"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  confirmissueattachment:
+    handler: src/handlers/vendor-issues.handleConfirmIssueAttachment
+    events:
+      - http:
+          path: /vendors/{vendorId}/issues/{issueId}/attachments
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Confirm an uploaded attachment"
+          description: "Verifies the object exists in S3 and records its key and content type on the issue. Replaying the same objectKey is a no-op. 409 ATTACHMENT_NOT_UPLOADED when nothing was uploaded. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+            501:
+              description: "Not configured"
+          documentation:
+            summary: Confirm an uploaded attachment
+            description: "Verifies the object exists in S3 and records its key and content type on the issue. Replaying the same objectKey is a no-op. 409 ATTACHMENT_NOT_UPLOADED when nothing was uploaded. Idempotency-Key header is required."
+            requestModels:
+              application/json: ConfirmIssueAttachmentRequest
+            tags:
+              - Vendor Issues
+            requestBody:
+              description: "objectKey from the upload-url response and its contentType."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "501"
+                responseBody:
+                  description: "Not configured"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  createvisitevidenceuploadurl:
+    handler: src/handlers/vendor-issues.handleCreateVisitEvidenceUploadUrl
+    events:
+      - http:
+          path: /vendors/{vendorId}/package-visits/{visitId}/evidence/upload-url
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Get a visit evidence upload URL"
+          description: "Owner or the assigned crew. Returns a presigned S3 PUT URL under the visit evidence prefix. Pass the returned objectKey in evidenceObjectKeys when completing the visit. Refused once the completion is APPROVED. 501 when the evidence bucket is not configured. Idempotency-Key header is required."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+            501:
+              description: "Not configured"
+          documentation:
+            summary: Get a visit evidence upload URL
+            description: "Owner or the assigned crew. Returns a presigned S3 PUT URL under the visit evidence prefix. Pass the returned objectKey in evidenceObjectKeys when completing the visit. Refused once the completion is APPROVED. 501 when the evidence bucket is not configured. Idempotency-Key header is required."
+            requestModels:
+              application/json: VisitEvidenceUploadUrlRequest
+            tags:
+              - Customer Plans
+            requestBody:
+              description: "contentType: image/jpeg, image/png or image/webp."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "501"
+                responseBody:
+                  description: "Not configured"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: "Vendor id. Must match the caller's membership."
+                schema:
+                  type: string
+              - name: visitId
+                description: "Package visit id."
+                schema:
+                  type: string
+
+  opslistissues:
+    handler: src/handlers/vendor-issues.handleOpsListIssues
+    events:
+      - http:
+          path: /ops/issues
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List issues for ops"
+          description: "Admin only. Defaults to OPEN, TRIAGED and ACTION_REQUIRED, newest first. Includes internal notes and assignee."
+          swaggerTags:
+            - Vendor Issues Ops
+          queryStringParameters:
+            status:
+              required: false
+              type: string
+              description: "Filter by issue status."
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+          documentation:
+            summary: List issues for ops
+            description: "Admin only. Defaults to OPEN, TRIAGED and ACTION_REQUIRED, newest first. Includes internal notes and assignee."
+            tags:
+              - Vendor Issues Ops
+            queryParams:
+              - name: status
+                required: false
+                schema:
+                  type: string
+                  enum: [OPEN, TRIAGED, ACTION_REQUIRED, RESOLVED]
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+
+  opstriageissue:
+    handler: src/handlers/vendor-issues.handleOpsTriageIssue
+    events:
+      - http:
+          path: /ops/issues/{issueId}/triage
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Triage an issue"
+          description: "Admin only. OPEN to TRIAGED. Repeating on a triaged issue is idempotent. History records who and when. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues Ops
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: Triage an issue
+            description: "Admin only. OPEN to TRIAGED. Repeating on a triaged issue is idempotent. History records who and when. Idempotency-Key header is required."
+            requestModels:
+              application/json: TriageIssueRequest
+            tags:
+              - Vendor Issues Ops
+            requestBody:
+              description: "Optional note."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  opsassignissue:
+    handler: src/handlers/vendor-issues.handleOpsAssignIssue
+    events:
+      - http:
+          path: /ops/issues/{issueId}/assign
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Assign an issue"
+          description: "Admin only. Sets the internal assignee. The assignee id is never shown to vendors. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues Ops
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: Assign an issue
+            description: "Admin only. Sets the internal assignee. The assignee id is never shown to vendors. Idempotency-Key header is required."
+            requestModels:
+              application/json: AssignIssueRequest
+            tags:
+              - Vendor Issues Ops
+            requestBody:
+              description: "assigneeUserId and optional note."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  opsresolveissue:
+    handler: src/handlers/vendor-issues.handleOpsResolveIssue
+    events:
+      - http:
+          path: /ops/issues/{issueId}/resolve
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Resolve an issue"
+          description: "Admin only. Moves the issue to RESOLVED, which stops it blocking visit completion. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues Ops
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: Resolve an issue
+            description: "Admin only. Moves the issue to RESOLVED, which stops it blocking visit completion. Idempotency-Key header is required."
+            requestModels:
+              application/json: ResolveIssueRequest
+            tags:
+              - Vendor Issues Ops
+            requestBody:
+              description: "outcome and optional note."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  opsrequestissueaction:
+    handler: src/handlers/vendor-issues.handleOpsRequestIssueAction
+    events:
+      - http:
+          path: /ops/issues/{issueId}/request-action
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Request vendor action on an issue"
+          description: "Admin only. Moves the issue to ACTION_REQUIRED. The issue still blocks completion until resolved. Idempotency-Key header is required."
+          swaggerTags:
+            - Vendor Issues Ops
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: Request vendor action on an issue
+            description: "Admin only. Moves the issue to ACTION_REQUIRED. The issue still blocks completion until resolved. Idempotency-Key header is required."
+            requestModels:
+              application/json: RequestIssueActionRequest
+            tags:
+              - Vendor Issues Ops
+            requestBody:
+              description: "note describing the action requested."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: issueId
+                description: "Issue id."
+                schema:
+                  type: string
+
+  opsreviewvisitcompletion:
+    handler: src/handlers/vendor-issues.handleOpsReviewVisitCompletion
+    events:
+      - http:
+          path: /ops/package-visits/{visitId}/completion-review
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Review visit completion evidence"
+          description: "Admin only. PENDING_REVIEW to APPROVED or REJECTED. payoutEligible becomes true only on APPROVED. Approval is refused while a blocking issue is open on the visit. Repeating the same decision is idempotent. Idempotency-Key header is required."
+          swaggerTags:
+            - Customer Plans
+          responseData:
+            200:
+              description: "Success"
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+            404:
+              description: "Not found"
+            409:
+              description: "Conflict"
+          documentation:
+            summary: Review visit completion evidence
+            description: "Admin only. PENDING_REVIEW to APPROVED or REJECTED. payoutEligible becomes true only on APPROVED. Approval is refused while a blocking issue is open on the visit. Repeating the same decision is idempotent. Idempotency-Key header is required."
+            requestModels:
+              application/json: CompletionReviewRequest
+            tags:
+              - Customer Plans
+            requestBody:
+              description: "decision APPROVE or REJECT, with a note when rejecting."
+              required: true
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: "Success"
+              - statusCode: "400"
+                responseBody:
+                  description: "Invalid request"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: "Authentication is required"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: "Caller is not allowed"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: "Not found"
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: "Conflict"
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: visitId
+                description: "Package visit id."
+                schema:
+                  type: string
 
 resources:
   Resources:
@@ -2347,6 +4063,32 @@ resources:
     GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
     GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
     GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+
+    BookingEvidenceBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - HEAD
+              AllowedHeaders:
+                - '*'
+              MaxAge: 3000
 
     BookingTable:
       Type: AWS::DynamoDB::Table

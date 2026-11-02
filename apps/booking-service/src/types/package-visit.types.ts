@@ -49,6 +49,55 @@ export interface PackageVisitScheduleHistoryEntry {
   reason?: string;
 }
 
+/**
+ * Crew assigned to this scheduled visit.
+ * Staff membership is not stored here. It is read from Vendor Service at assignment time.
+ */
+export interface PackageVisitCrewAssignment {
+  crewId: string;
+  assignedAt: string;
+  assignedBy: string;
+}
+
+/**
+ * Visit-window clock copied from the plan when both bounds were stored.
+ * Absent when the plan has only a label. Slot reservation times stay on `schedule`.
+ */
+export interface PackageVisitWindowSnapshot {
+  visitWindowId: string;
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  allDay?: boolean;
+}
+
+/** Review state of the evidence submitted when a visit was completed. */
+export const VISIT_VALIDATION_STATUS = {
+  PENDING_REVIEW: 'PENDING_REVIEW',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export type VisitValidationStatus =
+  (typeof VISIT_VALIDATION_STATUS)[keyof typeof VISIT_VALIDATION_STATUS];
+
+export interface VisitChecklistItem {
+  itemId: string;
+  label: string;
+  done: true;
+}
+
+/**
+ * Evidence submitted on completion. Binary files live in S3 and are referenced
+ * by object key only. Nothing here is a URL or file content.
+ */
+export interface VisitCompletionEvidence {
+  checklist: VisitChecklistItem[];
+  evidenceKeys: string[];
+  submittedAt: string;
+  submittedBy: { staffId: string; userId?: string };
+}
+
 export interface PackageVisitRecord {
   visitId: string;
   planId: string;
@@ -58,6 +107,8 @@ export interface PackageVisitRecord {
   communityId?: string;
   visitWindowId?: string;
   visitWindowName?: string;
+  /** Authoritative window clock. Not inferred from visitWindowName or schedule.startTime. */
+  visitWindowSnapshot?: PackageVisitWindowSnapshot;
   vehicleId?: string;
   vehicleType?: string;
   /** Uppercase registration used for vendor search. */
@@ -74,6 +125,8 @@ export interface PackageVisitRecord {
   durationMinutes: number;
   schedule?: PackageVisitSchedule;
   scheduleHistory: PackageVisitScheduleHistoryEntry[];
+  /** Present only while this visit is assigned to a vendor crew. Cleared on cancel and reschedule. */
+  crewAssignment?: PackageVisitCrewAssignment;
   /** When true, remainingVisits / entitlement accounting already applied. */
   entitlementConsumed: boolean;
   version: number;
@@ -87,9 +140,31 @@ export interface PackageVisitRecord {
   cancelledBy?: string;
   cancelReason?: string;
   missedAt?: string;
+  /** Set when the visit is completed. Absent on visits completed before evidence was required. */
+  completionEvidence?: VisitCompletionEvidence;
+  /** PENDING_REVIEW until an admin decides. Absent on legacy completed visits. */
+  validationStatus?: VisitValidationStatus;
+  /** False until an admin APPROVES the completion. Never set by the vendor. */
+  payoutEligible?: boolean;
+  /**
+   * Agreed vendor rate for settlement. Reserved: Booking has no commitment
+   * lookup yet, so this is never populated by the completion path.
+   */
+  agreedVendorRateMinor?: number;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  /** Internal admin note. Never returned in visit responses. */
+  reviewNote?: string;
 }
 
-export type PackageVisitResponse = Omit<PackageVisitRecord, 'customerId' | 'version'>;
+/**
+ * Customer and plan visit responses do not expose crew assignment, the internal
+ * admin review note, or the settlement rate.
+ */
+export type PackageVisitResponse = Omit<
+  PackageVisitRecord,
+  'customerId' | 'version' | 'crewAssignment' | 'reviewNote' | 'agreedVendorRateMinor'
+>;
 
 export interface PackageVisitDdbItem extends PackageVisitRecord {
   PK: string;

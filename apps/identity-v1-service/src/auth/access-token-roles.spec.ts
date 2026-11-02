@@ -120,6 +120,27 @@ describe('loadApplicationTokenClaimsForIdentity', () => {
     expect(JSON.stringify(claims)).not.toContain('u-1');
   });
 
+  it('does not copy a VENDOR classification into application roles', async () => {
+    const repo = repository(
+      { ...baseUser, userType: 'VENDOR' },
+      ['CUSTOMER'],
+      {
+        userId: 'u-1',
+        firstName: '',
+        lastName: '',
+        userType: 'VENDOR',
+      },
+    );
+
+    await expect(
+      loadApplicationTokenClaimsForIdentity('cognito-sub-1', repo),
+    ).resolves.toEqual({
+      roles: ['CUSTOMER'],
+      identityId: 'cognito-sub-1',
+      userType: 'VENDOR',
+    });
+  });
+
   it('returns no userId when the identity does not exist yet', async () => {
     const repo = repository(null);
     await expect(

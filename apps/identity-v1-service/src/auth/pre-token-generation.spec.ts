@@ -39,6 +39,27 @@ describe('applyApplicationRoles', () => {
     });
   });
 
+  it('keeps a vendor classification without promoting REGISTRANT to VENDOR', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userType: 'VENDOR',
+      roles: ['REGISTRANT'],
+    }));
+
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userType: 'VENDOR',
+            role: 'REGISTRANT',
+            roles: ['REGISTRANT'],
+          },
+        },
+      },
+    });
+  });
+
   it('keeps every persisted role and selects ADMIN as the compatible scalar role', async () => {
     const result = await applyApplicationRoles(event(), async () => ({
       identityId: 'cognito-sub-1',
@@ -242,6 +263,27 @@ describe('applyApplicationRoles', () => {
         accessTokenGeneration: {
           claimsToAddOrOverride: {
             userId: 'app-user',
+          },
+        },
+      },
+    });
+  });
+
+  it('keeps a VENDOR classification out of the role claims until that role is stored', async () => {
+    const result = await applyApplicationRoles(event(), async () => ({
+      identityId: 'cognito-sub-1',
+      userType: 'VENDOR',
+      roles: ['CUSTOMER'],
+    }));
+
+    expect(result.response).toEqual({
+      claimsAndScopeOverrideDetails: {
+        accessTokenGeneration: {
+          claimsToAddOrOverride: {
+            identityId: 'cognito-sub-1',
+            userType: 'VENDOR',
+            role: 'CUSTOMER',
+            roles: ['CUSTOMER'],
           },
         },
       },

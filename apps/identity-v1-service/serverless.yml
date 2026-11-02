@@ -10,6 +10,7 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
+  profile: ci-user-bw
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
   versionFunctions: false
@@ -229,7 +230,10 @@ custom:
               required:
                 - refreshToken
       - name: SendOtpRequest
-        description: Send an OTP. userType defaults to CUSTOMER. ADMIN cannot be self-registered.
+        description: >
+          Send an OTP. userType classifies the challenge only and defaults to
+          CUSTOMER. VENDOR marks a phone registration challenge. It does not
+          grant a role. ADMIN, role, and permissions are rejected.
         content:
           application/json:
             schema:
@@ -239,13 +243,21 @@ custom:
                   type: string
                 userType:
                   type: string
+                  description: >
+                    Challenge classification. CUSTOMER is the default. VENDOR
+                    is stored on the challenge for a new phone identity and is
+                    not an application role.
                   enum:
                     - CUSTOMER
                     - VENDOR
               required:
                 - destination
       - name: VerifyOtpRequest
-        description: Verify an OTP
+        description: >
+          Verify the OTP for the destination. The server uses the stored
+          challenge. A new phone identity from a VENDOR challenge receives
+          REGISTRANT and vendor:register. Existing identities keep their roles.
+          The body cannot set userType, role, or permissions.
         content:
           application/json:
             schema:
@@ -661,7 +673,9 @@ functions:
               description: "OTP sent"
           documentation:
             summary: Send OTP
-            description: Send OTP
+            description: >
+              Public. Stores a challenge for the destination. userType is
+              classification only. A VENDOR value does not grant VENDOR.
             tags:
               - OTP
             methodResponses:
@@ -698,7 +712,13 @@ functions:
               bodyType: TokenResponse
           documentation:
             summary: Verify OTP
-            description: Verify OTP
+            description: >
+              Public. Verifies the stored challenge for the destination and
+              returns Cognito tokens. A new phone identity from a VENDOR
+              challenge gets access-token role REGISTRANT and permission
+              vendor:register. It does not get VENDOR, ADMIN, or vendor:create.
+              An existing identity keeps its roles. userType on the token is
+              classification, not authorization.
             tags:
               - OTP
             methodResponses:
@@ -916,7 +936,7 @@ functions:
   # the user pool or any other trigger.
   preTokenGeneration:
     handler: src/handlers/pre-token-generation.handler
-    description: Adds identityId, userType, linked application userId, role, and roles to Cognito access tokens. The pool trigger is V2_0.
+    description: Adds identityId, userType, linked application userId, role, and roles to Cognito access tokens. REGISTRANT is not written as VENDOR. The pool trigger is V2_0.
     timeout: 5
     memorySize: 256
   attachPreTokenGeneration:

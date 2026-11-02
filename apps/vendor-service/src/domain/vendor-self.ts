@@ -27,6 +27,8 @@ export const VENDOR_CAPABILITY = {
   STAFF_MANAGE: 'staff:manage',
   CREW_VIEW: 'crew:view',
   CREW_MANAGE: 'crew:manage',
+  COMMUNITY_VIEW: 'communities:view',
+  COMMUNITY_MANAGE: 'communities:manage',
 } as const;
 
 export type VendorCapability =
@@ -38,6 +40,8 @@ export const OWNER_WORKSPACE_PERMISSIONS = [
   VENDOR_CAPABILITY.STAFF_MANAGE,
   VENDOR_CAPABILITY.CREW_VIEW,
   VENDOR_CAPABILITY.CREW_MANAGE,
+  VENDOR_CAPABILITY.COMMUNITY_VIEW,
+  VENDOR_CAPABILITY.COMMUNITY_MANAGE,
 ];
 
 export type VendorMembershipRole =

@@ -8,7 +8,6 @@ import type {
 export const PRE_TOKEN_GENERATION_LAMBDA_VERSION = 'V2_0' as const;
 
 const USER_POOL_FIELDS = [
-  'PoolName',
   'Policies',
   'DeletionProtection',
   'AutoVerifiedAttributes',
@@ -84,6 +83,12 @@ export function buildUpdateUserPoolInput(
   }
 
   const input: UpdateUserPoolCommandInput = { UserPoolId: userPoolId };
+  // Cognito's describe shape calls this `Name` in current SDKs, while older
+  // deployments and persisted test fixtures expose `PoolName`.
+  const poolName = (pool as UserPoolType & { PoolName?: unknown }).PoolName ?? pool.Name;
+  if (typeof poolName === 'string' && poolName.trim()) {
+    input.PoolName = poolName;
+  }
   for (const field of USER_POOL_FIELDS) {
     const value = pool[field];
     if (value !== undefined) {

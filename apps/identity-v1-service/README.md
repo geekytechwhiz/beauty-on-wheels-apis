@@ -19,11 +19,23 @@ Bootstrap Completed
 | Claim | Meaning |
 |---|---|
 | `sub` | Cognito identity id. Not the application `userId`, username, or phone number. |
-| `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["ADMIN"]`, `["CUSTOMER","VENDOR"]`. |
+| `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["REGISTRANT"]`, `["ADMIN"]`, `["CUSTOMER","VENDOR"]`. |
+| `role` | One scalar chosen from `roles`: `ADMIN`, then `VENDOR`, then `REGISTRANT`, then `CUSTOMER`. `REGISTRANT` is never written as `VENDOR`. |
+| `userType` | Account classification (`CUSTOMER`, `VENDOR`, or `ADMIN`). Not an authorization role. |
+| `userId` | Linked User Service id, when present. Not Cognito `sub`. |
+| `identityId` | Cognito `sub` stored on the identity. |
 | `token_use` | `access` |
 | `scope` | Cognito OAuth scopes. Not an application role. |
 
-Vendor onboarding status (`PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `PENDING_REVIEW`) stays on the vendor record and is not written into the token. Approving a vendor adds `VENDOR` and leaves `CUSTOMER` in place.
+`userType` classifies the account or the OTP challenge. Application roles and permissions authorize actions. A vendor record and its owner membership belong to Vendor Service.
+
+`POST /otp/send` may store `userType: "VENDOR"` on the server-side challenge. That value is not a role. `POST /otp/verify` accepts only `destination` and `otp`. It uses the stored challenge and the verified destination. Role and permission fields are rejected.
+
+A new phone identity created from a `VENDOR` challenge receives `REGISTRANT` and the server-issued permission `vendor:register`. It does not receive `CUSTOMER`, `VENDOR`, or `ADMIN`. An email challenge, including one stored as `VENDOR`, still receives `CUSTOMER`. An existing identity keeps its roles; an OTP request cannot promote it. Password registration stays `CUSTOMER`. `VENDOR` is still granted only by vendor email verification or approval. `ADMIN` is still assigned only by an existing admin through `POST /users/{userId}/roles`, or once by the local first-admin operator CLI when no ADMIN mapping exists yet (see [docs/first-admin-bootstrap.md](./docs/first-admin-bootstrap.md)). Public OTP never accepts `userType=ADMIN`.
+
+`REGISTRANT` can only begin vendor registration. The authorizer does not copy DynamoDB permissions stored on that role. It adds `vendor:register` and nothing else. That permission is not `vendor:create`, `vendor:read`, or `vendor:update`.
+
+Vendor onboarding status (`PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `PENDING_REVIEW`) stays on the vendor record and is not written into the token. Approving a vendor adds `VENDOR` and leaves any existing `CUSTOMER` mapping in place.
 
 Tokens that omit `roles` still validate. Authorization uses `roles` when the claim is present and does not treat a missing claim as `CUSTOMER` or `VENDOR`.
 
@@ -31,7 +43,7 @@ Deploy attaches `preTokenGeneration` to `COGNITO_USER_POOL_ID` with `LambdaVersi
 
 ### Backfill existing users
 
-Users created before this change have no `ROLE#CUSTOMER` item. The backfill is safe to run more than once: it assigns `CUSTOMER` only when the user has no `CUSTOMER`, `VENDOR`, or `ADMIN` role, and it does not replace an existing `VENDOR` or `ADMIN` mapping.
+Users created before this change have no `ROLE#CUSTOMER` item. The backfill is safe to run more than once: it assigns `CUSTOMER` only when the user has no `CUSTOMER`, `REGISTRANT`, `VENDOR`, or `ADMIN` role, and it does not replace an existing `VENDOR`, `ADMIN`, or `REGISTRANT` mapping.
 
 ```bash
 aws lambda invoke \
@@ -67,6 +79,24 @@ node -e 'const t=process.argv[1].split(".")[1]; console.log(JSON.parse(Buffer.fr
 ```
 
 Expect `sub` (Cognito id), `roles: ["CUSTOMER"]`, and `token_use: "access"`. `scope` remains the Cognito scope string. After a vendor is approved, refresh and expect `roles: ["CUSTOMER","VENDOR"]`.
+
+## First-admin bootstrap (operators)
+
+Use the local CLI — not a public endpoint — to confirm a person via normal OTP, then write only the `ADMIN` application-role mapping:
+
+```bash
+node scripts/bootstrap-first-admin.mjs \
+  --stage dev \
+  --table identity-table-dev \
+  --api-base-url "https://<identity-api-base>" \
+  --destination "admin@example.com" \
+  --approved-by "alice@example.com" \
+  --executed-by "bob@example.com" \
+  --change-ticket "CHG-001" \
+  --expected-account-id "123456789012"
+```
+
+Defaults to dry-run. Full IAM, saga/rollback limits, and recovery steps: [docs/first-admin-bootstrap.md](./docs/first-admin-bootstrap.md).
 
 ## Next Step
 

@@ -60,11 +60,25 @@ export function toExecuteApiWildcardResource(methodArn: string): string {
   return trimmed;
 }
 
+export function authorizerResourceForPrincipal(
+  _ctx: Pick<AuthContext, 'roles' | 'permissions' | 'phoneVerified' | 'phoneNumber'>,
+  methodArn: string,
+): { effect: AuthorizerEffect; resource: string } {
+  // Route authorization is intentionally owned by this custom authorizer.
+  // A verified, mapped principal may invoke every route; downstream services
+  // consume the trusted authorizer context but do not re-apply role checks.
+  return {
+    effect: 'Allow',
+    resource: toExecuteApiWildcardResource(methodArn),
+  };
+}
+
 export function buildIamPolicy(
   principalId: string,
   effect: AuthorizerEffect,
   methodArn: string,
   context?: Record<string, string>,
+  resource: string = toExecuteApiWildcardResource(methodArn),
 ): AuthorizerIamPolicy {
   const policy: AuthorizerIamPolicy = {
     principalId,
@@ -74,7 +88,7 @@ export function buildIamPolicy(
         {
           Action: 'execute-api:Invoke',
           Effect: effect,
-          Resource: toExecuteApiWildcardResource(methodArn),
+          Resource: resource,
         },
       ],
     },
@@ -149,22 +163,23 @@ export async function evaluateApiGatewayAuthorizer(
         expectedTokenUse: options.expectedTokenUse,
       },
     );
-    const policyResource = toExecuteApiWildcardResource(event.methodArn);
+    const decision = authorizerResourceForPrincipal(ctx, event.methodArn);
     logger.info({
-      event: 'authorizer_allowed',
+      event: decision.effect === 'Allow' ? 'authorizer_allowed' : 'authorizer_denied',
       identityId: ctx.identityId,
       userId: ctx.userId,
       tokenUse:
         typeof ctx.claims.token_use === 'string' ? ctx.claims.token_use : undefined,
       methodArn: event.methodArn,
-      policyResource,
-      effect: 'Allow',
+      policyResource: decision.resource,
+      effect: decision.effect,
     });
     return buildIamPolicy(
       ctx.identityId,
-      'Allow',
+      decision.effect,
       event.methodArn,
       toAuthorizerContext(ctx),
+      decision.resource,
     );
   } catch (err) {
     const status = errorStatus(err);

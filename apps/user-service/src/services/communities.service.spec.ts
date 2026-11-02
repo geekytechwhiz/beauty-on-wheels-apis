@@ -100,6 +100,31 @@ describe('CommunitiesService', () => {
     expect(communities.createCommunity).toHaveBeenCalled();
   });
 
+  it('generates stable code and location ids for a complete setup record', async () => {
+    await service.createCommunity(request({
+      body: {
+        name: 'Palm Grove Residency',
+        accessType: 'GATED_COMMUNITY',
+        city: 'Kochi',
+        locality: 'Kakkanad',
+        postalCode: '682030',
+        contactPersonName: 'Anita Menon',
+        contactPersonTitle: 'Secretary',
+        contactPhone: '+919876543210',
+        totalResidentialUnits: 120,
+        estimatedVehicleCount: 156,
+        leadSource: 'FIELD_SCOUTING',
+      },
+    }));
+
+    expect(communities.createCommunity).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'palm-grove-residency',
+      cityId: 'KOCHI',
+      localityId: 'KAKKANAD',
+      estimatedVehicleCount: 156,
+    }));
+  });
+
   it('replaces membership and drops communities that were removed', async () => {
     communities.getCommunity.mockImplementation(async (communityId: string) => {
       if (communityId === 'community-2') {

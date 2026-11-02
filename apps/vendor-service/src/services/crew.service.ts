@@ -34,6 +34,7 @@ import {
 } from '../types/api-types';
 import { CrewDdbItem, StaffDdbItem, VendorDdbItem } from '../types/repository.types';
 import {
+  assertActiveVendorRoute,
   assertVendorAction,
   decodeCursor,
   encodeCursor,
@@ -192,6 +193,7 @@ export class CrewService {
     vendorId: string,
     action: VendorCapability,
   ): Promise<VendorDdbItem> {
+    assertActiveVendorRoute(request);
     const userId = getAuthenticatedUserId(request);
     const vendor = await this.vendorsRepository.getVendorById(vendorId);
     if (!vendor) {

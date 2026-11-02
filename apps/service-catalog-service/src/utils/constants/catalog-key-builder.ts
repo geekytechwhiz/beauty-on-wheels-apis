@@ -121,6 +121,31 @@ export const CatalogKeyBuilder = {
     offeringRevisionSk: (vendorId: string) => `VENDOR#${vendorId}`,
 
     /* --------------------------------
+       PLATFORM PACKAGE (Carish-owned)
+    -------------------------------- */
+
+    platformPackagePk: (packageId: string) => `PLATFORM_PACKAGE#${packageId}`,
+
+    platformPackageSk: () => 'META',
+
+    platformPackageIndexPk: () => 'PLATFORM_PACKAGES',
+
+    platformPackageIndexSk: (packageId: string) => `PACKAGE#${packageId}`,
+
+    platformPackageRevisionSk: (version: number) =>
+        `REVISION#${String(version).padStart(10, '0')}`,
+
+    platformPackageSalesSk: (communityId: string) => `SALES#${communityId}`,
+
+    platformPackageSalesPrefix: () => 'SALES#',
+
+    platformPackageCommunityGsi3Sk: (categoryId: string, packageId: string) =>
+        `PLATFORM_PACKAGE#${categoryId}#${packageId}`,
+
+    platformPackageCommunityGsi3Prefix: (categoryId?: string) =>
+        categoryId ? `PLATFORM_PACKAGE#${categoryId}#` : 'PLATFORM_PACKAGE#',
+
+    /* --------------------------------
        LSI SORT KEYS
     -------------------------------- */
 
@@ -231,4 +256,4 @@ export const CatalogKeyBuilder = {
 
 };
 
- 
+

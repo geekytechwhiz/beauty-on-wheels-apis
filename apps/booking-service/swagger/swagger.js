@@ -882,7 +882,7 @@
     "/customer-plans/{planId}/visits/{visitId}/complete": {
       "post": {
         "summary": "Complete a package visit",
-        "description": "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits.",
+        "description": "Vendor staff only. Idempotent entitlement consumption; Idempotency-Key required. Customers cannot complete visits. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it.",
         "tags": [
           "Customer Plans"
         ],
@@ -1015,6 +1015,1101 @@
         "responses": {
           "200": {
             "description": "Commit booking provider/service change"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/package-visits": {
+      "get": {
+        "summary": "List vendor package visits",
+        "description": "Owner-only scheduled package visits for the caller's vendor. Dated rows come from GSI3 or GSI1. UNSCHEDULED entitlements are excluded. Staff and other vendors receive 403.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "listvendorpackagevisits.get./vendors/{vendorId}/package-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "type": "string",
+            "description": "Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata when no range is sent.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "description": "Inclusive start date. Cannot be combined with date.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "description": "Inclusive end date.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "communityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "visitWindowId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, or MISSED.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "type": "string",
+            "description": "Case-insensitive vehicle registration substring.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "description": "Page size 1-50. Default 20.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "type": "string",
+            "description": "Opaque pagination token.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled package visits"
+          },
+          "400": {
+            "description": "Invalid filter"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Staff, another vendor, or no membership"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/package-visits/summary": {
+      "get": {
+        "summary": "Summarize vendor package visits",
+        "description": "Owner-only totals for a bounded date range. Default is today through the next six days in Asia/Kolkata. Expected excludes CANCELLED and UNSCHEDULED. Completion percent is completed/expected, or 0 when expected is 0. A range that exceeds the read cap returns 409 instead of partial totals.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "summarizevendorpackagevisits.get./vendors/{vendorId}/package-visits/summary",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operational summary"
+          },
+          "400": {
+            "description": "Invalid range"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Range is too large to total"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/operations/summary": {
+      "get": {
+        "summary": "Summarize vendor operations",
+        "description": "Read-only owner/admin summary of package visits and one-time bookings for Manager Home. Both fromDate and toDate are required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "summarizevendoroperations.get./vendors/{vendorId}/operations/summary",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "description": "Inclusive start date YYYY-MM-DD",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "description": "Inclusive end date YYYY-MM-DD",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operations summary",
+            "schema": {
+              "$ref": "#/definitions/VendorOperationsSummaryResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid or reversed date range"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Timezone unresolved/ambiguous or range too large"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/package-visits/assignments": {
+      "get": {
+        "summary": "List crew assignments",
+        "description": "Owner-only crew assignments for scheduled package visits. Grouped by date, community, and visit window. Workload uses stored visit durations. Van labels are display text and are not conflict-checked. Staff cannot call this route.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "listvendorpackagevisitassignments.get./vendors/{vendorId}/package-visits/assignments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "description": "Inclusive YYYY-MM-DD. Defaults to today in Asia/Kolkata.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "description": "Inclusive YYYY-MM-DD. Defaults to two days after fromDate. Maximum 14 days.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment schedule"
+          },
+          "400": {
+            "description": "Invalid range"
+          },
+          "403": {
+            "description": "Staff or another vendor"
+          }
+        }
+      },
+      "put": {
+        "summary": "Assign a crew to package visits",
+        "description": "Assigns or clears a crew on existing scheduled PackageVisit rows. Does not reschedule the customer, release availability, or consume entitlements. Overlapping crew or staff assignments return 409. Capacity overload and a short travel buffer are warnings and still save. Repeating the same assignment is idempotent. At most 25 visits, written in one transaction.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "assignvendorpackagevisits.put./vendors/{vendorId}/package-visits/assignments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment saved"
+          },
+          "400": {
+            "description": "Invalid body"
+          },
+          "403": {
+            "description": "Staff, another vendor, or a visit from another vendor"
+          },
+          "404": {
+            "description": "Crew or visit not found"
+          },
+          "409": {
+            "description": "Inactive crew, crew size, overlap, or concurrent update"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/package-visits/{visitId}/assignment": {
+      "delete": {
+        "summary": "Remove a crew assignment",
+        "description": "Clears crewAssignment on one SCHEDULED visit. The customer visit and availability reservation stay in place. Already-clear visits succeed without another write.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "unassignvendorpackagevisit.delete./vendors/{vendorId}/package-visits/{visitId}/assignment",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment removed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Visit not found"
+          },
+          "409": {
+            "description": "Visit is not scheduled, or it changed concurrently"
+          }
+        }
+      }
+    },
+    "/staff/me/package-visits": {
+      "get": {
+        "summary": "List the signed-in staff member's assigned package visits",
+        "description": "Authenticated staff only. The caller cannot send vendorId, staffId, or crewId. Identity userId is resolved to an active staff record and that staff member's active crews. Owners, inactive staff, and other vendors receive 403. No crew assignment returns 200 with reason noCrewAssignment and an empty list. Defaults to today in Asia/Kolkata. Metrics count the full filtered range, not the current page. ordering is list, not an optimized wash sequence. Missing visit-window clocks are omitted rather than inferred from a label or a slot time. Vehicle registration, display name, and type are returned when stored on the visit. communityId is returned when stored. Customer name, street address, coordinates, and community name are not on the package visit and are omitted.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "liststaffassignedwork.get./staff/me/package-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "type": "string",
+            "description": "Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata. Cannot be combined with fromDate or toDate.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "description": "Inclusive start date. Maximum range is 14 days.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "description": "Inclusive end date.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or UNSCHEDULED.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "description": "Page size 1-50. Default 20. Metrics still cover the full range.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "nextToken",
+            "type": "string",
+            "description": "Opaque pagination token for the next page of items.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assigned visits for the caller's crews"
+          },
+          "400": {
+            "description": "Invalid date, status, limit, or nextToken"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Owner, inactive staff, inactive vendor, or no staff membership"
+          },
+          "409": {
+            "description": "Date range is too large to total"
+          }
+        }
+      }
+    },
+    "/staff/me/package-visits/{visitId}/start": {
+      "post": {
+        "summary": "Start an assigned package visit",
+        "description": "Authenticated staff only. Resolves the caller from the authorizer user id. Ignores any staffId, vendorId, or timestamp in the body. The visit must be assigned to an active crew that includes this active staff member. SCHEDULED becomes IN_PROGRESS. An in-progress visit returns idempotent true without another write. Server startedAt and startedBy are stored. One-time bookings are not updated.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "startstaffpackagevisit.post./staff/me/package-visits/{visitId}/start",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit is in progress"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not active staff, or the visit is not on the caller's crew"
+          },
+          "404": {
+            "description": "Visit not found for this staff member's vendor"
+          },
+          "409": {
+            "description": "Status cannot move to IN_PROGRESS"
+          }
+        }
+      }
+    },
+    "/staff/me/package-visits/{visitId}/complete": {
+      "post": {
+        "summary": "Complete an assigned package visit",
+        "description": "Authenticated staff only. Same identity rules as start. Requires Idempotency-Key. IN_PROGRESS becomes COMPLETED and consumes one package entitlement. A visit that is already COMPLETED with entitlementConsumed returns idempotent true and does not consume again. A client timestamp is ignored. One-time booking completion is a different route and is not called. Body is required: checklist (non-empty, every item done true) and optional evidenceObjectKeys uploaded through the evidence upload-url route. A blocking OPEN, TRIAGED or ACTION_REQUIRED issue on the visit returns 409 BLOCKING_ISSUE_OPEN. The visit becomes COMPLETED with validationStatus PENDING_REVIEW and payoutEligible false until ops approve it.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "completestaffpackagevisit.post./staff/me/package-visits/{visitId}/complete",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit is completed"
+          },
+          "400": {
+            "description": "Idempotency-Key is missing"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not active staff, or the visit is not on the caller's crew"
+          },
+          "404": {
+            "description": "Visit not found for this staff member's vendor"
+          },
+          "409": {
+            "description": "Status cannot move to COMPLETED, or a concurrent write conflict"
+          }
+        }
+      }
+    },
+    "/staff/me/package-visits/{visitId}/miss": {
+      "post": {
+        "summary": "Mark an assigned package visit missed",
+        "description": "Authenticated staff only. Same identity rules as start. SCHEDULED becomes MISSED only when the server clock is past the stored visit-window end. A missing window clock returns 409 WINDOW_CLOCK_UNKNOWN. An open window returns 409 WINDOW_NOT_ELAPSED. Body timestamps are ignored. entitlementConsumed stays false, so the entitlement is not consumed. The availability reservation is not released. Already missed returns idempotent true. IN_PROGRESS cannot move to MISSED.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "missstaffpackagevisit.post./staff/me/package-visits/{visitId}/miss",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit is missed"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Not active staff, or the visit is not on the caller's crew"
+          },
+          "404": {
+            "description": "Visit not found for this staff member's vendor"
+          },
+          "409": {
+            "description": "Window has not ended, the clock is unknown, or the status cannot move to MISSED"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/issues": {
+      "post": {
+        "summary": "File a vendor or crew issue",
+        "description": "Owner or assigned crew. Crew may only file for a visit assigned to one of their crews; the vendor is taken from the signed-in principal, never from the body. Filing an issue never completes or changes the linked visit, but an open issue blocks completion of that visit. Idempotency-Key header is required; a reused key with a different body returns 409.",
+        "tags": [
+          "Vendor Issues"
+        ],
+        "operationId": "createvendorissue.post./vendors/{vendorId}/issues",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      },
+      "get": {
+        "summary": "List vendor issues",
+        "description": "Owner sees all vendor issues. Crew sees only issues they filed or that link to a visit on their crews. Internal notes and assignee ids are never returned.",
+        "tags": [
+          "Vendor Issues"
+        ],
+        "operationId": "listvendorissues.get./vendors/{vendorId}/issues",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "Filter by issue status.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "visitId",
+            "type": "string",
+            "description": "Only issues linked to this package visit.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/issues/{issueId}": {
+      "get": {
+        "summary": "Get a vendor issue",
+        "description": "Same scoping as the list route. Returns status, history and attachment metadata without internal ops notes.",
+        "tags": [
+          "Vendor Issues"
+        ],
+        "operationId": "getvendorissue.get./vendors/{vendorId}/issues/{issueId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/issues/{issueId}/attachments/upload-url": {
+      "post": {
+        "summary": "Get an attachment upload URL",
+        "description": "Returns a short-lived presigned S3 PUT URL for one image or PDF. Binary content is never stored in DynamoDB. Register the upload with the confirm route afterwards. 501 when the evidence bucket is not configured. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues"
+        ],
+        "operationId": "createissueattachmentuploadurl.post./vendors/{vendorId}/issues/{issueId}/attachments/upload-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "501": {
+            "description": "Not configured"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/issues/{issueId}/attachments": {
+      "post": {
+        "summary": "Confirm an uploaded attachment",
+        "description": "Verifies the object exists in S3 and records its key and content type on the issue. Replaying the same objectKey is a no-op. 409 ATTACHMENT_NOT_UPLOADED when nothing was uploaded. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues"
+        ],
+        "operationId": "confirmissueattachment.post./vendors/{vendorId}/issues/{issueId}/attachments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "501": {
+            "description": "Not configured"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/package-visits/{visitId}/evidence/upload-url": {
+      "post": {
+        "summary": "Get a visit evidence upload URL",
+        "description": "Owner or the assigned crew. Returns a presigned S3 PUT URL under the visit evidence prefix. Pass the returned objectKey in evidenceObjectKeys when completing the visit. Refused once the completion is APPROVED. 501 when the evidence bucket is not configured. Idempotency-Key header is required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "createvisitevidenceuploadurl.post./vendors/{vendorId}/package-visits/{visitId}/evidence/upload-url",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "501": {
+            "description": "Not configured"
+          }
+        }
+      }
+    },
+    "/ops/issues": {
+      "get": {
+        "summary": "List issues for ops",
+        "description": "Admin only. Defaults to OPEN, TRIAGED and ACTION_REQUIRED, newest first. Includes internal notes and assignee.",
+        "tags": [
+          "Vendor Issues Ops"
+        ],
+        "operationId": "opslistissues.get./ops/issues",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "description": "Filter by issue status.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          }
+        }
+      }
+    },
+    "/ops/issues/{issueId}/triage": {
+      "post": {
+        "summary": "Triage an issue",
+        "description": "Admin only. OPEN to TRIAGED. Repeating on a triaged issue is idempotent. History records who and when. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues Ops"
+        ],
+        "operationId": "opstriageissue.post./ops/issues/{issueId}/triage",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/issues/{issueId}/assign": {
+      "post": {
+        "summary": "Assign an issue",
+        "description": "Admin only. Sets the internal assignee. The assignee id is never shown to vendors. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues Ops"
+        ],
+        "operationId": "opsassignissue.post./ops/issues/{issueId}/assign",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/issues/{issueId}/resolve": {
+      "post": {
+        "summary": "Resolve an issue",
+        "description": "Admin only. Moves the issue to RESOLVED, which stops it blocking visit completion. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues Ops"
+        ],
+        "operationId": "opsresolveissue.post./ops/issues/{issueId}/resolve",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/issues/{issueId}/request-action": {
+      "post": {
+        "summary": "Request vendor action on an issue",
+        "description": "Admin only. Moves the issue to ACTION_REQUIRED. The issue still blocks completion until resolved. Idempotency-Key header is required.",
+        "tags": [
+          "Vendor Issues Ops"
+        ],
+        "operationId": "opsrequestissueaction.post./ops/issues/{issueId}/request-action",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/ops/package-visits/{visitId}/completion-review": {
+      "post": {
+        "summary": "Review visit completion evidence",
+        "description": "Admin only. PENDING_REVIEW to APPROVED or REJECTED. payoutEligible becomes true only on APPROVED. Approval is refused while a blocking issue is open on the visit. Repeating the same decision is idempotent. Idempotency-Key header is required.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "opsreviewvisitcompletion.post./ops/package-visits/{visitId}/completion-review",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }

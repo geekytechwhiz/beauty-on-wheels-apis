@@ -15,10 +15,12 @@ import { assertProviderAmountMatches, toProviderMinor } from '../domain/money';
 import {
   computeVisitProgress,
   materializePackageVisits,
+  planVisitSlotDemand,
   validityEndsAt,
 } from '../domain/package-visit';
 import { BookingError } from '../errors';
 import { getRazorpayGateway } from '../integrations/razorpay.client';
+import { getVendorGateway, VendorGateway } from '../integrations/vendor.client';
 import {
   BookingsRepository,
   getBookingsRepository,
@@ -52,6 +54,7 @@ export class CustomerPlanPaymentsService {
   constructor(
     private readonly plans: CustomerPlansRepository = getCustomerPlansRepository(),
     private readonly bookings: BookingsRepository = getBookingsRepository(),
+    private readonly vendors: VendorGateway = getVendorGateway(),
   ) {}
 
   async initiate(request: LambdaRequest): Promise<CustomerPlanPaymentResponse> {
@@ -225,6 +228,31 @@ export class CustomerPlanPaymentsService {
     const alreadyPaid = (plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB')
       && plan.paymentStatus === 'PAID'
       && Boolean(plan.firstJobId);
+
+    /**
+     * Reserve sold capacity at payment activation only (not at PENDING_PAYMENT create).
+     * Soft-hold at create would need release on abandoned carts; unpaid plans may still
+     * oversell until payment completes — accepted MVP limitation.
+     */
+    if (!alreadyPaid) {
+      const communityId = plan.location.communityId;
+      if (!communityId) {
+        throw new BookingError(
+          'CAPACITY_UNAVAILABLE',
+          'Plan community is required to reserve vendor capacity',
+          409,
+          'location.communityId',
+          false,
+        );
+      }
+      await this.vendors.reservePlanCapacity({
+        vendorId: plan.vendorId,
+        communityId,
+        offeringId: plan.offeringId || plan.packageId,
+        demandQuantity: planVisitSlotDemand(plan),
+        planId: plan.planId,
+      });
+    }
 
     // Always ensure visit entitlement rows exist (idempotent).
     const visits = await this.plans.createVisitsIfAbsent(

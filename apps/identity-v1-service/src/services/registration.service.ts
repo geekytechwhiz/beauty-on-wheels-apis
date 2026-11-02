@@ -33,6 +33,11 @@ export type CreateIdentityInput = {
   identityId?: string;
   cognitoUsername?: string;
   userType?: UserType;
+  /**
+   * Server-only. True only after phone OTP verification of a challenge whose
+   * stored userType is VENDOR. Never read from a request body.
+   */
+  vendorRegistration?: boolean;
 };
 
 export class RegistrationService {
@@ -147,9 +152,13 @@ export class RegistrationService {
     };
 
     await this.repository.createUser(newUser, newProfile);
-    // This is creation-only. Subsequent logins only resolve persisted mappings
-    // and therefore cannot change a user's authority from a selected userType.
-    await initializeApplicationRoleForNewIdentity(this.repository, newUser);
+    // userType stays classification. vendorRegistration is the only signal
+    // that maps REGISTRANT, and only the phone OTP path sets it.
+    await initializeApplicationRoleForNewIdentity(this.repository, {
+      userId: newUser.userId,
+      userType: newUser.userType,
+      vendorRegistration: input.vendorRegistration === true,
+    });
     return newUser;
   }
 

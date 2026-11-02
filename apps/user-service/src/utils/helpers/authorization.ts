@@ -57,56 +57,50 @@ export function isServicePrincipal(request: LambdaRequest): boolean {
   );
 }
 
-function assertKnownCaller(request: LambdaRequest): void {
-  if (!hasCallerIdentity(request)) {
+export function assertAdminAccess(request: LambdaRequest): string | undefined {
+  const userId = getOptionalAuthenticatedUserId(request);
+  if (!userId && !hasCallerIdentity(request)) {
     throw new UnauthorizedError('Unauthorized');
   }
-}
-
-export function assertAdminAccess(request: LambdaRequest): string | undefined {
-  assertKnownCaller(request);
   if (!isAdminCaller(request)) {
     throw new ForbiddenError('Administrator access is required');
   }
-  return getOptionalAuthenticatedUserId(request);
+  return userId;
 }
 
 export function assertServiceOrAdmin(request: LambdaRequest): void {
-  assertKnownCaller(request);
-  if (isAdminCaller(request) || isServicePrincipal(request)) {
-    return;
+  if (!hasCallerIdentity(request)) {
+    throw new UnauthorizedError('Unauthorized');
   }
-  throw new ForbiddenError('Service principal access is required');
+  if (!isAdminCaller(request) && !isServicePrincipal(request)) {
+    throw new ForbiddenError('Service principal or administrator access is required');
+  }
 }
 
 export function assertOwnerOrAdmin(
   request: LambdaRequest,
   resourceUserId: string,
 ): string {
-  assertKnownCaller(request);
   const userId = getOptionalAuthenticatedUserId(request);
-  console.log('assertOwnerOrAdmin_userId', userId);
-  if (isAdminCaller(request)) {
-    if (!userId) {
-      throw new UnauthorizedError('Unauthorized');
-    }
-    return userId;
+  if (!userId) {
+    throw new UnauthorizedError('Unauthorized');
   }
-
-  if (userId && userId === resourceUserId) {
-    return userId;
+  if (userId !== resourceUserId && !isAdminCaller(request)) {
+    throw new ForbiddenError('Not authorized to access this customer');
   }
-
-  throw new ForbiddenError('Not authorized to access this user');
+  return userId;
 }
 
 export function assertOwnerAdminOrService(
   request: LambdaRequest,
   resourceUserId: string,
 ): void {
-  assertKnownCaller(request);
-  if (isAdminCaller(request) || isServicePrincipal(request)) {
+  const userId = getOptionalAuthenticatedUserId(request);
+  if (!userId && !hasCallerIdentity(request)) {
+    throw new UnauthorizedError('Unauthorized');
+  }
+  if (isAdminCaller(request) || isServicePrincipal(request) || userId === resourceUserId) {
     return;
   }
-  assertOwnerOrAdmin(request, resourceUserId);
+  throw new ForbiddenError('Not authorized to access this customer');
 }

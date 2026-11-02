@@ -4,6 +4,12 @@
  */
 export const APPLICATION_ROLE = {
   CUSTOMER: 'CUSTOMER',
+  /**
+   * Phone-verified vendor registration only. The code does not contain
+   * "vendor", so existing checks that look for that substring cannot treat
+   * it as an operating vendor role.
+   */
+  REGISTRANT: 'REGISTRANT',
   VENDOR: 'VENDOR',
   ADMIN: 'ADMIN',
 } as const;
@@ -13,12 +19,14 @@ export type ApplicationRole =
 
 const APPLICATION_ROLE_ORDER: readonly ApplicationRole[] = [
   APPLICATION_ROLE.CUSTOMER,
+  APPLICATION_ROLE.REGISTRANT,
   APPLICATION_ROLE.VENDOR,
   APPLICATION_ROLE.ADMIN,
 ];
 
 const APPLICATION_ROLE_BY_KEY: Readonly<Record<string, ApplicationRole>> = {
   customer: APPLICATION_ROLE.CUSTOMER,
+  registrant: APPLICATION_ROLE.REGISTRANT,
   vendor: APPLICATION_ROLE.VENDOR,
   admin: APPLICATION_ROLE.ADMIN,
 };
@@ -26,7 +34,7 @@ const APPLICATION_ROLE_BY_KEY: Readonly<Record<string, ApplicationRole>> = {
 /**
  * Maps stored role ids onto the access-token role set.
  * The registration default `user` is not an application role and is omitted.
- * Input order does not matter; output is CUSTOMER, VENDOR, ADMIN.
+ * Input order does not matter; output is CUSTOMER, REGISTRANT, VENDOR, ADMIN.
  */
 export function resolveApplicationRoles(
   roleIds: ReadonlyArray<string | undefined | null>,
@@ -42,6 +50,28 @@ export function resolveApplicationRoles(
     }
   }
   return APPLICATION_ROLE_ORDER.filter((role) => found.has(role));
+}
+
+/**
+ * Scalar access-token `role` for clients that read one value.
+ * REGISTRANT stays distinct from VENDOR. ADMIN remains the highest.
+ */
+export function primaryApplicationRole(
+  roles: readonly ApplicationRole[],
+): ApplicationRole | undefined {
+  if (roles.includes(APPLICATION_ROLE.ADMIN)) {
+    return APPLICATION_ROLE.ADMIN;
+  }
+  if (roles.includes(APPLICATION_ROLE.VENDOR)) {
+    return APPLICATION_ROLE.VENDOR;
+  }
+  if (roles.includes(APPLICATION_ROLE.REGISTRANT)) {
+    return APPLICATION_ROLE.REGISTRANT;
+  }
+  if (roles.includes(APPLICATION_ROLE.CUSTOMER)) {
+    return APPLICATION_ROLE.CUSTOMER;
+  }
+  return undefined;
 }
 
 export type ParsedAccessTokenRoles =

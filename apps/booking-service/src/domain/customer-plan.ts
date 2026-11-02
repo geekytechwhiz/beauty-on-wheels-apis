@@ -147,7 +147,7 @@ export function assertPackageSellable(
   command: Pick<CreateCustomerPlanCommand, 'vendorId' | 'packageId' | 'offeringId'>,
 ): void {
   const offeringId = command.offeringId || command.packageId;
-  if (pkg.id !== offeringId || pkg.vendorId !== command.vendorId) {
+  if (pkg.id !== offeringId || (pkg.vendorId !== undefined && pkg.vendorId !== command.vendorId)) {
     throw new BookingError('PACKAGE_NOT_FOUND', 'Package not found for the vendor', 404, 'offeringId', false);
   }
   if (!pkg.active) {

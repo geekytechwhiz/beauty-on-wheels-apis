@@ -2,6 +2,11 @@ import { z } from "zod";
 import { LambdaRequest, VEHICLE_TYPE_VALUES } from "@api-hub/utils";
 import { EventSchemaError } from "@api-hub/middleware";
 
+import {
+  SERVICE_TYPE_CAPABILITY_IDS,
+  WASH_METHOD_CAPABILITY_IDS,
+} from "../domain/capabilities-catalog";
+
 /**
  * ---------------------------------------------------------
  * UpdateVendorCapabilitiesRequest
@@ -34,24 +39,13 @@ const packageOfferingSchema = z
   })
   .strict();
 
+/** Full replacement of the vendor capability selection. Empty arrays clear that selection. */
 export const UpdateVendorCapabilitiesRequestSchema = z
   .object({
-    vehicleTypes: z.array(z.enum(VEHICLE_TYPE_VALUES)),
-    serviceIds: z.array(catalogId).optional(),
-    packageIds: z.array(catalogId).optional(),
-    services: z.array(serviceOfferingSchema).max(50).optional(),
-    packages: z.array(packageOfferingSchema).max(50).optional(),
-  })
-  .strict();
-
-export const ReplaceVendorServicesRequestSchema = z
-  .object({
+    vehicleTypes: z.array(z.enum(VEHICLE_TYPE_VALUES)).max(20),
+    washMethods: z.array(z.enum(WASH_METHOD_CAPABILITY_IDS)).max(50),
+    serviceTypes: z.array(z.enum(SERVICE_TYPE_CAPABILITY_IDS)).max(50),
     services: z.array(serviceOfferingSchema).max(50),
-  })
-  .strict();
-
-export const ReplaceVendorPackagesRequestSchema = z
-  .object({
     packages: z.array(packageOfferingSchema).max(50),
   })
   .strict();
@@ -66,26 +60,4 @@ export const validateUpdateVendorCapabilitiesRequest = (req: LambdaRequest): Upd
     }
     req.body = result.data;
     return result.data;
-};
-
-export const validateReplaceVendorServicesRequest = (
-  req: LambdaRequest,
-) => {
-  const result = ReplaceVendorServicesRequestSchema.safeParse(req.body);
-  if (!result.success) {
-    throw new EventSchemaError('Request validation failed', result.error);
-  }
-  req.body = result.data;
-  return result.data;
-};
-
-export const validateReplaceVendorPackagesRequest = (
-  req: LambdaRequest,
-) => {
-  const result = ReplaceVendorPackagesRequestSchema.safeParse(req.body);
-  if (!result.success) {
-    throw new EventSchemaError('Request validation failed', result.error);
-  }
-  req.body = result.data;
-  return result.data;
 };

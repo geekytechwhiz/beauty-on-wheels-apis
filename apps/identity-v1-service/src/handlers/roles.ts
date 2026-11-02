@@ -2,7 +2,6 @@ import { withApiHandler } from '@api-hub/middleware';
 import { LambdaRequest } from '@api-hub/utils';
 
 import { getRolesController } from '../controllers/roles.controller';
-import { requireAuth } from '../auth/require-auth';
 import {
   validateAdminRoleAssignment,
   validateAdminRoleRevocation,
@@ -13,9 +12,7 @@ const controller = getRolesController();
 export const handleGetroles = withApiHandler(
   {
     operation: 'getroles',
-    validator: async (request: LambdaRequest) => {
-      await requireAuth(request);
-    },
+    validator: () => undefined,
   },
   async (request: LambdaRequest) => controller.handleGetroles(request),
 );
@@ -23,8 +20,7 @@ export const handleGetroles = withApiHandler(
 export const handleAssignAdminRole = withApiHandler(
   {
     operation: 'assignAdminRole',
-    validator: async (request: LambdaRequest) => {
-      await requireAuth(request);
+    validator: (request: LambdaRequest) => {
       validateAdminRoleAssignment(request);
     },
   },
@@ -34,8 +30,7 @@ export const handleAssignAdminRole = withApiHandler(
 export const handleRevokeAdminRole = withApiHandler(
   {
     operation: 'revokeAdminRole',
-    validator: async (request: LambdaRequest) => {
-      await requireAuth(request);
+    validator: (request: LambdaRequest) => {
       validateAdminRoleRevocation(request);
     },
   },

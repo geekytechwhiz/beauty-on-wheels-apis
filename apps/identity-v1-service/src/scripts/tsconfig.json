@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.app.json",
+  "compilerOptions": {
+    "outDir": "../../../dist/apps/identity-v1-service/scripts",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.spec.ts", "./**/*.test.ts"]
+}

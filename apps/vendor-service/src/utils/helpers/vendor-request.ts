@@ -84,6 +84,26 @@ export function getPathParam(request: LambdaRequest, name: string): string {
   return value;
 }
 
+export function getHeader(request: LambdaRequest, name: string): string | undefined {
+  const headers = request.event?.headers ?? {};
+  const target = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === target && typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+/** Required on capacity mutations. 1 to 128 visible characters. */
+export function getIdempotencyKey(request: LambdaRequest): string {
+  const key = getHeader(request, 'Idempotency-Key');
+  if (!key || key.length > 128 || !/^[\x21-\x7E]+$/.test(key)) {
+    throw new ValidationError('Idempotency-Key header is required (1-128 visible characters)');
+  }
+  return key;
+}
+
 export function getVendorId(request: LambdaRequest): string {
   return getPathParam(request, 'vendorId');
 }

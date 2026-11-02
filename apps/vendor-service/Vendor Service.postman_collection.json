@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a8f3c2e1-7b4d-4e9a-9c1f-2d6e8b5a4f01",
     "name": "Vendor Service",
-    "description": "Complete Postman Collection (v2.1) for the Beauty on Wheels Vendor Service API.\n\nGenerated from the OpenAPI/Swagger specification (`swagger/swagger.js`).\n\n**Suggested flow**\n1. Create Vendor → stores `vendorId`\n2. Update Vendor Lifecycle Status → ACTIVE\n3. Add Service Area → stores `serviceAreaId`\n4. Replace Operating Hours\n5. Add Staff → stores `staffId`\n6. Replace Capabilities\n7. Get / Update nested resources\n8. Delete Staff / Service Area when cleaning up\n\nPath parameters use collection/environment variables (`{{vendorId}}`, `{{serviceAreaId}}`, `{{staffId}}`).",
+    "description": "Complete Postman Collection (v2.1) for the Beauty on Wheels Vendor Service API.\n\nGenerated from the OpenAPI/Swagger specification (`swagger/swagger.js`).\n\n**Suggested flow**\n1. Create Vendor \u2192 stores `vendorId`\n2. Update Vendor Lifecycle Status \u2192 ACTIVE\n3. Add Service Area \u2192 stores `serviceAreaId`\n4. Replace Operating Hours\n5. Add Staff \u2192 stores `staffId`\n6. Replace Capabilities\n7. Get / Update nested resources\n8. Delete Staff / Service Area when cleaning up\n\nPath parameters use collection/environment variables (`{{vendorId}}`, `{{serviceAreaId}}`, `{{staffId}}`).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -162,7 +162,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+              "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -178,7 +178,7 @@
                 "vendors"
               ]
             },
-            "description": "Creates a new vendor profile.\n\nThe authenticated identity should be linked to the vendor through ownerUserId.\nVendor creation does not automatically activate the vendor.\n"
+            "description": "Creates the caller's initial vendor. Send the access token from a phone-verified REGISTRANT. The authorizer must have resolved vendor:register. The body does not include PAN, GST, documents, a user id, a role, or a phone number. Identity supplies the owner id and verified phone. The vendor is created in DRAFT with an owner membership. A retry returns the existing vendor. This permission does not authorize any other vendor route.\n"
           },
           "event": [
             {
@@ -279,7 +279,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -350,7 +350,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -421,7 +421,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -492,7 +492,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -563,7 +563,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -634,7 +634,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -705,7 +705,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -776,7 +776,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"businessName\": \"Glow Mobile Spa Pvt Ltd\",\n    \"contactName\": \"Priya Sharma\",\n    \"phoneNumber\": \"+919876543210\",\n    \"email\": \"priya.sharma@glowmobilespa.in\",\n    \"description\": \"Premium at-home beauty and spa services across Bengaluru.\",\n    \"gstNumber\": \"29ABCDE1234F1Z5\",\n    \"panNumber\": \"ABCDE1234F\",\n    \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo.png\"\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2276,7 +2276,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+              "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2300,7 +2300,7 @@
                 }
               ]
             },
-            "description": "Update vendor"
+            "description": "Partially updates business and contact fields on the existing vendor. Address, bank, documents, coverage, and capabilities use their own routes."
           },
           "event": [
             {
@@ -2380,7 +2380,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2459,7 +2459,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2538,7 +2538,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2617,7 +2617,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2696,7 +2696,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2775,7 +2775,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2854,7 +2854,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2933,7 +2933,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"address\": {\n    \"addressLine1\": \"42, 5th Main, Indiranagar\",\n    \"addressLine2\": \"Suite 2B\",\n    \"landmark\": \"Opposite Metro Station\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"IN\",\n    \"postalCode\": \"560038\"\n  },\n  \"geoLocation\": {\n    \"latitude\": 12.9784,\n    \"longitude\": 77.6408\n  },\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
+                  "raw": "{\n  \"businessType\": \"BUSINESS\",\n  \"businessName\": \"Glow Mobile Spa & Wellness\",\n  \"contactName\": \"Priya Sharma\",\n  \"phoneNumber\": \"+919876543210\",\n  \"email\": \"ops@glowmobilespa.in\",\n  \"description\": \"At-home beauty, grooming, and wellness services for busy professionals.\",\n  \"gstNumber\": \"29ABCDE1234F1Z5\",\n  \"panNumber\": \"ABCDE1234F\",\n  \"profileImageUrl\": \"https://cdn.beautyonwheels.in/vendors/glow-mobile-spa/logo-v2.png\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -7988,7 +7988,7 @@
     },
     {
       "name": "Operating Hours",
-      "description": "Weekly operating schedule used by availability planning.",
+      "description": "Supported service windows stored on the vendor operating-preferences record. Vendor detail and onboarding read this same record. Day-of-week schedules are not stored here.",
       "item": [
         {
           "name": "Get Vendor Operating Hours",
@@ -8035,7 +8035,7 @@
                 }
               ]
             },
-            "description": "Get vendor operating hours"
+            "description": "Not deployed. Supported service windows are returned on GET /vendors/{vendorId} as onboarding.operatingPreferences and on GET /vendors/{vendorId}/onboarding as sections.OPERATING_PREFERENCES. PUT /vendors/{vendorId}/operating-hours replaces that record."
           },
           "event": [
             {
@@ -8641,7 +8641,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+              "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8666,7 +8666,7 @@
                 }
               ]
             },
-            "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n"
+            "description": "Replaces supported service windows on the existing vendor. Ids must be morning, anytime, weekday_morning, weekend_day, or night. This updates the operating-preferences record returned by vendor detail and onboarding. It does not create a vendor or change capacity commitments."
           },
           "event": [
             {
@@ -8742,7 +8742,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -8822,7 +8822,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -8902,7 +8902,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -8982,7 +8982,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -9062,7 +9062,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -9142,7 +9142,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -9222,7 +9222,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -9302,7 +9302,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "[\n  {\n    \"dayOfWeek\": \"MONDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"TUESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"WEDNESDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"THURSDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"19:00\"\n  },\n  {\n    \"dayOfWeek\": \"FRIDAY\",\n    \"closed\": false,\n    \"openTime\": \"09:00\",\n    \"closeTime\": \"20:00\"\n  },\n  {\n    \"dayOfWeek\": \"SATURDAY\",\n    \"closed\": false,\n    \"openTime\": \"10:00\",\n    \"closeTime\": \"18:00\"\n  },\n  {\n    \"dayOfWeek\": \"SUNDAY\",\n    \"closed\": true\n  }\n]",
+                  "raw": "{\n  \"serviceWindowIds\": [\n    \"morning\",\n    \"weekday_morning\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -12867,6 +12867,506 @@
       ]
     },
     {
+      "name": "Partner community directory",
+      "description": "Vendor-scoped directory and coverage. Does not call admin community assignment or the customer GET /communities route. Offering community mappings stay on the service catalog.",
+      "item": [
+        {
+          "name": "Search partner community directory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/community-directory?search=Kakkanad&cityId=KOCHI&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "community-directory"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Kakkanad"
+                },
+                {
+                  "key": "cityId",
+                  "value": "KOCHI"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "localityId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "postalCode",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner, admin, or communities:view. Returns active communities only. Paginate with cursor when pagination.hasMore is true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('partner directory stays vendor scoped', function () {",
+                  "  pm.expect(pm.request.url.getPath()).to.include('/community-directory');",
+                  "  pm.expect(pm.request.url.getPath()).to.not.eql('/communities');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resolve community labels",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/community-directory?ids=community-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "community-directory"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "community-1"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner, communities:view, or active staff with visits:view. Unknown and inactive ids are omitted. This lookup does not browse the directory."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('label lookup uses ids', function () {",
+                  "  pm.expect(pm.request.url.query.get('ids')).to.be.ok;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read vendor community coverage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/community-coverage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "community-coverage"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner, admin, or communities:view. Save updatedAt and send it back on replace. Response labels come from the directory and omit assignedBy."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('coverage read is vendor scoped', function () {",
+                  "  pm.expect(pm.request.url.getPath()).to.include('/community-coverage');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replace vendor community coverage",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"communityIds\": [\"community-1\"],\n  \"expectedUpdatedAt\": \"{{coverageUpdatedAt}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/community-coverage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "community-coverage"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner, admin, or communities:manage. Replaces this vendor coverage. Ids must be active directory records. A stale expectedUpdatedAt returns 409 and writes nothing. This is not PUT /vendors/{vendorId}/communities and does not change offering mappings."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('replace sends the loaded timestamp', function () {",
+                  "  const body = JSON.parse(pm.request.body.raw);",
+                  "  pm.expect(body).to.have.property('expectedUpdatedAt');",
+                  "  pm.expect(body.communityIds).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Crews",
+      "description": "Vendor-scoped crews. The path vendor must match the caller membership. Staff are referenced by staffId. Display names are returned and are not the write key. Added for the package-visit phase; this folder was not in the earlier supplied collection.",
+      "item": [
+        {
+          "name": "List vendor crews",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/crews?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "crews"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner, admin, or staff with crew:view. Paginate with cursor when pagination.hasMore is true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('crew list is vendor scoped', function () {",
+                  "  pm.expect(pm.request.url.getPath()).to.include('/crews');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create vendor crew",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Crew Alpha\",\n  \"vanLabel\": \"Van 01\",\n  \"staffIds\": [\"staff-1\", \"staff-2\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/crews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "crews"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner or admin with crew:manage. At least two distinct active staff ids. 409 when the write conflicts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('crew create uses staff ids and no client vendor id', function () {",
+                  "  const body = JSON.parse(pm.request.body.raw);",
+                  "  pm.expect(body.staffIds.length).to.be.at.least(2);",
+                  "  pm.expect(body).to.not.have.property('vendorId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get vendor crew",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/crews/:crewId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "crews",
+                ":crewId"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                },
+                {
+                  "key": "crewId",
+                  "value": "crew-1"
+                }
+              ]
+            },
+            "description": "Returns the crew when it belongs to the path vendor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('crew read includes the crew id', function () {",
+                  "  pm.expect(pm.request.url.getPath()).to.include('/crews/');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update vendor crew",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Crew Alpha\",\n  \"vanLabel\": \"Van 01\",\n  \"staffIds\": [\"staff-1\", \"staff-2\"],\n  \"revision\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/crews/:crewId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "crews",
+                ":crewId"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                },
+                {
+                  "key": "crewId",
+                  "value": "crew-1"
+                }
+              ]
+            },
+            "description": "Send revision from the last read. A mismatch returns 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('crew update sends a revision', function () {",
+                  "  const body = JSON.parse(pm.request.body.raw);",
+                  "  pm.expect(body.revision).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Deactivate vendor crew",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/crews/:crewId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "crews",
+                ":crewId"
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                },
+                {
+                  "key": "crewId",
+                  "value": "crew-1"
+                }
+              ]
+            },
+            "description": "Sets status INACTIVE. A concurrent update returns 409. Historical staff ids are kept."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deactivation does not send a replacement vendor', function () {",
+                  "  pm.expect(pm.request.body).to.not.be.ok;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Capabilities",
       "description": "Vehicle types, services, and packages the vendor can fulfill.",
       "item": [
@@ -13533,7 +14033,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+              "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -13558,7 +14058,7 @@
                 }
               ]
             },
-            "description": "Replace vendor capabilities"
+            "description": "Replaces the vendor capability selection: vehicle types, wash methods, service types, and catalog service and package selections. Send the full selection. Unknown or inactive catalog ids are rejected. Catalog definitions are not modified."
           },
           "event": [
             {
@@ -13646,7 +14146,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -13726,7 +14226,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -13806,7 +14306,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -13886,7 +14386,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -13966,7 +14466,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -14046,7 +14546,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -14126,7 +14626,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -14206,7 +14706,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"serviceIds\": [\n    \"srv-exterior-wash-01\",\n    \"srv-interior-detail-02\",\n    \"srv-ceramic-coat-03\"\n  ],\n  \"packageIds\": [\n    \"pkg-basic-care-01\",\n    \"pkg-premium-detail-02\"\n  ]\n}",
+                  "raw": "{\n  \"vehicleTypes\": [\n    \"HATCHBACK\",\n    \"SEDAN\",\n    \"SUV\"\n  ],\n  \"washMethods\": [\n    \"wash:EXTERIOR\",\n    \"wash:FOAM\"\n  ],\n  \"serviceTypes\": [\n    \"service:CAR_WASH\"\n  ],\n  \"services\": [\n    {\n      \"serviceId\": \"svc-exterior-wash\",\n      \"categoryId\": \"cat-car-wash\",\n      \"enabled\": true\n    }\n  ],\n  \"packages\": [\n    {\n      \"packageId\": \"pkg-basic-care\",\n      \"enabled\": true\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"

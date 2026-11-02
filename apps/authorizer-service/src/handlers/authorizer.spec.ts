@@ -1,7 +1,7 @@
 import type { APIGatewayTokenAuthorizerEvent } from 'aws-lambda';
 import { evaluateApiGatewayAuthorizer } from '@api-hub/authentication-core';
 
-import { handleAuthorize } from './authorizer';
+import { handleAuthorize, requiresApplicationUser } from './authorizer';
 
 jest.mock('@api-hub/authentication-core', () => ({
   DynamoDbAuthUserDirectory: jest.fn().mockImplementation(() => ({})),
@@ -54,5 +54,15 @@ describe('handleAuthorize', () => {
       requireApplicationUser: true,
       expectedTokenUse: 'access',
     });
+  });
+
+  it.each([
+    ['GET/me', false],
+    ['GET/identity/me/provisioning-status', false],
+    ['POST/auth/logout', true],
+    ['GET/vendors/me', true],
+  ])('requires an application user for %s: %s', (route, expected) => {
+    expect(requiresApplicationUser(`arn:aws:execute-api:us-east-1:123:api/dev/${route}`))
+      .toBe(expected);
   });
 });

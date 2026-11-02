@@ -33,6 +33,7 @@ import {
 } from "../schemas/packages.schema";
 import { INITIAL_CATALOG_VERSION, nextCatalogVersion } from "../domain/catalog-version";
 import { assertVendorOwner, requireVendorId } from "../domain/vendor-scope";
+import { assertCatalogAdmin } from "../utils/helpers/catalog-admin";
 import { CatalogKeyBuilder } from "../utils/constants/catalog-key-builder";
 import { PackageEntity, PackageItemEntity } from "../utils/types/catalog-domain.types";
 
@@ -117,6 +118,7 @@ export class PackagesService {
             event: "postpackages_start",
         });
 
+        assertCatalogAdmin(request);
         const body = validatePackage(request);
 
         await this.assertPackageNameUnique(body.name, body.vendorId);
@@ -197,6 +199,7 @@ export class PackagesService {
         request: LambdaRequest
     ) {
 
+        assertCatalogAdmin(request);
         const packageId = request.params?.packageId as string;
         const vendorId = requireVendorId(request.params?.vendorId);
 
@@ -267,6 +270,7 @@ export class PackagesService {
         request: LambdaRequest
     ) {
 
+        assertCatalogAdmin(request);
         const packageId = request.params?.packageId as string;
         const vendorId = requireVendorId(request.params?.vendorId);
 

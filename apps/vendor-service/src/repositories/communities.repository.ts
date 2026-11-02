@@ -1,9 +1,13 @@
-import { BaseRepository } from '@api-hub/utils';
+import { BaseRepository, ConflictError } from '@api-hub/utils';
 import { QueryCommandInput } from '@aws-sdk/lib-dynamodb';
 
 import { env } from '../configs/env.config';
 import { VendorStatus } from '../types/api-types';
-import { VendorCommunityDdbItem } from '../types/repository.types';
+import { isCoverageApproved } from '../domain/community';
+import {
+  VendorCommunityDdbItem,
+  VendorCoverageHistoryDdbItem,
+} from '../types/repository.types';
 import {
   GSI3_INDEX,
   VendorKeyBuilder,
@@ -24,7 +28,13 @@ export interface CommunityDirectoryItem {
   localityId?: string | null;
   localityName?: string | null;
   postalCode?: string | null;
-  directoryStatus: 'ACTIVE';
+  /** Present when the community directory projection includes administrative geography. */
+  district?: string | null;
+  state?: string | null;
+  countryCode?: string | null;
+  /** Public label only; no association contact or intake data is replicated. */
+  accessType?: string | null;
+  directoryStatus: string;
   searchText: string;
 }
 
@@ -46,7 +56,10 @@ export class CommunitiesRepository extends BaseRepository {
     return env.DYNAMODB_TABLE_NAME;
   }
 
-  async listByVendor(vendorId: string): Promise<VendorCommunityDdbItem[]> {
+  async listByVendor(
+    vendorId: string,
+    options?: { consistent?: boolean },
+  ): Promise<VendorCommunityDdbItem[]> {
     return this.queryAll<VendorCommunityDdbItem>({
       TableName: this.getTableName(),
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
@@ -54,15 +67,100 @@ export class CommunitiesRepository extends BaseRepository {
         ':pk': VendorKeyBuilder.vendorPk(vendorId),
         ':sk': VendorKeyBuilder.communitySkPrefix(),
       },
+      ConsistentRead: options?.consistent,
+    });
+  }
+
+  async getCoverage(
+    vendorId: string,
+    communityId: string,
+  ): Promise<VendorCommunityDdbItem | null> {
+    return this.get<VendorCommunityDdbItem>(
+      this.getTableName(),
+      {
+        PK: VendorKeyBuilder.vendorPk(vendorId),
+        SK: VendorKeyBuilder.communitySk(communityId),
+      },
+      { consistent: true },
+    );
+  }
+
+  /**
+   * Capacity proposals and commitments require APPROVED coverage for the vendor and community.
+   * Missing, requested, pending, rejected, suspended, and legacy rows all fail with 409.
+   */
+  async assertApprovedCoverage(
+    vendorId: string,
+    communityId: string,
+  ): Promise<VendorCommunityDdbItem> {
+    const coverage = await this.getCoverage(vendorId, communityId);
+    if (!coverage || !isCoverageApproved(coverage)) {
+      throw new ConflictError(
+        'Community coverage must be approved before capacity can be proposed or committed',
+      );
+    }
+    return coverage;
+  }
+
+  /**
+   * Admin decision on one coverage row. The row write is conditional on the loaded
+   * updatedAt, so two admins cannot silently overwrite each other. History is written
+   * in the same transaction.
+   */
+  async writeCoverageDecision(input: {
+    item: VendorCommunityDdbItem;
+    expectedUpdatedAt: string;
+    history: VendorCoverageHistoryDdbItem;
+  }): Promise<void> {
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: input.item,
+            ConditionExpression:
+              'attribute_exists(PK) AND attribute_exists(SK) AND updatedAt = :expectedUpdatedAt',
+            ExpressionAttributeValues: {
+              ':expectedUpdatedAt': input.expectedUpdatedAt,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: input.history,
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+      ],
+    });
+  }
+
+  async listCoverageHistory(
+    vendorId: string,
+    communityId: string,
+  ): Promise<VendorCoverageHistoryDdbItem[]> {
+    return this.queryAll<VendorCoverageHistoryDdbItem>({
+      TableName: this.getTableName(),
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: {
+        ':pk': VendorKeyBuilder.vendorPk(vendorId),
+        ':sk': VendorKeyBuilder.coverageHistorySkPrefix(communityId),
+      },
     });
   }
 
   /** Canonical directory records are replicated locally as COMMUNITY#{id}/META. */
-  async getActiveCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
+  async getDirectoryCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
     const item = await this.get<CommunityDirectoryItem>(this.getTableName(), {
       PK: `COMMUNITY#${communityId}`,
       SK: 'META',
     });
+    return item ?? null;
+  }
+
+  async getActiveCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
+    const item = await this.getDirectoryCommunity(communityId);
     return item?.directoryStatus === 'ACTIVE' ? item : null;
   }
 

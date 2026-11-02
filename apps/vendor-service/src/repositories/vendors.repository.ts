@@ -9,6 +9,8 @@ import {
   VendorChildDdbItem,
   VendorCommunityDdbItem,
   VendorDdbItem,
+  VendorIndicativeCapacityDdbItem,
+  VendorOperatingPreferencesDdbItem,
   VendorOwnerDdbItem,
   VendorOwnershipDdbItem,
   VendorStatusHistoryDdbItem,
@@ -58,35 +60,89 @@ export class VendorsRepository extends BaseRepository {
     profile: VendorDdbItem,
     owner: VendorOwnerDdbItem,
     ownership: VendorOwnershipDdbItem,
+    additional: Array<Record<string, unknown>> = [],
+  ): Promise<void> {
+    const items = [ownership, profile, owner, ...additional];
+    if (items.length > 25) {
+      throw new Error('Vendor create transaction exceeds 25 items');
+    }
+    await this.transactWrite({
+      TransactItems: items.map((item) => ({
+        Put: {
+          TableName: this.getTableName(),
+          Item: item,
+          ConditionExpression:
+            'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+        },
+      })),
+    });
+  }
+
+  async putIfAbsent(item: Record<string, unknown>): Promise<void> {
+    await this.put(
+      this.getTableName(),
+      item,
+      'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+    );
+  }
+
+  async getOperatingPreferences(
+    vendorId: string,
+  ): Promise<VendorOperatingPreferencesDdbItem | null> {
+    return this.get<VendorOperatingPreferencesDdbItem>(
+      this.getTableName(),
+      {
+        PK: VendorKeyBuilder.vendorPk(vendorId),
+        SK: VendorKeyBuilder.operatingPreferencesSk(),
+      },
+      { consistent: true },
+    );
+  }
+
+  /** Replaces one child item. The condition check refuses the write when the vendor profile is gone. */
+  async replaceVendorChild(
+    vendorId: string,
+    item: Record<string, unknown>,
   ): Promise<void> {
     await this.transactWrite({
       TransactItems: [
         {
-          Put: {
+          ConditionCheck: {
             TableName: this.getTableName(),
-            Item: ownership,
-            ConditionExpression:
-              'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+            Key: {
+              PK: VendorKeyBuilder.vendorPk(vendorId),
+              SK: VendorKeyBuilder.vendorSk(),
+            },
+            ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
           },
         },
         {
           Put: {
             TableName: this.getTableName(),
-            Item: profile,
-            ConditionExpression:
-              'attribute_not_exists(PK) AND attribute_not_exists(SK)',
-          },
-        },
-        {
-          Put: {
-            TableName: this.getTableName(),
-            Item: owner,
-            ConditionExpression:
-              'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+            Item: item,
           },
         },
       ],
     });
+  }
+
+  async putOperatingPreferences(
+    item: VendorOperatingPreferencesDdbItem,
+  ): Promise<void> {
+    await this.replaceVendorChild(item.vendorId, item as unknown as Record<string, unknown>);
+  }
+
+  async getIndicativeCapacity(
+    vendorId: string,
+  ): Promise<VendorIndicativeCapacityDdbItem | null> {
+    return this.get<VendorIndicativeCapacityDdbItem>(
+      this.getTableName(),
+      {
+        PK: VendorKeyBuilder.vendorPk(vendorId),
+        SK: VendorKeyBuilder.indicativeCapacitySk(),
+      },
+      { consistent: true },
+    );
   }
 
   async getVendorById(vendorId: string): Promise<VendorDdbItem | null> {

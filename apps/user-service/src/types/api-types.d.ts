@@ -6,6 +6,18 @@
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 export type AddressType = 'home' | 'work' | 'business';
 export type CommunityStatus = 'active' | 'inactive';
+export type CommunityAccessType =
+  | 'APARTMENT_COMPLEX'
+  | 'GATED_COMMUNITY'
+  | 'VILLA_COMMUNITY'
+  | 'INDEPENDENT_HOUSES'
+  | 'MIXED_RESIDENTIAL';
+export type CommunityLeadSource =
+  | 'FIELD_SCOUTING'
+  | 'REFERRAL'
+  | 'ASSOCIATION_OUTREACH'
+  | 'INBOUND_ENQUIRY'
+  | 'OTHER';
 
 export interface PhoneLookupResult {
   id: string;
@@ -109,13 +121,41 @@ export interface OperationalPreferences {
 export interface CommunityCreate {
   name: string;
   code?: string;
-  city?: string;
+  accessType: CommunityAccessType;
+  locality: string;
+  localityId?: string;
+  city: string;
+  cityId?: string;
+  postalCode: string;
+  streetAddress?: string;
+  contactPersonName: string;
+  contactPersonTitle: string;
+  contactPhone: string;
+  contactEmail?: string;
+  totalResidentialUnits: number;
+  estimatedVehicleCount: number;
+  leadSource: CommunityLeadSource;
+  intakeNotes?: string;
 }
 
 export interface CommunityUpdate {
   name?: string;
   code?: string;
   city?: string;
+  cityId?: string;
+  locality?: string;
+  localityId?: string;
+  postalCode?: string;
+  accessType?: CommunityAccessType;
+  streetAddress?: string;
+  contactPersonName?: string;
+  contactPersonTitle?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  totalResidentialUnits?: number;
+  estimatedVehicleCount?: number;
+  leadSource?: CommunityLeadSource;
+  intakeNotes?: string;
   status?: CommunityStatus;
 }
 
@@ -127,10 +167,36 @@ export interface Community {
   updatedAt: string;
   code?: string;
   city?: string;
+  cityId?: string;
+  locality?: string;
+  localityId?: string;
+  postalCode?: string;
+  accessType?: CommunityAccessType;
+  streetAddress?: string;
+  contactPersonName?: string;
+  contactPersonTitle?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  totalResidentialUnits?: number;
+  estimatedVehicleCount?: number;
+  leadSource?: CommunityLeadSource;
+  intakeNotes?: string;
+}
+
+/** The non-sensitive representation used for onboarding search. */
+export interface CommunityDirectoryItem {
+  communityId: string;
+  name: string;
+  city?: string;
+  cityId?: string;
+  locality?: string;
+  localityId?: string;
+  postalCode?: string;
+  accessType?: CommunityAccessType;
 }
 
 export interface CommunityListResponse {
-  items: Community[];
+  items: Array<Community | CommunityDirectoryItem>;
   pagination: {
     nextCursor: string | null;
     hasMore: boolean;

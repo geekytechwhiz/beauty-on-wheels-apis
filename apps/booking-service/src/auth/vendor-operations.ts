@@ -1,26 +1,7 @@
 import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 
-import {
-  OperationalAccess,
-  OperationalAccessGateway,
-} from '../integrations/vendor.client';
-
-const ADMIN_ROLES = new Set([
-  'admin',
-  'super_admin',
-  'superadmin',
-  'platform_admin',
-  'platformadmin',
-  'admin_staff',
-]);
-
-function rolesOf(request: LambdaRequest): string[] {
-  const authRoles = request.context.authContext?.roles;
-  const userRoles = request.context.userContext?.roles;
-  return [...(Array.isArray(authRoles) ? authRoles : []), ...(Array.isArray(userRoles) ? userRoles : [])]
-    .filter((role): role is string => typeof role === 'string')
-    .map((role) => role.trim().toLowerCase().replace(/[\s-]+/g, '_'));
-}
+import { OperationalAccessGateway } from '../integrations/vendor.client';
+import { isAdminRequest } from './admin';
 
 function userIdOf(request: LambdaRequest): string | undefined {
   const authUser = request.context.authContext?.userId?.trim();
@@ -40,22 +21,12 @@ export async function assertVendorOperationsAccess(
   vendors: OperationalAccessGateway,
 ): Promise<{ userId: string; vendorId: string }> {
   const vendorId = pathVendorId.trim();
-  if (!vendorId) {
-    throw new ForbiddenError('Not authorized to access this vendor');
-  }
   const userId = userIdOf(request);
   if (!userId) throw new UnauthorizedError('Unauthorized');
-  if (rolesOf(request).some((role) => ADMIN_ROLES.has(role))) {
-    return { userId, vendorId };
+  if (isAdminRequest(request)) return { userId, vendorId };
+  const membership = await vendors.getOperationalAccess(userId);
+  if (!membership.active || membership.role !== 'owner' || membership.vendorId !== vendorId) {
+    throw new ForbiddenError('Vendor owner access is required');
   }
-
-  const access = await vendors.getOperationalAccess(userId);
-  assertOwnerMembership(access, vendorId);
-  return { userId, vendorId: access.vendorId! };
-}
-
-function assertOwnerMembership(access: OperationalAccess, vendorId: string): void {
-  if (!access.active || access.role !== 'owner' || access.vendorId !== vendorId) {
-    throw new ForbiddenError('Not authorized to access this vendor');
-  }
+  return { userId, vendorId };
 }

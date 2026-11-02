@@ -3,6 +3,8 @@ export const ONBOARDING_SECTION = {
   COMMUNITIES: 'COMMUNITIES',
   DOCUMENTS: 'DOCUMENTS',
   BANK_DETAILS: 'BANK_DETAILS',
+  /** Optional planning estimates; never required for submission. */
+  BASELINE_CAPACITY: 'BASELINE_CAPACITY',
 } as const;
 
 export type OnboardingSection =
@@ -54,6 +56,28 @@ export type BankAccountType = (typeof BANK_ACCOUNT_TYPE)[keyof typeof BANK_ACCOU
 const ONBOARDING_SECTION_VALUES = new Set<string>(ONBOARDING_SECTION_ORDER);
 export function isOnboardingSection(value: unknown): value is OnboardingSection {
   return typeof value === 'string' && ONBOARDING_SECTION_VALUES.has(value);
+}
+
+/** Draft applications can still change required sections. Submitted applications cannot. */
+export function isOnboardingMutable(status: string | undefined): boolean {
+  return (
+    status === ONBOARDING_STATUS.DRAFT ||
+    status === ONBOARDING_STATUS.IN_PROGRESS ||
+    status === ONBOARDING_STATUS.CHANGES_REQUESTED
+  );
+}
+
+/**
+ * Section writes refresh completeness only while the application is editable.
+ * CHANGES_REQUESTED stays in that status until the vendor submits again.
+ */
+export function preservedOnboardingStatus(
+  current: OnboardingStatus,
+  computed: OnboardingStatus,
+): OnboardingStatus {
+  if (!isOnboardingMutable(current)) return current;
+  if (current === ONBOARDING_STATUS.CHANGES_REQUESTED) return current;
+  return computed;
 }
 
 export interface OnboardingCompletenessInput {

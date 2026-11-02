@@ -1,7 +1,7 @@
 import {
   Address,
   BankAccountType,
-  DayOfWeek,
+  CommunityCoverageApprovalStatus,
   CrewStatus,
   DocumentStatus,
   DocumentType,
@@ -41,6 +41,13 @@ export interface VendorDdbItem {
   revision?: number;
   applicationId?: string;
   communityIds?: string[];
+  /**
+   * Set only while a create transaction had to be split. Retries finish the
+   * community rows from this list and then clear it. Not an API field.
+   */
+  pendingCommunityIds?: string[];
+  /** Present only when the initial create has not finished its community rows. */
+  onboardingPersistence?: 'incomplete';
   latestReview?: VendorStatusReviewRecord;
   primaryBranchId?: string;
   emailVerificationRequestId?: string;
@@ -103,7 +110,10 @@ export interface VendorAddressDdbItem {
   addressLine1: string;
   addressLine2?: string;
   landmark?: string;
+  /** Directory locality. Not duplicated on the vendor profile. */
+  locality?: string;
   city: string;
+  district?: string;
   state: string;
   country: string;
   postalCode: string;
@@ -246,11 +256,31 @@ export interface VendorCommunityDdbItem {
   assignedAt: string;
   status: VendorStatus;
   operationalStatus: OperationalStatus;
+  /** Ops-owned. Absent on legacy rows, which read as PENDING (never auto-approved). */
+  approvalStatus?: CommunityCoverageApprovalStatus;
+  approvalRequestedAt?: string;
+  approvalUpdatedAt?: string;
+  approvalUpdatedBy?: string;
+  approvalReason?: string;
   createdAt: string;
   updatedAt: string;
   GSI3PK: string;
   GSI3SK: string;
   entityType: 'VendorCommunity';
+}
+
+export interface VendorCoverageHistoryDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  communityId: string;
+  historyId: string;
+  fromStatus: CommunityCoverageApprovalStatus;
+  toStatus: CommunityCoverageApprovalStatus;
+  actorUserId: string;
+  reason?: string;
+  at: string;
+  entityType: 'VendorCoverageHistory';
 }
 
 export interface VendorServiceOfferingRecord {
@@ -275,6 +305,10 @@ export interface VendorCapabilitiesDdbItem {
   SK: string;
   vendorId: string;
   vehicleTypes: VehicleType[];
+  /** Capability ids from the canonical catalog, e.g. wash:FOAM. Absent on legacy items. */
+  washMethods?: string[];
+  /** Capability ids from the canonical catalog, e.g. service:CAR_WASH. Absent on legacy items. */
+  serviceTypes?: string[];
   serviceIds: string[];
   packageIds: string[];
   services?: VendorServiceOfferingRecord[];
@@ -286,21 +320,46 @@ export interface VendorCapabilitiesDdbItem {
   entityType: 'VendorCapabilities';
 }
 
-export interface OperatingHoursEntry {
-  dayOfWeek: DayOfWeek;
-  closed: boolean;
-  openTime?: string;
-  closeTime?: string;
-}
-
-export interface VendorOperatingHoursDdbItem {
+/** Selected service-window ids. This is the operating section vendor detail and onboarding read. */
+export interface VendorOperatingPreferencesDdbItem {
   PK: string;
   SK: string;
   vendorId: string;
-  operatingHours: OperatingHoursEntry[];
+  serviceWindowIds: string[];
   createdAt: string;
   updatedAt: string;
-  entityType: 'VendorOperatingHours';
+  entityType: 'VendorOperatingPreferences';
+}
+
+/**
+ * Partner-declared planning figures. This is not a capacity commitment and
+ * does not reserve sold capacity.
+ */
+export interface VendorIndicativeCapacityDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  activeCrewCount: number;
+  indicativeVisitsPerWeek: number;
+  capacityKind: 'indicative';
+  createdAt: string;
+  updatedAt: string;
+  entityType: 'VendorIndicativeCapacity';
+}
+
+/** Non-binding onboarding planning estimates. Does not affect sold capacity. */
+export interface VendorBaselineCapacityDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  communityId: string;
+  estimatedCrews?: number;
+  estimatedVisitsPerDay?: number;
+  serviceWindowNotes?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  entityType: 'VendorBaselineCapacity';
 }
 
 export type VendorChildDdbItem =
@@ -315,6 +374,9 @@ export type VendorChildDdbItem =
   | StaffPhoneDdbItem
   | CrewDdbItem
   | VendorCapabilitiesDdbItem
-  | VendorOperatingHoursDdbItem
+  | VendorOperatingPreferencesDdbItem
+  | VendorIndicativeCapacityDdbItem
   | VendorStatusHistoryDdbItem
-  | VendorCommunityDdbItem;
+  | VendorCommunityDdbItem
+  | VendorCoverageHistoryDdbItem
+  | VendorBaselineCapacityDdbItem;

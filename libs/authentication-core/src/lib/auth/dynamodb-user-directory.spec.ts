@@ -161,6 +161,39 @@ describe('DynamoDbAuthUserDirectory', () => {
     );
   });
 
+  it('returns the verified phone from the identity meta record', async () => {
+    ddbMock
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'IDENTITY#cognito-sub-1', SK: 'LOOKUP' },
+      })
+      .resolves({ Item: { userId: 'u-1' } })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#u-1', SK: 'META' },
+      })
+      .resolves({
+        Item: {
+          userId: 'u-1',
+          identityId: 'cognito-sub-1',
+          status: 'active',
+          phoneNumber: '+919876543210',
+          phoneVerified: true,
+        },
+      })
+      .on(GetCommand, {
+        TableName: table,
+        Key: { PK: 'USER#u-1', SK: 'PROFILE' },
+      })
+      .resolves({});
+
+    await expect(directory.findUserByIdentityId('cognito-sub-1')).resolves.toMatchObject({
+      userId: 'u-1',
+      phoneNumber: '+919876543210',
+      phoneVerified: true,
+    });
+  });
+
   it('returns null when the identity lookup is missing', async () => {
     ddbMock.on(GetCommand).resolves({});
     await expect(directory.findUserByIdentityId('missing')).resolves.toBeNull();

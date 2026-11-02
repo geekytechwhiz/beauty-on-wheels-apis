@@ -79,6 +79,7 @@
           },
           "userType": {
             "type": "string",
+            "description": "Challenge classification. CUSTOMER is the default. VENDOR is stored on the challenge for a new phone identity and is not an application role.\n",
             "enum": [
               "CUSTOMER",
               "VENDOR"
@@ -331,7 +332,7 @@
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
-        "example": "http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:19006,http://localhost:8080"
+        "example": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
       },
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
@@ -767,7 +768,7 @@
     "/otp/send": {
       "post": {
         "summary": "Send OTP",
-        "description": "Send OTP",
+        "description": "Public. Stores a challenge for the destination. userType is classification only. A VENDOR value does not grant VENDOR.\n",
         "operationId": "postsend",
         "parameters": [],
         "tags": [
@@ -840,7 +841,7 @@
     "/otp/verify": {
       "post": {
         "summary": "Verify OTP",
-        "description": "Verify OTP",
+        "description": "Public. Verifies the stored challenge for the destination and returns Cognito tokens. A new phone identity from a VENDOR challenge gets access-token role REGISTRANT and permission vendor:register. It does not get VENDOR, ADMIN, or vendor:create. An existing identity keeps its roles. userType on the token is classification, not authorization.\n",
         "operationId": "postverify",
         "parameters": [],
         "tags": [

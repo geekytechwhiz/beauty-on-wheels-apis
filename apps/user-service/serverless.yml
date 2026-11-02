@@ -11,6 +11,7 @@ plugins:
 
 provider:
   name: aws
+  profile: ci-user-bw
   runtime: nodejs22.x
   stage: ${opt:stage,'dev'}
   region: ${opt:region,'us-east-1'}
@@ -472,10 +473,56 @@ custom:
                   type: string
                 code:
                   type: string
+                  description: Optional lowercase slug. Generated from name when omitted.
+                  pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+                accessType:
+                  type: string
+                  enum: [APARTMENT_COMPLEX, GATED_COMMUNITY, VILLA_COMMUNITY, INDEPENDENT_HOUSES, MIXED_RESIDENTIAL]
                 city:
+                  type: string
+                cityId:
+                  type: string
+                locality:
+                  type: string
+                localityId:
+                  type: string
+                postalCode:
+                  type: string
+                  pattern: '^[1-9][0-9]{5}$'
+                streetAddress:
+                  type: string
+                contactPersonName:
+                  type: string
+                contactPersonTitle:
+                  type: string
+                contactPhone:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+                totalResidentialUnits:
+                  type: integer
+                  minimum: 1
+                estimatedVehicleCount:
+                  type: integer
+                  minimum: 0
+                leadSource:
+                  type: string
+                  enum: [FIELD_SCOUTING, REFERRAL, ASSOCIATION_OUTREACH, INBOUND_ENQUIRY, OTHER]
+                intakeNotes:
                   type: string
               required:
                 - name
+                - accessType
+                - city
+                - locality
+                - postalCode
+                - contactPersonName
+                - contactPersonTitle
+                - contactPhone
+                - totalResidentialUnits
+                - estimatedVehicleCount
+                - leadSource
       - name: CommunityUpdate
         description: Update a community
         content:
@@ -487,7 +534,40 @@ custom:
                   type: string
                 code:
                   type: string
+                accessType:
+                  type: string
+                  enum: [APARTMENT_COMPLEX, GATED_COMMUNITY, VILLA_COMMUNITY, INDEPENDENT_HOUSES, MIXED_RESIDENTIAL]
                 city:
+                  type: string
+                cityId:
+                  type: string
+                locality:
+                  type: string
+                localityId:
+                  type: string
+                postalCode:
+                  type: string
+                streetAddress:
+                  type: string
+                contactPersonName:
+                  type: string
+                contactPersonTitle:
+                  type: string
+                contactPhone:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+                totalResidentialUnits:
+                  type: integer
+                  minimum: 1
+                estimatedVehicleCount:
+                  type: integer
+                  minimum: 0
+                leadSource:
+                  type: string
+                  enum: [FIELD_SCOUTING, REFERRAL, ASSOCIATION_OUTREACH, INBOUND_ENQUIRY, OTHER]
+                intakeNotes:
                   type: string
                 status:
                   type: string
@@ -518,6 +598,39 @@ custom:
                   type: string
                 city:
                   type: string
+                cityId:
+                  type: string
+                locality:
+                  type: string
+                localityId:
+                  type: string
+                postalCode:
+                  type: string
+                accessType:
+                  type: string
+                  enum: [APARTMENT_COMPLEX, GATED_COMMUNITY, VILLA_COMMUNITY, INDEPENDENT_HOUSES, MIXED_RESIDENTIAL]
+                streetAddress:
+                  type: string
+                contactPersonName:
+                  type: string
+                contactPersonTitle:
+                  type: string
+                contactPhone:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+                totalResidentialUnits:
+                  type: integer
+                  minimum: 1
+                estimatedVehicleCount:
+                  type: integer
+                  minimum: 0
+                leadSource:
+                  type: string
+                  enum: [FIELD_SCOUTING, REFERRAL, ASSOCIATION_OUTREACH, INBOUND_ENQUIRY, OTHER]
+                intakeNotes:
+                  type: string
               required:
                 - communityId
                 - name
@@ -525,7 +638,7 @@ custom:
                 - createdAt
                 - updatedAt
       - name: CommunityListResponse
-        description: Community page
+        description: Community page. Admins receive full records; customer onboarding receives active directory-safe records only.
         content:
           application/json:
             schema:
@@ -540,11 +653,46 @@ custom:
                         type: string
                       name:
                         type: string
+                      code:
+                        type: string
                       status:
                         type: string
                         enum:
                           - active
                           - inactive
+                      city:
+                        type: string
+                      cityId:
+                        type: string
+                      locality:
+                        type: string
+                      localityId:
+                        type: string
+                      postalCode:
+                        type: string
+                      accessType:
+                        type: string
+                        enum: [APARTMENT_COMPLEX, GATED_COMMUNITY, VILLA_COMMUNITY, INDEPENDENT_HOUSES, MIXED_RESIDENTIAL]
+                      streetAddress:
+                        type: string
+                      contactPersonName:
+                        type: string
+                      contactPersonTitle:
+                        type: string
+                      contactPhone:
+                        type: string
+                      contactEmail:
+                        type: string
+                        format: email
+                      totalResidentialUnits:
+                        type: integer
+                      estimatedVehicleCount:
+                        type: integer
+                      leadSource:
+                        type: string
+                        enum: [FIELD_SCOUTING, REFERRAL, ASSOCIATION_OUTREACH, INBOUND_ENQUIRY, OTHER]
+                      intakeNotes:
+                        type: string
                 pagination:
                   type: object
                   properties:
@@ -1254,7 +1402,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List communities"
-          description: "Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list."
+          description: "Authenticated customers search active communities. Administrators may also query inactive or all communities."
           swaggerTags:
             - Communities
           responseData:
@@ -1262,10 +1410,10 @@ functions:
               description: "Community list"
               bodyType: CommunityListResponse
             403:
-              description: "Administrator access is required"
+              description: "Authentication is required"
           documentation:
             summary: List communities
-            description: Admin. Query status=active (default), inactive, or all. Query limit and cursor paginate the list.
+            description: Authenticated customers search active communities. Administrators may also query inactive or all communities.
             tags:
               - Communities
             methodResponses:
@@ -1276,9 +1424,33 @@ functions:
                   application/json: CommunityListResponse
               - statusCode: "403"
                 responseBody:
-                  description: Administrator access is required
+                  description: Authentication is required
                 responseModels:
                   application/json: ErrorResponse
+            queryParams:
+              - name: search
+                description: Match community name, code, city, locality, or postal code.
+                schema:
+                  type: string
+              - name: cityId
+                schema:
+                  type: string
+              - name: localityId
+                schema:
+                  type: string
+              - name: postalCode
+                schema:
+                  type: string
+              - name: status
+                description: Administrators may use active, inactive, or all.
+                schema:
+                  type: string
+              - name: limit
+                schema:
+                  type: integer
+              - name: cursor
+                schema:
+                  type: string
 
   getCommunity:
     handler: src/handlers/communities.handleGetCommunity
@@ -1289,6 +1461,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get community"
+          description: "Admin only. Returns the complete community record, including association contact and internal intake fields."
           swaggerTags:
             - Communities
           responseData:
@@ -1296,12 +1469,12 @@ functions:
               description: "Community"
               bodyType: Community
             403:
-              description: "Administrator access is required"
+              description: "Authentication is required"
             404:
               description: "Community not found"
           documentation:
             summary: Get community
-            description: Get community
+            description: Admin only. Returns the complete community record, including association contact and internal intake fields.
             tags:
               - Communities
             methodResponses:
@@ -1312,7 +1485,7 @@ functions:
                   application/json: Community
               - statusCode: "403"
                 responseBody:
-                  description: Administrator access is required
+                  description: Authentication is required
                 responseModels:
                   application/json: ErrorResponse
               - statusCode: "404"
@@ -1481,7 +1654,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Replace customer community membership"
-          description: "Admin. Replaces communityIds. Every id must be an active community."
+          description: "Owner, admin, or service principal. Replaces communityIds. Every id must be active."
           swaggerTags:
             - Communities
           bodyType: CustomerCommunitiesUpdate
@@ -1492,12 +1665,12 @@ functions:
             400:
               description: "Community is not active"
             403:
-              description: "Administrator access is required"
+              description: "Caller cannot update this membership"
             404:
               description: "Customer profile or community not found"
           documentation:
             summary: Replace customer community membership
-            description: Admin. Replaces communityIds. Every id must be an active community.
+            description: Owner, admin, or service principal. Replaces communityIds. Every id must be active.
             tags:
               - Communities
             methodResponses:
@@ -1513,7 +1686,7 @@ functions:
                   application/json: ErrorResponse
               - statusCode: "403"
                 responseBody:
-                  description: Administrator access is required
+                  description: Caller cannot update this membership
                 responseModels:
                   application/json: ErrorResponse
               - statusCode: "404"
@@ -1527,7 +1700,7 @@ functions:
                 schema:
                   type: string
             requestBody:
-              description: Admin. Replaces communityIds. Every id must be an active community.
+              description: Owner, admin, or service principal. Replaces communityIds. Every id must be active.
               required: true
             requestModels:
               application/json: CustomerCommunitiesUpdate
@@ -1752,4 +1925,7 @@ resources:
     GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
     GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
     GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+    GatewayResponseAuthorizerFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAuthorizerFailure}
+    GatewayResponseAuthorizerConfigurationError: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAuthorizerConfigurationError}
+    GatewayResponseInvalidSignature: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseInvalidSignature}
 

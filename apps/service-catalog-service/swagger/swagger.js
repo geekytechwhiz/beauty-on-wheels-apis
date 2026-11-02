@@ -367,42 +367,22 @@
     },
     "/packages": {
       "get": {
+        "summary": "Discover Carish packages",
+        "description": "",
         "tags": [
-          "Packages"
+          "Platform packages"
         ],
-        "summary": "List packages",
-        "security": [
-          {
-            "bearerAuth": []
-          }
+        "operationId": "discoverPlatformPackages.get./packages",
+        "consumes": [
+          "application/json"
         ],
-        "description": "Queries the base-table aggregate partition CATALOG#PACKAGES / META#PACKAGE#. Active filtering uses LSI2 (LSI2SK = ACTIVE#1).",
-        "parameters": [
-          {
-            "name": "active",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "nextToken",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
+        "produces": [
+          "application/json"
         ],
+        "parameters": [],
         "responses": {
           "200": {
-            "description": "Package page"
+            "description": "Customer package page"
           }
         }
       },
@@ -458,21 +438,29 @@
         }
       ],
       "get": {
+        "summary": "Get sellable Carish package",
+        "description": "",
         "tags": [
-          "Packages"
+          "Platform packages"
         ],
-        "summary": "Get package",
-        "security": [
+        "operationId": "getCustomerPlatformPackage.get./packages/{packageId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
           }
         ],
         "responses": {
           "200": {
-            "description": "Package"
-          },
-          "404": {
-            "description": "Not found"
+            "description": "Customer package detail"
           }
         }
       },
@@ -881,6 +869,133 @@
         }
       }
     },
+    "/vendors/{vendorId}/addon-suggestions": {
+      "post": {
+        "summary": "Submit add-on suggestion",
+        "description": "",
+        "operationId": "postVendorAddonSuggestions.post./vendors/{vendorId}/addon-suggestions",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      },
+      "get": {
+        "summary": "List add-on suggestions",
+        "description": "",
+        "operationId": "getVendorAddonSuggestions.get./vendors/{vendorId}/addon-suggestions",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/addon-suggestions/{suggestionId}": {
+      "get": {
+        "summary": "Get add-on suggestion",
+        "description": "",
+        "operationId": "getVendorAddonSuggestionById.get./vendors/{vendorId}/addon-suggestions/{suggestionId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "suggestionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/ops/addon-suggestions": {
+      "get": {
+        "summary": "Ops list add-on suggestions",
+        "description": "",
+        "operationId": "opsListAddonSuggestions.get./ops/addon-suggestions",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/ops/addon-suggestions/{suggestionId}/review": {
+      "post": {
+        "summary": "Review add-on suggestion",
+        "description": "",
+        "operationId": "opsReviewAddonSuggestion.post./ops/addon-suggestions/{suggestionId}/review",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "suggestionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
     "/offerings/{offeringId}/communities": {
       "post": {
         "summary": "Add communities to an offering",
@@ -997,6 +1112,274 @@
         "responses": {
           "200": {
             "description": "200 response"
+          }
+        }
+      }
+    },
+    "/admin/packages": {
+      "get": {
+        "summary": "List Carish platform packages",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "listPlatformPackages.get./admin/packages",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Package page"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a Carish package draft",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "createPlatformPackage.post./admin/packages",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreatePlatformPackageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Package draft"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}": {
+      "get": {
+        "summary": "Get Carish package",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "getPlatformPackage.get./admin/packages/{packageId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package detail"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Carish package draft",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "patchPlatformPackage.patch./admin/packages/{packageId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdatePlatformPackageRequest"
+            }
+          },
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated package draft"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}/publish": {
+      "post": {
+        "summary": "Publish Carish package",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "publishPlatformPackage.post./admin/packages/{packageId}/publish",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published package"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}/pause": {
+      "post": {
+        "summary": "Pause Carish package sales",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "pausePlatformPackage.post./admin/packages/{packageId}/pause",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paused package"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}/resume": {
+      "post": {
+        "summary": "Resume Carish package sales",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "resumePlatformPackage.post./admin/packages/{packageId}/resume",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published package"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}/archive": {
+      "post": {
+        "summary": "Archive Carish package",
+        "description": "",
+        "tags": [
+          "Platform packages"
+        ],
+        "operationId": "archivePlatformPackage.post./admin/packages/{packageId}/archive",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived package"
+          }
+        }
+      }
+    },
+    "/admin/packages/{packageId}/sales-controls/{communityId}": {
+      "put": {
+        "summary": "Set package community sales control",
+        "description": "",
+        "tags": [
+          "Sales controls"
+        ],
+        "operationId": "putPlatformPackageSalesControl.put./admin/packages/{packageId}/sales-controls/{communityId}",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sales control"
           }
         }
       }

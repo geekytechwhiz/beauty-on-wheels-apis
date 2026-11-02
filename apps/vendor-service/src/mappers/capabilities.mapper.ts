@@ -16,6 +16,8 @@ export class CapabilitiesMapper {
     return {
       vendorId: item.vendorId,
       vehicleTypes: item.vehicleTypes,
+      washMethods: item.washMethods ?? [],
+      serviceTypes: item.serviceTypes ?? [],
       serviceIds: services.filter((entry) => entry.enabled).map((entry) => entry.serviceId),
       packageIds: packages.filter((entry) => entry.enabled).map((entry) => entry.packageId),
       services: services.map(publicServiceOffering),
@@ -28,6 +30,8 @@ export class CapabilitiesMapper {
     return {
       vendorId,
       vehicleTypes: [] as VehicleType[],
+      washMethods: [] as string[],
+      serviceTypes: [] as string[],
       serviceIds: [] as string[],
       packageIds: [] as string[],
       services: [] as VendorServiceOfferingRecord[],
@@ -62,6 +66,8 @@ export class CapabilitiesMapper {
   static toDdbItem(input: {
     vendorId: string;
     vehicleTypes: VehicleType[];
+    washMethods?: string[];
+    serviceTypes?: string[];
     services: VendorServiceOfferingRecord[];
     packages: VendorPackageOfferingRecord[];
     configurationVersion: number;
@@ -76,6 +82,8 @@ export class CapabilitiesMapper {
       SK: VendorKeyBuilder.capabilitiesSk(),
       vendorId: input.vendorId,
       vehicleTypes: [...new Set(input.vehicleTypes)],
+      washMethods: [...new Set(input.washMethods ?? [])],
+      serviceTypes: [...new Set(input.serviceTypes ?? [])],
       serviceIds: services
         .filter((entry) => entry.enabled)
         .map((entry) => entry.serviceId),

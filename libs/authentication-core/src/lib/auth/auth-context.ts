@@ -4,6 +4,10 @@ export interface AuthContext {
   roles: string[];
   permissions: string[];
   claims: Record<string, unknown>;
+  /** Verified Identity phone. Never taken from the request body. */
+  phoneNumber?: string;
+  /** True only when Identity recorded the OTP phone verification. */
+  phoneVerified?: boolean;
 }
 
 export interface AuthUser {
@@ -17,6 +21,8 @@ export interface AuthUser {
   identityId?: string;
   roleId?: string;
   status?: string;
+  phoneNumber?: string;
+  phoneVerified?: boolean;
 }
 
 /**

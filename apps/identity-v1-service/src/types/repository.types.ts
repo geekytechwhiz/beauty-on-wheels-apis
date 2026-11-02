@@ -73,10 +73,10 @@ export interface MeResponse {
   userType?: UserType;
   /**
    * Application roles from USER#/ROLE# mappings.
-   * Existing codes: CUSTOMER, VENDOR, ADMIN. Empty when none are mapped.
-   * Legacy roleId is not copied into this array.
+   * Codes: CUSTOMER, REGISTRANT, VENDOR, ADMIN. Empty when none are mapped.
+   * Legacy roleId is not copied into this array. userType is not a role.
    */
-  roles: Array<'CUSTOMER' | 'VENDOR' | 'ADMIN'>;
+  roles: Array<'CUSTOMER' | 'REGISTRANT' | 'VENDOR' | 'ADMIN'>;
   createdAt?: string;
   updatedAt?: string;
 }

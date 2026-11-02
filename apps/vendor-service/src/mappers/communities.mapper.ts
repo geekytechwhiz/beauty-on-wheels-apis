@@ -1,3 +1,7 @@
+import {
+  COVERAGE_APPROVAL_STATUS,
+  resolveCoverageApprovalStatus,
+} from '../domain/community';
 import { OperationalStatus, VendorStatus } from '../types/api-types';
 import {
   VendorCommunityDdbItem,
@@ -24,6 +28,9 @@ export class CommunitiesMapper {
       assignedAt: input.assignedAt,
       status: input.vendor.status,
       operationalStatus: input.vendor.operationalStatus,
+      // Never approved on write. An admin approves through the coverage-approval route.
+      approvalStatus: COVERAGE_APPROVAL_STATUS.REQUESTED,
+      approvalRequestedAt: input.assignedAt,
       createdAt: input.assignedAt,
       updatedAt: input.assignedAt,
       GSI3PK: VendorKeyBuilder.communityGsi3Pk(input.communityId),
@@ -57,6 +64,7 @@ export class CommunitiesMapper {
       assignedAt: item.assignedAt,
       status: item.status as VendorStatus,
       operationalStatus: item.operationalStatus as OperationalStatus,
+      approvalStatus: resolveCoverageApprovalStatus(item),
     };
   }
 }

@@ -8,7 +8,6 @@ import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import {
   getAuthenticatedUserId,
-  isScheduleManager,
   requirePathId,
 } from '../auth/access';
 import { env } from '../configs/env.config';
@@ -161,11 +160,6 @@ export class HoldsService {
     }
     const hold = await this.requireHold(holdId);
     const slot = await this.requireSlot(hold.slotId);
-    const schedule = await this.schedules.getWorkingHours(slot.vendorId, slot.branchId);
-    const userId = getAuthenticatedUserId(request);
-    if (hold.customerId !== userId && !isScheduleManager(request, schedule)) {
-      throw new ForbiddenError('Not authorized to release this hold');
-    }
     return this.releaseLoadedHold(hold, slot, 'released');
   }
 
@@ -178,13 +172,7 @@ export class HoldsService {
       return view;
     }
     const hold = await this.requireHold(holdId);
-    const schedule = await this.schedules.getWorkingHours(hold.vendorId, hold.branchId);
-    const userId = getAuthenticatedUserId(request);
-    const manager = isScheduleManager(request, schedule);
-    if (hold.customerId !== userId && !manager) {
-      throw new ForbiddenError('Not authorized to read this hold');
-    }
-    return toHoldView(hold, manager || hold.customerId === userId);
+    return toHoldView(hold, true);
   }
 
   async releaseLoadedHold(

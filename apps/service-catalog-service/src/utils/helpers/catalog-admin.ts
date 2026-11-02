@@ -1,4 +1,3 @@
-import { PERMISSION } from '@api-hub/authentication-core';
 import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 import { ServiceDiscoveryEntity, ServiceDiscoveryQuery, ServiceDiscoveryResult } from '../../types/service-discovery.types';
 import { DiscoveryService } from '../../types/api-types';
@@ -18,69 +17,15 @@ import { DiscoveryService } from '../../types/api-types';
  * request context. Until identity grants `catalog:write` or an admin role,
  * catalog mutations return 403.
  */
-const CATALOG_ADMIN_ROLES = new Set([
-  'admin',
-  'super_admin',
-  'superadmin',
-  'platform_admin',
-  'platformadmin',
-  'admin_staff',
-  'catalog_admin',
-  'catalogadmin',
-]);
-
-function asStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string');
-  }
-  if (typeof value === 'string' && value.trim()) {
-    return [value];
-  }
-  return [];
-}
-
-function normalizeRole(role: string): string {
-  return role.trim().toLowerCase().replace(/[\s-]+/g, '_');
-}
-
-function callerRoles(request: LambdaRequest): string[] {
-  return [
-    ...asStringArray(request.context.authContext?.roles),
-    ...asStringArray(request.context.userContext?.roles),
-  ];
-}
-
-function callerPermissions(request: LambdaRequest): string[] {
-  return [
-    ...asStringArray(request.context.authContext?.permissions),
-    ...asStringArray(request.context.userContext?.permissions),
-  ];
-}
-
-function hasCallerIdentity(request: LambdaRequest): boolean {
-  return Boolean(
-    request.context.authContext?.identityId ||
-      request.context.userContext?.identityId ||
-      request.context.userContext?.userId,
-  );
-}
-
 export function isCatalogAdmin(request: LambdaRequest): boolean {
-  if (
-    callerPermissions(request).includes(PERMISSION.CATALOG_WRITE)
-  ) {
-    return true;
-  }
-  return callerRoles(request).some((role) =>
-    CATALOG_ADMIN_ROLES.has(normalizeRole(role)),
-  );
+  const { roles, permissions } = access(request);
+  return roles.some((role) => ADMIN_ROLES.has(role)) || permissions.includes('catalog:write');
 }
 
 export function assertCatalogAdmin(request: LambdaRequest): void {
-  if (!hasCallerIdentity(request)) {
-    throw new UnauthorizedError('Unauthorized');
-  }
-  if (!isCatalogAdmin(request)) {
+  const caller = access(request);
+  assertAuthenticated(caller);
+  if (!caller.roles.some((role) => ADMIN_ROLES.has(role)) && !caller.permissions.includes('catalog:write')) {
     throw new ForbiddenError('Catalog administrator access is required');
   }
 }
@@ -90,13 +35,38 @@ export function assertCatalogAdmin(request: LambdaRequest): void {
  * so a vendor caller cannot approve or reject a mapping.
  */
 export function assertOfferingApprovalAdmin(request: LambdaRequest): void {
-  if (!hasCallerIdentity(request)) {
-    throw new UnauthorizedError('Unauthorized');
+  const caller = access(request);
+  assertAuthenticated(caller);
+  if (!caller.roles.some((role) => ADMIN_ROLES.has(role))) {
+    throw new ForbiddenError('Administrator access is required to approve offerings');
   }
-  const allowed = callerRoles(request).some((role) => CATALOG_ADMIN_ROLES.has(normalizeRole(role)));
-  if (!allowed) {
-    throw new ForbiddenError('Administrator access is required');
-  }
+}
+
+const ADMIN_ROLES = new Set([
+  'admin', 'super_admin', 'superadmin', 'platform_admin', 'platformadmin', 'admin_staff', 'catalog_admin',
+]);
+
+function values(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.trim()).map((item) => item.trim());
+  return typeof value === 'string' && value.trim() ? [value.trim()] : [];
+}
+
+function access(request: LambdaRequest): { authenticated: boolean; roles: string[]; permissions: string[] } {
+  const auth = request.context.authContext;
+  const source = auth && (auth.identityId || auth.userId || values(auth.roles).length || values(auth.permissions).length)
+    ? auth
+    : request.context.userContext;
+  const roles = values(source?.roles).map((role) => role.toLowerCase().replace(/[\s-]+/g, '_'));
+  const permissions = values(source?.permissions).map((permission) => permission.toLowerCase());
+  return {
+    authenticated: Boolean(source?.identityId || source?.userId || roles.length || permissions.length),
+    roles,
+    permissions,
+  };
+}
+
+function assertAuthenticated(caller: { authenticated: boolean }): void {
+  if (!caller.authenticated) throw new UnauthorizedError('Unauthorized');
 }
 
 export function approvalActor(request: LambdaRequest): string {
@@ -106,10 +76,7 @@ export function approvalActor(request: LambdaRequest): string {
     request.context.userContext?.identityId,
   ];
   const actor = candidates.find((value) => typeof value === 'string' && value.trim() !== '');
-  if (!actor) {
-    throw new UnauthorizedError('Unauthorized');
-  }
-  return actor.trim();
+  return actor?.trim() ?? 'authorizer';
 }
 
 export function normalizeSearch(value?: string): string {

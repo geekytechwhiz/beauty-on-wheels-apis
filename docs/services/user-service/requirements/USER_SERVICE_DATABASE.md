@@ -22,7 +22,8 @@ Customer data for one person lives in `USER#{userId}`. Phone lookup and communit
 | 5 | Get, update, or soft-delete one address, and move the default | TransactWrite | base | `SK=ADDR#{addressId}` and `Update` on `SK=PROFILE` |
 | 6 | Get or replace operational preferences | GetItem / Put | base | `SK=PREFERENCES` |
 | 7 | Get community | GetItem | base | `PK=COMMUNITY#{communityId}`, `SK=META` |
-| 8 | List communities | Query | GSI1 | `GSI1PK=COMMUNITY` |
+| 8 | List/search communities | Query | GSI1 | `GSI1PK=COMMUNITY`; status, name/city/locality/PIN search and location filters are applied to the community records |
+| 8a | Claim a community code | TransactWrite | base | `PK=COMMUNITY_CODE#{lowercase-slug}`, `SK=CLAIM` |
 | 9 | Read community membership | GetItem | base | `communityIds` on `PROFILE` |
 | 10 | Replace community membership | TransactWrite | base | `Update` `PROFILE.communityIds`, put/delete `SK=MEMBER#{communityId}` |
 
@@ -35,13 +36,14 @@ Customer data for one person lives in `USER#{userId}`. Phone lookup and communit
 | `USER#{userId}` | `ADDR#{addressId}` | `Address` | Address. `status=deleted` is a soft delete |
 | `USER#{userId}` | `PREFERENCES` | `OperationalPreferences` | WhatsApp, SMS, email, and push flags |
 | `COMMUNITY#{communityId}` | `META` | `Community` | Community record |
+| `COMMUNITY_CODE#{lowercase-slug}` | `CLAIM` | `CommunityCodeClaim` | Internal uniqueness claim; points at the stable community id |
 | `USER#{userId}` | `MEMBER#{communityId}` | `CommunityMembership` | Customer membership row |
 
 ## GSIs
 
 | Index | Access pattern | GSI1PK | GSI1SK | Notes |
 | --- | --- | --- | --- | --- |
-| GSI1 | List communities, newest first | `COMMUNITY` | `{createdAt}#{communityId}` | On community `META` only. Phone lookup does not use this index |
+| GSI1 | List communities, newest first | `COMMUNITY` | `{createdAt}#{communityId}` | On community `META` only. `searchText` includes name, code, city, locality, and postal PIN. Phone lookup does not use this index |
 
 A status filter on the community list is a `FilterExpression`. DynamoDB applies `Limit` before the filter, so a page can be short.
 
@@ -52,7 +54,7 @@ A status filter on the community list is a `FilterExpression`. DynamoDB applies 
 - Changing a phone deletes the previous lookup item only when that item belongs to the same user.
 - Address ids are generated. Updates require the address item to exist.
 - One active default per user. The profile `defaultAddressId` is updated in the same transaction as the address flags.
-- Community create uses a new id and `attribute_not_exists`.
+- Community create uses a new id and an atomic `CommunityCodeClaim`; the code is generated from the name when absent.
 - Membership replace writes `communityIds` on the profile and the membership rows together.
 
 ## API ↔ storage

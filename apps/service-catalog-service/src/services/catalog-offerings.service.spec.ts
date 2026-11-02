@@ -8,7 +8,7 @@ jest.mock('../integrations/vendor-self', () => ({
   resolveCallerVendor: jest.fn(),
 }));
 
-import { ConflictError, ForbiddenError, LambdaRequest, NotFoundError } from '@api-hub/utils';
+import { ConflictError, ForbiddenError, LambdaRequest, NotFoundError, UnauthorizedError } from '@api-hub/utils';
 
 import { resolveCallerVendor } from '../integrations/vendor-self';
 import { CatalogOfferingsService } from './catalog-offerings.service';
@@ -39,11 +39,14 @@ const createBody = {
   status: 'draft',
 };
 
-function request(body: unknown): LambdaRequest {
+function request(body: unknown, roles: string[] = ['catalog_admin']): LambdaRequest {
   return {
     body,
     event: { headers: { Authorization: 'Bearer token' } },
-    context: { correlationId: 'corr-1' },
+    context: {
+      correlationId: 'corr-1',
+      userContext: { userId: 'admin-1', roles },
+    },
   } as unknown as LambdaRequest;
 }
 
@@ -112,11 +115,19 @@ describe('CatalogOfferingsService.create', () => {
     ]);
   });
 
-  it('rejects unauthorized vendor access', async () => {
-    resolveCaller.mockResolvedValue({ vendorId: 'vend_other', role: 'owner' });
+  it('rejects vendor callers without catalog admin access', async () => {
+    resolveCaller.mockResolvedValue({ vendorId: 'vend_demo_001', role: 'owner' });
 
-    await expect(service.create(request(createBody))).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.create(request(createBody, ['owner']))).rejects.toBeInstanceOf(ForbiddenError);
     expect(offerings.createOffering).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthenticated catalog writes', async () => {
+    await expect(service.create({
+      body: createBody,
+      event: { headers: { Authorization: 'Bearer token' } },
+      context: {},
+    } as unknown as LambdaRequest)).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it('rejects when the top-level categoryId does not exist', async () => {

@@ -37,7 +37,23 @@ export function toAuthorizerContext(ctx: AuthContext): Record<string, string> {
   if (ctx.userId?.trim()) {
     context.userId = ctx.userId.trim();
   }
+  if (ctx.phoneNumber?.trim()) {
+    context.phoneNumber = ctx.phoneNumber.trim();
+  }
+  if (typeof ctx.phoneVerified === 'boolean') {
+    context.phoneVerified = ctx.phoneVerified ? 'true' : 'false';
+  }
   return context;
+}
+
+function readPhoneVerified(value: unknown): boolean | undefined {
+  if (value === true || value === 'true') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return undefined;
 }
 
 export function fromAuthorizerContext(
@@ -56,12 +72,16 @@ export function fromAuthorizerContext(
     return undefined;
   }
   const userId = asString(raw.userId);
+  const phoneNumber = asString(raw.phoneNumber);
+  const phoneVerified = readPhoneVerified(raw.phoneVerified);
   return {
     identityId,
     ...(userId ? { userId } : {}),
     roles: parseAuthorizerStringList(raw.roles),
     permissions: parseAuthorizerStringList(raw.permissions),
     claims: {},
+    ...(phoneNumber ? { phoneNumber } : {}),
+    ...(phoneVerified !== undefined ? { phoneVerified } : {}),
   };
 }
 

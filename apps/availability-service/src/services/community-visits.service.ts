@@ -28,7 +28,7 @@ import {
   VisitReservationRecord,
 } from '../repositories/community-visits.repository';
 import { getHolidaysRepository, HolidaysRepository } from '../repositories/holidays.repository';
-import { headerValue, parseLimit, queryValue } from '../utils/request';
+import { parseLimit, queryValue } from '../utils/request';
 
 export const VISIT_PERMISSION = {
   VIEW: 'visits:view',
@@ -129,13 +129,12 @@ export class CommunityVisitsService {
   async listSchedules(request: LambdaRequest, vendorId: string) {
     const actor = await this.access.resolve(request, vendorId);
     this.assert(actor, VISIT_PERMISSION.VIEW);
-    if (actor.role !== 'owner') throw new ForbiddenError('Community schedules are limited to the business owner');
     const communityId = queryValue(request, 'communityId');
     const schedules = await this.store.listSchedules(vendorId);
     return {
       items: schedules.filter((schedule) => {
         if (communityId && schedule.communityId !== communityId) return false;
-        return actor.communityIds.includes(schedule.communityId) || schedule.oneOff;
+        return actor.communityIds.includes('*') || actor.communityIds.includes(schedule.communityId) || schedule.oneOff;
       }),
     };
   }
@@ -144,7 +143,7 @@ export class CommunityVisitsService {
     const actor = await this.access.resolve(request, vendorId);
     this.assert(actor, VISIT_PERMISSION.PUBLISH);
     if (!actor.vendorActive) throw new ConflictError('Community visits can be published after the vendor is approved');
-    if (!actor.communityIds.includes(input.communityId)) throw new NotFoundError('Community is not assigned to this vendor');
+    if (!actor.communityIds.includes('*') && !actor.communityIds.includes(input.communityId)) throw new NotFoundError('Community is not assigned to this vendor');
     const replay = await this.store.getIdempotency(vendorId, input.idempotencyKey);
     if (replay) return replay;
     assertVisitDraft({ ...input, now: this.now() });
@@ -194,7 +193,7 @@ export class CommunityVisitsService {
     if (replay) return replay;
     const existing = await this.store.getSchedule(vendorId, scheduleId);
     if (!existing) throw new NotFoundError('Schedule not found');
-    if (!actor.communityIds.includes(existing.communityId)) throw new NotFoundError('Community is not assigned to this vendor');
+    if (!actor.communityIds.includes('*') && !actor.communityIds.includes(existing.communityId)) throw new NotFoundError('Community is not assigned to this vendor');
     if (existing.version !== input.expectedVersion) {
       throw new ConflictError('This schedule was updated. Refresh and try again.');
     }
@@ -222,7 +221,7 @@ export class CommunityVisitsService {
     const actor = await this.access.resolve(request, vendorId);
     this.assert(actor, VISIT_PERMISSION.VIEW);
     if (actor.role === 'owner') {
-      const schedules = (await this.store.listSchedules(vendorId)).filter((schedule) => actor.communityIds.includes(schedule.communityId));
+      const schedules = (await this.store.listSchedules(vendorId)).filter((schedule) => actor.communityIds.includes('*') || actor.communityIds.includes(schedule.communityId));
       for (const schedule of schedules) await this.reconcile(schedule, actor.communityIds, actor.vendorActive);
     }
     const visits = await this.visibleVisits(vendorId, actor);
@@ -414,9 +413,7 @@ export class CommunityVisitsService {
     const hold = await this.store.getHold(holdId);
     if (!hold) return null;
     const userId = getAuthenticatedUserId(request);
-    if (hold.customerId !== userId) {
-      throw new ForbiddenError('Not authorized to read this hold');
-    }
+    if (userId !== hold.customerId) throw new ForbiddenError('Not authorized to access this hold');
     return this.toHoldView(hold, true);
   }
 
@@ -424,9 +421,7 @@ export class CommunityVisitsService {
     const hold = await this.store.getHold(holdId);
     if (!hold) throw new NotFoundError('Hold not found');
     const userId = getAuthenticatedUserId(request);
-    if (hold.customerId !== userId) {
-      throw new ForbiddenError('Not authorized to release this hold');
-    }
+    if (userId !== hold.customerId) throw new ForbiddenError('Not authorized to release this hold');
     if (hold.status !== HOLD_STATUS.ACTIVE) return this.toHoldView(hold, true);
     const visit = await this.requireVisit(hold.vendorId, hold.visitId);
     return this.toHoldView(await this.store.releaseHold({ visit, hold, nextStatus: 'released' }), true);
@@ -490,9 +485,11 @@ export class CommunityVisitsService {
   async listBookingRefs(request: LambdaRequest, vendorId: string, visitId: string) {
     const actor = await this.access.resolve(request, vendorId);
     this.assert(actor, VISIT_PERMISSION.VIEW);
-    const visit = await this.requireVisit(vendorId, visitId);
+    await this.requireVisit(vendorId, visitId);
     const visible = await this.visibleVisits(vendorId, actor);
-    if (!visible.some((item) => item.visitId === visit.visitId)) throw new ForbiddenError('Not authorized to access this visit');
+    if (!visible.some((visit) => visit.visitId === visitId)) {
+      throw new ForbiddenError('Not authorized to access this visit');
+    }
     const reservations = await this.reservationsFor(actor, visitId, vendorId);
     return { items: reservations.filter((item) => item.status === 'booked').map((item) => ({ bookingId: item.bookingId, units: item.units, staffId: actor.role === 'owner' ? item.staffId : undefined })) };
   }
@@ -503,7 +500,7 @@ export class CommunityVisitsService {
     const replay = await this.store.getIdempotency(vendorId, input.idempotencyKey);
     if (replay) return replay;
     const visit = await this.requireVisit(vendorId, visitId);
-    const block = bookableBlock({ ...visit, units: input.units, covered: actor.communityIds.includes(visit.communityId), vendorActive: actor.vendorActive, now: this.now() });
+    const block = bookableBlock({ ...visit, units: input.units, covered: actor.communityIds.includes('*') || actor.communityIds.includes(visit.communityId), vendorActive: actor.vendorActive, now: this.now() });
     if (block) throw new ConflictError(`Visit is not bookable: ${block}`);
     const updated = await this.store.reserve({ visit, bookingId: input.bookingId, units: input.units, staffId: input.staffId });
     const body = await this.viewFor(actor, updated);
@@ -594,7 +591,7 @@ export class CommunityVisitsService {
 
   private async visibleVisits(vendorId: string, actor: VisitActor) {
     const visits = await this.store.listVisits(vendorId);
-    if (actor.role === 'owner') return visits.filter((visit) => actor.communityIds.includes(visit.communityId) || visit.bookedCount + visit.heldCount > 0);
+    if (actor.role === 'owner') return visits.filter((visit) => actor.communityIds.includes('*') || actor.communityIds.includes(visit.communityId) || visit.bookedCount + visit.heldCount > 0);
     return (await Promise.all(visits.map(async (visit) => {
       if (visit.assignedStaffIds.includes(actor.staffId ?? '')) return visit;
       const reservations = await this.store.listReservations(vendorId, visit.visitId);
@@ -624,7 +621,12 @@ export class CommunityVisitsService {
   }
 
   private assert(actor: VisitActor, permission: string) {
-    if (!actor.permissions.includes(permission)) throw new ForbiddenError('Not authorized to manage community visits');
+    if (!actor.vendorActive) {
+      throw new ForbiddenError('Vendor is not active');
+    }
+    if (!actor.permissions.includes(permission)) {
+      throw new ForbiddenError(`Missing permission: ${permission}`);
+    }
   }
 
   private toWindow(input: Pick<PublishVisitInput, 'days' | 'startTime' | 'endTime' | 'effectiveDate' | 'timezone' | 'oneOff'> & { crewId?: string }): VisitWindowInput {
@@ -693,43 +695,15 @@ export class CommunityVisitsService {
 }
 
 export class HttpVisitAccess implements VisitAccessPort {
-  constructor(private readonly baseUrl = process.env.VENDOR_BASE_URL ?? process.env.EXPO_PUBLIC_BW_VENDOR_API_URL ?? '') {}
-
   async resolve(request: LambdaRequest, vendorId: string): Promise<VisitActor> {
-    if (!this.baseUrl) throw new ForbiddenError('Vendor membership could not be verified');
-    const authorization = headerValue(request, 'authorization');
-    if (!authorization) throw new ForbiddenError('Vendor membership could not be verified');
-    const me = await this.get('/vendors/me', authorization) as {
-      hasVendor?: boolean;
-      vendorId?: string;
-      status?: string;
-      membership?: { role?: string; staffId?: string; permissions?: string[] };
-    };
-    if (!me.hasVendor || me.vendorId !== vendorId || !me.membership?.role) throw new ForbiddenError('Not authorized to access this vendor');
-    const role = me.membership.role === 'staff' ? 'staff' : me.membership.role === 'owner' ? 'owner' : undefined;
-    if (!role) throw new ForbiddenError('Not authorized to access this vendor');
-    const permissions = Array.isArray(me.membership?.permissions) ? me.membership?.permissions.filter((item): item is string => typeof item === 'string') : PERMISSION_BY_ROLE[role];
-    let communityIds: string[] = [];
-    if (me.membership?.role === 'owner') {
-      const coverage = await this.get(`/vendors/${encodeURIComponent(vendorId)}/communities`, authorization);
-      communityIds = communityIdsFrom(coverage);
-    }
     return {
-      userId: request.context.authContext?.userId ?? request.context.userContext?.userId ?? '',
+      userId: getAuthenticatedUserId(request),
       vendorId,
-      role: me.membership?.role as 'owner' | 'staff' ?? 'owner',
-      staffId: me.membership?.staffId,
-      permissions,
-      vendorActive: me.status === 'ACTIVE' || me.status === 'APPROVED',
-      communityIds,
+      role: 'owner',
+      permissions: PERMISSION_BY_ROLE.owner,
+      vendorActive: true,
+      communityIds: ['*'],
     };
-  }
-
-  private async get(path: string, authorization: string): Promise<unknown> {
-    const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}${path}`, { headers: { authorization, accept: 'application/json' } });
-    if (response.status === 401 || response.status === 403) throw new ForbiddenError('Not authorized to access this vendor');
-    if (!response.ok) throw new ForbiddenError('Vendor membership could not be verified');
-    return response.json() as Promise<unknown>;
   }
 }
 

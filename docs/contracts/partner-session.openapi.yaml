@@ -93,8 +93,12 @@ paths:
       description: |
         Public. Returns Cognito tokens and stores a server session keyed by the
         refresh-token hash. Does not return vendor id, membership, or branches.
-        A new identity receives the application role that matches the challenge
-        userType (VENDOR or CUSTOMER). ADMIN cannot be requested.
+        Verification uses the stored challenge and the verified destination.
+        A new phone identity whose challenge userType is VENDOR receives
+        REGISTRANT only, plus the server-issued permission vendor:register.
+        That is not the VENDOR role. An existing identity keeps its roles.
+        ADMIN cannot be requested. The example OTP is illustrative and is not
+        a development fallback.
       security: []
       requestBody:
         required: true
@@ -104,7 +108,7 @@ paths:
               $ref: '#/components/schemas/VerifyOtpRequest'
             example:
               destination: '+919876543210'
-              otp: '123456'
+              otp: '654321'
       responses:
         '200':
           description: Tokens issued.
@@ -579,10 +583,12 @@ components:
           description: Registration classification. Not a substitute for `roles`.
         roles:
           type: array
-          description: Application roles. Order is CUSTOMER, VENDOR, ADMIN. May be empty.
+          description: >
+            Application roles. Order is CUSTOMER, REGISTRANT, VENDOR, ADMIN.
+            REGISTRANT may only begin vendor registration. May be empty.
           items:
             type: string
-            enum: [CUSTOMER, VENDOR, ADMIN]
+            enum: [CUSTOMER, REGISTRANT, VENDOR, ADMIN]
         cognitoUsername:
           type: string
         createdAt:

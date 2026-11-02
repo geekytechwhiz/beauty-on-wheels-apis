@@ -63,7 +63,17 @@
     "validate:policy:affected": "tsx tools/mvrx-policy-validator/src/index.ts --only-changed",
     "publish:fhir-wrapper": "nx run-many -t build -p fhir,fhir-wrapper && cd packages/fhir-wrapper && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --access public --userconfig=../../.npmrc",
     "publish:resource-registry": "nx build mvrx-resource-registry && cd dist/tools/mvrx-resource-registry && export NPM_TOKEN=\"$(grep '^NPM_TOKEN=' ../../../.env | cut -d= -f2- | tr -d '\\r\\n\\\"')\" && npm publish --userconfig=../../../.npmrc",
- "spec":"serverless openapi generate -o openapi.json -f json -a 3.0.4 -p postman.json"
+    "spec": "serverless openapi generate -o openapi.json -f json -a 3.0.4 -p postman.json",
+    "api:spec": "bash scripts/deploy-and-export-api-specs.sh",
+    "api:deploy-and-spec": "bash scripts/deploy-and-export-api-specs.sh --deploy",
+   
+    "vehicle":"export AWS_PROFILE=ci-user-bw && cd apps/vehicle-service && serverless deploy --stage dev",
+    "vendor":"export AWS_PROFILE=ci-user-bw && cd apps/vendor-service && serverless deploy --stage dev",
+    "catalog": "export AWS_PROFILE=ci-user-bw && cd apps/service-catalog-service && serverless deploy --stage dev",
+    "idenitity":"export AWS_PROFILE=ci-user-bw && cd apps/idenitity-service && serverless deploy --stage dev",
+    "user": "export AWS_PROFILE=ci-user-bw && cd apps/user-service && serverless deploy --stage dev",
+    "availability":"export AWS_PROFILE=ci-user-bw && cd apps/availability-service && serverless deploy --stage dev",
+    "booking":"export AWS_PROFILE=ci-user-bw && cd apps/booking-service && serverless deploy --stage dev"
   },
   "private": true,
   "engines": {

@@ -220,6 +220,55 @@ export class BookingsRepository extends BaseRepository {
     return items.map((item) => BookingsMapper.toDomain(item));
   }
 
+  /**
+   * Inclusive civil-date range on vendor booking lookups.
+   * GSI1SK is BOOKING#{bookingDate}#{id}.
+   */
+  async listVendorBookingsForDateRange(
+    vendorId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<Booking[]> {
+    const params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :gsi1pk AND GSI1SK BETWEEN :from AND :to',
+      ExpressionAttributeValues: {
+        ':gsi1pk': `VENDOR#${vendorId}`,
+        ':from': `BOOKING#${fromDate}`,
+        ':to': `BOOKING#${toDate}#\uffff`,
+      },
+      ScanIndexForward: true,
+    };
+    const items = await this.queryAll<BookingLookupDdbItem>(params);
+    return items.map((item) => BookingsMapper.toDomain(item));
+  }
+
+  /**
+   * One schedule timezone sample for timezone resolution when the requested
+   * range has no rows. Newest first. Limit 1.
+   */
+  async sampleVendorBookingTimezone(vendorId: string): Promise<string | undefined> {
+    const params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI1',
+      KeyConditionExpression:
+        'GSI1PK = :gsi1pk AND begins_with(GSI1SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':gsi1pk': `VENDOR#${vendorId}`,
+        ':prefix': 'BOOKING#',
+      },
+      ScanIndexForward: false,
+      Limit: 25,
+    };
+    const page = await this.queryPage<BookingLookupDdbItem>(params);
+    for (const item of page.items) {
+      const timezone = item.schedule?.timezone?.trim();
+      if (timezone) return timezone;
+    }
+    return undefined;
+  }
+
   /** Access pattern: global booking list via GSI1 (GSI1PK = BOOKING_LIST). */
   async listAllBookings(): Promise<Booking[]> {
     const params: QueryCommandInput = {

@@ -11,8 +11,10 @@ import { EventSchemaError } from "@api-hub/middleware";
 export const RegistrationUserTypeSchema = z.enum(["CUSTOMER", "VENDOR"]);
 
 export const SendOtpRequestSchema = z.object({
-destination: z.string().trim().min(1),
-userType: RegistrationUserTypeSchema.default("CUSTOMER"),
+  destination: z.string().trim().min(1),
+  // This unauthenticated endpoint is only a registration entry point. Admin
+  // and operational roles must be granted by a protected server-side flow.
+  userType: RegistrationUserTypeSchema.default("CUSTOMER"),
 }).strict();
 
 export type SendOtpRequest =

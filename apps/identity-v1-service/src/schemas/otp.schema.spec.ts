@@ -18,6 +18,17 @@ describe('SendOtpRequestSchema', () => {
     } as LambdaRequest)).toThrow('Request validation failed');
   });
 
+  it('rejects role and permission fields on send', () => {
+    expect(() => validateSendOtpRequest({
+      body: {
+        destination: '+919876543210',
+        userType: 'VENDOR',
+        role: 'ADMIN',
+        permissions: ['vendor:create'],
+      },
+    } as LambdaRequest)).toThrow('Request validation failed');
+  });
+
   it('rejects a send body without a destination', () => {
     expect(() => validateSendOtpRequest({
       body: {},
@@ -33,6 +44,18 @@ describe('VerifyOtpRequestSchema', () => {
       destination: '+919876543210',
       otp: '123456',
     });
+  });
+
+  it('rejects role, permission, and userType fields on verify', () => {
+    expect(() => validateVerifyOtpRequest({
+      body: {
+        destination: '+919876543210',
+        otp: '654321',
+        userType: 'VENDOR',
+        role: 'VENDOR',
+        permissions: ['vendor:create'],
+      },
+    } as LambdaRequest)).toThrow('Request validation failed');
   });
 
   it('rejects a verify body that omits the otp', () => {

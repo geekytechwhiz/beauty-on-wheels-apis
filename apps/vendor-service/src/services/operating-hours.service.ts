@@ -8,20 +8,20 @@ import {
 import { createLogger, createChildLogger } from '@api-hub/observability';
 
 import {
-  OperatingHoursRepository,
-  getOperatingHoursRepository,
-} from '../repositories/operating-hours.repository';
-import {
   VendorsRepository,
   getVendorsRepository,
 } from '../repositories/vendors.repository';
-import { OperatingHoursMapper } from '../mappers/operating-hours.mapper';
 import {
-  DayOfWeek,
-  OperatingHours,
-  OperatingHoursRequest,
   UpdateVendorOperatingHoursRequest,
+  VendorOperatingPreferencesSection,
 } from '../types/api-types';
+import { VendorOperatingPreferencesDdbItem } from '../types/repository.types';
+import { findDuplicateId } from '../domain/catalog-mapping';
+import { isKnownServiceWindowId } from '../domain/service-windows';
+import {
+  VENDOR_OPERATING_PREFERENCES_ENTITY_TYPE,
+  VendorKeyBuilder,
+} from '../utils/constants/vendor-key-builder';
 import {
   assertVendorAccess,
   getAuthenticatedUserId,
@@ -33,23 +33,12 @@ const baseLogger = createLogger({
   redactPII: true,
 });
 
-const DAY_ORDER: Record<DayOfWeek, number> = {
-  MONDAY: 1,
-  TUESDAY: 2,
-  WEDNESDAY: 3,
-  THURSDAY: 4,
-  FRIDAY: 5,
-  SATURDAY: 6,
-  SUNDAY: 7,
-};
-
 export class OperatingHoursService {
   private readonly logger = createChildLogger(baseLogger, {
     service: 'OperatingHoursService',
   });
 
   constructor(
-    private readonly repository: OperatingHoursRepository = getOperatingHoursRepository(),
     private readonly vendorsRepository: VendorsRepository = getVendorsRepository(),
   ) {}
 
@@ -64,147 +53,96 @@ export class OperatingHoursService {
 
   async getvendoroperatinghours(
     request: LambdaRequest,
-  ): Promise<{ data: OperatingHours[] }> {
+  ): Promise<VendorOperatingPreferencesSection> {
     const userId = getAuthenticatedUserId(request);
     const vendorId = getVendorId(request);
-
+    await this.requireAccessibleVendor(request, vendorId);
+    const item = await this.vendorsRepository.getOperatingPreferences(vendorId);
     this.logger.info({
-      event: 'getvendoroperatinghours_start',
+      event: 'getvendoroperatinghours_success',
       userId,
       vendorId,
+      count: item?.serviceWindowIds.length ?? 0,
     });
-
-    try {
-      await this.requireAccessibleVendor(request, vendorId);
-      const item = await this.repository.getOperatingHours(vendorId);
-      const data = item
-        ? OperatingHoursMapper.toDomain(item)
-        : OperatingHoursMapper.empty();
-
-      this.logger.info({
-        event: 'getvendoroperatinghours_success',
-        userId,
-        vendorId,
-        count: data.length,
-      });
-
-      return { data };
-    } catch (error: any) {
-      this.logger.error({
-        event: 'getvendoroperatinghours_failed',
-        userId,
-        vendorId,
-        error: error.message,
-      });
-      throw error;
-    }
+    return toSection(vendorId, item);
   }
 
   async updatevendoroperatinghours(
     request: LambdaRequest,
-  ): Promise<{ data: OperatingHours[] }> {
+  ): Promise<VendorOperatingPreferencesSection> {
     const userId = getAuthenticatedUserId(request);
     const vendorId = getVendorId(request);
     const body = request.body as UpdateVendorOperatingHoursRequest;
+    await this.requireAccessibleVendor(request, vendorId);
 
-    this.logger.info({
-      event: 'updatevendoroperatinghours_start',
-      userId,
+    const serviceWindowIds = normalizeServiceWindowIds(body.serviceWindowIds);
+    const existing = await this.vendorsRepository.getOperatingPreferences(vendorId);
+    if (
+      existing &&
+      sameWindowIds(existing.serviceWindowIds, serviceWindowIds)
+    ) {
+      return toSection(vendorId, existing);
+    }
+
+    const timestamp = new Date().toISOString();
+    const item: VendorOperatingPreferencesDdbItem = {
+      PK: VendorKeyBuilder.vendorPk(vendorId),
+      SK: VendorKeyBuilder.operatingPreferencesSk(),
       vendorId,
-    });
+      serviceWindowIds,
+      createdAt: existing?.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      entityType: VENDOR_OPERATING_PREFERENCES_ENTITY_TYPE,
+    };
 
     try {
-      await this.requireAccessibleVendor(request, vendorId);
-      const schedule = this.normalizeSchedule(body.operatingHours);
-      const existing = await this.repository.getOperatingHours(vendorId);
-      const ddbItem = OperatingHoursMapper.toDdbItem(schedule, vendorId, {
-        createdAt: existing?.createdAt,
-      });
-
-      try {
-        await this.repository.putOperatingHours(ddbItem);
-      } catch (err) {
-        if (isConditionalWriteConflictAtIndex(err, 0)) {
-          throw new NotFoundError('Vendor not found');
-        }
-        if (err instanceof ConditionalWriteConflictError) {
-          throw new NotFoundError('Vendor not found');
-        }
-        throw err;
+      await this.vendorsRepository.putOperatingPreferences(item);
+    } catch (err) {
+      if (
+        isConditionalWriteConflictAtIndex(err, 0) ||
+        err instanceof ConditionalWriteConflictError
+      ) {
+        throw new NotFoundError('Vendor not found');
       }
-
-      const data = OperatingHoursMapper.toDomain(ddbItem);
-
-      this.logger.info({
-        event: 'updatevendoroperatinghours_success',
-        userId,
-        vendorId,
-        count: data.length,
-      });
-
-      return { data };
-    } catch (error: any) {
-      this.logger.error({
-        event: 'updatevendoroperatinghours_failed',
-        userId,
-        vendorId,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  private normalizeSchedule(
-    hours: OperatingHoursRequest[],
-  ): OperatingHoursRequest[] {
-    const seen = new Set<DayOfWeek>();
-    const normalized: OperatingHoursRequest[] = [];
-
-    for (const entry of hours) {
-      if (seen.has(entry.dayOfWeek)) {
-        throw new ValidationError(
-          `Duplicate operating hours for ${entry.dayOfWeek}`,
-        );
-      }
-      seen.add(entry.dayOfWeek);
-
-      if (entry.closed) {
-        normalized.push({
-          dayOfWeek: entry.dayOfWeek,
-          closed: true,
-        });
-        continue;
-      }
-
-      if (!entry.openTime || !entry.closeTime) {
-        throw new ValidationError(
-          `openTime and closeTime are required when ${entry.dayOfWeek} is not closed`,
-        );
-      }
-
-      if (toMinutes(entry.closeTime) <= toMinutes(entry.openTime)) {
-        throw new ValidationError(
-          `closeTime must be after openTime for ${entry.dayOfWeek}`,
-        );
-      }
-
-      normalized.push({
-        dayOfWeek: entry.dayOfWeek,
-        closed: false,
-        openTime: entry.openTime,
-        closeTime: entry.closeTime,
-      });
+      throw err;
     }
 
-    return normalized.sort(
-      (a, b) => DAY_ORDER[a.dayOfWeek] - DAY_ORDER[b.dayOfWeek],
-    );
+    this.logger.info({
+      event: 'updatevendoroperatinghours_success',
+      userId,
+      vendorId,
+      count: serviceWindowIds.length,
+    });
+    return toSection(vendorId, item);
   }
 }
 
-function toMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
+function normalizeServiceWindowIds(values: string[]): string[] {
+  const duplicate = findDuplicateId(values);
+  if (duplicate) {
+    throw new ValidationError(`Duplicate service window: ${duplicate}`);
+  }
+  for (const value of values) {
+    if (!isKnownServiceWindowId(value)) {
+      throw new ValidationError(`Unknown service window: ${value}`);
+    }
+  }
+  return [...values];
+}
+
+function sameWindowIds(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function toSection(
+  vendorId: string,
+  item: VendorOperatingPreferencesDdbItem | null,
+): VendorOperatingPreferencesSection {
+  return {
+    vendorId,
+    serviceWindowIds: item?.serviceWindowIds ?? [],
+    updatedAt: item?.updatedAt ?? '',
+  };
 }
 
 let service: OperatingHoursService;

@@ -14,6 +14,10 @@ type TransactItems = NonNullable<TransactWriteCommandInput['TransactItems']>;
 
 export interface CommunityListQuery {
   status?: CommunityStatus;
+  search?: string;
+  cityId?: string;
+  localityId?: string;
+  postalCode?: string;
   limit: number;
   lastEvaluatedKey?: Record<string, unknown>;
 }
@@ -24,11 +28,36 @@ export class CommunitiesRepository extends BaseRepository {
   }
 
   async createCommunity(record: CommunityRecord): Promise<void> {
-    await this.put(
-      this.getTableName(),
-      withoutUndefined(record),
-      'attribute_not_exists(PK) AND attribute_not_exists(SK)',
-    );
+    const communityPut = {
+      Put: {
+        TableName: this.getTableName(),
+        Item: withoutUndefined(record),
+        ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+      },
+    };
+    if (!record.code) {
+      await this.transactWrite({ TransactItems: [communityPut] });
+      return;
+    }
+    await this.transactWrite({
+      TransactItems: [
+        communityPut,
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: {
+              PK: UserKeyBuilder.communityCodePk(record.code),
+              SK: UserKeyBuilder.communityCodeSk(),
+              entityType: 'CommunityCodeClaim',
+              communityId: record.communityId,
+              code: record.code,
+              createdAt: record.createdAt,
+            },
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+      ],
+    });
   }
 
   async getCommunity(communityId: string): Promise<CommunityRecord | null> {
@@ -38,12 +67,52 @@ export class CommunitiesRepository extends BaseRepository {
     });
   }
 
-  async saveCommunity(record: CommunityRecord): Promise<void> {
-    await this.put(
-      this.getTableName(),
-      withoutUndefined(record),
-      'attribute_exists(PK) AND attribute_exists(SK)',
-    );
+  async saveCommunity(record: CommunityRecord, previousCode?: string): Promise<void> {
+    const communityPut = {
+      Put: {
+        TableName: this.getTableName(),
+        Item: withoutUndefined(record),
+        ConditionExpression: 'attribute_exists(PK) AND attribute_exists(SK)',
+      },
+    };
+    if (!record.code) {
+      await this.transactWrite({ TransactItems: [communityPut] });
+      return;
+    }
+
+    const transactItems: TransactItems = [
+      communityPut,
+      {
+        Put: {
+          TableName: this.getTableName(),
+          Item: {
+            PK: UserKeyBuilder.communityCodePk(record.code),
+            SK: UserKeyBuilder.communityCodeSk(),
+            entityType: 'CommunityCodeClaim',
+            communityId: record.communityId,
+            code: record.code,
+            createdAt: record.createdAt,
+          },
+          // Enables a legacy record to gain its first claim, and permits a retry by its owner.
+          ConditionExpression: 'attribute_not_exists(PK) OR communityId = :communityId',
+          ExpressionAttributeValues: { ':communityId': record.communityId },
+        },
+      },
+    ];
+    if (previousCode && previousCode !== record.code) {
+      transactItems.push({
+        Delete: {
+          TableName: this.getTableName(),
+          Key: {
+            PK: UserKeyBuilder.communityCodePk(previousCode),
+            SK: UserKeyBuilder.communityCodeSk(),
+          },
+          ConditionExpression: 'attribute_not_exists(PK) OR communityId = :communityId',
+          ExpressionAttributeValues: { ':communityId': record.communityId },
+        },
+      });
+    }
+    await this.transactWrite({ TransactItems: transactItems });
   }
 
   async listCommunities(query: CommunityListQuery): Promise<{
@@ -62,13 +131,37 @@ export class CommunitiesRepository extends BaseRepository {
       ScanIndexForward: false,
     };
 
+    const filters: string[] = [];
+    const names: Record<string, string> = {};
     if (query.status) {
-      params.FilterExpression = '#status = :status';
-      params.ExpressionAttributeNames = { '#status': 'status' };
-      params.ExpressionAttributeValues = {
-        ...params.ExpressionAttributeValues,
-        ':status': query.status,
-      };
+      names['#status'] = 'status';
+      params.ExpressionAttributeValues = { ...params.ExpressionAttributeValues, ':status': query.status };
+      filters.push('#status = :status');
+    }
+    if (query.cityId) {
+      names['#cityId'] = 'cityId';
+      params.ExpressionAttributeValues = { ...params.ExpressionAttributeValues, ':cityId': query.cityId };
+      filters.push('#cityId = :cityId');
+    }
+    if (query.localityId) {
+      names['#localityId'] = 'localityId';
+      params.ExpressionAttributeValues = { ...params.ExpressionAttributeValues, ':localityId': query.localityId };
+      filters.push('#localityId = :localityId');
+    }
+    if (query.postalCode) {
+      names['#postalCode'] = 'postalCode';
+      params.ExpressionAttributeValues = { ...params.ExpressionAttributeValues, ':postalCode': query.postalCode };
+      filters.push('#postalCode = :postalCode');
+    }
+    if (query.search) {
+      const search = query.search.trim().toLowerCase();
+      names['#searchText'] = 'searchText';
+      params.ExpressionAttributeValues = { ...params.ExpressionAttributeValues, ':search': search };
+      filters.push('contains(#searchText, :search)');
+    }
+    if (filters.length) {
+      params.FilterExpression = filters.join(' AND ');
+      params.ExpressionAttributeNames = names;
     }
 
     return this.queryPage<CommunityRecord>(params);

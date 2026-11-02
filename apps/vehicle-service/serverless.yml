@@ -12,8 +12,9 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
-
+  profile: ci-user-bw
   stage: ${opt:stage,'dev'}
+
 
   region: ${opt:region,'us-east-1'}
 

@@ -5,8 +5,8 @@ import { DocumentType } from '../types/api-types';
 import {
   DOCUMENT_STATUS,
   DOCUMENT_TYPE,
-  ONBOARDING_STATUS,
   REQUIRED_DOCUMENT_TYPES,
+  isOnboardingMutable,
 } from './onboarding';
 
 const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -32,11 +32,7 @@ export interface DocumentPresence {
 const DOCUMENT_TYPE_VALUES = new Set<string>(Object.values(DOCUMENT_TYPE));
 
 export function assertDocumentsMutable(onboardingStatus: string): void {
-  if (
-    onboardingStatus === ONBOARDING_STATUS.DRAFT ||
-    onboardingStatus === ONBOARDING_STATUS.IN_PROGRESS ||
-    onboardingStatus === ONBOARDING_STATUS.CHANGES_REQUESTED
-  ) {
+  if (isOnboardingMutable(onboardingStatus)) {
     return;
   }
 

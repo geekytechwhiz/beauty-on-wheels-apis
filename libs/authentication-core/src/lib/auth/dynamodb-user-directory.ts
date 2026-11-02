@@ -24,6 +24,8 @@ interface UserMetaItem {
   identityId?: string;
   roleId?: string;
   status?: string;
+  phoneNumber?: string;
+  phoneVerified?: boolean;
 }
 
 interface ProfileItem {
@@ -102,12 +104,17 @@ export class DynamoDbAuthUserDirectory
       profile?.userProvisioning,
       trimmedIdentityId,
     );
+    const phoneNumber = user.phoneNumber?.trim();
     return {
       userId: user.userId.trim(),
       ...(applicationUserId ? { applicationUserId } : {}),
       identityId: user.identityId ?? trimmedIdentityId,
       roleId: user.roleId,
       status: user.status,
+      ...(phoneNumber ? { phoneNumber } : {}),
+      ...(typeof user.phoneVerified === 'boolean'
+        ? { phoneVerified: user.phoneVerified }
+        : {}),
     };
   }
 

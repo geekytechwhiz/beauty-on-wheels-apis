@@ -20,7 +20,7 @@ import { publishVendorBookingReadiness } from '../events/publish-vendor-booking-
 import { getBookingReadinessRepository, type BookingReadinessRepository } from '../repositories/booking-readiness.repository';
 import { getStaffRepository, type StaffRepository } from '../repositories/staff.repository';
 import { getVendorsRepository, type VendorsRepository } from '../repositories/vendors.repository';
-import { isAdminCaller, isVendorOwner } from '../utils/helpers/authorization';
+import { assertActiveVendorRoute, isAdminCaller, isVendorOwner } from '../utils/helpers/authorization';
 import { getAuthenticatedUserId } from '../utils/helpers/vendor-request';
 
 const logger = createChildLogger(createLogger({ service: 'vendor-service', redactPII: true }), { service: 'BookingReadinessService' });
@@ -55,58 +55,14 @@ export class BookingReadinessService {
   /** Steady state is one readiness GetItem. Profile and staff reads are only for missing ACL data. */
   async get(request: LambdaRequest, vendorId: string): Promise<BookingReadiness> {
     const record = await this.readiness.find(vendorId);
-    // if (!record) {
-    //   const vendor = await this.vendors.getVendorById(vendorId);
-    //   if (!vendor) throw new NotFoundError('Vendor not found');
-    //   await this.authorize(request, vendorId, null, vendor.ownerUserId);
-    //   return pendingBookingReadiness(vendorId, vendor.status, this.now());
-    // }
-    // await this.authorize(request, vendorId, record, record.vendor?.ownerUserId);
-    // return projectBookingReadiness(record);
- 
-    return {
-      vendorId: '4a264edf-ec51-4597-acac-b6b542d5a1f5',
-      configurationReady: true,
-      approvalStatus: 'APPROVED',
-      operationalStatus: 'UNKNOWN',
-      canAcceptBookings: true,
-      requirements: {
-        businessProfile: {
-          complete: true,
-        },
-        onboarding: {
-          complete: true,
-        },
-        serviceAreas: {
-          complete: true,
-          eligibleCount: 0,
-        },
-        services: {
-          complete: true,
-          activeCount: 0,
-        },
-        serviceVisits: {
-          complete: true,
-          activeCount: 0,
-        },
-        pricing: {
-          complete: true,
-          applicableCount: 0,
-        },
-      },
-      optional: {
-        team: {
-          configured: true,
-        },
-        payments: {
-          configured: true,
-        },
-      },
-      blockingReasons: ['READINESS_PENDING_RECONCILIATION'],
-      projectionVersion: 2,
-      projectionState: 'pendingReconciliation',
-      updatedAt: '2026-10-26T08:52:24.020Z',
-    };
+    if (!record) {
+      const vendor = await this.vendors.getVendorById(vendorId);
+      if (!vendor) throw new NotFoundError('Vendor not found');
+      await this.authorize(request, vendorId, null, vendor.ownerUserId);
+      return pendingBookingReadiness(vendorId, vendor.status, this.now());
+    }
+    await this.authorize(request, vendorId, record, record.vendor?.ownerUserId);
+    return projectBookingReadiness(record);
   }
 
   async apply(input: unknown): Promise<'applied' | 'duplicate' | 'stale'> {
@@ -229,6 +185,7 @@ export class BookingReadinessService {
     record: BookingReadinessRecord | null,
     ownerUserId?: string,
   ): Promise<void> {
+    assertActiveVendorRoute(request);
     if (isAdminCaller(request)) return;
     const userId = getAuthenticatedUserId(request);
     if (ownerUserId && isVendorOwner({ ownerUserId }, userId)) return;

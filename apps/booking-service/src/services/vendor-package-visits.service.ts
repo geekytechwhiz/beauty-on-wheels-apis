@@ -17,6 +17,7 @@ import {
   visitMatchesFilters,
 } from '../domain/vendor-package-visits';
 import { BookingError } from '../errors';
+import { requestQuery } from '../http/request-query';
 import {
   OperationalAccessGateway,
   getOperationalAccessGateway,
@@ -44,8 +45,9 @@ export class VendorPackageVisitsService {
   async list(request: LambdaRequest): Promise<{ items: VendorPackageVisitItem[]; nextToken: string | null }> {
     const vendorId = pathVendorId(request);
     await assertVendorOperationsAccess(request, vendorId, this.vendors);
-    const query = parseVendorVisitQuery(request.queryStringParameters, this.now());
-    const cursor = decodeVisitToken(request.queryStringParameters?.nextToken ?? undefined);
+    const parameters = requestQuery(request);
+    const query = parseVendorVisitQuery(parameters, this.now());
+    const cursor = decodeVisitToken(parameters.nextToken);
     const plans = new Map<string, CustomerPlanRecord | null>();
     const items: VendorPackageVisitItem[] = [];
     let exclusiveStartKey = cursor;
@@ -96,7 +98,7 @@ export class VendorPackageVisitsService {
   async summary(request: LambdaRequest): Promise<VendorVisitSummary> {
     const vendorId = pathVendorId(request);
     await assertVendorOperationsAccess(request, vendorId, this.vendors);
-    const range = parseSummaryRange(request.queryStringParameters, this.now());
+    const range = parseSummaryRange(requestQuery(request), this.now());
     const visits: PackageVisitRecord[] = [];
     for (const date of eachDate(range.fromDate, range.toDate)) {
       const day = await this.plans.listVendorVisitsForDate(vendorId, date);

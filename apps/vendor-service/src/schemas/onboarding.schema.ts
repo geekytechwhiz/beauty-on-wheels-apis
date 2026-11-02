@@ -18,6 +18,18 @@ const communities = z.object({
   communityIds: z.array(z.string().trim().min(1).max(64)).max(25),
 }).strict();
 
+const baselineCapacityEntry = z.object({
+  communityId: z.string().trim().min(1).max(64),
+  estimatedCrews: z.number().int().min(0).max(1000).optional(),
+  estimatedVisitsPerDay: z.number().int().min(0).max(10000).optional(),
+  serviceWindowNotes: z.string().trim().max(500).optional(),
+  notes: z.string().trim().max(1000).optional(),
+}).strict();
+
+const baselineCapacity = z.object({
+  communities: z.array(baselineCapacityEntry).max(25),
+}).strict();
+
 const bankDetails = z.object({
   accountHolderName: z.string().trim().min(2).max(150).optional(),
   accountNumber: z.string().regex(/^\d{8,18}$/).nullable().optional(),
@@ -33,8 +45,15 @@ export const UpdateOnboardingRequestSchema = z.object({
     BUSINESS_INFO: businessInfo.optional(),
     COMMUNITIES: communities.optional(),
     BANK_DETAILS: bankDetails.optional(),
+    BASELINE_CAPACITY: baselineCapacity.optional(),
   }).strict().refine((sections) => Object.keys(sections).length > 0, 'At least one onboarding section is required'),
-  lastVisitedStep: z.enum(['BUSINESS_INFO', 'COMMUNITIES', 'DOCUMENTS', 'BANK_DETAILS']).optional(),
+  lastVisitedStep: z.enum([
+    'BUSINESS_INFO',
+    'COMMUNITIES',
+    'DOCUMENTS',
+    'BANK_DETAILS',
+    'BASELINE_CAPACITY',
+  ]).optional(),
 }).strict();
 
 export type UpdateOnboardingRequest = z.infer<typeof UpdateOnboardingRequestSchema>;

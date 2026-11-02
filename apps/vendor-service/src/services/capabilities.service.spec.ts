@@ -1,5 +1,5 @@
 import { LambdaRequest } from '@api-hub/utils';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '@api-hub/utils';
 
 import { CapabilitiesService } from './capabilities.service';
 import { CapabilitiesRepository } from '../repositories/capabilities.repository';
@@ -108,6 +108,8 @@ describe('CapabilitiesService', () => {
       expect(result).toEqual({
         vendorId: 'vendor-1',
         vehicleTypes: [],
+        washMethods: [],
+        serviceTypes: [],
         serviceIds: [],
         packageIds: [],
         services: [],
@@ -121,6 +123,26 @@ describe('CapabilitiesService', () => {
       expect(result.vehicleTypes.length).toBeGreaterThan(0);
       expect(result.catalogSources.services).toBe('service-catalog-service');
       expect(result.vehicleTypes[0]).toHaveProperty('capabilityId');
+      expect(result.categories.map((entry) => entry.category)).toEqual([
+        'vehicleType',
+        'washMethod',
+        'serviceType',
+      ]);
+      expect(result.washMethods.map((entry) => entry.capabilityId)).toEqual([
+        'wash:EXTERIOR',
+        'wash:INTERIOR',
+        'wash:FULL',
+        'wash:FOAM',
+      ]);
+      expect(result.serviceTypes.map((entry) => entry.capabilityId)).toEqual([
+        'service:CAR_WASH',
+        'service:DETAILING',
+      ]);
+      expect(result.vehicleTypes[0]).toMatchObject({
+        capabilityId: 'vehicle:HATCHBACK',
+        code: 'HATCHBACK',
+        label: 'Hatchback',
+      });
     });
 
     it('returns 404 when the vendor does not exist', async () => {
@@ -157,7 +179,9 @@ describe('CapabilitiesService', () => {
       const result = await service.updatevendorcapabilities(
         authRequest({
           body: {
-            vehicleTypes: ['SUV', 'SUV'],
+            vehicleTypes: ['SUV'],
+            washMethods: ['wash:FOAM'],
+            serviceTypes: ['service:CAR_WASH'],
             services: [
               {
                 serviceId: 'svc-1',
@@ -204,13 +228,19 @@ describe('CapabilitiesService', () => {
     });
 
     it('rejects service ids that cannot be checked against the catalog', async () => {
+      catalog.assertServicesExist.mockRejectedValue(
+        new ValidationError('Unknown catalog service: svc-missing'),
+      );
+
       await expect(
         service.updatevendorcapabilities(
           authRequest({
             body: {
               vehicleTypes: ['SEDAN'],
-              serviceIds: ['svc-1'],
-              packageIds: [],
+              washMethods: [],
+              serviceTypes: [],
+              services: [{ serviceId: 'svc-missing', categoryId: 'cat-1', enabled: true }],
+              packages: [],
             },
           }),
         ),
@@ -220,17 +250,22 @@ describe('CapabilitiesService', () => {
 
     it('rejects duplicate service mappings', async () => {
       await expect(
-        service.updatevendorservices(
+        service.updatevendorcapabilities(
           authRequest({
             body: {
+              vehicleTypes: ['SEDAN'],
+              washMethods: [],
+              serviceTypes: [],
               services: [
                 { serviceId: 'svc-1', categoryId: 'cat-1', enabled: true },
                 { serviceId: 'svc-1', categoryId: 'cat-1', enabled: true },
               ],
+              packages: [],
             },
           }),
         ),
-      ).rejects.toThrow(ConflictError);
+      ).rejects.toThrow(ValidationError);
+      expect(repository.putCapabilities).not.toHaveBeenCalled();
     });
 
     it('returns 404 when replacing capabilities for a missing vendor', async () => {
@@ -241,8 +276,10 @@ describe('CapabilitiesService', () => {
           authRequest({
             body: {
               vehicleTypes: ['SEDAN'],
-              serviceIds: [],
-              packageIds: [],
+              washMethods: [],
+              serviceTypes: [],
+              services: [],
+              packages: [],
             },
           }),
         ),

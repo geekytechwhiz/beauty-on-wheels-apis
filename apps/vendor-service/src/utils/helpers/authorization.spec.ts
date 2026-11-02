@@ -2,6 +2,7 @@ import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils
 
 import {
   assertAdminAccess,
+  assertCanCreateVendor,
   assertVendorAccess,
   assertVendorAction,
 } from './authorization';
@@ -18,6 +19,124 @@ function request(overrides: Record<string, unknown> = {}): LambdaRequest {
 }
 
 const vendor = { vendorId: 'vendor-1', ownerUserId: 'user-1' };
+
+describe('vendor creation authorization', () => {
+  const caller = (roles: string[], permissions: string[] = []) =>
+    request({
+      context: {
+        authContext: {
+          identityId: 'sub-1',
+          userId: 'user-1',
+          roles,
+          permissions,
+        },
+      },
+    });
+
+  it('allows a stored VENDOR role and vendor:create permission', () => {
+    expect(assertCanCreateVendor(caller(['VENDOR']))).toBe('user-1');
+    expect(assertCanCreateVendor(caller([], ['vendor:create']))).toBe('user-1');
+  });
+
+  it('separates a customer from a vendor owner', () => {
+    expect(() => assertCanCreateVendor(caller(['CUSTOMER']))).toThrow(ForbiddenError);
+    expect(() => assertCanCreateVendor(caller(['CUSTOMER'], ['user:read']))).toThrow(
+      ForbiddenError,
+    );
+  });
+
+  const registrant = (
+    permissions: string[] = ['vendor:register'],
+    extra: Record<string, unknown> = {},
+  ) =>
+    request({
+      body: extra.body,
+      context: {
+        authContext: {
+          identityId: 'sub-1',
+          userId: 'user-1',
+          roles: ['REGISTRANT'],
+          permissions,
+          phoneVerified: true,
+          phoneNumber: '+919876543210',
+          claims: {},
+          ...(extra.auth as object),
+        },
+        userContext: {
+          userId: 'user-1',
+          roles: ['ADMIN'],
+          permissions: ['vendor:create', 'vendor:read', 'vendor:update'],
+        },
+      },
+    });
+
+  it('allows REGISTRANT only with the resolved vendor:register permission and a verified phone', () => {
+    expect(assertCanCreateVendor(registrant())).toBe('user-1');
+  });
+
+  it('denies REGISTRANT when vendor:register was not resolved', () => {
+    expect(() => assertCanCreateVendor(registrant([]))).toThrow(ForbiddenError);
+  });
+
+  it('denies an unverified REGISTRANT phone', () => {
+    expect(() =>
+      assertCanCreateVendor(registrant(['vendor:register'], { auth: { phoneVerified: false } })),
+    ).toThrow(ForbiddenError);
+  });
+
+  it('reports a missing verified phone instead of accepting one from the body', () => {
+    expect(() =>
+      assertCanCreateVendor(
+        registrant(['vendor:register'], {
+          auth: { phoneNumber: undefined },
+          body: { ownerDetails: { phoneNumber: '+910000000000' } },
+        }),
+      ),
+    ).toThrow(
+      expect.objectContaining({ code: 'VERIFIED_PHONE_UNAVAILABLE' }),
+    );
+  });
+
+  it('does not let a userContext role or permission widen REGISTRANT', () => {
+    expect(() => assertCanCreateVendor(registrant([]))).toThrow(ForbiddenError);
+    expect(() =>
+      assertVendorAccess(registrant(), vendor),
+    ).toThrow(ForbiddenError);
+  });
+
+  it('denies REGISTRANT on an owned vendor profile, staff action, and admin route', () => {
+    const callerRequest = registrant();
+    expect(() => assertVendorAccess(callerRequest, vendor)).toThrow(ForbiddenError);
+    expect(() =>
+      assertVendorAction(callerRequest, vendor, 'staff:manage'),
+    ).toThrow(ForbiddenError);
+    expect(() => assertAdminAccess(callerRequest)).toThrow(ForbiddenError);
+  });
+
+  it('does not treat a role name that contains vendor as VENDOR', () => {
+    expect(() => assertCanCreateVendor(caller(['VENDOR_REGISTRANT']))).toThrow(ForbiddenError);
+    expect(() => assertCanCreateVendor(caller(['SUPER_VENDOR']))).toThrow(ForbiddenError);
+  });
+
+  it('does not accept userType from the request as a role', () => {
+    expect(() =>
+      assertCanCreateVendor(
+        request({
+          body: { userType: 'VENDOR' },
+          context: {
+            authContext: {
+              identityId: 'sub-1',
+              userId: 'user-1',
+              roles: ['CUSTOMER'],
+              permissions: [],
+              claims: { userType: 'VENDOR' },
+            },
+          },
+        }),
+      ),
+    ).toThrow(ForbiddenError);
+  });
+});
 
 describe('vendor access helpers with API Gateway authorizer context', () => {
   it('rejects unauthenticated vendor access', () => {

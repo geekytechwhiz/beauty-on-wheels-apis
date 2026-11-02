@@ -2,10 +2,15 @@ import {
   VendorAddressDdbItem,
   VendorBankDdbItem,
   VendorBranchDdbItem,
+  VendorCapabilitiesDdbItem,
   VendorChildDdbItem,
+  VendorCommunityDdbItem,
   VendorDdbItem,
   VendorDocumentDdbItem,
+  VendorIndicativeCapacityDdbItem,
+  VendorOperatingPreferencesDdbItem,
   VendorOwnerDdbItem,
+  VendorBaselineCapacityDdbItem,
 } from '../types/repository.types';
 import { acceptedDocumentTypes } from './document-upload';
 import { computeOnboardingState, isBankComplete, isBusinessInfoComplete } from './onboarding';
@@ -17,6 +22,11 @@ export interface VendorAggregate {
   bank?: VendorBankDdbItem;
   branches: VendorBranchDdbItem[];
   documents: VendorDocumentDdbItem[];
+  baselineCapacity: VendorBaselineCapacityDdbItem[];
+  communities: VendorCommunityDdbItem[];
+  capabilities?: VendorCapabilitiesDdbItem;
+  operatingPreferences?: VendorOperatingPreferencesDdbItem;
+  indicativeCapacity?: VendorIndicativeCapacityDdbItem;
 }
 
 export function toVendorAggregate(
@@ -25,6 +35,8 @@ export function toVendorAggregate(
   const aggregate: VendorAggregate = {
     branches: [],
     documents: [],
+    baselineCapacity: [],
+    communities: [],
   };
 
   for (const item of items) {
@@ -47,6 +59,21 @@ export function toVendorAggregate(
       case 'VendorDocument':
         aggregate.documents.push(item);
         break;
+      case 'VendorBaselineCapacity':
+        aggregate.baselineCapacity.push(item);
+        break;
+      case 'VendorCommunity':
+        aggregate.communities.push(item);
+        break;
+      case 'VendorCapabilities':
+        aggregate.capabilities = item;
+        break;
+      case 'VendorOperatingPreferences':
+        aggregate.operatingPreferences = item;
+        break;
+      case 'VendorIndicativeCapacity':
+        aggregate.indicativeCapacity = item;
+        break;
       default:
         break;
     }
@@ -60,7 +87,9 @@ export function computeStateFromAggregate(aggregate: VendorAggregate) {
     hasBusinessInfo: Boolean(
       aggregate.profile && isBusinessInfoComplete(aggregate.profile),
     ),
-    hasCommunities: (aggregate.profile?.communityIds?.length ?? 0) > 0,
+    hasCommunities:
+      (aggregate.profile?.communityIds?.length ?? 0) > 0 ||
+      aggregate.communities.length > 0,
     documentTypes: acceptedDocumentTypes(aggregate.documents),
     hasBankDetails: Boolean(aggregate.bank && isBankComplete(aggregate.bank)),
   });

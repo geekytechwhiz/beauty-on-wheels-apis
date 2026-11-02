@@ -7,9 +7,11 @@ import {
 
 import type { AuthContext, AuthenticateOptions } from './auth-context';
 import {
+  APPLICATION_ROLE,
   effectiveAccessTokenRoles,
   parseAccessTokenRolesClaim,
 } from './application-roles';
+import { issuedRegistrationPermissions } from './permissions';
 import { readAuthorizerContextFromEvent } from './authorizer-context';
 import { readBearerToken, validateAccessToken } from './token-validator';
 import { USER_STATUS } from '../constants/identity.constants';
@@ -111,6 +113,12 @@ async function resolveApplicationUser(
   }
 
   ctx.userId = applicationUserId;
+  if (user.phoneNumber?.trim()) {
+    ctx.phoneNumber = user.phoneNumber.trim();
+  }
+  if (typeof user.phoneVerified === 'boolean') {
+    ctx.phoneVerified = user.phoneVerified;
+  }
   const tokenRoles = parseAccessTokenRolesClaim(ctx.claims.roles);
   if (!tokenRoles.ok) {
     throw new UnauthorizedError('Invalid roles claim');
@@ -123,7 +131,20 @@ async function resolveApplicationUser(
     directoryRoleIds,
     profileRoleId: user.roleId,
   });
-  ctx.permissions = await directory.getPermissionsForRoles(ctx.roles);
+  // REGISTRANT permissions are issued here. A ROLE#REGISTRANT permission row
+  // cannot add vendor:read, vendor:create, or vendor:update.
+  const directoryPermissionRoles = ctx.roles.filter(
+    (role) => role !== APPLICATION_ROLE.REGISTRANT,
+  );
+  const directoryPermissions = await directory.getPermissionsForRoles(
+    directoryPermissionRoles,
+  );
+  ctx.permissions = [
+    ...new Set([
+      ...directoryPermissions,
+      ...issuedRegistrationPermissions(ctx.roles),
+    ]),
+  ];
   return ctx;
 }
 

@@ -11,3 +11,4 @@ export * from "./service-areas.schema";
 export * from "./staff.schema";
 export * from "./vendors.schema";
 export * from "./communities.schema";
+export * from './capacity-proposals.schema';

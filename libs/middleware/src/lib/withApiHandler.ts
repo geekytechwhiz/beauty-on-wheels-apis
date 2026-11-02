@@ -24,6 +24,10 @@ const baseLogger = createLogger({
 });
 export type ApiHandler<TReq, TResult> = (req: TReq) => Promise<TResult>;
 type RequestValidator = (req: LambdaRequest) => void | Promise<void>;
+
+/** Optional request hook used by services that need cold-start preparation. */
+export type BeforeHandler = (req: LambdaRequest) => void | Promise<void>;
+
 export type withApiHandlerOptions = {
   operation: string;
 
@@ -128,11 +132,10 @@ export function withApiHandler<
 
     if (options.useLegacyResponseFormat) {
       return result;
-    } else {
-      return successResponse(result, undefined, {
-        correlationId: correlationIdFromContext,
-      }) as TResult;
     }
+    return successResponse(result, undefined, {
+      correlationId: correlationIdFromContext,
+    }) as TResult;
   };
 
   return runMiddlewares(stack, adaptedHandler);

@@ -20,5 +20,6 @@ export const validateBankDetailsRequest = (req: LambdaRequest) => {
   if (!result.success) {
     throw new EventSchemaError('Request validation failed', result.error);
   }
+  req.body = result.data;
   return result.data;
 };

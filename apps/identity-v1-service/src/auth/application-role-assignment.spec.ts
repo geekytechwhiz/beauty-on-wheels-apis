@@ -65,6 +65,15 @@ describe('planApplicationRoleBackfill', () => {
     ).toEqual({ assignCustomer: false, preserve: [] });
   });
 
+  it('does not assign CUSTOMER over a registrant mapping', () => {
+    expect(
+      planApplicationRoleBackfill({
+        mappedRoleIds: ['REGISTRANT'],
+        profileRoleId: 'user',
+      }),
+    ).toEqual({ assignCustomer: false, preserve: [] });
+  });
+
   it('does not overwrite VENDOR or ADMIN', () => {
     expect(
       planApplicationRoleBackfill({
@@ -82,13 +91,26 @@ describe('planApplicationRoleBackfill', () => {
 });
 
 describe('application role token flow', () => {
-  it('initializes a VENDOR role only while a new identity is created', async () => {
+  it.each(['VENDOR', 'ADMIN', 'CUSTOMER'] as const)(
+    'initializes only CUSTOMER when userType is %s and registration was not granted',
+    async (userType) => {
+      const repository = memoryRepository([]);
+      await initializeApplicationRoleForNewIdentity(repository, {
+        userId: 'u-new',
+        userType,
+      });
+      expect(repository.mappings.get('u-new')).toEqual(new Set(['CUSTOMER']));
+    },
+  );
+
+  it('maps REGISTRANT only when the server sets vendor registration', async () => {
     const repository = memoryRepository([]);
     await initializeApplicationRoleForNewIdentity(repository, {
-      userId: 'u-vendor',
+      userId: 'u-new',
       userType: 'VENDOR',
+      vendorRegistration: true,
     });
-    expect(repository.mappings.get('u-vendor')).toEqual(new Set(['VENDOR']));
+    expect(repository.mappings.get('u-new')).toEqual(new Set(['REGISTRANT']));
   });
 
   it('creates a CUSTOMER mapping for a new registration and puts it on the access token', async () => {
@@ -230,9 +252,27 @@ describe('decideAdminRoleChange', () => {
         requestedRole: 'ADMIN',
       }),
     ).toEqual({ ok: false, reason: 'forbidden' });
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['REGISTRANT'],
+        requestedRole: 'ADMIN',
+      }),
+    ).toEqual({ ok: false, reason: 'forbidden' });
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['REGISTRANT'],
+        requestedRole: 'VENDOR',
+      }),
+    ).toEqual({ ok: false, reason: 'forbidden' });
   });
 
-  it('rejects VENDOR and CUSTOMER assignment through the admin operation', () => {
+  it('rejects REGISTRANT, VENDOR, and CUSTOMER assignment through the admin operation', () => {
+    expect(
+      decideAdminRoleChange({
+        callerRoles: ['ADMIN'],
+        requestedRole: 'REGISTRANT',
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported_role' });
     expect(
       decideAdminRoleChange({
         callerRoles: ['ADMIN'],

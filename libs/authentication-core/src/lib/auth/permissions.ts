@@ -1,3 +1,5 @@
+import { APPLICATION_ROLE, resolveApplicationRoles } from './application-roles';
+
 /**
  * Canonical permission identifiers used by authorize().
  * Values are stored on Role → Permission items in the identity table.
@@ -9,6 +11,12 @@ export const PERMISSION = {
   VENDOR_READ: 'vendor:read',
   VENDOR_CREATE: 'vendor:create',
   VENDOR_UPDATE: 'vendor:update',
+  /**
+   * Lets a phone-verified registrant start vendor registration.
+   * Issued in code for the REGISTRANT role only. It is not vendor:create,
+   * vendor:read, or vendor:update.
+   */
+  VENDOR_REGISTER: 'vendor:register',
 
   VEHICLE_READ: 'vehicle:read',
   VEHICLE_CREATE: 'vehicle:create',
@@ -32,3 +40,15 @@ export const PERMISSION = {
 } as const;
 
 export type PermissionId = (typeof PERMISSION)[keyof typeof PERMISSION];
+
+/**
+ * Server-issued permission for REGISTRANT. DynamoDB rows on that role are
+ * ignored so a stored vendor:read or vendor:create cannot widen it.
+ */
+export function issuedRegistrationPermissions(
+  roles: readonly string[],
+): PermissionId[] {
+  return resolveApplicationRoles(roles).includes(APPLICATION_ROLE.REGISTRANT)
+    ? [PERMISSION.VENDOR_REGISTER]
+    : [];
+}

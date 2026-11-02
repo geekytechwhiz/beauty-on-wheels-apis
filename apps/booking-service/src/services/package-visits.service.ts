@@ -24,17 +24,36 @@ import {
   operationalSnapshot,
   toVisitResponse,
   validityEndsAt,
+  withoutCrewAssignment,
 } from '../domain/package-visit';
+import {
+  CompletionSubmission,
+  assertEvidenceKeysBelongToVisit,
+  assertReplayMatches,
+  buildCompletionEvidence,
+} from '../domain/visit-completion';
+import { windowElapsed } from '../domain/visit-window';
 import { BookingError } from '../errors';
 import { AvailabilityGateway, getAvailabilityGateway } from '../integrations/availability.client';
 import {
   CustomerPlansRepository,
   getCustomerPlansRepository,
 } from '../repositories/customer-plans.repository';
+import {
+  VendorIssuesRepository,
+  getVendorIssuesRepository,
+} from '../repositories/vendor-issues.repository';
+import { parseCompleteVisitBody } from '../schemas/visit-completion.schema';
+import {
+  EvidenceStorage,
+  getEvidenceStorage,
+  storageNotConfigured,
+} from '../storage/evidence-storage';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
 import {
   PACKAGE_SCHEDULE_STATE,
   PACKAGE_VISIT_STATUS,
+  VISIT_VALIDATION_STATUS,
   PackageVisitListPage,
   PackageVisitRecord,
   PackageVisitResponse,
@@ -49,6 +68,8 @@ export class PackageVisitsService {
   constructor(
     private readonly plans: CustomerPlansRepository = getCustomerPlansRepository(),
     private readonly availability: AvailabilityGateway = getAvailabilityGateway(),
+    private readonly issues: Pick<VendorIssuesRepository, 'listBlockingVisitIssues'> = getVendorIssuesRepository(),
+    private readonly evidence: () => EvidenceStorage = getEvidenceStorage,
   ) {}
 
   async list(request: LambdaRequest): Promise<PackageVisitListPage> {
@@ -248,7 +269,7 @@ export class PackageVisitsService {
       allocationId: newAllocationId,
       durationMinutes: reserved.durationMinutes ?? durationMinutes,
     };
-    const next: PackageVisitRecord = {
+    const next: PackageVisitRecord = withoutCrewAssignment({
       ...visit,
       ...operationalSnapshot(plan),
       status: PACKAGE_VISIT_STATUS.SCHEDULED,
@@ -264,7 +285,7 @@ export class PackageVisitsService {
       durationMinutes: nextSchedule.durationMinutes,
       updatedAt: now,
       version: visit.version + 1,
-    };
+    });
 
     try {
       await this.plans.saveVisit(next, visit.version);
@@ -298,7 +319,7 @@ export class PackageVisitsService {
 
     const now = new Date().toISOString();
     const actorId = actor.kind === 'vendor' ? actor.staffId : actor.customerId;
-    const next: PackageVisitRecord = {
+    const next: PackageVisitRecord = withoutCrewAssignment({
       ...visit,
       status: PACKAGE_VISIT_STATUS.CANCELLED,
       schedule: undefined,
@@ -314,7 +335,7 @@ export class PackageVisitsService {
       ...(reason ? { cancelReason: reason } : {}),
       updatedAt: now,
       version: visit.version + 1,
-    };
+    });
     await this.plans.saveVisit(next, visit.version);
     await this.refreshPlanProgress(plan.planId);
     return toVisitResponse(next);
@@ -328,16 +349,31 @@ export class PackageVisitsService {
     assertVendorStaffForPlan(actor, plan);
 
     const visit = await this.requireVisit(plan.planId, visitId);
-    if (visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS) return toVisitResponse(visit);
+    return (await this.applyStart(plan, visit, actor.staffId, new Date().toISOString())).response;
+  }
+
+  /**
+   * SCHEDULED → IN_PROGRESS. Already in progress returns the stored visit.
+   * `nowIso` is the server clock. A client timestamp is never accepted here.
+   */
+  async applyStart(
+    plan: CustomerPlanRecord,
+    visit: PackageVisitRecord,
+    staffId: string,
+    nowIso: string,
+  ): Promise<{ response: PackageVisitResponse; idempotent: boolean }> {
+    this.assertSamePlan(plan, visit);
+    if (visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS) {
+      return { response: toVisitResponse(visit), idempotent: true };
+    }
     assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.IN_PROGRESS);
 
-    const now = new Date().toISOString();
     const next: PackageVisitRecord = {
       ...visit,
       status: PACKAGE_VISIT_STATUS.IN_PROGRESS,
-      startedAt: now,
-      startedBy: actor.staffId,
-      updatedAt: now,
+      startedAt: nowIso,
+      startedBy: staffId,
+      updatedAt: nowIso,
       version: visit.version + 1,
     };
     await this.plans.saveVisit(next, visit.version);
@@ -348,20 +384,22 @@ export class PackageVisitsService {
           ...plan,
           status: 'ACTIVE',
           firstJobId: plan.firstJobId ?? visit.visitId,
-          billingPeriodStart: plan.billingPeriodStart ?? now,
-          updatedAt: now,
+          billingPeriodStart: plan.billingPeriodStart ?? nowIso,
+          updatedAt: nowIso,
           version: plan.version + 1,
         },
         plan.version,
       ).catch(() => undefined);
     }
     await this.refreshPlanProgress(plan.planId);
-    return toVisitResponse(next);
+    return { response: toVisitResponse(next), idempotent: false };
   }
 
   /**
    * Completes a visit and consumes one entitlement unit idempotently.
-   * Retry-safe: if already COMPLETED with entitlementConsumed, returns the visit.
+   * The body must carry a fully-done checklist and may carry evidence object keys.
+   * Retry-safe: if already COMPLETED with entitlementConsumed and the same evidence,
+   * returns the visit.
    */
   async complete(request: LambdaRequest): Promise<PackageVisitResponse> {
     const actor = resolveVisitActor(request);
@@ -370,21 +408,61 @@ export class PackageVisitsService {
     requireIdempotency(request);
     const plan = await this.requirePlanAccess(planId, actor);
     assertVendorStaffForPlan(actor, plan);
+    const input = parseCompleteVisitBody(request.body);
 
     const visit = await this.requireVisit(plan.planId, visitId);
+    return (await this.applyComplete(
+      plan,
+      visit,
+      actor.staffId,
+      new Date().toISOString(),
+      input,
+      request.context.authContext?.userId?.trim() || undefined,
+    )).response;
+  }
+
+  /**
+   * IN_PROGRESS → COMPLETED. Consumes one entitlement only when the visit is not
+   * already completed with entitlementConsumed. A repeated call with the same
+   * evidence returns that visit; different evidence is refused (409), and is
+   * reported as EVIDENCE_LOCKED once the visit has been APPROVED.
+   *
+   * Blocking issues (OPEN, TRIAGED, ACTION_REQUIRED) linked to the visit refuse
+   * completion with 409 BLOCKING_ISSUE_OPEN. The read is strongly consistent, but an
+   * issue filed between that read and the write below can still slip through; ops
+   * review (which re-checks) is the backstop before payout.
+   *
+   * Evidence storage gap: when EVIDENCE_BUCKET is unset, only checklist-only
+   * completion is possible and evidence keys are refused with 501. The visit
+   * still lands in PENDING_REVIEW with payoutEligible false.
+   */
+  async applyComplete(
+    plan: CustomerPlanRecord,
+    visit: PackageVisitRecord,
+    staffId: string,
+    nowIso: string,
+    input: CompletionSubmission,
+    actorUserId?: string,
+  ): Promise<{ response: PackageVisitResponse; idempotent: boolean }> {
+    this.assertSamePlan(plan, visit);
     if (visit.status === PACKAGE_VISIT_STATUS.COMPLETED && visit.entitlementConsumed) {
-      return toVisitResponse(visit);
+      assertReplayMatches(visit, input);
+      return { response: toVisitResponse(visit), idempotent: true };
     }
     assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.COMPLETED);
+    await this.assertNoBlockingIssues(visit.visitId);
+    await this.assertEvidenceUploaded(visit, input.evidenceObjectKeys ?? []);
 
-    const now = new Date().toISOString();
     const completed: PackageVisitRecord = {
       ...visit,
       status: PACKAGE_VISIT_STATUS.COMPLETED,
       entitlementConsumed: true,
-      completedAt: now,
-      completedBy: actor.staffId,
-      updatedAt: now,
+      completedAt: nowIso,
+      completedBy: staffId,
+      completionEvidence: buildCompletionEvidence(input, { staffId, userId: actorUserId }, nowIso),
+      validationStatus: VISIT_VALIDATION_STATUS.PENDING_REVIEW,
+      payoutEligible: false,
+      updatedAt: nowIso,
       version: visit.version + 1,
     };
 
@@ -405,7 +483,7 @@ export class PackageVisitsService {
         unscheduledVisits: progress.unscheduledVisits,
         inProgressVisits: progress.inProgressVisits,
       },
-      updatedAt: now,
+      updatedAt: nowIso,
       version: plan.version + 1,
     };
 
@@ -418,9 +496,10 @@ export class PackageVisitsService {
       });
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
-        const latest = await this.requireVisit(plan.planId, visitId);
+        const latest = await this.requireVisit(plan.planId, visit.visitId);
         if (latest.status === PACKAGE_VISIT_STATUS.COMPLETED && latest.entitlementConsumed) {
-          return toVisitResponse(latest);
+          assertReplayMatches(latest, input);
+          return { response: toVisitResponse(latest), idempotent: true };
         }
         throw new ConflictError('Visit completion conflict; retry with the same idempotency key');
       }
@@ -432,9 +511,72 @@ export class PackageVisitsService {
       planId: plan.planId,
       visitId: visit.visitId,
       remainingVisits: progress.remainingVisits,
-      completedBy: actor.staffId,
+      completedBy: staffId,
     });
-    return toVisitResponse(completed);
+    return { response: toVisitResponse(completed), idempotent: false };
+  }
+
+  /**
+   * SCHEDULED → MISSED after the stored window has ended on the server clock.
+   * Does not set entitlementConsumed. Missed rows stay remaining until a
+   * completion write sets that flag. Does not release the schedule reservation.
+   */
+  async applyMiss(
+    plan: CustomerPlanRecord,
+    visit: PackageVisitRecord,
+    now: Date,
+  ): Promise<{ response: PackageVisitResponse; idempotent: boolean }> {
+    this.assertSamePlan(plan, visit);
+    if (visit.status === PACKAGE_VISIT_STATUS.MISSED) {
+      return { response: toVisitResponse(visit), idempotent: true };
+    }
+    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.MISSED);
+    const elapsed = windowElapsed({
+      now,
+      scheduledDate: visit.schedule?.date,
+      snapshot: visit.visitWindowSnapshot,
+    });
+    if (elapsed === 'unknown') {
+      throw new BookingError(
+        'WINDOW_CLOCK_UNKNOWN',
+        'The visit window has no stored end time, so it cannot be marked missed.',
+        409,
+        'visitWindow',
+        false,
+      );
+    }
+    if (elapsed === 'open') {
+      throw new BookingError(
+        'WINDOW_NOT_ELAPSED',
+        'The visit window has not ended.',
+        409,
+        'visitWindow',
+        false,
+      );
+    }
+
+    const nowIso = now.toISOString();
+    const next: PackageVisitRecord = {
+      ...visit,
+      status: PACKAGE_VISIT_STATUS.MISSED,
+      missedAt: nowIso,
+      updatedAt: nowIso,
+      version: visit.version + 1,
+    };
+    try {
+      await this.plans.saveVisit(next, visit.version);
+    } catch (error) {
+      if (error instanceof ConditionalWriteConflictError) {
+        const latest = await this.requireVisit(plan.planId, visit.visitId);
+        if (latest.status === PACKAGE_VISIT_STATUS.MISSED) {
+          return { response: toVisitResponse(latest), idempotent: true };
+        }
+        throw new ConflictError('Visit was updated concurrently');
+      }
+      throw error;
+    }
+    await this.refreshPlanProgress(plan.planId);
+    return { response: toVisitResponse(next), idempotent: false };
   }
 
   /**
@@ -518,6 +660,43 @@ export class PackageVisitsService {
     }
 
     return { planId, scheduleState, scheduled, failed };
+  }
+
+  private async assertNoBlockingIssues(visitId: string): Promise<void> {
+    const blocking = await this.issues.listBlockingVisitIssues(visitId);
+    if (blocking.length > 0) {
+      throw new BookingError(
+        'BLOCKING_ISSUE_OPEN',
+        'Resolve the open issue linked to this visit before completing it',
+        409,
+        'visitId',
+        false,
+      );
+    }
+  }
+
+  private async assertEvidenceUploaded(visit: PackageVisitRecord, keys: readonly string[]): Promise<void> {
+    if (keys.length === 0) return;
+    assertEvidenceKeysBelongToVisit(keys, visit.vendorId, visit.visitId);
+    const storage = this.evidence();
+    if (!storage.isConfigured()) throw storageNotConfigured();
+    for (const key of keys) {
+      if (!(await storage.headObject(key))) {
+        throw new BookingError(
+          'EVIDENCE_NOT_UPLOADED',
+          'An evidence object has not been uploaded yet',
+          409,
+          'evidenceObjectKeys',
+          false,
+        );
+      }
+    }
+  }
+
+  private assertSamePlan(plan: CustomerPlanRecord, visit: PackageVisitRecord): void {
+    if (visit.planId !== plan.planId || visit.vendorId !== plan.vendorId) {
+      throw new ForbiddenError('Not authorized to update this visit');
+    }
   }
 
   async refreshPlanProgress(planId: string) {

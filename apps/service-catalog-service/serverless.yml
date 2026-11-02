@@ -13,7 +13,7 @@ provider:
   runtime: nodejs22.x
 
   stage: ${opt:stage,'dev'}
-
+  profile: ci-user-bw
   region: ${opt:region,'us-east-1'}
 
   versionFunctions: false
@@ -149,6 +149,8 @@ custom:
         description: Provider offerings (PACKAGE) and customer marketplace discovery
       - name: Offering communities
         description: Community coverage mappings for an offering
+      - name: Platform packages
+        description: Carish-owned packages. Provider offerings are a separate resource.
     models:
       - name: Category
         description: Service category
@@ -1560,6 +1562,250 @@ custom:
                 effectiveUntil:
                   type: string
                   nullable: true
+      - name: PlatformPackageIncludedService
+        description: Service entitlement included in a Carish package
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, serviceKey, categoryId, visitsPerPeriod, durationMinutes]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                serviceKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$'
+                categoryId:
+                  type: string
+                  description: Platform category id
+                description:
+                  type: string
+                  maxLength: 500
+                visitsPerPeriod:
+                  type: integer
+                  minimum: 1
+                durationMinutes:
+                  type: integer
+                  minimum: 1
+                  description: Duration of one visit of this included service
+      - name: PlatformPackageVehiclePrice
+        description: Vehicle price for a Carish package
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vehicleType, price, durationMinutes]
+              properties:
+                vehicleType:
+                  type: string
+                  enum: [HATCHBACK, SEDAN, SUV, MUV, LUXURY, BIKE]
+                price:
+                  type: integer
+                  minimum: 1
+                  description: Integer minor units (paise for INR)
+                durationMinutes:
+                  type: integer
+                  minimum: 1
+                  description: Total package duration for this vehicle across visits in the billing period
+      - name: PlatformPackageVisitWindow
+        description: Preferred visit window on a Carish package
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitWindowId, label]
+              properties:
+                visitWindowId:
+                  type: string
+                label:
+                  type: string
+                allDay:
+                  type: boolean
+                startTime:
+                  type: string
+                  pattern: '^([01]\\d|2[0-3]):[0-5]\\d$'
+                endTime:
+                  type: string
+                  pattern: '^([01]\\d|2[0-3]):[0-5]\\d$'
+      - name: CreatePlatformPackageRequest
+        description: Create a Carish platform package draft
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, categoryId, billingPeriod, includedServices, vehiclePricing]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 2000
+                categoryId:
+                  type: string
+                billingPeriod:
+                  type: string
+                  enum: [oneTime, weekly, monthly, yearly]
+                currency:
+                  type: string
+                  enum: [INR]
+                  default: INR
+                displayOrder:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                status:
+                  type: string
+                  enum: [draft]
+                  default: draft
+                includedServices:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageIncludedService"
+                vehiclePricing:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVehiclePrice"
+                visitWindows:
+                  type: array
+                  maxItems: 20
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVisitWindow"
+              example:
+                name: Interior Care
+                description: Routine cabin cleaning for a tidy, comfortable interior.
+                categoryId: fdd72eb1-2647-4b0a-b9df-347f96317e5d
+                billingPeriod: monthly
+                currency: INR
+                displayOrder: 0
+                status: draft
+                includedServices:
+                  - name: Cabin Vacuum and Surface Wipe
+                    serviceKey: interior_clean
+                    categoryId: fdd72eb1-2647-4b0a-b9df-347f96317e5d
+                    description: Vacuum accessible interior surfaces and wipe dashboard and console areas.
+                    visitsPerPeriod: 4
+                    durationMinutes: 30
+                vehiclePricing:
+                  - vehicleType: HATCHBACK
+                    price: 64900
+                    durationMinutes: 120
+                  - vehicleType: SEDAN
+                    price: 74900
+                    durationMinutes: 140
+                  - vehicleType: SUV
+                    price: 84900
+                    durationMinutes: 160
+                  - vehicleType: MUV
+                    price: 89900
+                    durationMinutes: 160
+                  - vehicleType: LUXURY
+                    price: 119900
+                    durationMinutes: 180
+                visitWindows:
+                  - visitWindowId: win-weekday-morn
+                    label: Weekday Morning (06:30 - 09:30)
+                    allDay: false
+                    startTime: '06:30'
+                    endTime: '09:30'
+      - name: UpdatePlatformPackageRequest
+        description: Partial update of a Carish platform package. expectedVersion is required.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedVersion]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                categoryId:
+                  type: string
+                billingPeriod:
+                  type: string
+                  enum: [oneTime, weekly, monthly, yearly]
+                currency:
+                  type: string
+                  enum: [INR]
+                displayOrder:
+                  type: integer
+                  minimum: 0
+                status:
+                  type: string
+                  enum: [draft, published, paused, archived]
+                  description: Echo of the current status is accepted. Status changes use publish, pause, resume, or archive.
+                includedServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageIncludedService"
+                vehiclePricing:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVehiclePrice"
+                visitWindows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVisitWindow"
+                expectedVersion:
+                  type: integer
+                  minimum: 1
+      - name: PlatformPackage
+        description: Carish platform package
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [packageId, name, categoryId, billingPeriod, currency, displayOrder, status, includedServices, vehiclePricing, version]
+              properties:
+                packageId:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                categoryId:
+                  type: string
+                billingPeriod:
+                  type: string
+                  enum: [oneTime, weekly, monthly, yearly]
+                currency:
+                  type: string
+                  enum: [INR]
+                displayOrder:
+                  type: integer
+                status:
+                  type: string
+                  enum: [draft, published, paused, archived]
+                includedServices:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageIncludedService"
+                vehiclePricing:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVehiclePrice"
+                visitWindows:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PlatformPackageVisitWindow"
+                version:
+                  type: integer
+                publishedVersion:
+                  type: integer
+                createdAt:
+                  type: string
+                createdBy:
+                  type: string
+                updatedAt:
+                  type: string
+                updatedBy:
+                  type: string
       - name: ErrorResponse
         description: Platform error envelope
         content:
@@ -1619,7 +1865,7 @@ functions:
       - http:
           path: /categories
           method: get
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "List categories"
           swaggerTags:
@@ -1651,7 +1897,7 @@ functions:
       - http:
           path: /categories
           method: post
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Create category"
           swaggerTags:
@@ -1689,7 +1935,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: get
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Get category"
           swaggerTags:
@@ -1726,7 +1972,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: put
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update category"
           swaggerTags:
@@ -1769,7 +2015,7 @@ functions:
       - http:
           path: /categories/{categoryId}
           method: delete
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Delete category"
           swaggerTags:
@@ -1806,7 +2052,7 @@ functions:
       - http:
           path: /offerings
           method: get
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Discover marketplace offerings
           swaggerTags:
@@ -1925,7 +2171,7 @@ functions:
       - http:
           path: /offerings
           method: post
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Create offering
           swaggerTags:
@@ -1980,7 +2226,7 @@ functions:
       - http:
           path: /offerings/{offeringId}
           method: get
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Get offering
           swaggerTags:
@@ -2026,7 +2272,7 @@ functions:
       - http:
           path: /offerings/{offeringId}
           method: patch
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Update offering
           swaggerTags:
@@ -2071,7 +2317,7 @@ functions:
       - http:
           path: /offerings/{offeringId}
           method: delete
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Archive offering
           swaggerTags:
@@ -2108,7 +2354,7 @@ functions:
       - http:
           path: /vendors/me/offerings
           method: get
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: List my offerings
           swaggerTags:
@@ -2156,6 +2402,72 @@ functions:
                   description: Unauthorized
                 responseModels:
                   application/json: ErrorResponse
+
+  postVendorAddonSuggestions:
+    handler: src/handlers/addon-suggestions-handler.handlePostVendorAddonSuggestions
+    description: Vendor manager submits an add-on suggestion for Carish review
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /vendors/{vendorId}/addon-suggestions
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Submit add-on suggestion
+
+  getVendorAddonSuggestions:
+    handler: src/handlers/addon-suggestions-handler.handleGetVendorAddonSuggestions
+    description: Vendor manager lists add-on suggestions
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /vendors/{vendorId}/addon-suggestions
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: List add-on suggestions
+
+  getVendorAddonSuggestionById:
+    handler: src/handlers/addon-suggestions-handler.handleGetVendorAddonSuggestionById
+    description: Vendor manager reads one add-on suggestion
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /vendors/{vendorId}/addon-suggestions/{suggestionId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Get add-on suggestion
+
+  opsListAddonSuggestions:
+    handler: src/handlers/addon-suggestions-handler.handleOpsListAddonSuggestions
+    description: Catalog admin lists add-on suggestions by review status
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /ops/addon-suggestions
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Ops list add-on suggestions
+
+  opsReviewAddonSuggestion:
+    handler: src/handlers/addon-suggestions-handler.handleOpsReviewAddonSuggestion
+    description: Catalog admin reviews an add-on suggestion
+    timeout: 15
+    memorySize: 512
+    events:
+      - http:
+          path: /ops/addon-suggestions/{suggestionId}/review
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Review add-on suggestion
+
   backfillDiscovery:
     handler: src/handlers/backfill-discovery-handler.handler
     description: Manual discovery projection backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
@@ -2184,7 +2496,7 @@ functions:
       - http:
           path: /offerings/{offeringId}/communities
           method: post
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Add communities to an offering
           documentation:
@@ -2225,7 +2537,7 @@ functions:
       - http:
           path: /offerings/{offeringId}/communities/{communityId}
           method: put
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Activate or deactivate one community
           documentation:
@@ -2270,7 +2582,7 @@ functions:
       - http:
           path: /offerings/{offeringId}/communities/{communityId}/approval
           method: put
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Approve or reject one community mapping
           documentation:
@@ -2315,7 +2627,7 @@ functions:
       - http:
           path: /offerings/{offeringId}/communities/{communityId}
           method: delete
-          cors: ${self:custom.httpCors}
+          cors: true
           authorizer: ${self:custom.securedAuthorizer}
           summary: Remove one community mapping
           documentation:
@@ -2352,6 +2664,296 @@ functions:
     description: Idempotent offering-community backfill for one vendor. Invoke with vendorId and dryRun. No schedule.
     timeout: 300
     memorySize: 512
+
+  listPlatformPackages:
+    handler: src/handlers/platform-packages-handler.listPlatformPackages
+    events:
+      - http:
+          path: /admin/packages
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: List Carish platform packages
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: List Carish platform packages
+            description: Admin-only list of Carish-owned package definitions. Provider offerings are not included.
+            tags: [Platform packages]
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Package page }
+              - statusCode: "400"
+                responseBody: { description: Invalid package-list request }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Package page } }
+  createPlatformPackage:
+    handler: src/handlers/platform-packages-handler.createPlatformPackage
+    events:
+      - http:
+          path: /admin/packages
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Create a Carish package draft
+          swaggerTags: [Platform packages]
+          bodyType: CreatePlatformPackageRequest
+          documentation:
+            summary: Create a Carish package draft
+            description: |
+              Creates a Carish-owned package. billingPeriod is oneTime, weekly, monthly, or yearly.
+              vehiclePricing.price is integer minor units (paise). New packages are stored as draft.
+            tags: [Platform packages]
+            requestBody:
+              description: Platform package
+              required: true
+            requestModels:
+              application/json: CreatePlatformPackageRequest
+            methodResponses:
+              - statusCode: "201"
+                responseBody:
+                  description: Package draft
+                responseModels:
+                  application/json: PlatformPackage
+              - statusCode: "400"
+                responseBody: { description: Invalid package draft }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 201: { description: Package draft } }
+  getPlatformPackage:
+    handler: src/handlers/platform-packages-handler.getPlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Get Carish package
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Get Carish package and revision history
+            description: Returns the platform package using billingPeriod, includedServices, vehiclePricing, and visitWindows.
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Package detail
+                responseModels:
+                  application/json: PlatformPackage
+              - statusCode: "404"
+                responseBody: { description: Package not found }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Package detail } }
+  patchPlatformPackage:
+    handler: src/handlers/platform-packages-handler.patchPlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}
+          method: patch
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Update Carish package draft
+          swaggerTags: [Platform packages]
+          bodyType: UpdatePlatformPackageRequest
+          documentation:
+            summary: Update Carish package draft
+            description: |
+              Partial update. Send the same package fields as create, plus expectedVersion.
+              Editing a published or paused package stores a new draft and leaves the published revision in place.
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            requestBody:
+              description: Platform package fields to change
+              required: true
+            requestModels:
+              application/json: UpdatePlatformPackageRequest
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Updated package draft
+                responseModels:
+                  application/json: PlatformPackage
+              - statusCode: "400"
+                responseBody: { description: Invalid package update }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Updated package draft } }
+  publishPlatformPackage:
+    handler: src/handlers/platform-packages-handler.publishPlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}/publish
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Publish Carish package
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Publish Carish package
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Published package }
+              - statusCode: "404"
+                responseBody: { description: Package not found }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Published package } }
+  pausePlatformPackage:
+    handler: src/handlers/platform-packages-handler.pausePlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}/pause
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Pause Carish package sales
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Pause Carish package sales
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Paused package }
+              - statusCode: "404"
+                responseBody: { description: Package not found }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Paused package } }
+  resumePlatformPackage:
+    handler: src/handlers/platform-packages-handler.resumePlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}/resume
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Resume Carish package sales
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Resume Carish package sales
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Published package }
+              - statusCode: "404"
+                responseBody: { description: Package not found }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Published package } }
+  archivePlatformPackage:
+    handler: src/handlers/platform-packages-handler.archivePlatformPackage
+    events:
+      - http:
+          path: /admin/packages/{packageId}/archive
+          method: post
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Archive Carish package
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Archive Carish package
+            tags: [Platform packages]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Archived package }
+              - statusCode: "404"
+                responseBody: { description: Package not found }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Archived package } }
+  putPlatformPackageSalesControl:
+    handler: src/handlers/platform-packages-handler.putPlatformPackageSalesControl
+    events:
+      - http:
+          path: /admin/packages/{packageId}/sales-controls/{communityId}
+          method: put
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Set package community sales control
+          swaggerTags: [Sales controls]
+          documentation:
+            summary: Set community sales eligibility for a Carish package
+            tags: [Sales controls]
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+              - name: communityId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Sales control }
+              - statusCode: "400"
+                responseBody: { description: Invalid sales control }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Sales control } }
+  discoverPlatformPackages:
+    handler: src/handlers/platform-packages-handler.discoverPlatformPackages
+    events:
+      - http:
+          path: /packages
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Discover Carish packages
+          swaggerTags: [Platform packages]
+          documentation:
+            summary: Discover sellable Carish packages for a community
+            tags: [Platform packages]
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Customer package page }
+              - statusCode: "400"
+                responseBody: { description: Invalid package-discovery request }
+                responseModels: { application/json: ErrorResponse }
+          responseData: { 200: { description: Customer package page } }
+  getCustomerPlatformPackage:
+    handler: src/handlers/platform-packages-handler.getCustomerPlatformPackage
+    events:
+      - http:
+          path: /packages/{packageId}
+          method: get
+          cors: true
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: Get sellable Carish package
+          swaggerTags: [Platform packages]
+          responseData: { 200: { description: Customer package detail } }
+          documentation:
+            summary: Get sellable Carish package
+            description: Customer checkout read. Requires communityId and enforces enabled sales control.
+            tags: [Platform packages]
+            queryParams:
+              - name: communityId
+                required: true
+                schema: { type: string }
+            pathParams:
+              - name: packageId
+                required: true
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody: { description: Customer package detail }
+              - statusCode: "404"
+                responseBody: { description: Package not found or unavailable }
+                responseModels: { application/json: ErrorResponse }
 
   onServiceVisitChanged:
     handler: src/handlers/service-visit-stream.handler
@@ -2693,4 +3295,7 @@ resources:
     GatewayResponseExpiredToken: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseExpiredToken}
     GatewayResponseIntegrationFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationFailure}
     GatewayResponseIntegrationTimeout: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseIntegrationTimeout}
+    GatewayResponseAuthorizerFailure: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAuthorizerFailure}
+    GatewayResponseAuthorizerConfigurationError: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseAuthorizerConfigurationError}
+    GatewayResponseInvalidSignature: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseInvalidSignature}
 

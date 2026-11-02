@@ -242,7 +242,44 @@
                 "send"
               ]
             },
-            "description": "Send One-Time Password to phone or email."
+            "description": "Send a one-time password. userType is omitted here and defaults to CUSTOMER. It classifies the challenge and does not grant a role. The response does not include the OTP."
+          },
+          "response": []
+        },
+        {
+          "name": "Send vendor registration OTP",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"+919876543210\",\n  \"userType\": \"VENDOR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/otp/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "otp",
+                "send"
+              ]
+            },
+            "description": "Start vendor registration. userType VENDOR is stored on the server-side challenge and is not a role, permission, or vendor credential. Verification of a new phone identity then receives REGISTRANT and vendor:register. It does not receive VENDOR. An existing CUSTOMER stays CUSTOMER. The response does not include the OTP."
           },
           "response": []
         },
@@ -262,7 +299,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"destination\": \"+1234567890\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"destination\": \"+1234567890\",\n  \"otp\": \"{{otp}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -279,7 +316,7 @@
                 "verify"
               ]
             },
-            "description": "Verify a one-time password and return the usual access token. The token sub is the Cognito identity id. When the user has an application role, the access token roles claim is CUSTOMER, VENDOR, and/or ADMIN."
+            "description": "Verify the stored challenge for this destination. The body is destination and otp only. Supply the delivered code in {{otp}}. A new phone identity whose send challenge was VENDOR receives access-token role REGISTRANT and permission vendor:register. It does not receive VENDOR, ADMIN, CUSTOMER, or vendor:create. An existing identity keeps its roles. userType on the token is classification, not authorization. Claims also include identityId and userId when the application user is linked."
           },
           "response": []
         }
@@ -436,6 +473,11 @@
     {
       "key": "authToken",
       "value": "your-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "",
       "type": "string"
     }
   ]

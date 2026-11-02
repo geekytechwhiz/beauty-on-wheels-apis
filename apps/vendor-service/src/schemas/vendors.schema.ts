@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { LambdaRequest } from '@api-hub/utils';
+import { LambdaRequest, VEHICLE_TYPE_VALUES } from '@api-hub/utils';
 import { EventSchemaError } from '@api-hub/middleware';
+
+import { SERVICE_WINDOW_IDS } from '../domain/service-windows';
 
 /**
  * ---------------------------------------------------------
@@ -21,6 +23,46 @@ const optionalTrimmedString = (max: number) =>
       return trimmed.length === 0 ? undefined : trimmed;
     });
 
+const catalogId = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/);
+
+const optionalPlaceName = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .optional()
+    .transform((value) => {
+      if (value === undefined) return undefined;
+      const trimmed = value.trim();
+      return trimmed.length === 0 ? undefined : trimmed;
+    });
+
+export const BusinessLocationRequestSchema = z
+  .object({
+    addressLine1: z.string().max(200).optional(),
+    addressLine2: z.string().max(200).optional(),
+    landmark: z.string().max(100).optional(),
+    locality: optionalPlaceName(120),
+    city: optionalPlaceName(80),
+    district: optionalPlaceName(80),
+    state: optionalPlaceName(80),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^[1-9][0-9]{5}$/, 'postalCode must be a 6-digit PIN'),
+    countryCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z]{2}$/)
+      .transform((value) => value.toUpperCase())
+      .optional(),
+  })
+  .strict();
+
 export const BusinessInfoRequestSchema = z.object({
   businessName: z.string().min(2).max(150).optional(),
   contactName: z.string().min(2).max(100).optional(),
@@ -31,7 +73,46 @@ export const BusinessInfoRequestSchema = z.object({
   panNumber: optionalTrimmedString(20),
   profileImageUrl: optionalTrimmedString(2048),
   businessType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
-});
+  /**
+   * Compatibility input. Normalized into location.locality and not stored separately.
+   * A 400 is returned when this value conflicts with location.locality.
+   */
+  locality: optionalPlaceName(120),
+  location: BusinessLocationRequestSchema.optional(),
+}).strict();
+
+export const CreateVendorCapabilitiesRequestSchema = z
+  .object({
+    vehicleTypes: z.array(z.enum(VEHICLE_TYPE_VALUES)).max(20),
+    serviceIds: z.array(catalogId).max(50),
+    packageIds: z.array(catalogId).max(50),
+    washMethodIds: z.array(catalogId).max(50),
+  })
+  .strict();
+
+const communityId = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/);
+
+export const CreateVendorCommunityCoverageRequestSchema = z
+  .object({
+    communityIds: z.array(communityId).max(25),
+  })
+  .strict();
+
+export const CreateVendorOperatingPreferencesRequestSchema = z
+  .object({
+    serviceWindowIds: z.array(z.enum(SERVICE_WINDOW_IDS)).max(20),
+  })
+  .strict();
+
+export const CreateVendorInitialCapacityRequestSchema = z
+  .object({
+    activeCrewCount: z.number().int().min(0).max(1000),
+    indicativeVisitsPerWeek: z.number().int().min(0).max(100000),
+  })
+  .strict();
 
 export const OwnerDetailsRequestSchema = z.object({
   /** Ignored at the API boundary; ownership comes from the identity token. */
@@ -40,12 +121,37 @@ export const OwnerDetailsRequestSchema = z.object({
   designation: optionalTrimmedString(100),
   email: optionalTrimmedString(254).pipe(z.string().email().optional()),
   phoneNumber: optionalTrimmedString(20),
-});
-
-export const CreateVendorRequestSchema = z.object({
-  businessInfo: BusinessInfoRequestSchema.optional(),
-  ownerDetails: OwnerDetailsRequestSchema.optional(),
 }).strict();
+
+export const CreateVendorRequestSchema = z
+  .object({
+    businessInfo: BusinessInfoRequestSchema.optional(),
+    ownerDetails: OwnerDetailsRequestSchema.optional(),
+    capabilities: CreateVendorCapabilitiesRequestSchema.optional(),
+    communityCoverage: CreateVendorCommunityCoverageRequestSchema.optional(),
+    operatingPreferences: CreateVendorOperatingPreferencesRequestSchema.optional(),
+    initialCapacity: CreateVendorInitialCapacityRequestSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const legacy = value.businessInfo?.locality?.trim();
+    const nested = value.businessInfo?.location?.locality?.trim();
+    if (legacy && nested && legacy.toLowerCase() !== nested.toLowerCase()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['businessInfo', 'location', 'locality'],
+        message:
+          'businessInfo.locality conflicts with businessInfo.location.locality',
+      });
+    }
+    if ((legacy || value.businessInfo?.location) && !value.businessInfo?.location?.postalCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['businessInfo', 'location', 'postalCode'],
+        message: 'postalCode is required when a business location or locality is provided',
+      });
+    }
+  });
 
 export type CreateVendorRequest = z.infer<typeof CreateVendorRequestSchema>;
 
@@ -62,21 +168,28 @@ export const validateCreateVendorRequest = (
 };
 
 /**
- * ---------------------------------------------------------
- * UpdateVendorRequest
- * ---------------------------------------------------------
+ * Partial business and contact fields stored on the vendor profile.
+ * Address, owner, bank, documents, and coverage are separate sections.
  */
+const GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const PAN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
 export const UpdateVendorRequestSchema = z
   .object({
-    businessName: z.string().min(2).max(150).optional(),
-    contactName: z.string().max(100).optional(),
-    phoneNumber: z.string().optional(),
-    email: z.string().email().optional(),
-    description: z.string().max(1000).optional(),
-    profileImageUrl: z.string().url().optional(),
+    businessType: z.enum(['INDIVIDUAL', 'BUSINESS']).optional(),
+    businessName: z.string().trim().min(2).max(150).optional(),
+    contactName: z.string().trim().min(2).max(100).optional(),
+    phoneNumber: z.string().trim().min(8).max(20).optional(),
+    email: z.string().trim().email().max(254).optional(),
+    description: z.string().trim().max(1000).optional(),
+    gstNumber: z.string().trim().toUpperCase().regex(GSTIN, 'gstNumber must be a GSTIN').optional(),
+    panNumber: z.string().trim().toUpperCase().regex(PAN, 'panNumber must be a PAN').optional(),
+    profileImageUrl: z.string().trim().url().max(2048).optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'At least one business or contact field is required',
+  });
 
 export type UpdateVendorRequest = z.infer<typeof UpdateVendorRequestSchema>;
 
@@ -87,6 +200,7 @@ export const validateUpdateVendorRequest = (
   if (!result.success) {
     throw new EventSchemaError('Request validation failed', result.error);
   }
+  req.body = result.data;
   return result.data;
 };
 
@@ -184,129 +298,3 @@ export const validateRejectVendorRequest = (req: LambdaRequest) => {
   req.body = result.data;
   return result.data;
 };
-
-export type UpdateVendorOnboardingRequest = z.infer<
-  typeof UpdateVendorOnboardingRequestSchema
->;
-
-export const AddressDataSchema = z
-  .object({
-    addressLine1: z.string().trim().min(1).max(200),
-    addressLine2: z.string().trim().max(200).optional(),
-    landmark: z.string().trim().max(100).optional(),
-    city: z.string().trim().min(1).max(100),
-    state: z.string().trim().min(1).max(100),
-    country: z.string().trim().length(2),
-    postalCode: z.string().trim().min(1).max(20),
-  })
-  .strict();
-
-export const BranchDataSchema = z
-  .object({
-    branchId: z.string().trim().min(1).optional(),
-    name: z.string().trim().min(2).max(150).optional(),
-    phoneNumber: z.string().trim().min(1).max(20).optional(),
-    email: z.string().email().optional(),
-    address: AddressDataSchema.optional(),
-    geoLocation: z
-      .object({
-        latitude: z.number().min(-90).max(90).optional(),
-        longitude: z.number().min(-180).max(180).optional(),
-      })
-      .strict()
-      .optional(),
-  })
-  .strict();
-
-export const BankDetailsDataSchema = z
-  .object({
-    accountHolderName: z.string().trim().min(2).max(150),
-    accountNumber: z.string().regex(/^\d{8,18}$/, {
-      message: 'Account number must contain 8–18 digits',
-    }),
-    ifscCode: z
-      .string()
-      .trim()
-      .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, {
-        message: 'Invalid IFSC code',
-      }),
-    bankName: z.string().trim().min(2).max(150).optional(),
-    branchName: z.string().trim().max(150).optional(),
-    accountType: z.enum(['SAVINGS', 'CURRENT']).optional(),
-  })
-  .strict();
-
-export type BankDetailsData = z.infer<typeof BankDetailsDataSchema>;
-
-export const DocumentsDataSchema = z
-  .object({
-    documentType: z.enum([
-      'GST_REGISTRATION',
-      'BUSINESS_REGISTRATION',
-      'COMMERCIAL_INSURANCE',
-    ]),
-    fileName: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200)
-      .refine(
-        (value) =>
-          !value.includes('/') &&
-          !value.includes('\\') &&
-          !value.includes('..'),
-        { message: 'File name must not contain a path' },
-      ),
-    contentType: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
-    fileSize: z
-      .number()
-      .int()
-      .positive()
-      .max(10 * 1024 * 1024),
-  })
-  .strict();
-
-export type DocumentsData = z.infer<typeof DocumentsDataSchema>;
-
-export const UpdateVendorOnboardingRequestSchema = z.discriminatedUnion(
-  'section',
-  [
-    z
-      .object({
-        section: z.literal('BUSINESS_INFO_AND_OWNER'),
-        data: z
-          .object({
-            businessInfo: CreateVendorRequestSchema,
-            ownerDetails: OwnerDetailsRequestSchema,
-          })
-          .strict(),
-      })
-      .strict(),
-
-    z
-      .object({
-        section: z.literal('SERVICE_LOCATION_AND_COVERAGE'),
-        data: z
-          .object({
-            address: AddressDataSchema,
-            branch: BranchDataSchema,
-          })
-          .strict(),
-      })
-      .strict(),
-
-    z
-      .object({
-        section: z.literal('BUSINESS_VERIFICATION'),
-        data: DocumentsDataSchema,
-      })
-      .strict(),
-
-    z
-      .object({
-        section: z.literal('BANK_AND_PAYOUT_DETAILS'),
-        data: BankDetailsDataSchema,
-      })
-      .strict(),
-  ],
-);

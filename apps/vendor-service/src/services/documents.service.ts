@@ -36,8 +36,13 @@ import {
   documentBelongsToVendor,
   normalizeContentType,
   parseDocumentUploadRequest,
+  sanitizeFileName,
 } from '../domain/document-upload';
-import { DOCUMENT_STATUS } from '../domain/onboarding';
+import {
+  DOCUMENT_STATUS,
+  isOnboardingMutable,
+  preservedOnboardingStatus,
+} from '../domain/onboarding';
 import { env } from '../configs/env.config';
 import {
   DocumentStorage,
@@ -85,8 +90,11 @@ export class DocumentsService {
     );
     aggregate.profile = vendor;
     const state = computeStateFromAggregate(aggregate);
+    if (!isOnboardingMutable(vendor.onboardingStatus)) {
+      return;
+    }
     const updated = VendorsMapper.applyOnboardingState(vendor, {
-      onboardingStatus: state.status,
+      onboardingStatus: preservedOnboardingStatus(vendor.onboardingStatus, state.status),
       currentSection: state.currentSection,
       completedSections: state.completedSections,
       primaryBranchId: vendor.primaryBranchId,
@@ -366,19 +374,27 @@ export class DocumentsService {
       throw new NotFoundError('Document not found');
     }
 
-    const parsed = parseDocumentUploadRequest({
-      documentType: existing.documentType,
-      fileName: body.fileName ?? existing.fileName,
-      contentType: body.contentType ?? existing.contentType,
-      fileSize: body.fileSize ?? existing.fileSize,
-    });
+    const fileName = sanitizeFileName(body.fileName);
+    if (fileName === existing.fileName) {
+      return this.withUrls(existing, false);
+    }
 
-    return this.stageUpload({
-      vendorId: vendor.vendorId,
-      parsed,
-      existing,
-      documentId,
-    });
+    const updated: VendorDocumentDdbItem = {
+      ...existing,
+      fileName,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await this.repository.updateDocument(updated);
+    } catch (err) {
+      if (err instanceof ConditionalWriteConflictError) {
+        throw new ConflictError('Document update conflict');
+      }
+      throw err;
+    }
+
+    return this.withUrls(updated, false);
   }
 
   async deletevendordocument(request: LambdaRequest): Promise<void> {

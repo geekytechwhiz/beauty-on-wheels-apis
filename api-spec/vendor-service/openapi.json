@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "CreateVendorRequest": {
@@ -4055,6 +4055,53 @@
           }
         }
       },
+      "OpsCapacityCommitmentListResponse": {
+        "type": "object",
+        "example": {
+          "data": {
+            "items": [
+              {
+                "commitmentId": "cmt-1",
+                "proposalId": "cpr-1",
+                "vendorId": "vendor-1",
+                "communityId": "community-1",
+                "scope": {
+                  "serviceScopeCode": "service:CAR_WASH",
+                  "label": "Exterior wash"
+                },
+                "window": {
+                  "startDate": "2026-11-01",
+                  "endDate": "2026-11-30",
+                  "dailyWindow": {
+                    "startTime": "06:30",
+                    "endTime": "09:30"
+                  }
+                },
+                "quantity": 30,
+                "rate": {
+                  "amountMinor": 14000,
+                  "currency": "INR"
+                },
+                "status": "ACTIVE",
+                "reservedSoldQuantity": 12,
+                "createdAt": "2026-11-01T00:00:00.000Z",
+                "updatedAt": "2026-11-01T00:00:00.000Z"
+              }
+            ],
+            "pagination": {
+              "hasMore": false,
+              "nextCursor": null
+            },
+            "coverage": {
+              "path": "operationsIndex",
+              "includesLegacyRows": false,
+              "pageIsPopulation": false,
+              "reason": "Cross-vendor rows come from the operations index.",
+              "populationTotal": null
+            }
+          }
+        }
+      },
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
@@ -4097,13 +4144,28 @@
       "status": {
         "type": "string"
       },
-      "limit-667390b7-9ee8-4b6b-a70d-9944199a4e35": {
+      "limit-9ec6094c-f6a7-4129-8459-99879d58fde4": {
+        "type": "string"
+      },
+      "fromDate": {
+        "type": "string"
+      },
+      "toDate": {
+        "type": "string"
+      },
+      "dailyWindowStart": {
+        "type": "string"
+      },
+      "dailyWindowEnd": {
+        "type": "string"
+      },
+      "limit-d878d7e0-c474-477c-a92c-58cc4152cbd4": {
         "type": "string"
       },
       "commitmentId": {
         "type": "string"
       },
-      "limit-3daec227-5265-402d-a699-ef82bbf79470": {
+      "limit-4a6535fa-530a-4903-9300-5bb3cd0ceb33": {
         "type": "string"
       },
       "serviceAreaId": {
@@ -4121,7 +4183,7 @@
       "documentId": {
         "type": "string"
       },
-      "status-2af2daa0-2cac-4585-b6d2-9f55949974be": {
+      "status-d7e043be-f8cd-4eca-9901-75347c5b0ba6": {
         "type": "string",
         "enum": [
           "PENDING",
@@ -4132,7 +4194,7 @@
       "requestId": {
         "type": "string"
       },
-      "status-7202d600-a830-4b65-a332-9f5dd652132f": {
+      "status-a7b8a562-9dd3-4816-9269-ba312a6b36da": {
         "type": "string",
         "enum": [
           "PENDING_REVIEW",
@@ -7774,7 +7836,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-667390b7-9ee8-4b6b-a70d-9944199a4e35"
+              "$ref": "#/components/schemas/limit-9ec6094c-f6a7-4129-8459-99879d58fde4"
             }
           },
           {
@@ -8984,6 +9046,197 @@
         }
       }
     },
+    "/ops/capacity-commitments": {
+      "get": {
+        "summary": "List committed vendor supply",
+        "description": "Admin page of capacity commitments. quantity is slot-units per service-window day. coverage says whether legacy rows are included. pagination.hasMore means another page exists; items.length is not the population.",
+        "operationId": "opslistcapacitycommitments",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "When set, the read uses that vendor base table and includes legacy rows.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "ACTIVE, CHANGE_PENDING, REDUCED, or CANCELLED",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/status"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "Inclusive overlap start, with toDate. YYYY-MM-DD.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/fromDate"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "Inclusive overlap end, with fromDate. YYYY-MM-DD.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/toDate"
+            }
+          },
+          {
+            "name": "dailyWindowStart",
+            "in": "query",
+            "description": "Exact commitment daily window start, HH:mm. This is the service-window clock stored on the commitment.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/dailyWindowStart"
+            }
+          },
+          {
+            "name": "dailyWindowEnd",
+            "in": "query",
+            "description": "Exact commitment daily window end, HH:mm.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/dailyWindowEnd"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit-d878d7e0-c474-477c-a92c-58cc4152cbd4"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cursor"
+            }
+          }
+        ],
+        "tags": [
+          "Capacity"
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed supply page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsCapacityCommitmentListResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/capacity-commitments/{commitmentId}": {
       "get": {
         "summary": "Get capacity commitment",
@@ -9190,7 +9443,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-3daec227-5265-402d-a699-ef82bbf79470"
+              "$ref": "#/components/schemas/limit-4a6535fa-530a-4903-9300-5bb3cd0ceb33"
             }
           },
           {
@@ -11225,7 +11478,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-f1cb612f-1093-45b0-8a81-ea6e84967cc1",
+        "operationId": "updatevendorstaff-61fe3ce0-46a4-44eb-91c6-3e18ca25159e",
         "parameters": [
           {
             "name": "vendorId",
@@ -14649,7 +14902,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-2af2daa0-2cac-4585-b6d2-9f55949974be"
+              "$ref": "#/components/schemas/status-d7e043be-f8cd-4eca-9901-75347c5b0ba6"
             }
           }
         ],
@@ -15292,7 +15545,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-7202d600-a830-4b65-a332-9f5dd652132f"
+              "$ref": "#/components/schemas/status-a7b8a562-9dd3-4816-9269-ba312a6b36da"
             }
           }
         ],

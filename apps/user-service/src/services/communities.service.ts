@@ -108,6 +108,7 @@ export class CommunitiesService {
   }
 
   async listCommunities(request: LambdaRequest): Promise<CommunityListResponse> {
+    const started = Date.now();
     if (!hasCallerIdentity(request)) {
       getAuthenticatedUserId(request);
     }
@@ -142,13 +143,29 @@ export class CommunitiesService {
     });
     const nextCursor = encodeCursor(page.lastEvaluatedKey);
 
+    const items = page.items.map((item) =>
+      isAdminCaller(request) ? toCommunity(item) : toCommunityDirectoryItem(item),
+    );
+    this.logger.info({
+      event: 'list_communities_success',
+      correlationId: (request.context as { correlationId?: string } | undefined)?.correlationId,
+      service: 'user-service',
+      operation: 'GET /communities',
+      outcome: 'success',
+      durationMs: Date.now() - started,
+      count: items.length,
+      hasMore: Boolean(page.lastEvaluatedKey),
+      status: status ?? 'all',
+    });
     return {
-      items: page.items.map((item) =>
-        isAdminCaller(request) ? toCommunity(item) : toCommunityDirectoryItem(item),
-      ),
+      items,
       pagination: {
         nextCursor,
         hasMore: Boolean(page.lastEvaluatedKey),
+        total: null,
+        totalAvailability: 'unavailable',
+        totalReason:
+          'items.length is this page only. Exhaust nextCursor before counting active communities. Do not copy community rows into Vendor, Booking, or Catalog.',
       },
     };
   }

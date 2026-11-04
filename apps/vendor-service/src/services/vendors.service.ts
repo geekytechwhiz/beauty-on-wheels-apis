@@ -174,6 +174,10 @@ export class VendorsService {
       pagination: {
         nextCursor,
         hasMore: Boolean(result.lastEvaluatedKey),
+        total: null,
+        totalAvailability: 'unavailable',
+        totalReason:
+          'data.length is this page only. Exhaust nextCursor before counting vendors. Approved or operational status on this page is not the partner population, and onboarding estimates are not committed supply.',
       },
     };
   }

@@ -42,6 +42,10 @@ export class CapacityProposalsController {
     return this.service.listvendorcapacitycommitments(request);
   }
 
+  async handleOpslistcapacitycommitments(request: LambdaRequest) {
+    return this.service.opslistcapacitycommitments(request);
+  }
+
   async handleGetcapacitycommitment(request: LambdaRequest) {
     return this.service.getcapacitycommitment(request);
   }

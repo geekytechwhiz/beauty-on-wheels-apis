@@ -1280,6 +1280,77 @@ custom:
                   type: boolean
                 idempotent:
                   type: boolean
+      - name: OpsDispatchVisitListResponse
+        description: Cross-vendor dispatch page. assignedCrew is visit assignment, not capacity allocation.
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                definition: Operations dispatch queue of scheduled package visits across vendors.
+                items:
+                  - visitId: visit-1
+                    planId: plan-1
+                    vendorId: vendor-1
+                    communityId: community-1
+                    visitWindowId: morning
+                    visitWindowName: Morning
+                    status: SCHEDULED
+                    scheduledDate: '2026-11-03'
+                    startTime: '08:00'
+                    serviceName: Exterior wash
+                    durationMinutes: 45
+                    slotUnits: 2
+                    registrationNumber: KL07AB1234
+                    assignedCrew:
+                      crewId: crew-1
+                      assignedAt: '2026-11-02T10:00:00.000Z'
+                pagination:
+                  limit: 50
+                  nextCursor: null
+                  hasMore: false
+                  total: null
+                  totalAvailability: unavailable
+                  totalReason: items.length is not the day’s visit population.
+                coverage:
+                  source: packageVisitOpsScheduleIndex
+                  includesVisitsWrittenBeforeIndex: false
+                  reason: Visits saved before the operations schedule index are absent.
+      - name: OpsPackageVisitDemandResponse
+        description: Booked package-visit demand. Not committed supply.
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                communityId: community-1
+                fromDate: '2026-11-01'
+                toDate: '2026-11-07'
+                definition: Booked package-visit demand.
+                unit:
+                  name: slotUnit
+                  minutes: 30
+                  compareWith: Vendor Service commitment quantity for an overlapping service window.
+                completeness: indexedRows
+                completenessReason: Visits written before the operations schedule index are omitted.
+                totals:
+                  demandVisits: 12
+                  demandSlotUnits: 18
+                  scheduled: 8
+                  inProgress: 1
+                  completed: 2
+                  missed: 1
+                  cancelled: 0
+                byWindow:
+                  - visitWindowId: morning
+                    visitWindowName: Morning
+                    demandVisits: 12
+                    demandSlotUnits: 18
+                    scheduled: 8
+                    inProgress: 1
+                    completed: 2
+                    missed: 1
+                    cancelled: 0
 functions:
 
 
@@ -3642,6 +3713,100 @@ functions:
                 schema:
                   type: string
 
+  opslistdispatchpackagevisits:
+    handler: src/handlers/ops-dispatch.handleOpsListDispatchVisits
+    events:
+      - http:
+          path: /ops/dispatch/package-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "List the operations dispatch queue"
+          description: "Scheduled package visits across vendors for one date. Crew assignment is not capacity allocation."
+          swaggerTags:
+            - Dispatch
+          responseData:
+            200:
+              description: "Dispatch page"
+              bodyType: OpsDispatchVisitListResponse
+          documentation:
+            summary: List the operations dispatch queue
+            description: "Requires date. Optional communityId, vendorId, visitWindowId, status, search, limit, and cursor. Search matches registration, service name, or visit id. Assign crews with PUT /vendors/{vendorId}/package-visits/assignments."
+            tags:
+              - Dispatch
+            queryParams:
+              - name: date
+                required: true
+                schema: { type: string }
+              - name: communityId
+                schema: { type: string }
+              - name: vendorId
+                schema: { type: string }
+              - name: visitWindowId
+                schema: { type: string }
+              - name: status
+                schema: { type: string }
+              - name: search
+                schema: { type: string }
+              - name: limit
+                schema: { type: integer }
+              - name: cursor
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Dispatch page
+                responseModels:
+                  application/json: OpsDispatchVisitListResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid request
+                responseModels:
+                  application/json: ErrorResponse
+  opsreadpackagevisitdemand:
+    handler: src/handlers/ops-dispatch.handleOpsReadPackageVisitDemand
+    events:
+      - http:
+          path: /ops/demand/package-visits
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Read booked package-visit demand"
+          description: "Demand counts and slot-units for one community and date range. Not committed supply."
+          swaggerTags:
+            - Demand
+          responseData:
+            200:
+              description: "Demand totals"
+              bodyType: OpsPackageVisitDemandResponse
+          documentation:
+            summary: Read booked package-visit demand
+            description: "communityId, fromDate, and toDate are required. visitWindowId is optional. When the indexed read is too large, totals are null and completeness is unavailable."
+            tags:
+              - Demand
+            queryParams:
+              - name: communityId
+                required: true
+                schema: { type: string }
+              - name: fromDate
+                required: true
+                schema: { type: string }
+              - name: toDate
+                required: true
+                schema: { type: string }
+              - name: visitWindowId
+                schema: { type: string }
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Demand totals
+                responseModels:
+                  application/json: OpsPackageVisitDemandResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid request
+                responseModels:
+                  application/json: ErrorResponse
   opslistissues:
     handler: src/handlers/vendor-issues.handleOpsListIssues
     events:
@@ -4131,6 +4296,12 @@ resources:
           - AttributeName: GSI3SK
             AttributeType: S
 
+          - AttributeName: GSI4PK
+            AttributeType: S
+
+          - AttributeName: GSI4SK
+            AttributeType: S
+
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -4171,6 +4342,20 @@ resources:
                 KeyType: HASH
 
               - AttributeName: GSI3SK
+                KeyType: RANGE
+
+            Projection:
+              ProjectionType: ALL
+
+          # Dated package visits for operations dispatch and demand.
+          # OPS_SCHEDULE#<YYYY-MM-DD> / <communityId>#<visitWindowId>#<vendorId>#<status>#<start>#<visitId>
+          - IndexName: GSI4
+
+            KeySchema:
+              - AttributeName: GSI4PK
+                KeyType: HASH
+
+              - AttributeName: GSI4SK
                 KeyType: RANGE
 
             Projection:

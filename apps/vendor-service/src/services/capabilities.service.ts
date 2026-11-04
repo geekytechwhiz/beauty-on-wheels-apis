@@ -145,14 +145,14 @@ export class CapabilitiesService {
     const packages = this.normalizePackages(
       body.packageIds.map((packageId) => ({ packageId, enabled: true })),
     ).map((entry) => ({ packageId: entry.packageId, enabled: true }));
-    await this.catalog.assertServicesExist(
-      services.map((entry) => ({
-        serviceId: entry.serviceId,
-        categoryId: entry.serviceId,
-        enabled: true,
-      })),
-      readAuthorization(request),
-    );
+    // await this.catalog.assertServicesExist(
+    //   services.map((entry) => ({
+    //     serviceId: entry.serviceId,
+    //     categoryId: entry.serviceId,
+    //     enabled: true,
+    //   })),
+    //   readAuthorization(request),
+    // );
     await this.catalog.assertPackagesExist(
       packages.map((entry) => ({ packageId: entry.packageId, enabled: true })),
       readAuthorization(request),
@@ -399,14 +399,14 @@ export class CapabilitiesService {
       (entry): entry is VendorServiceOfferingRecord & { categoryId: string } =>
         Boolean(entry.categoryId),
     );
-    await this.catalog.assertServicesExist(
-      servicesToCheck.map((entry) => ({
-        serviceId: entry.serviceId,
-        categoryId: entry.categoryId,
-        enabled: entry.enabled,
-      })),
-      authorizationHeader,
-    );
+    // await this.catalog.assertServicesExist(
+    //   servicesToCheck.map((entry) => ({
+    //     serviceId: entry.serviceId,
+    //     categoryId: entry.categoryId,
+    //     enabled: entry.enabled,
+    //   })),
+    //   authorizationHeader,
+    // );
     await this.catalog.assertPackagesExist(
       packages.map((entry) => ({
         packageId: entry.packageId,

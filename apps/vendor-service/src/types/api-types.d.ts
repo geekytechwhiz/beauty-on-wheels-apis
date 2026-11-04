@@ -672,6 +672,10 @@ export interface AddVendorCommunityRequest {
 export interface Pagination {
   nextCursor?: (string) | null;
   hasMore?: boolean;
+  /** Null when this response must not be counted as the population. */
+  total?: null;
+  totalAvailability?: 'unavailable';
+  totalReason?: string;
 }
 
 export interface Error {

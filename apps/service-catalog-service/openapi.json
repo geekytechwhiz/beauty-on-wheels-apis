@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "Category": {
@@ -2357,6 +2357,119 @@
           }
         }
       },
+      "SalesControlRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "reason",
+          "fulfilmentVendorIds",
+          "capacityCommitmentIds"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Required when a sales-control row already exists. Omit when creating the first row."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fulfilmentVendorIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "items": {
+              "type": "string"
+            }
+          },
+          "capacityCommitmentIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 25,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "example": {
+          "enabled": false,
+          "expectedVersion": 2,
+          "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
+          "fulfilmentVendorIds": [
+            "vendor-1"
+          ],
+          "capacityCommitmentIds": [
+            "cmt-1"
+          ]
+        }
+      },
+      "SalesControlListResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagination"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "pagination": {
+            "type": "object"
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "packageId": "pkg_1",
+              "packageName": "Weekend Exterior",
+              "communityId": "community-1",
+              "categoryId": "cat-wash",
+              "enabled": false,
+              "eligibility": "held",
+              "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
+              "fulfilmentVendorIds": [
+                "vendor-1"
+              ],
+              "capacityCommitmentIds": [
+                "cmt-1"
+              ],
+              "version": 2,
+              "createdAt": "2026-11-01T00:00:00.000Z",
+              "updatedAt": "2026-11-02T00:00:00.000Z"
+            }
+          ],
+          "total": 1,
+          "pagination": {
+            "limit": 25,
+            "offset": 0,
+            "hasMore": false,
+            "totalAvailability": "complete",
+            "totalReason": "total is the filtered sales-control population, not the page length.",
+            "nextOffset": null
+          }
+        }
+      },
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
@@ -2432,7 +2545,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-2823daa1-aeda-4d08-b5dd-02715168df74": {
+      "status-629e8d3c-80aa-4b93-a3ee-ed9dbdc3753c": {
         "type": "string",
         "enum": [
           "draft",
@@ -2446,6 +2559,28 @@
       },
       "packageId": {
         "type": "string"
+      },
+      "status-bab1fa2c-e6cc-49d8-a800-7160fdeb0d7f": {
+        "type": "string",
+        "enum": [
+          "open",
+          "held",
+          "scheduled",
+          "expired",
+          "enabled",
+          "disabled"
+        ]
+      },
+      "limit-954ec970-5a2a-4c2c-b1bb-492a131c23a8": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 25
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0
       }
     },
     "securitySchemes": {
@@ -3409,7 +3544,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-2823daa1-aeda-4d08-b5dd-02715168df74"
+              "$ref": "#/components/schemas/status-629e8d3c-80aa-4b93-a3ee-ed9dbdc3753c"
             }
           },
           {
@@ -4427,10 +4562,165 @@
         }
       }
     },
+    "/admin/sales-controls": {
+      "get": {
+        "summary": "List community sales controls for Carish packages",
+        "description": "Admin read of stored sales-control rows. eligibility is the current checkout state. packageName is the catalog label. communityId is the User Service community id. This route does not change package definitions, vendor capabilities, or community approval.\n",
+        "operationId": "listAdminSalesControls",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/packageId"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/status-bab1fa2c-e6cc-49d8-a800-7160fdeb0d7f"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit-954ec970-5a2a-4c2c-b1bb-492a131c23a8"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/offset"
+            }
+          }
+        ],
+        "tags": [
+          "Sales controls"
+        ],
+        "responses": {
+          "200": {
+            "description": "Sales-control page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesControlListResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Catalog administrator access is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/packages/{packageId}/sales-controls/{communityId}": {
       "put": {
         "summary": "Set community sales eligibility for a Carish package",
-        "description": "",
+        "description": "Creates or replaces the sales-control row. expectedVersion is required when the row already exists.",
         "operationId": "putPlatformPackageSalesControl",
         "parameters": [
           {
@@ -4455,6 +4745,17 @@
         "tags": [
           "Sales controls"
         ],
+        "requestBody": {
+          "required": true,
+          "description": "Sales control",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesControlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Sales control",

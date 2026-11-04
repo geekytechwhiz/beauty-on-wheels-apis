@@ -41,7 +41,7 @@ const packageBody = {
 
 describe('PlatformPackagesService', () => {
   const categories = { findById: jest.fn() };
-  const repository = { create: jest.fn(), save: jest.fn(), getPackage: jest.fn(), listRevisions: jest.fn(), listSalesControls: jest.fn(), getSalesControl: jest.fn(), saveSalesControl: jest.fn(), listEnabledForCommunity: jest.fn(), getRevision: jest.fn(), list: jest.fn() };
+  const repository = { create: jest.fn(), save: jest.fn(), getPackage: jest.fn(), listRevisions: jest.fn(), listSalesControls: jest.fn(), getSalesControl: jest.fn(), saveSalesControl: jest.fn(), listEnabledForCommunity: jest.fn(), getRevision: jest.fn(), list: jest.fn(), listAllIndex: jest.fn() };
   const directory = { activeCommunityIds: jest.fn() };
   const coverage = { activeCommunityIds: jest.fn() };
   const service = new PlatformPackagesService(repository as any, categories as any, directory as any, coverage as any, () => '2026-01-01T00:00:00.000Z');
@@ -118,6 +118,37 @@ describe('PlatformPackagesService', () => {
     const result = await service.patch(actorRequest({ expectedVersion: 2, description: 'Updated copy' }, { packageId: 'pkg_1' }));
     expect(result).toMatchObject({ status: 'draft', version: 3, publishedVersion: 2 });
     expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'draft', publishedVersion: 2 }), 2);
+  });
+
+  it('lists sales controls with package labels and an exact filtered total', async () => {
+    repository.listAllIndex.mockResolvedValue([
+      { packageId: 'pkg_1', name: 'Weekend Exterior' },
+    ]);
+    repository.listSalesControls.mockResolvedValue([
+      {
+        packageId: 'pkg_1',
+        communityId: 'community-1',
+        enabled: false,
+        reason: 'Capacity gap',
+        fulfilmentVendorIds: ['vendor-1'],
+        capacityCommitmentIds: ['cmt-1'],
+        version: 2,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
+      },
+    ]);
+    const page = await service.listSalesControls(actorRequest({}, { status: 'held' }));
+    expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({
+      packageId: 'pkg_1',
+      packageName: 'Weekend Exterior',
+      communityId: 'community-1',
+      eligibility: 'held',
+      enabled: false,
+    });
+    expect(page.pagination).toMatchObject({ totalAvailability: 'complete', hasMore: false });
   });
 
   it('refuses sales enablement without active community coverage', async () => {

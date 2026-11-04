@@ -6,6 +6,7 @@ import {
   CAPACITY_HOLDING_STATUSES,
   CAPACITY_RESERVATION_KIND,
   CapacityCommitmentDdbItem,
+  CapacityCommitmentStatus,
   CapacityLedgerDdbItem,
   CapacityReservationKind,
   PlanSoldCapacityReservationDdbItem,
@@ -38,6 +39,18 @@ export interface ListProposalsParams {
   vendorId?: string;
   communityId?: string;
   status?: CapacityProposalStatus;
+  limit?: number;
+  lastEvaluatedKey?: Record<string, unknown>;
+}
+
+export interface ListOpsCommitmentsParams {
+  vendorId?: string;
+  communityId?: string;
+  status?: CapacityCommitmentStatus;
+  fromDate?: string;
+  toDate?: string;
+  dailyWindowStart?: string;
+  dailyWindowEnd?: string;
   limit?: number;
   lastEvaluatedKey?: Record<string, unknown>;
 }
@@ -168,6 +181,85 @@ export class CapacityProposalsRepository extends BaseRepository {
       query.ExclusiveStartKey = params.lastEvaluatedKey;
     }
     return this.queryPage<CapacityProposalDdbItem>(query);
+  }
+
+  /**
+   * Admin committed-supply page.
+   * A vendorId reads that vendor's base-table rows, including commitments written
+   * before the operations index. Without a vendorId the read uses GSI1/GSI3 and
+   * omits rows that were never written with those keys.
+   */
+  async listOpsCommitments(params: ListOpsCommitmentsParams): Promise<{
+    items: CapacityCommitmentDdbItem[];
+    lastEvaluatedKey?: Record<string, unknown>;
+  }> {
+    const names: Record<string, string> = {};
+    const values: Record<string, unknown> = {};
+    const filters: string[] = [];
+    const query: QueryCommandInput = { TableName: this.getTableName() };
+
+    if (params.vendorId) {
+      query.KeyConditionExpression = 'PK = :pk AND begins_with(SK, :sk)';
+      query.ConsistentRead = true;
+      values[':pk'] = VendorKeyBuilder.vendorPk(params.vendorId);
+      values[':sk'] = VendorKeyBuilder.capacityCommitmentSkPrefix();
+      if (params.status) {
+        names['#status'] = 'status';
+        values[':status'] = params.status;
+        filters.push('#status = :status');
+      }
+      if (params.communityId) {
+        names['#communityId'] = 'communityId';
+        values[':communityId'] = params.communityId;
+        filters.push('#communityId = :communityId');
+      }
+    } else if (params.communityId) {
+      query.IndexName = 'GSI3';
+      query.ScanIndexForward = false;
+      values[':pk'] = VendorKeyBuilder.capacityCommitmentGsi3Pk(params.communityId);
+      values[':sk'] = VendorKeyBuilder.capacityCommitmentGsi3Prefix(params.status);
+      query.KeyConditionExpression = 'GSI3PK = :pk AND begins_with(GSI3SK, :sk)';
+    } else {
+      query.IndexName = 'GSI1';
+      query.ScanIndexForward = false;
+      values[':pk'] = VendorKeyBuilder.capacityCommitmentGsi1Pk();
+      if (params.status) {
+        query.KeyConditionExpression = 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)';
+        values[':sk'] = VendorKeyBuilder.capacityCommitmentGsi1StatusPrefix(params.status);
+      } else {
+        query.KeyConditionExpression = 'GSI1PK = :pk';
+      }
+    }
+
+    if (params.fromDate && params.toDate) {
+      names['#window'] = 'window';
+      names['#startDate'] = 'startDate';
+      names['#endDate'] = 'endDate';
+      values[':fromDate'] = params.fromDate;
+      values[':toDate'] = params.toDate;
+      filters.push('#window.#startDate <= :toDate AND #window.#endDate >= :fromDate');
+    }
+    if (params.dailyWindowStart) {
+      names['#window'] = 'window';
+      names['#dailyWindow'] = 'dailyWindow';
+      names['#startTime'] = 'startTime';
+      values[':dailyWindowStart'] = params.dailyWindowStart;
+      filters.push('#window.#dailyWindow.#startTime = :dailyWindowStart');
+    }
+    if (params.dailyWindowEnd) {
+      names['#window'] = 'window';
+      names['#dailyWindow'] = 'dailyWindow';
+      names['#endTime'] = 'endTime';
+      values[':dailyWindowEnd'] = params.dailyWindowEnd;
+      filters.push('#window.#dailyWindow.#endTime = :dailyWindowEnd');
+    }
+
+    query.ExpressionAttributeValues = values;
+    if (Object.keys(names).length > 0) query.ExpressionAttributeNames = names;
+    if (filters.length > 0) query.FilterExpression = filters.join(' AND ');
+    if (params.limit) query.Limit = params.limit;
+    if (params.lastEvaluatedKey) query.ExclusiveStartKey = params.lastEvaluatedKey;
+    return this.queryPage<CapacityCommitmentDdbItem>(query);
   }
 
   async getLedger(vendorId: string): Promise<CapacityLedgerDdbItem | null> {

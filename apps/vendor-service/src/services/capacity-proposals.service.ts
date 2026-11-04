@@ -15,6 +15,7 @@ import { isKnownServiceScopeCode } from '../domain/capabilities-catalog';
 import {
   CAPACITY_COMMITMENT_STATUS,
   CapacityCommitmentDdbItem,
+  CapacityCommitmentStatus,
   DEFAULT_MAX_VISITS_PER_CREW_PER_DAY,
   PackageScope,
   PayoutRate,
@@ -74,6 +75,7 @@ import {
   CAPACITY_IDEMPOTENCY_ENTITY_TYPE,
   CAPACITY_PROPOSAL_ENTITY_TYPE,
   VendorKeyBuilder,
+  capacityCommitmentOpsIndex,
 } from '../utils/constants/vendor-key-builder';
 import {
   assertActiveVendorRoute,
@@ -424,6 +426,62 @@ export class CapacityProposalsService {
     };
   }
 
+  /**
+   * GET /ops/capacity-commitments.
+   * Committed supply only. Onboarding estimates and bookable availability are not read.
+   */
+  async opslistcapacitycommitments(request: LambdaRequest): Promise<{
+    data: CapacityListResult<CapacityCommitmentDto> & {
+      coverage: {
+        path: 'vendorBaseTable' | 'operationsIndex';
+        includesLegacyRows: boolean;
+        pageIsPopulation: false;
+        populationTotal: null;
+        reason: string;
+      };
+    };
+  }> {
+    const started = Date.now();
+    const actor = this.adminActor(request);
+    const filters = this.parseCommitmentFilters(request);
+    const page = await this.repository.listOpsCommitments({
+      ...filters,
+      limit: parseLimit(queryText(request, 'limit')),
+      lastEvaluatedKey: decodeCursor(queryText(request, 'cursor')),
+    });
+    const includesLegacyRows = Boolean(filters.vendorId);
+    this.logger.info({
+      event: 'ops_capacity_commitments_listed',
+      correlationId: correlationIdOf(request),
+      service: 'vendor-service',
+      operation: 'GET /ops/capacity-commitments',
+      outcome: 'success',
+      durationMs: Date.now() - started,
+      count: page.items.length,
+      actorId: actor.userId,
+      vendorId: filters.vendorId,
+      communityId: filters.communityId,
+    });
+    return {
+      data: {
+        items: page.items.map(toCommitmentDto),
+        pagination: {
+          nextCursor: encodeCursor(page.lastEvaluatedKey),
+          hasMore: Boolean(page.lastEvaluatedKey),
+        },
+        coverage: {
+          path: includesLegacyRows ? 'vendorBaseTable' : 'operationsIndex',
+          includesLegacyRows,
+          pageIsPopulation: false,
+          populationTotal: null,
+          reason: includesLegacyRows
+            ? 'This page is one vendor base-table read. items.length is not that vendor’s commitment population unless pagination.hasMore is false and no filter dropped rows. Do not add onboarding estimates or availability slots.'
+            : 'Cross-vendor rows come from the operations index. Commitments written before that index, and not updated since, are absent. Do not treat this page as total committed supply. Use GET /vendors/{vendorId}/capacity-commitments for one vendor’s complete base-table list.',
+        },
+      },
+    };
+  }
+
   /** GET /capacity-commitments/{commitmentId}. Admin, or a principal of the owning vendor. */
   async getcapacitycommitment(
     request: LambdaRequest,
@@ -759,6 +817,12 @@ export class CapacityProposalsService {
       createdAt: at,
       updatedAt: at,
       entityType: CAPACITY_COMMITMENT_ENTITY_TYPE,
+      ...capacityCommitmentOpsIndex({
+        status: CAPACITY_COMMITMENT_STATUS.ACTIVE,
+        communityId: proposal.communityId,
+        windowStartDate: proposal.serviceWindow.startDate,
+        commitmentId,
+      }),
     };
     const note = (input.body as { note?: string } | undefined)?.note;
     const next = this.applyPatch(
@@ -1076,6 +1140,58 @@ export class CapacityProposalsService {
     // (CatalogEntityLookup) once a service-or-package lookup exists.
   }
 
+  private parseCommitmentFilters(request: LambdaRequest): {
+    vendorId?: string;
+    communityId?: string;
+    status?: CapacityCommitmentStatus;
+    fromDate?: string;
+    toDate?: string;
+    dailyWindowStart?: string;
+    dailyWindowEnd?: string;
+  } {
+    const vendorId = queryText(request, 'vendorId');
+    const communityId = queryText(request, 'communityId');
+    const status = queryText(request, 'status');
+    const fromDate = queryText(request, 'fromDate');
+    const toDate = queryText(request, 'toDate');
+    const dailyWindowStart = queryText(request, 'dailyWindowStart');
+    const dailyWindowEnd = queryText(request, 'dailyWindowEnd');
+    if (communityId && !isCommunityId(communityId)) {
+      throw new ValidationError('Invalid communityId');
+    }
+    const allowed = Object.values(CAPACITY_COMMITMENT_STATUS);
+    if (status && !allowed.includes(status as CapacityCommitmentStatus)) {
+      throw new ValidationError(`Invalid status: ${status}`);
+    }
+    if ((fromDate && !toDate) || (!fromDate && toDate)) {
+      throw new ValidationError('fromDate and toDate must be supplied together');
+    }
+    if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      throw new ValidationError('fromDate must be YYYY-MM-DD');
+    }
+    if (toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+      throw new ValidationError('toDate must be YYYY-MM-DD');
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new ValidationError('fromDate must be on or before toDate');
+    }
+    const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (dailyWindowStart && !time.test(dailyWindowStart)) {
+      throw new ValidationError('dailyWindowStart must be HH:mm');
+    }
+    if (dailyWindowEnd && !time.test(dailyWindowEnd)) {
+      throw new ValidationError('dailyWindowEnd must be HH:mm');
+    }
+    return {
+      ...(vendorId ? { vendorId } : {}),
+      ...(communityId ? { communityId } : {}),
+      ...(status ? { status: status as CapacityCommitmentStatus } : {}),
+      ...(fromDate && toDate ? { fromDate, toDate } : {}),
+      ...(dailyWindowStart ? { dailyWindowStart } : {}),
+      ...(dailyWindowEnd ? { dailyWindowEnd } : {}),
+    };
+  }
+
   private parseListFilters(request: LambdaRequest): {
     vendorId?: string;
     communityId?: string;
@@ -1114,6 +1230,11 @@ function toCommitmentDto(item: CapacityCommitmentDdbItem): CapacityCommitmentDto
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+}
+
+function correlationIdOf(request: LambdaRequest): string | undefined {
+  const context = request.context as { correlationId?: string } | undefined;
+  return context?.correlationId;
 }
 
 function queryText(request: LambdaRequest, key: string): string | undefined {

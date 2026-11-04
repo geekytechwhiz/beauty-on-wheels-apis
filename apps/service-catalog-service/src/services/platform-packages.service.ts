@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
-import { ConflictError, LambdaRequest, NotFoundError } from '@api-hub/utils';
+import { ConflictError, LambdaRequest, NotFoundError, ValidationError } from '@api-hub/utils';
+import { createLogger } from '@api-hub/observability';
 
 import {
   CategoriesRepository,
@@ -31,6 +32,9 @@ import {
   validatePlatformPackagePatch,
   validateSalesControl,
 } from '../schemas/platform-packages.schema';
+
+const salesLogger = createLogger({ service: 'platform-packages', redactPII: true });
+const SALES_PACKAGE_CAP = 200;
 
 const transitions: Record<
   PlatformPackageRecord['status'],
@@ -257,6 +261,81 @@ export class PlatformPackagesService {
     return toSalesResponse(sales);
   }
 
+  /**
+   * GET /admin/sales-controls.
+   * Reads stored sales-control rows. It does not change packages, vendor capabilities, or community approval.
+   */
+  async listSalesControls(request: LambdaRequest) {
+    const started = Date.now();
+    assertCatalogAdmin(request);
+    const query = { ...(request.query ?? {}), ...(request.params ?? {}) };
+    const limit = query.limit === undefined ? 25 : Number(query.limit);
+    const offset = query.offset === undefined ? 0 : Number(query.offset);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new ValidationError('limit must be an integer from 1 to 100');
+    }
+    if (!Number.isInteger(offset) || offset < 0) throw new ValidationError('offset must be a non-negative integer');
+    const packageId = text(query.packageId);
+    const communityId = text(query.communityId);
+    const status = text(query.status);
+    if (status && !SALES_STATUS_FILTERS.has(status)) {
+      throw new ValidationError('status must be open, held, scheduled, expired, enabled, or disabled');
+    }
+    const packages = packageId
+      ? [await this.requirePackage(packageId)]
+      : await this.packages.listAllIndex();
+    if (packages.length > SALES_PACKAGE_CAP) {
+      throw new ConflictError('Too many packages to list every sales control. Pass packageId.');
+    }
+    const controls = (
+      await Promise.all(packages.map(async (row) => {
+        const rows = await this.packages.listSalesControls(row.packageId);
+        return rows.map((control) => ({ control, packageName: row.name }));
+      }))
+    ).flat();
+    const now = this.now();
+    const filtered = controls
+      .filter((row) => !communityId || row.control.communityId === communityId)
+      .filter((row) => !status || matchesSalesStatus(row.control, status, now))
+      .sort((left, right) => {
+        const byTime = right.control.updatedAt.localeCompare(left.control.updatedAt);
+        if (byTime !== 0) return byTime;
+        return `${left.control.packageId}:${left.control.communityId}`.localeCompare(
+          `${right.control.packageId}:${right.control.communityId}`,
+        );
+      });
+    const page = filtered.slice(offset, offset + limit);
+    const hasMore = offset + page.length < filtered.length;
+    salesLogger.info({
+      event: 'admin_sales_controls_listed',
+      correlationId: (request.context as { correlationId?: string } | undefined)?.correlationId,
+      service: 'service-catalog-service',
+      operation: 'GET /admin/sales-controls',
+      outcome: 'success',
+      durationMs: Date.now() - started,
+      count: page.length,
+      total: filtered.length,
+      packageId,
+      communityId,
+    });
+    return {
+      items: page.map((row) => ({
+        ...toSalesResponse(row.control),
+        packageName: row.packageName,
+        eligibility: salesEligibility(row.control, now),
+      })),
+      total: filtered.length,
+      pagination: {
+        limit,
+        offset,
+        nextOffset: hasMore ? offset + page.length : null,
+        hasMore,
+        totalAvailability: 'complete' as const,
+        totalReason: 'total is the filtered sales-control population, not the page length.',
+      },
+    };
+  }
+
   /** Customer-facing discovery. Reads only published packages with an enabled, current sales control. */
   async discover(request: LambdaRequest) {
     const query = { ...(request.query ?? {}), ...(request.params ?? {}) };
@@ -421,6 +500,32 @@ function decodeToken(token: string) {
     throw new ConflictError('nextToken is invalid');
   }
 }
+const SALES_STATUS_FILTERS = new Set(['open', 'held', 'scheduled', 'expired', 'enabled', 'disabled']);
+
+export function salesEligibility(
+  control: Pick<PlatformPackageSalesControl, 'enabled' | 'effectiveFrom' | 'effectiveUntil'>,
+  now: string,
+): 'open' | 'held' | 'scheduled' | 'expired' {
+  if (!control.enabled) return 'held';
+  if (control.effectiveFrom && control.effectiveFrom > now) return 'scheduled';
+  if (control.effectiveUntil && control.effectiveUntil <= now) return 'expired';
+  return 'open';
+}
+
+function matchesSalesStatus(
+  control: PlatformPackageSalesControl,
+  status: string,
+  now: string,
+): boolean {
+  if (status === 'enabled') return control.enabled;
+  if (status === 'disabled') return !control.enabled;
+  return salesEligibility(control, now) === status;
+}
+
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
 function effective(control: PlatformPackageSalesControl, now: string) {
   return (
     control.enabled &&

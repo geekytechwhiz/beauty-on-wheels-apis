@@ -698,8 +698,18 @@ custom:
                   properties:
                     nextCursor:
                       type: string
+                      nullable: true
                     hasMore:
                       type: boolean
+                    total:
+                      type: integer
+                      nullable: true
+                    totalAvailability:
+                      type: string
+                      enum: [unavailable]
+                    totalReason:
+                      type: string
+                      example: items.length is this page only. Exhaust nextCursor before counting active communities.
       - name: CustomerCommunitiesUpdate
         description: Replace customer community membership
         content:

@@ -214,15 +214,53 @@ export class VendorIssuesService {
 
   // --- Ops ---------------------------------------------------------------
 
-  async opsList(request: LambdaRequest): Promise<{ items: OpsIssueResponse[] }> {
-    assertAdmin(request);
+  async opsList(request: LambdaRequest): Promise<{
+    items: OpsIssueResponse[];
+    pagination: {
+      limitPerStatus: number;
+      returned: number;
+      mayHaveMore: boolean;
+      total: number | null;
+      totalAvailability: 'complete' | 'unavailable';
+      reason: string;
+    };
+  }> {
+    const started = Date.now();
+    const adminId = assertAdmin(request);
     const status = parseStatus(requestQuery(request).status);
     const statuses: VendorIssueStatus[] = status
       ? [status]
       : [VENDOR_ISSUE_STATUS.OPEN, VENDOR_ISSUE_STATUS.TRIAGED, VENDOR_ISSUE_STATUS.ACTION_REQUIRED];
-    const pages = await Promise.all(statuses.map((value) => this.issues.listByStatus(value, 100)));
-    const items = pages.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(toOpsIssueResponse);
-    return { items };
+    const limit = 100;
+    const pages = await Promise.all(statuses.map((value) => this.issues.listByStatus(value, limit)));
+    const items = pages.flatMap((page) => page.items)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(toOpsIssueResponse);
+    const mayHaveMore = pages.some((page) => Boolean(page.lastEvaluatedKey));
+    this.logger.info({
+      event: 'ops_issues_listed',
+      correlationId: (request.context as { correlationId?: string } | undefined)?.correlationId,
+      service: 'booking-service',
+      operation: 'GET /ops/issues',
+      outcome: 'success',
+      durationMs: Date.now() - started,
+      count: items.length,
+      actorId: adminId,
+      mayHaveMore,
+    });
+    return {
+      items,
+      pagination: {
+        limitPerStatus: limit,
+        returned: items.length,
+        mayHaveMore,
+        total: mayHaveMore ? null : items.length,
+        totalAvailability: mayHaveMore ? 'unavailable' : 'complete',
+        reason: mayHaveMore
+          ? 'At least one status partition has more rows than this read. returned is not the open-issue population.'
+          : 'Every selected status partition was read to the end, so total is the population for those statuses.',
+      },
+    };
   }
 
   async opsAction(request: LambdaRequest, action: OpsIssueAction): Promise<OpsIssueResponse> {

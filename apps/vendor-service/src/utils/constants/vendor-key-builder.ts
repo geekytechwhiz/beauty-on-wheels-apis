@@ -51,6 +51,8 @@ export const CAPACITY_LOOKUP_SK = 'LOOKUP';
 export const CAPACITY_IDEMPOTENCY_SK = 'RECORD';
 
 export const CAPACITY_PROPOSAL_GSI1_PK = 'CAPACITY_PROPOSAL';
+/** Cross-vendor operations list. Distinct from proposal and vendor-status partitions on GSI1. */
+export const CAPACITY_COMMITMENT_GSI1_PK = 'CAPACITY_COMMITMENT';
 
 export const VENDOR_GSI1_PK = 'VENDOR';
 export const GSI1_INDEX = 'GSI1';
@@ -196,6 +198,23 @@ export const VendorKeyBuilder = {
 
   planSoldCapacityReservationSk: () => 'RESERVE',
 
+  /** Cross-vendor admin listing: GSI1 CAPACITY_COMMITMENT / STATUS#<status>#<windowStart>#<id>. */
+  capacityCommitmentGsi1Pk: () => CAPACITY_COMMITMENT_GSI1_PK,
+
+  capacityCommitmentGsi1Sk: (status: string, windowStartDate: string, commitmentId: string) =>
+    `STATUS#${status}#${windowStartDate}#${commitmentId}`,
+
+  capacityCommitmentGsi1StatusPrefix: (status: string) => `STATUS#${status}#`,
+
+  /** Same community partition as proposals. SK prefix COMMITMENT# keeps the two entities apart. */
+  capacityCommitmentGsi3Pk: (communityId: string) => `CAPACITY_COMMUNITY#${communityId}`,
+
+  capacityCommitmentGsi3Sk: (status: string, windowStartDate: string, commitmentId: string) =>
+    `COMMITMENT#${status}#${windowStartDate}#${commitmentId}`,
+
+  capacityCommitmentGsi3Prefix: (status?: string) =>
+    status ? `COMMITMENT#${status}#` : 'COMMITMENT#',
+
   /** Cross-vendor admin listing: GSI1 CAPACITY_PROPOSAL / STATUS#<status>#<createdAt>#<id>. */
   capacityProposalGsi1Pk: () => CAPACITY_PROPOSAL_GSI1_PK,
 
@@ -210,3 +229,26 @@ export const VendorKeyBuilder = {
   capacityProposalGsi3Sk: (createdAt: string, proposalId: string) =>
     `PROPOSAL#${createdAt}#${proposalId}`,
 };
+
+/** GSI attributes for GET /ops/capacity-commitments. Not a second commitment record. */
+export function capacityCommitmentOpsIndex(input: {
+  status: string;
+  communityId: string;
+  windowStartDate: string;
+  commitmentId: string;
+}): { GSI1PK: string; GSI1SK: string; GSI3PK: string; GSI3SK: string } {
+  return {
+    GSI1PK: VendorKeyBuilder.capacityCommitmentGsi1Pk(),
+    GSI1SK: VendorKeyBuilder.capacityCommitmentGsi1Sk(
+      input.status,
+      input.windowStartDate,
+      input.commitmentId,
+    ),
+    GSI3PK: VendorKeyBuilder.capacityCommitmentGsi3Pk(input.communityId),
+    GSI3SK: VendorKeyBuilder.capacityCommitmentGsi3Sk(
+      input.status,
+      input.windowStartDate,
+      input.commitmentId,
+    ),
+  };
+}

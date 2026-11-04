@@ -1855,6 +1855,56 @@
         }
       }
     },
+    "/ops/dispatch/package-visits": {
+      "get": {
+        "summary": "List the operations dispatch queue",
+        "description": "Scheduled package visits across vendors for one date. Crew assignment is not capacity allocation.",
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "opslistdispatchpackagevisits.get./ops/dispatch/package-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Dispatch page",
+            "schema": {
+              "$ref": "#/definitions/OpsDispatchVisitListResponse"
+            }
+          }
+        }
+      }
+    },
+    "/ops/demand/package-visits": {
+      "get": {
+        "summary": "Read booked package-visit demand",
+        "description": "Demand counts and slot-units for one community and date range. Not committed supply.",
+        "tags": [
+          "Demand"
+        ],
+        "operationId": "opsreadpackagevisitdemand.get./ops/demand/package-visits",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Demand totals",
+            "schema": {
+              "$ref": "#/definitions/OpsPackageVisitDemandResponse"
+            }
+          }
+        }
+      }
+    },
     "/ops/issues": {
       "get": {
         "summary": "List issues for ops",

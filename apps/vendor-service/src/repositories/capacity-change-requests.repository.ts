@@ -16,6 +16,7 @@ import {
 import {
   CAPACITY_LEDGER_ENTITY_TYPE,
   VendorKeyBuilder,
+  capacityCommitmentOpsIndex,
 } from '../utils/constants/vendor-key-builder';
 
 export interface CapacityChangeIdempotencyItem {
@@ -111,6 +112,8 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
     idempotency: { key: string; requestHash: string };
     expectedCommitmentQuantity: number;
     updatedAt: string;
+    communityId: string;
+    windowStartDate: string;
   }): Promise<void> {
     const { item } = input;
     const idempotency: CapacityChangeIdempotencyItem = {
@@ -158,7 +161,9 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
           Update: {
             TableName: this.getTableName(),
             Key: commitmentKey(item.vendorId, item.commitmentId),
-            UpdateExpression: 'SET #status = :pending, pendingChangeRequestId = :requestId, updatedAt = :now',
+            UpdateExpression:
+              'SET #status = :pending, pendingChangeRequestId = :requestId, updatedAt = :now, '
+              + COMMITMENT_INDEX_SET,
             ConditionExpression:
               `attribute_exists(PK) AND #status IN (${Object.keys(holdable).join(', ')})`
               + ' AND quantity = :quantity AND attribute_not_exists(pendingChangeRequestId)',
@@ -169,6 +174,12 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
               ':requestId': item.requestId,
               ':quantity': input.expectedCommitmentQuantity,
               ':now': input.updatedAt,
+              ...commitmentIndexValues({
+                status: CAPACITY_COMMITMENT_STATUS.CHANGE_PENDING,
+                communityId: input.communityId,
+                windowStartDate: input.windowStartDate,
+                commitmentId: item.commitmentId,
+              }),
             },
           },
         },
@@ -191,6 +202,8 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
     newStatus: CapacityCommitmentStatus;
     salesBlocked: boolean;
     expectedLedgerVersion: number;
+    communityId: string;
+    windowStartDate: string;
   }): Promise<void> {
     const { item } = input;
     const ledger: CapacityLedgerDdbItem = {
@@ -218,7 +231,8 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
             Key: commitmentKey(item.vendorId, item.commitmentId),
             UpdateExpression:
               'SET quantity = :newQuantity, #status = :newStatus, previousQuantity = :quantity,'
-              + ' lastChangeRequestId = :requestId, updatedAt = :now'
+              + ' lastChangeRequestId = :requestId, updatedAt = :now, '
+              + COMMITMENT_INDEX_SET
               + `${input.salesBlocked ? ', salesBlocked = :true' : ''} REMOVE pendingChangeRequestId`,
             ConditionExpression:
               'attribute_exists(PK) AND #status = :pending AND pendingChangeRequestId = :requestId'
@@ -233,6 +247,12 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
               ':sold': input.expectedSoldQuantity,
               ':now': item.updatedAt,
               ...(input.salesBlocked ? { ':true': true } : {}),
+              ...commitmentIndexValues({
+                status: input.newStatus,
+                communityId: input.communityId,
+                windowStartDate: input.windowStartDate,
+                commitmentId: item.commitmentId,
+              }),
             },
           },
         },
@@ -242,7 +262,12 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
   }
 
   /** Rejection. Restores the commitment's prior status; quantity was never changed. */
-  async reject(input: { item: CapacityChangeRequestDdbItem; expectedVersion: number }): Promise<void> {
+  async reject(input: {
+    item: CapacityChangeRequestDdbItem;
+    expectedVersion: number;
+    communityId: string;
+    windowStartDate: string;
+  }): Promise<void> {
     const { item } = input;
     await this.transactWrite({
       TransactItems: [
@@ -252,7 +277,9 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
             TableName: this.getTableName(),
             Key: commitmentKey(item.vendorId, item.commitmentId),
             UpdateExpression:
-              'SET #status = :before, updatedAt = :now, lastChangeRequestId = :requestId REMOVE pendingChangeRequestId',
+              'SET #status = :before, updatedAt = :now, lastChangeRequestId = :requestId, '
+              + COMMITMENT_INDEX_SET
+              + ' REMOVE pendingChangeRequestId',
             ConditionExpression:
               'attribute_exists(PK) AND #status = :pending AND pendingChangeRequestId = :requestId',
             ExpressionAttributeNames: { '#status': 'status' },
@@ -261,6 +288,12 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
               ':pending': CAPACITY_COMMITMENT_STATUS.CHANGE_PENDING,
               ':requestId': item.requestId,
               ':now': item.updatedAt,
+              ...commitmentIndexValues({
+                status: item.commitmentStatusBefore,
+                communityId: input.communityId,
+                windowStartDate: input.windowStartDate,
+                commitmentId: item.commitmentId,
+              }),
             },
           },
         },
@@ -280,6 +313,23 @@ export class CapacityChangeRequestsRepository extends BaseRepository {
       },
     };
   }
+}
+
+const COMMITMENT_INDEX_SET = 'GSI1PK = :gsi1pk, GSI1SK = :gsi1sk, GSI3PK = :gsi3pk, GSI3SK = :gsi3sk';
+
+function commitmentIndexValues(input: {
+  status: string;
+  communityId: string;
+  windowStartDate: string;
+  commitmentId: string;
+}): Record<string, string> {
+  const index = capacityCommitmentOpsIndex(input);
+  return {
+    ':gsi1pk': index.GSI1PK,
+    ':gsi1sk': index.GSI1SK,
+    ':gsi3pk': index.GSI3PK,
+    ':gsi3sk': index.GSI3SK,
+  };
 }
 
 function commitmentKey(vendorId: string, commitmentId: string) {

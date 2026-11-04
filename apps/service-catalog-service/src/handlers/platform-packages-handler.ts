@@ -37,6 +37,10 @@ export const archivePlatformPackage = withApiHandler(
   { operation: 'archivePlatformPackage' },
   (request: LambdaRequest) => service.transition(request, 'archived'),
 );
+export const listAdminSalesControls = withApiHandler(
+  { operation: 'listAdminSalesControls' },
+  (request: LambdaRequest) => service.listSalesControls(request),
+);
 export const putPlatformPackageSalesControl = withApiHandler(
   { operation: 'putPlatformPackageSalesControl' },
   (request: LambdaRequest) => service.updateSalesControl(request),

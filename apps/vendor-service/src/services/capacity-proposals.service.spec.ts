@@ -144,6 +144,7 @@ describe('CapacityProposalsService', () => {
       listCommitments: jest.fn().mockResolvedValue([]),
       getCommitment: jest.fn().mockResolvedValue(null),
       listProposals: jest.fn().mockResolvedValue({ items: [] }),
+      listOpsCommitments: jest.fn().mockResolvedValue({ items: [] }),
       createProposal: jest.fn().mockResolvedValue(undefined),
       transitionProposal: jest.fn().mockResolvedValue(undefined),
       acceptProposal: jest.fn().mockResolvedValue(undefined),
@@ -538,6 +539,26 @@ describe('CapacityProposalsService', () => {
         service.listcapacityproposals(request({ user: 'admin', params: { status: 'NOPE' } })),
       ).rejects.toThrow(ValidationError);
     });
+  });
+
+  it('lists cross-vendor commitments without treating the page as the population', async () => {
+    repository.listOpsCommitments.mockResolvedValue({
+      items: [commitment(4)],
+    });
+    const result = await service.opslistcapacitycommitments(
+      request({ user: 'admin', params: { communityId: 'com-other', fromDate: '2026-11-01', toDate: '2026-11-30' } }),
+    );
+    expect(repository.listOpsCommitments).toHaveBeenCalledWith(expect.objectContaining({
+      communityId: 'com-other',
+      fromDate: '2026-11-01',
+      toDate: '2026-11-30',
+    }));
+    expect(result.data.coverage).toMatchObject({
+      path: 'operationsIndex',
+      includesLegacyRows: false,
+      populationTotal: null,
+    });
+    expect(result.data.items[0].quantity).toBe(4);
   });
 });
 

@@ -1584,6 +1584,84 @@
           }
         }
       },
+      "OpsDispatchVisitListResponse": {
+        "type": "object",
+        "example": {
+          "definition": "Operations dispatch queue of scheduled package visits across vendors.",
+          "items": [
+            {
+              "visitId": "visit-1",
+              "planId": "plan-1",
+              "vendorId": "vendor-1",
+              "communityId": "community-1",
+              "visitWindowId": "morning",
+              "visitWindowName": "Morning",
+              "status": "SCHEDULED",
+              "scheduledDate": "2026-11-03",
+              "startTime": "08:00",
+              "serviceName": "Exterior wash",
+              "durationMinutes": 45,
+              "slotUnits": 2,
+              "registrationNumber": "KL07AB1234",
+              "assignedCrew": {
+                "crewId": "crew-1",
+                "assignedAt": "2026-11-02T10:00:00.000Z"
+              }
+            }
+          ],
+          "pagination": {
+            "limit": 50,
+            "hasMore": false,
+            "totalAvailability": "unavailable",
+            "totalReason": "items.length is not the day’s visit population.",
+            "nextCursor": null,
+            "total": null
+          },
+          "coverage": {
+            "source": "packageVisitOpsScheduleIndex",
+            "includesVisitsWrittenBeforeIndex": false,
+            "reason": "Visits saved before the operations schedule index are absent."
+          }
+        }
+      },
+      "OpsPackageVisitDemandResponse": {
+        "type": "object",
+        "example": {
+          "communityId": "community-1",
+          "fromDate": "2026-11-01",
+          "toDate": "2026-11-07",
+          "definition": "Booked package-visit demand.",
+          "unit": {
+            "name": "slotUnit",
+            "minutes": 30,
+            "compareWith": "Vendor Service commitment quantity for an overlapping service window."
+          },
+          "completeness": "indexedRows",
+          "completenessReason": "Visits written before the operations schedule index are omitted.",
+          "totals": {
+            "demandVisits": 12,
+            "demandSlotUnits": 18,
+            "scheduled": 8,
+            "inProgress": 1,
+            "completed": 2,
+            "missed": 1,
+            "cancelled": 0
+          },
+          "byWindow": [
+            {
+              "visitWindowId": "morning",
+              "visitWindowName": "Morning",
+              "demandVisits": 12,
+              "demandSlotUnits": 18,
+              "scheduled": 8,
+              "inProgress": 1,
+              "completed": 2,
+              "missed": 1,
+              "cancelled": 0
+            }
+          ]
+        }
+      },
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
@@ -1648,7 +1726,7 @@
       "search": {
         "type": "string"
       },
-      "limit-3331ebde-ccf6-499f-a44a-6cdcf7c9d4e6": {
+      "limit-4c45d949-5b87-4a94-9b42-ae429313ac30": {
         "type": "integer",
         "minimum": 1,
         "maximum": 50
@@ -1656,20 +1734,20 @@
       "nextToken": {
         "type": "string"
       },
-      "fromDate-bf3841ed-e3ba-4e85-844f-c93f8420cdd5": {
+      "fromDate-20564bdb-2820-4e86-ad6d-dd1e24e775de": {
         "type": "string",
         "format": "date"
       },
-      "toDate-8c12c793-d08d-4527-97ce-9aca760d5774": {
+      "toDate-ed2687e9-415f-489a-90fa-25db76af91a9": {
         "type": "string",
         "format": "date"
       },
-      "limit-9e0c4b77-e2cb-41d9-838a-2fb62657ddee": {
+      "limit-75a893c7-93c0-49b3-9136-082628efd0a7": {
         "type": "integer",
         "minimum": 1,
         "maximum": 50
       },
-      "status-a40c75df-cf6e-4902-bd1d-a68f410095d1": {
+      "status-4a2712cc-237c-416f-813a-a646c33c2f47": {
         "type": "string",
         "enum": [
           "OPEN",
@@ -1681,7 +1759,13 @@
       "issueId": {
         "type": "string"
       },
-      "status-fc788a95-9006-4f23-9888-635a53b9b4e8": {
+      "status-dc505be1-7012-4f6b-95b5-13f06df2a076": {
+        "type": "string"
+      },
+      "limit-6e8f92c2-232e-469b-b1da-8001d2ab0b8e": {
+        "type": "integer"
+      },
+      "status-3d1ac442-0daa-4c04-a44a-e675dd2e9d60": {
         "type": "string",
         "enum": [
           "OPEN",
@@ -1700,7 +1784,7 @@
     }
   },
   "info": {
-    "title": "Carish booking-service API",
+    "title": "Beauty on Wheels - Booking Service API",
     "description": "Create and manage customer bookings and booking lifecycle transitions.",
     "version": "1.0.0"
   },
@@ -4053,7 +4137,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-3331ebde-ccf6-499f-a44a-6cdcf7c9d4e6"
+              "$ref": "#/components/schemas/limit-4c45d949-5b87-4a94-9b42-ae429313ac30"
             }
           },
           {
@@ -4265,7 +4349,7 @@
             "description": "Inclusive start date YYYY-MM-DD",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/fromDate-bf3841ed-e3ba-4e85-844f-c93f8420cdd5"
+              "$ref": "#/components/schemas/fromDate-20564bdb-2820-4e86-ad6d-dd1e24e775de"
             }
           },
           {
@@ -4274,7 +4358,7 @@
             "description": "Inclusive end date YYYY-MM-DD",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/toDate-8c12c793-d08d-4527-97ce-9aca760d5774"
+              "$ref": "#/components/schemas/toDate-ed2687e9-415f-489a-90fa-25db76af91a9"
             }
           }
         ],
@@ -4777,7 +4861,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-9e0c4b77-e2cb-41d9-838a-2fb62657ddee"
+              "$ref": "#/components/schemas/limit-75a893c7-93c0-49b3-9136-082628efd0a7"
             }
           },
           {
@@ -5392,7 +5476,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-a40c75df-cf6e-4902-bd1d-a68f410095d1"
+              "$ref": "#/components/schemas/status-4a2712cc-237c-416f-813a-a646c33c2f47"
             }
           },
           {
@@ -6234,6 +6318,238 @@
         }
       }
     },
+    "/ops/dispatch/package-visits": {
+      "get": {
+        "summary": "List the operations dispatch queue",
+        "description": "Requires date. Optional communityId, vendorId, visitWindowId, status, search, limit, and cursor. Search matches registration, service name, or visit id. Assign crews with PUT /vendors/{vendorId}/package-visits/assignments.",
+        "operationId": "opslistdispatchpackagevisits",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "visitWindowId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/visitWindowId"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/status-dc505be1-7012-4f6b-95b5-13f06df2a076"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/limit-6e8f92c2-232e-469b-b1da-8001d2ab0b8e"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cursor"
+            }
+          }
+        ],
+        "tags": [
+          "Dispatch"
+        ],
+        "responses": {
+          "200": {
+            "description": "Dispatch page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsDispatchVisitListResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ops/demand/package-visits": {
+      "get": {
+        "summary": "Read booked package-visit demand",
+        "description": "communityId, fromDate, and toDate are required. visitWindowId is optional. When the indexed read is too large, totals are null and completeness is unavailable.",
+        "operationId": "opsreadpackagevisitdemand",
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/fromDate"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/toDate"
+            }
+          },
+          {
+            "name": "visitWindowId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/visitWindowId"
+            }
+          }
+        ],
+        "tags": [
+          "Demand"
+        ],
+        "responses": {
+          "200": {
+            "description": "Demand totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsPackageVisitDemandResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ops/issues": {
       "get": {
         "summary": "List issues for ops",
@@ -6246,7 +6562,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-fc788a95-9006-4f23-9888-635a53b9b4e8"
+              "$ref": "#/components/schemas/status-3d1ac442-0daa-4c04-a44a-e675dd2e9d60"
             }
           }
         ],

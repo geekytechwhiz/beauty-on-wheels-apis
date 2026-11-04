@@ -132,6 +132,8 @@ export class CapacityChangeRequestsService {
         idempotency: { key, requestHash },
         expectedCommitmentQuantity: commitment.quantity,
         updatedAt: nowIso,
+        communityId: commitment.communityId,
+        windowStartDate: commitment.window.startDate,
       });
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
@@ -166,12 +168,49 @@ export class CapacityChangeRequestsService {
     return { items: items.map(toChangeResponse) };
   }
 
-  async opsList(request: LambdaRequest): Promise<{ items: CapacityChangeRequestResponse[] }> {
-    assertAdminAccess(request);
+  async opsList(request: LambdaRequest): Promise<{
+    items: CapacityChangeRequestResponse[];
+    pagination: {
+      limitPerStatus: number;
+      returned: number;
+      mayHaveMore: boolean;
+      total: number | null;
+      totalAvailability: 'complete' | 'unavailable';
+      reason: string;
+    };
+  }> {
+    const started = Date.now();
+    const adminId = assertAdminAccess(request);
     const raw = (request.params?.status ?? request.query?.status) as string | undefined;
     const statuses = raw ? [parseStatus(raw)] : [CAPACITY_CHANGE_STATUS.PENDING];
-    const pages = await Promise.all(statuses.map((status) => this.requests.listByStatus(status, 100)));
-    return { items: pages.flat().map(toChangeResponse) };
+    const limit = 100;
+    const pages = await Promise.all(statuses.map((status) => this.requests.listByStatus(status, limit)));
+    const items = pages.flat().map(toChangeResponse);
+    const mayHaveMore = pages.some((page) => page.length >= limit);
+    this.logger.info({
+      event: 'ops_capacity_change_requests_listed',
+      correlationId: (request.context as { correlationId?: string } | undefined)?.correlationId,
+      service: 'vendor-service',
+      operation: 'GET /ops/capacity-change-requests',
+      outcome: 'success',
+      durationMs: Date.now() - started,
+      count: items.length,
+      actorId: adminId,
+      mayHaveMore,
+    });
+    return {
+      items,
+      pagination: {
+        limitPerStatus: limit,
+        returned: items.length,
+        mayHaveMore,
+        total: mayHaveMore ? null : items.length,
+        totalAvailability: mayHaveMore ? 'unavailable' : 'complete',
+        reason: mayHaveMore
+          ? 'Each status read is capped at 100. returned is not the population.'
+          : 'Every matching status read finished under the cap, so total is the population for the selected statuses.',
+      },
+    };
   }
 
   async approve(request: LambdaRequest): Promise<CapacityChangeRequestResponse> {
@@ -233,6 +272,8 @@ export class CapacityChangeRequestsService {
         newStatus: outcome.newStatus,
         salesBlocked: outcome.salesBlocked,
         expectedLedgerVersion: ledger?.version ?? 0,
+        communityId: commitment.communityId,
+        windowStartDate: commitment.window.startDate,
       });
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
@@ -280,8 +321,15 @@ export class CapacityChangeRequestsService {
       version: change.version + 1,
       updatedAt: nowIso,
     };
+    const commitment = await this.capacity.getCommitment(change.vendorId, change.commitmentId);
+    if (!commitment) throw new NotFoundError('Capacity commitment not found');
     try {
-      await this.requests.reject({ item: next, expectedVersion: change.version });
+      await this.requests.reject({
+        item: next,
+        expectedVersion: change.version,
+        communityId: commitment.communityId,
+        windowStartDate: commitment.window.startDate,
+      });
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
         throw new ConflictError('Request or commitment changed concurrently; reload and retry');

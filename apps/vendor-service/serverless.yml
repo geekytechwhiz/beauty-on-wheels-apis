@@ -3224,6 +3224,45 @@ custom:
                       type: string
                     version:
                       type: string
+      - name: OpsCapacityCommitmentListResponse
+        description: Cross-vendor committed supply page. populationTotal is always null. Do not derive this from onboarding estimates or bookable availability.
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                data:
+                  items:
+                    - commitmentId: cmt-1
+                      proposalId: cpr-1
+                      vendorId: vendor-1
+                      communityId: community-1
+                      scope:
+                        serviceScopeCode: service:CAR_WASH
+                        label: Exterior wash
+                      window:
+                        startDate: '2026-11-01'
+                        endDate: '2026-11-30'
+                        dailyWindow:
+                          startTime: '06:30'
+                          endTime: '09:30'
+                      quantity: 30
+                      rate:
+                        amountMinor: 14000
+                        currency: INR
+                      status: ACTIVE
+                      reservedSoldQuantity: 12
+                      createdAt: '2026-11-01T00:00:00.000Z'
+                      updatedAt: '2026-11-01T00:00:00.000Z'
+                  pagination:
+                    nextCursor: null
+                    hasMore: false
+                  coverage:
+                    path: operationsIndex
+                    includesLegacyRows: false
+                    pageIsPopulation: false
+                    populationTotal: null
+                    reason: Cross-vendor rows come from the operations index.
 functions:
 
   createvendor:
@@ -5548,6 +5587,101 @@ functions:
             pathParams:
               - name: vendorId
                 description: vendorId
+                schema:
+                  type: string
+
+  opslistcapacitycommitments:
+    handler: src/handlers/capacity-proposals-handler.handleOpslistcapacitycommitments
+    events:
+      - http:
+          path: /ops/capacity-commitments
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          request:
+            parameters:
+              querystrings:
+                vendorId: false
+                communityId: false
+                status: false
+                fromDate: false
+                toDate: false
+                dailyWindowStart: false
+                dailyWindowEnd: false
+                limit: false
+                cursor: false
+          summary: "List committed supply"
+          description: "Admin committed-supply page across vendors. Not onboarding estimates and not bookable availability."
+          swaggerTags:
+            - Capacity
+          responseData:
+            200:
+              description: "Committed supply page"
+              bodyType: OpsCapacityCommitmentListResponse
+            400:
+              description: "Invalid request"
+            401:
+              description: "Authentication is required"
+            403:
+              description: "Caller is not allowed"
+          documentation:
+            summary: List committed vendor supply
+            description: "Admin page of capacity commitments. quantity is slot-units per service-window day. coverage says whether legacy rows are included. pagination.hasMore means another page exists; items.length is not the population."
+            tags:
+              - Capacity
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Committed supply page
+                responseModels:
+                  application/json: OpsCapacityCommitmentListResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Invalid request
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Authentication is required
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller is not allowed
+                responseModels:
+                  application/json: ErrorResponse
+            queryParams:
+              - name: vendorId
+                description: When set, the read uses that vendor base table and includes legacy rows.
+                schema:
+                  type: string
+              - name: communityId
+                schema:
+                  type: string
+              - name: status
+                description: ACTIVE, CHANGE_PENDING, REDUCED, or CANCELLED
+                schema:
+                  type: string
+              - name: fromDate
+                description: Inclusive overlap start, with toDate. YYYY-MM-DD.
+                schema:
+                  type: string
+              - name: toDate
+                description: Inclusive overlap end, with fromDate. YYYY-MM-DD.
+                schema:
+                  type: string
+              - name: dailyWindowStart
+                description: Exact commitment daily window start, HH:mm. This is the service-window clock stored on the commitment.
+                schema:
+                  type: string
+              - name: dailyWindowEnd
+                description: Exact commitment daily window end, HH:mm.
+                schema:
+                  type: string
+              - name: limit
+                schema:
+                  type: string
+              - name: cursor
                 schema:
                   type: string
 

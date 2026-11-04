@@ -113,7 +113,10 @@ export class VendorIssuesRepository extends BaseRepository {
   }
 
   /** Ops queue. Most recent first. Capped per status; narrow with the status filter. */
-  async listByStatus(status: VendorIssueStatus, limit: number): Promise<VendorIssueRecord[]> {
+  async listByStatus(
+    status: VendorIssueStatus,
+    limit: number,
+  ): Promise<{ items: VendorIssueRecord[]; lastEvaluatedKey?: Record<string, unknown> }> {
     const page = await this.queryPage<VendorIssueDdbItem>({
       TableName: this.getTableName(),
       IndexName: 'GSI1',
@@ -122,7 +125,7 @@ export class VendorIssuesRepository extends BaseRepository {
       ScanIndexForward: false,
       Limit: limit,
     });
-    return page.items.map(toRecord);
+    return { items: page.items.map(toRecord), lastEvaluatedKey: page.lastEvaluatedKey };
   }
 
   private async listVisitLinks(visitId: string): Promise<VisitIssueLinkItem[]> {

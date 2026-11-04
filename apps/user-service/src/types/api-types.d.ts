@@ -200,6 +200,10 @@ export interface CommunityListResponse {
   pagination: {
     nextCursor: string | null;
     hasMore: boolean;
+    /** Null because a filtered page is not the community population. */
+    total: null;
+    totalAvailability: 'unavailable';
+    totalReason: string;
   };
 }
 

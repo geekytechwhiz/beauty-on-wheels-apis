@@ -84,6 +84,13 @@ export const handleListvendorcapacitycommitments = withVendorApiHandler(
   async (request: LambdaRequest) => controller.handleListvendorcapacitycommitments(request),
 );
 
+export const handleOpslistcapacitycommitments = withVendorApiHandler(
+  {
+    operation: 'opslistcapacitycommitments',
+  },
+  async (request: LambdaRequest) => controller.handleOpslistcapacitycommitments(request),
+);
+
 export const handleGetcapacitycommitment = withVendorApiHandler(
   {
     operation: 'getcapacitycommitment',

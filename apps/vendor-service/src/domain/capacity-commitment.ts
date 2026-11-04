@@ -113,6 +113,14 @@ export interface CapacityCommitmentDdbItem {
   createdAt: string;
   updatedAt: string;
   entityType: 'CapacityCommitment';
+  /**
+   * Operations index. Present on commitments written or status-updated after the
+   * cross-vendor list shipped. Absent on older rows until they are rewritten.
+   */
+  GSI1PK?: string;
+  GSI1SK?: string;
+  GSI3PK?: string;
+  GSI3SK?: string;
 }
 
 /**

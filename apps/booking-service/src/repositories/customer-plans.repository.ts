@@ -412,6 +412,41 @@ export class CustomerPlansRepository extends BaseRepository {
     });
     return { visit: input.visit, plan: input.plan };
   }
+
+  /**
+   * Scheduled package visits for one civil date on GSI4.
+   * communityId and visitWindowId are key prefixes. Vendor and status stay filters.
+   */
+  async queryOpsSchedule(input: {
+    date: string;
+    communityId?: string;
+    visitWindowId?: string;
+    limit: number;
+    exclusiveStartKey?: Record<string, unknown>;
+  }): Promise<{ items: PackageVisitPageRow[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    const prefix = input.communityId
+      ? `${input.communityId}#${input.visitWindowId ? `${input.visitWindowId}#` : ''}`
+      : undefined;
+    const params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI4',
+      KeyConditionExpression: prefix
+        ? 'GSI4PK = :pk AND begins_with(GSI4SK, :prefix)'
+        : 'GSI4PK = :pk',
+      ExpressionAttributeValues: {
+        ':pk': `OPS_SCHEDULE#${input.date}`,
+        ...(prefix ? { ':prefix': prefix } : {}),
+      },
+      Limit: input.limit,
+      ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+      ScanIndexForward: true,
+    };
+    const page = await this.queryPage<PackageVisitDdbItem>(params);
+    return {
+      items: page.items.map((item) => ({ record: toVisitRecord(item), resumeKey: gsi4ResumeKey(item) })),
+      lastEvaluatedKey: page.lastEvaluatedKey,
+    };
+  }
 }
 
 function planKey(planId: string) {
@@ -473,7 +508,27 @@ function toVisitItem(record: PackageVisitRecord): PackageVisitDdbItem {
     item.GSI3PK = `VENDOR#${record.vendorId}#DATE#${date}`;
     item.GSI3SK = `VISIT#${startTime}#${record.visitId}`;
   }
+  const opsIndex = opsScheduleIndex(record);
+  if (opsIndex) {
+    item.GSI4PK = opsIndex.GSI4PK;
+    item.GSI4SK = opsIndex.GSI4SK;
+  }
   return item;
+}
+
+/** Cross-vendor dispatch and demand. One partition per civil date. */
+export function opsScheduleIndex(
+  record: Pick<PackageVisitRecord, 'schedule' | 'status' | 'communityId' | 'visitWindowId' | 'vendorId' | 'visitId'>,
+): { GSI4PK: string; GSI4SK: string } | undefined {
+  const date = record.schedule?.date;
+  if (!date || record.status === 'UNSCHEDULED') return undefined;
+  const communityId = record.communityId?.trim() || '_';
+  const visitWindowId = record.visitWindowId?.trim() || '_';
+  const startTime = record.schedule?.startTime ?? '00:00';
+  return {
+    GSI4PK: `OPS_SCHEDULE#${date}`,
+    GSI4SK: `${communityId}#${visitWindowId}#${record.vendorId}#${record.status}#${startTime}#${record.visitId}`,
+  };
 }
 
 export interface PackageVisitPageRow {
@@ -499,6 +554,15 @@ function gsi3ResumeKey(item: PackageVisitDdbItem): Record<string, unknown> {
   };
 }
 
+function gsi4ResumeKey(item: PackageVisitDdbItem): Record<string, unknown> {
+  return {
+    PK: item.PK,
+    SK: item.SK,
+    GSI4PK: item.GSI4PK,
+    GSI4SK: item.GSI4SK,
+  };
+}
+
 function toVisitRecord(item: PackageVisitDdbItem): PackageVisitRecord {
   const {
     PK: _pk,
@@ -509,6 +573,8 @@ function toVisitRecord(item: PackageVisitDdbItem): PackageVisitRecord {
     GSI2SK: _g2sk,
     GSI3PK: _g3pk,
     GSI3SK: _g3sk,
+    GSI4PK: _g4pk,
+    GSI4SK: _g4sk,
     entityType: _entityType,
     ...record
   } = item;

@@ -129,6 +129,18 @@ export class PlatformPackagesRepository extends BaseRepository {
     return super.get<PlatformPackageSalesControl>(TABLE(), { PK: CatalogKeyBuilder.platformPackagePk(packageId), SK: CatalogKeyBuilder.platformPackageSalesSk(communityId) });
   }
 
+  async listAllIndex(): Promise<PlatformPackageRecord[]> {
+    return this.queryAll<PlatformPackageRecord>({
+      TableName: TABLE(),
+      KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :prefix)',
+      ExpressionAttributeNames: { '#pk': 'PK', '#sk': 'SK' },
+      ExpressionAttributeValues: {
+        ':pk': CatalogKeyBuilder.platformPackageIndexPk(),
+        ':prefix': 'PACKAGE#',
+      },
+    });
+  }
+
   async listSalesControls(packageId: string): Promise<PlatformPackageSalesControl[]> {
     return this.queryAll<PlatformPackageSalesControl>({ TableName: TABLE(), KeyConditionExpression: '#pk = :pk AND begins_with(#sk, :prefix)', ExpressionAttributeNames: { '#pk': 'PK', '#sk': 'SK' }, ExpressionAttributeValues: { ':pk': CatalogKeyBuilder.platformPackagePk(packageId), ':prefix': CatalogKeyBuilder.platformPackageSalesPrefix() } });
   }

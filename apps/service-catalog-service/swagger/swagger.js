@@ -1349,6 +1349,31 @@
         }
       }
     },
+    "/admin/sales-controls": {
+      "get": {
+        "summary": "List package sales controls",
+        "description": "",
+        "tags": [
+          "Sales controls"
+        ],
+        "operationId": "listAdminSalesControls.get./admin/sales-controls",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Sales-control page",
+            "schema": {
+              "$ref": "#/definitions/SalesControlListResponse"
+            }
+          }
+        }
+      }
+    },
     "/admin/packages/{packageId}/sales-controls/{communityId}": {
       "put": {
         "summary": "Set package community sales control",
@@ -1364,6 +1389,15 @@
           "application/json"
         ],
         "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SalesControlRequest"
+            }
+          },
           {
             "name": "packageId",
             "in": "path",

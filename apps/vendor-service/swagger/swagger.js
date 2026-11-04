@@ -9,7 +9,7 @@
     "/vendors": {
       "post": {
         "summary": "Create vendor",
-        "description": "Creates the caller's initial vendor. A phone-verified REGISTRANT whose authorizer context includes vendor:register may call only this route and receives a DRAFT vendor with an owner membership. The owner id and phone come from Identity, not the body. PAN, GST, and documents are not required. A retry returns the existing vendor. CUSTOMER cannot create a vendor. userType is not authorization. Administrators and callers with vendor:create keep their existing create behavior.",
+        "description": "Creates the caller's vendor and any supplied initial onboarding sections in one request. A phone-verified REGISTRANT with vendor:register may call only this route. The owner id and verified phone come from Identity. Locality, city, district, state, and country are stored from the postal directory. Community coverage is saved as REQUESTED. Capacity is indicative and does not create a commitment. A retry returns the existing vendor and does not create a second one. Administrators and callers with vendor:create keep their existing create permission.",
         "tags": [
           "Vendors"
         ],
@@ -354,7 +354,7 @@
       },
       "patch": {
         "summary": "Update vendor",
-        "description": "Updates vendor profile fields. Address, owner, bank, branches and documents are not updated here — use onboarding or dedicated resource APIs.",
+        "description": "Partially updates business and contact fields on the existing vendor profile. Address, owner, bank, documents, coverage, and capabilities use their own routes. A concurrent profile write returns 409.",
         "tags": [
           "Vendors"
         ],
@@ -1547,6 +1547,95 @@
         }
       }
     },
+    "/ops/capacity-commitments": {
+      "get": {
+        "summary": "List committed supply",
+        "description": "Admin committed-supply page across vendors. Not onboarding estimates and not bookable availability.",
+        "tags": [
+          "Capacity"
+        ],
+        "operationId": "opslistcapacitycommitments.get./ops/capacity-commitments",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "vendorId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "communityId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "fromDate",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "toDate",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "dailyWindowStart",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "dailyWindowEnd",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "string",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "type": "string",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed supply page",
+            "schema": {
+              "$ref": "#/definitions/OpsCapacityCommitmentListResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication is required"
+          },
+          "403": {
+            "description": "Caller is not allowed"
+          }
+        }
+      }
+    },
     "/capacity-commitments/{commitmentId}": {
       "get": {
         "summary": "Get capacity commitment",
@@ -2090,8 +2179,8 @@
     },
     "/vendors/{vendorId}/operating-hours": {
       "put": {
-        "summary": "Replace vendor operating hours",
-        "description": "Replaces the vendor's standard weekly operating schedule.\n\nAvailability Service may use this schedule as an input when\ngenerating or validating bookable slots.\n\nHoliday dates and slot blocks are owned by Availability Service and are not stored here.\n",
+        "summary": "Replace vendor service windows",
+        "description": "Replaces the vendor's supported service windows on the operating-preferences record returned by vendor detail and onboarding. Unknown ids are rejected. Repeating the same selection does not create another record. This does not change catalog windows or capacity commitments.\n",
         "tags": [
           "Operating Hours"
         ],
@@ -2729,7 +2818,7 @@
       },
       "put": {
         "summary": "Replace vendor capabilities",
-        "description": "Updates the services, packages and vehicle types that the vendor\nis capable of supporting.\n\nService mappings require catalog serviceId and categoryId so Vendor Service\ncan confirm the entity with Service Catalog. Package ids are confirmed the same way.\nOptional priceOverride is provider configuration only. Checkout price is not calculated here.\n",
+        "description": "Replaces the vendor capability selection: vehicle types, wash methods, service types, and catalog service and package selections. Send the full selection. Empty arrays clear that part. Unknown or inactive catalog ids are rejected. Catalog definitions are not modified. priceOverride is provider configuration only.\n",
         "tags": [
           "Capabilities"
         ],
@@ -2772,118 +2861,6 @@
           },
           "409": {
             "description": "409 response"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/services": {
-      "put": {
-        "summary": "Replace vendor catalog services",
-        "description": "Replaces provider service mappings after Service Catalog confirms each serviceId and categoryId. Does not copy catalog entities or calculate checkout price.",
-        "tags": [
-          "Capabilities"
-        ],
-        "operationId": "updatevendorservices.put./vendors/{vendorId}/services",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ReplaceVendorServicesRequest"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Vendor services replaced"
-          },
-          "400": {
-            "description": "400 response"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          },
-          "409": {
-            "description": "409 response"
-          },
-          "502": {
-            "description": "Catalog service unavailable"
-          }
-        }
-      }
-    },
-    "/vendors/{vendorId}/packages": {
-      "put": {
-        "summary": "Replace vendor catalog packages",
-        "description": "Replaces provider package mappings after Service Catalog confirms each packageId. priceOverride is provider configuration only.",
-        "tags": [
-          "Capabilities"
-        ],
-        "operationId": "updatevendorpackages.put./vendors/{vendorId}/packages",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "description": "Body required in the request",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/ReplaceVendorPackagesRequest"
-            }
-          },
-          {
-            "name": "vendorId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Vendor packages replaced"
-          },
-          "400": {
-            "description": "400 response"
-          },
-          "401": {
-            "description": "401 response"
-          },
-          "403": {
-            "description": "403 response"
-          },
-          "404": {
-            "description": "404 response"
-          },
-          "409": {
-            "description": "409 response"
-          },
-          "502": {
-            "description": "Catalog service unavailable"
           }
         }
       }
@@ -3264,8 +3241,8 @@
         }
       },
       "put": {
-        "summary": "Replace vendor document",
-        "description": "Issues a new presigned PUT URL for an existing document while onboarding is DRAFT or IN_PROGRESS. Status returns to PENDING_UPLOAD until the replacement is confirmed. A previously confirmed object with a different key is deleted only after the replacement is confirmed.",
+        "summary": "Update vendor document metadata",
+        "description": "Updates the display file name of an existing document while onboarding is editable. The stored object, content type, and status are unchanged. Upload URLs stay on POST /documents and POST /documents/upload-url. Completion stays on POST /documents/{documentId}/complete.",
         "tags": [
           "Documents"
         ],
@@ -3301,7 +3278,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Replacement upload URL issued",
+            "description": "Document metadata updated",
             "schema": {
               "$ref": "#/definitions/VendorDocument"
             }
@@ -3460,8 +3437,8 @@
         }
       },
       "put": {
-        "summary": "Create or update vendor bank details",
-        "description": "",
+        "summary": "Create or replace vendor bank details",
+        "description": "Creates or replaces the vendor bank record. The response returns a masked account number. The full account number is not returned. A retry with the same details does not create a second bank record. While onboarding is editable, completeness is refreshed on the same vendor profile.",
         "tags": [
           "Bank Details"
         ],
@@ -4304,8 +4281,16 @@
           "title": "Address.landmark",
           "type": "string"
         },
+        "locality": {
+          "title": "Address.locality",
+          "type": "string"
+        },
         "city": {
           "title": "Address.city",
+          "type": "string"
+        },
+        "district": {
+          "title": "Address.district",
           "type": "string"
         },
         "state": {
@@ -4330,6 +4315,222 @@
       ],
       "additionalProperties": false,
       "title": "Address",
+      "type": "object"
+    },
+    "VendorOnboardingSnapshot": {
+      "properties": {
+        "location": {
+          "anyOf": [
+            {
+              "properties": {
+                "addressLine1": {
+                  "title": "VendorOnboardingSnapshot.location.addressLine1",
+                  "type": "string"
+                },
+                "addressLine2": {
+                  "title": "VendorOnboardingSnapshot.location.addressLine2",
+                  "type": "string"
+                },
+                "landmark": {
+                  "title": "VendorOnboardingSnapshot.location.landmark",
+                  "type": "string"
+                },
+                "locality": {
+                  "title": "VendorOnboardingSnapshot.location.locality",
+                  "type": "string"
+                },
+                "city": {
+                  "title": "VendorOnboardingSnapshot.location.city",
+                  "type": "string"
+                },
+                "district": {
+                  "title": "VendorOnboardingSnapshot.location.district",
+                  "type": "string"
+                },
+                "state": {
+                  "title": "VendorOnboardingSnapshot.location.state",
+                  "type": "string"
+                },
+                "postalCode": {
+                  "title": "VendorOnboardingSnapshot.location.postalCode",
+                  "type": "string"
+                },
+                "countryCode": {
+                  "title": "VendorOnboardingSnapshot.location.countryCode",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "locality",
+                "city",
+                "district",
+                "state",
+                "postalCode",
+                "countryCode"
+              ],
+              "additionalProperties": false,
+              "title": "VendorOnboardingSnapshot.location",
+              "type": "object"
+            },
+            {
+              "title": "VendorOnboardingSnapshot.location",
+              "nullable": true
+            }
+          ],
+          "title": "VendorOnboardingSnapshot.location"
+        },
+        "capabilities": {
+          "properties": {
+            "vehicleTypes": {
+              "items": {
+                "$ref": "#/definitions/VehicleType",
+                "title": "VendorOnboardingSnapshot.capabilities.vehicleTypes.[]"
+              },
+              "title": "VendorOnboardingSnapshot.capabilities.vehicleTypes",
+              "type": "array"
+            },
+            "serviceIds": {
+              "items": {
+                "title": "VendorOnboardingSnapshot.capabilities.serviceIds.[]",
+                "type": "string"
+              },
+              "title": "VendorOnboardingSnapshot.capabilities.serviceIds",
+              "type": "array"
+            },
+            "packageIds": {
+              "items": {
+                "title": "VendorOnboardingSnapshot.capabilities.packageIds.[]",
+                "type": "string"
+              },
+              "title": "VendorOnboardingSnapshot.capabilities.packageIds",
+              "type": "array"
+            },
+            "washMethods": {
+              "items": {
+                "title": "VendorOnboardingSnapshot.capabilities.washMethods.[]",
+                "type": "string"
+              },
+              "title": "VendorOnboardingSnapshot.capabilities.washMethods",
+              "description": "Capability ids. Create requests send these as washMethodIds.",
+              "type": "array"
+            }
+          },
+          "required": [
+            "vehicleTypes",
+            "serviceIds",
+            "packageIds",
+            "washMethods"
+          ],
+          "additionalProperties": false,
+          "title": "VendorOnboardingSnapshot.capabilities",
+          "type": "object"
+        },
+        "communityCoverage": {
+          "properties": {
+            "communityIds": {
+              "items": {
+                "title": "VendorOnboardingSnapshot.communityCoverage.communityIds.[]",
+                "type": "string"
+              },
+              "title": "VendorOnboardingSnapshot.communityCoverage.communityIds",
+              "type": "array"
+            },
+            "communities": {
+              "items": {
+                "properties": {
+                  "communityId": {
+                    "title": "communityId",
+                    "type": "string"
+                  },
+                  "approvalStatus": {
+                    "$ref": "#/definitions/CommunityCoverageApprovalStatus",
+                    "title": "approvalStatus"
+                  }
+                },
+                "required": [
+                  "communityId",
+                  "approvalStatus"
+                ],
+                "additionalProperties": false,
+                "type": "object"
+              },
+              "title": "VendorOnboardingSnapshot.communityCoverage.communities",
+              "type": "array"
+            }
+          },
+          "required": [
+            "communityIds",
+            "communities"
+          ],
+          "additionalProperties": false,
+          "title": "VendorOnboardingSnapshot.communityCoverage",
+          "type": "object"
+        },
+        "operatingPreferences": {
+          "properties": {
+            "serviceWindowIds": {
+              "items": {
+                "title": "VendorOnboardingSnapshot.operatingPreferences.serviceWindowIds.[]",
+                "type": "string"
+              },
+              "title": "VendorOnboardingSnapshot.operatingPreferences.serviceWindowIds",
+              "type": "array"
+            }
+          },
+          "required": [
+            "serviceWindowIds"
+          ],
+          "additionalProperties": false,
+          "title": "VendorOnboardingSnapshot.operatingPreferences",
+          "type": "object"
+        },
+        "initialCapacity": {
+          "anyOf": [
+            {
+              "properties": {
+                "activeCrewCount": {
+                  "title": "VendorOnboardingSnapshot.initialCapacity.activeCrewCount",
+                  "type": "number"
+                },
+                "indicativeVisitsPerWeek": {
+                  "title": "VendorOnboardingSnapshot.initialCapacity.indicativeVisitsPerWeek",
+                  "type": "number"
+                },
+                "capacityKind": {
+                  "title": "VendorOnboardingSnapshot.initialCapacity.capacityKind",
+                  "enum": [
+                    "indicative"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "activeCrewCount",
+                "indicativeVisitsPerWeek",
+                "capacityKind"
+              ],
+              "additionalProperties": false,
+              "title": "VendorOnboardingSnapshot.initialCapacity",
+              "type": "object"
+            },
+            {
+              "title": "VendorOnboardingSnapshot.initialCapacity",
+              "nullable": true
+            }
+          ],
+          "title": "VendorOnboardingSnapshot.initialCapacity",
+          "description": "Null when the partner did not submit indicative capacity. Never a commitment."
+        }
+      },
+      "required": [
+        "location",
+        "capabilities",
+        "communityCoverage",
+        "operatingPreferences",
+        "initialCapacity"
+      ],
+      "additionalProperties": false,
+      "title": "VendorOnboardingSnapshot",
       "type": "object"
     },
     "GeoLocation": {
@@ -4446,6 +4647,10 @@
     },
     "UpdateVendorRequest": {
       "properties": {
+        "businessType": {
+          "$ref": "#/definitions/businessType",
+          "title": "UpdateVendorRequest.businessType"
+        },
         "businessName": {
           "title": "UpdateVendorRequest.businessName",
           "type": "string"
@@ -4464,6 +4669,14 @@
         },
         "description": {
           "title": "UpdateVendorRequest.description",
+          "type": "string"
+        },
+        "gstNumber": {
+          "title": "UpdateVendorRequest.gstNumber",
+          "type": "string"
+        },
+        "panNumber": {
+          "title": "UpdateVendorRequest.panNumber",
           "type": "string"
         },
         "profileImageUrl": {
@@ -5049,8 +5262,16 @@
           "title": "VendorAddress.landmark",
           "type": "string"
         },
+        "locality": {
+          "title": "VendorAddress.locality",
+          "type": "string"
+        },
         "city": {
           "title": "VendorAddress.city",
+          "type": "string"
+        },
+        "district": {
+          "title": "VendorAddress.district",
           "type": "string"
         },
         "state": {
@@ -5373,16 +5594,11 @@
         "fileName": {
           "title": "UpdateDocumentRequest.fileName",
           "type": "string"
-        },
-        "contentType": {
-          "title": "UpdateDocumentRequest.contentType",
-          "type": "string"
-        },
-        "fileSize": {
-          "title": "UpdateDocumentRequest.fileSize",
-          "type": "number"
         }
       },
+      "required": [
+        "fileName"
+      ],
       "additionalProperties": false,
       "title": "UpdateDocumentRequest",
       "type": "object"
@@ -5506,6 +5722,10 @@
                   "label": {
                     "title": "label",
                     "type": "string"
+                  },
+                  "approvalStatus": {
+                    "$ref": "#/definitions/CommunityCoverageApprovalStatus",
+                    "title": "approvalStatus"
                   }
                 },
                 "required": [
@@ -5516,6 +5736,96 @@
               },
               "title": "OnboardingResponse.sections.COMMUNITIES",
               "type": "array"
+            },
+            "CAPABILITIES": {
+              "properties": {
+                "vehicleTypes": {
+                  "items": {
+                    "$ref": "#/definitions/VehicleType",
+                    "title": "OnboardingResponse.sections.CAPABILITIES.vehicleTypes.[]"
+                  },
+                  "title": "OnboardingResponse.sections.CAPABILITIES.vehicleTypes",
+                  "type": "array"
+                },
+                "serviceIds": {
+                  "items": {
+                    "title": "OnboardingResponse.sections.CAPABILITIES.serviceIds.[]",
+                    "type": "string"
+                  },
+                  "title": "OnboardingResponse.sections.CAPABILITIES.serviceIds",
+                  "type": "array"
+                },
+                "packageIds": {
+                  "items": {
+                    "title": "OnboardingResponse.sections.CAPABILITIES.packageIds.[]",
+                    "type": "string"
+                  },
+                  "title": "OnboardingResponse.sections.CAPABILITIES.packageIds",
+                  "type": "array"
+                },
+                "washMethods": {
+                  "items": {
+                    "title": "OnboardingResponse.sections.CAPABILITIES.washMethods.[]",
+                    "type": "string"
+                  },
+                  "title": "OnboardingResponse.sections.CAPABILITIES.washMethods",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "vehicleTypes",
+                "serviceIds",
+                "packageIds",
+                "washMethods"
+              ],
+              "additionalProperties": false,
+              "title": "OnboardingResponse.sections.CAPABILITIES",
+              "type": "object"
+            },
+            "OPERATING_PREFERENCES": {
+              "properties": {
+                "serviceWindowIds": {
+                  "items": {
+                    "title": "OnboardingResponse.sections.OPERATING_PREFERENCES.serviceWindowIds.[]",
+                    "type": "string"
+                  },
+                  "title": "OnboardingResponse.sections.OPERATING_PREFERENCES.serviceWindowIds",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "serviceWindowIds"
+              ],
+              "additionalProperties": false,
+              "title": "OnboardingResponse.sections.OPERATING_PREFERENCES",
+              "type": "object"
+            },
+            "INDICATIVE_CAPACITY": {
+              "properties": {
+                "activeCrewCount": {
+                  "title": "OnboardingResponse.sections.INDICATIVE_CAPACITY.activeCrewCount",
+                  "type": "number"
+                },
+                "indicativeVisitsPerWeek": {
+                  "title": "OnboardingResponse.sections.INDICATIVE_CAPACITY.indicativeVisitsPerWeek",
+                  "type": "number"
+                },
+                "capacityKind": {
+                  "title": "OnboardingResponse.sections.INDICATIVE_CAPACITY.capacityKind",
+                  "enum": [
+                    "indicative"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "activeCrewCount",
+                "indicativeVisitsPerWeek",
+                "capacityKind"
+              ],
+              "additionalProperties": false,
+              "title": "OnboardingResponse.sections.INDICATIVE_CAPACITY",
+              "type": "object"
             },
             "BASELINE_CAPACITY": {
               "items": {
@@ -5661,6 +5971,10 @@
           },
           "title": "Vendor.communityIds",
           "type": "array"
+        },
+        "onboarding": {
+          "$ref": "#/definitions/VendorOnboardingSnapshot",
+          "title": "Vendor.onboarding"
         },
         "latestReview": {
           "$ref": "#/definitions/VendorStatusReview",
@@ -5947,67 +6261,50 @@
       ],
       "title": "ServiceArea"
     },
-    "OperatingHoursRequest": {
-      "properties": {
-        "dayOfWeek": {
-          "$ref": "#/definitions/DayOfWeek",
-          "title": "OperatingHoursRequest.dayOfWeek"
-        },
-        "closed": {
-          "title": "OperatingHoursRequest.closed",
-          "type": "boolean"
-        },
-        "openTime": {
-          "title": "OperatingHoursRequest.openTime",
-          "type": "string"
-        },
-        "closeTime": {
-          "title": "OperatingHoursRequest.closeTime",
-          "type": "string"
-        }
-      },
-      "required": [
-        "dayOfWeek",
-        "closed"
-      ],
-      "additionalProperties": false,
-      "title": "OperatingHoursRequest",
-      "type": "object"
-    },
-    "OperatingHours": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/OperatingHoursRequest"
-        },
-        {
-          "properties": {
-            "vendorId": {
-              "title": "vendorId",
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        }
-      ],
-      "title": "OperatingHours"
-    },
     "UpdateVendorOperatingHoursRequest": {
       "properties": {
-        "operatingHours": {
+        "serviceWindowIds": {
           "items": {
-            "$ref": "#/definitions/OperatingHoursRequest",
-            "title": "UpdateVendorOperatingHoursRequest.operatingHours.[]"
+            "title": "UpdateVendorOperatingHoursRequest.serviceWindowIds.[]",
+            "type": "string"
           },
-          "title": "UpdateVendorOperatingHoursRequest.operatingHours",
+          "title": "UpdateVendorOperatingHoursRequest.serviceWindowIds",
           "type": "array"
         }
       },
       "required": [
-        "operatingHours"
+        "serviceWindowIds"
       ],
       "additionalProperties": false,
       "title": "UpdateVendorOperatingHoursRequest",
+      "type": "object"
+    },
+    "VendorOperatingPreferencesSection": {
+      "properties": {
+        "vendorId": {
+          "title": "VendorOperatingPreferencesSection.vendorId",
+          "type": "string"
+        },
+        "serviceWindowIds": {
+          "items": {
+            "title": "VendorOperatingPreferencesSection.serviceWindowIds.[]",
+            "type": "string"
+          },
+          "title": "VendorOperatingPreferencesSection.serviceWindowIds",
+          "type": "array"
+        },
+        "updatedAt": {
+          "title": "VendorOperatingPreferencesSection.updatedAt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "vendorId",
+        "serviceWindowIds",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "title": "VendorOperatingPreferencesSection",
       "type": "object"
     },
     "CreateStaffRequest": {
@@ -6607,22 +6904,6 @@
           "title": "UpdateVendorCapabilitiesRequest.serviceTypes",
           "type": "array"
         },
-        "serviceIds": {
-          "items": {
-            "title": "UpdateVendorCapabilitiesRequest.serviceIds.[]",
-            "type": "string"
-          },
-          "title": "UpdateVendorCapabilitiesRequest.serviceIds",
-          "type": "array"
-        },
-        "packageIds": {
-          "items": {
-            "title": "UpdateVendorCapabilitiesRequest.packageIds.[]",
-            "type": "string"
-          },
-          "title": "UpdateVendorCapabilitiesRequest.packageIds",
-          "type": "array"
-        },
         "services": {
           "items": {
             "$ref": "#/definitions/VendorServiceOffering",
@@ -6641,46 +6922,14 @@
         }
       },
       "required": [
-        "vehicleTypes"
-      ],
-      "additionalProperties": false,
-      "title": "UpdateVendorCapabilitiesRequest",
-      "type": "object"
-    },
-    "ReplaceVendorServicesRequest": {
-      "properties": {
-        "services": {
-          "items": {
-            "$ref": "#/definitions/VendorServiceOffering",
-            "title": "ReplaceVendorServicesRequest.services.[]"
-          },
-          "title": "ReplaceVendorServicesRequest.services",
-          "type": "array"
-        }
-      },
-      "required": [
-        "services"
-      ],
-      "additionalProperties": false,
-      "title": "ReplaceVendorServicesRequest",
-      "type": "object"
-    },
-    "ReplaceVendorPackagesRequest": {
-      "properties": {
-        "packages": {
-          "items": {
-            "$ref": "#/definitions/VendorPackageOffering",
-            "title": "ReplaceVendorPackagesRequest.packages.[]"
-          },
-          "title": "ReplaceVendorPackagesRequest.packages",
-          "type": "array"
-        }
-      },
-      "required": [
+        "vehicleTypes",
+        "washMethods",
+        "serviceTypes",
+        "services",
         "packages"
       ],
       "additionalProperties": false,
-      "title": "ReplaceVendorPackagesRequest",
+      "title": "UpdateVendorCapabilitiesRequest",
       "type": "object"
     },
     "VendorCommunityAssignment": {
@@ -6787,6 +7036,22 @@
         "hasMore": {
           "title": "Pagination.hasMore",
           "type": "boolean"
+        },
+        "total": {
+          "title": "Pagination.total",
+          "description": "Null when this response must not be counted as the population.",
+          "nullable": true
+        },
+        "totalAvailability": {
+          "title": "Pagination.totalAvailability",
+          "enum": [
+            "unavailable"
+          ],
+          "type": "string"
+        },
+        "totalReason": {
+          "title": "Pagination.totalReason",
+          "type": "string"
         }
       },
       "additionalProperties": false,

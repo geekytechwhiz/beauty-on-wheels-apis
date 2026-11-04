@@ -175,6 +175,9 @@ export interface PackageVisitDdbItem extends PackageVisitRecord {
   GSI2SK: string;
   GSI3PK?: string;
   GSI3SK?: string;
+  /** Dated operations schedule. Absent on unscheduled visits. */
+  GSI4PK?: string;
+  GSI4SK?: string;
   entityType: 'PackageVisit';
 }
 

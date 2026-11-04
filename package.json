@@ -70,7 +70,7 @@
     "vehicle":"export AWS_PROFILE=ci-user-bw && cd apps/vehicle-service && serverless deploy --stage dev",
     "vendor":"export AWS_PROFILE=ci-user-bw && cd apps/vendor-service && serverless deploy --stage dev",
     "catalog": "export AWS_PROFILE=ci-user-bw && cd apps/service-catalog-service && serverless deploy --stage dev",
-    "idenitity":"export AWS_PROFILE=ci-user-bw && cd apps/idenitity-service && serverless deploy --stage dev",
+    "idenitity":"export AWS_PROFILE=ci-user-bw && cd apps/identity-v1-service && serverless deploy --stage dev",
     "user": "export AWS_PROFILE=ci-user-bw && cd apps/user-service && serverless deploy --stage dev",
     "availability":"export AWS_PROFILE=ci-user-bw && cd apps/availability-service && serverless deploy --stage dev",
     "booking":"export AWS_PROFILE=ci-user-bw && cd apps/booking-service && serverless deploy --stage dev"

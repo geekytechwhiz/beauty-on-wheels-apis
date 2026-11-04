@@ -38,4 +38,9 @@ export const env = {
    * Empty fails closed when a service selects communities.
    */
   COMMUNITY_DIRECTORY_FUNCTION: process.env.COMMUNITY_DIRECTORY_FUNCTION || '',
+  /**
+   * Vendor Service Lambda that returns capacity commitment facts for sales-control enablement.
+   * Empty fails closed when enabling customer sales against linked commitments.
+   */
+  VENDOR_CAPACITY_COMMITMENT_FUNCTION: process.env.VENDOR_CAPACITY_COMMITMENT_FUNCTION || '',
 };

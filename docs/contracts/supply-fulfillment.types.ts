@@ -174,9 +174,12 @@ export interface SalesControlWriteRequest {
   enabled: boolean;
   expectedVersion?: number;
   reason: string;
-  effectiveFrom?: string;
-  effectiveUntil?: string;
+  /** Omit or null for an unbounded start. */
+  effectiveFrom?: string | null;
+  /** Omit or null for an unbounded end. */
+  effectiveUntil?: string | null;
   fulfilmentVendorIds: string[];
+  /** Must hold supply for the sales-control community when enabled is true. */
   capacityCommitmentIds: string[];
 }
 

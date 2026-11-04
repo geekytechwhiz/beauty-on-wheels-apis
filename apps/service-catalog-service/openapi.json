@@ -2382,11 +2382,15 @@
           },
           "effectiveFrom": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true,
+            "description": "ISO datetime, or null/omit for an unbounded start."
           },
           "effectiveUntil": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true,
+            "description": "ISO datetime, or null/omit for an unbounded end."
           },
           "fulfilmentVendorIds": {
             "type": "array",
@@ -2402,7 +2406,8 @@
             "maxItems": 25,
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Vendor Service commitment ids that still hold supply for this community."
           }
         },
         "example": {
@@ -2414,7 +2419,9 @@
           ],
           "capacityCommitmentIds": [
             "cmt-1"
-          ]
+          ],
+          "effectiveFrom": null,
+          "effectiveUntil": null
         }
       },
       "SalesControlListResponse": {
@@ -2545,7 +2552,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-629e8d3c-80aa-4b93-a3ee-ed9dbdc3753c": {
+      "status-4b9ae5f9-2efc-41e7-a182-795c83885918": {
         "type": "string",
         "enum": [
           "draft",
@@ -2560,7 +2567,7 @@
       "packageId": {
         "type": "string"
       },
-      "status-bab1fa2c-e6cc-49d8-a800-7160fdeb0d7f": {
+      "status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37": {
         "type": "string",
         "enum": [
           "open",
@@ -2571,7 +2578,7 @@
           "disabled"
         ]
       },
-      "limit-954ec970-5a2a-4c2c-b1bb-492a131c23a8": {
+      "limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb": {
         "type": "integer",
         "minimum": 1,
         "maximum": 100,
@@ -3544,7 +3551,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-629e8d3c-80aa-4b93-a3ee-ed9dbdc3753c"
+              "$ref": "#/components/schemas/status-4b9ae5f9-2efc-41e7-a182-795c83885918"
             }
           },
           {
@@ -4592,7 +4599,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-bab1fa2c-e6cc-49d8-a800-7160fdeb0d7f"
+              "$ref": "#/components/schemas/status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37"
             }
           },
           {
@@ -4601,7 +4608,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-954ec970-5a2a-4c2c-b1bb-492a131c23a8"
+              "$ref": "#/components/schemas/limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb"
             }
           },
           {
@@ -4720,7 +4727,7 @@
     "/admin/packages/{packageId}/sales-controls/{communityId}": {
       "put": {
         "summary": "Set community sales eligibility for a Carish package",
-        "description": "Creates or replaces the sales-control row. expectedVersion is required when the row already exists.",
+        "description": "Creates or replaces the sales-control row. expectedVersion is required when the row already exists. enabled=true validates community activity, approved vendor coverage, and linked holding commitments via Vendor Service. effectiveFrom/effectiveUntil may be null. Proposal acceptance alone does not open sales.\n",
         "operationId": "putPlatformPackageSalesControl",
         "parameters": [
           {

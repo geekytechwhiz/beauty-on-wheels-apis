@@ -44,9 +44,21 @@ describe('PlatformPackagesService', () => {
   const repository = { create: jest.fn(), save: jest.fn(), getPackage: jest.fn(), listRevisions: jest.fn(), listSalesControls: jest.fn(), getSalesControl: jest.fn(), saveSalesControl: jest.fn(), listEnabledForCommunity: jest.fn(), getRevision: jest.fn(), list: jest.fn(), listAllIndex: jest.fn() };
   const directory = { activeCommunityIds: jest.fn() };
   const coverage = { activeCommunityIds: jest.fn() };
-  const service = new PlatformPackagesService(repository as any, categories as any, directory as any, coverage as any, () => '2026-01-01T00:00:00.000Z');
+  const commitments = { lookup: jest.fn() };
+  const service = new PlatformPackagesService(
+    repository as any,
+    categories as any,
+    directory as any,
+    coverage as any,
+    commitments as any,
+    () => '2026-01-01T00:00:00.000Z',
+  );
 
-  beforeEach(() => { jest.clearAllMocks(); categories.findById.mockResolvedValue({ active: true }); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    categories.findById.mockResolvedValue({ active: true });
+    commitments.lookup.mockResolvedValue([]);
+  });
 
   it('creates a draft from the platform package body and returns the same shape', async () => {
     const created = await service.create(actorRequest(packageBody));
@@ -155,5 +167,102 @@ describe('PlatformPackagesService', () => {
     repository.getPackage.mockResolvedValue({ PK: 'PLATFORM_PACKAGE#pkg_1', SK: 'META', entityType: 'PlatformPackage', packageId: 'pkg_1', ...packageBody, status: 'published', version: 1, publishedVersion: 1, createdAt: 'x', updatedAt: 'x', createdBy: 'admin-1', updatedBy: 'admin-1' });
     repository.getSalesControl.mockResolvedValue(null); directory.activeCommunityIds.mockResolvedValue(['community-1']); coverage.activeCommunityIds.mockResolvedValue([]);
     await expect(service.updateSalesControl(actorRequest({ enabled: true, reason: 'Initial launch', fulfilmentVendorIds: ['vendor-1'], capacityCommitmentIds: ['capacity-1'] }, { packageId: 'pkg_1', communityId: 'community-1' }))).rejects.toThrow('approved community coverage');
+  });
+
+  it('refuses sales enablement when a linked commitment does not hold capacity', async () => {
+    repository.getPackage.mockResolvedValue({
+      PK: 'PLATFORM_PACKAGE#pkg_1',
+      SK: 'META',
+      entityType: 'PlatformPackage',
+      packageId: 'pkg_1',
+      ...packageBody,
+      status: 'published',
+      version: 1,
+      publishedVersion: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      createdBy: 'admin-1',
+      updatedBy: 'admin-1',
+    });
+    repository.getSalesControl.mockResolvedValue(null);
+    directory.activeCommunityIds.mockResolvedValue(['community-1']);
+    coverage.activeCommunityIds.mockResolvedValue(['community-1']);
+    commitments.lookup.mockResolvedValue([
+      {
+        commitmentId: 'cmt-1',
+        vendorId: 'vendor-1',
+        communityId: 'community-1',
+        status: 'CANCELLED',
+        quantity: 10,
+        holdsCapacity: false,
+        scope: { label: 'Exterior wash' },
+      },
+    ]);
+    await expect(
+      service.updateSalesControl(
+        actorRequest(
+          {
+            enabled: true,
+            reason: 'Open checkout after acceptance',
+            fulfilmentVendorIds: ['vendor-1'],
+            capacityCommitmentIds: ['cmt-1'],
+          },
+          { packageId: 'pkg_1', communityId: 'community-1' },
+        ),
+      ),
+    ).rejects.toThrow(/cannot open sales/);
+  });
+
+  it('opens sales only when community, coverage, and holding commitments align', async () => {
+    repository.getPackage.mockResolvedValue({
+      PK: 'PLATFORM_PACKAGE#pkg_1',
+      SK: 'META',
+      entityType: 'PlatformPackage',
+      packageId: 'pkg_1',
+      ...packageBody,
+      status: 'published',
+      version: 1,
+      publishedVersion: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      createdBy: 'admin-1',
+      updatedBy: 'admin-1',
+    });
+    repository.getSalesControl.mockResolvedValue(null);
+    directory.activeCommunityIds.mockResolvedValue(['community-1']);
+    coverage.activeCommunityIds.mockResolvedValue(['community-1']);
+    commitments.lookup.mockResolvedValue([
+      {
+        commitmentId: 'cmt-1',
+        vendorId: 'vendor-1',
+        communityId: 'community-1',
+        status: 'ACTIVE',
+        quantity: 30,
+        holdsCapacity: true,
+        scope: { offeringId: 'pkg_1', label: 'Exterior wash' },
+      },
+    ]);
+    const result = await service.updateSalesControl(
+      actorRequest(
+        {
+          enabled: true,
+          reason: 'Accepted capacity covers demand',
+          fulfilmentVendorIds: ['vendor-1'],
+          capacityCommitmentIds: ['cmt-1'],
+          effectiveFrom: null,
+          effectiveUntil: null,
+        },
+        { packageId: 'pkg_1', communityId: 'community-1' },
+      ),
+    );
+    expect(result).toMatchObject({
+      packageId: 'pkg_1',
+      communityId: 'community-1',
+      enabled: true,
+      capacityCommitmentIds: ['cmt-1'],
+      version: 1,
+    });
+    expect(result).not.toHaveProperty('effectiveFrom');
+    expect(repository.saveSalesControl).toHaveBeenCalled();
   });
 });

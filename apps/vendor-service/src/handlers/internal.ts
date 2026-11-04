@@ -5,6 +5,7 @@ import { getCheckoutEligibilityService } from '../services/checkout-eligibility.
 import { getSchedulingCrewsService } from '../services/scheduling-crews.service';
 import { getVendorsService } from '../services/vendors.service';
 import { getCommunitiesRepository } from '../repositories/communities.repository';
+import { getCapacityCommitmentLookupService } from '../services/capacity-commitment-lookup.service';
 import { getDiscoveryFactsService } from '../services/discovery-facts.service';
 import { getPricingConfigurationService } from '../services/pricing-configuration.service';
 import { getSoldCapacityService } from '../services/sold-capacity.service';
@@ -259,6 +260,26 @@ export const lookupActiveCommunities = async (event: {
       }
     }
     return { data: { communityIds: active } };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+/**
+ * Holding-status facts for Catalog sales-control enablement.
+ * No HTTP route. Missing ids are omitted; Catalog fails closed on the gap.
+ */
+export const lookupCapacityCommitments = async (event: {
+  commitmentIds?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    if (!Array.isArray(event?.commitmentIds)) {
+      throw new BaseError('commitmentIds is required', 400, 'VALIDATION_ERROR');
+    }
+    const data = await getCapacityCommitmentLookupService().lookup(
+      event.commitmentIds as string[],
+    );
+    return { data: { commitments: data } };
   } catch (error) {
     return failure(error);
   }

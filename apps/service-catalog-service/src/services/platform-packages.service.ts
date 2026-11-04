@@ -18,6 +18,10 @@ import {
   getCommunityDirectorySource,
 } from '../integrations/community-directory';
 import {
+  VendorCapacityCommitmentSource,
+  getVendorCapacityCommitmentSource,
+} from '../integrations/vendor-capacity-commitments';
+import {
   VendorCoverageSource,
   getVendorCoverageSource,
 } from '../integrations/vendor-coverage';
@@ -52,6 +56,7 @@ export class PlatformPackagesService {
     private readonly categories: CategoriesRepository = getCategoriesRepository(),
     private readonly directory: CommunityDirectorySource = getCommunityDirectorySource(),
     private readonly coverage: VendorCoverageSource = getVendorCoverageSource(),
+    private readonly commitments: VendorCapacityCommitmentSource = getVendorCapacityCommitmentSource(),
     private readonly now: () => string = () => new Date().toISOString(),
   ) {}
 
@@ -230,7 +235,9 @@ export class PlatformPackagesService {
       throw new ConflictError(
         'Sales-control version conflict. Refresh and retry.',
       );
-    if (input.enabled) await this.assertSalesPrerequisites(communityId, input);
+    if (input.enabled) {
+      await this.assertSalesPrerequisites(packageId, communityId, input);
+    }
     const now = this.now();
     const sales: PlatformPackageSalesControl = {
       PK: packageRow.PK,
@@ -427,21 +434,64 @@ export class PlatformPackagesService {
     if (!record.includedServices.length || !record.vehiclePricing.length)
       throw new ConflictError('Package is incomplete and cannot be published');
   }
+  /**
+   * Opening checkout requires an active community, approved vendor coverage, and
+   * linked commitments that still hold supply for this community. Proposal accept
+   * alone never enables sales; this gate is the only write path that opens them.
+   */
   private async assertSalesPrerequisites(
+    packageId: string,
     communityId: string,
     input: SalesControlInput,
   ) {
     const active = await this.directory.activeCommunityIds([communityId]);
     if (!active.includes(communityId))
       throw new ConflictError(`Community is not active: ${communityId}`);
-    // Capacity commitments remain owned by Vendor Service. Coverage is checked here;
-    // the booking payment flow atomically reserves the referenced partner capacity.
-    for (const vendorId of input.fulfilmentVendorIds) {
+    const fulfilmentVendors = new Set(input.fulfilmentVendorIds);
+    for (const vendorId of fulfilmentVendors) {
       const communities = await this.coverage.activeCommunityIds(vendorId);
       if (!communities.includes(communityId))
         throw new ConflictError(
           `Vendor ${vendorId} has no approved community coverage`,
         );
+    }
+    const facts = await this.commitments.lookup(input.capacityCommitmentIds);
+    const byId = new Map(facts.map((fact) => [fact.commitmentId, fact]));
+    for (const commitmentId of input.capacityCommitmentIds) {
+      const fact = byId.get(commitmentId);
+      if (!fact) {
+        throw new ConflictError(
+          `Capacity commitment not found: ${commitmentId}`,
+        );
+      }
+      if (!fact.holdsCapacity) {
+        throw new ConflictError(
+          `Capacity commitment ${commitmentId} is ${fact.status} and cannot open sales`,
+        );
+      }
+      if (fact.communityId !== communityId) {
+        throw new ConflictError(
+          `Capacity commitment ${commitmentId} covers community ${fact.communityId}, not ${communityId}`,
+        );
+      }
+      if (!fulfilmentVendors.has(fact.vendorId)) {
+        throw new ConflictError(
+          `Capacity commitment ${commitmentId} belongs to vendor ${fact.vendorId}, which is not in fulfilmentVendorIds`,
+        );
+      }
+      if (fact.scope.offeringId && fact.scope.offeringId !== packageId) {
+        throw new ConflictError(
+          `Capacity commitment ${commitmentId} is scoped to package ${fact.scope.offeringId}, not ${packageId}`,
+        );
+      }
+    }
+    const linkedVendors = new Set(facts.map((fact) => fact.vendorId));
+    for (const vendorId of fulfilmentVendors) {
+      if (!linkedVendors.has(vendorId)) {
+        throw new ConflictError(
+          `Fulfilment vendor ${vendorId} has no linked capacity commitment for this sales control`,
+        );
+      }
     }
   }
   private merge(

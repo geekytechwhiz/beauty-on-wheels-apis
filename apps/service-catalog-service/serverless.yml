@@ -34,6 +34,7 @@ provider:
     # dev approves new mappings. stg and prd keep admin approval. Any other stage stays false.
     COMMUNITY_OFFERING_AUTO_APPROVE: ${self:custom.communityOfferingAutoApprove.${self:provider.stage}, 'false'}
     COMMUNITY_DIRECTORY_FUNCTION: vendor-service-api-${self:provider.stage}-lookupActiveCommunities
+    VENDOR_CAPACITY_COMMITMENT_FUNCTION: vendor-service-api-${self:provider.stage}-lookupCapacityCommitments
     ASSET_URL: https://dev-use1-bw-static-assets.s3.us-east-1.amazonaws.com/dev
     
   iam:
@@ -62,6 +63,7 @@ provider:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_DISCOVERY_FACTS_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.AVAILABILITY_BOOKABLE_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.COMMUNITY_DIRECTORY_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CAPACITY_COMMITMENT_FUNCTION}
         - Effect: Allow
           Action:
             - events:PutEvents
@@ -1853,7 +1855,10 @@ custom:
                     version:
                       type: string
       - name: SalesControlRequest
-        description: Replace the sales-control row for one package and community. Does not edit the package, vendor capabilities, or community approval.
+        description: >
+          Replace the sales-control row for one package and community. Enabling requires an active
+          community, approved vendor coverage, and linked holding capacity commitments. Does not edit
+          the package, vendor capabilities, or community approval. Proposal acceptance alone never opens sales.
         content:
           application/json:
             schema:
@@ -1874,9 +1879,13 @@ custom:
                 effectiveFrom:
                   type: string
                   format: date-time
+                  nullable: true
+                  description: ISO datetime, or null/omit for an unbounded start.
                 effectiveUntil:
                   type: string
                   format: date-time
+                  nullable: true
+                  description: ISO datetime, or null/omit for an unbounded end.
                 fulfilmentVendorIds:
                   type: array
                   minItems: 1
@@ -1889,10 +1898,13 @@ custom:
                   maxItems: 25
                   items:
                     type: string
+                  description: Vendor Service commitment ids that still hold supply for this community.
               example:
                 enabled: false
                 expectedVersion: 2
                 reason: Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.
+                effectiveFrom: null
+                effectiveUntil: null
                 fulfilmentVendorIds: [vendor-1]
                 capacityCommitmentIds: [cmt-1]
       - name: SalesControlListResponse
@@ -3025,7 +3037,10 @@ functions:
           bodyType: SalesControlRequest
           documentation:
             summary: Set community sales eligibility for a Carish package
-            description: Creates or replaces the sales-control row. expectedVersion is required when the row already exists.
+            description: >
+              Creates or replaces the sales-control row. expectedVersion is required when the row already exists.
+              enabled=true validates community activity, approved vendor coverage, and linked holding commitments
+              via Vendor Service. effectiveFrom/effectiveUntil may be null. Proposal acceptance alone does not open sales.
             tags: [Sales controls]
             requestBody:
               description: Sales control

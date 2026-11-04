@@ -8218,6 +8218,10 @@ functions:
     handler: src/handlers/internal.lookupActiveCommunities
     description: Internal IAM invoke for active platform community directory ids. No HTTP route.
 
+  lookupCapacityCommitments:
+    handler: src/handlers/internal.lookupCapacityCommitments
+    description: Internal IAM invoke for capacity commitment facts used by Catalog sales-control enablement. No HTTP route.
+
   getPricingConfiguration:
     handler: src/handlers/internal.getPricingConfiguration
     description: Internal IAM invoke for vendor pricing configuration and versions. No HTTP route.

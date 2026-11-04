@@ -110,15 +110,21 @@ export const UpdatePlatformPackageSchema = z
   })
   .strict();
 
+const optionalIsoDatetime = z
+  .union([z.string().datetime(), z.null()])
+  .optional()
+  .transform((value) => (value == null ? undefined : value));
+
 export const SalesControlSchema = z.object({
   enabled: z.boolean(),
   expectedVersion: z.number().int().positive().optional(),
   reason: z.string().trim().min(3).max(500),
-  effectiveFrom: z.string().datetime().optional(),
-  effectiveUntil: z.string().datetime().optional(),
+  /** Portal clients send null to clear an optional window bound. */
+  effectiveFrom: optionalIsoDatetime,
+  effectiveUntil: optionalIsoDatetime,
   /** Vendors assigned by operations; never exposed as package ownership. */
   fulfilmentVendorIds: z.array(id).min(1).max(25),
-  /** References to Vendor Service approved capacity commitments. */
+  /** References to Vendor Service accepted capacity commitments that still hold supply. */
   capacityCommitmentIds: z.array(id).min(1).max(25),
 }).strict().superRefine((value, ctx) => {
   if (value.effectiveFrom && value.effectiveUntil && value.effectiveUntil <= value.effectiveFrom) {

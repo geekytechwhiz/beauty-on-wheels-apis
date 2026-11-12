@@ -12,7 +12,6 @@ import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { authorizationHeader, headerValue, requireCustomerId } from '../auth/access';
 import {
-  assertBranch,
   assertHoldMatchesCommand,
   assertLocation,
   assertOffering,

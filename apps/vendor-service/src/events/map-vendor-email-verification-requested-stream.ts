@@ -67,7 +67,7 @@ export function toVendorEmailVerificationRequestedPayload(
 const platformMapper = createDynamoStreamMapRawToBaseEvent([
   {
     table: 'vendor',
-    eventName: ['MODIFY'],
+    eventName: ['INSERT', 'MODIFY'],
     schema: VendorEmailVerificationRequestedEvent,
   },
 ]);

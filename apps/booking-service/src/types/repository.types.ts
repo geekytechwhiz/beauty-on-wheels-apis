@@ -69,6 +69,9 @@ export interface BookingDdbItem {
   id: string;
   reference?: string;
   customerId: string;
+  /** Private contact snapshot for the Booking.Confirmed outbox event. */
+  customerEmail?: string;
+  customerName?: string;
   vendorId: string;
   vendorName?: string;
   branchId?: string;

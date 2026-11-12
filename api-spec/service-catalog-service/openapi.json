@@ -2552,7 +2552,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-4b9ae5f9-2efc-41e7-a182-795c83885918": {
+      "status-8359fa37-a99c-4b15-a2dd-810c2d888e90": {
         "type": "string",
         "enum": [
           "draft",
@@ -2567,7 +2567,7 @@
       "packageId": {
         "type": "string"
       },
-      "status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37": {
+      "status-40db3708-2676-4448-89f2-04d87c4ee523": {
         "type": "string",
         "enum": [
           "open",
@@ -2578,7 +2578,7 @@
           "disabled"
         ]
       },
-      "limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb": {
+      "limit-0dca0120-a1af-4fc0-b6fc-60823434da7e": {
         "type": "integer",
         "minimum": 1,
         "maximum": 100,
@@ -2599,7 +2599,7 @@
     }
   },
   "info": {
-    "title": "Beauty on Wheels - Service Catalog Service API",
+    "title": "Carish service-catalog-service API",
     "description": "Platform categories and provider offerings (PACKAGE type with inline included services). Customer discovery via GET /offerings.",
     "version": "1.0.0"
   },
@@ -3551,7 +3551,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-4b9ae5f9-2efc-41e7-a182-795c83885918"
+              "$ref": "#/components/schemas/status-8359fa37-a99c-4b15-a2dd-810c2d888e90"
             }
           },
           {
@@ -4599,7 +4599,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37"
+              "$ref": "#/components/schemas/status-40db3708-2676-4448-89f2-04d87c4ee523"
             }
           },
           {
@@ -4608,7 +4608,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb"
+              "$ref": "#/components/schemas/limit-0dca0120-a1af-4fc0-b6fc-60823434da7e"
             }
           },
           {

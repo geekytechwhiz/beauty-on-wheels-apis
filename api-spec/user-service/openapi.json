@@ -962,7 +962,7 @@
     }
   },
   "info": {
-    "title": "Beauty on Wheels - User Service API",
+    "title": "Carish user-service API",
     "description": "Customer profiles, addresses, preferences, and communities.",
     "version": "1.0.0"
   },

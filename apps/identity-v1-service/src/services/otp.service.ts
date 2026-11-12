@@ -241,7 +241,8 @@ export class OtpService {
         event: 'identity_record_resolved',
         resolution: 'cognito_identity',
       });
-      return this.markDestinationVerified(byIdentity, destination, useFixedOtp);
+      const verified = await this.markDestinationVerified(byIdentity, destination, useFixedOtp);
+      return verified;
     }
 
     const existingUser = await this.findIdentityByDestination(destination);
@@ -314,10 +315,8 @@ export class OtpService {
     userType: UserType,
   ): Promise<User> {
     const isEmail = this.isEmailDestination(destination);
-    // The challenge userType classifies the account. Only a verified phone
-    // challenge of VENDOR receives the registration role. Email challenges
-    // and every verify-body field stay out of that decision.
-    const vendorRegistration = !isEmail && userType === 'VENDOR';
+    // A client-selected app/userType is classification only. VENDOR is granted
+    // solely by the trusted Vendor.AccountProvisioningRequested consumer.
 
     try {
       return await this.registrationService.createIdentity({
@@ -328,7 +327,7 @@ export class OtpService {
         identityId,
         cognitoUsername,
         userType,
-        vendorRegistration,
+        vendorRegistration: false,
       });
     } catch (err) {
       if (err instanceof UserAlreadyExistsException) {

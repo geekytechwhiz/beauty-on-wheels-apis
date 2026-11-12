@@ -85,11 +85,65 @@ export interface PayoutRate {
   currency: 'INR';
 }
 
+/**
+ * Capacity scope is package-offering based.
+ *
+ * New writes always set `offeringId` (catalog package id) and never write
+ * `serviceScopeCode`. Legacy rows may still carry `serviceScopeCode` and/or omit
+ * `offeringId`; those remain readable but are ineligible for sales allocation
+ * and sales-control enablement until migrated (see capacity-scope-offering-backfill).
+ */
 export interface PackageScope {
-  /** Exactly one of offeringId / serviceScopeCode is set. */
+  /** Catalog package offering id. Required on all new writes. */
   offeringId?: string;
+  /**
+   * Legacy attribute only. May be present on pre-migration DynamoDB rows.
+   * Never written by current proposal/commitment code paths.
+   */
   serviceScopeCode?: string;
   label: string;
+}
+
+/** Normalized offering id when present; otherwise undefined (legacy / incomplete). */
+export function packageScopeOfferingId(
+  scope: Pick<PackageScope, 'offeringId'> | null | undefined,
+): string | undefined {
+  const value = scope?.offeringId?.trim();
+  return value || undefined;
+}
+
+/**
+ * Scope used for new commitment writes: offeringId + label only.
+ * Strips legacy serviceScopeCode so accepts never re-persist it.
+ */
+export function packageScopeForWrite(scope: PackageScope): PackageScope {
+  const offeringId = packageScopeOfferingId(scope);
+  if (!offeringId) {
+    throw new ValidationError(
+      'packageScope.offeringId is required',
+      [
+        {
+          code: 'CAPACITY_SCOPE_OFFERING_REQUIRED',
+          field: 'packageScope.offeringId',
+          message:
+            'Capacity scope must identify a catalog package offeringId.'
+            + ' Legacy rows that only have serviceScopeCode must be migrated first.',
+        },
+      ],
+    );
+  }
+  const label = scope.label?.trim();
+  if (!label) {
+    throw new ValidationError('packageScope.label is required');
+  }
+  return { offeringId, label };
+}
+
+/** True when the commitment can participate in offering-scoped sales / eligibility. */
+export function hasOfferingScopedCapacity(
+  scope: Pick<PackageScope, 'offeringId'> | null | undefined,
+): boolean {
+  return Boolean(packageScopeOfferingId(scope));
 }
 
 export interface CapacityCommitmentDdbItem {

@@ -7,6 +7,9 @@ import {
   commitmentIdForProposal,
   dailyCapacity,
   expandWindowDates,
+  hasOfferingScopedCapacity,
+  packageScopeForWrite,
+  packageScopeOfferingId,
   peakCommittedQuantity,
   validateServiceWindow,
   windowsOverlap,
@@ -111,5 +114,31 @@ describe('assertCapacityAvailable', () => {
 
   it('rejects everything when the vendor has no crew capacity', () => {
     expect(() => assertCapacityAvailable({ commitments: [], window: target, quantity: 1, capacityPerDay: 0 })).toThrow(ConflictError);
+  });
+});
+
+describe('package scope offeringId', () => {
+  it('normalizes write scope to offeringId + label only', () => {
+    expect(
+      packageScopeForWrite({
+        offeringId: 'pkg_car_wash',
+        serviceScopeCode: 'service:CAR_WASH',
+        label: 'Car wash',
+      }),
+    ).toEqual({ offeringId: 'pkg_car_wash', label: 'Car wash' });
+  });
+
+  it('rejects write scope that only has legacy serviceScopeCode', () => {
+    expect(() =>
+      packageScopeForWrite({ serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' }),
+    ).toThrow(ValidationError);
+  });
+
+  it('treats missing offeringId as ineligible for offering-scoped capacity', () => {
+    expect(packageScopeOfferingId({ offeringId: '  ' })).toBeUndefined();
+    expect(
+      hasOfferingScopedCapacity({ serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' }),
+    ).toBe(false);
+    expect(hasOfferingScopedCapacity({ offeringId: 'pkg_1' })).toBe(true);
   });
 });

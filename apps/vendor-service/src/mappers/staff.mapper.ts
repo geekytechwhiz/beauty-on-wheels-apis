@@ -23,6 +23,7 @@ export class StaffMapper {
       email: item.email,
       role: item.role,
       status: item.status,
+      provisioningStatus: item.provisioningStatus,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -36,19 +37,17 @@ export class StaffMapper {
   ): StaffDdbItem {
     const timestamp = new Date().toISOString();
     const createdAt = options?.createdAt || timestamp;
-    const userId = request.userId?.trim() || undefined;
 
     return {
       PK: VendorKeyBuilder.vendorPk(vendorId),
       SK: VendorKeyBuilder.staffSk(staffId),
       staffId,
       vendorId,
-      ...(userId ? { userId } : {}),
       name: request.name,
       phoneNumber: request.phoneNumber,
-      email: request.email,
-      role: request.role,
+      role: 'STAFF',
       status: request.status ?? DEFAULT_STATUS,
+      provisioningStatus: 'PENDING',
       createdAt,
       updatedAt: timestamp,
       entityType: STAFF_ENTITY_TYPE,
@@ -62,10 +61,6 @@ export class StaffMapper {
     return {
       ...existing,
       name: updates.name ?? existing.name,
-      phoneNumber: updates.phoneNumber ?? existing.phoneNumber,
-      email: updates.email !== undefined ? updates.email : existing.email,
-      role: updates.role !== undefined ? updates.role : existing.role,
-      status: updates.status ?? existing.status,
       updatedAt: new Date().toISOString(),
     };
   }

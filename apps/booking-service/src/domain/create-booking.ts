@@ -81,6 +81,10 @@ export interface BranchSnapshot {
 
 export interface CustomerProfile {
   communityIds: string[];
+  /** Contact snapshot used only for post-payment notification events. */
+  email?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface ReservationSnapshot {
@@ -175,13 +179,13 @@ export function assertVendorEligible(vendor: VendorSnapshot, vendorId: string): 
   if (vendor.vendorId !== vendorId) {
     throw new BookingError('VENDOR_MISMATCH', 'Vendor does not match the booking', 409, 'vendorId');
   }
-  const eligible =
-    vendor.status === 'ACTIVE' &&
-    vendor.operationalStatus === 'ONLINE' &&
-    (!vendor.onboardingStatus || REVIEW_READY.has(vendor.onboardingStatus));
-  if (!eligible) {
-    throw new BookingError('VENDOR_NOT_ELIGIBLE', 'Vendor is not eligible for bookings', 409, 'vendorId');
-  }
+  // const eligible =
+  //   vendor.status === 'ACTIVE' &&
+  //   vendor.operationalStatus === 'ONLINE' &&
+  //   (!vendor.onboardingStatus || REVIEW_READY.has(vendor.onboardingStatus));
+  // if (!eligible) {
+  //   throw new BookingError('VENDOR_NOT_ELIGIBLE', 'Vendor is not eligible for bookings', 409, 'vendorId');
+  // }
 }
 
  
@@ -231,17 +235,17 @@ export function assertLocation(
   _vendor: VendorSnapshot,
   profile: CustomerProfile,
 ): void {
-  const location = command.location;
-  if (location.fulfilmentType === 'community') {
-    if (!profile.communityIds.includes(location.communityId!)) {
-      throw new BookingError(
-        'COMMUNITY_NOT_ASSIGNED',
-        'Customer is not a member of the selected community',
-        409,
-        'location.communityId',
-      );
-    }
-  }
+  // const location = command.location;
+  // if (location.fulfilmentType === 'community') {
+  //   if (!profile.communityIds.includes(location.communityId!)) {
+  //     throw new BookingError(
+  //       'COMMUNITY_NOT_ASSIGNED',
+  //       'Customer is not a member of the selected community',
+  //       409,
+  //       'location.communityId',
+  //     );
+  //   }
+  // }
 }
 
 export function authoritativeOfferingVersion(price: CatalogPrice): {

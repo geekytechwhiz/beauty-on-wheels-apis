@@ -1,4 +1,4 @@
-import { LambdaRequest } from '@api-hub/utils';
+import { DEFAULT_TIMEZONE, LambdaRequest } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { assertVendorOperationsAccess } from '../auth/vendor-operations';
@@ -82,13 +82,13 @@ export class VendorOperationsSummaryService {
 
     const planCache = new Map<string, CustomerPlanRecord | null>();
     const enriched = await this.enrich(visits, planCache);
-    const timezone = await this.resolveTimezone(vendorId, enriched, bookings);
+    // const timezone = await this.resolveTimezone(vendorId, enriched, bookings);
     const result = summarizeVendorOperations({
       visits: enriched,
       bookings,
       fromDate: range.fromDate,
       toDate: range.toDate,
-      timezone,
+      timezone: DEFAULT_TIMEZONE,
     });
 
     this.logger.info({

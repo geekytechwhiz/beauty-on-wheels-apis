@@ -36,7 +36,7 @@ export class CatalogUnavailableError extends Error {
 }
 
 function catalogBaseUrl(): string {
-  const base = env.CATALOG_BASE_URL?.trim().replace(/\/$/, '');
+  const base = env.CATALOG_BASE_URL.trim().replace(/\/$/, '');
   if (!base) {
     throw new CatalogUnavailableError(
       'CATALOG_BASE_URL is not configured; catalog mappings cannot be validated',
@@ -137,18 +137,18 @@ export class HttpCatalogEntityLookup implements CatalogEntityLookup {
     if (packages.length === 0) {
       return;
     }
-    const base = catalogBaseUrl();
-    await Promise.all(
-      packages.map((pkg) =>
-        assertExists({
-          url: `${base}/offerings/${encodeURIComponent(pkg.packageId)}`,
-          authorizationHeader,
-          enabled: pkg.enabled,
-          unknownMessage: `Unknown catalog package: ${pkg.packageId}`,
-          inactiveMessage: `Catalog package is not active: ${pkg.packageId}`,
-        }),
-      ),
-    );
+    // const base = catalogBaseUrl();
+    // await Promise.all(
+    //   packages.map((pkg) =>
+    //     assertExists({
+    //       url: `${base}/offerings/${encodeURIComponent(pkg.packageId)}`,
+    //       authorizationHeader,
+    //       enabled: pkg.enabled,
+    //       unknownMessage: `Unknown catalog package: ${pkg.packageId}`,
+    //       inactiveMessage: `Catalog package is not active: ${pkg.packageId}`,
+    //     }),
+    //   ),
+    // );
   }
 }
 

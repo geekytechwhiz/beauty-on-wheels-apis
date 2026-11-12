@@ -950,10 +950,15 @@ functions:
     description: One-shot backfill of CUSTOMER mappings for legacy users.
     timeout: 300
     memorySize: 256
-  vendorEmailVerifiedRole:
-    handler: src/handlers/vendor-email-verified-role.handler
-    description: Grants VENDOR after Vendor Service has verified a completed vendor onboarding email.
-    timeout: 30
+  vendorAccountProvisioning:
+    handler: src/handlers/vendor-account-provisioning.handler
+    description: Ensures a trusted staff-created vendor login identity and VENDOR role.
+    timeout: 60
+    memorySize: 256
+  staffAccountProvisioning:
+    handler: src/handlers/staff-account-provisioning.handler
+    description: Resolves Cognito and canonical identity, then grants STAFF without replacing existing roles.
+    timeout: 60
     memorySize: 256
   onIdentityProfileInserted:
     handler: src/handlers/identity-profile-stream.handler
@@ -1196,35 +1201,48 @@ resources:
               Condition:
                 StringEquals:
                   aws:SourceAccount: !Ref AWS::AccountId
-    VendorRoleLifecycleRule:
+    VendorAccountProvisioningRule:
       Type: AWS::Events::Rule
-      DependsOn:
-        - VendorRoleDlqPolicy
       Properties:
-        Name: ${self:custom.resourcePrefix}-identity-vendor-role
-        Description: Grants the VENDOR application role after authoritative vendor email verification
+        Name: ${self:custom.resourcePrefix}-identity-vendor-account-provisioning
         EventBusName:
           Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
         EventPattern:
-          source:
-            - vendor-service
-          detail-type:
-            - Vendor.EmailVerified
+          source: [vendor-service]
+          detail-type: [Vendor.AccountProvisioningRequested]
         State: ENABLED
         Targets:
-          - Id: IdentityVendorRole
-            Arn: !GetAtt VendorEmailVerifiedRoleLambdaFunction.Arn
-            DeadLetterConfig:
-              Arn: !GetAtt VendorRoleDlq.Arn
-            RetryPolicy:
-              MaximumRetryAttempts: 3
-    VendorRoleEventPermission:
+          - Id: IdentityVendorAccountProvisioning
+            Arn: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    VendorAccountProvisioningPermission:
       Type: AWS::Lambda::Permission
       Properties:
-        FunctionName: !GetAtt VendorEmailVerifiedRoleLambdaFunction.Arn
+        FunctionName: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
         Action: lambda:InvokeFunction
         Principal: events.amazonaws.com
-        SourceArn: !GetAtt VendorRoleLifecycleRule.Arn
+        SourceArn: !GetAtt VendorAccountProvisioningRule.Arn
+    StaffAccountProvisioningRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-staff-account-provisioning
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [vendor-service]
+          detail-type: [Staff.AccountProvisioningRequested]
+        State: ENABLED
+        Targets:
+          - Id: IdentityStaffAccountProvisioning
+            Arn: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    StaffAccountProvisioningPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt StaffAccountProvisioningRule.Arn
     GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
     GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}

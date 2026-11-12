@@ -1,12 +1,8 @@
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import type { DynamoDBRecord, DynamoDBStreamEvent } from 'aws-lambda';
 import type { LambdaInvocationContext } from '@api-hub/observability';
-import {
-  vendorEmailVerificationRequestedIdempotencyKey,
-  type VendorEmailVerificationRequestedPayload,
-} from '@api-hub/event-platform';
 
-import { createVendorEmailVerificationRequestedStreamHandler } from './vendor-email-verification-stream';
+import { createVendorProfileStreamHandler } from './vendor-email-verification-stream';
 
 jest.mock('@api-hub/observability', () => {
   const actual = jest.requireActual('@api-hub/observability');
@@ -36,18 +32,14 @@ function vendorImage(
     PK: attrString('VENDOR#vendor-1'),
     SK: attrString('PROFILE'),
     vendorId: attrString('vendor-1'),
-    ownerUserId: attrString('user-1'),
+    createdBy: attrString('staff-1'),
+    loginPhoneNumber: attrString('+919876543210'),
+    accountProvisioningStatus: attrString('PENDING'),
     email: attrString('owner@example.com'),
     contactName: attrString('Priya Sharma'),
     businessName: attrString('ABC Car Wash'),
     applicationId: attrString('app-1'),
     status: attrString('PENDING_VERIFICATION'),
-    completedSections: {
-      L: [
-        attrString('BUSINESS_INFO'), attrString('OWNER_DETAILS'),
-        attrString('ADDRESS'), attrString('BRANCH'), attrString('BANK_DETAILS'),
-      ],
-    },
     emailVerificationRequestId: attrString('verify-1'),
     emailVerificationOtp: attrString('482193'),
     emailVerificationDispatchPending: { BOOL: true },
@@ -61,17 +53,6 @@ function vendorImage(
     },
     ...overrides,
   };
-}
-
-function incompleteVendorImage(): Record<string, AttributeValue> {
-  return vendorImage({
-    completedSections: {
-      L: [
-        attrString('BUSINESS_INFO'), attrString('OWNER_DETAILS'),
-        attrString('ADDRESS'), attrString('BRANCH'),
-      ],
-    },
-  });
 }
 
 function streamRecord(overrides: {
@@ -99,12 +80,14 @@ function streamRecord(overrides: {
   };
 }
 
-function handlerWithPublish(publish: jest.Mock) {
-  return createVendorEmailVerificationRequestedStreamHandler({
-    publish: publish as (
-      payload: VendorEmailVerificationRequestedPayload,
-      correlationId: string,
-    ) => Promise<void>,
+function handlerWithDeps(deps: {
+  publishProvisioning?: jest.Mock;
+  publishEmail?: jest.Mock;
+}) {
+  return createVendorProfileStreamHandler({
+    publishProvisioning: deps.publishProvisioning as never,
+    publishEmail: deps.publishEmail as never,
+    markEmailDispatched: async () => undefined,
     consumer: {
       retry: { maxAttempts: 1, strategy: 'fixed', delayMs: 1 },
       dlq: { enabled: false },
@@ -112,165 +95,236 @@ function handlerWithPublish(publish: jest.Mock) {
   });
 }
 
-describe('vendor email verification requested stream handler', () => {
-  it('publishes VendorEmailVerification.Requested for a persisted request', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const handler = handlerWithPublish(publish);
+describe('vendor profile stream handler', () => {
+  it('on INSERT requests account provisioning and email verification', async () => {
+    const publishProvisioning = jest.fn().mockResolvedValue(undefined);
+    const publishEmail = jest.fn().mockResolvedValue(undefined);
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
 
-    const event: DynamoDBStreamEvent = {
-      Records: [
-        streamRecord({
-          oldImage: incompleteVendorImage(),
-          newImage: vendorImage(),
-        }),
-      ],
-    };
-
-    const out = await handler(event, lambdaContext);
+    const out = await handler(
+      { Records: [streamRecord({ eventName: 'INSERT', newImage: vendorImage() })] },
+      lambdaContext,
+    );
 
     expect(out.batchItemFailures).toEqual([]);
-    expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish).toHaveBeenCalledWith(
+    expect(publishProvisioning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendorId: 'vendor-1',
+        loginPhoneNumber: '+919876543210',
+        displayName: 'Priya Sharma',
+        email: 'owner@example.com',
+      }),
+      'corr-confirm-1',
+    );
+    expect(publishEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         vendorId: 'vendor-1',
         verificationRequestId: 'verify-1',
         intent: 'VENDOR_EMAIL_VERIFICATION',
-        ownerUserId: 'user-1',
-        email: 'owner@example.com',
-        ownerName: 'Priya',
-        businessName: 'ABC Car Wash',
         verificationToken: '482193',
-        expiryMinutes: 10,
-        vendorStatus: 'PENDING_VERIFICATION',
-        applicationId: 'app-1',
       }),
       'corr-confirm-1',
     );
   });
 
-  it('does not publish ACTIVE → ACTIVE', async () => {
-    const publish = jest.fn();
-    const handler = handlerWithPublish(publish);
+  it('does not derive the login account from createdBy / staff creator', async () => {
+    const publishProvisioning = jest.fn().mockResolvedValue(undefined);
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail: jest.fn() });
 
-    const event: DynamoDBStreamEvent = {
-      Records: [
-        streamRecord({
-          oldImage: vendorImage(),
-          newImage: vendorImage({ businessName: attrString('Renamed') }),
-        }),
-      ],
-    };
-
-    const out = await handler(event, lambdaContext);
-
-    expect(out.batchItemFailures).toEqual([]);
-    expect(publish).not.toHaveBeenCalled();
-  });
-
-  it('does not publish unrelated child-item updates', async () => {
-    const publish = jest.fn();
-    const handler = handlerWithPublish(publish);
-
-    const event: DynamoDBStreamEvent = {
-      Records: [
-        streamRecord({
-          oldImage: {
-            PK: attrString('VENDOR#vendor-1'),
-            SK: attrString('DOCUMENT#doc-1'),
-            entityType: attrString('VendorDocument'),
-          },
-          newImage: {
-            PK: attrString('VENDOR#vendor-1'),
-            SK: attrString('DOCUMENT#doc-1'),
-            entityType: attrString('VendorDocument'),
-            fileName: attrString('gst.pdf'),
-          },
-        }),
-      ],
-    };
-
-    const out = await handler(event, lambdaContext);
-
-    expect(out.batchItemFailures).toEqual([]);
-    expect(publish).not.toHaveBeenCalled();
-  });
-
-  it('does not publish when verification data is missing', async () => {
-    const publish = jest.fn();
-    const handler = handlerWithPublish(publish);
-
-    const event: DynamoDBStreamEvent = {
-      Records: [
-        streamRecord({
-          eventID: 'eid-missing',
-          oldImage: incompleteVendorImage(),
-          newImage: vendorImage({
-            email: attrString(''),
-            emailVerificationOtp: attrString(''),
-            contactName: attrString(''),
+    await handler(
+      {
+        Records: [
+          streamRecord({
+            eventName: 'INSERT',
+            newImage: vendorImage({
+              createdBy: attrString('staff-admin-99'),
+              emailVerificationDispatchPending: { BOOL: false },
+              emailVerificationRequestId: attrString(''),
+              emailVerificationOtp: attrString(''),
+            }),
           }),
-        }),
-      ],
-    };
+        ],
+      },
+      lambdaContext,
+    );
 
-    const out = await handler(event, lambdaContext);
-
-    expect(out.batchItemFailures).toEqual([]);
-    expect(publish).not.toHaveBeenCalled();
+    expect(publishProvisioning).toHaveBeenCalledWith(
+      expect.objectContaining({ loginPhoneNumber: '+919876543210' }),
+      expect.any(String),
+    );
+    expect(publishProvisioning.mock.calls[0][0].loginPhoneNumber).not.toContain(
+      'staff',
+    );
   });
 
-  it('publishes only the confirmed record in a mixed batch', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const handler = handlerWithPublish(publish);
+  it('publishes email verification for a MODIFY request transition', async () => {
+    const publishEmail = jest.fn().mockResolvedValue(undefined);
+    const publishProvisioning = jest.fn();
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
 
-    const event: DynamoDBStreamEvent = {
-      Records: [
-        streamRecord({
-          eventID: 'eid-progress',
-          oldImage: incompleteVendorImage(),
-          newImage: incompleteVendorImage(),
-        }),
-        streamRecord({
-          eventID: 'eid-confirm',
-          oldImage: incompleteVendorImage(),
-          newImage: vendorImage(),
-        }),
-        streamRecord({
-          eventID: 'eid-already',
-          oldImage: vendorImage(),
-          newImage: vendorImage({ businessName: attrString('Still Active') }),
-        }),
-      ],
-    };
-
-    const out = await handler(event, lambdaContext);
+    const out = await handler(
+      {
+        Records: [
+          streamRecord({
+            eventName: 'MODIFY',
+            oldImage: vendorImage({
+              emailVerificationRequestId: attrString('old'),
+              accountProvisioningStatus: attrString('COMPLETED'),
+              identityId: attrString('sub-1'),
+              emailVerificationDispatchPending: { BOOL: false },
+            }),
+            newImage: vendorImage({
+              accountProvisioningStatus: attrString('COMPLETED'),
+              identityId: attrString('sub-1'),
+              ownerUserId: attrString('user-1'),
+            }),
+          }),
+        ],
+      },
+      lambdaContext,
+    );
 
     expect(out.batchItemFailures).toEqual([]);
-    expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish.mock.calls[0][0].vendorId).toBe('vendor-1');
+    expect(publishProvisioning).not.toHaveBeenCalled();
+    expect(publishEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('handles a replayed stream record without throwing', async () => {
-    const publish = jest.fn().mockResolvedValue(undefined);
-    const handler = handlerWithPublish(publish);
+  it('does not restart provisioning on linkage/status MODIFY', async () => {
+    const publishProvisioning = jest.fn();
+    const publishEmail = jest.fn();
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
+
+    const out = await handler(
+      {
+        Records: [
+          streamRecord({
+            eventName: 'MODIFY',
+            oldImage: vendorImage({
+              accountProvisioningStatus: attrString('PENDING'),
+              emailVerificationDispatchPending: { BOOL: false },
+              emailVerificationRequestId: attrString('verify-1'),
+            }),
+            newImage: vendorImage({
+              accountProvisioningStatus: attrString('COMPLETED'),
+              identityId: attrString('sub-1'),
+              ownerUserId: attrString('user-1'),
+              emailVerificationDispatchPending: { BOOL: false },
+              emailVerificationRequestId: attrString('verify-1'),
+              emailVerificationOtp: attrString('482193'),
+            }),
+          }),
+        ],
+      },
+      lambdaContext,
+    );
+
+    expect(out.batchItemFailures).toEqual([]);
+    expect(publishProvisioning).not.toHaveBeenCalled();
+    expect(publishEmail).not.toHaveBeenCalled();
+  });
+
+  it('ignores unrelated child-item updates', async () => {
+    const publishProvisioning = jest.fn();
+    const publishEmail = jest.fn();
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
+
+    const out = await handler(
+      {
+        Records: [
+          streamRecord({
+            oldImage: {
+              PK: attrString('VENDOR#vendor-1'),
+              SK: attrString('DOCUMENT#doc-1'),
+              entityType: attrString('VendorDocument'),
+            },
+            newImage: {
+              PK: attrString('VENDOR#vendor-1'),
+              SK: attrString('DOCUMENT#doc-1'),
+              entityType: attrString('VendorDocument'),
+              status: attrString('UPLOADED'),
+            },
+          }),
+        ],
+      },
+      lambdaContext,
+    );
+
+    expect(out.batchItemFailures).toEqual([]);
+    expect(publishProvisioning).not.toHaveBeenCalled();
+    expect(publishEmail).not.toHaveBeenCalled();
+  });
+
+  it('reports partial batch failures when provisioning publish fails', async () => {
+    const publishProvisioning = jest
+      .fn()
+      .mockRejectedValue(new Error('eventbridge unavailable'));
+    const publishEmail = jest.fn();
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
+
+    const failingId = 'eid-fail-1';
+    const out = await handler(
+      {
+        Records: [
+          streamRecord({
+            eventID: failingId,
+            eventName: 'INSERT',
+            newImage: vendorImage({
+              emailVerificationDispatchPending: { BOOL: false },
+              emailVerificationRequestId: attrString(''),
+              emailVerificationOtp: attrString(''),
+            }),
+          }),
+        ],
+      },
+      lambdaContext,
+    );
+
+    expect(out.batchItemFailures).toEqual([{ itemIdentifier: failingId }]);
+    expect(publishEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not recreate accounts when only email publish fails after provisioning accepted', async () => {
+    const publishProvisioning = jest.fn().mockResolvedValue(undefined);
+    const publishEmail = jest
+      .fn()
+      .mockRejectedValue(new Error('email bus unavailable'));
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
+
+    const out = await handler(
+      {
+        Records: [
+          streamRecord({
+            eventID: 'eid-email-fail',
+            eventName: 'INSERT',
+            newImage: vendorImage(),
+          }),
+        ],
+      },
+      lambdaContext,
+    );
+
+    expect(publishProvisioning).toHaveBeenCalledTimes(1);
+    expect(publishEmail).toHaveBeenCalledTimes(1);
+    expect(out.batchItemFailures).toEqual([
+      { itemIdentifier: 'eid-email-fail' },
+    ]);
+  });
+
+  it('is safe for duplicate INSERT deliveries', async () => {
+    const publishProvisioning = jest.fn().mockResolvedValue(undefined);
+    const publishEmail = jest.fn().mockResolvedValue(undefined);
+    const handler = handlerWithDeps({ publishProvisioning, publishEmail });
+
     const record = streamRecord({
-      eventID: 'eid-replay',
-      oldImage: incompleteVendorImage(),
+      eventID: 'eid-dup',
+      eventName: 'INSERT',
       newImage: vendorImage(),
     });
-    const event: DynamoDBStreamEvent = { Records: [record] };
+    const event: DynamoDBStreamEvent = { Records: [record, record] };
 
-    const first = await handler(event, lambdaContext);
-    const second = await handler(event, lambdaContext);
-
-    expect(first.batchItemFailures).toEqual([]);
-    expect(second.batchItemFailures).toEqual([]);
-    expect(publish).toHaveBeenCalledTimes(2);
-    expect(
-      vendorEmailVerificationRequestedIdempotencyKey(
-        'vendor-1',
-        'verify-1',
-      ),
-    ).toBe('VendorEmailVerification.Requested:vendor-1:verify-1');
+    const out = await handler(event, lambdaContext);
+    expect(out.batchItemFailures).toEqual([]);
+    expect(publishProvisioning).toHaveBeenCalled();
+    expect(publishEmail).toHaveBeenCalled();
   });
 });

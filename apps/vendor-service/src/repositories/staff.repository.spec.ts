@@ -58,6 +58,26 @@ describe('StaffRepository', () => {
     expect(input.TransactItems[1].Put.Item.userId).toBeUndefined();
   });
 
+  it('writes a staff membership item only after a portal userId is present', async () => {
+    ddbMock.on(TransactWriteCommand).resolves({});
+
+    await repository.createStaff({ ...item, userId: 'portal-1' });
+
+    const input = ddbMock.call(0).args[0].input as {
+      TransactItems: Array<Record<string, any>>;
+    };
+    expect(input.TransactItems).toHaveLength(4);
+    expect(input.TransactItems[3].Put.Item).toEqual({
+      PK: 'STAFF_USER#portal-1',
+      SK: 'VENDOR#vendor-1',
+      userId: 'portal-1',
+      vendorId: 'vendor-1',
+      staffId: 'staff-1',
+      status: 'ACTIVE',
+      entityType: 'StaffMembership',
+    });
+  });
+
   it('gets staff by vendor-owned primary key', async () => {
     ddbMock.on(GetCommand).resolves({ Item: item });
 

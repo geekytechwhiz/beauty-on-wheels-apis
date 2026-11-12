@@ -6,6 +6,12 @@ import {
   IDENTITY_USER_PROVISIONING_EVENT_VERSION,
   UserProvisionedEvent,
   USER_PROVISIONED_EVENT_TYPE,
+  VendorAccountProvisionedEvent,
+  VENDOR_ACCOUNT_PROVISIONED_EVENT_TYPE,
+  VENDOR_ACCOUNT_PROVISIONING_EVENT_VERSION,
+  StaffAccountProvisionedEvent,
+  STAFF_ACCOUNT_PROVISIONED_EVENT_TYPE,
+  STAFF_ACCOUNT_PROVISIONING_EVENT_VERSION,
 } from '@api-hub/event-platform';
 
 import { env } from '../configs/env.config';
@@ -22,6 +28,8 @@ export function ensureIdentityEventPlatform(): void {
     payloadSchemas: {
       [IDENTITY_REGISTERED_EVENT_TYPE]: { [IDENTITY_USER_PROVISIONING_EVENT_VERSION]: IdentityRegisteredEvent },
       [USER_PROVISIONED_EVENT_TYPE]: { [IDENTITY_USER_PROVISIONING_EVENT_VERSION]: UserProvisionedEvent },
+      [VENDOR_ACCOUNT_PROVISIONED_EVENT_TYPE]: { [VENDOR_ACCOUNT_PROVISIONING_EVENT_VERSION]: VendorAccountProvisionedEvent },
+      [STAFF_ACCOUNT_PROVISIONED_EVENT_TYPE]: { [STAFF_ACCOUNT_PROVISIONING_EVENT_VERSION]: StaffAccountProvisionedEvent },
     },
   });
   configured = true;

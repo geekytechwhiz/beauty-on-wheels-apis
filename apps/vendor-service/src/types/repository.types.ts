@@ -19,11 +19,25 @@ export interface VendorDdbItem {
   PK: string;
   SK: string;
   vendorId: string;
-  ownerUserId: string;
+  /** Legacy ownership field. New staff-created vendors use createdBy instead. */
+  ownerUserId?: string;
+  /** Authenticated platform staff member that created this vendor; audit only. */
+  createdBy?: string;
    businessType?:  businessType;
   businessName?: string;
   contactName?: string;
   phoneNumber?: string;
+  /** Explicit login contact supplied by staff; never derived from createdBy. */
+  loginPhoneNumber?: string;
+  identityId?: string;
+  accountProvisioningStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+  accountProvisionedAt?: string;
+  accountProvisioningFailure?: { code: string; message: string; at: string };
+  /**
+   * Deliberate provisioning retry token. Stream only re-requests provisioning
+   * when this value changes (recovery tooling), never on ordinary profile edits.
+   */
+  accountProvisioningRetryRequestedAt?: string;
   email?: string;
   description?: string;
   profileImageUrl?: string;
@@ -39,6 +53,9 @@ export interface VendorDdbItem {
   lastVisitedStep?: OnboardingSection;
   /** Monotonic optimistic-concurrency token. Legacy rows are treated as revision 0. */
   revision?: number;
+  /** Manager confirmation of the support-prepared profile at a specific revision. */
+  detailsAcceptedRevision?: number;
+  detailsAcceptedAt?: string;
   applicationId?: string;
   communityIds?: string[];
   /**
@@ -66,6 +83,7 @@ export interface VendorDdbItem {
   emailVerifiedAt?: string;
   createdAt: string;
   updatedAt: string;
+  concent?: boolean;
   GSI1PK: string;
   GSI1SK: string;
   GSI2PK?: string;
@@ -121,6 +139,7 @@ export interface VendorAddressDdbItem {
   createdAt: string;
   updatedAt: string;
   entityType: 'VendorAddress';
+  concent?: boolean;
 }
 
 export interface VendorBankDdbItem {
@@ -202,6 +221,9 @@ export interface StaffDdbItem {
   email?: string;
   role?: string;
   status: StaffStatus;
+  provisioningStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+  identityId?: string;
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
   entityType: 'Staff';

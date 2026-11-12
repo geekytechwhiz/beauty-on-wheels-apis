@@ -109,6 +109,17 @@ export const VendorKeyBuilder = {
   ) =>
     `STATUS#${status}#OPERATIONAL#${operationalStatus}#${createdAt}#${vendorId}`,
 
+  /** The only discovery-key format used by vendor PROFILE rows. */
+  vendorDiscoveryKeys: (
+    status: VendorStatus,
+    operationalStatus: OperationalStatus,
+    createdAt: string,
+    vendorId: string,
+  ) => ({
+    GSI1PK: VENDOR_GSI1_PK,
+    GSI1SK: VendorKeyBuilder.gsi1Sk(status, operationalStatus, createdAt, vendorId),
+  }),
+
   gsi1SkStatusPrefix: (status: VendorStatus) => `STATUS#${status}#`,
 
   gsi1SkStatusOperationalPrefix: (

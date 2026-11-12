@@ -2446,26 +2446,27 @@
           }
         },
         "example": {
-          "items": [
-            {
-              "packageId": "pkg_1",
-              "packageName": "Weekend Exterior",
-              "communityId": "community-1",
-              "categoryId": "cat-wash",
-              "enabled": false,
-              "eligibility": "held",
-              "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
-              "fulfilmentVendorIds": [
-                "vendor-1"
-              ],
-              "capacityCommitmentIds": [
-                "cmt-1"
-              ],
-              "version": 2,
-              "createdAt": "2026-11-01T00:00:00.000Z",
-              "updatedAt": "2026-11-02T00:00:00.000Z"
-            }
-          ],
+                "items": [
+                  {
+                    "packageId": "pkg_1",
+                    "packageName": "Weekend Exterior",
+                    "communityId": "community-1",
+                    "categoryId": "cat-wash",
+                    "enabled": false,
+                    "eligibility": "held",
+                    "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
+                    "vendorId": "vendor-1",
+                    "fulfilmentVendorIds": [
+                      "vendor-1"
+                    ],
+                    "capacityCommitmentIds": [
+                      "cmt-1"
+                    ],
+                    "version": 2,
+                    "createdAt": "2026-11-01T00:00:00.000Z",
+                    "updatedAt": "2026-11-02T00:00:00.000Z"
+                  }
+                ],
           "total": 1,
           "pagination": {
             "limit": 25,
@@ -4811,15 +4812,34 @@
     "/packages": {
       "get": {
         "summary": "Discover sellable Carish packages for a community",
-        "description": "",
+        "description": "Reads enabled sales-control rows from GSI3 for the community. Each item includes vendorId (primary fulfilment vendor) alongside the published package payload.\n",
         "operationId": "discoverPlatformPackages",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "tags": [
           "Platform packages"
         ],
         "responses": {
           "200": {
-            "description": "Customer package page",
+            "description": "Customer package page including vendorId",
             "headers": {
               "Access-Control-Allow-Origin": {
                 "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",

@@ -92,7 +92,7 @@ export function planOwnershipRepair(
     };
   }
 
-  const profileId = snapshot.profileOwnerUserId?.trim();
+  const profileId = snapshot.profileOwnerUserId.trim();
   const profileIsCanonical = isCanonicalUserId(profileId);
   if (
     mapping &&
@@ -197,8 +197,8 @@ export function planOwnershipRepair(
 }
 
 function nonCanonicalReason(snapshot: VendorOwnershipSnapshot): string {
-  const profileId = snapshot.profileOwnerUserId?.trim() ?? '';
-  const ownerId = snapshot.ownerItemUserId?.trim() ?? '';
+  const profileId = snapshot.profileOwnerUserId.trim() ?? '';
+  const ownerId = snapshot.ownerItemUserId.trim() ?? '';
   const generated =
     GENERATED_OWNER_ID.test(profileId) || GENERATED_OWNER_ID.test(ownerId);
   if (generated) {

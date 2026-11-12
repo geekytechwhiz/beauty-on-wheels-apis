@@ -239,6 +239,7 @@ export class PlatformPackagesService {
       await this.assertSalesPrerequisites(packageId, communityId, input);
     }
     const now = this.now();
+    const vendorId = input.fulfilmentVendorIds[0];
     const sales: PlatformPackageSalesControl = {
       PK: packageRow.PK,
       SK: `SALES#${communityId}`,
@@ -248,6 +249,7 @@ export class PlatformPackagesService {
       communityId,
       enabled: input.enabled,
       reason: input.reason,
+      vendorId,
       fulfilmentVendorIds: input.fulfilmentVendorIds,
       capacityCommitmentIds: input.capacityCommitmentIds,
       ...(input.effectiveFrom ? { effectiveFrom: input.effectiveFrom } : {}),
@@ -362,6 +364,8 @@ export class PlatformPackagesService {
       controls
         .filter((item) => effective(item, now))
         .map(async (control) => {
+          const vendorId = salesVendorId(control);
+          if (!vendorId) return null;
           const current = await this.packages.getPackage(control.packageId);
           if (
             !current ||
@@ -374,12 +378,21 @@ export class PlatformPackagesService {
             current.packageId,
             current.publishedVersion,
           );
-          return published?.status === 'published' ? published : null;
+          if (!published || published.status !== 'published') return null;
+          return {
+            package: published,
+            vendorId,
+            fulfilmentVendorIds: control.fulfilmentVendorIds,
+          };
         }),
     );
     const items = rows
       .filter((row): row is NonNullable<typeof row> => row !== null)
-      .map(toCustomerResponse);
+      .map((row) => ({
+        ...toCustomerResponse(row.package),
+        vendorId: row.vendorId,
+        fulfilmentVendorIds: row.fulfilmentVendorIds,
+      }));
     return { items, total: items.length };
   }
 
@@ -408,8 +421,12 @@ export class PlatformPackagesService {
     );
     if (!published || published.status !== 'published')
       throw new NotFoundError(`Package not available: ${packageId}`);
+    const vendorId = salesVendorId(control);
+    if (!vendorId)
+      throw new NotFoundError(`Package not available: ${packageId}`);
     return {
       ...toCustomerResponse(published),
+      vendorId,
       fulfilmentVendorIds: control.fulfilmentVendorIds,
     };
   }
@@ -479,9 +496,15 @@ export class PlatformPackagesService {
           `Capacity commitment ${commitmentId} belongs to vendor ${fact.vendorId}, which is not in fulfilmentVendorIds`,
         );
       }
-      if (fact.scope.offeringId && fact.scope.offeringId !== packageId) {
+      const scopedOfferingId = fact.scope.offeringId?.trim();
+      if (!scopedOfferingId) {
         throw new ConflictError(
-          `Capacity commitment ${commitmentId} is scoped to package ${fact.scope.offeringId}, not ${packageId}`,
+          `Capacity commitment ${commitmentId} is missing offeringId and cannot open sales until migrated`,
+        );
+      }
+      if (scopedOfferingId !== packageId) {
+        throw new ConflictError(
+          `Capacity commitment ${commitmentId} is scoped to package ${scopedOfferingId}, not ${packageId}`,
         );
       }
     }
@@ -582,6 +605,17 @@ function effective(control: PlatformPackageSalesControl, now: string) {
     (!control.effectiveFrom || control.effectiveFrom <= now) &&
     (!control.effectiveUntil || control.effectiveUntil > now)
   );
+}
+
+/** Primary fulfilment vendor on a sales-control GSI3 row (legacy rows may only have the array). */
+function salesVendorId(
+  control: Pick<PlatformPackageSalesControl, 'vendorId' | 'fulfilmentVendorIds'>,
+): string | undefined {
+  if (typeof control.vendorId === 'string' && control.vendorId.trim()) {
+    return control.vendorId.trim();
+  }
+  const first = control.fulfilmentVendorIds?.[0];
+  return typeof first === 'string' && first.trim() ? first.trim() : undefined;
 }
 function toResponse(
   row:

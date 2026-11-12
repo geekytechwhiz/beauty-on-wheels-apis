@@ -11,7 +11,9 @@ export interface CapacityCommitmentFact {
   quantity: number;
   holdsCapacity: boolean;
   scope: {
+    /** Required for sales-control enablement. Legacy rows may omit until migrated. */
     offeringId?: string;
+    /** Legacy only; readable when present, never used for eligibility. */
     serviceScopeCode?: string;
     label: string;
   };

@@ -31,7 +31,7 @@ export function authorizationHeader(request: LambdaRequest): string | undefined 
 }
 
 export function headerValue(request: LambdaRequest, name: string): string | undefined {
-  const headers = request.event?.headers ?? {};
+  const headers = request?.event?.headers ?? {};
   const target = name.toLowerCase();
   for (const [key, value] of Object.entries(headers)) {
     if (key.toLowerCase() === target && typeof value === 'string' && value.trim()) {

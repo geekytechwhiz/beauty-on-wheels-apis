@@ -100,6 +100,10 @@ export interface BusinessInfo {
   businessName: string;
   contactName: string;
   phoneNumber?: string;
+  loginPhoneNumber?: string;
+  identityId?: string;
+  accountProvisioningStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+  accountProvisionedAt?: string;
   email?: string;
   description?: string;
   gstNumber?: string;
@@ -130,6 +134,7 @@ export interface UpdateVendorRequest {
   gstNumber?: string;
   panNumber?: string;
   profileImageUrl?: string;
+  concent?: boolean;
 }
 
 export interface UpdateVendorStatusRequest {
@@ -411,7 +416,10 @@ export interface OnboardingResponse {
 
 export interface Vendor {
   vendorId: string;
-  ownerUserId: string;
+  /** Present on legacy self-registered vendors only. */
+  ownerUserId?: string;
+  /** Audit actor for staff-created vendors; not an access grant. */
+  createdBy?: string;
    businessType?:  businessType;
   businessName?: string;
   contactName?: string;
@@ -430,6 +438,8 @@ export interface Vendor {
   completedSections?: OnboardingSection[];
   applicationId?: string;
   revision?: number;
+  detailsAcceptedRevision?: number;
+  detailsAcceptedAt?: string;
   communityIds: string[];
   onboarding?: VendorOnboardingSnapshot;
   latestReview?: VendorStatusReview;
@@ -443,6 +453,7 @@ export type VendorNextAction =
   | 'VIEW_APPLICATION_STATUS'
   | 'OPEN_VENDOR_DASHBOARD'
   | 'COMPLETE_VENDOR_SETUP'
+  | 'ACCEPT_VENDOR_DETAILS'
   | 'VIEW_ACCOUNT_STATUS'
   | 'CORRECT_APPLICATION';
 
@@ -450,6 +461,13 @@ export interface VendorMembership {
   role: 'owner' | 'staff';
   staffId?: string;
   permissions: string[];
+}
+
+export interface VendorDetailsAcceptance {
+  accepted: boolean;
+  acceptedRevision?: number;
+  acceptedAt?: string;
+  profileRevision: number;
 }
 
 export interface VendorSelfLookup {
@@ -463,6 +481,8 @@ export interface VendorSelfLookup {
   nextAction: VendorNextAction;
   /** Present only when hasVendor is true. */
   membership?: VendorMembership;
+  /** Owner confirmation of the support-prepared business details. */
+  detailsAcceptance?: VendorDetailsAcceptance;
 }
 
 export interface VendorResponse {
@@ -512,20 +532,13 @@ export interface VendorOperatingPreferencesSection {
 }
 
 export interface CreateStaffRequest {
-  userId?: string;
   name: string;
   phoneNumber: string;
-  email?: string;
-  role?: string;
   status?: StaffStatus;
 }
 
 export interface UpdateStaffRequest {
   name?: string;
-  phoneNumber?: string;
-  email?: string;
-  role?: string;
-  status?: StaffStatus;
 }
 
 export interface Staff {
@@ -537,6 +550,7 @@ export interface Staff {
   email?: string;
   role?: string;
   status: StaffStatus;
+  provisioningStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
   createdAt: string;
   updatedAt: string;
 }

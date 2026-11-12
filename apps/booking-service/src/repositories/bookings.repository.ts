@@ -9,6 +9,14 @@ import {
   HoldBookingItem,
 } from '../types/repository.types';
 import { BookingsMapper } from '../mappers/bookings.mapper';
+import type { BookingConfirmedPayload } from '@api-hub/event-platform';
+
+type BookingConfirmedOutbox = {
+  eventId: string;
+  idempotencyKey: string;
+  correlationId: string;
+  payload: BookingConfirmedPayload;
+};
 
 export class BookingsRepository extends BaseRepository {
   constructor() {
@@ -59,10 +67,13 @@ export class BookingsRepository extends BaseRepository {
   async createBooking(
     booking: Booking,
     meta: { idempotencyKey: string; requestHash: string },
+    contact?: { customerEmail?: string; customerName?: string },
   ): Promise<Booking> {
     const id = booking.id!;
     const timestamp = new Date().toISOString();
     const detailsItem = BookingsMapper.toDdbItem(booking, 1, timestamp);
+    if (contact?.customerEmail) detailsItem.customerEmail = contact.customerEmail;
+    if (contact?.customerName) detailsItem.customerName = contact.customerName;
     const customerItem = BookingsMapper.toCustomerLookupDdb(booking, timestamp);
     const vendorItem = BookingsMapper.toVendorLookupDdb(booking, timestamp);
 
@@ -361,6 +372,7 @@ export class BookingsRepository extends BaseRepository {
     status: Booking['bookingStatus'],
     original: BookingDdbItem,
     paymentStatus: Booking['paymentStatus'] = original.paymentStatus,
+    outbox?: BookingConfirmedOutbox,
   ): Promise<void> {
     const id = original.id;
     const timestamp = new Date().toISOString();
@@ -378,6 +390,8 @@ export class BookingsRepository extends BaseRepository {
       original.createdAt,
     );
     detailsItem.updatedAt = timestamp;
+    if (original.customerEmail) detailsItem.customerEmail = original.customerEmail;
+    if (original.customerName) detailsItem.customerName = original.customerName;
 
     const customerItem = BookingsMapper.toCustomerLookupDdb(
       updatedBooking,
@@ -432,6 +446,28 @@ export class BookingsRepository extends BaseRepository {
         },
       },
     ];
+
+    if (outbox) {
+      transactItems.push({
+        Put: {
+          TableName: this.getTableName(),
+          Item: {
+            PK: `BOOKING#${id}`,
+            SK: 'OUTBOX#BOOKING_CONFIRMED',
+            GSI1PK: `OUTBOX#BOOKING_CONFIRMED`,
+            GSI1SK: timestamp,
+            entityType: 'BookingConfirmationOutbox',
+            bookingId: id,
+            ...outbox,
+            createdAt: timestamp,
+            // Retain failed-publish evidence briefly; EventBridge delivery is
+            // driven by this INSERT's DynamoDB Stream record.
+            expiresAt: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60),
+          },
+          ConditionExpression: 'attribute_not_exists(PK)',
+        },
+      });
+    }
 
     await this.transactWrite({ TransactItems: transactItems });
   }

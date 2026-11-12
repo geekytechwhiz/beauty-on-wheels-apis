@@ -13,17 +13,13 @@ const isoDateTime = z.string().datetime({ offset: true });
 const quantity = z.number().int().min(1).max(MAX_PROPOSAL_QUANTITY);
 const note = z.string().trim().min(1).max(500);
 
+/** Wire scope for creates: offeringId is the sole authoritative package identifier. */
 export const PackageScopeSchema = z
   .object({
-    offeringId: id.optional(),
-    serviceScopeCode: id.optional(),
+    offeringId: id,
     label: z.string().trim().min(1).max(120),
   })
-  .strict()
-  .refine(
-    (value) => Boolean(value.offeringId) !== Boolean(value.serviceScopeCode),
-    { message: 'Provide exactly one of offeringId or serviceScopeCode' },
-  );
+  .strict();
 
 export const ServiceWindowSchema = z
   .object({
@@ -89,6 +85,8 @@ export const CreateCapacityProposalRequestSchema = z.preprocess(
       proposedPayoutRate: PayoutRateSchema,
       /** false creates a DRAFT; send it later with /send. Default true. */
       sendImmediately: z.boolean().optional(),
+      /** Optional audit note stored on the CREATE history entry. */
+      note: note.optional(),
     })
     .strict(),
 );

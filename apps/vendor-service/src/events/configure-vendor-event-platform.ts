@@ -20,6 +20,12 @@ import {
   BookingReadinessFactUpdatedEvent,
   BOOKING_READINESS_FACT_EVENT_TYPE,
   BOOKING_READINESS_FACT_EVENT_VERSION,
+  VendorAccountProvisioningRequestedEvent,
+  VENDOR_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE,
+  VENDOR_ACCOUNT_PROVISIONING_EVENT_VERSION,
+  StaffAccountProvisioningRequestedEvent,
+  STAFF_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE,
+  STAFF_ACCOUNT_PROVISIONING_EVENT_VERSION,
 } from '@api-hub/event-platform';
 
 import { env } from '../configs/env.config';
@@ -31,7 +37,7 @@ export function ensureVendorEventPlatform(): void {
     return;
   }
 
-  const eventBusName = env.EVENT_BUS_NAME?.trim();
+  const eventBusName = env.EVENT_BUS_NAME.trim();
   if (!eventBusName) {
     throw new Error('EVENT_BUS_NAME is required to publish vendor events');
   }
@@ -65,6 +71,12 @@ export function ensureVendorEventPlatform(): void {
       },
       [BOOKING_READINESS_FACT_EVENT_TYPE]: {
         [BOOKING_READINESS_FACT_EVENT_VERSION]: BookingReadinessFactUpdatedEvent,
+      },
+      [VENDOR_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE]: {
+        [VENDOR_ACCOUNT_PROVISIONING_EVENT_VERSION]: VendorAccountProvisioningRequestedEvent,
+      },
+      [STAFF_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE]: {
+        [STAFF_ACCOUNT_PROVISIONING_EVENT_VERSION]: StaffAccountProvisioningRequestedEvent,
       },
     },
   });

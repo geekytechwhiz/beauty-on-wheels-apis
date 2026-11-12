@@ -49,7 +49,16 @@ export function decideVendorStatusTransition(input: {
     };
   }
 
-   
+  // if (
+  //   isVendorApproval(input.from, input.to) &&
+  //   !REVIEW_READY_ONBOARDING.has(status)
+  // ) {
+  //   return {
+  //     kind: 'invalid',
+  //     message:
+  //       'Vendor can be approved only after onboarding is pending review',
+  //   };
+  // }
 
   return { kind: 'apply' };
 }

@@ -42,10 +42,15 @@ export class VendorsMapper {
     return {
       vendorId: item.vendorId,
       ownerUserId: item.ownerUserId,
+      createdBy: item.createdBy,
        businessType: item. businessType,
       businessName: item.businessName,
       contactName: item.contactName,
       phoneNumber: item.phoneNumber,
+      loginPhoneNumber: item.loginPhoneNumber,
+      identityId: item.identityId,
+      accountProvisioningStatus: item.accountProvisioningStatus,
+      accountProvisionedAt: item.accountProvisionedAt,
       email: item.email,
       description: item.description,
       profileImageUrl: item.profileImageUrl,
@@ -60,6 +65,8 @@ export class VendorsMapper {
       completedSections: item.completedSections,
       applicationId: item.applicationId,
       revision: item.revision ?? 0,
+      detailsAcceptedRevision: item.detailsAcceptedRevision,
+      detailsAcceptedAt: item.detailsAcceptedAt,
       communityIds: item.communityIds ?? [],
       latestReview: item.latestReview
         ? VendorsMapper.toReview(item.latestReview)
@@ -87,11 +94,12 @@ export class VendorsMapper {
 
   static toInitialDdbItem(input: {
     vendorId: string;
-    ownerUserId: string;
+    createdBy: string;
      businessType?:  businessType;
     businessName?: string;
     contactName?: string;
     phoneNumber?: string;
+    loginPhoneNumber?: string;
     email?: string;
     description?: string;
     gstNumber?: string;
@@ -118,11 +126,13 @@ export class VendorsMapper {
       PK: VendorKeyBuilder.vendorPk(input.vendorId),
       SK: VendorKeyBuilder.vendorSk(),
       vendorId: input.vendorId,
-      ownerUserId: input.ownerUserId,
+      createdBy: input.createdBy,
        businessType,
       businessName: input.businessName,
       contactName: input.contactName,
       phoneNumber: input.phoneNumber,
+      loginPhoneNumber: input.loginPhoneNumber,
+      accountProvisioningStatus: input.loginPhoneNumber ? 'PENDING' : undefined,
       email: input.email,
       description: input.description,
       gstNumber: input.gstNumber,
@@ -137,14 +147,26 @@ export class VendorsMapper {
       communityIds: [],
       createdAt: timestamp,
       updatedAt: timestamp,
-      GSI1PK: VendorKeyBuilder.gsi1Pk(),
-      GSI1SK: VendorKeyBuilder.gsi1Sk(
+      ...VendorKeyBuilder.vendorDiscoveryKeys(
         status,
         operationalStatus,
         timestamp,
         input.vendorId,
       ),
       entityType: VENDOR_ENTITY_TYPE,
+    };
+  }
+
+  /** Rebuild keys whenever a PROFILE is created or replaced. */
+  static withDiscoveryKeys(profile: VendorDdbItem): VendorDdbItem {
+    return {
+      ...profile,
+      ...VendorKeyBuilder.vendorDiscoveryKeys(
+        profile.status,
+        profile.operationalStatus,
+        profile.createdAt,
+        profile.vendorId,
+      ),
     };
   }
 
@@ -162,7 +184,7 @@ export class VendorsMapper {
       profileImageUrl?: string;
     },
   ): VendorDdbItem {
-    return {
+    return VendorsMapper.withDiscoveryKeys({
       ...existing,
        businessType: data. businessType,
       businessName: data.businessName,
@@ -175,14 +197,14 @@ export class VendorsMapper {
       profileImageUrl: data.profileImageUrl ?? existing.profileImageUrl,
       updatedAt: new Date().toISOString(),
       revision: (existing.revision ?? 0) + 1,
-    };
+    });
   }
 
   static applyUpdate(
     existing: VendorDdbItem,
     updates: UpdateVendorRequest,
   ): VendorDdbItem {
-    return {
+    return VendorsMapper.withDiscoveryKeys({
       ...existing,
       businessType: updates.businessType ?? existing.businessType,
       businessName: updates.businessName ?? existing.businessName,
@@ -202,7 +224,22 @@ export class VendorsMapper {
           ? updates.profileImageUrl
           : existing.profileImageUrl,
       updatedAt: new Date().toISOString(),
-    };
+      revision: (existing.revision ?? 0) + 1,
+      concent: updates.concent ?? existing.concent ?? false,
+    });
+  }
+
+  /** Persists manager confirmation against the current profile revision. */
+  static applyDetailsAcceptance(
+    existing: VendorDdbItem,
+    input: { revision: number; acceptedAt: string },
+  ): VendorDdbItem {
+    return VendorsMapper.withDiscoveryKeys({
+      ...existing,
+      detailsAcceptedRevision: input.revision,
+      detailsAcceptedAt: input.acceptedAt,
+      updatedAt: input.acceptedAt,
+    });
   }
 
   static toReview(record: VendorStatusReviewRecord): VendorStatusReview {
@@ -226,7 +263,7 @@ export class VendorsMapper {
       correlationId?: string;
     },
   ): VendorDdbItem {
-    const reason = input.reason?.trim();
+    const reason = input.reason?.trim() ?? '';
     const latestReview: VendorStatusReviewRecord = {
       previousStatus: existing.status,
       newStatus: input.status,
@@ -236,21 +273,15 @@ export class VendorsMapper {
       ...(input.correlationId ? { correlationId: input.correlationId } : {}),
     };
 
-    return {
+    return VendorsMapper.withDiscoveryKeys({
       ...existing,
       status: input.status,
       latestReview,
       updatedAt: input.reviewedAt,
-      GSI1SK: VendorKeyBuilder.gsi1Sk(
-        input.status,
-        existing.operationalStatus,
-        existing.createdAt,
-        existing.vendorId,
-      ),
       meta: input.correlationId
         ? { ...existing.meta, correlationId: input.correlationId }
         : existing.meta,
-    };
+    });
   }
 
   static toStatusHistoryItem(
@@ -292,17 +323,11 @@ export class VendorsMapper {
     existing: VendorDdbItem,
     operationalStatus: OperationalStatus,
   ): VendorDdbItem {
-    return {
+    return VendorsMapper.withDiscoveryKeys({
       ...existing,
       operationalStatus,
       updatedAt: new Date().toISOString(),
-      GSI1SK: VendorKeyBuilder.gsi1Sk(
-        existing.status,
-        operationalStatus,
-        existing.createdAt,
-        existing.vendorId,
-      ),
-    };
+    });
   }
 
   static applyOnboardingState(
@@ -314,6 +339,7 @@ export class VendorsMapper {
       primaryBranchId?: string;
       addressCity?: string;
       addressPostalCode?: string;
+      concent?: boolean;
       applicationId?: string;
       email?: string;
       meta?: { correlationId?: string };
@@ -354,7 +380,7 @@ export class VendorsMapper {
       );
     }
 
-    return updated;
+    return VendorsMapper.withDiscoveryKeys(updated);
   }
 
   static toAddressDdbItem(
@@ -394,6 +420,7 @@ export class VendorsMapper {
       createdAt,
       updatedAt: timestamp,
       entityType: VENDOR_ADDRESS_ENTITY_TYPE,
+      concent:  false,
     };
   }
 

@@ -52,7 +52,7 @@ export async function ensureCanonicalUserId(
     directory ?? new DynamoDbAuthUserDirectory(table)
   ).findUserByIdentityId(identityId);
 
-  if (!resolved?.userId?.trim()) {
+  if (!resolved?.userId.trim()) {
     throw new BaseError(
       'Application user mapping not found',
       403,

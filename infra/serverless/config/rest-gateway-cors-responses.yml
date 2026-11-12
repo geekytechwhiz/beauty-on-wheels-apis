@@ -3,6 +3,11 @@
 # callers verbatim. Gateway failures contain only a generic error message, so
 # the request Origin is reflected only for this error surface; normal Lambda
 # responses enforce custom.corsAllowedOrigins.
+#
+# Prefer ONLY GatewayResponseDefault4XX + GatewayResponseDefault5XX in large
+# services. Those two cover every gateway-generated 4xx/5xx (including
+# unauthorized / access denied) when no more-specific response is defined, and
+# each extra GatewayResponse consumes a CloudFormation resource.
 GatewayResponseDefault4XX:
   Type: AWS::ApiGateway::GatewayResponse
   Properties: &gatewayResponseProperties

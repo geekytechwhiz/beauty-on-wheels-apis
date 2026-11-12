@@ -70,7 +70,7 @@ With `vendorId`, the read is that vendor’s base table and `coverage?.includesL
         "proposalId": "cpr-1",
         "vendorId": "vendor-1",
         "communityId": "community-1",
-        "scope": { "serviceScopeCode": "service:CAR_WASH", "label": "Exterior wash" },
+        "scope": { "offeringId": "pkg_exterior_wash", "label": "Exterior wash" },
         "window": {
           "startDate": "2026-11-01",
           "endDate": "2026-11-30",
@@ -236,7 +236,7 @@ The PUT body is now declared as `SalesControlRequest`:
 }
 ```
 
-`expectedVersion` is required when the row exists and omitted when it does not. `effectiveFrom` / `effectiveUntil` may be omitted or sent as `null` to leave the window unbounded. The write checks an active community, approved vendor coverage, and linked capacity commitments before `enabled: true`: each `capacityCommitmentId` must exist, still hold supply (`ACTIVE` / `CHANGE_PENDING` / `REDUCED`), match the sales-control community, belong to a `fulfilmentVendorIds` entry, and when `scope.offeringId` is set it must equal the package id. Every fulfilment vendor must have at least one linked holding commitment. It does not edit the package definition, vendor capabilities, or the User Service community. Proposal acceptance alone never opens customer sales.
+`expectedVersion` is required when the row exists and omitted when it does not. `effectiveFrom` / `effectiveUntil` may be omitted or sent as `null` to leave the window unbounded. The write checks an active community, approved vendor coverage, and linked capacity commitments before `enabled: true`: each `capacityCommitmentId` must exist, still hold supply (`ACTIVE` / `CHANGE_PENDING` / `REDUCED`), match the sales-control community, belong to a `fulfilmentVendorIds` entry, and have `scope.offeringId` equal to the package id. Commitments missing `offeringId` (legacy `serviceScopeCode`-only rows) cannot open sales until migrated. Every fulfilment vendor must have at least one linked holding commitment. It does not edit the package definition, vendor capabilities, or the User Service community. Proposal acceptance alone never opens customer sales.
 
 ### Added: `GET /admin/sales-controls`
 

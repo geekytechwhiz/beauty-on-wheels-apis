@@ -1932,6 +1932,7 @@ custom:
                     enabled: false
                     eligibility: held
                     reason: Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.
+                    vendorId: vendor-1
                     fulfilmentVendorIds: [vendor-1]
                     capacityCommitmentIds: [cmt-1]
                     version: 2
@@ -3073,14 +3074,24 @@ functions:
           swaggerTags: [Platform packages]
           documentation:
             summary: Discover sellable Carish packages for a community
+            description: >
+              Reads enabled sales-control rows from GSI3 for the community. Each item includes
+              vendorId (primary fulfilment vendor) alongside the published package payload.
             tags: [Platform packages]
+            queryParams:
+              - name: communityId
+                required: true
+                schema: { type: string }
+              - name: categoryId
+                required: false
+                schema: { type: string }
             methodResponses:
               - statusCode: "200"
-                responseBody: { description: Customer package page }
+                responseBody: { description: Customer package page including vendorId }
               - statusCode: "400"
                 responseBody: { description: Invalid package-discovery request }
                 responseModels: { application/json: ErrorResponse }
-          responseData: { 200: { description: Customer package page } }
+          responseData: { 200: { description: Customer package page including vendorId } }
   getCustomerPlatformPackage:
     handler: src/handlers/platform-packages-handler.getCustomerPlatformPackage
     events:

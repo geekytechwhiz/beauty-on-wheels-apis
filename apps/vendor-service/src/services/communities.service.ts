@@ -244,7 +244,7 @@ export class CommunitiesService {
     }
 
     const at = new Date().toISOString();
-    const reason = body.reason?.trim() || undefined;
+    const reason = body.reason.trim() || undefined;
     const historyId = randomUUID();
     const history: VendorCoverageHistoryDdbItem = {
       PK: VendorKeyBuilder.vendorPk(vendorId),

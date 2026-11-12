@@ -46,6 +46,7 @@ export class UserProvisioningService {
         ...(identity.emailVerified && identity.email
           ? { email: identity.email }
           : {}),
+        provisioningContext: identity.userType === 'VENDOR' ? 'VENDOR' : 'CUSTOMER',
       };
       this.logger.info({
         event: 'publishRegistration_payload',

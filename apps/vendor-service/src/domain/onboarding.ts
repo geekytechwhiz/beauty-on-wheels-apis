@@ -93,10 +93,20 @@ export interface ComputedOnboardingState {
 }
 
 export function isBusinessInfoComplete(input: { businessType?: string; businessName?: string; contactName?: string; phoneNumber?: string }): boolean {
-  return Boolean(input.businessType?.trim() && input.businessName?.trim() && input.contactName?.trim() && input.phoneNumber?.trim());
+  return Boolean(
+    input.businessType?.trim()
+      && input.businessName?.trim()
+      && input.contactName?.trim()
+      && input.phoneNumber?.trim(),
+  );
 }
 export function isBankComplete(input: { accountHolderName?: string; accountNumber?: string; ifscCode?: string; bankName?: string }): boolean {
-  return Boolean(input.accountHolderName?.trim() && input.accountNumber?.trim() && input.ifscCode?.trim() && input.bankName?.trim());
+  return Boolean(
+    input.accountHolderName?.trim()
+      && input.accountNumber?.trim()
+      && input.ifscCode?.trim()
+      && input.bankName?.trim(),
+  );
 }
 export function areRequiredDocumentsComplete(documentTypes: Iterable<string>): boolean {
   const present = new Set(documentTypes);

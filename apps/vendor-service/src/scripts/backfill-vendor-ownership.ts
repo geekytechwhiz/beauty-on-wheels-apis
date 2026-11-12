@@ -103,7 +103,7 @@ export function planOwnershipBackfill(
   const { snapshots, locks } = snapshotsFromItems(items);
   const canonicalCounts = new Map<string, number>();
   for (const snapshot of snapshots) {
-    const ownerId = snapshot.profileOwnerUserId?.trim();
+    const ownerId = snapshot.profileOwnerUserId.trim();
     if (!ownerId) {
       continue;
     }
@@ -111,7 +111,7 @@ export function planOwnershipBackfill(
   }
 
   return snapshots.map((snapshot) => {
-    const ownerId = snapshot.profileOwnerUserId?.trim();
+    const ownerId = snapshot.profileOwnerUserId.trim();
     const mapping = (options.verifiedMappings ?? []).find(
       (entry) => entry.vendorId === snapshot.vendorId && entry.verified,
     );

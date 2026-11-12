@@ -640,7 +640,7 @@ describe('Services Unit Tests', () => {
             );
         });
 
-        it('grants REGISTRANT from a verified phone challenge and ignores the verify body', async () => {
+        it('grants VENDOR from a verified vendor phone challenge and ignores the verify body', async () => {
             const mapped = new Set<string>();
             mockRepo.ensureUserRoleMapping.mockImplementation(async (_userId, roleId) => {
                 mapped.add(roleId);
@@ -666,14 +666,11 @@ describe('Services Unit Tests', () => {
                     userType: 'VENDOR',
                     phoneVerified: true,
                     identityId: 'cognito-sub-1',
+                    roleId: 'VENDOR',
                 }),
                 expect.objectContaining({ userType: 'VENDOR', identityId: 'cognito-sub-1' }),
             );
-            expect([...mapped]).toEqual(['REGISTRANT']);
-            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
-                expect.any(String),
-                'VENDOR',
-            );
+            expect([...mapped]).toEqual(['VENDOR']);
             expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
                 expect.any(String),
                 'ADMIN',
@@ -710,7 +707,7 @@ describe('Services Unit Tests', () => {
             expect([...mapped]).toEqual(['CUSTOMER']);
         });
 
-        it('does not overwrite an existing user type with a new challenge', async () => {
+        it('grants VENDOR to an existing customer from a verified vendor phone challenge', async () => {
             mockRepo.getUserRoles.mockResolvedValue(['CUSTOMER']);
             mockRepo.getLatestOtp.mockResolvedValue({ userType: 'VENDOR' } as Otp);
             mockRepo.verifyOtp.mockResolvedValue(true);
@@ -730,10 +727,16 @@ describe('Services Unit Tests', () => {
                 1,
             );
             expect(mockRepo.createUser).not.toHaveBeenCalled();
-            expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
-                expect.anything(),
+            expect(mockRepo.ensureUserRoleMapping).toHaveBeenCalledWith(
+                'u-123',
                 'VENDOR',
             );
+            expect(
+                mockRepo.ensureUserRoleMapping.mock.invocationCallOrder.find(
+                    (_callOrder, index) =>
+                        mockRepo.ensureUserRoleMapping.mock.calls[index]?.[1] === 'VENDOR',
+                ),
+            ).toBeLessThan(mockCognito.issueTokens.mock.invocationCallOrder[0]);
             expect(mockRepo.ensureUserRoleMapping).not.toHaveBeenCalledWith(
                 expect.anything(),
                 'ADMIN',

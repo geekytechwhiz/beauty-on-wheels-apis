@@ -30,6 +30,7 @@ import {
   UserDdbItem,
   SessionDdbItem,
   OtpDdbItem,
+  UserRoleDdbItem,
   RoleDdbItem,
   PermissionDdbItem,
   LoginHistoryDdbItem,
@@ -48,6 +49,11 @@ const baseLogger = createLogger({
   service: 'identity-repository',
   redactPII: false,
 });
+
+function isConditionalConflict(error: unknown): boolean {
+  return error instanceof ConditionalWriteConflictError ||
+    (error instanceof Error && error.name === 'ConditionalCheckFailedException');
+}
 
 export class IdentityRepository extends BaseRepository {
   private readonly repoLogger = createChildLogger(baseLogger, {
@@ -1167,6 +1173,91 @@ export class IdentityRepository extends BaseRepository {
         return 'exists';
       }
       throw err;
+    }
+  }
+
+  /**
+   * Idempotently assigns the VENDOR role and binds that one role record to the
+   * Vendor service's durable ID.  VENDOR mappings currently have one mapping
+   * per user (USER#{userId}/ROLE#VENDOR), so a second, different vendor ID is
+   * a conflict rather than an association we can safely overwrite.
+   *
+   * The conditional create/update sequence also repairs legacy VENDOR records
+   * with no vendorId, while preventing racing events from replacing an ID.
+   */
+  async ensureVendorRoleMapping(
+    userId: string,
+    vendorId: string,
+  ): Promise<'created' | 'repaired' | 'exists'> {
+    if (!vendorId.trim()) {
+      throw new Error('vendorId is required for a VENDOR role mapping');
+    }
+
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new UserAlreadyExistsException(`User ${userId} not found.`);
+    }
+
+    const timestamp = new Date().toISOString();
+    const roleId = 'VENDOR';
+    const keys = IdentityKeyBuilder.userRole(userId, roleId);
+    const mapping: UserRoleDdbItem = {
+      PK: keys.PK,
+      SK: keys.SK,
+      entityType: ENTITY_TYPES.USER_ROLE,
+      userId,
+      roleId,
+      vendorId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    try {
+      await this.put(TABLE_NAME, mapping, 'attribute_not_exists(PK)');
+      return 'created';
+    } catch (error) {
+      if (!isConditionalConflict(error)) throw error;
+    }
+
+    // A put conflict means another delivery (or the initial registration
+    // mapping) already created this exact key.  Read before repair so that a
+    // different vendor association is never silently changed.
+    const existing = await this.get<UserRoleDdbItem>(TABLE_NAME, keys);
+    if (existing?.vendorId === vendorId) return 'exists';
+    if (existing?.vendorId) {
+      const conflict = new Error(
+        `VENDOR role mapping for user ${userId} is already associated with a different vendor`,
+      );
+      conflict.name = 'VendorRoleMappingConflictError';
+      throw conflict;
+    }
+
+    try {
+      await this.update({
+        TableName: TABLE_NAME,
+        Key: keys,
+        UpdateExpression: 'SET vendorId = :vendorId, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':vendorId': vendorId,
+          ':updatedAt': timestamp,
+        },
+        ConditionExpression: 'attribute_exists(PK) AND attribute_not_exists(vendorId)',
+      });
+      return 'repaired';
+    } catch (error) {
+      if (!isConditionalConflict(error)) throw error;
+      // A concurrent event won the repair race.  Its value determines whether
+      // this delivery is an idempotent retry or a genuine association conflict.
+      const raced = await this.get<UserRoleDdbItem>(TABLE_NAME, keys);
+      if (raced?.vendorId === vendorId) return 'exists';
+      if (raced?.vendorId) {
+        const conflict = new Error(
+          `VENDOR role mapping for user ${userId} is already associated with a different vendor`,
+        );
+        conflict.name = 'VendorRoleMappingConflictError';
+        throw conflict;
+      }
+      throw error;
     }
   }
 

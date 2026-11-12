@@ -1,0 +1,190 @@
+{
+  "info": {
+    "_postman_id": "7b1d2e20-15d3-4ff1-9ea2-2d2d77c44e60",
+    "name": "Beauty on Wheels — Capacity Proposal & Commitment Negotiation",
+    "description": "Ops-to-vendor capacity negotiation, committed supply reads, and post-acceptance capacity-change approvals. Set baseUrl and accessToken before sending. State-changing requests require an Idempotency-Key; retain the same value when retrying the same request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "apiId", "value": "YOUR_API_GATEWAY_ID" },
+    { "key": "stage", "value": "dev" },
+    { "key": "baseUrl", "value": "https://{{apiId}}.execute-api.us-east-1.amazonaws.com/{{stage}}" },
+    { "key": "accessToken", "value": "" },
+    { "key": "vendorId", "value": "vendor-1" },
+    { "key": "communityId", "value": "community-1" },
+    { "key": "offeringId", "value": "pkg_exterior_wash" },
+    { "key": "proposalId", "value": "" },
+    { "key": "commitmentId", "value": "" },
+    { "key": "changeRequestId", "value": "" },
+    { "key": "idempotencyKey", "value": "replace-with-a-uuid-per-logical-write" }
+  ],
+  "item": [
+    {
+      "name": "Ops — Capacity proposals",
+      "item": [
+        {
+          "name": "Create capacity proposal (send immediately)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"vendorId\": \"{{vendorId}}\",\n  \"communityId\": \"{{communityId}}\",\n  \"packageScope\": { \"offeringId\": \"{{offeringId}}\", \"label\": \"Exterior wash\" },\n  \"serviceWindow\": {\n    \"startDate\": \"2026-12-01\",\n    \"endDate\": \"2026-12-31\",\n    \"dailyWindow\": { \"startTime\": \"08:00\", \"endTime\": \"12:00\" },\n    \"daysOfWeek\": [\"MONDAY\", \"WEDNESDAY\", \"FRIDAY\"]\n  },\n  \"quantity\": 4,\n  \"responseDeadline\": \"2026-11-30T18:30:00.000Z\",\n  \"proposedPayoutRate\": { \"amountMinor\": 14000, \"currency\": \"INR\" },\n  \"sendImmediately\": true,\n  \"note\": \"December capacity proposal\"\n}" },
+            "url": "{{baseUrl}}/capacity-proposals"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const body = pm.response.json();", "const data = body.data || body;", "if (data.proposalId) pm.collectionVariables.set('proposalId', data.proposalId);"] } }]
+        },
+        {
+          "name": "List capacity proposals",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/capacity-proposals?vendorId={{vendorId}}&communityId={{communityId}}&status=SENT&limit=50"
+          }
+        },
+        {
+          "name": "Get capacity proposal",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/capacity-proposals/{{proposalId}}" }
+        },
+        {
+          "name": "Send draft proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"responseDeadline\": \"2026-11-30T18:30:00.000Z\" }" },
+            "url": "{{baseUrl}}/capacity-proposals/{{proposalId}}/send"
+          }
+        },
+        {
+          "name": "Accept vendor counter",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"note\": \"Counter accepted by operations\" }" },
+            "url": "{{baseUrl}}/capacity-proposals/{{proposalId}}/ops/accept-counter"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const body = pm.response.json();", "const data = body.data || body;", "if (data.commitment?.commitmentId) pm.collectionVariables.set('commitmentId', data.commitment.commitmentId);"] } }]
+        },
+        {
+          "name": "Revise and resend proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 5,\n  \"proposedPayoutRate\": { \"amountMinor\": 15000, \"currency\": \"INR\" },\n  \"responseDeadline\": \"2026-12-03T18:30:00.000Z\",\n  \"note\": \"Revised after commercial review\"\n}" },
+            "url": "{{baseUrl}}/capacity-proposals/{{proposalId}}/ops/revise"
+          }
+        },
+        {
+          "name": "Decline or cancel proposal (ops)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"reason\": \"Demand window is no longer required\" }" },
+            "url": "{{baseUrl}}/capacity-proposals/{{proposalId}}/ops/decline"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vendor — Proposal response",
+      "item": [
+        {
+          "name": "List vendor capacity proposals",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-proposals?status=SENT&limit=50" }
+        },
+        {
+          "name": "Get vendor capacity proposal",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-proposals/{{proposalId}}" }
+        },
+        {
+          "name": "Accept capacity proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"note\": \"Vendor accepts the proposed capacity\" }" },
+            "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-proposals/{{proposalId}}/accept"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const body = pm.response.json();", "const data = body.data || body;", "if (data.commitment?.commitmentId) pm.collectionVariables.set('commitmentId', data.commitment.commitmentId);"] } }]
+        },
+        {
+          "name": "Counter capacity proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 3,\n  \"payoutRate\": { \"amountMinor\": 16000, \"currency\": \"INR\" },\n  \"note\": \"Three daily slot-units are feasible at this rate\"\n}" },
+            "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-proposals/{{proposalId}}/counter"
+          }
+        },
+        {
+          "name": "Decline capacity proposal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"reason\": \"Requested service window is unavailable\" }" },
+            "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-proposals/{{proposalId}}/decline"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Capacity commitments",
+      "item": [
+        {
+          "name": "List vendor commitments",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-commitments" }
+        },
+        {
+          "name": "List committed supply (ops)",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/ops/capacity-commitments?communityId={{communityId}}&status=ACTIVE&fromDate=2026-12-01&toDate=2026-12-31&limit=50" }
+        },
+        {
+          "name": "Get capacity commitment",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/capacity-commitments/{{commitmentId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Post-acceptance capacity changes",
+      "item": [
+        {
+          "name": "Request commitment capacity change",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"commitmentId\": \"{{commitmentId}}\",\n  \"requestedQuantity\": 3,\n  \"reason\": \"One crew is temporarily unavailable\"\n}" },
+            "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-change-requests"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const body = pm.response.json();", "const data = body.data || body;", "if (data.requestId) pm.collectionVariables.set('changeRequestId', data.requestId);"] } }]
+        },
+        {
+          "name": "List vendor capacity-change requests",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/vendors/{{vendorId}}/capacity-change-requests" }
+        },
+        {
+          "name": "List capacity-change requests (ops)",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/ops/capacity-change-requests?status=PENDING" }
+        },
+        {
+          "name": "Approve capacity change (ops)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"note\": \"Approved after demand review\" }" },
+            "url": "{{baseUrl}}/ops/capacity-change-requests/{{changeRequestId}}/approve"
+          }
+        },
+        {
+          "name": "Reject capacity change (ops)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" }],
+            "body": { "mode": "raw", "raw": "{ \"reason\": \"Committed demand requires the current quantity\" }" },
+            "url": "{{baseUrl}}/ops/capacity-change-requests/{{changeRequestId}}/reject"
+          }
+        }
+      ]
+    }
+  ]
+}

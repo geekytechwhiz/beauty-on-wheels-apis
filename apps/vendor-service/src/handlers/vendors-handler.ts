@@ -5,6 +5,7 @@ import {
 } from "../controllers/vendors.controller";
 
 import {
+  validateAcceptVendorDetailsRequest,
   validateApproveVendorRequest,
   validateCreateVendorRequest,
   validateRejectVendorRequest,
@@ -62,6 +63,16 @@ export const handleUpdatevendor =
         async (request: LambdaRequest) =>
             controller.handleUpdatevendor(request)
     );
+
+export const handleAcceptVendorDetails = withApiHandler(
+  {
+    operation: 'acceptvendordetails',
+    validator: (request: LambdaRequest) => {
+      validateAcceptVendorDetailsRequest(request);
+    },
+  },
+  async (request: LambdaRequest) => controller.handleAcceptVendorDetails(request),
+);
 
 export const handleUpdatevendorstatus =
     withApiHandler(

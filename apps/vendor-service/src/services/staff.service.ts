@@ -22,6 +22,7 @@ import { normalizeIndianMobile } from '../domain/indian-mobile';
 import { VENDOR_CAPABILITY, VendorCapability } from '../domain/vendor-self';
 import { StaffMapper } from '../mappers/staff.mapper';
 import { CrewRepository, getCrewRepository } from '../repositories/crew.repository';
+import { publishStaffAccountProvisioningRequested } from '../events/publish-staff-account-provisioning';
 import {
   CreateStaffRequest,
   Staff,
@@ -165,7 +166,7 @@ export class StaffService {
   }
 
   async createvendorstaff(request: LambdaRequest): Promise<Staff> {
-    const userId = getAuthenticatedUserId(request);
+    const userId = request.context.authContext?.userId ?? request.context.userContext?.identityId;
     const vendorId = getVendorId(request);
     const body = request.body as CreateStaffRequest;
 
@@ -173,7 +174,7 @@ export class StaffService {
       event: 'createvendorstaff_start',
       userId,
       vendorId,
-      hasPortalIdentity: Boolean(body?.userId?.trim()),
+      hasPortalIdentity: false,
     });
 
     try {
@@ -181,19 +182,6 @@ export class StaffService {
 
       const phoneNumber = normalizeIndianMobile(body.phoneNumber);
       await this.assertPhoneAvailable(vendorId, phoneNumber);
-      const portalUserId = body.userId?.trim() || undefined;
-      if (portalUserId) {
-        const existingByUser = await this.repository.findStaffByUserId(
-          vendorId,
-          portalUserId,
-        );
-        if (existingByUser) {
-          throw new ConflictError(
-            'Staff member with this user identity already exists for the vendor',
-          );
-        }
-      }
-
       const staffId = randomUUID();
       const ddbItem = StaffMapper.toDdbItem(
         { ...body, name: body.name.trim(), phoneNumber },
@@ -215,6 +203,12 @@ export class StaffService {
         }
         throw err;
       }
+      // The staff record is the durable intent. EventBridge retries use the
+      // membership idempotency key; a failed publish leaves a visible PENDING
+      // record for the reconciler instead of claiming a usable login.
+      await publishStaffAccountProvisioningRequested({
+        vendorId, staffId, phoneNumber, displayName: ddbItem.name,
+      }, request.context?.requestId ?? staffId);
 
       this.logger.info({
         event: 'createvendorstaff_success',
@@ -295,31 +289,15 @@ export class StaffService {
         throw new NotFoundError('Staff member not found');
       }
 
-      const phoneNumber = body.phoneNumber === undefined
-        ? undefined
-        : normalizeIndianMobile(body.phoneNumber);
       const updates: UpdateStaffRequest = {
         ...body,
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
-        ...(phoneNumber !== undefined ? { phoneNumber } : {}),
       };
       const updated = StaffMapper.applyUpdate(existing, updates);
-      if (updated.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
-        await this.assertNotOnActiveCrew(vendorId, staffId);
-      }
-      if (updated.status !== 'INACTIVE') {
-        await this.assertPhoneAvailable(vendorId, updated.phoneNumber, staffId);
-      }
 
       try {
-        await this.repository.updateStaff(updated, {
-          previousPhone: existing.phoneNumber,
-          releasePhone: updated.status === 'INACTIVE' && existing.status !== 'INACTIVE',
-        });
+        await this.repository.updateStaff(updated);
       } catch (err) {
-        if (phoneNumber && phoneNumber !== existing.phoneNumber && isConditionalWriteConflictAtIndex(err, 0)) {
-          throw new ConflictError('A staff member with this mobile number already exists');
-        }
         if (err instanceof ConditionalWriteConflictError) {
           throw new ConflictError('Staff update conflict');
         }
@@ -368,10 +346,8 @@ export class StaffService {
       if (existing.status !== 'INACTIVE') {
         await this.assertNotOnActiveCrew(vendorId, staffId);
       }
-      const updated = StaffMapper.applyDeactivate(existing);
-
       try {
-        await this.repository.updateStaff(updated, { releasePhone: existing.status !== 'INACTIVE' });
+        if (existing.status === 'ACTIVE') await this.repository.deactivateStaff(existing);
       } catch (err) {
         if (err instanceof ConditionalWriteConflictError) {
           throw new NotFoundError('Staff member not found');

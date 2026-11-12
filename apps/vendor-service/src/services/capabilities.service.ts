@@ -334,8 +334,8 @@ export class CapabilitiesService {
     }
 
     return services.map((entry) => {
-      const serviceId = entry.serviceId?.trim();
-      const categoryId = entry.categoryId?.trim();
+      const serviceId = entry.serviceId.trim();
+      const categoryId = entry.categoryId.trim();
       if (!serviceId || !isCatalogId(serviceId)) {
         throw new ValidationError(`Invalid catalog service id: ${entry.serviceId}`);
       }
@@ -372,7 +372,7 @@ export class CapabilitiesService {
     }
 
     return packages.map((entry) => {
-      const packageId = entry.packageId?.trim();
+      const packageId = entry.packageId.trim();
       if (!packageId || !isCatalogId(packageId)) {
         throw new ValidationError(`Invalid catalog package id: ${entry.packageId}`);
       }

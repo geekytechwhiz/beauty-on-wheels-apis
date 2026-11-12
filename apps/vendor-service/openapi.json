@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.4",
+  "openapi": "3.0.0",
   "components": {
     "schemas": {
       "CreateVendorRequest": {
@@ -262,6 +262,19 @@
             "type": "string"
           }
         }
+      },
+      "AcceptVendorDetailsRequest": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Revision returned by GET /vendors/{vendorId}."
+          }
+        },
+        "required": [
+          "revision"
+        ]
       },
       "UpdateVendorStatusRequest": {
         "type": "object",
@@ -2724,15 +2737,21 @@
               },
               "packageScope": {
                 "type": "object",
+                "required": [
+                  "offeringId",
+                  "label"
+                ],
                 "properties": {
                   "offeringId": {
-                    "type": "string"
-                  },
-                  "serviceScopeCode": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Catalog package offering id (sole authoritative scope)"
                   },
                   "label": {
                     "type": "string"
+                  },
+                  "serviceScopeCode": {
+                    "type": "string",
+                    "description": "Legacy read-only; omitted on new writes"
                   }
                 }
               },
@@ -2897,15 +2916,21 @@
                     },
                     "packageScope": {
                       "type": "object",
+                      "required": [
+                        "offeringId",
+                        "label"
+                      ],
                       "properties": {
                         "offeringId": {
-                          "type": "string"
-                        },
-                        "serviceScopeCode": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Catalog package offering id (sole authoritative scope)"
                         },
                         "label": {
                           "type": "string"
+                        },
+                        "serviceScopeCode": {
+                          "type": "string",
+                          "description": "Legacy read-only; omitted on new writes"
                         }
                       }
                     },
@@ -3083,15 +3108,21 @@
               },
               "scope": {
                 "type": "object",
+                "required": [
+                  "offeringId",
+                  "label"
+                ],
                 "properties": {
                   "offeringId": {
-                    "type": "string"
-                  },
-                  "serviceScopeCode": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Catalog package offering id (sole authoritative scope)"
                   },
                   "label": {
                     "type": "string"
+                  },
+                  "serviceScopeCode": {
+                    "type": "string",
+                    "description": "Legacy read-only; omitted on new writes"
                   }
                 }
               },
@@ -3205,15 +3236,21 @@
                     },
                     "scope": {
                       "type": "object",
+                      "required": [
+                        "offeringId",
+                        "label"
+                      ],
                       "properties": {
                         "offeringId": {
-                          "type": "string"
-                        },
-                        "serviceScopeCode": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Catalog package offering id (sole authoritative scope)"
                         },
                         "label": {
                           "type": "string"
+                        },
+                        "serviceScopeCode": {
+                          "type": "string",
+                          "description": "Legacy read-only; omitted on new writes"
                         }
                       }
                     },
@@ -3337,12 +3374,14 @@
           },
           "packageScope": {
             "type": "object",
+            "required": [
+              "offeringId",
+              "label"
+            ],
             "properties": {
               "offeringId": {
-                "type": "string"
-              },
-              "serviceScopeCode": {
-                "type": "string"
+                "type": "string",
+                "description": "Catalog package offering id (sole authoritative scope)"
               },
               "label": {
                 "type": "string"
@@ -3418,6 +3457,12 @@
           "sendImmediately": {
             "type": "boolean",
             "description": "false creates a DRAFT. Default true."
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional audit note stored on the CREATE history entry.",
+            "minLength": 1,
+            "maxLength": 500
           }
         }
       },
@@ -4066,7 +4111,7 @@
                 "vendorId": "vendor-1",
                 "communityId": "community-1",
                 "scope": {
-                  "serviceScopeCode": "service:CAR_WASH",
+                  "offeringId": "pkg_exterior_wash",
                   "label": "Exterior wash"
                 },
                 "window": {
@@ -4144,7 +4189,7 @@
       "status": {
         "type": "string"
       },
-      "limit-191c2405-ce3b-461a-a189-f4245589032b": {
+      "limit-2287f28e-f950-46ce-9ff8-d32df1a2da46": {
         "type": "string"
       },
       "fromDate": {
@@ -4159,13 +4204,13 @@
       "dailyWindowEnd": {
         "type": "string"
       },
-      "limit-c99215e3-64c0-49df-b31f-d0ba8e37ced3": {
+      "limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6": {
         "type": "string"
       },
       "commitmentId": {
         "type": "string"
       },
-      "limit-cea33af3-4a54-4588-97a1-89374dcbe2d4": {
+      "limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d": {
         "type": "string"
       },
       "serviceAreaId": {
@@ -4183,7 +4228,7 @@
       "documentId": {
         "type": "string"
       },
-      "status-c60ea0e9-5975-4efd-8ca7-adbe471ddf8a": {
+      "status-240e447d-1922-4dad-b0fb-7cc971a1f432": {
         "type": "string",
         "enum": [
           "PENDING",
@@ -4194,7 +4239,7 @@
       "requestId": {
         "type": "string"
       },
-      "status-09dda9e1-d021-4878-a6a9-964e936b066c": {
+      "status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e": {
         "type": "string",
         "enum": [
           "PENDING_REVIEW",
@@ -5452,10 +5497,188 @@
         }
       }
     },
+    "/vendors/{vendorId}/details-acceptance": {
+      "post": {
+        "summary": "Accept vendor details",
+        "description": "Records that the authenticated manager reviewed and accepted the currently saved support-prepared vendor profile. This is vendor confirmation, not a submission for platform review. The revision must match GET /vendors/{vendorId}.",
+        "operationId": "acceptvendordetails",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "vendorId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          }
+        ],
+        "tags": [
+          "Vendors"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Accept the currently saved vendor profile revision.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptVendorDetailsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vendor details accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Accept vendor details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Accept vendor details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Accept vendor details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Accept vendor details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision mismatch or concurrent update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/status": {
       "patch": {
         "summary": "Update vendor lifecycle status",
-        "description": "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.",
+        "description": "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP.",
         "operationId": "updatevendorstatus",
         "parameters": [
           {
@@ -5473,7 +5696,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.",
+          "description": "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP.",
           "content": {
             "application/json": {
               "schema": {
@@ -7836,7 +8059,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-191c2405-ce3b-461a-a189-f4245589032b"
+              "$ref": "#/components/schemas/limit-2287f28e-f950-46ce-9ff8-d32df1a2da46"
             }
           },
           {
@@ -9121,7 +9344,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-c99215e3-64c0-49df-b31f-d0ba8e37ced3"
+              "$ref": "#/components/schemas/limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6"
             }
           },
           {
@@ -9443,7 +9666,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-cea33af3-4a54-4588-97a1-89374dcbe2d4"
+              "$ref": "#/components/schemas/limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d"
             }
           },
           {
@@ -11478,7 +11701,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-7e95e874-c8d5-492b-8ed8-1d1518ddfaca",
+        "operationId": "updatevendorstaff-331530af-0e64-4cef-b0ba-d467435787c4",
         "parameters": [
           {
             "name": "vendorId",
@@ -14902,7 +15125,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-c60ea0e9-5975-4efd-8ca7-adbe471ddf8a"
+              "$ref": "#/components/schemas/status-240e447d-1922-4dad-b0fb-7cc971a1f432"
             }
           }
         ],
@@ -15545,7 +15768,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-09dda9e1-d021-4878-a6a9-964e936b066c"
+              "$ref": "#/components/schemas/status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e"
             }
           }
         ],

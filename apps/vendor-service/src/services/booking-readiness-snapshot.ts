@@ -37,7 +37,7 @@ export class VendorReadinessSnapshotService implements VendorReadinessSnapshotLo
       onboardingComplete: isOnboardingComplete(profile.onboardingStatus),
       businessProfileComplete: isBusinessInfoComplete(profile),
       ownerUserId: profile.ownerUserId,
-      staffUserIds: [...new Set(activeStaff.flatMap((member) => member.userId?.trim() ? [member.userId.trim()] : []))].sort(),
+      staffUserIds: [...new Set(activeStaff.flatMap((member) => member.userId.trim() ? [member.userId.trim()] : []))].sort(),
       activeCommunityCount: activeCommunities,
       applicablePricingCount: applicablePricingCount(capabilities),
       teamConfigured: activeStaff.length > 0,

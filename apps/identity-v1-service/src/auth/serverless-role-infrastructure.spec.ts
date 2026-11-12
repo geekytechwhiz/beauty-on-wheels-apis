@@ -34,10 +34,15 @@ describe('identity role infrastructure', () => {
     expect(attach).toContain("LambdaVersion: 'V2_0'");
   });
 
-  it('subscribes identity to vendor email verification events', () => {
-    expect(template).toContain('handler: src/handlers/vendor-email-verified-role.handler');
-    expect(template).toContain('AWS::Events::Rule');
-    expect(template).toContain('- Vendor.EmailVerified');
-    expect(template).toContain('vendor-event-bus-name');
+  it('assigns VENDOR via trusted account provisioning, not Vendor.EmailVerified', () => {
+    expect(template).toContain('vendorAccountProvisioning:');
+    expect(template).toContain(
+      'handler: src/handlers/vendor-account-provisioning.handler',
+    );
+    expect(template).toContain('Vendor.AccountProvisioningRequested');
+    expect(template).not.toContain('- Vendor.EmailVerified');
+    expect(template).not.toContain(
+      'handler: src/handlers/vendor-email-verified-role.handler',
+    );
   });
 });

@@ -230,6 +230,35 @@ describe('BookingsService Unit Tests', () => {
             expect(mockRepo.updateBookingStatus).toHaveBeenCalledWith('CONFIRMED', originalDdb, 'PAID');
         });
 
+        it('writes an asynchronous confirmation outbox record when a contact snapshot exists', async () => {
+            const originalDdb = {
+                id: 'b1',
+                customerId: 'c1',
+                customerEmail: 'customer@example.com',
+                customerName: 'Customer One',
+                vendorId: 'v1',
+                vendorName: 'Vendor One',
+                bookingDate: '2026-07-20',
+                slotId: 'slot1',
+                bookingStatus: 'PENDING_PAYMENT',
+                paymentStatus: 'PENDING',
+                totalAmount: 499,
+                pricingSnapshot: { totalAmount: 499, currency: 'INR' },
+                version: 1,
+            } as any;
+            mockRepo.getBookingDetailsItem.mockResolvedValue(originalDdb);
+            mockRepo.getBookingById.mockResolvedValue({ ...originalDdb, bookingStatus: 'CONFIRMED', paymentStatus: 'PAID' });
+            mockRepo.updateBookingStatus.mockResolvedValue();
+
+            await service.confirmPaidBooking({ bookingId: 'b1', amount: 499, currency: 'INR' });
+
+            expect(mockRepo.updateBookingStatus).toHaveBeenCalledWith('CONFIRMED', originalDdb, 'PAID', expect.objectContaining({
+                eventId: 'Booking.Confirmed:b1',
+                idempotencyKey: 'Booking.Confirmed:b1',
+                payload: expect.objectContaining({ customerEmail: 'customer@example.com', bookingStatus: 'confirmed' }),
+            }));
+        });
+
         it('rejects a mismatched verified payment amount', async () => {
             mockRepo.getBookingDetailsItem.mockResolvedValue({
                 id: 'b1',

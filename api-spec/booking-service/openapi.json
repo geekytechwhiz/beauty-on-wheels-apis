@@ -1726,7 +1726,7 @@
       "search": {
         "type": "string"
       },
-      "limit-745147ea-4d92-415e-9989-023cb771ad10": {
+      "limit-45be2904-41f5-4ff6-8da0-df0239ec0c29": {
         "type": "integer",
         "minimum": 1,
         "maximum": 50
@@ -1734,20 +1734,20 @@
       "nextToken": {
         "type": "string"
       },
-      "fromDate-8478a8bb-b6de-4726-bee0-408ba14331e1": {
+      "fromDate-148a3295-612b-4c08-a648-3ffe6b64b5cc": {
         "type": "string",
         "format": "date"
       },
-      "toDate-5c8d999e-2774-410f-b1cb-42554a144401": {
+      "toDate-d61e1ccd-323a-4be9-98cc-d8c431ea8d0f": {
         "type": "string",
         "format": "date"
       },
-      "limit-aa496ecd-a4fc-432a-883c-61e7a4f37cd4": {
+      "limit-dff3425f-8d37-4de0-9053-301e33e06d27": {
         "type": "integer",
         "minimum": 1,
         "maximum": 50
       },
-      "status-5f1c0e0c-1d40-4f13-8591-5136d6e2db3d": {
+      "status-a288fb34-1a75-4c44-be0c-cbee60cdde44": {
         "type": "string",
         "enum": [
           "OPEN",
@@ -1759,13 +1759,13 @@
       "issueId": {
         "type": "string"
       },
-      "status-45fc937e-6202-4d5f-8633-1a55497e2ed8": {
+      "status-5751e349-6483-4419-b7cc-dc8afef144fc": {
         "type": "string"
       },
-      "limit-4eddef1b-6ac6-419e-8a6d-dc4846b81d48": {
+      "limit-9884b381-bde1-414f-9059-2529e9008799": {
         "type": "integer"
       },
-      "status-58688e38-f9d4-43f4-ad3a-f9809172b1f7": {
+      "status-9bd5e2d9-abee-4726-b7a5-716d4c7e4a80": {
         "type": "string",
         "enum": [
           "OPEN",
@@ -1784,7 +1784,7 @@
     }
   },
   "info": {
-    "title": "Beauty on Wheels - Booking Service API",
+    "title": "Carish booking-service API",
     "description": "Create and manage customer bookings and booking lifecycle transitions.",
     "version": "1.0.0"
   },
@@ -4137,7 +4137,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-745147ea-4d92-415e-9989-023cb771ad10"
+              "$ref": "#/components/schemas/limit-45be2904-41f5-4ff6-8da0-df0239ec0c29"
             }
           },
           {
@@ -4349,7 +4349,7 @@
             "description": "Inclusive start date YYYY-MM-DD",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/fromDate-8478a8bb-b6de-4726-bee0-408ba14331e1"
+              "$ref": "#/components/schemas/fromDate-148a3295-612b-4c08-a648-3ffe6b64b5cc"
             }
           },
           {
@@ -4358,7 +4358,7 @@
             "description": "Inclusive end date YYYY-MM-DD",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/toDate-5c8d999e-2774-410f-b1cb-42554a144401"
+              "$ref": "#/components/schemas/toDate-d61e1ccd-323a-4be9-98cc-d8c431ea8d0f"
             }
           }
         ],
@@ -4861,7 +4861,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-aa496ecd-a4fc-432a-883c-61e7a4f37cd4"
+              "$ref": "#/components/schemas/limit-dff3425f-8d37-4de0-9053-301e33e06d27"
             }
           },
           {
@@ -5476,7 +5476,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-5f1c0e0c-1d40-4f13-8591-5136d6e2db3d"
+              "$ref": "#/components/schemas/status-a288fb34-1a75-4c44-be0c-cbee60cdde44"
             }
           },
           {
@@ -6366,7 +6366,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-45fc937e-6202-4d5f-8633-1a55497e2ed8"
+              "$ref": "#/components/schemas/status-5751e349-6483-4419-b7cc-dc8afef144fc"
             }
           },
           {
@@ -6384,7 +6384,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-4eddef1b-6ac6-419e-8a6d-dc4846b81d48"
+              "$ref": "#/components/schemas/limit-9884b381-bde1-414f-9059-2529e9008799"
             }
           },
           {
@@ -6562,7 +6562,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-58688e38-f9d4-43f4-ad3a-f9809172b1f7"
+              "$ref": "#/components/schemas/status-9bd5e2d9-abee-4726-b7a5-716d4c7e4a80"
             }
           }
         ],

@@ -7,10 +7,12 @@ plugins:
   - serverless-dotenv-plugin
   - serverless-auto-swagger
   - serverless-offline
-  - serverless-openapi-documenter 
-  # Keep the generated CloudFormation template below its 500-resource limit
-  # without removing REST API CORS preflight methods or function log groups.
+  - serverless-openapi-documenter
+  # Keep the generated CloudFormation template below its 500-resource limit.
+  # stacks-map nests Method/Permission/GatewayResponse; strip-log-groups drops
+  # per-function LogGroups that cannot be force-migrated (name collisions).
   - serverless-plugin-split-stacks
+  - ./strip-log-groups.js
 provider:
   name: aws
   runtime: nodejs22.x
@@ -95,21 +97,20 @@ provider:
           Action:
             - sqs:SendMessage
           Resource:
-            - !GetAtt VendorOnboardingStreamDlq.Arn
             - !GetAtt VendorEmailVerificationStreamDlq.Arn
-            - !GetAtt VendorEmailVerifiedStreamDlq.Arn
-            - !GetAtt VendorLifecycleStreamDlq.Arn 
-            - !GetAtt VendorBookingReadinessStreamDlq.Arn
             - !GetAtt VendorBookingReadinessEventDlq.Arn
 
 custom:
   # Split generated resources by CloudFormation type. Keep this strategy stable:
   # changing it for an existing stage can require recreating that stage.
+  # stacks-map.js nests Method / GatewayResponse / Permission for NEW resources
+  # only (no force:true — force recreate fails with "already exists" on this stage).
   splitStacks:
     perFunction: false
     perType: true
     perGroupFunction: false
     stackConcurrency: 5
+    custom: ./stacks-map.js
 
   httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
   corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
@@ -422,6 +423,19 @@ custom:
                   type: string
                 profileImageUrl:
                   type: string
+      - name: AcceptVendorDetailsRequest
+        description: Manager confirmation of the currently saved support-prepared vendor profile revision.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                revision:
+                  type: integer
+                  minimum: 0
+                  description: Revision returned by GET /vendors/{vendorId}.
+              required:
+                - revision
       - name: UpdateVendorStatusRequest
         description: Admin vendor status change
         content:
@@ -2242,13 +2256,18 @@ custom:
                       type: string
                     packageScope:
                       type: object
+                      required:
+                        - offeringId
+                        - label
                       properties:
                         offeringId:
                           type: string
-                        serviceScopeCode:
-                          type: string
+                          description: Catalog package offering id (sole authoritative scope)
                         label:
                           type: string
+                        serviceScopeCode:
+                          type: string
+                          description: Legacy read-only; omitted on new writes
                     serviceWindow:
                       type: object
                       properties:
@@ -2369,13 +2388,18 @@ custom:
                             type: string
                           packageScope:
                             type: object
+                            required:
+                              - offeringId
+                              - label
                             properties:
                               offeringId:
                                 type: string
-                              serviceScopeCode:
-                                type: string
+                                description: Catalog package offering id (sole authoritative scope)
                               label:
                                 type: string
+                              serviceScopeCode:
+                                type: string
+                                description: Legacy read-only; omitted on new writes
                           serviceWindow:
                             type: object
                             properties:
@@ -2501,13 +2525,18 @@ custom:
                       type: string
                     scope:
                       type: object
+                      required:
+                        - offeringId
+                        - label
                       properties:
                         offeringId:
                           type: string
-                        serviceScopeCode:
-                          type: string
+                          description: Catalog package offering id (sole authoritative scope)
                         label:
                           type: string
+                        serviceScopeCode:
+                          type: string
+                          description: Legacy read-only; omitted on new writes
                     window:
                       type: object
                       properties:
@@ -2591,13 +2620,18 @@ custom:
                             type: string
                           scope:
                             type: object
+                            required:
+                              - offeringId
+                              - label
                             properties:
                               offeringId:
                                 type: string
-                              serviceScopeCode:
-                                type: string
+                                description: Catalog package offering id (sole authoritative scope)
                               label:
                                 type: string
+                              serviceScopeCode:
+                                type: string
+                                description: Legacy read-only; omitted on new writes
                           window:
                             type: object
                             properties:
@@ -2665,7 +2699,7 @@ custom:
                         hasMore:
                           type: boolean
       - name: CreateCapacityProposalRequest
-        description: Admin capacity proposal. Idempotency-Key header is required. scope and window are accepted as aliases of packageScope and serviceWindow.
+        description: Admin capacity proposal. Idempotency-Key header is required. packageScope.offeringId (catalog package id) is required; serviceScopeCode is not accepted. scope and window are accepted as aliases of packageScope and serviceWindow.
         content:
           application/json:
             schema:
@@ -2685,11 +2719,13 @@ custom:
                   type: string
                 packageScope:
                   type: object
+                  required:
+                    - offeringId
+                    - label
                   properties:
                     offeringId:
                       type: string
-                    serviceScopeCode:
-                      type: string
+                      description: Catalog package offering id (sole authoritative scope)
                     label:
                       type: string
                 serviceWindow:
@@ -2743,6 +2779,11 @@ custom:
                 sendImmediately:
                   type: boolean
                   description: false creates a DRAFT. Default true.
+                note:
+                  type: string
+                  description: Optional audit note stored on the CREATE history entry.
+                  minLength: 1
+                  maxLength: 500
       - name: SendCapacityProposalRequest
         description: Send a DRAFT. Optionally set a new deadline.
         content:
@@ -3238,7 +3279,7 @@ custom:
                       vendorId: vendor-1
                       communityId: community-1
                       scope:
-                        serviceScopeCode: service:CAR_WASH
+                        offeringId: pkg_exterior_wash
                         label: Exterior wash
                       window:
                         startDate: '2026-11-01'
@@ -3549,27 +3590,12 @@ functions:
             requestModels:
               application/json: UpdateOnboardingRequest
 
-  onVendorOnboardingSubmitted:
-    handler: src/handlers/vendor-onboarding-stream.handler
-    name: ${self:custom.resourcePrefix}-vendor-onboarding-stream
-    timeout: 60
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt VendorTable.StreamArn
-          batchSize: 10
-          startingPosition: LATEST
-          bisectBatchOnFunctionError: true
-          maximumRetryAttempts: 3
-          functionResponseType: ReportBatchItemFailures
-          destinations:
-            onFailure:
-              arn: !GetAtt VendorOnboardingStreamDlq.Arn
-              type: sqs
-
+  # Single vendor-table stream consumer (account provisioning + email verification).
+  # Physical name retained for in-place ESM updates: *-vendor-email-verification-stream.
   onVendorEmailVerificationRequested:
     handler: src/handlers/vendor-email-verification-stream.handler
     name: ${self:custom.resourcePrefix}-vendor-email-verification-stream
+    description: Consolidated vendor PROFILE stream — account provisioning request + email verification publish
     timeout: 60
     events:
       - stream:
@@ -3597,129 +3623,14 @@ functions:
               arn: !GetAtt VendorEmailVerificationStreamDlq.Arn
               type: sqs
 
-  onVendorLifecycleChanged:
-    handler: src/handlers/vendor-lifecycle-stream.handler
-    name: ${self:custom.resourcePrefix}-vendor-lifecycle-stream
-    timeout: 60
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt VendorTable.StreamArn
-          batchSize: 10
-          startingPosition: LATEST
-          bisectBatchOnFunctionError: true
-          maximumRetryAttempts: 3
-          functionResponseType: ReportBatchItemFailures
-          destinations:
-            onFailure:
-              arn: !GetAtt VendorLifecycleStreamDlq.Arn
-              type: sqs
-
-  onVendorDiscoveryChanged:
-    handler: src/handlers/vendor-discovery-stream.handler
-    name: ${self:custom.resourcePrefix}-vendor-discovery-stream
-    timeout: 60
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt VendorTable.StreamArn
-          filterPatterns:
-            - eventName:
-                - INSERT
-                - MODIFY
-              dynamodb:
-                NewImage:
-                  entityType:
-                    S:
-                      - VendorBranch
-                      - ServiceArea
-                      - VendorCapabilities
-            - eventName:
-                - REMOVE
-              dynamodb:
-                OldImage:
-                  entityType:
-                    S:
-                      - VendorBranch
-                      - ServiceArea
-                      - VendorCapabilities
-            - eventName:
-                - MODIFY
-              dynamodb:
-                NewImage:
-                  entityType:
-                    S:
-                      - Vendor
-                  SK:
-                    S:
-                      - PROFILE
-          batchSize: 10
-          startingPosition: LATEST
-          bisectBatchOnFunctionError: true
-          maximumRetryAttempts: 3
-          functionResponseType: ReportBatchItemFailures
-          destinations:
-            onFailure:
-              arn: !GetAtt VendorDiscoveryStreamDlq.Arn
-              type: sqs
-
-  onVendorEmailVerified:
-    handler: src/handlers/vendor-email-verified-stream.handler
-    name: ${self:custom.resourcePrefix}-vendor-email-verified-stream
-    timeout: 60
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt VendorTable.StreamArn
-          filterPatterns:
-            - eventName:
-                - MODIFY
-              dynamodb:
-                NewImage:
-                  entityType:
-                    S:
-                      - Vendor
-                  SK:
-                    S:
-                      - PROFILE
-          batchSize: 10
-          startingPosition: LATEST
-          bisectBatchOnFunctionError: true
-          maximumRetryAttempts: 3
-          functionResponseType: ReportBatchItemFailures
-          destinations:
-            onFailure:
-              arn: !GetAtt VendorEmailVerifiedStreamDlq.Arn
-              type: sqs
-
-  onVendorBookingReadinessChanged:
-    handler: src/handlers/booking-readiness-stream.handler
-    name: ${self:custom.resourcePrefix}-vendor-booking-readiness-stream
-    timeout: 60
-    events:
-      - stream:
-          type: dynamodb
-          arn: !GetAtt VendorTable.StreamArn
-          filterPatterns:
-            - eventName: [INSERT, MODIFY]
-              dynamodb:
-                NewImage:
-                  entityType:
-                    S: [Vendor, VendorCommunity, VendorCapabilities, Staff, VendorBank]
-            - eventName: [REMOVE]
-              dynamodb:
-                OldImage:
-                  entityType:
-                    S: [VendorCommunity, Staff, VendorBank]
-          batchSize: 10
-          startingPosition: LATEST
-          bisectBatchOnFunctionError: true
-          maximumRetryAttempts: 3
-          functionResponseType: ReportBatchItemFailures
-          destinations:
-            onFailure:
-              arn: !GetAtt VendorBookingReadinessStreamDlq.Arn
-              type: sqs
+  onVendorAccountProvisioned:
+    handler: src/handlers/vendor-account-provisioned.handler
+    description: Completes vendor identity/owner linkage after Identity finishes Cognito/user/VENDOR provisioning
+    timeout: 30
+  onStaffAccountProvisioned:
+    handler: src/handlers/staff-account-provisioned.handler
+    description: Atomically links a completed Identity STAFF account to an active vendor membership.
+    timeout: 30
 
   onBookingReadinessCatalogEvent:
     handler: src/handlers/booking-readiness-events.handler
@@ -3984,6 +3895,79 @@ functions:
             requestModels:
               application/json: UpdateVendorRequest
 
+  acceptvendordetails:
+    handler: src/handlers/vendors-handler.handleAcceptVendorDetails
+    events:
+      - http:
+          path: /vendors/{vendorId}/details-acceptance
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Accept vendor details"
+          description: "Records that the authenticated manager reviewed and accepted the currently saved support-prepared vendor profile. This is vendor confirmation, not a submission for platform review. The revision must match GET /vendors/{vendorId}."
+          swaggerTags:
+            - Vendors
+          bodyType: AcceptVendorDetailsRequest
+          responseData:
+            200:
+              description: "Vendor details accepted"
+              bodyType: VendorResponse
+            400:
+              description: ""
+            401:
+              description: ""
+            403:
+              description: ""
+            404:
+              description: ""
+            409:
+              description: "Revision mismatch or concurrent update"
+          documentation:
+            summary: Accept vendor details
+            description: Records that the authenticated manager reviewed and accepted the currently saved support-prepared vendor profile. This is vendor confirmation, not a submission for platform review. The revision must match GET /vendors/{vendorId}.
+            tags:
+              - Vendors
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor details accepted
+                responseModels:
+                  application/json: VendorResponse
+              - statusCode: "400"
+                responseBody:
+                  description: Accept vendor details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "401"
+                responseBody:
+                  description: Accept vendor details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Accept vendor details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "404"
+                responseBody:
+                  description: Accept vendor details
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "409"
+                responseBody:
+                  description: Revision mismatch or concurrent update
+                responseModels:
+                  application/json: ErrorResponse
+            pathParams:
+              - name: vendorId
+                description: vendorId
+                schema:
+                  type: string
+            requestBody:
+              description: Accept the currently saved vendor profile revision.
+              required: true
+            requestModels:
+              application/json: AcceptVendorDetailsRequest
 
   updatevendorstatus:
     handler: src/handlers/vendors-handler.handleUpdatevendorstatus
@@ -3994,7 +3978,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           summary: "Update vendor lifecycle status"
-          description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.\n"
+          description: "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\n"
           swaggerTags:
             - Vendors
           bodyType: UpdateVendorStatusRequest
@@ -4016,7 +4000,7 @@ functions:
               description: ""
           documentation:
             summary: Update vendor lifecycle status
-            description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream."
+            description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP."
             tags:
               - Vendors
             methodResponses:
@@ -4061,7 +4045,7 @@ functions:
                 schema:
                   type: string
             requestBody:
-              description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP. VendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream."
+              description: "Updates the administrative lifecycle status of a vendor. Allowed transitions: PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW) PENDING_VERIFICATION -> REJECTED (reason required) ACTIVE -> SUSPENDED | INACTIVE SUSPENDED -> ACTIVE | INACTIVE Repeating the current status is idempotent. Approval does not issue an email OTP."
               required: true
             requestModels:
               application/json: UpdateVendorStatusRequest
@@ -9280,17 +9264,6 @@ resources:
           - Key: ManagedBy
             Value: Serverless
 
-    VendorOnboardingStreamDlq:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:custom.resourcePrefix}-vendor-onboarding-stream-dlq
-        MessageRetentionPeriod: 1209600
-        Tags:
-          - Key: Service
-            Value: vendor
-          - Key: Environment
-            Value: ${sls:stage}
-
     VendorEmailVerificationStreamDlq:
       Type: AWS::SQS::Queue
       Properties:
@@ -9302,45 +9275,46 @@ resources:
           - Key: Environment
             Value: ${sls:stage}
 
-    VendorEmailVerifiedStreamDlq:
-      Type: AWS::SQS::Queue
+    VendorAccountProvisionedRule:
+      Type: AWS::Events::Rule
       Properties:
-        QueueName: ${self:custom.resourcePrefix}-vendor-email-verified-stream-dlq
-        MessageRetentionPeriod: 1209600
-        Tags:
-          - Key: Service
-            Value: vendor
-          - Key: Environment
-            Value: ${sls:stage}
-
-    VendorLifecycleStreamDlq:
-      Type: AWS::SQS::Queue
+        Name: ${self:custom.resourcePrefix}-vendor-account-provisioned
+        EventBusName: !Ref VendorEventBus
+        EventPattern:
+          source: [identity-service]
+          detail-type: [Vendor.AccountProvisioned]
+        State: ENABLED
+        Targets:
+          - Id: VendorAccountProvisioned
+            Arn: !GetAtt OnVendorAccountProvisionedLambdaFunction.Arn
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    VendorAccountProvisionedPermission:
+      Type: AWS::Lambda::Permission
       Properties:
-        QueueName: ${self:custom.resourcePrefix}-vendor-lifecycle-stream-dlq
-        MessageRetentionPeriod: 1209600
-        Tags:
-          - Key: Service
-            Value: vendor
-          - Key: Environment
-            Value: ${sls:stage}
-
-    VendorDiscoveryStreamDlq:
-      Type: AWS::SQS::Queue
+        FunctionName: !GetAtt OnVendorAccountProvisionedLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt VendorAccountProvisionedRule.Arn
+    StaffAccountProvisionedRule:
+      Type: AWS::Events::Rule
       Properties:
-        QueueName: ${self:custom.resourcePrefix}-vendor-discovery-stream-dlq
-        MessageRetentionPeriod: 1209600
-        Tags:
-          - Key: Service
-            Value: vendor
-          - Key: Environment
-            Value: ${sls:stage}
-
-    VendorBookingReadinessStreamDlq:
-      Type: AWS::SQS::Queue
+        Name: ${self:custom.resourcePrefix}-staff-account-provisioned
+        EventBusName: !Ref VendorEventBus
+        EventPattern:
+          source: [identity-service]
+          detail-type: [Staff.AccountProvisioned]
+        State: ENABLED
+        Targets:
+          - Id: StaffAccountProvisioned
+            Arn: !GetAtt OnStaffAccountProvisionedLambdaFunction.Arn
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    StaffAccountProvisionedPermission:
+      Type: AWS::Lambda::Permission
       Properties:
-        QueueName: ${self:custom.resourcePrefix}-vendor-booking-readiness-stream-dlq
-        MessageRetentionPeriod: 1209600
-        SqsManagedSseEnabled: true
+        FunctionName: !GetAtt OnStaffAccountProvisionedLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt StaffAccountProvisionedRule.Arn
 
     VendorBookingReadinessEventDlq:
       Type: AWS::SQS::Queue

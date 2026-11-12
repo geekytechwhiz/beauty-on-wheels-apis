@@ -142,6 +142,7 @@ describe('PlatformPackagesService', () => {
         communityId: 'community-1',
         enabled: false,
         reason: 'Capacity gap',
+        vendorId: 'vendor-1',
         fulfilmentVendorIds: ['vendor-1'],
         capacityCommitmentIds: ['cmt-1'],
         version: 2,
@@ -213,6 +214,50 @@ describe('PlatformPackagesService', () => {
     ).rejects.toThrow(/cannot open sales/);
   });
 
+  it('refuses sales enablement when a commitment is missing offeringId', async () => {
+    repository.getPackage.mockResolvedValue({
+      PK: 'PLATFORM_PACKAGE#pkg_1',
+      SK: 'META',
+      entityType: 'PlatformPackage',
+      packageId: 'pkg_1',
+      ...packageBody,
+      status: 'published',
+      version: 1,
+      publishedVersion: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      createdBy: 'admin-1',
+      updatedBy: 'admin-1',
+    });
+    repository.getSalesControl.mockResolvedValue(null);
+    directory.activeCommunityIds.mockResolvedValue(['community-1']);
+    coverage.activeCommunityIds.mockResolvedValue(['community-1']);
+    commitments.lookup.mockResolvedValue([
+      {
+        commitmentId: 'cmt-legacy',
+        vendorId: 'vendor-1',
+        communityId: 'community-1',
+        status: 'ACTIVE',
+        quantity: 30,
+        holdsCapacity: true,
+        scope: { serviceScopeCode: 'service:CAR_WASH', label: 'Exterior wash' },
+      },
+    ]);
+    await expect(
+      service.updateSalesControl(
+        actorRequest(
+          {
+            enabled: true,
+            reason: 'Should fail closed without offeringId',
+            fulfilmentVendorIds: ['vendor-1'],
+            capacityCommitmentIds: ['cmt-legacy'],
+          },
+          { packageId: 'pkg_1', communityId: 'community-1' },
+        ),
+      ),
+    ).rejects.toThrow(/missing offeringId/);
+  });
+
   it('opens sales only when community, coverage, and holding commitments align', async () => {
     repository.getPackage.mockResolvedValue({
       PK: 'PLATFORM_PACKAGE#pkg_1',
@@ -259,10 +304,80 @@ describe('PlatformPackagesService', () => {
       packageId: 'pkg_1',
       communityId: 'community-1',
       enabled: true,
+      vendorId: 'vendor-1',
+      fulfilmentVendorIds: ['vendor-1'],
       capacityCommitmentIds: ['cmt-1'],
       version: 1,
     });
     expect(result).not.toHaveProperty('effectiveFrom');
-    expect(repository.saveSalesControl).toHaveBeenCalled();
+    expect(repository.saveSalesControl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendorId: 'vendor-1',
+        fulfilmentVendorIds: ['vendor-1'],
+        GSI3PK: 'COMMUNITY#community-1',
+        GSI3SK: `PLATFORM_PACKAGE#${categoryId}#pkg_1`,
+      }),
+      undefined,
+    );
+  });
+
+  it('returns vendorId on community package discovery from the sales-control GSI3 row', async () => {
+    repository.listEnabledForCommunity.mockResolvedValue([
+      {
+        packageId: 'pkg_1',
+        categoryId,
+        communityId: 'community-1',
+        enabled: true,
+        vendorId: 'vendor-1',
+        fulfilmentVendorIds: ['vendor-1', 'vendor-2'],
+        capacityCommitmentIds: ['cmt-1'],
+        version: 1,
+        createdAt: 'x',
+        updatedAt: 'x',
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
+        GSI3PK: 'COMMUNITY#community-1',
+        GSI3SK: `PLATFORM_PACKAGE#${categoryId}#pkg_1`,
+      },
+    ]);
+    repository.getPackage.mockResolvedValue({
+      PK: 'PLATFORM_PACKAGE#pkg_1',
+      SK: 'META',
+      entityType: 'PlatformPackage',
+      packageId: 'pkg_1',
+      ...packageBody,
+      status: 'published',
+      version: 1,
+      publishedVersion: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      createdBy: 'admin-1',
+      updatedBy: 'admin-1',
+    });
+    repository.getRevision.mockResolvedValue({
+      PK: 'PLATFORM_PACKAGE#pkg_1',
+      SK: 'REVISION#0000000001',
+      entityType: 'PlatformPackageRevision',
+      revisionOf: 'pkg_1',
+      packageId: 'pkg_1',
+      ...packageBody,
+      status: 'published',
+      version: 1,
+      publishedVersion: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      createdBy: 'admin-1',
+      updatedBy: 'admin-1',
+    });
+    const page = await service.discover({
+      query: { communityId: 'community-1' },
+    } as any);
+    expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({
+      packageId: 'pkg_1',
+      vendorId: 'vendor-1',
+      fulfilmentVendorIds: ['vendor-1', 'vendor-2'],
+      billingPeriod: 'monthly',
+    });
   });
 });

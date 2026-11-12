@@ -47,9 +47,9 @@ export const BusinessLocationRequestSchema = z
     addressLine2: z.string().max(200).optional(),
     landmark: z.string().max(100).optional(),
     locality: optionalPlaceName(120),
-    city: optionalPlaceName(80),
-    district: optionalPlaceName(80),
-    state: optionalPlaceName(80),
+    city: z.string().max(80),
+    district: z.string().max(80),
+    state: z.string().max(80),
     postalCode: z
       .string()
       .trim()
@@ -115,11 +115,15 @@ export const CreateVendorInitialCapacityRequestSchema = z
   .strict();
 
 export const OwnerDetailsRequestSchema = z.object({
-  /** Ignored at the API boundary; ownership comes from the identity token. */
+  /** Ignored at the API boundary for staff create; login identity is not taken from the caller. */
   userId: z.string().min(1).max(100).optional(),
   fullName: z.string().min(1).max(100).optional(),
   designation: optionalTrimmedString(100),
   email: optionalTrimmedString(254).pipe(z.string().email().optional()),
+  /**
+   * Explicit vendor-login phone for the partner app. Never derived from
+   * createdBy / staff identity. Required by createVendor for account provisioning.
+   */
   phoneNumber: optionalTrimmedString(20),
 }).strict();
 
@@ -134,8 +138,10 @@ export const CreateVendorRequestSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    const legacy = value.businessInfo?.locality?.trim();
-    const nested = value.businessInfo?.location?.locality?.trim();
+    // `locality` is optional in both forms. The child schemas already trim and
+    // normalize blank strings to undefined, so do not dereference an omitted value.
+    const legacy = value.businessInfo?.locality;
+    const nested = value.businessInfo?.location?.locality;
     if (legacy && nested && legacy.toLowerCase() !== nested.toLowerCase()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -185,6 +191,7 @@ export const UpdateVendorRequestSchema = z
     gstNumber: z.string().trim().toUpperCase().regex(GSTIN, 'gstNumber must be a GSTIN').optional(),
     panNumber: z.string().trim().toUpperCase().regex(PAN, 'panNumber must be a PAN').optional(),
     profileImageUrl: z.string().trim().url().max(2048).optional(),
+    concent: z.boolean().optional(),
   })
   .strict()
   .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
@@ -197,6 +204,31 @@ export const validateUpdateVendorRequest = (
   req: LambdaRequest,
 ): UpdateVendorRequest => {
   const result = UpdateVendorRequestSchema.safeParse(req.body);
+  if (!result.success) {
+    throw new EventSchemaError('Request validation failed', result.error);
+  }
+  req.body = result.data;
+  return result.data;
+};
+
+/**
+ * Manager confirmation of the currently saved support-prepared profile.
+ * The revision must match GET /vendors/{vendorId}.revision.
+ */
+export const AcceptVendorDetailsRequestSchema = z
+  .object({
+    revision: z.number().int().min(0),
+  })
+  .strict();
+
+export type AcceptVendorDetailsRequest = z.infer<
+  typeof AcceptVendorDetailsRequestSchema
+>;
+
+export const validateAcceptVendorDetailsRequest = (
+  req: LambdaRequest,
+): AcceptVendorDetailsRequest => {
+  const result = AcceptVendorDetailsRequestSchema.safeParse(req.body);
   if (!result.success) {
     throw new EventSchemaError('Request validation failed', result.error);
   }

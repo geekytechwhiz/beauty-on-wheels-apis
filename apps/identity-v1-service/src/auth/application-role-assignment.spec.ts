@@ -92,7 +92,7 @@ describe('planApplicationRoleBackfill', () => {
 
 describe('application role token flow', () => {
   it.each(['VENDOR', 'ADMIN', 'CUSTOMER'] as const)(
-    'initializes only CUSTOMER when userType is %s and registration was not granted',
+    'initializes CUSTOMER when vendor creation was not granted for userType %s',
     async (userType) => {
       const repository = memoryRepository([]);
       await initializeApplicationRoleForNewIdentity(repository, {
@@ -103,14 +103,14 @@ describe('application role token flow', () => {
     },
   );
 
-  it('maps REGISTRANT only when the server sets vendor registration', async () => {
+  it('maps VENDOR when the server sets vendor registration', async () => {
     const repository = memoryRepository([]);
     await initializeApplicationRoleForNewIdentity(repository, {
       userId: 'u-new',
       userType: 'VENDOR',
       vendorRegistration: true,
     });
-    expect(repository.mappings.get('u-new')).toEqual(new Set(['REGISTRANT']));
+    expect(repository.mappings.get('u-new')).toEqual(new Set(['VENDOR']));
   });
 
   it('creates a CUSTOMER mapping for a new registration and puts it on the access token', async () => {

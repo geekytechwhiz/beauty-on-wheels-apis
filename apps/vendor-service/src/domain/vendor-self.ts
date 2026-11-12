@@ -53,6 +53,7 @@ export const VENDOR_NEXT_ACTION = {
   VIEW_APPLICATION_STATUS: 'VIEW_APPLICATION_STATUS',
   OPEN_VENDOR_DASHBOARD: 'OPEN_VENDOR_DASHBOARD',
   COMPLETE_VENDOR_SETUP: 'COMPLETE_VENDOR_SETUP',
+  ACCEPT_VENDOR_DETAILS: 'ACCEPT_VENDOR_DETAILS',
   VIEW_ACCOUNT_STATUS: 'VIEW_ACCOUNT_STATUS',
   CORRECT_APPLICATION: 'CORRECT_APPLICATION',
 } as const;
@@ -70,6 +71,34 @@ export interface VendorSelfSource {
   status: VendorStatus;
   onboardingStatus: OnboardingStatus;
   currentSection: OnboardingSection;
+  revision?: number;
+  detailsAcceptedRevision?: number;
+  detailsAcceptedAt?: string;
+}
+
+export function isDetailsAcceptanceCurrent(
+  vendor: Pick<VendorSelfSource, 'revision' | 'detailsAcceptedRevision'>,
+): boolean {
+  const revision = vendor.revision ?? 0;
+  return (
+    typeof vendor.detailsAcceptedRevision === 'number'
+    && vendor.detailsAcceptedRevision === revision
+  );
+}
+
+export function toDetailsAcceptance(
+  vendor: Pick<VendorSelfSource, 'revision' | 'detailsAcceptedRevision' | 'detailsAcceptedAt'>,
+) {
+  const profileRevision = vendor.revision ?? 0;
+  const accepted = isDetailsAcceptanceCurrent(vendor);
+  return {
+    accepted,
+    ...(typeof vendor.detailsAcceptedRevision === 'number'
+      ? { acceptedRevision: vendor.detailsAcceptedRevision }
+      : {}),
+    ...(vendor.detailsAcceptedAt ? { acceptedAt: vendor.detailsAcceptedAt } : {}),
+    profileRevision,
+  };
 }
 
 /**
@@ -87,7 +116,10 @@ export function isOnboardingComplete(status: OnboardingStatus): boolean {
 }
 
 export function resolveVendorNextAction(
-  vendor: Pick<VendorSelfSource, 'status' | 'onboardingStatus'> | null,
+  vendor: Pick<
+    VendorSelfSource,
+    'status' | 'onboardingStatus' | 'revision' | 'detailsAcceptedRevision'
+  > | null,
 ): VendorNextAction {
   if (!vendor) {
     return VENDOR_NEXT_ACTION.START_ONBOARDING;
@@ -102,9 +134,13 @@ export function resolveVendorNextAction(
   }
 
   if (vendor.status === 'ACTIVE') {
-    return isOperationallyEligible(vendor)
-      ? VENDOR_NEXT_ACTION.OPEN_VENDOR_DASHBOARD
-      : VENDOR_NEXT_ACTION.COMPLETE_VENDOR_SETUP;
+    if (!isOperationallyEligible(vendor)) {
+      return VENDOR_NEXT_ACTION.COMPLETE_VENDOR_SETUP;
+    }
+    if (!isDetailsAcceptanceCurrent(vendor)) {
+      return VENDOR_NEXT_ACTION.ACCEPT_VENDOR_DETAILS;
+    }
+    return VENDOR_NEXT_ACTION.OPEN_VENDOR_DASHBOARD;
   }
 
   if (REVIEW_READY.has(vendor.onboardingStatus)) {

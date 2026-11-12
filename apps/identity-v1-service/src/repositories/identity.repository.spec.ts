@@ -518,6 +518,64 @@ describe('IdentityRepository', () => {
       );
     });
 
+    it('creates a VENDOR mapping with the originating vendorId', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockUser });
+      ddbMock.on(PutCommand).resolves({});
+
+      await expect(repository.ensureVendorRoleMapping('u-123', 'vendor-123')).resolves.toBe('created');
+
+      expect(ddbMock.commandCalls(PutCommand)[0].args[0].input).toMatchObject({
+        Item: {
+          PK: 'USER#u-123', SK: 'ROLE#VENDOR', userId: 'u-123',
+          roleId: 'VENDOR', vendorId: 'vendor-123', entityType: 'UserRole',
+        },
+        ConditionExpression: 'attribute_not_exists(PK)',
+      });
+    });
+
+    it('repairs a legacy VENDOR mapping missing vendorId with a conditional update', async () => {
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockUser })
+        .resolvesOnce({ Item: { PK: 'USER#u-123', SK: 'ROLE#VENDOR', userId: 'u-123', roleId: 'VENDOR' } });
+      const conflict = new Error('The conditional request failed');
+      conflict.name = 'ConditionalCheckFailedException';
+      ddbMock.on(PutCommand).rejects(conflict);
+      ddbMock.on(UpdateCommand).resolves({});
+
+      await expect(repository.ensureVendorRoleMapping('u-123', 'vendor-123')).resolves.toBe('repaired');
+
+      expect(ddbMock.commandCalls(UpdateCommand)[0].args[0].input).toMatchObject({
+        Key: { PK: 'USER#u-123', SK: 'ROLE#VENDOR' },
+        ConditionExpression: 'attribute_exists(PK) AND attribute_not_exists(vendorId)',
+        ExpressionAttributeValues: { ':vendorId': 'vendor-123' },
+      });
+    });
+
+    it('treats a duplicate VENDOR provisioning delivery as idempotent', async () => {
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockUser })
+        .resolvesOnce({ Item: { PK: 'USER#u-123', SK: 'ROLE#VENDOR', userId: 'u-123', roleId: 'VENDOR', vendorId: 'vendor-123' } });
+      const conflict = new Error('The conditional request failed');
+      conflict.name = 'ConditionalCheckFailedException';
+      ddbMock.on(PutCommand).rejects(conflict);
+
+      await expect(repository.ensureVendorRoleMapping('u-123', 'vendor-123')).resolves.toBe('exists');
+      expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
+    });
+
+    it('rejects a different VENDOR association without overwriting it', async () => {
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockUser })
+        .resolvesOnce({ Item: { PK: 'USER#u-123', SK: 'ROLE#VENDOR', userId: 'u-123', roleId: 'VENDOR', vendorId: 'vendor-existing' } });
+      const conflict = new Error('The conditional request failed');
+      conflict.name = 'ConditionalCheckFailedException';
+      ddbMock.on(PutCommand).rejects(conflict);
+
+      await expect(repository.ensureVendorRoleMapping('u-123', 'vendor-incoming'))
+        .rejects.toMatchObject({ name: 'VendorRoleMappingConflictError' });
+      expect(ddbMock.commandCalls(UpdateCommand)).toHaveLength(0);
+    });
+
     it('scans user meta pages for the role backfill', async () => {
       ddbMock.on(ScanCommand).resolves({
         Items: [{ ...mockUser, PK: 'USER#u-123', SK: 'META', entityType: 'User' }],

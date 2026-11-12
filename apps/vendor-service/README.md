@@ -23,7 +23,7 @@ Administrative status:
 
 `POST /vendors/{vendorId}/approve` and `POST /vendors/{vendorId}/reject` use those rules. `PATCH /vendors/{vendorId}/status` uses the same rules. Repeating the current status does not write another history row.
 
-Approval does not mint an email OTP. `VendorApproved` and `VendorRejected` are published from the vendor table stream onto the vendor event bus. `VendorEmailVerification.Requested` remains only for profile rows that still carry an OTP.
+Approval does not mint an email OTP. `VendorEmailVerification.Requested` remains only for profile rows that still carry an OTP.
 
 Operational status (`ONLINE`, `OFFLINE`, `BUSY`, `TEMPORARILY_UNAVAILABLE`) is separate. `ONLINE` and `BUSY` require lifecycle status `ACTIVE`.
 
@@ -39,6 +39,17 @@ List vendors with `communityId` uses GSI3. Do not combine `communityId` with `ci
 
 `CATALOG_BASE_URL` is required before catalog mappings can be saved. Adding GSI3 is a table update; existing vendors have no community rows until an admin assigns them.
 
+GSI1 lists every vendor for the admin discovery endpoint. If rows were written before
+the discovery keys existed, run `src/scripts/backfill-vendor-discovery-index.ts` in
+dry-run mode first, then repeat it with `--apply` after reviewing its vendor IDs.
+
+Capacity proposals and commitments use `packageScope.offeringId` / `scope.offeringId`
+(catalog package id) as the sole scope key. Legacy rows that only have
+`serviceScopeCode` remain readable but cannot be accepted, sold against, or used to
+open sales-control until migrated. Report and apply with
+`src/scripts/backfill-capacity-scope-offering.ts` (dry-run by default; `--apply` only
+after a verified mapping file).
+
 ## Checkout internals
 
 Deploy this service before Booking Service and Service Catalog Service. Two Lambda functions are invoke-only and have no HTTP route:
@@ -49,3 +60,25 @@ Deploy this service before Booking Service and Service Catalog Service. Two Lamb
 Any role in the same account and stage may invoke them when its identity policy allows `lambda:InvokeFunction` on those function ARNs. The function resource policy grants the account. Handlers do not accept an internal flag or a caller allowlist. Owner and admin HTTP routes are unchanged.
 
 Versions are server-owned. The first saved configuration is version 1. A later change to `enabled` or `priceOverride` increments that offering's version and `configurationVersion`. Existing capability rows without a version are set to 1 on the next internal read, using a conditional write. No table scan is required. Do not copy a client-supplied version onto these items.
+# Vendor account provisioning
+
+After an authorized staff member creates a vendor, Vendor Service persists the PROFILE with `loginPhoneNumber` and `accountProvisioningStatus=PENDING`. The single vendor-table stream consumer (`*-vendor-email-verification-stream`) then:
+
+1. Publishes `Vendor.AccountProvisioningRequested` (Identity creates/reuses Cognito + application identity, assigns `VENDOR`, then emits `Vendor.AccountProvisioned`).
+2. Publishes `VendorEmailVerification.Requested` when an OTP request is persisted (Email Service sends the message).
+
+`ownerDetails.phoneNumber` is the explicit vendor login number. `businessInfo.phoneNumber` is a business contact and is not used for authentication. Staff creator identity is retained in `createdBy` only and never receives `VENDOR` from this flow.
+
+Account provisioning **completed** means: Cognito account exists, Identity user exists with `VENDOR` role mapping, and the vendor PROFILE has `identityId` + `ownerUserId` linkage. Email verification is tracked separately (`emailVerifiedAt`) and does not gate role assignment. Operational approval/onboarding gates remain separate.
+
+## Deduplication
+
+Stream delivery is at-least-once. Provisioning uses EventBridge idempotency key `Vendor.AccountProvisioningRequested:<vendorId>`. Email uses `VendorEmailVerification.Requested:<vendorId>:<verificationRequestId>` plus `emailVerificationDispatchPending` clearing after publish. Downstream Email Service delivery tracking further reduces duplicates; exactly-once email delivery is not guaranteed by EventBridge alone.
+
+## Recovery
+
+Dry run first:
+
+`pnpm exec ts-node --esm apps/vendor-service/src/scripts/reconcile-vendor-accounts.ts --table vendor-service-dev-vendor --bus nvdev-bw-vendor-event-bus`
+
+Review ambiguous records (the command never guesses from `createdBy`), then add `--apply` to bump the deliberate retry token and publish idempotent provisioning requests. It does not resend verification emails.

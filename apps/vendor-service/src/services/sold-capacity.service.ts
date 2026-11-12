@@ -9,6 +9,7 @@ import {
   CAPACITY_RESERVATION_KIND,
   CapacityCommitmentDdbItem,
   isHoldExpired,
+  packageScopeOfferingId,
   reservationKindOf,
 } from '../domain/capacity-commitment';
 import {
@@ -63,10 +64,10 @@ export interface ReleasePlanCapacityInput {
  * then attempts a fresh sold reserve. CAPACITY_UNAVAILABLE means booking must take the
  * compensation/refund path — Dynamo TTL alone is not used for synchronous release.
  *
- * Selection: prefer an ACTIVE (or other capacity-holding) commitment for vendor+community
- * whose scope.offeringId matches the plan offering/package id and that has
- * `quantity - reservedSoldQuantity >= demandQuantity`. Otherwise the first holding
- * commitment for that community with enough remainder.
+ * Selection: ACTIVE (or other capacity-holding) commitment for vendor+community whose
+ * scope.offeringId exactly matches the plan offering/package id and that has
+ * `quantity - reservedSoldQuantity >= demandQuantity`. Commitments missing offeringId
+ * (legacy serviceScopeCode-only rows) are never treated as unrestricted capacity.
  */
 export class SoldCapacityService {
   constructor(
@@ -75,7 +76,7 @@ export class SoldCapacityService {
 
   /** Temporary checkout hold. Idempotent per planId. */
   async holdPlanCapacity(input: ReservePlanCapacityInput): Promise<ReservePlanCapacityResult> {
-    if (!input.expiresAt?.trim()) {
+    if (!input.expiresAt.trim()) {
       throw new ValidationError('expiresAt is required for a capacity hold');
     }
     return this.placeReservation({
@@ -292,16 +293,15 @@ export class SoldCapacityService {
     demandQuantity: number;
   }): Promise<CapacityCommitmentDdbItem | null> {
     const commitments = await this.repository.listCommitments(input.vendorId);
-    const eligible = commitments.filter(
-      (item) =>
-        CAPACITY_HOLDING_STATUSES.includes(item.status)
-        && item.communityId === input.communityId
-        && remainingVisitSlots(item) >= input.demandQuantity,
+    return (
+      commitments.find(
+        (item) =>
+          CAPACITY_HOLDING_STATUSES.includes(item.status)
+          && item.communityId === input.communityId
+          && packageScopeOfferingId(item.scope) === input.offeringId
+          && remainingVisitSlots(item) >= input.demandQuantity,
+      ) ?? null
     );
-    const offeringMatch = eligible.find(
-      (item) => item.scope.offeringId === input.offeringId,
-    );
-    return offeringMatch ?? eligible[0] ?? null;
   }
 }
 

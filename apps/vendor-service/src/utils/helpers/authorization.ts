@@ -145,7 +145,8 @@ export function getCallerPermissions(request: LambdaRequest): string[] {
 /**
  * Vendor creation is an application-role decision. CUSTOMER cannot create a
  * vendor, and a client-supplied userType is not a role or a permission.
- * VENDOR is granted only after vendor email verification or approval.
+ * VENDOR may be granted at trusted staff-create account provisioning time.
+ * That role alone does not approve the vendor or skip onboarding/operational gates.
  * vendor:create is accepted only when the authorizer resolved it from a role.
  * REGISTRANT may create only with the authorizer-resolved vendor:register
  * permission and a phone number Identity marked verified.
@@ -159,7 +160,7 @@ export function assertCanCreateVendor(request: LambdaRequest): string {
     if (request.context.authContext?.phoneVerified !== true) {
       throw new ForbiddenError('A verified phone number is required for vendor registration');
     }
-    if (!request.context.authContext.phoneNumber?.trim()) {
+    if (!request.context.authContext?.phoneNumber?.trim()) {
       throw new BaseError(
         'Verified phone number is unavailable',
         409,

@@ -33,6 +33,40 @@ function consumerPackageJson(name: string) {
   };
 }
 
+const NODE_BUILTINS = new Set([
+  'crypto',
+  'https',
+  'http',
+  'fs',
+  'path',
+  'url',
+  'util',
+  'stream',
+  'buffer',
+  'events',
+  'os',
+  'net',
+  'tls',
+  'zlib',
+  'assert',
+  'querystring',
+]);
+
+function isExternal(id: string): boolean {
+  return (
+    id.startsWith('@api-hub/') ||
+    id.startsWith('@aws-sdk/') ||
+    id.startsWith('@smithy/') ||
+    id.startsWith('node:') ||
+    NODE_BUILTINS.has(id) ||
+    id === 'aws-lambda' ||
+    id === 'libphonenumber-js' ||
+    id === 'winston' ||
+    id === 'zod' ||
+    id === 'tslib'
+  );
+}
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/libs/utils',
@@ -43,13 +77,10 @@ export default defineConfig(() => ({
     }),
     consumerPackageJson('@api-hub/utils'),
   ],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
-  // Configuration for building your library.
+  // Node/Lambda library — avoid Vite browser external stubs for node: builtins.
   // See: https://vite.dev/guide/build.html#library-mode
   build: {
+    ssr: true,
     outDir: './dist',
     emptyOutDir: true,
     reportCompressedSize: true,
@@ -57,17 +88,13 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
     lib: {
-      // Could also be a dictionary or array of multiple entry points.
       entry: 'src/index.ts',
       name: '@api-hub/utils',
       fileName: 'index',
-      // Change this to the formats you want to support.
-      // Don't forget to update your package.json as well.
       formats: ['es' as const],
     },
     rollupOptions: {
-      // External packages that should not be bundled into your library.
-      external: ['winston', 'crypto', '@api-hub/observability'],
+      external: isExternal,
     },
   },
 }));

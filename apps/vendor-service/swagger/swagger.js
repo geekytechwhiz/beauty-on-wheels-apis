@@ -407,10 +407,66 @@
         }
       }
     },
+    "/vendors/{vendorId}/details-acceptance": {
+      "post": {
+        "summary": "Accept vendor details",
+        "description": "Records that the authenticated manager reviewed and accepted the currently saved support-prepared vendor profile. This is vendor confirmation, not a submission for platform review. The revision must match GET /vendors/{vendorId}.",
+        "tags": [
+          "Vendors"
+        ],
+        "operationId": "acceptvendordetails.post./vendors/{vendorId}/details-acceptance",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AcceptVendorDetailsRequest"
+            }
+          },
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor details accepted",
+            "schema": {
+              "$ref": "#/definitions/VendorResponse"
+            }
+          },
+          "400": {
+            "description": "400 response"
+          },
+          "401": {
+            "description": "401 response"
+          },
+          "403": {
+            "description": "403 response"
+          },
+          "404": {
+            "description": "404 response"
+          },
+          "409": {
+            "description": "Revision mismatch or concurrent update"
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/status": {
       "patch": {
         "summary": "Update vendor lifecycle status",
-        "description": "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\nVendorApproved, VendorRejected, and VendorSuspended are published from the vendor table stream.\n",
+        "description": "Updates the administrative lifecycle status of a vendor.\n\nAllowed transitions:\n  PENDING_VERIFICATION -> ACTIVE (onboarding must be PENDING_REVIEW)\n  PENDING_VERIFICATION -> REJECTED (reason required)\n  ACTIVE -> SUSPENDED | INACTIVE\n  SUSPENDED -> ACTIVE | INACTIVE\n\nRepeating the current status is idempotent. Approval does not issue an email OTP.\n",
         "tags": [
           "Vendors"
         ],
@@ -4566,6 +4622,27 @@
           "title": "BusinessInfo.phoneNumber",
           "type": "string"
         },
+        "loginPhoneNumber": {
+          "title": "BusinessInfo.loginPhoneNumber",
+          "type": "string"
+        },
+        "identityId": {
+          "title": "BusinessInfo.identityId",
+          "type": "string"
+        },
+        "accountProvisioningStatus": {
+          "enum": [
+            "PENDING",
+            "COMPLETED",
+            "FAILED"
+          ],
+          "title": "BusinessInfo.accountProvisioningStatus",
+          "type": "string"
+        },
+        "accountProvisionedAt": {
+          "title": "BusinessInfo.accountProvisionedAt",
+          "type": "string"
+        },
         "email": {
           "title": "BusinessInfo.email",
           "type": "string"
@@ -4682,6 +4759,10 @@
         "profileImageUrl": {
           "title": "UpdateVendorRequest.profileImageUrl",
           "type": "string"
+        },
+        "concent": {
+          "title": "UpdateVendorRequest.concent",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -5886,6 +5967,12 @@
         },
         "ownerUserId": {
           "title": "Vendor.ownerUserId",
+          "description": "Present on legacy self-registered vendors only.",
+          "type": "string"
+        },
+        "createdBy": {
+          "title": "Vendor.createdBy",
+          "description": "Audit actor for staff-created vendors; not an access grant.",
           "type": "string"
         },
         "businessType": {
@@ -5964,6 +6051,14 @@
           "title": "Vendor.revision",
           "type": "number"
         },
+        "detailsAcceptedRevision": {
+          "title": "Vendor.detailsAcceptedRevision",
+          "type": "number"
+        },
+        "detailsAcceptedAt": {
+          "title": "Vendor.detailsAcceptedAt",
+          "type": "string"
+        },
         "communityIds": {
           "items": {
             "title": "Vendor.communityIds.[]",
@@ -5991,7 +6086,6 @@
       },
       "required": [
         "vendorId",
-        "ownerUserId",
         "status",
         "operationalStatus",
         "onboardingStatus",
@@ -6010,6 +6104,7 @@
         "VIEW_APPLICATION_STATUS",
         "OPEN_VENDOR_DASHBOARD",
         "COMPLETE_VENDOR_SETUP",
+        "ACCEPT_VENDOR_DETAILS",
         "VIEW_ACCOUNT_STATUS",
         "CORRECT_APPLICATION"
       ],
@@ -6045,6 +6140,33 @@
       ],
       "additionalProperties": false,
       "title": "VendorMembership",
+      "type": "object"
+    },
+    "VendorDetailsAcceptance": {
+      "properties": {
+        "accepted": {
+          "title": "VendorDetailsAcceptance.accepted",
+          "type": "boolean"
+        },
+        "acceptedRevision": {
+          "title": "VendorDetailsAcceptance.acceptedRevision",
+          "type": "number"
+        },
+        "acceptedAt": {
+          "title": "VendorDetailsAcceptance.acceptedAt",
+          "type": "string"
+        },
+        "profileRevision": {
+          "title": "VendorDetailsAcceptance.profileRevision",
+          "type": "number"
+        }
+      },
+      "required": [
+        "accepted",
+        "profileRevision"
+      ],
+      "additionalProperties": false,
+      "title": "VendorDetailsAcceptance",
       "type": "object"
     },
     "VendorSelfLookup": {
@@ -6097,6 +6219,11 @@
           "$ref": "#/definitions/VendorMembership",
           "title": "VendorSelfLookup.membership",
           "description": "Present only when hasVendor is true."
+        },
+        "detailsAcceptance": {
+          "$ref": "#/definitions/VendorDetailsAcceptance",
+          "title": "VendorSelfLookup.detailsAcceptance",
+          "description": "Owner confirmation of the support-prepared business details."
         }
       },
       "required": [
@@ -6309,24 +6436,12 @@
     },
     "CreateStaffRequest": {
       "properties": {
-        "userId": {
-          "title": "CreateStaffRequest.userId",
-          "type": "string"
-        },
         "name": {
           "title": "CreateStaffRequest.name",
           "type": "string"
         },
         "phoneNumber": {
           "title": "CreateStaffRequest.phoneNumber",
-          "type": "string"
-        },
-        "email": {
-          "title": "CreateStaffRequest.email",
-          "type": "string"
-        },
-        "role": {
-          "title": "CreateStaffRequest.role",
           "type": "string"
         },
         "status": {
@@ -6347,22 +6462,6 @@
         "name": {
           "title": "UpdateStaffRequest.name",
           "type": "string"
-        },
-        "phoneNumber": {
-          "title": "UpdateStaffRequest.phoneNumber",
-          "type": "string"
-        },
-        "email": {
-          "title": "UpdateStaffRequest.email",
-          "type": "string"
-        },
-        "role": {
-          "title": "UpdateStaffRequest.role",
-          "type": "string"
-        },
-        "status": {
-          "$ref": "#/definitions/StaffStatus",
-          "title": "UpdateStaffRequest.status"
         }
       },
       "additionalProperties": false,
@@ -6402,6 +6501,15 @@
         "status": {
           "$ref": "#/definitions/StaffStatus",
           "title": "Staff.status"
+        },
+        "provisioningStatus": {
+          "enum": [
+            "PENDING",
+            "COMPLETED",
+            "FAILED"
+          ],
+          "title": "Staff.provisioningStatus",
+          "type": "string"
         },
         "createdAt": {
           "title": "Staff.createdAt",

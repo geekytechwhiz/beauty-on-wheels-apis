@@ -20,6 +20,23 @@ describe('staff and crew request schemas', () => {
     } as LambdaRequest).staffIds).toEqual(['staff-1', 'staff-2']);
   });
 
+  it('accepts an optional status on create staff', () => {
+    const request = {
+      body: { name: 'Anu', phoneNumber: '+919876543211', status: 'ACTIVE' },
+    } as LambdaRequest;
+
+    expect(validateCreateStaffRequest(request)).toEqual({
+      name: 'Anu',
+      phoneNumber: '+919876543211',
+      status: 'ACTIVE',
+    });
+    expect(request.body).toEqual({
+      name: 'Anu',
+      phoneNumber: '+919876543211',
+      status: 'ACTIVE',
+    });
+  });
+
   it('rejects a crew with one member', () => {
     expect(() => validateCreateCrewRequest({
       body: { name: 'Morning Crew A', vanLabel: 'Van KL-07', staffIds: ['staff-1'] },

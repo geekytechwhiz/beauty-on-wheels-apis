@@ -21,6 +21,7 @@ import {
   VENDOR_OWNER_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
+import { VendorsMapper } from '../mappers/vendors.mapper';
 
 export interface VendorListQueryParams {
   status?: VendorStatus;
@@ -58,11 +59,9 @@ export class VendorsRepository extends BaseRepository {
 
   async createVendor(
     profile: VendorDdbItem,
-    owner: VendorOwnerDdbItem,
-    ownership: VendorOwnershipDdbItem,
     additional: Array<Record<string, unknown>> = [],
   ): Promise<void> {
-    const items = [ownership, profile, owner, ...additional];
+    const items = [VendorsMapper.withDiscoveryKeys(profile), ...additional];
     if (items.length > 25) {
       throw new Error('Vendor create transaction exceeds 25 items');
     }
@@ -227,7 +226,7 @@ export class VendorsRepository extends BaseRepository {
         {
           Put: {
             TableName: this.getTableName(),
-            Item: item,
+            Item: VendorsMapper.withDiscoveryKeys(item),
             ConditionExpression:
               'attribute_exists(PK) AND attribute_exists(SK)',
           },
@@ -245,7 +244,7 @@ export class VendorsRepository extends BaseRepository {
       {
         Put: {
           TableName: this.getTableName(),
-          Item: profile,
+            Item: VendorsMapper.withDiscoveryKeys(profile),
           ConditionExpression: expectedRevision === undefined
             ? 'attribute_exists(PK) AND attribute_exists(SK)'
             : 'attribute_exists(PK) AND attribute_exists(SK) AND (#revision = :expectedRevision OR attribute_not_exists(#revision))',
@@ -423,7 +422,7 @@ export class VendorsRepository extends BaseRepository {
 
     const profilePut: Record<string, unknown> = {
       TableName: this.getTableName(),
-      Item: input.profile,
+      Item: VendorsMapper.withDiscoveryKeys(input.profile),
       ConditionExpression: conditions.join(' AND '),
     };
     if (Object.keys(names).length > 0) {

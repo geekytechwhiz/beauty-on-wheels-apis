@@ -68,7 +68,7 @@ export function createDocumentObjectKey(
 }
 
 export function sanitizeFileName(fileName: string): string {
-  const base = fileName.split(/[/\\]/).pop()?.trim() ?? '';
+  const base = fileName.split(/[/\\]/).pop().trim() ?? '';
   const cleaned = base
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .replace(/[^\w.\- ()]/g, '_')
@@ -85,7 +85,7 @@ export function sanitizeFileName(fileName: string): string {
 }
 
 export function normalizeContentType(contentType: string): string {
-  return contentType.split(';')[0]?.trim().toLowerCase() ?? '';
+  return contentType.split(';')[0].trim().toLowerCase() ?? '';
 }
 
 export function parseDocumentUploadRequest(input: unknown): ParsedDocumentUpload {

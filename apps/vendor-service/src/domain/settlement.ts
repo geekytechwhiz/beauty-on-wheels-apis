@@ -181,7 +181,7 @@ export function applyStatementAction(
   });
 
   if (action === 'MARK_PAID') {
-    const reference = input.transferReference?.trim();
+    const reference = input.transferReference.trim();
     if (!reference) throw invalid('TRANSFER_REFERENCE_REQUIRED', 'transferReference is required', 400);
     const paidAtMs = Date.parse(input.paidAt ?? '');
     if (Number.isNaN(paidAtMs)) throw invalid('PAID_AT_INVALID', 'paidAt must be an ISO-8601 timestamp', 400);
@@ -212,13 +212,13 @@ export function applyStatementAction(
   const target = TARGET[action];
   if (statement.status === target) return { statement, idempotent: true, releaseVisitLocks: false };
   if (action !== 'APPROVE') {
-    const reason = input.reason?.trim();
+    const reason = input.reason.trim();
     if (!reason) throw invalid('REASON_REQUIRED', 'reason is required', 400);
   }
   if (!ALLOWED_FROM[action].includes(statement.status)) {
     throw invalid('STATEMENT_INVALID_TRANSITION', `Cannot ${action.toLowerCase()} a ${statement.status} statement`);
   }
-  const reason = input.reason?.trim();
+  const reason = input.reason.trim();
   return {
     idempotent: false,
     releaseVisitLocks: action === 'REJECT',

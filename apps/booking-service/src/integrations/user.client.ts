@@ -20,7 +20,12 @@ export class HttpUserGateway implements UserGateway {
     const communityIds = Array.isArray(record.communityIds)
       ? record.communityIds.filter((value): value is string => typeof value === 'string')
       : [];
-    return { communityIds };
+    return {
+      communityIds,
+      ...(typeof record.email === 'string' ? { email: record.email } : {}),
+      ...(typeof record.firstName === 'string' ? { firstName: record.firstName } : {}),
+      ...(typeof record.lastName === 'string' ? { lastName: record.lastName } : {}),
+    };
   }
 
   async assertAddress(userId: string, addressId: string, authorizationHeader?: string): Promise<Record<string, string> | undefined> {

@@ -45,6 +45,7 @@ export class IdentityMapper {
       userType: item.userType,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      vendorId: item.vendorId,
     };
   }
 

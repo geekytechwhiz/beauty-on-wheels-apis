@@ -21,6 +21,7 @@ import { CrewRepository } from '../repositories/crew.repository';
 import { StaffRepository } from '../repositories/staff.repository';
 import { VendorsRepository } from '../repositories/vendors.repository';
 import { CrewDdbItem, VendorDdbItem } from '../types/repository.types';
+import { CatalogEntityLookup } from '../integrations/catalog-entity-lookup';
 import { CapacityProposalsService } from './capacity-proposals.service';
 
 const NOW = new Date('2026-11-01T00:00:00.000Z');
@@ -85,7 +86,7 @@ function proposal(overrides: Partial<CapacityProposalDdbItem> = {}): CapacityPro
     proposalId: 'cpr_1',
     vendorId: 'vendor-1',
     communityId: 'com-1',
-    packageScope: { serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' },
+    packageScope: { offeringId: 'pkg_car_wash', label: 'Car wash' },
     serviceWindow: WINDOW,
     quantity: 6,
     responseDeadline: '2026-11-05T00:00:00.000Z',
@@ -114,7 +115,7 @@ function commitment(
     proposalId: `other_${quantity}`,
     vendorId: 'vendor-1',
     communityId: 'com-other',
-    scope: { serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' },
+    scope: { offeringId: 'pkg_car_wash', label: 'Car wash' },
     window,
     quantity,
     rate: { amountMinor: 25000, currency: 'INR' },
@@ -133,6 +134,7 @@ describe('CapacityProposalsService', () => {
   let vendors: jest.Mocked<VendorsRepository>;
   let crews: jest.Mocked<CrewRepository>;
   let staff: jest.Mocked<StaffRepository>;
+  let catalog: jest.Mocked<CatalogEntityLookup>;
   let service: CapacityProposalsService;
 
   beforeEach(() => {
@@ -143,8 +145,8 @@ describe('CapacityProposalsService', () => {
       getLedger: jest.fn().mockResolvedValue(null),
       listCommitments: jest.fn().mockResolvedValue([]),
       getCommitment: jest.fn().mockResolvedValue(null),
-      listProposals: jest.fn().mockResolvedValue({ items: [] }),
       listOpsCommitments: jest.fn().mockResolvedValue({ items: [] }),
+      listProposals: jest.fn().mockResolvedValue({ items: [] }),
       createProposal: jest.fn().mockResolvedValue(undefined),
       transitionProposal: jest.fn().mockResolvedValue(undefined),
       acceptProposal: jest.fn().mockResolvedValue(undefined),
@@ -162,9 +164,19 @@ describe('CapacityProposalsService', () => {
     staff = {
       listMembershipsByUserId: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<StaffRepository>;
-    service = new CapacityProposalsService(repository, communities, vendors, crews, staff, {
-      now: () => NOW,
-    });
+    catalog = {
+      assertServicesExist: jest.fn().mockResolvedValue(undefined),
+      assertPackagesExist: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<CatalogEntityLookup>;
+    service = new CapacityProposalsService(
+      repository,
+      communities,
+      vendors,
+      crews,
+      staff,
+      catalog,
+      { now: () => NOW },
+    );
   });
 
   describe('vendor accept: capacity overlap', () => {
@@ -188,7 +200,9 @@ describe('CapacityProposalsService', () => {
         quantity: 6,
         status: 'ACTIVE',
         reservedSoldQuantity: 0,
+        scope: { offeringId: 'pkg_car_wash', label: 'Car wash' },
       });
+      expect(call.commitment.scope).not.toHaveProperty('serviceScopeCode');
       expect(call.item.commitmentId).toBe(call.commitment.commitmentId);
       expect(call.item.history.at(-1)).toMatchObject({
         actorId: 'owner-1',
@@ -255,6 +269,17 @@ describe('CapacityProposalsService', () => {
       expect(repository.acceptProposal).not.toHaveBeenCalled();
     });
 
+    it('rejects accept of a legacy proposal that only has serviceScopeCode', async () => {
+      repository.getProposal.mockResolvedValue(
+        proposal({
+          packageScope: { serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' },
+        }),
+      );
+      await expect(accept()).rejects.toThrow(ValidationError);
+      await expect(accept()).rejects.toThrow(/offeringId is required/);
+      expect(repository.acceptProposal).not.toHaveBeenCalled();
+    });
+
     it('expires an unanswered proposal past its deadline instead of committing', async () => {
       repository.getProposal.mockResolvedValue(
         proposal({ responseDeadline: '2026-10-31T00:00:00.000Z' }),
@@ -288,7 +313,23 @@ describe('CapacityProposalsService', () => {
       );
       await expect(service.createcapacityproposal(request({ user: 'admin', body: createBody() })))
         .rejects.toThrow(ConflictError);
+      expect(catalog.assertPackagesExist).toHaveBeenCalledWith(
+        [{ packageId: 'pkg_car_wash', enabled: true }],
+        undefined,
+      );
       expect(repository.createProposal).not.toHaveBeenCalled();
+    });
+
+    it('persists offeringId-only packageScope on create after catalog validation', async () => {
+      await service.createcapacityproposal(request({ user: 'admin', body: createBody() }));
+      expect(catalog.assertPackagesExist).toHaveBeenCalledWith(
+        [{ packageId: 'pkg_car_wash', enabled: true }],
+        undefined,
+      );
+      expect(repository.createProposal.mock.calls[0][0].item.packageScope).toEqual({
+        offeringId: 'pkg_car_wash',
+        label: 'Car wash',
+      });
     });
 
     it('409s when coverage is suspended between the read and the write', async () => {
@@ -417,6 +458,19 @@ describe('CapacityProposalsService', () => {
         request({ user: 'admin', body: { ...createBody(), sendImmediately: false } }),
       );
       expect(repository.createProposal.mock.calls[0][0].item.status).toBe('DRAFT');
+    });
+
+    it('stores an optional create note on the CREATE history entry', async () => {
+      await service.createcapacityproposal(
+        request({
+          user: 'admin',
+          body: { ...createBody(), note: ' dual-crew weekend launch ' },
+        }),
+      );
+      const history = repository.createProposal.mock.calls[0][0].item.history;
+      expect(history[0]).toMatchObject({ action: 'CREATE', note: 'dual-crew weekend launch' });
+      expect(history[1]).toMatchObject({ action: 'SEND' });
+      expect(history[1]).not.toHaveProperty('note');
     });
 
     it('requires an Idempotency-Key on mutations', async () => {
@@ -566,7 +620,7 @@ function createBody() {
   return {
     vendorId: 'vendor-1',
     communityId: 'com-1',
-    packageScope: { serviceScopeCode: 'service:CAR_WASH', label: 'Car wash' },
+    packageScope: { offeringId: 'pkg_car_wash', label: 'Car wash' },
     serviceWindow: WINDOW,
     quantity: 6,
     responseDeadline: '2026-11-05T00:00:00.000Z',

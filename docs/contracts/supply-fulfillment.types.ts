@@ -53,6 +53,7 @@ export interface CapacityCommitment {
   proposalId: string;
   vendorId: string;
   communityId: string;
+  /** offeringId is required on new writes; serviceScopeCode may appear on legacy reads only. */
   scope: { offeringId?: string; serviceScopeCode?: string; label: string };
   window: {
     startDate: string;
@@ -85,7 +86,7 @@ export interface OpsCapacityCommitmentListResponse {
 export interface CapacityProposalCreateRequest {
   vendorId: string;
   communityId: string;
-  packageScope: { offeringId?: string; serviceScopeCode?: string; label: string };
+  packageScope: { offeringId: string; label: string };
   serviceWindow: CapacityCommitment['window'];
   quantity: number;
   responseDeadline: string;

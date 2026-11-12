@@ -67,6 +67,12 @@ export interface PlatformPackageSalesControl {
   communityId: string;
   enabled: boolean;
   reason: string;
+  /**
+   * Primary fulfilment vendor for this community sales-control row.
+   * Mirrored on GSI3 reads so customer discovery can return vendorId
+   * without re-deriving from fulfilmentVendorIds.
+   */
+  vendorId: string;
   fulfilmentVendorIds: string[];
   capacityCommitmentIds: string[];
   effectiveFrom?: string;

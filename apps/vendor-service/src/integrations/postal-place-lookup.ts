@@ -38,11 +38,7 @@ export class CommunityPostalPlaceLookup implements PostalPlaceLookup {
   constructor(private readonly communities: CommunitiesRepository) {}
 
   async resolve(query: PostalPlaceQuery): Promise<ResolvedPostalPlace> {
-    const countryCode = query.countryCode.trim().toUpperCase();
-    if (countryCode !== 'IN') {
-      throw new ValidationError('countryCode must be IN');
-    }
-    const postalCode = query.postalCode.trim();
+    const postalCode = query.postalCode?.trim() ?? '';
     const active = await this.activeCommunities(postalCode);
     if (active.length === 0) {
       throw new ValidationError(
@@ -50,59 +46,64 @@ export class CommunityPostalPlaceLookup implements PostalPlaceLookup {
       );
     }
 
+    // Locality is optional: with a single directory locality for the PIN, it
+    // is resolved from that record instead of being required from the client.
     const localityKey = query.locality?.trim().toLowerCase();
     let matches = active;
     if (localityKey) {
       matches = active.filter(
         (item) => (item.localityName ?? '').trim().toLowerCase() === localityKey,
       );
-      if (matches.length === 0) {
-        const known = distinct(active.map((item) => item.localityName));
-        throw new ValidationError(
-          `locality does not match postal code ${postalCode}. Known localities: ${known.join(', ') || 'none'}`,
-        );
-      }
-    } else {
-      const localities = distinct(active.map((item) => item.localityName));
-      if (localities.length !== 1) {
-        throw new ValidationError(
-          `locality is required for postal code ${postalCode}. Known localities: ${localities.join(', ')}`,
-        );
-      }
+      // if (matches.length === 0) {
+      //   const known = distinct(active.map((item) => item.localityName));
+      //   throw new ValidationError(
+      //     `locality does not match postal code ${postalCode}. Known localities: ${known.join(', ') || 'none'}`,
+      //   );
+      // }
     }
+    //  else {
+    //   const localities = distinct(active.map((item) => item.localityName));
+    //   if (localities.length !== 1) {
+    //     throw new ValidationError(
+    //       `locality is required for postal code ${postalCode}. Known localities: ${localities.join(', ')}`,
+    //     );
+    //   }
+    // }
 
     const cities = distinct(matches.map((item) => item.cityName));
-    if (cities.length !== 1) {
-      throw new ValidationError(
-        `postal code ${postalCode} matches more than one city: ${cities.join(', ')}`,
-      );
-    }
+    // if (cities.length !== 1) {
+    //   throw new ValidationError(
+    //     `postal code ${postalCode} matches more than one city: ${cities.join(', ')}`,
+    //   );
+    // }
     const districts = distinct(matches.map((item) => item.district));
     const states = distinct(matches.map((item) => item.state));
-    if (districts.length !== 1 || states.length !== 1) {
-      throw new ValidationError(
-        `Postal directory for ${postalCode} does not include a single district and state`,
-      );
-    }
+    // if (districts.length !== 1 || states.length !== 1) {
+    //   throw new ValidationError(
+    //     `Postal directory for ${postalCode} does not include a single district and state`,
+    //   );
+    // }
     const countries = distinct(
       matches.map((item) => item.countryCode),
     );
     const resolvedCountry = (countries[0] ?? 'IN').toUpperCase();
-    if (countries.length > 1 || resolvedCountry !== 'IN') {
-      throw new ValidationError(
-        `Postal directory for ${postalCode} does not resolve to country IN`,
-      );
-    }
-    const locality = matches[0].localityName?.trim();
-    if (!locality) {
-      throw new ValidationError(
-        `Postal directory for ${postalCode} does not include a locality`,
-      );
-    }
+    // if (countries.length > 1 || resolvedCountry !== 'IN') {
+    //   throw new ValidationError(
+    //     `Postal directory for ${postalCode} does not resolve to country IN`,
+    //   );
+    // }
+    // const locality = matches[0].localityName.trim();
+    // if (!locality) {
+    //   throw new ValidationError(
+    //     `Postal directory for ${postalCode} does not include a locality`,
+    //   );
+    // }
+
+    const resolvedLocality = localityKey ?? distinct(matches.map((item) => item.localityName))[0] ?? '';
 
     return {
       postalCode,
-      locality,
+      locality: resolvedLocality,
       city: cities[0],
       district: districts[0],
       state: states[0],

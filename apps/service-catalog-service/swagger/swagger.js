@@ -382,7 +382,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Customer package page"
+            "description": "Customer package page including vendorId"
           }
         }
       },

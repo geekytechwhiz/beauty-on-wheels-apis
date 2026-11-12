@@ -41,4 +41,5 @@ export * from './helper/jwt.helpers';
 export * from './helper/http-header.helpers';
 export * from './helper/http-response.helpers';
 export * from './helper/message.helpers';
-export * from './types/core-types';
+export * from './types/core-types'; 
+export { VendorId, CustomerId, BookingId, ServiceId, OfferingId, StaffId, UserId, ProposalId, CommitmentId, CommunityId, TeamId } from './helper/entity-id';

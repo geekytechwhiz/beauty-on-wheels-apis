@@ -14,6 +14,8 @@ const indianMobile = z.string().trim().superRefine((value, ctx) => {
     }
 });
 
+const staffStatus = z.enum(['ACTIVE', 'INACTIVE']);
+
 /**
  * ---------------------------------------------------------
  * CreateStaffRequest
@@ -21,12 +23,9 @@ const indianMobile = z.string().trim().superRefine((value, ctx) => {
  */
 
 export const CreateStaffRequestSchema = z.object({
-userId: z.string().optional(),
-name: z.string().trim().min(2).max(100),
-phoneNumber: indianMobile,
-email: z.string().email().optional(),
-role: z.string().optional(),
-status: z.enum(["ACTIVE", "INACTIVE"]).optional()
+  name: z.string().trim().min(2).max(100),
+  phoneNumber: indianMobile,
+  status: staffStatus.optional(),
 }).strict();
 
 export type CreateStaffRequest =
@@ -37,6 +36,7 @@ export const validateCreateStaffRequest = (req: LambdaRequest): CreateStaffReque
     if (!result.success) {
         throw new EventSchemaError("Request validation failed", result.error);
     }
+    req.body = result.data;
     return result.data;
 };
 
@@ -47,11 +47,7 @@ export const validateCreateStaffRequest = (req: LambdaRequest): CreateStaffReque
  */
 
 export const UpdateStaffRequestSchema = z.object({
-name: z.string().trim().min(2).max(100).optional(),
-phoneNumber: indianMobile.optional(),
-email: z.string().email().optional(),
-role: z.string().optional(),
-status: z.enum(["ACTIVE", "INACTIVE"]).optional()
+name: z.string().trim().min(2).max(100).optional()
 }).strict();
 
 export type UpdateStaffRequest =

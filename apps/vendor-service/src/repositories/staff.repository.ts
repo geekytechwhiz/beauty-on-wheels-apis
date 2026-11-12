@@ -145,6 +145,29 @@ export class StaffRepository extends BaseRepository {
     });
   }
 
+  /** Completes an asynchronous identity workflow without allowing an old event
+   * to revive an inactive membership. The active-user lock is the concurrency
+   * boundary for the one-active-vendor-membership rule. */
+  async completeProvisioning(item: StaffDdbItem, userId: string, identityId: string): Promise<void> {
+    const completed: StaffDdbItem = { ...item, userId, identityId, provisioningStatus: 'COMPLETED', updatedAt: new Date().toISOString() };
+    const membership = this.membershipItem(completed)!;
+    await this.transactWrite({ TransactItems: [
+      { Put: { TableName: this.getTableName(), Item: completed, ConditionExpression: 'attribute_exists(PK) AND #status = :active AND #provisioning = :pending', ExpressionAttributeNames: { '#status': 'status', '#provisioning': 'provisioningStatus' }, ExpressionAttributeValues: { ':active': 'ACTIVE', ':pending': 'PENDING' } } },
+      { Put: { TableName: this.getTableName(), Item: membership } },
+      { Put: { TableName: this.getTableName(), Item: { PK: `STAFF_ACTIVE_USER#${userId}`, SK: 'MEMBERSHIP', userId, vendorId: item.vendorId, staffId: item.staffId, entityType: 'ActiveStaffMembership' }, ConditionExpression: 'attribute_not_exists(PK)' } },
+    ] });
+  }
+
+  async deactivateStaff(item: StaffDdbItem): Promise<void> {
+    const inactive: StaffDdbItem = { ...item, status: 'INACTIVE', updatedAt: new Date().toISOString() };
+    const membership = this.membershipItem(inactive);
+    await this.transactWrite({ TransactItems: [
+      { Put: { TableName: this.getTableName(), Item: inactive, ConditionExpression: 'attribute_exists(PK) AND #status = :active', ExpressionAttributeNames: { '#status': 'status' }, ExpressionAttributeValues: { ':active': 'ACTIVE' } } },
+      ...(membership ? [{ Put: { TableName: this.getTableName(), Item: membership } }] : []),
+      ...(item.userId ? [{ Delete: { TableName: this.getTableName(), Key: { PK: `STAFF_ACTIVE_USER#${item.userId}`, SK: 'MEMBERSHIP' }, ConditionExpression: 'staffId = :staffId', ExpressionAttributeValues: { ':staffId': item.staffId } } }] : []),
+    ] });
+  }
+
   async listAllStaff(vendorId: string): Promise<StaffDdbItem[]> {
     return this.queryAll<StaffDdbItem>({
       TableName: this.getTableName(),
@@ -240,6 +263,7 @@ export class StaffRepository extends BaseRepository {
   }
 
   private membershipItem(item: StaffDdbItem): StaffMembershipItem | undefined {
+    // userId is assigned after async account provisioning; create intentionally omits it.
     const userId = item.userId?.trim();
     if (!userId) return undefined;
     return {

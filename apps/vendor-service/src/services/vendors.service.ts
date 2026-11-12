@@ -7,7 +7,7 @@ import {
 import { createChildLogger, createLogger, getLoggerContext } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError,
-  ValidationError
+  ValidationError, normalizePhoneNumber,
 } from '@api-hub/utils';
 import { randomUUID } from 'crypto';
 
@@ -60,12 +60,17 @@ import {
   resolveVendorNextAction,
   resolveVendorSelfStatus,
   STAFF_VISIT_PERMISSIONS,
+  toDetailsAcceptance,
   VENDOR_MEMBERSHIP_ROLE,
   VENDOR_NEXT_ACTION,
 } from '../domain/vendor-self';
 import { env } from '../configs/env.config';
 import { ensureCanonicalUserId } from '../auth/resolve-canonical-user';
-import { CreateVendorRequest, CreateVendorRequestSchema } from '../schemas/vendors.schema';
+import {
+  AcceptVendorDetailsRequest,
+  CreateVendorRequest,
+  CreateVendorRequestSchema,
+} from '../schemas/vendors.schema';
 import {
   CapabilitiesRepository,
   getCapabilitiesRepository,
@@ -230,21 +235,36 @@ export class VendorsService {
         role: VENDOR_MEMBERSHIP_ROLE.OWNER,
         permissions: [...OWNER_WORKSPACE_PERMISSIONS],
       },
+      detailsAcceptance: toDetailsAcceptance(vendor),
     };
   }
 
   async createvendor(request: LambdaRequest): Promise<Vendor> {
-    const ownerUserId = await this.prepareCreateOwner(request);
+    const createdBy = await this.prepareCreateOwner(request);
     const parsed = CreateVendorRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new ValidationError('Invalid vendor registration request');
     }
 
     const input = normalizeCreateLocality(parsed.data);
-    const verifiedPhone = isRegistrationOnlyCaller(request)
-      ? request.context.authContext?.phoneNumber?.trim()
-      : undefined;
-    return this.createOwnedVendor(input, ownerUserId, verifiedPhone, request);
+    // Explicit vendor-login contact:
+    // - Staff create: ownerDetails.phoneNumber (never createdBy / business phone).
+    // - REGISTRANT self-create: ownerDetails.phoneNumber, else the verified auth phone.
+    const rawLoginPhone =
+      input.ownerDetails?.phoneNumber?.trim() ||
+      (isRegistrationOnlyCaller(request)
+        ? request.context.authContext?.phoneNumber?.trim()
+        : undefined);
+    if (!rawLoginPhone) {
+      throw new ValidationError(
+        'ownerDetails.phoneNumber is required for vendor account provisioning',
+      );
+    }
+    const phoneDetails = normalizePhoneNumber(rawLoginPhone);
+    if (!phoneDetails.isValid || !phoneDetails.e164) {
+      throw new ValidationError('ownerDetails.phoneNumber must be a valid phone number');
+    }
+    return this.createOwnedVendor(input, createdBy, phoneDetails.e164, request);
   }
 
   /**
@@ -298,35 +318,32 @@ export class VendorsService {
  
   private async createOwnedVendor(
     input: CreateVendorRequest,
-    ownerUserId: string,
+    createdBy: string,
     verifiedPhone: string | undefined,
     request: LambdaRequest,
   ): Promise<Vendor> {
     const businessInfo = { ...(input.businessInfo ?? {}) };
     const ownerDetails = { ...(input.ownerDetails ?? {}) };
-    if (verifiedPhone) {
-      businessInfo.phoneNumber = verifiedPhone;
-      ownerDetails.phoneNumber = verifiedPhone;
-    }
+    // Do not overwrite business contact data with the vendor login contact.
     const locationInput = businessInfo.location;
     delete businessInfo.location;
     delete businessInfo.locality;
 
-    const existing = await this.findOwnedVendor(ownerUserId);
-    if (existing) {
-      return this.presentVendor(existing);
-    }
+    // const existing = await this.findOwnedVendor(ownerUserId);
+    // if (existing) {
+    //   return this.presentVendor(existing);
+    // }
 
-    const place = locationInput
-      ? await this.postalLookup.resolve({
-        postalCode: locationInput.postalCode,
-        countryCode: locationInput.countryCode ?? 'IN',
-        locality: locationInput.locality,
-      })
-      : undefined;
-    if (place && locationInput) {
-      assertPlaceMatchesRequest(locationInput, place);
-    }
+    // const place = locationInput
+    //   ? await this.postalLookup.resolve({
+    //     postalCode: locationInput.postalCode,
+    //     countryCode: locationInput.countryCode ?? 'IN',
+    //     locality: locationInput.locality,
+    //   })
+    //   : undefined;
+    // if (place && locationInput) {
+    //   assertPlaceMatchesRequest(locationInput, place);
+    // }
 
     const communityIds = await this.requestedCommunityIds(input);
     const vendorId = randomUUID();
@@ -335,29 +352,28 @@ export class VendorsService {
     let profile = VendorsMapper.toInitialDdbItem({
       ...businessInfo,
       vendorId,
-      ownerUserId,
+      createdBy,
+      loginPhoneNumber: verifiedPhone,
     });
     profile = { ...profile, createdAt, updatedAt: createdAt };
+    profile = VendorsMapper.withDiscoveryKeys(profile);
 
-    const owner = OwnerMapper.toDdbItem(vendorId, {
-      userId: ownerUserId,
-      fullName: ownerDetails.fullName ?? businessInfo.contactName,
-      email: ownerDetails.email,
-      phoneNumber: ownerDetails.phoneNumber,
-    });
-
-    const address = place
-      ? VendorsMapper.toAddressDdbItem(vendorId, {
-        addressLine1: locationInput?.addressLine1?.trim() ?? '',
-        addressLine2: blankToUndefined(locationInput?.addressLine2),
-        landmark: blankToUndefined(locationInput?.landmark),
-        locality: place.locality,
-        city: place.city,
-        district: place.district,
-        state: place.state,
-        country: place.countryCode,
-        postalCode: place.postalCode,
-      }, { createdAt })
+    const address = locationInput
+      ? VendorsMapper.toAddressDdbItem(
+          vendorId,
+          {
+            addressLine1: locationInput?.addressLine1?.trim() ?? '',
+            addressLine2: blankToUndefined(locationInput?.addressLine2),
+            landmark: blankToUndefined(locationInput?.landmark),
+            locality: locationInput.locality,
+            city: locationInput.city,
+            district: locationInput.district,
+            state: locationInput.state,
+            country:  'IN',
+            postalCode: locationInput.postalCode 
+          },
+          { createdAt },
+        )
       : undefined;
 
     const capabilities = input.capabilities
@@ -373,7 +389,7 @@ export class VendorsService {
       CommunitiesMapper.toItem({
         vendor: profile,
         communityId,
-        assignedBy: ownerUserId,
+        assignedBy: createdBy,
         assignedAt: createdAt,
       }),
     );
@@ -397,7 +413,6 @@ export class VendorsService {
 
     const aggregate = toVendorAggregate([
       profile,
-      owner,
       ...(address ? [address] : []),
     ]);
     const state = computeStateFromAggregate(aggregate);
@@ -406,9 +421,9 @@ export class VendorsService {
       onboardingStatus: state.status,
       currentSection: state.currentSection,
       completedSections: state.completedSections,
-      email: profile.email ?? owner.email,
-      addressCity: place?.city,
-      addressPostalCode: place?.postalCode,
+      email: profile.email ?? ownerDetails.email,
+      addressCity: locationInput?.city,
+      addressPostalCode: locationInput?.postalCode,
       meta: correlationId ? { correlationId } : undefined,
     });
     if (!fitsInOneTransaction) {
@@ -420,7 +435,6 @@ export class VendorsService {
     }
     profile = this.withInitialEmailVerification(profile);
 
-    const ownership = OwnerMapper.ownershipClaim(vendorId, ownerUserId);
     const firstWrite: Array<Record<string, unknown>> = fitsInOneTransaction
       ? [...sectionItems, ...(communityItems as unknown as Array<Record<string, unknown>>)]
       : sectionItems;
@@ -428,8 +442,6 @@ export class VendorsService {
     try {
       await this.repository.createVendor(
         profile,
-        owner,
-        ownership,
         firstWrite,
       );
     } catch (error) {
@@ -437,19 +449,7 @@ export class VendorsService {
         throw error;
       }
 
-      const concurrentlyCreated = await this.findOwnedVendor(ownerUserId);
-      if (!concurrentlyCreated) {
-        throw new ConflictError('Vendor creation conflict; please retry');
-      }
-
-      this.logger.info({
-        event: 'createvendor_existing',
-        ownerUserId,
-        vendorId: concurrentlyCreated.vendorId,
-        correlationId,
-      });
-
-      return this.presentVendor(concurrentlyCreated);
+      throw new ConflictError('Vendor creation conflict; please retry');
     }
 
     if (!fitsInOneTransaction) {
@@ -458,7 +458,7 @@ export class VendorsService {
 
     this.logger.info({
       event: 'createvendor_success',
-      ownerUserId,
+      createdBy,
       vendorId,
       correlationId,
       communityCount: communityIds.length,
@@ -540,7 +540,7 @@ export class VendorsService {
     const missing = (prepared ?? ids.map((communityId) => CommunitiesMapper.toItem({
       vendor: profile,
       communityId,
-      assignedBy: profile.ownerUserId,
+      assignedBy: profile.createdBy ?? profile.ownerUserId ?? 'system',
       assignedAt: profile.createdAt,
     }))).filter((item) => !have.has(item.communityId));
     for (const item of missing) {
@@ -847,6 +847,47 @@ export class VendorsService {
     return vendor;
   }
 
+  async acceptVendorDetails(request: LambdaRequest): Promise<Vendor> {
+    const vendorId = getVendorId(request);
+    const existing = await this.requireVendor(vendorId);
+    assertVendorAccess(request, existing);
+    const body = request.body as AcceptVendorDetailsRequest;
+    const currentRevision = existing.revision ?? 0;
+    if (body.revision !== currentRevision) {
+      throw new ConflictError(
+        'Vendor details changed elsewhere. Reload and accept the current revision.',
+      );
+    }
+    if (
+      existing.detailsAcceptedRevision === currentRevision
+      && existing.detailsAcceptedAt
+    ) {
+      return this.presentVendor(existing);
+    }
+    const acceptedAt = new Date().toISOString();
+    const updated = VendorsMapper.applyDetailsAcceptance(existing, {
+      revision: currentRevision,
+      acceptedAt,
+    });
+    try {
+      await this.repository.transactVendorProfile({
+        profile: updated,
+        expectedUpdatedAt: existing.updatedAt,
+      });
+    } catch (err) {
+      if (err instanceof ConditionalWriteConflictError) {
+        throw new ConflictError('Vendor details acceptance conflict');
+      }
+      throw err;
+    }
+    this.logger.info({
+      event: 'accept_vendor_details_success',
+      vendorId,
+      revision: currentRevision,
+    });
+    return this.presentVendor(updated);
+  }
+
   async updatevendor(request: LambdaRequest): Promise<Vendor> {
     const vendorId = getVendorId(request);
     const existing = await this.requireVendor(vendorId);
@@ -875,6 +916,7 @@ export class VendorsService {
         primaryBranchId: existing.primaryBranchId,
         addressCity: aggregate.address?.city,
         addressPostalCode: aggregate.address?.postalCode,
+        concent: existing.concent ?? false,
       });
     }
 
@@ -1146,7 +1188,7 @@ let service: VendorsService;
 function normalizeCreateLocality(input: CreateVendorRequest): CreateVendorRequest {
   const info = input.businessInfo;
   if (!info) return input;
-  const legacy = info.locality?.trim();
+  const legacy = info.locality;
   const location = info.location;
   if (!legacy && !location) {
     return { ...input, businessInfo: { ...info, locality: undefined } };

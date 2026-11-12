@@ -20,7 +20,6 @@ import {
 import { Booking } from "../types/api-types";
 import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
 import {
-    assertBranch,
     assertHoldMatchesCommand,
     assertExpectedPrice,
     assertLocation,
@@ -48,6 +47,7 @@ import { BookingsMapper } from "../mappers/bookings.mapper";
 import { validateCreateBooking } from "../schemas/bookings.schema";
 import { BookingDdbItem, BookingIdempotencyItem } from "../types/repository.types";
 import { getCustomerPlansService } from "./customer-plans.service";
+import { bookingConfirmedIdempotencyKey, type BookingConfirmedPayload } from '@api-hub/event-platform';
 
 const baseLogger = createLogger({
     service: "bookings-service",
@@ -325,6 +325,9 @@ export class BookingsService {
             await this.repository.createBooking(booking, {
                 idempotencyKey,
                 requestHash: hash,
+            }, {
+                customerEmail: profile.email,
+                customerName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || undefined,
             });
         } catch (error) {
             if (error instanceof ConditionalWriteConflictError) {
@@ -710,12 +713,57 @@ export class BookingsService {
         if (typeof input.currency !== 'string' || input.currency.toUpperCase() !== expectedCurrency?.toUpperCase()) {
             throw new BookingError('PAYMENT_CURRENCY_MISMATCH', 'Payment currency does not match the booking', 409, 'currency');
         }
-        await this.repository.updateBookingStatus('CONFIRMED', original, 'PAID');
+        const outbox = this.bookingConfirmedOutbox(original);
+        if (outbox) {
+            await this.repository.updateBookingStatus('CONFIRMED', original, 'PAID', outbox);
+        } else {
+            await this.repository.updateBookingStatus('CONFIRMED', original, 'PAID');
+        }
         const confirmed = await this.repository.getBookingById(bookingId);
         if (!confirmed) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
         return confirmed;
+    }
+
+    /**
+     * Confirmation emails are deliberately dispatched from a DynamoDB-stream
+     * outbox. The payment response therefore never waits on Email Service,
+     * while the status change and publish intent remain atomic.
+     */
+    private bookingConfirmedOutbox(original: BookingDdbItem): {
+        eventId: string;
+        idempotencyKey: string;
+        correlationId: string;
+        payload: BookingConfirmedPayload;
+    } | undefined {
+        const email = original.customerEmail?.trim();
+        if (!email || !original.id || !original.customerId || !original.vendorId || !original.bookingDate || !original.slotId) {
+            this.logger.warn({
+                event: 'booking_confirmation_event_skipped',
+                bookingId: original.id,
+                reason: 'missing_notification_snapshot',
+            });
+            return undefined;
+        }
+        const eventId = bookingConfirmedIdempotencyKey(original.id);
+        return {
+            eventId,
+            idempotencyKey: eventId,
+            correlationId: `booking-confirmed:${original.id}`,
+            payload: {
+                bookingId: original.id,
+                customerId: original.customerId,
+                vendorId: original.vendorId,
+                customerEmail: email,
+                bookingDate: original.bookingDate,
+                slotId: original.slotId,
+                bookingStatus: 'confirmed',
+                ...(typeof original.totalAmount === 'number' ? { totalAmount: original.totalAmount } : {}),
+                ...(original.customerName ? { customerName: original.customerName } : {}),
+                ...(original.vendorName ? { vendorName: original.vendorName } : {}),
+            },
+        };
     }
 
     /** Trusted payment failure/timeout callback. It is idempotent and always releases capacity. */

@@ -236,6 +236,21 @@ export {
   type VendorEmailVerifiedPayload,
 } from './core/contracts/vendor-email-verification.events';
 export {
+  VendorAccountProvisioningRequestedEvent, VendorAccountProvisionedEvent,
+  VendorAccountProvisioningRequestedPayloadSchema, VendorAccountProvisionedPayloadSchema,
+  VENDOR_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE, VENDOR_ACCOUNT_PROVISIONED_EVENT_TYPE,
+  VENDOR_ACCOUNT_PROVISIONING_EVENT_VERSION, VENDOR_ACCOUNT_PROVISIONING_EVENT_SOURCE,
+  vendorAccountProvisioningIdempotencyKey, vendorAccountProvisionedIdempotencyKey,
+  type VendorAccountProvisioningRequestedPayload, type VendorAccountProvisionedPayload,
+} from './core/contracts/vendor-account-provisioning.events';
+export {
+  StaffAccountProvisioningRequestedEvent, StaffAccountProvisionedEvent,
+  StaffAccountProvisioningRequestedPayloadSchema, StaffAccountProvisionedPayloadSchema,
+  STAFF_ACCOUNT_PROVISIONING_REQUESTED_EVENT_TYPE, STAFF_ACCOUNT_PROVISIONED_EVENT_TYPE, STAFF_ACCOUNT_PROVISIONING_EVENT_VERSION,
+  staffAccountProvisioningIdempotencyKey, staffAccountProvisionedIdempotencyKey,
+  type StaffAccountProvisioningRequestedPayload, type StaffAccountProvisionedPayload,
+} from './core/contracts/staff-account-provisioning.events';
+export {
   EmailNotificationRequestedEvent,
   EmailNotificationRequestedPayloadSchema,
   EMAIL_NOTIFICATION_EVENT_TYPE,

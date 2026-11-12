@@ -35,6 +35,7 @@ export interface User {
   userType?: UserType;
   createdAt?: string;
   updatedAt?: string;
+  vendorId?: string;
 }
 
 export interface Profile {

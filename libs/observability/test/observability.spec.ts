@@ -107,6 +107,24 @@ describe('@api-hub/observability', () => {
     });
   });
 
+  it('accepts both legacy structured and message-plus-fields info calls', () => {
+    const log = createLogger();
+
+    log.info({ event: 'plan_created', planId: 'plan-1' });
+    log.info('package_lookup', { packageId: 'pkg-1' });
+
+    expect(getPowertoolsMock().info).toHaveBeenNthCalledWith(
+      1,
+      'plan_created',
+      expect.objectContaining({ planId: 'plan-1' }),
+    );
+    expect(getPowertoolsMock().info).toHaveBeenNthCalledWith(
+      2,
+      'package_lookup',
+      expect.objectContaining({ packageId: 'pkg-1' }),
+    );
+  });
+
   it('logs http request via getLogger path', () => {
     logHttpRequest('GET', '/health', 200, 12, 'corr-2');
     expect(getPowertoolsMock().info).toHaveBeenCalled();

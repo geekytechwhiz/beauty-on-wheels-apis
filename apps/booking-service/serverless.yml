@@ -46,7 +46,9 @@ provider:
     PAYMENT_SANDBOX_ENABLED: ${env:PAYMENT_SANDBOX_ENABLED, 'true'}
     EVIDENCE_BUCKET: !Ref BookingEvidenceBucket
     EVIDENCE_UPLOAD_URL_EXPIRY: '900'
-    # EVENT_BUS_NAME: ${ssm:/common/eventbus/name}
+    # Booking.Confirmed is consumed asynchronously by Email Service.
+    EVENT_BUS_NAME:
+      Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
 
   iam:
     role:
@@ -85,6 +87,14 @@ provider:
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_SCHEDULING_CREWS_FUNCTION}
             - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RESERVE_CAPACITY_FUNCTION}
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource:
+            Fn::Sub:
+              - arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${BusName}
+              - BusName:
+                  Fn::ImportValue: nv${self:provider.stage}-bw-vendor-event-bus-name
 
 custom:
   httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
@@ -1502,6 +1512,29 @@ functions:
 
   failPaymentBooking:
     handler: src/handlers/internal.failPaymentBooking
+
+  publishBookingConfirmedEvent:
+    handler: src/handlers/booking-confirmed-event.handleBookingConfirmedEvent
+    timeout: 30
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt:
+              - BookingTable
+              - StreamArn
+          batchSize: 10
+          # Never discard a committed booking event because EventBridge is down.
+          maximumRetryAttempts: -1
+          bisectBatchOnFunctionError: true
+          filterPatterns:
+            - eventName:
+                - INSERT
+              dynamodb:
+                NewImage:
+                  entityType:
+                    S:
+                      - BookingConfirmationOutbox
 
 
   postcheckin:
@@ -4270,6 +4303,9 @@ resources:
 
         SSESpecification:
           SSEEnabled: true
+
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
 
         AttributeDefinitions:
           - AttributeName: PK

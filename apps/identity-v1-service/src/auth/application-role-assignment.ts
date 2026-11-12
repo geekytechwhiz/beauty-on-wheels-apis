@@ -91,11 +91,10 @@ export async function prepareApplicationRolesForToken(
 
 /**
  * Initializes the first application role for a just-created identity.
- * userType is registration classification only and never selects a role.
  * vendorRegistration is set only by phone OTP verification when the stored
- * challenge userType is VENDOR. That path maps REGISTRANT, not VENDOR.
- * VENDOR is granted later by vendor email verification or approval, and
- * ADMIN only by an existing admin.
+ * challenge userType is VENDOR. It identifies the trusted vendor-creation
+ * flow, so the new application identity is created with the VENDOR role.
+ * ADMIN is assigned only by an existing admin.
  */
 export async function initializeApplicationRoleForNewIdentity(
   repository: ApplicationRoleRepository,
@@ -106,7 +105,7 @@ export async function initializeApplicationRoleForNewIdentity(
   },
 ): Promise<'created' | 'exists'> {
   const role = user.vendorRegistration
-    ? APPLICATION_ROLE.REGISTRANT
+    ? APPLICATION_ROLE.VENDOR
     : APPLICATION_ROLE.CUSTOMER;
   return repository.ensureUserRoleMapping(user.userId, role);
 }

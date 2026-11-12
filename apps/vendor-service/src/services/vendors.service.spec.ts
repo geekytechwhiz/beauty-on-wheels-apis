@@ -131,6 +131,11 @@ describe('VendorsService', () => {
       panNumber: 'ABCDE1234F',
       profileImageUrl: 'https://cdn.example.com/vendors/glow.jpg',
     },
+    ownerDetails: {
+      phoneNumber: '+919876543210',
+      fullName: 'Priya Sharma',
+      email: 'priya@glowsalon.example',
+    },
   };
 
   it('creates a vendor with a unique vendorId and persisted business info', async () => {
@@ -138,7 +143,10 @@ describe('VendorsService', () => {
       vendorAuthorized(['VENDOR'], { body: createBody }),
     );
 
-    expect(result.ownerUserId).toBe('user-1');
+    expect(result.createdBy).toBe('user-1');
+    expect(result.ownerUserId).toBeUndefined();
+    expect(result.loginPhoneNumber).toBe('+919876543210');
+    expect(result.accountProvisioningStatus).toBe('PENDING');
     expect(result.vendorId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
@@ -149,20 +157,36 @@ describe('VendorsService', () => {
     expect(result.onboardingStatus).toBe('IN_PROGRESS');
     expect(result.status).toBe('PENDING_VERIFICATION');
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
-    const [profile, owner, ownership] = repository.createVendor.mock.calls[0];
+    const [profile, additional] = repository.createVendor.mock.calls[0];
     expect(profile.SK).toBe('PROFILE');
-    expect(profile.ownerUserId).toBe('user-1');
+    expect(profile.createdBy).toBe('user-1');
+    expect(profile.loginPhoneNumber).toBe('+919876543210');
+    expect(profile.accountProvisioningStatus).toBe('PENDING');
+    expect(profile.ownerUserId).toBeUndefined();
     expect(profile.vendorId).toBe(result.vendorId);
-    expect(owner.SK).toBe('OWNER');
-    expect(owner.userId).toBe('user-1');
-    expect(owner.GSI1PK).toBe('OWNER#user-1');
-    expect(owner.GSI1SK).toBe(`VENDOR#${result.vendorId}`);
-    expect(ownership.PK).toBe('OWNER#user-1');
-    expect(ownership.SK).toBe('VENDOR');
-    expect(ownership.vendorId).toBe(result.vendorId);
-    expect(ownership.GSI1PK).toBeUndefined();
+    expect(profile).toMatchObject({
+      GSI1PK: 'VENDOR',
+      GSI1SK: `STATUS#PENDING_VERIFICATION#OPERATIONAL#OFFLINE#${profile.createdAt}#${result.vendorId}`,
+    });
+    expect(additional).toEqual([]);
     expect(result.onboarding?.initialCapacity).toBeNull();
     expect(result.onboarding?.communityCoverage.communities).toEqual([]);
+  });
+
+  it('allows one staff member to create multiple vendors while retaining createdBy as audit data', async () => {
+    const request = vendorAuthorized(['admin'], { body: createBody });
+    const first = await service.createvendor(request);
+    const second = await service.createvendor(request);
+
+    expect(first.vendorId).not.toBe(second.vendorId);
+    expect(first.createdBy).toBe('user-1');
+    expect(second.createdBy).toBe('user-1');
+    for (const [profile] of repository.createVendor.mock.calls) {
+      expect(profile).toMatchObject({ createdBy: 'user-1', GSI1PK: 'VENDOR' });
+      expect(profile.GSI1SK).toBe(
+        `STATUS#${profile.status}#OPERATIONAL#${profile.operationalStatus}#${profile.createdAt}#${profile.vendorId}`,
+      );
+    }
   });
 
   it('creates the vendor and initial sections in one transaction', async () => {
@@ -236,7 +260,7 @@ describe('VendorsService', () => {
         ownerDetails: {
           fullName: 'Carish Contact',
           email: 'info.carish@gmail.com',
-          phoneNumber: '9037243199',
+          phoneNumber: '+919037243199',
         },
         capabilities: {
           vehicleTypes: ['HATCHBACK', 'SEDAN', 'SUV'],
@@ -269,7 +293,7 @@ describe('VendorsService', () => {
     });
     expect(result.onboarding?.operatingPreferences.serviceWindowIds).toEqual(['morning']);
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
-    const additional = repository.createVendor.mock.calls[0][3];
+    const additional = repository.createVendor.mock.calls[0][1];
     expect(additional).toEqual(expect.arrayContaining([
       expect.objectContaining({ entityType: 'VendorAddress', locality: 'Palarivattom' }),
       expect.objectContaining({ entityType: 'VendorCapabilities' }),
@@ -296,43 +320,49 @@ describe('VendorsService', () => {
     expect(repository.createVendor).not.toHaveBeenCalled();
   });
 
-  it('returns the existing vendor when the same user creates again', async () => {
+  it('does not treat staff createdBy as a one-vendor ownership lock', async () => {
     repository.getOwnershipVendorId.mockResolvedValue('vendor-1');
 
-    const result = await service.createvendor(vendorAuthorized(['VENDOR'], { body: createBody }));
+    const result = await service.createvendor(
+      vendorAuthorized(['VENDOR'], { body: createBody }),
+    );
 
-    expect(result.vendorId).toBe('vendor-1');
-    expect(result.ownerUserId).toBe('user-1');
-    expect(repository.createVendor).not.toHaveBeenCalled();
+    expect(result.vendorId).not.toBe('vendor-1');
+    expect(result.createdBy).toBe('user-1');
+    expect(result.loginPhoneNumber).toBe('+919876543210');
+    expect(repository.createVendor).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the existing vendor when a concurrent create loses the ownership lock', async () => {
-    repository.getOwnershipVendorId
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('vendor-1');
+  it('surfaces a create conflict without inventing ownership from createdBy', async () => {
     repository.createVendor.mockRejectedValue(
       new ConditionalWriteConflictError(new Error('conflict')),
     );
 
-    const result = await service.createvendor(vendorAuthorized(['VENDOR'], { body: createBody }));
-
-    expect(result.vendorId).toBe('vendor-1');
+    await expect(
+      service.createvendor(vendorAuthorized(['VENDOR'], { body: createBody })),
+    ).rejects.toThrow('Vendor creation conflict; please retry');
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
   });
 
-  it('stores the authenticated user id when the body supplies a different ownerUserId', async () => {
+  it('ignores client-supplied ownerDetails.userId and keeps createdBy as staff audit', async () => {
     const result = await service.createvendor(
       vendorAuthorized(['VENDOR'], {
         body: {
           ...createBody,
-          ownerDetails: { userId: 'user_1791439785533' },
+          ownerDetails: {
+            ...createBody.ownerDetails,
+            userId: 'user_1791439785533',
+          },
         },
       }),
     );
 
-    expect(result.ownerUserId).toBe('user-1');
-    const [, owner] = repository.createVendor.mock.calls[0];
-    expect(owner.GSI1PK).toBe('OWNER#user-1');
+    expect(result.createdBy).toBe('user-1');
+    expect(result.ownerUserId).toBeUndefined();
+    expect(result.loginPhoneNumber).toBe('+919876543210');
+    const [profile] = repository.createVendor.mock.calls[0];
+    expect(profile.createdBy).toBe('user-1');
+    expect(profile.ownerUserId).toBeUndefined();
   });
 
   it('rejects vendor creation for a customer role', async () => {
@@ -384,7 +414,7 @@ describe('VendorsService', () => {
     ownerDetails: { fullName: 'Test Vendor Owner' },
   };
 
-  it('creates a DRAFT vendor for a phone-verified REGISTRANT and ignores client identity fields', async () => {
+  it('creates a DRAFT vendor for a phone-verified REGISTRANT using the verified login phone', async () => {
     const result = await service.createvendor(
       registrantRequest({
         businessInfo: {
@@ -394,14 +424,16 @@ describe('VendorsService', () => {
         ownerDetails: {
           fullName: 'Test Vendor Owner',
           userId: 'attacker',
-          phoneNumber: '+910000000000',
+          phoneNumber: '+919811122233',
         },
       }),
     );
 
-    expect(result.ownerUserId).toBe('user-1');
+    expect(result.createdBy).toBe('user-1');
+    expect(result.ownerUserId).toBeUndefined();
+    expect(result.loginPhoneNumber).toBe('+919811122233');
+    expect(result.accountProvisioningStatus).toBe('PENDING');
     expect(result.businessName).toBe('Carish Dev Test Vendor');
-    expect(result.phoneNumber).toBe('+919811122233');
     expect(result.onboardingStatus).toBe('DRAFT');
     expect(result.panNumber).toBeUndefined();
     expect(result.gstNumber).toBeUndefined();
@@ -415,21 +447,26 @@ describe('VendorsService', () => {
         }),
       ),
     ).rejects.toThrow('Invalid vendor registration request');
-    const [profile, owner, ownership] = repository.createVendor.mock.calls[0];
-    expect(profile.ownerUserId).toBe('user-1');
-    expect(profile.phoneNumber).toBe('+919811122233');
-    expect(owner.userId).toBe('user-1');
-    expect(owner.fullName).toBe('Test Vendor Owner');
-    expect(owner.phoneNumber).toBe('+919811122233');
-    expect(ownership.ownerUserId).toBe('user-1');
-    expect(ownership.PK).toBe('OWNER#user-1');
+    const [profile] = repository.createVendor.mock.calls[0];
+    expect(profile.createdBy).toBe('user-1');
+    expect(profile.ownerUserId).toBeUndefined();
+    expect(profile.loginPhoneNumber).toBe('+919811122233');
   });
 
-  it('returns the existing vendor when a REGISTRANT retries creation', async () => {
+  it('lets a REGISTRANT create again when no ownership lock is enforced at create time', async () => {
     repository.getOwnershipVendorId.mockResolvedValue('vendor-1');
-    const result = await service.createvendor(registrantRequest(registrationBody));
-    expect(result.vendorId).toBe('vendor-1');
-    expect(repository.createVendor).not.toHaveBeenCalled();
+    const result = await service.createvendor(
+      registrantRequest({
+        ...registrationBody,
+        ownerDetails: {
+          ...registrationBody.ownerDetails,
+          phoneNumber: '+919811122233',
+        },
+      }),
+    );
+    expect(result.vendorId).not.toBe('vendor-1');
+    expect(result.loginPhoneNumber).toBe('+919811122233');
+    expect(repository.createVendor).toHaveBeenCalledTimes(1);
   });
 
   it('denies REGISTRANT without vendor:register and CUSTOMER with userType VENDOR', async () => {
@@ -514,12 +551,21 @@ describe('VendorsService', () => {
       directory,
     );
     const result = await mapped.createvendor(
-      registrantRequest(registrationBody, {
-        phoneNumber: undefined,
-        phoneVerified: undefined,
-      }),
+      registrantRequest(
+        {
+          ...registrationBody,
+          ownerDetails: {
+            ...registrationBody.ownerDetails,
+            phoneNumber: '+919811122233',
+          },
+        },
+        {
+          phoneNumber: undefined,
+          phoneVerified: undefined,
+        },
+      ),
     );
-    expect(result.phoneNumber).toBe('+919811122233');
+    expect(result.loginPhoneNumber).toBe('+919811122233');
     expect(directory.findUserByIdentityId).toHaveBeenCalledWith('sub-1');
   });
 
@@ -545,7 +591,9 @@ describe('VendorsService', () => {
     const result = await service.createvendor(
       vendorAuthorized([], { body: createBody }, ['vendor:create']),
     );
-    expect(result.ownerUserId).toBe('user-1');
+    expect(result.createdBy).toBe('user-1');
+    expect(result.ownerUserId).toBeUndefined();
+    expect(result.loginPhoneNumber).toBe('+919876543210');
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
   });
 
@@ -573,32 +621,26 @@ describe('VendorsService', () => {
     expect(repository.createVendor).not.toHaveBeenCalled();
   });
 
-  it('persists onboarding business fields and stays DRAFT when phone is blank', async () => {
-    const result = await service.createvendor(
-      vendorAuthorized(['VENDOR'], {
-        body: {
-          businessInfo: {
-            businessName: 'vendor@youpmail.com',
-            contactName: 'vendor@youpmail.com',
-            phoneNumber: '',
-            email: '',
-            description: 'KL-401-0104',
-            gstNumber: 'prasanth@gmail.com',
-            panNumber: 'KL-401-0104',
-            profileImageUrl: 'prasanth@gmail.com',
+  it('rejects staff create when the explicit login phone is missing', async () => {
+    await expect(
+      service.createvendor(
+        vendorAuthorized(['VENDOR'], {
+          body: {
+            businessInfo: {
+              businessName: 'vendor@youpmail.com',
+              contactName: 'vendor@youpmail.com',
+              phoneNumber: '',
+              email: '',
+              description: 'KL-401-0104',
+              gstNumber: 'prasanth@gmail.com',
+              panNumber: 'KL-401-0104',
+              profileImageUrl: 'prasanth@gmail.com',
+            },
           },
-        },
-      }),
-    );
-
-    expect(result.vendorId).toBeTruthy();
-    expect(result.businessName).toBe('vendor@youpmail.com');
-    expect(result.description).toBe('KL-401-0104');
-    expect(result.gstNumber).toBe('prasanth@gmail.com');
-    expect(result.panNumber).toBe('KL-401-0104');
-    expect(result.profileImageUrl).toBe('prasanth@gmail.com');
-    expect(result.onboardingStatus).toBe('DRAFT');
-    expect(result.currentSection).toBe('BUSINESS_INFO');
+        }),
+      ),
+    ).rejects.toThrow('ownerDetails.phoneNumber is required for vendor account provisioning');
+    expect(repository.createVendor).not.toHaveBeenCalled();
   });
 
   it('accepts blank optional fields on the create vendor request body', () => {
@@ -624,6 +666,22 @@ describe('VendorsService', () => {
     expect(parsed.businessInfo?.email).toBeUndefined();
     expect(parsed.businessInfo?.gstNumber).toBe('prasanth@gmail.com');
     expect(parsed.businessInfo?.profileImageUrl).toBe('prasanth@gmail.com');
+  });
+
+  it('accepts business info when optional locality is omitted', () => {
+    const parsed = validateCreateVendorRequest(
+      authRequest({
+        body: {
+          businessInfo: {
+            businessName: 'Glow Mobile Salon',
+            contactName: 'Priya Sharma',
+          },
+        },
+      }),
+    );
+
+    expect(parsed.businessInfo?.locality).toBeUndefined();
+    expect(parsed.businessInfo?.location).toBeUndefined();
   });
 
   it('approves a vendor that is pending review without issuing an email OTP', async () => {
@@ -887,13 +945,34 @@ describe('VendorsService', () => {
     });
 
     it('returns the dashboard action for an approved operational vendor', async () => {
-      owned({ status: 'ACTIVE', onboardingStatus: 'PENDING_REVIEW' });
+      owned({
+        status: 'ACTIVE',
+        onboardingStatus: 'PENDING_REVIEW',
+        revision: 1,
+        detailsAcceptedRevision: 1,
+        detailsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      });
       const result = await service.getMyVendor(authRequest());
       expect(result.status).toBe('ACTIVE');
       expect(result.nextAction).toBe('OPEN_VENDOR_DASHBOARD');
+      expect(result.detailsAcceptance).toMatchObject({
+        accepted: true,
+        acceptedRevision: 1,
+        profileRevision: 1,
+      });
       expect(result.membership).toMatchObject({
         role: 'owner',
         permissions: expect.arrayContaining(['staff:view', 'staff:manage', 'crew:view', 'crew:manage']),
+      });
+    });
+
+    it('asks an approved owner to accept support-prepared details before the dashboard', async () => {
+      owned({ status: 'ACTIVE', onboardingStatus: 'PENDING_REVIEW', revision: 3 });
+      const result = await service.getMyVendor(authRequest());
+      expect(result.nextAction).toBe('ACCEPT_VENDOR_DETAILS');
+      expect(result.detailsAcceptance).toMatchObject({
+        accepted: false,
+        profileRevision: 3,
       });
     });
 

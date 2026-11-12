@@ -131,7 +131,12 @@ export class RegistrationService {
       emailVerified: Boolean(input.emailVerified),
       phoneVerified: Boolean(input.phoneVerified),
       version: 1,
-      roleId: 'user',
+      // Keep the META item and USER#/ROLE# mapping aligned.  The latter feeds
+      // Cognito's pre-token trigger; the former is used by existing user-table
+      // readers.  `vendorRegistration` is server-derived by OTP verification.
+      roleId: input.vendorRegistration
+        ? APPLICATION_ROLE.VENDOR
+        : 'user',
       identityId: input.identityId,
       cognitoUsername: input.cognitoUsername,
       userType: input.userType ?? 'CUSTOMER',
@@ -146,14 +151,17 @@ export class RegistrationService {
       // PROFILE is created only by the verified OTP path when identityId is
       // present.  This makes PENDING a durable stream/replay marker and keeps
       // password-only legacy registrations backward compatible.
-      ...(input.identityId && (input.phoneVerified || input.emailVerified)
+      // Server-provisioned vendor accounts must also produce the same durable
+      // Identity.Registered/User.Provisioned linkage workflow. Verification
+      // state remains false until OTP/email verification actually occurs.
+      ...(input.identityId
         ? { userProvisioning: { status: 'PENDING' as const, requestedAt: new Date().toISOString() } }
         : {}),
     };
 
     await this.repository.createUser(newUser, newProfile);
-    // userType stays classification. vendorRegistration is the only signal
-    // that maps REGISTRANT, and only the phone OTP path sets it.
+    // userType stays classification. vendorRegistration is the server-derived
+    // signal for the vendor creation flow, and only the phone OTP path sets it.
     await initializeApplicationRoleForNewIdentity(this.repository, {
       userId: newUser.userId,
       userType: newUser.userType,

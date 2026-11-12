@@ -1,69 +1,62 @@
 import {
   createDynamoStreamHandler,
-  VendorEmailVerificationRequestedEvent,
-  VENDOR_EMAIL_VERIFICATION_EVENT_OPERATIONS,
   type EventConsumerDeps,
-  type VendorEmailVerificationRequestedPayload,
 } from '@api-hub/event-platform';
-import { getLogger } from '@api-hub/observability';
 
+import { mapVendorProfileStreamRecord } from '../events/map-vendor-profile-stream';
+import { VendorProfileStreamWorkEvent } from '../events/vendor-profile-stream.work';
 import {
-  markVendorEmailVerificationDispatched,
-  publishVendorEmailVerificationRequested,
-} from '../events/publish-vendor-email-verification';
-import { mapVendorEmailVerificationRequestedStreamRecord } from '../events/map-vendor-email-verification-requested-stream';
+  processVendorProfileStreamWork,
+  type ProcessVendorProfileStreamDeps,
+} from '../services/vendor-profile-stream/process-vendor-profile-stream';
 
-export type PublishVendorEmailVerificationRequested = (
-  payload: VendorEmailVerificationRequestedPayload,
-  correlationId: string,
-) => Promise<void>;
-
-export function createVendorEmailVerificationRequestedStreamHandler(deps?: {
-  publish?: PublishVendorEmailVerificationRequested;
-  markDispatched?: (vendorId: string, verificationRequestId: string) => Promise<void>;
-  consumer?: Partial<EventConsumerDeps>;
-}) {
-  const publish = deps?.publish ?? publishVendorEmailVerificationRequested;
-  // Custom publishers are used by unit tests and own their acknowledgement.
-  const markDispatched = deps?.markDispatched ?? (deps?.publish
-    ? async () => undefined
-    : markVendorEmailVerificationDispatched);
-
+/**
+ * Single vendor-table DynamoDB stream consumer.
+ *
+ * Physical name remains `${resourcePrefix}-vendor-email-verification-stream`.
+ * Handles PROFILE INSERT/MODIFY for:
+ * - trusted vendor account provisioning requests
+ * - email-verification initiation (existing EventBridge → Email Service path)
+ */
+export function createVendorProfileStreamHandler(
+  deps?: ProcessVendorProfileStreamDeps & {
+    consumer?: Partial<EventConsumerDeps>;
+  },
+) {
   return createDynamoStreamHandler({
-    operation: VENDOR_EMAIL_VERIFICATION_EVENT_OPERATIONS.STREAM_PUBLISH,
+    operation: 'vendor.profile.stream.processed',
     consumer: {
       ...deps?.consumer,
-      mapRawToBaseEvent: mapVendorEmailVerificationRequestedStreamRecord,
+      mapRawToBaseEvent: mapVendorProfileStreamRecord,
     },
     events: [
       {
         table: 'vendor',
-        eventName: ['MODIFY'],
-        schema: VendorEmailVerificationRequestedEvent,
+        eventName: ['INSERT', 'MODIFY'],
+        schema: VendorProfileStreamWorkEvent,
         handler: async (event) => {
           const { meta, ...payload } = event;
-          const requestPayload = payload as VendorEmailVerificationRequestedPayload & {
-            verificationRequestId: string;
-          };
-          const fields = {
-            vendorId: requestPayload.vendorId,
-            eventName: VendorEmailVerificationRequestedEvent.__meta.eventType,
-            eventId: (event as { eventId?: string }).eventId,
-            correlationId: meta.correlationId,
-          };
-          getLogger().info('vendor_email_event_publish_started', fields);
-          try {
-            await publish(requestPayload, meta.correlationId);
-            await markDispatched(requestPayload.vendorId, requestPayload.verificationRequestId);
-            getLogger().info('vendor_email_event_publish_succeeded', fields);
-          } catch (error) {
-            getLogger().error('vendor_email_event_publish_failed', error, fields);
-            throw error;
-          }
+          await processVendorProfileStreamWork(
+            {
+              ...(payload as Parameters<
+                typeof processVendorProfileStreamWork
+              >[0]),
+              correlationId: meta.correlationId,
+            },
+            {
+              publishProvisioning: deps?.publishProvisioning,
+              publishEmail: deps?.publishEmail,
+              markEmailDispatched: deps?.markEmailDispatched,
+            },
+          );
         },
       },
     ],
   });
 }
 
-export const handler = createVendorEmailVerificationRequestedStreamHandler();
+/** @deprecated Use createVendorProfileStreamHandler — retained for import stability. */
+export const createVendorEmailVerificationRequestedStreamHandler =
+  createVendorProfileStreamHandler;
+
+export const handler = createVendorProfileStreamHandler();

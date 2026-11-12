@@ -229,17 +229,17 @@ export class PaymentsService {
     const payload = typeof request.body === 'string'
       ? JSON.parse(request.body) as Record<string, unknown>
       : (request.body ?? {}) as Record<string, unknown>;
-    const event = typeof payload.event === 'string' ? payload.event : '';
+    const event = typeof payload?.event === 'string' ? payload?.event : '';
     const entity = nested(payload, ['payload', 'payment', 'entity'])
       ?? nested(payload, ['payload', 'order', 'entity']);
     if (!entity) return { received: true };
 
-    const providerPaymentId = typeof entity.id === 'string' && event.startsWith('payment.')
+    const providerPaymentId = typeof entity.id === 'string' && event?.startsWith('payment.')
       ? entity.id
       : typeof entity.id === 'string' ? undefined : undefined;
     const orderId = typeof entity.order_id === 'string'
       ? entity.order_id
-      : typeof entity.id === 'string' && event.startsWith('order.')
+      : typeof entity.id === 'string' && event?.startsWith('order.')
         ? entity.id
         : '';
     const notes = entity.notes && typeof entity.notes === 'object'

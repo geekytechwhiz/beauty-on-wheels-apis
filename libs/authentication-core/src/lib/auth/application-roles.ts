@@ -11,6 +11,8 @@ export const APPLICATION_ROLE = {
    */
   REGISTRANT: 'REGISTRANT',
   VENDOR: 'VENDOR',
+  /** Operational vendor employee. Membership remains vendor-service owned. */
+  STAFF: 'STAFF',
   ADMIN: 'ADMIN',
 } as const;
 
@@ -21,6 +23,7 @@ const APPLICATION_ROLE_ORDER: readonly ApplicationRole[] = [
   APPLICATION_ROLE.CUSTOMER,
   APPLICATION_ROLE.REGISTRANT,
   APPLICATION_ROLE.VENDOR,
+  APPLICATION_ROLE.STAFF,
   APPLICATION_ROLE.ADMIN,
 ];
 
@@ -28,6 +31,7 @@ const APPLICATION_ROLE_BY_KEY: Readonly<Record<string, ApplicationRole>> = {
   customer: APPLICATION_ROLE.CUSTOMER,
   registrant: APPLICATION_ROLE.REGISTRANT,
   vendor: APPLICATION_ROLE.VENDOR,
+  staff: APPLICATION_ROLE.STAFF,
   admin: APPLICATION_ROLE.ADMIN,
 };
 
@@ -64,6 +68,9 @@ export function primaryApplicationRole(
   }
   if (roles.includes(APPLICATION_ROLE.VENDOR)) {
     return APPLICATION_ROLE.VENDOR;
+  }
+  if (roles.includes(APPLICATION_ROLE.STAFF)) {
+    return APPLICATION_ROLE.STAFF;
   }
   if (roles.includes(APPLICATION_ROLE.REGISTRANT)) {
     return APPLICATION_ROLE.REGISTRANT;

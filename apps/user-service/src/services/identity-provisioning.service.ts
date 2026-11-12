@@ -16,6 +16,9 @@ export type EnsureUserForIdentityInput = {
   userId: string;
   phone?: string;
   email?: string;
+  /** Legacy events omit this and retain CUSTOMER behavior. Vendor remains a
+   * vendor-service entity; this service only creates/reuses the shared user. */
+  provisioningContext?: 'CUSTOMER' | 'VENDOR';
 };
 
 export type EnsureUserForIdentityResult = {

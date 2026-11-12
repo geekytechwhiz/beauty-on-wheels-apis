@@ -1,11 +1,11 @@
 {
   "item": [
     {
-      "id": "ea92166e-3fc5-4b35-af3b-6555063d8855",
+      "id": "0a7b8c2b-640a-4eef-a374-ec0018d10004",
       "name": "vehicles",
       "item": [
         {
-          "id": "dce4c69a-5486-4679-a1e9-2eb9e0455072",
+          "id": "bd050a8e-24c3-4a12-84e9-2ebf5aa12440",
           "name": "List my vehicles",
           "request": {
             "name": "List my vehicles",
@@ -47,7 +47,7 @@
           },
           "response": [
             {
-              "id": "b3bc16c3-7ce0-4c97-bade-0350a7c30996",
+              "id": "02d3753c-4f89-4726-b9f4-f74cf20b7463",
               "name": "Vehicle list in data.items",
               "originalRequest": {
                 "url": {
@@ -110,12 +110,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"registrationNumber\": \"string\",\n  \"vehicleType\": \"LUXURY\",\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"brand\": \"string\",\n  \"model\": \"string\",\n  \"variant\": \"string\",\n  \"color\": \"string\",\n  \"fuelType\": \"CNG\",\n  \"manufactureYear\": 7623,\n  \"defaultVehicle\": false\n}",
+              "body": "{\n  \"registrationNumber\": \"string\",\n  \"vehicleType\": \"SEDAN\",\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"brand\": \"string\",\n  \"model\": \"string\",\n  \"variant\": \"string\",\n  \"color\": \"string\",\n  \"fuelType\": \"PETROL\",\n  \"manufactureYear\": 4469,\n  \"defaultVehicle\": true\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "68179821-81eb-454d-b742-53dac03ad743",
+              "id": "79d6a232-12ff-4fb8-a0bd-089dfbcc9e69",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -178,7 +178,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 4123,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 901,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -189,7 +189,7 @@
           }
         },
         {
-          "id": "edad3d7f-f033-4fd4-a310-e04998316a84",
+          "id": "074d3314-2534-4ac6-bcd3-a0d3e0c2ba2e",
           "name": "Add vehicle",
           "request": {
             "name": "Add vehicle",
@@ -244,7 +244,7 @@
           },
           "response": [
             {
-              "id": "c4fbae70-e8b0-4c3c-be65-5c7327435f76",
+              "id": "278c9522-a151-42f4-8933-c79b80bda473",
               "name": "Vehicle created",
               "originalRequest": {
                 "url": {
@@ -316,7 +316,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "dbdaa81a-4fb2-4fe7-8f57-5bd2f9fb0e89",
+              "id": "1ab4fc03-d596-44ab-885b-f98dee314f70",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -387,7 +387,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -398,11 +398,11 @@
           }
         },
         {
-          "id": "97295798-d7e4-4db1-b910-79e87fd91eef",
+          "id": "530993d9-66b4-4e36-88f3-5ff4fc394e1b",
           "name": "{vehicleId}",
           "item": [
             {
-              "id": "69dcecb1-b4ee-4660-929b-f05fa54b6180",
+              "id": "b0c6ba70-f7da-422c-b101-a414c172217e",
               "name": "Get vehicle",
               "request": {
                 "name": "Get vehicle",
@@ -452,7 +452,7 @@
               },
               "response": [
                 {
-                  "id": "94db9b42-312b-4554-a30e-8edd5e8f0385",
+                  "id": "31e2c66d-de0f-4104-a2e0-74781f1943b1",
                   "name": "Vehicle",
                   "originalRequest": {
                     "url": {
@@ -528,7 +528,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "b1d09934-0833-4081-a1b5-5eda97a681f3",
+                  "id": "cdc3d847-b40b-487a-a67c-a74f3cbc1a90",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -599,7 +599,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -610,7 +610,7 @@
               }
             },
             {
-              "id": "08bb83b1-22d4-469d-a147-1374772a3714",
+              "id": "6a7d51a7-cd1b-4ec2-9355-d2c293403c6a",
               "name": "Update vehicle",
               "request": {
                 "name": "Update vehicle",
@@ -673,7 +673,7 @@
               },
               "response": [
                 {
-                  "id": "7c675319-62e8-4a45-a320-7e9d0b12d420",
+                  "id": "7f9cd940-044d-4a65-9357-234d421854ec",
                   "name": "Updated",
                   "originalRequest": {
                     "url": {
@@ -753,7 +753,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "8b98fde3-69ec-4bcc-a988-dd85144c367b",
+                  "id": "cdcdef0e-ab55-41c7-8a7c-969be5586570",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -832,7 +832,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -843,7 +843,7 @@
               }
             },
             {
-              "id": "769fbbcb-af7b-442e-8804-5842f6b51328",
+              "id": "613a180c-9df5-4380-9aa5-3f7fc3092de4",
               "name": "Delete vehicle",
               "request": {
                 "name": "Delete vehicle",
@@ -893,7 +893,7 @@
               },
               "response": [
                 {
-                  "id": "e872f59a-df8d-409e-b0d8-8467695c81af",
+                  "id": "bfd2f30d-a71e-4145-afcb-3aca8cacf27f",
                   "name": "Deleted",
                   "originalRequest": {
                     "url": {
@@ -965,7 +965,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "240e29d3-80ac-4710-b36b-aa3bed513b55",
+                  "id": "ec250f46-06d6-4279-9dcb-2024c90cc464",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1036,7 +1036,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1047,7 +1047,7 @@
               }
             },
             {
-              "id": "b0287873-f465-4d1f-9fed-a65d64327796",
+              "id": "7d133fe0-6b1a-47ce-b34f-450213b8dab1",
               "name": "Set default vehicle",
               "request": {
                 "name": "Set default vehicle",
@@ -1098,7 +1098,7 @@
               },
               "response": [
                 {
-                  "id": "07d9c6ab-48ed-4420-ac26-969cf6f6de98",
+                  "id": "1c2946a4-924e-45de-b1ab-b7f0ff091044",
                   "name": "Default vehicle updated",
                   "originalRequest": {
                     "url": {
@@ -1175,7 +1175,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "bae410cf-e8e5-4729-ae15-3bc6f725c473",
+                  "id": "4ee5d040-7263-4b8a-a6a6-903b47af174f",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1247,7 +1247,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1264,7 +1264,7 @@
       "event": []
     },
     {
-      "id": "41baf87f-96c8-4ad0-9291-e920879a7a8a",
+      "id": "dde2f6e1-e306-4b0a-ba95-e1867b16e9e3",
       "name": "List supported vehicle types",
       "request": {
         "name": "List supported vehicle types",
@@ -1306,7 +1306,7 @@
       },
       "response": [
         {
-          "id": "4983a170-7299-4de4-8872-51e1ba3916fb",
+          "id": "c2788eb6-53a8-4894-b30b-f6ffe6327865",
           "name": "Vehicle types in data.items",
           "originalRequest": {
             "url": {
@@ -1369,12 +1369,12 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"items\": [\n    \"BIKE\",\n    \"SEDAN\"\n  ]\n}",
+          "body": "{\n  \"items\": [\n    \"HATCHBACK\",\n    \"LUXURY\"\n  ]\n}",
           "cookie": [],
           "_postman_previewlanguage": "json"
         },
         {
-          "id": "43a88b63-4bb1-4404-bcd5-a7775caa19c4",
+          "id": "d23e7f25-d8c3-4707-923b-213968480340",
           "name": "Request failed",
           "originalRequest": {
             "url": {
@@ -1437,7 +1437,7 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"success\": true,\n  \"statusCode\": 4375,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+          "body": "{\n  \"success\": false,\n  \"statusCode\": 6026,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
           "cookie": [],
           "_postman_previewlanguage": "json"
         }
@@ -1484,7 +1484,7 @@
     ]
   },
   "info": {
-    "_postman_id": "172d9ea2-7ca1-4740-a627-bc630b35e3cc",
+    "_postman_id": "15bf3446-c1b3-42b8-8ea8-8a53d1f6ae7f",
     "name": "Carish vehicle-service API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

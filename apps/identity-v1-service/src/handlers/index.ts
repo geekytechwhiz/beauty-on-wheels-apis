@@ -12,6 +12,8 @@ export * as preTokenGenerationHandlers from './pre-token-generation';
 export * as backfillCustomerRolesHandlers from './backfill-customer-roles';
 export * as vendorApprovedRoleHandlers from './vendor-approved-role';
 export * as vendorEmailVerifiedRoleHandlers from './vendor-email-verified-role';
+export * as vendorAccountProvisioningHandlers from './vendor-account-provisioning';
+export * as staffAccountProvisioningHandlers from './staff-account-provisioning';
 export * as attachPreTokenGenerationHandlers from './attach-pre-token-generation';
 export * as identityProfileStreamHandlers from './identity-profile-stream';
 export * as userProvisionedHandlers from './user-provisioned';

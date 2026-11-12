@@ -15,6 +15,8 @@ export const IdentityRegisteredPayloadSchema = z.object({
   email: z.string().email().optional(),
   phoneVerified: z.boolean(),
   emailVerified: z.boolean().optional(),
+  /** Omitted by older producers; consumers must treat omission as CUSTOMER. */
+  provisioningContext: z.enum(['CUSTOMER', 'VENDOR']).optional(),
 }).strict();
 
 export type IdentityRegisteredPayload = z.infer<typeof IdentityRegisteredPayloadSchema>;

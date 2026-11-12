@@ -24,8 +24,13 @@ export class StructuredLogger {
     return { ...this.persistentKeys };
   }
 
-  info(entry: LogEntry): void {
-    const { event = 'log', ...rest } = entry;
+  info(entry: LogEntry): void;
+  info(message: string, entry?: LogEntry): void;
+  info(messageOrEntry: string | LogEntry, entry?: LogEntry): void {
+    const normalizedEntry = typeof messageOrEntry === 'string'
+      ? { ...(entry ?? {}), event: entry?.event ?? messageOrEntry }
+      : messageOrEntry;
+    const { event = 'log', ...rest } = normalizedEntry;
     getLogger(this.persistentKeys).info(String(event), rest);
   }
 

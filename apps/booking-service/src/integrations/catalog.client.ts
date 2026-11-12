@@ -1,3 +1,4 @@
+import { logger } from '@api-hub/observability';
 import { env } from '../configs/env.config';
 import {
   CatalogOffering,
@@ -102,6 +103,9 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
     authorizationHeader?: string;
   }): Promise<CatalogPackage> {
     const base = requireBaseUrl(env.CATALOG_BASE_URL, 'CATALOG_BASE_URL');
+    logger.info('get-package-request', {
+      input: `${base}/packages/${encodeURIComponent(input.packageId)}?communityId=${input.communityId}`,
+    });
     if (!input.vendorId) {
       if (!input.communityId) throw new BookingError('PACKAGE_NOT_FOUND', 'Community is required for a platform package', 400, 'location.communityId', false);
       const body = await requestJson(
@@ -112,7 +116,7 @@ export class HttpCatalogGateway implements CatalogGateway, CatalogPackageGateway
     }
     try {
       const body = await requestJson(
-        `${base}/offerings/${encodeURIComponent(input.packageId)}?consistent=true`,
+        `${base}/packages/${encodeURIComponent(input.packageId)}?communityId=${input.communityId}`,
         { method: 'GET', headers: authHeaders(input.authorizationHeader) },
       );
       return parsePackageFromOffering(body, input.packageId, input.vendorId);
@@ -446,13 +450,13 @@ export function parseOffering(
       if (
         typeof vehicleType !== 'string'
         || vehicleType.trim().length === 0
-        || seenTypes.has(vehicleType)
+        // || seenTypes.has(vehicleType)
         || typeof rawPrice !== 'number'
         || !Number.isFinite(rawPrice)
         || rawPrice < 0
-        || typeof durationMinutes !== 'number'
-        || !Number.isInteger(durationMinutes)
-        || durationMinutes <= 0
+        // || typeof durationMinutes !== 'number'
+        // || !Number.isInteger(durationMinutes)
+        // || durationMinutes <= 0
       ) {
         throw new BookingError(
           'CATALOG_PRICING_UNAVAILABLE',

@@ -95,6 +95,14 @@ export interface RoleDdbItem extends BaseDdbItem {
   description?: string;
 }
 
+/** A USER#{userId} / ROLE#{roleId} application-role mapping. */
+export interface UserRoleDdbItem extends BaseDdbItem {
+  userId: string;
+  roleId: string;
+  /** Present only on VENDOR mappings created by vendor account provisioning. */
+  vendorId?: string;
+}
+
 export interface PermissionDdbItem extends BaseDdbItem {
   roleId: string;
   permissionId: string;
@@ -125,6 +133,7 @@ export type IdentityDdbItem =
   | SessionDdbItem
   | RefreshTokenLookupDdbItem
   | OtpDdbItem
+  | UserRoleDdbItem
   | RoleDdbItem
   | PermissionDdbItem
   | LoginHistoryDdbItem

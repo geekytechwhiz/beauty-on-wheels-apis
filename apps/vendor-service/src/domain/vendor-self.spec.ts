@@ -29,6 +29,14 @@ describe('vendor self navigation', () => {
         status: 'ACTIVE',
         onboardingStatus: 'PENDING_REVIEW',
       }),
+    ).toBe('ACCEPT_VENDOR_DETAILS');
+    expect(
+      resolveVendorNextAction({
+        status: 'ACTIVE',
+        onboardingStatus: 'PENDING_REVIEW',
+        revision: 2,
+        detailsAcceptedRevision: 2,
+      }),
     ).toBe('OPEN_VENDOR_DASHBOARD');
     expect(
       resolveVendorNextAction({

@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto';
-
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError,
@@ -9,6 +7,7 @@ import {
   NotFoundError,
   ValidationError,
   isConditionalWriteConflictAtIndex,
+  EntityIdGenerator,
 } from '@api-hub/utils';
 
 import { isCatalogId } from '../domain/catalog-mapping';
@@ -204,7 +203,7 @@ export class CapacityProposalsService {
     await this.communitiesRepository.assertApprovedCoverage(body.vendorId, body.communityId);
 
     const at = now.toISOString();
-    const proposalId = `cpr_${randomUUID().replace(/-/g, '')}`;
+    const proposalId = EntityIdGenerator.ProposalId();
     let history = appendHistory(
       [],
       historyEntry({
@@ -423,7 +422,7 @@ export class CapacityProposalsService {
     request: LambdaRequest,
   ): Promise<{ data: CapacityListResult<CapacityCommitmentDto> }> {
     const vendorId = getVendorId(request);
-    // await this.authorizeVendor(request, vendorId, 'read');
+    await this.authorizeVendor(request, vendorId, 'read');
     const items = await this.repository.listCommitments(vendorId);
     return {
       data: {

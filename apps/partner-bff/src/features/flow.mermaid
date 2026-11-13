@@ -1,0 +1,10 @@
+flowchart TD
+    A["Platform creates master template"] --> B["Validate type, definition and protection rules"]
+    B --> C["Publish immutable master version"]
+    C --> D["Organization Enablement authorizes access"]
+    D --> E["Clone into independent organization draft"]
+    E --> F["Customize permitted content and publish"]
+    F --> G["Domain runtime uses exact published version"]
+    C --> H["Platform publishes a newer master version"]
+    H --> I["Organization explicitly adopts into a new draft"]
+    I --> F

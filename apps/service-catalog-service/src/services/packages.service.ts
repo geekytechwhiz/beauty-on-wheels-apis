@@ -1,6 +1,4 @@
-import { randomUUID } from "crypto";
-
-import { LambdaRequest } from "@api-hub/utils";
+import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
@@ -125,7 +123,7 @@ export class PackagesService {
         await this.validatePackageItems(body.vendorId, body.items);
 
         const now = new Date().toISOString();
-        const packageId = randomUUID();
+        const packageId = EntityIdGenerator.PackageId();
 
         const entity = buildPackageEntity(packageId, body, now);
         const itemEntities = buildPackageItemEntities(packageId, body.items, now);

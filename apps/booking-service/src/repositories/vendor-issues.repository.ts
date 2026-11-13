@@ -106,10 +106,10 @@ export class VendorIssuesRepository extends BaseRepository {
     return issues.filter((issue): issue is VendorIssueRecord => Boolean(issue));
   }
 
-  /** Strongly consistent. Returns the links whose status blocks completion. */
+  /** Strongly consistent. Only an explicit, unresolved block stops completion. */
   async listBlockingVisitIssues(visitId: string): Promise<VisitIssueLinkItem[]> {
     const links = await this.listVisitLinks(visitId);
-    return links.filter((link) => link.status !== VENDOR_ISSUE_STATUS.RESOLVED);
+    return links.filter((link) => link.blocksVisit === true && link.status !== VENDOR_ISSUE_STATUS.RESOLVED);
   }
 
   /** Ops queue. Most recent first. Capped per status; narrow with the status filter. */
@@ -145,6 +145,7 @@ export class VendorIssuesRepository extends BaseRepository {
       vendorId: record.vendorId,
       visitId: record.visitId as string,
       status: record.status,
+      ...(record.blocksVisit === true ? { blocksVisit: true } : {}),
       updatedAt: record.updatedAt,
       entityType: 'VisitIssueLink',
     };

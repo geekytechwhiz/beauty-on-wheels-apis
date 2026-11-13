@@ -1,4 +1,20 @@
-import { getCheckoutEligibility, getPricingConfiguration } from './internal';
+import { getCheckoutEligibility, getPricingConfiguration, partnerManagerRead } from './internal';
+
+const mockResolveOperationalAccess = jest.fn();
+const mockListSchedulingCrews = jest.fn();
+const mockListCommitments = jest.fn();
+
+jest.mock('../services/vendors.service', () => ({
+  getVendorsService: () => ({ resolveOperationalAccess: mockResolveOperationalAccess }),
+}));
+
+jest.mock('../services/scheduling-crews.service', () => ({
+  getSchedulingCrewsService: () => ({ list: mockListSchedulingCrews }),
+}));
+
+jest.mock('../services/capacity-proposals.service', () => ({
+  getCapacityProposalsService: () => ({ listvendorcapacitycommitments: mockListCommitments }),
+}));
 
 jest.mock('../services/checkout-eligibility.service', () => ({
   getCheckoutEligibilityService: () => ({
@@ -66,6 +82,52 @@ describe('vendor internal handlers', () => {
   it('requires a vendor id for pricing configuration', async () => {
     await expect(getPricingConfiguration({ vendorId: '  ' })).resolves.toEqual({
       error: expect.objectContaining({ code: 'VALIDATION_ERROR', statusCode: 400 }),
+    });
+  });
+
+  describe('partnerManagerRead', () => {
+    const actor = { userId: 'owner-1', vendorId: 'vendor-1', roles: ['manager'], permissions: [], correlationId: 'c-1' };
+    const crew = {
+      crewId: 'crew-1', vendorId: 'vendor-1', name: 'Crew One', vanLabel: 'Van 1', status: 'ACTIVE',
+      availabilityStatus: 'AVAILABLE', capacityPerDay: 4, staff: [],
+      pointOfContact: { staffId: 'staff-1', name: 'Asha', phoneNumber: '+919800000000', source: 'firstActiveMember' },
+    };
+
+    beforeEach(() => {
+      mockResolveOperationalAccess.mockReset().mockResolvedValue({ role: 'owner', vendorId: 'vendor-1', active: true });
+      mockListSchedulingCrews.mockReset().mockResolvedValue({ crews: [crew] });
+      mockListCommitments.mockReset().mockResolvedValue({ data: { items: [{ commitmentId: 'commitment-1' }] } });
+    });
+
+    it('returns crews with their point of contact for the verified owner', async () => {
+      const result = await partnerManagerRead({ actor, includeCrews: true }) as { data: Record<string, unknown> };
+      expect(mockResolveOperationalAccess).toHaveBeenCalledWith('owner-1');
+      expect(mockListSchedulingCrews).toHaveBeenCalledWith('vendor-1', { includePointOfContact: true });
+      expect(result.data).toMatchObject({ crews: [crew], sourceAsOf: expect.any(String) });
+      expect(result.data).not.toHaveProperty('unavailableSections');
+    });
+
+    it('keeps crews when the optional commitments read fails', async () => {
+      mockListCommitments.mockRejectedValue(new Error('commitments down'));
+      const result = await partnerManagerRead({ actor, includeCrews: true, includeCommitments: true }) as { data: Record<string, unknown> };
+      expect(result.data).toMatchObject({ crews: [crew], unavailableSections: ['commitments'] });
+      expect(result.data).not.toHaveProperty('commitments');
+    });
+
+    it('rejects an actor whose canonical membership is for another vendor or is not an owner', async () => {
+      mockResolveOperationalAccess.mockResolvedValue({ role: 'owner', vendorId: 'vendor-2', active: true });
+      await expect(partnerManagerRead({ actor, includeCrews: true })).resolves.toEqual({ error: expect.objectContaining({ statusCode: 403 }) });
+      mockResolveOperationalAccess.mockResolvedValue({ role: 'staff', vendorId: 'vendor-1', staffId: 'staff-1', active: true });
+      await expect(partnerManagerRead({ actor, includeCrews: true })).resolves.toEqual({ error: expect.objectContaining({ statusCode: 403 }) });
+      expect(mockListSchedulingCrews).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a crew read failure so the BFF can mark crews unavailable', async () => {
+      const { BaseError } = jest.requireActual('@api-hub/utils');
+      mockListSchedulingCrews.mockRejectedValue(new BaseError('Vendor table unavailable', 503, 'DEPENDENCY_UNAVAILABLE'));
+      await expect(partnerManagerRead({ actor, includeCrews: true })).resolves.toEqual({
+        error: expect.objectContaining({ code: 'DEPENDENCY_UNAVAILABLE', statusCode: 503 }),
+      });
     });
   });
 });

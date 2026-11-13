@@ -1,9 +1,8 @@
-import { randomUUID } from 'crypto';
-
 import {
   BusinessRuleError,
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   ForbiddenError,
   LambdaRequest,
   NotFoundError,
@@ -60,7 +59,7 @@ export class ReviewsService {
     }
 
     const record: BookingReviewRecord = {
-      reviewId: randomUUID(),
+      reviewId: EntityIdGenerator.ReviewId(),
       bookingId,
       customerId,
       vendorId: booking.vendorId!,

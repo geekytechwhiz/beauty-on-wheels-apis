@@ -114,6 +114,16 @@ describe('VendorIssuesService', () => {
     expect(issues.createIssue).toHaveBeenCalledTimes(1);
   });
 
+  it('records a blocking issue only when the command explicitly opts in', async () => {
+    const blocking = await service.create(req({ userId: 'owner-1', body: { ...body, blocksVisit: true } }));
+    expect(blocking).toMatchObject({ visitId: 'visit-1', blocksVisit: true });
+    await expect(service.create(req({
+      userId: 'owner-1',
+      key: 'blocking-without-visit',
+      body: { type: 'OTHER', description: 'General note', blocksVisit: true },
+    }))).rejects.toThrow('Request validation failed');
+  });
+
   it('keeps crew scoped to visits assigned to their crew', async () => {
     await expect(service.create(req({ userId: 'other-crew-user', body }))).rejects.toMatchObject({ statusCode: 403 });
     await expect(service.create(req({ userId: 'crew-user', body: { type: 'OTHER', description: 'no visit' } })))

@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
@@ -6,6 +5,7 @@ import {
   NotFoundError,
   ValidationError,
   isConditionalWriteConflictAtIndex,
+  EntityIdGenerator,
 } from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
 
@@ -182,7 +182,7 @@ export class StaffService {
 
       const phoneNumber = normalizeIndianMobile(body.phoneNumber);
       await this.assertPhoneAvailable(vendorId, phoneNumber);
-      const staffId = randomUUID();
+      const staffId = EntityIdGenerator.StaffId();
       const ddbItem = StaffMapper.toDdbItem(
         { ...body, name: body.name.trim(), phoneNumber },
         vendorId,

@@ -1,10 +1,10 @@
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError,
+  EntityIdGenerator,
   LambdaRequest,
   NotFoundError,
 } from '@api-hub/utils';
-import { randomUUID } from 'crypto';
 
 import { ADDRESS_STATUS } from '../domain/constants';
 import {
@@ -88,7 +88,7 @@ export class AddressesService {
     const profile = await this.requireProfile(userId);
     const body = request.body as AddressRequest;
     const now = new Date().toISOString();
-    const addressId = randomUUID();
+    const addressId = EntityIdGenerator.AddressId();
     const existing = activeAddresses(await this.addresses.listByUser(userId));
     const plan = planCreateDefault({
       addressId,

@@ -1,9 +1,10 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
 import {
   BaseError,
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   LambdaRequest,
   NotFoundError,
   ValidationError,
@@ -99,7 +100,7 @@ export class CapacityChangeRequestsService {
     }
 
     const nowIso = this.now().toISOString();
-    const requestId = randomUUID();
+    const requestId = EntityIdGenerator.CapacityChangeRequestId();
     const item: CapacityChangeRequestDdbItem = {
       PK: capacityChangeKeys.pk(vendorId),
       SK: capacityChangeKeys.sk(requestId),

@@ -105,7 +105,7 @@ export class VisitCompletionService {
       if (blocking.length > 0) {
         throw new BookingError(
           'BLOCKING_ISSUE_OPEN',
-          'Resolve the open issue linked to this visit before approving its completion',
+          'Resolve the blocking issue linked to this visit before approving its completion',
           409,
           'visitId',
           false,

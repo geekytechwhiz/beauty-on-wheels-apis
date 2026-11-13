@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto';
-
 import {
   ConditionalWriteConflictError,
   ConflictError,
@@ -7,6 +5,7 @@ import {
   LambdaRequest,
   NotFoundError,
   ValidationError,
+  EntityIdGenerator,
 } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
@@ -95,7 +94,7 @@ export class ServiceVisitsService {
     const services = await this.services.requireOwned(vendorId, input.serviceIds);
     const timestamp = this.now().toISOString();
     const record: ServiceVisitRecord = {
-      visitId: `visit_${randomUUID().replace(/-/g, '').slice(0, 24)}`,
+      visitId: EntityIdGenerator.ServiceVisitId(),
       vendorId,
       ownerUserId: actor.userId,
       name: input.name.trim(),

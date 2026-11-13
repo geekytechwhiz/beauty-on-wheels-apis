@@ -68,8 +68,8 @@ const baseLogger = createLogger({ service: 'vendor-issues', redactPII: true });
 
 /**
  * Vendor and crew issues. Filing, listing, or attaching to an issue never changes
- * a package visit; the only coupling is that an unresolved issue linked to a
- * visit blocks completion (see PackageVisitsService.applyComplete).
+ * a package visit; only an issue explicitly marked `blocksVisit` can block
+ * completion (see PackageVisitsService.applyComplete).
  */
 export class VendorIssuesService {
   private readonly logger = createChildLogger(baseLogger, { service: 'VendorIssuesService' });
@@ -113,6 +113,7 @@ export class VendorIssuesService {
       type: body.type,
       description: body.description,
       requestedHelp: body.requestedHelp,
+      blocksVisit: body.blocksVisit,
       actor: toIssueActor(actor),
       nowIso: this.now().toISOString(),
     });

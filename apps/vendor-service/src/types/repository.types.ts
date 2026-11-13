@@ -246,6 +246,8 @@ export interface CrewDdbItem {
   name: string;
   vanLabel: string;
   staffIds: string[];
+  /** Designated crew contact; must be one of `staffIds`. Absent on crews created before designation existed. */
+  pointOfContactStaffId?: string;
   status: CrewStatus;
   revision: number;
   createdAt: string;

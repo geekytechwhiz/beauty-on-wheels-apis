@@ -1,7 +1,9 @@
+
 import { randomUUID } from 'crypto';
 
 import {
   BusinessRuleError,
+  EntityIdGenerator,
   ConditionalWriteConflictError,
   ForbiddenError,
   LambdaRequest,
@@ -92,7 +94,7 @@ export class PaymentsService {
     const providerAmountMinor = toProviderMinor(amountMinor, currency);
     const provider = resolveProvider();
     const now = new Date();
-    const paymentId = randomUUID();
+    const paymentId = EntityIdGenerator.PaymentId();
 
     let checkoutToken = `sandbox_${randomUUID()}`;
     let checkoutKeyId: string | undefined;

@@ -1,6 +1,4 @@
-import { randomUUID } from "crypto";
-
-import { LambdaRequest } from "@api-hub/utils";
+import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
@@ -110,7 +108,7 @@ export class CategoriesService {
         await this.assertCategoryNameUnique(body.name);
 
         const now = new Date().toISOString();
-        const categoryId = randomUUID();
+        const categoryId = EntityIdGenerator.CategoryId();
 
         const entity = buildCategoryEntity(categoryId, body, now);
 

@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { LambdaRequest } from '@api-hub/utils';
+import { EntityIdGenerator, LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
   ConditionalWriteConflictError,
@@ -91,7 +90,7 @@ export class CrewService {
     const item = CrewMapper.toDdbItem(
       { ...body, name: composed.name, vanLabel: composed.vanLabel, staffIds: composed.staffIds },
       vendorId,
-      randomUUID(),
+      EntityIdGenerator.TeamId(),
     );
     try {
       await this.repository.createCrew(item);

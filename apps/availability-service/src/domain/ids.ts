@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
+import { EntityIdGenerator } from '@api-hub/utils';
 
 export function deterministicSlotId(
   vendorId: string,
@@ -14,9 +15,9 @@ export function deterministicSlotId(
 }
 
 export function newHoldId(): string {
-  return `hold_${randomUUID()}`;
+  return EntityIdGenerator.HoldId();
 }
 
 export function newHolidayId(): string {
-  return `hday_${randomUUID()}`;
+  return EntityIdGenerator.HolidayId();
 }

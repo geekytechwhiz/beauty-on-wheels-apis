@@ -1,8 +1,7 @@
-import { randomUUID } from 'crypto';
-
 import {
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   ForbiddenError,
   LambdaRequest,
   NotFoundError,
@@ -117,7 +116,7 @@ export class CustomerPlansService {
     const vehicleDisplayName = [vehicle.brand, vehicle.model].filter((part) => part?.trim()).join(' ');
     const registration = vehicle.registrationNumber?.trim().toUpperCase();
     const record: CustomerPlanRecord = {
-      planId: randomUUID(),
+      planId: EntityIdGenerator.PlanId(),
       customerId,
       vendorId,
       packageId: command.offeringId,

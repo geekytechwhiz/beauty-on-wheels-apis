@@ -32,6 +32,8 @@ export interface PlanLocation {
   fulfilmentType: 'community' | 'address';
   communityId?: string;
   addressId?: string;
+  /** Customer-declared bay inside the community where the vehicle is serviced. Absent on older plans. */
+  parkingBay?: string;
 }
 
 export interface PlanIncludedService {

@@ -1,10 +1,9 @@
-import { randomUUID } from 'crypto';
-
 import {
   BaseError,
   ConflictError,
   ConditionalWriteConflictError,
   ForbiddenError,
+  EntityIdGenerator,
   LambdaRequest,
   NotFoundError,
 } from '@api-hub/utils';
@@ -158,7 +157,7 @@ export class CatalogOfferingsService {
     await this.assertNameUnique(body.name, body.vendorId);
 
     const now = new Date().toISOString();
-    const offeringId = randomUUID();
+    const offeringId = EntityIdGenerator.OfferingId();
     const entity = buildOfferingEntity(offeringId, body, now);
 
     try {

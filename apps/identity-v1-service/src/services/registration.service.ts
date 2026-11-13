@@ -1,4 +1,4 @@
-import { LambdaRequest } from '@api-hub/utils';
+import { EntityIdGenerator, LambdaRequest } from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
 import { APPLICATION_ROLE } from '@api-hub/authentication-core';
 import crypto from 'crypto';
@@ -116,7 +116,7 @@ export class RegistrationService {
     const email = input.email?.trim() ?? '';
     const phoneNumber = input.phoneNumber?.trim() ?? '';
     const username = email || phoneNumber;
-    const userId = `u-${crypto.randomUUID()}`;
+    const userId = EntityIdGenerator.UserId();
     const passwordHash = input.password
       ? hashPassword(input.password)
       : hashPassword(crypto.randomBytes(32).toString('hex'));

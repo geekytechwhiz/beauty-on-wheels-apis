@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
 import {
   BaseError,
@@ -7,6 +7,7 @@ import {
   LambdaRequest,
   NotFoundError,
   ValidationError,
+  EntityIdGenerator,
 } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
@@ -94,7 +95,7 @@ export class AddonSuggestionsService {
     await this.assertServiceHierarchy(body);
 
     const nowIso = this.now().toISOString();
-    const suggestionId = randomUUID();
+    const suggestionId = EntityIdGenerator.SuggestionId();
     const item: AddonSuggestionEntity = {
       PK: addonSuggestionKeys.pk(body.vendorId),
       SK: addonSuggestionKeys.sk(suggestionId),

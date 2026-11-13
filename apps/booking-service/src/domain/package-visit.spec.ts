@@ -1,7 +1,9 @@
 import {
   assertVisitTransition,
   computeVisitProgress,
+  enrichVisitFromPlan,
   materializePackageVisits,
+  operationalSnapshot,
   validityEndsAt,
 } from './package-visit';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
@@ -46,6 +48,28 @@ const plan = {
 } as CustomerPlanRecord;
 
 describe('package visit domain', () => {
+  describe('parking bay snapshot', () => {
+    const withBay = { ...plan, location: { ...plan.location, addressId: 'addr-private', parkingBay: ' B2-14 ' } } as CustomerPlanRecord;
+
+    it('copies only the trimmed bay label from the plan location', () => {
+      const snapshot = operationalSnapshot(withBay);
+      expect(snapshot.parkingBay).toBe('B2-14');
+      expect(JSON.stringify(snapshot)).not.toContain('addr-private');
+      expect(materializePackageVisits({ plan: withBay, now: '2026-01-01T00:00:00.000Z' })[0].parkingBay).toBe('B2-14');
+    });
+
+    it('omits the bay when the plan has none', () => {
+      expect(operationalSnapshot(plan)).not.toHaveProperty('parkingBay');
+      expect(operationalSnapshot({ ...plan, location: { ...plan.location, parkingBay: '   ' } } as CustomerPlanRecord)).not.toHaveProperty('parkingBay');
+    });
+
+    it('fills a legacy visit from its plan but keeps a bay already on the visit', () => {
+      const [visit] = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
+      expect(enrichVisitFromPlan(visit, withBay).parkingBay).toBe('B2-14');
+      expect(enrichVisitFromPlan({ ...visit, parkingBay: 'A1' }, withBay).parkingBay).toBe('A1');
+    });
+  });
+
   it('materializes one visit per entitlement unit', () => {
     const visits = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
     expect(visits).toHaveLength(3);

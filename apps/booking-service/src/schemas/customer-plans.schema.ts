@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { LambdaRequest } from '@api-hub/utils';
 import { EventSchemaError } from '@api-hub/middleware';
 
+const PARKING_BAY = /^[A-Za-z0-9][A-Za-z0-9 #/._-]{0,31}$/;
 
 /**
  * Create a package plan (not an ON_DEMAND booking).
@@ -27,6 +28,7 @@ export const CreateCustomerPlanSchema = z
       .object({
         fulfilmentType: z.literal('community'),
         communityId: z.string().trim().min(1),
+        parkingBay: z.string().trim().regex(PARKING_BAY, 'parkingBay must be 1-32 letters, digits, spaces, or # / . _ -').optional(),
       })
       .strict(),
 

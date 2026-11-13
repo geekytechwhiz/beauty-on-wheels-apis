@@ -1,0 +1,259 @@
+service: partner-bff
+
+frameworkVersion: '3'
+
+plugins:
+  - serverless-esbuild
+  - serverless-dotenv-plugin
+  - serverless-openapi-documenter
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  stage: ${opt:stage,'dev'}
+  region: ${opt:region,'us-east-1'}
+  versionFunctions: false
+  environment:
+    SERVICE_NAME: partner-bff
+    LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
+    CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
+    VENDOR_OPERATIONAL_ACCESS_FUNCTION: vendor-service-api-${self:provider.stage}-getOperationalAccess
+    VENDOR_PARTNER_MANAGER_READ_FUNCTION: vendor-service-api-${self:provider.stage}-partnerManagerRead
+    BOOKING_PARTNER_MANAGER_READ_FUNCTION: booking-service-${self:provider.stage}-partnerManagerRead
+  iam:
+    role:
+      # Downstream Lambda resource policies identify this exact workload role.
+      name: ${self:service}-${self:provider.stage}-execution
+      statements:
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PARTNER_MANAGER_READ_FUNCTION}
+            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.BOOKING_PARTNER_MANAGER_READ_FUNCTION}
+
+custom:
+  httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
+  corsAllowedOrigins: ${file(../../infra/serverless/config/cors-allowed-origins.yml):value}
+  securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+  documentation:
+    version: 1.0.0
+    title: Beauty on Wheels Partner BFF
+    description: Partner manager read contracts. Requests use the platform access-token authorizer; downstream calls use Lambda execution-role IAM, never the user token.
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    security:
+      - bearerAuth: []
+    tags:
+      - name: Partner Manager
+        description: Read-only manager screen contracts composed from domain-owned services.
+    models:
+      - name: PartnerManagerHomeResponse
+        description: Platform envelope whose data contains ordered manager-home cards, section availability, per-source freshness, blocker timestamps, and dated operational crew capacity.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [success, data, meta]
+              properties:
+                success: { type: boolean }
+                data:
+                  type: object
+                  required: [schemaVersion, asOf, timezone, appliedFilters, freshness, sections, data]
+                  properties:
+                    schemaVersion: { type: string, example: '1.0' }
+                    asOf: { type: string, format: date-time }
+                    timezone: { type: string, example: Asia/Kolkata }
+                    appliedFilters: { type: object }
+                    freshness: { type: object }
+                    sections: { type: object, description: Each section declares available or unavailable rather than fabricating missing data. }
+                    data: { type: object, properties: { nextAction: { type: object, nullable: true }, upcomingPlan: { type: object }, todayProgress: { type: object }, planAhead: { type: array, items: { type: object } } } }
+                meta: { type: object }
+      - name: PartnerManagerWorkResponse
+        description: >
+          Platform envelope with a whole-day filter-scope summary and only the requested paginated work-list tab.
+          Visits may carry statusAt, reviewStatus (PENDING_REVIEW, APPROVED, REJECTED) and parkingBay; each is omitted when not recorded.
+          blockers[] lists only unresolved blocking issues, with blockingStartedAt when recorded. crew.pointOfContact is AVAILABLE
+          (staffId, displayName, optional phoneNumber, source designated or firstActiveMember) or UNAVAILABLE. groups[].progress is
+          page-scoped; groups[].dayProgress and pagination.total cover the whole filtered day.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [success, data, meta]
+              properties:
+                success: { type: boolean }
+                data:
+                  type: object
+                  required: [schemaVersion, asOf, timezone, appliedFilters, freshness, sections, data, pagination]
+                  properties:
+                    schemaVersion: { type: string, example: '1.0' }
+                    asOf: { type: string, format: date-time }
+                    timezone: { type: string, example: Asia/Kolkata }
+                    appliedFilters: { type: object }
+                    freshness: { type: object }
+                    sections: { type: object }
+                    data: { type: object, properties: { summary: { type: object }, groups: { type: array, items: { type: object } }, unassigned: { type: array, items: { type: object } } } }
+                    pagination: { type: object, properties: { nextCursor: { type: string, nullable: true }, hasMore: { type: boolean }, total: { type: integer, nullable: true }, totalAvailability: { type: string, enum: [available, unavailable] } } }
+                meta: { type: object }
+      - name: PartnerManagerPlanningResponse
+        description: Platform envelope with a requested planning tab, scoped counts, capacity availability, and page cursor.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [success, data, meta]
+              properties:
+                success: { type: boolean }
+                data:
+                  type: object
+                  required: [schemaVersion, asOf, timezone, appliedFilters, freshness, sections, data, pagination]
+                  properties:
+                    schemaVersion: { type: string, example: '1.0' }
+                    asOf: { type: string, format: date-time }
+                    timezone: { type: string, example: Asia/Kolkata }
+                    appliedFilters: { type: object }
+                    freshness: { type: object }
+                    sections: { type: object }
+                    data: { type: object, properties: { counts: { type: object }, tab: { type: string, enum: [unassigned, assigned, availability] }, items: { type: array, items: { type: object } }, capacity: { type: object } } }
+                    pagination: { type: object, properties: { nextCursor: { type: string, nullable: true }, hasMore: { type: boolean }, total: { type: integer, nullable: true }, totalAvailability: { type: string, enum: [unavailable] } } }
+                meta: { type: object }
+      - name: ErrorResponse
+        description: Standard platform error envelope.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success: { type: boolean, example: false }
+                error: { type: object, properties: { code: { type: string }, message: { type: string } } }
+                meta: { type: object }
+
+functions:
+  managerHome:
+    handler: src/main.handleManagerHome
+    timeout: 20
+    events:
+      - http:
+          path: /partner/manager/home
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          documentation:
+            summary: Read manager home
+            description: Reads the active manager's home cards. Vendor context comes exclusively from verified membership; client vendor headers are ignored.
+            tags: [Partner Manager]
+            methodResponses:
+              - statusCode: '200'
+                responseBody: { description: Manager home response }
+                responseModels: { application/json: PartnerManagerHomeResponse }
+              - statusCode: '400'
+                responseBody: { description: Invalid request }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '401'
+                responseBody: { description: Missing or invalid application authentication }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '403'
+                responseBody: { description: Caller lacks manager membership }
+                responseModels: { application/json: ErrorResponse }
+  managerWork:
+    handler: src/main.handleManagerWork
+    timeout: 20
+    events:
+      - http:
+          path: /partner/manager/work
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          documentation:
+            summary: Read today's work
+            description: Returns a stable summary over the requested filter scope and a paginated list for the requested view. Changing view does not recalculate the summary.
+            tags: [Partner Manager]
+            queryParams:
+              - name: date
+                description: Service date in YYYY-MM-DD; defaults to the vendor operations date.
+                schema: { type: string, format: date }
+              - name: communityId
+                description: Optional community scope.
+                schema: { type: string }
+              - name: visitWindowId
+                description: Optional visit-window scope.
+                schema: { type: string }
+              - name: view
+                description: Requested list grouping.
+                schema: { type: string, enum: [all, active, completed] }
+              - name: pageSize
+                description: Integer from 1 through 50.
+                schema: { type: integer, minimum: 1, maximum: 50 }
+              - name: cursor
+                description: Opaque cursor bound to the vendor, current filters, and the snapshot instant of the first page. A walk never repeats or skips a visit that stays on the date.
+                schema: { type: string }
+            methodResponses:
+              - statusCode: '200'
+                responseBody: { description: Manager work response }
+                responseModels: { application/json: PartnerManagerWorkResponse }
+              - statusCode: '400'
+                responseBody: { description: Invalid filters or cursor }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '401'
+                responseBody: { description: Missing or invalid application authentication }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '403'
+                responseBody: { description: Caller lacks manager membership }
+                responseModels: { application/json: ErrorResponse }
+  managerPlanning:
+    handler: src/main.handleManagerPlanning
+    timeout: 20
+    events:
+      - http:
+          path: /partner/manager/planning
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          documentation:
+            summary: Read work planning
+            description: Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported.
+            tags: [Partner Manager]
+            queryParams:
+              - name: date
+                description: Service date in YYYY-MM-DD; defaults to the vendor operations date.
+                schema: { type: string, format: date }
+              - name: communityId
+                description: Optional community scope.
+                schema: { type: string }
+              - name: visitWindowId
+                description: Optional visit-window scope.
+                schema: { type: string }
+              - name: tab
+                description: Requested planning tab.
+                schema: { type: string, enum: [unassigned, assigned, availability] }
+              - name: pageSize
+                description: Integer from 1 through 50.
+                schema: { type: integer, minimum: 1, maximum: 50 }
+              - name: cursor
+                description: Opaque cursor bound to the vendor and current filters.
+                schema: { type: string }
+            methodResponses:
+              - statusCode: '200'
+                responseBody: { description: Manager planning response }
+                responseModels: { application/json: PartnerManagerPlanningResponse }
+              - statusCode: '400'
+                responseBody: { description: Invalid filters or cursor }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '401'
+                responseBody: { description: Missing or invalid application authentication }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '403'
+                responseBody: { description: Caller lacks manager membership }
+                responseModels: { application/json: ErrorResponse }

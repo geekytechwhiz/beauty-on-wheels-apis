@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { LambdaRequest } from '@api-hub/utils';
+import { EntityIdGenerator, LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
   ConditionalWriteConflictError,
@@ -104,7 +103,7 @@ export class ServiceAreasService {
       await this.requireAccessibleVendor(request, vendorId);
       await this.assertUniqueServiceArea(vendorId, body.name, body.city);
 
-      const serviceAreaId = randomUUID();
+      const serviceAreaId = EntityIdGenerator.ServiceAreaId();
       const ddbItem = ServiceAreasMapper.toDdbItem(body, vendorId, serviceAreaId);
 
       try {

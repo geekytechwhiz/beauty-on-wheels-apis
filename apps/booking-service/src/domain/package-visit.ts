@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { EntityIdGenerator } from '@api-hub/utils';
 
 import { authoritativeWindowClock, mergeWindowSnapshot } from './visit-window';
 import { BookingError } from '../errors';
@@ -65,8 +65,10 @@ export function operationalSnapshot(plan: CustomerPlanRecord): Pick<
   | 'vehicleType'
   | 'registrationNumber'
   | 'vehicleDisplayName'
+  | 'parkingBay'
 > {
   const visitWindowSnapshot = authoritativeWindowClock(plan.visitWindowId, plan.visitWindow);
+  const parkingBay = plan.location?.parkingBay?.trim();
   return {
     ...(plan.location.communityId ? { communityId: plan.location.communityId } : {}),
     ...(plan.visitWindowId ? { visitWindowId: plan.visitWindowId } : {}),
@@ -78,6 +80,7 @@ export function operationalSnapshot(plan: CustomerPlanRecord): Pick<
       ? { registrationNumber: plan.vehicleRegistrationNumber.trim().toUpperCase() }
       : {}),
     ...(plan.vehicleDisplayName ? { vehicleDisplayName: plan.vehicleDisplayName } : {}),
+    ...(parkingBay ? { parkingBay } : {}),
   };
 }
 
@@ -98,6 +101,7 @@ export function enrichVisitFromPlan(
     vehicleType: visit.vehicleType ?? snapshot.vehicleType,
     registrationNumber: visit.registrationNumber ?? snapshot.registrationNumber,
     vehicleDisplayName: visit.vehicleDisplayName ?? snapshot.vehicleDisplayName,
+    parkingBay: visit.parkingBay ?? snapshot.parkingBay,
   };
 }
 
@@ -123,7 +127,7 @@ export function materializePackageVisits(input: MaterializeVisitInput): PackageV
     for (let sequence = 1; sequence <= entitlement.quantity; sequence += 1) {
       ordinal += 1;
       visits.push({
-        visitId: randomUUID(),
+        visitId: EntityIdGenerator.ServiceVisitId(),
         planId: plan.planId,
         customerId: plan.customerId,
         vendorId: plan.vendorId,

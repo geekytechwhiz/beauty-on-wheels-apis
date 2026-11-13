@@ -42,4 +42,9 @@ export * from './helper/http-header.helpers';
 export * from './helper/http-response.helpers';
 export * from './helper/message.helpers';
 export * from './types/core-types'; 
-export { VendorId, CustomerId, BookingId, ServiceId, OfferingId, StaffId, UserId, ProposalId, CommitmentId, CommunityId, TeamId } from './helper/entity-id';
+export {
+  EntityIdGenerator,
+  VendorId, CustomerId, BookingId, ServiceId, OfferingId, StaffId, UserId, ProposalId, CommitmentId, CommunityId, TeamId,
+  AddressId, AddOnId, BranchId, BookingChangeId, CapacityChangeRequestId, CategoryId, DocumentId, LedgerEntryId, HoldId, HolidayId, IssueId,
+  PackageId, PaymentId, PlanId, ReviewId, ServiceAreaId, ServiceVisitId, StatementId, SuggestionId, SupportTicketId, VehicleId,
+} from './helper/entity-id';

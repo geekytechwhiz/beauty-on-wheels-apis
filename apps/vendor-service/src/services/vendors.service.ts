@@ -7,7 +7,7 @@ import {
 import { createChildLogger, createLogger, getLoggerContext } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError,
-  ValidationError, normalizePhoneNumber,
+  ValidationError, normalizePhoneNumber, EntityIdGenerator,
 } from '@api-hub/utils';
 import { randomUUID } from 'crypto';
 
@@ -346,7 +346,7 @@ export class VendorsService {
     // }
 
     const communityIds = await this.requestedCommunityIds(input);
-    const vendorId = randomUUID();
+    const vendorId = EntityIdGenerator.VendorId();
     const createdAt = new Date().toISOString();
 
     let profile = VendorsMapper.toInitialDdbItem({

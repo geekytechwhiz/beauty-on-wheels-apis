@@ -294,7 +294,7 @@ describe('PackageVisitsService', () => {
     plans.getVisit.mockResolvedValue(inProgress);
     plans.listVisits.mockResolvedValue([inProgress]);
     issues.listBlockingVisitIssues.mockResolvedValue([
-      { issueId: 'issue-1', vendorId: 'vendor-1', visitId: 'visit-1', status: 'ACTION_REQUIRED' },
+      { issueId: 'issue-1', vendorId: 'vendor-1', visitId: 'visit-1', status: 'ACTION_REQUIRED', blocksVisit: true },
     ]);
     await expect(service.complete(vendorRequest({ body: completeBody() })))
       .rejects.toMatchObject({ statusCode: 409, code: 'BLOCKING_ISSUE_OPEN' });

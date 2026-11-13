@@ -68,6 +68,9 @@
     },
     {
       "path": "./libs/booking-core"
+    },
+    {
+      "path": "./apps/partner-bff"
     }
   ]
 }

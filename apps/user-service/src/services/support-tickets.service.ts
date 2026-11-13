@@ -1,10 +1,11 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
 import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   BaseError,
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   ForbiddenError,
   LambdaRequest,
   NotFoundError,
@@ -102,7 +103,7 @@ export class SupportTicketsService {
     try {
       const record = await this.tickets.createTicket(
         {
-          ticketId: randomUUID(),
+          ticketId: EntityIdGenerator.SupportTicketId(),
           userId,
           status: 'OPEN',
           category: command.category,

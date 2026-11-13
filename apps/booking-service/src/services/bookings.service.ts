@@ -1,9 +1,8 @@
-import { LambdaRequest } from "@api-hub/utils";
+import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 import {
     createLogger,
     createChildLogger
 } from "@api-hub/observability";
-import { randomUUID } from "crypto";
 
 import {
     BookingsRepository,
@@ -234,7 +233,7 @@ export class BookingsService {
           );
         }
        
-        const bookingId = randomUUID();
+        const bookingId = EntityIdGenerator.BookingId();
         let reservation: ReservationSnapshot;
         if (command.holdId) {
             const held = await this.availability.consumeHold({

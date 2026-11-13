@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
+import { EntityIdGenerator } from '@api-hub/utils';
 
 import { BookingError } from '../errors';
 import {
@@ -12,13 +13,7 @@ import {
   VendorIssueStatus,
   VendorIssueType,
 } from '../types/vendor-issue.types';
-import { BLOCKING_ISSUE_STATUSES } from './visit-completion';
-
 export const MAX_ISSUE_ATTACHMENTS = 10;
-
-export function isBlockingStatus(status: VendorIssueStatus): boolean {
-  return (BLOCKING_ISSUE_STATUSES as readonly string[]).includes(status);
-}
 
 export function issueObjectPrefix(vendorId: string, issueId: string): string {
   return `issues/${vendorId}/${issueId}/`;
@@ -29,7 +24,12 @@ export function requestHash(value: unknown): string {
 }
 
 export function newIssueId(): string {
-  return randomUUID();
+  return EntityIdGenerator.IssueId();
+}
+
+/** Only an explicit, unresolved block stops a visit. Legacy rows without `blocksVisit` never block. */
+export function isActiveVisitBlocker(issue: { blocksVisit?: boolean; status: VendorIssueStatus }): boolean {
+  return issue.blocksVisit === true && issue.status !== VENDOR_ISSUE_STATUS.RESOLVED;
 }
 
 export function createIssueRecord(input: {
@@ -41,6 +41,7 @@ export function createIssueRecord(input: {
   type: VendorIssueType;
   description: string;
   requestedHelp?: string;
+  blocksVisit?: boolean;
   actor: IssueActor;
   nowIso: string;
 }): VendorIssueRecord {
@@ -53,6 +54,8 @@ export function createIssueRecord(input: {
     type: input.type,
     description: input.description,
     ...(input.requestedHelp ? { requestedHelp: input.requestedHelp } : {}),
+    ...(input.blocksVisit === true ? { blocksVisit: true } : {}),
+    ...(input.blocksVisit === true ? { blockingStartedAt: input.nowIso } : {}),
     status: VENDOR_ISSUE_STATUS.OPEN,
     attachments: [],
     createdBy: input.actor,

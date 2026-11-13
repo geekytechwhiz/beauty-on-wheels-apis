@@ -1,6 +1,4 @@
-import { randomUUID } from "crypto";
-
-import { BaseError, LambdaRequest, ValidationError } from "@api-hub/utils";
+import { BaseError, EntityIdGenerator, LambdaRequest, ValidationError } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
@@ -259,7 +257,7 @@ export class ServicesService {
     );
 
     const now = new Date().toISOString();
-    const serviceId = randomUUID();
+    const serviceId = EntityIdGenerator.ServiceId();
 
     let entity = buildServiceEntity(serviceId, body, now);
     const communityIds = body.communityIds ?? [];

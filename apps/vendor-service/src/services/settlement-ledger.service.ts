@@ -1,9 +1,10 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
 import {
   BaseError,
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   LambdaRequest,
   NotFoundError,
   ValidationError,
@@ -83,7 +84,7 @@ export class SettlementLedgerService {
 
     const nowIso = this.now().toISOString();
     const entries: LedgerEntry[] = body.entries.map((entry) => ({
-      entryId: randomUUID(),
+      entryId: EntityIdGenerator.LedgerEntryId(),
       vendorId: body.vendorId,
       ...(entry.visitId ? { visitId: entry.visitId } : {}),
       amountMinor: entry.amountMinor,
@@ -97,7 +98,7 @@ export class SettlementLedgerService {
     const totalMinor = totalOf(entries);
     if (totalMinor <= 0) throw new ValidationError('Statement total must be greater than zero');
 
-    const statementId = randomUUID();
+    const statementId = EntityIdGenerator.StatementId();
     const statement: SettlementStatementDdbItem = {
       PK: settlementKeys.pk(body.vendorId),
       SK: settlementKeys.statementSk(statementId),

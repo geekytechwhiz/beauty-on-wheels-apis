@@ -67,6 +67,13 @@ export interface VendorIssueRecord {
   description: string;
   requestedHelp?: string;
   status: VendorIssueStatus;
+  /** Explicit operational block flag. Older issues omit it and are not blockers. */
+  blocksVisit?: boolean;
+  /**
+   * Server-recorded instant at which this issue began blocking its visit.
+   * Omitted on rows written before blocker timing was introduced.
+   */
+  blockingStartedAt?: string;
   attachments: IssueAttachment[];
   createdBy: IssueActor;
   /** Admin user id. Visible to ops only. */
@@ -108,6 +115,8 @@ export interface VisitIssueLinkItem {
   vendorId: string;
   visitId: string;
   status: VendorIssueStatus;
+  /** Stored on the strongly-consistent visit pointer for completion checks. */
+  blocksVisit?: boolean;
   updatedAt: string;
   entityType: 'VisitIssueLink';
 }

@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 
 import {
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   ForbiddenError,
   LambdaRequest,
   NotFoundError,
@@ -178,7 +179,7 @@ export class BookingChangesService {
     // The original reservation is untouched until the booking swap succeeds.
     // The new capacity uses its own allocation key because Availability keys
     // allocations by id and never re-reserves a released one.
-    const changeId = randomUUID();
+    const changeId = EntityIdGenerator.BookingChangeId();
     const newAllocationId = `${bookingId}-chg-${changeId.slice(0, 8)}`;
     const oldAllocationId = original.allocationId ?? original.id;
 

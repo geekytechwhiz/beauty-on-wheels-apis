@@ -1,7 +1,7 @@
-import { randomUUID } from 'crypto';
 import {
   ConditionalWriteConflictError,
   ConflictError,
+  EntityIdGenerator,
   LambdaRequest,
   NotFoundError,
   ValidationError,
@@ -65,7 +65,7 @@ export class CommunitiesService {
     assertAdminAccess(request);
     const body = request.body as CommunityCreate;
     const now = new Date().toISOString();
-    const communityId = randomUUID();
+    const communityId = EntityIdGenerator.CommunityId();
     const record = this.toRecord({
       communityId,
       name: body.name,

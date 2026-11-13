@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/jest",
+    "types": ["jest", "node"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext"
+  },
+  "include": ["jest.config.cts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+}

@@ -114,6 +114,8 @@ export interface PackageVisitRecord {
   /** Uppercase registration used for vendor search. */
   registrationNumber?: string;
   vehicleDisplayName?: string;
+  /** Copied from the plan location. Only the bay label; no address lines are snapshotted. */
+  parkingBay?: string;
   /** Stable catalog entitlement id (serviceKey or slug). */
   serviceId: string;
   serviceName: string;

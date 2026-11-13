@@ -1,6 +1,4 @@
-import { randomUUID } from "crypto";
-
-import { LambdaRequest } from "@api-hub/utils";
+import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 import {
     ConflictError,
     NotFoundError,
@@ -152,7 +150,7 @@ export class AddOnsService {
         await this.assertAddonNameUnique(body.name, body.categoryId, body.serviceId);
 
         const now = new Date().toISOString();
-        const addonId = randomUUID();
+        const addonId = EntityIdGenerator.AddOnId();
 
         const entity = buildAddonEntity(addonId, body, now);
 

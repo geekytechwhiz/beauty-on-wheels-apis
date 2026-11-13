@@ -728,6 +728,10 @@ custom:
                       type: string
                     addressId:
                       type: string
+                    parkingBay:
+                      type: string
+                      pattern: '^[A-Za-z0-9][A-Za-z0-9 #/._-]{0,31}$'
+                      description: Optional bay label inside the community. Copied to each visit for the partner work list; no address lines are shared.
                 visitWindowId:
                   type: string
                   description: Stable id from the offering visitWindows preference list.
@@ -1512,6 +1516,10 @@ functions:
 
   failPaymentBooking:
     handler: src/handlers/internal.failPaymentBooking
+
+  partnerManagerRead:
+    handler: src/handlers/internal.partnerManagerRead
+    description: Internal IAM invoke for Partner BFF manager reads. No HTTP route; delegated owner membership is revalidated.
 
   publishBookingConfirmedEvent:
     handler: src/handlers/booking-confirmed-event.handleBookingConfirmedEvent
@@ -4249,6 +4257,13 @@ functions:
 
 resources:
   Resources:
+    # PartnerBffManagerReadInvokePermission:
+    #   Type: AWS::Lambda::Permission
+    #   Properties:
+    #     FunctionName: !GetAtt PartnerManagerReadLambdaFunction.Arn
+    #     Action: lambda:InvokeFunction
+    #     Principal: !Sub arn:aws:iam::${AWS::AccountId}:role/partner-bff-${self:provider.stage}-execution
+
     GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
     GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}

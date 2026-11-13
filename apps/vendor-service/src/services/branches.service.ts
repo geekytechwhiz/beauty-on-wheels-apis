@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { LambdaRequest } from '@api-hub/utils';
+import { EntityIdGenerator, LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
   ConditionalWriteConflictError,
@@ -80,7 +79,7 @@ export class BranchesService {
   async createvendorbranch(request: LambdaRequest): Promise<VendorBranch> {
     const vendor = await this.requireAccessibleVendor(request);
     const body = request.body as CreateBranchRequest;
-    const branchId = randomUUID();
+    const branchId = EntityIdGenerator.BranchId();
     const existing = await this.repository.listBranches(vendor.vendorId);
     const isPrimary = body.isPrimary ?? existing.length === 0;
     const ddbItem = BranchesMapper.toDdbItem(body, vendor.vendorId, branchId, {

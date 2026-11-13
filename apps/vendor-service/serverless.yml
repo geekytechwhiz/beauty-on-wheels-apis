@@ -8194,6 +8194,10 @@ functions:
     handler: src/handlers/internal.listSchedulingCrews
     description: Internal IAM invoke. Returns crew ids, van labels, and current staff status for one vendor. No phone or email. No HTTP route.
 
+  partnerManagerRead:
+    handler: src/handlers/internal.partnerManagerRead
+    description: Internal IAM invoke for Partner BFF crews, commitments, and approved community labels. No HTTP route; delegated owner membership is revalidated.
+
   getDiscoveryFacts:
     handler: src/handlers/internal.getDiscoveryFacts
     description: Internal IAM invoke for vendor approval, branches, coverage, and service prices. No HTTP route.
@@ -9144,6 +9148,11 @@ functions:
 
 resources:
   Resources:
+    # Partner BFF invokes getOperationalAccess and partnerManagerRead through its
+    # same-account execution-role policy. Do not add a resource permission whose
+    # principal is that role ARN: Lambda rejects it while the role does not exist
+    # yet, and the whole stack update rolls back.
+
     VendorEventBus:
       Type: AWS::Events::EventBus
       Properties:

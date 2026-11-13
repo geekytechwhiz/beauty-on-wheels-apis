@@ -1,5 +1,6 @@
 import {
   LambdaRequest,
+  EntityIdGenerator,
   NotFoundError,
   UnauthorizedError,
   ValidationError,
@@ -7,7 +8,6 @@ import {
   isVehicleType,
 } from '@api-hub/utils';
 import { createLogger, createChildLogger } from '@api-hub/observability';
-import { randomUUID } from 'crypto';
 
 import {
   VehiclesRepository,
@@ -162,7 +162,7 @@ export class VehiclesService {
       const existingVehicles = await this.repository.listVehicles(userId);
       const isFirstVehicle = existingVehicles.length === 0;
 
-      const vehicleId = randomUUID();
+      const vehicleId = EntityIdGenerator.VehicleId();
       const ddbItem = VehiclesMapper.toDdbItem(body, userId, vehicleId, {
         defaultVehicle: isFirstVehicle,
         status: 'ACTIVE',

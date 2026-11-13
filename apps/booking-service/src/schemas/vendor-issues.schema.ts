@@ -12,7 +12,13 @@ export const CreateIssueSchema = z.object({
   visitId: id.optional(),
   communityId: id.optional(),
   commitmentId: id.optional(),
-}).strict();
+  /** Explicitly opt a visit into completion blocking; unresolved alone is not enough. */
+  blocksVisit: z.boolean().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.blocksVisit === true && !value.visitId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['visitId'], message: 'visitId is required when blocksVisit is true' });
+  }
+});
 
 export type CreateIssueInput = z.infer<typeof CreateIssueSchema>;
 

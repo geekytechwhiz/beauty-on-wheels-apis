@@ -1,0 +1,801 @@
+{
+  "openapi": "3.0.0",
+  "components": {
+    "schemas": {
+      "PartnerManagerHomeResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "asOf",
+              "timezone",
+              "appliedFilters",
+              "freshness",
+              "sections",
+              "data"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "example": "1.0"
+              },
+              "asOf": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "timezone": {
+                "type": "string",
+                "example": "Asia/Kolkata"
+              },
+              "appliedFilters": {
+                "type": "object"
+              },
+              "freshness": {
+                "type": "object"
+              },
+              "sections": {
+                "type": "object",
+                "description": "Each section declares available or unavailable rather than fabricating missing data."
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "nextAction": {
+                    "type": "object",
+                    "nullable": true
+                  },
+                  "upcomingPlan": {
+                    "type": "object"
+                  },
+                  "todayProgress": {
+                    "type": "object"
+                  },
+                  "planAhead": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "PartnerManagerWorkResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "asOf",
+              "timezone",
+              "appliedFilters",
+              "freshness",
+              "sections",
+              "data",
+              "pagination"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "example": "1.0"
+              },
+              "asOf": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "timezone": {
+                "type": "string",
+                "example": "Asia/Kolkata"
+              },
+              "appliedFilters": {
+                "type": "object"
+              },
+              "freshness": {
+                "type": "object"
+              },
+              "sections": {
+                "type": "object"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "summary": {
+                    "type": "object"
+                  },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "unassigned": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "properties": {
+                  "nextCursor": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "hasMore": {
+                    "type": "boolean"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "totalAvailability": {
+                    "type": "string",
+                    "enum": [
+                      "unavailable"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "PartnerManagerPlanningResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "asOf",
+              "timezone",
+              "appliedFilters",
+              "freshness",
+              "sections",
+              "data",
+              "pagination"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "example": "1.0"
+              },
+              "asOf": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "timezone": {
+                "type": "string",
+                "example": "Asia/Kolkata"
+              },
+              "appliedFilters": {
+                "type": "object"
+              },
+              "freshness": {
+                "type": "object"
+              },
+              "sections": {
+                "type": "object"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "counts": {
+                    "type": "object"
+                  },
+                  "tab": {
+                    "type": "string",
+                    "enum": [
+                      "unassigned",
+                      "assigned",
+                      "availability"
+                    ]
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "capacity": {
+                    "type": "object"
+                  }
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "properties": {
+                  "nextCursor": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "hasMore": {
+                    "type": "boolean"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "totalAvailability": {
+                    "type": "string",
+                    "enum": [
+                      "unavailable"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "Access-Control-Allow-Origin": {
+        "type": "string",
+        "default": "*",
+        "example": "https://lustroluxe.com,https://www.lustroluxe.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:19006,http://localhost:8080"
+      },
+      "Access-Control-Allow-Credentials": {
+        "type": "boolean",
+        "default": true
+      },
+      "date": {
+        "type": "string",
+        "format": "date"
+      },
+      "communityId": {
+        "type": "string"
+      },
+      "visitWindowId": {
+        "type": "string"
+      },
+      "view": {
+        "type": "string",
+        "enum": [
+          "all",
+          "active",
+          "completed"
+        ]
+      },
+      "pageSize": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      },
+      "cursor": {
+        "type": "string"
+      },
+      "tab": {
+        "type": "string",
+        "enum": [
+          "unassigned",
+          "assigned",
+          "availability"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "info": {
+    "title": "Beauty on Wheels Partner BFF",
+    "description": "Partner manager read contracts. Requests use the platform access-token authorizer; downstream calls use Lambda execution-role IAM, never the user token.",
+    "version": "1.0.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/partner/manager/home": {
+      "get": {
+        "summary": "Read manager home",
+        "description": "Reads the active manager's home cards. Vendor context comes exclusively from verified membership; client vendor headers are ignored.",
+        "operationId": "managerHome",
+        "parameters": [],
+        "tags": [
+          "Partner Manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Manager home response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerManagerHomeResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid application authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks manager membership",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner/manager/work": {
+      "get": {
+        "summary": "Read today's work",
+        "description": "Returns a stable summary over the requested filter scope and a paginated list for the requested view. Changing view does not recalculate the summary.",
+        "operationId": "managerWork",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Service date in YYYY-MM-DD; defaults to the vendor operations date.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "Optional community scope.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "visitWindowId",
+            "in": "query",
+            "description": "Optional visit-window scope.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/visitWindowId"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "description": "Requested list grouping.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/view"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Integer from 1 through 50.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/pageSize"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor bound to the vendor and current filters.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cursor"
+            }
+          }
+        ],
+        "tags": [
+          "Partner Manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Manager work response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerManagerWorkResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filters or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid application authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks manager membership",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner/manager/planning": {
+      "get": {
+        "summary": "Read work planning",
+        "description": "Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported.",
+        "operationId": "managerPlanning",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Service date in YYYY-MM-DD; defaults to the vendor operations date.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "Optional community scope.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "visitWindowId",
+            "in": "query",
+            "description": "Optional visit-window scope.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/visitWindowId"
+            }
+          },
+          {
+            "name": "tab",
+            "in": "query",
+            "description": "Requested planning tab.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/tab"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Integer from 1 through 50.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/pageSize"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor bound to the vendor and current filters.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/cursor"
+            }
+          }
+        ],
+        "tags": [
+          "Partner Manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Manager planning response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerManagerPlanningResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filters or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid application authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller lacks manager membership",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Partner Manager",
+      "description": "Read-only manager screen contracts composed from domain-owned services."
+    }
+  ]
+}

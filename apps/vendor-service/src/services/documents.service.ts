@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import { LambdaRequest } from '@api-hub/utils';
+import { EntityIdGenerator, LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
   ConditionalWriteConflictError,
@@ -208,7 +207,7 @@ export class DocumentsService {
       vendorId: vendor.vendorId,
       parsed,
       existing,
-      documentId: existing?.documentId ?? randomUUID(),
+      documentId: existing?.documentId ?? EntityIdGenerator.DocumentId(),
     });
   }
 

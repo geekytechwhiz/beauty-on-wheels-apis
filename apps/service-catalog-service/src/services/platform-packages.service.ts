@@ -1,6 +1,4 @@
-import { randomUUID } from 'crypto';
-
-import { ConflictError, LambdaRequest, NotFoundError, ValidationError } from '@api-hub/utils';
+import { ConflictError, EntityIdGenerator, LambdaRequest, NotFoundError, ValidationError } from '@api-hub/utils';
 import { createLogger } from '@api-hub/observability';
 
 import {
@@ -125,7 +123,7 @@ export class PlatformPackagesService {
     await this.assertCategories(body);
     const actor = approvalActor(request);
     const now = this.now();
-    const packageId = `pkg_${randomUUID()}`;
+    const packageId = EntityIdGenerator.PackageId();
     const record: PlatformPackageRecord = {
       PK: `PLATFORM_PACKAGE#${packageId}`,
       SK: 'META',

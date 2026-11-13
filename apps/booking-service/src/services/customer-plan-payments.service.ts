@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 
 import {
   BusinessRuleError,
+  EntityIdGenerator,
   ConditionalWriteConflictError,
   ForbiddenError,
   LambdaRequest,
@@ -81,7 +82,7 @@ export class CustomerPlanPaymentsService {
     const providerAmountMinor = toProviderMinor(amountMinor, currency);
     const provider = resolveProvider();
     const now = new Date();
-    const paymentId = randomUUID();
+    const paymentId = EntityIdGenerator.PaymentId();
 
     let checkoutToken = `sandbox_${randomUUID()}`;
     let checkoutKeyId: string | undefined;
@@ -260,7 +261,7 @@ export class CustomerPlanPaymentsService {
     );
     const progress = computeVisitProgress(visits);
     const firstVisitId = visits[0]?.visitId;
-    const firstJobId = plan.firstJobId ?? firstVisitId ?? randomUUID();
+    const firstJobId = plan.firstJobId ?? firstVisitId ?? EntityIdGenerator.BookingId();
 
     if (!plan.firstJobId) {
       await this.bookings.createPackageLinkedBooking(buildFirstJobBooking(plan, firstJobId, now));

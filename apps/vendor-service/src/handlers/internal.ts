@@ -9,6 +9,8 @@ import { getCapacityCommitmentLookupService } from '../services/capacity-commitm
 import { getDiscoveryFactsService } from '../services/discovery-facts.service';
 import { getPricingConfigurationService } from '../services/pricing-configuration.service';
 import { getSoldCapacityService } from '../services/sold-capacity.service';
+import { getCommunitiesService } from '../services/communities.service';
+import { getCapacityProposalsService } from '../services/capacity-proposals.service';
 
 interface InternalErrorBody {
   code: string;
@@ -63,7 +65,8 @@ export const getCheckoutEligibility = async (event: {
 /**
  * Crew roster and current staff status for one vendor.
  * No HTTP route. Booking authorizes the caller before invoking this function.
- * Phone numbers and email addresses are not returned.
+ * Phone numbers and email addresses are not returned; only partnerManagerRead
+ * adds the crew point of contact.
  */
 export const listSchedulingCrews = async (event: {
   vendorId?: unknown;
@@ -264,6 +267,122 @@ export const lookupActiveCommunities = async (event: {
     return failure(error);
   }
 };
+
+/**
+ * Partner BFF's IAM-only manager read surface. It is not an HTTP endpoint.
+ * Lambda invocation authorization establishes the workload boundary; this
+ * handler re-resolves the delegated actor against the canonical Vendor
+ * membership so a BFF role cannot read an arbitrary vendor's data.
+ * Crews carry `pointOfContact` (including phone) for the verified owner only.
+ */
+export const partnerManagerRead = async (event: {
+  actor?: unknown;
+  includeCrews?: unknown;
+  includeCommitments?: unknown;
+  communityIds?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    const actor = parsePartnerActor(event?.actor);
+    const membership = await getVendorsService().resolveOperationalAccess(actor.userId);
+    if (!membership.active || membership.role !== 'owner' || membership.vendorId !== actor.vendorId) {
+      throw new BaseError('Delegated actor is not authorized for this vendor', 403, 'FORBIDDEN');
+    }
+    const request = delegatedRequest(actor);
+    const communityIds = parseCommunityIds(event?.communityIds);
+    // Commitments are optional enrichment for the BFF; their failure must not hide crews.
+    const commitmentsRead = event?.includeCommitments === true
+      ? getCapacityCommitmentLookupServiceForPartner(request).catch(() => COMMITMENTS_UNAVAILABLE)
+      : undefined;
+    const [crews, commitments, communities] = await Promise.all([
+      event?.includeCrews === true
+        ? getSchedulingCrewsService().list(actor.vendorId, { includePointOfContact: true })
+        : undefined,
+      commitmentsRead,
+      communityIds.length > 0
+        ? getCommunitiesService().listPartnerCommunityDirectory({
+          ...request,
+          params: { ids: communityIds.join(',') },
+        })
+        : undefined,
+    ]);
+    return {
+      data: {
+        ...(crews ? { crews: crews.crews } : {}),
+        ...(commitments && commitments !== COMMITMENTS_UNAVAILABLE ? { commitments } : {}),
+        ...(commitments === COMMITMENTS_UNAVAILABLE ? { unavailableSections: ['commitments'] } : {}),
+        ...(communities ? { communities: communities.data.items.map((item) => ({ communityId: item.communityId, name: item.name })) } : {}),
+        sourceAsOf: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+const COMMITMENTS_UNAVAILABLE = Symbol('commitmentsUnavailable');
+
+function getCapacityCommitmentLookupServiceForPartner(request: import('@api-hub/utils').LambdaRequest) {
+  return getCapacityProposalsService().listvendorcapacitycommitments(request).then((result) => result.data.items);
+}
+
+function parsePartnerActor(value: unknown): {
+  userId: string;
+  vendorId: string;
+  roles: string[];
+  permissions: string[];
+  correlationId: string;
+} {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const userId = typeof source.userId === 'string' ? source.userId.trim() : '';
+  const vendorId = typeof source.vendorId === 'string' ? source.vendorId.trim() : '';
+  const correlationId = typeof source.correlationId === 'string' ? source.correlationId.trim() : '';
+  const roles = Array.isArray(source.roles) ? source.roles.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
+  const permissions = Array.isArray(source.permissions) ? source.permissions.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
+  if (!userId || !vendorId || !correlationId) throw new BaseError('Delegated actor is required', 401, 'UNAUTHORIZED');
+  const managerRole = roles.some((role) => ['vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner'].includes(role.trim().toLowerCase().replace(/[\s-]+/g, '_')));
+  const managerPermission = permissions.some((permission) => ['vendor:read', 'operations:view', 'visits:view'].includes(permission.trim().toLowerCase()));
+  if (!managerRole && !managerPermission) throw new BaseError('Partner manager access is required', 403, 'FORBIDDEN');
+  return { userId, vendorId, roles, permissions, correlationId };
+}
+
+function parseCommunityIds(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 100) throw new BaseError('communityIds must contain at most 100 ids', 400, 'VALIDATION_ERROR');
+  return [...new Set(value.map((item) => {
+    if (typeof item !== 'string' || !DIRECTORY_COMMUNITY_ID.test(item.trim())) {
+      throw new BaseError('Invalid communityId', 400, 'VALIDATION_ERROR');
+    }
+    return item.trim();
+  }))];
+}
+
+function delegatedRequest(actor: {
+  userId: string;
+  vendorId: string;
+  roles: string[];
+  permissions: string[];
+  correlationId: string;
+}): import('@api-hub/utils').LambdaRequest {
+  return {
+    pathParameters: { vendorId: actor.vendorId },
+    params: {},
+    event: {} as import('@api-hub/utils').LambdaRequest['event'],
+    context: {
+      correlationId: actor.correlationId,
+      awsRequestId: actor.correlationId,
+      logger: undefined,
+      authContext: {
+        identityId: 'partner-bff-delegated',
+        userId: actor.userId,
+        roles: actor.roles,
+        permissions: actor.permissions,
+        claims: {},
+      },
+    },
+  };
+}
 
 /**
  * Holding-status facts for Catalog sales-control enablement.

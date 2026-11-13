@@ -6,9 +6,6 @@ import {
   VisitCompletionEvidence,
 } from '../types/package-visit.types';
 
-/** Statuses of a linked issue that stop a visit from being completed or approved. */
-export const BLOCKING_ISSUE_STATUSES = ['OPEN', 'TRIAGED', 'ACTION_REQUIRED'] as const;
-
 export interface CompletionSubmission {
   checklist: Array<{ itemId: string; label: string; done: true }>;
   evidenceObjectKeys?: string[];

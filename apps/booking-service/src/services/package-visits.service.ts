@@ -427,8 +427,8 @@ export class PackageVisitsService {
    * evidence returns that visit; different evidence is refused (409), and is
    * reported as EVIDENCE_LOCKED once the visit has been APPROVED.
    *
-   * Blocking issues (OPEN, TRIAGED, ACTION_REQUIRED) linked to the visit refuse
-   * completion with 409 BLOCKING_ISSUE_OPEN. The read is strongly consistent, but an
+   * Explicit, unresolved blocking issues linked to the visit refuse completion
+   * with 409 BLOCKING_ISSUE_OPEN. The read is strongly consistent, but an
    * issue filed between that read and the write below can still slip through; ops
    * review (which re-checks) is the backstop before payout.
    *
@@ -667,7 +667,7 @@ export class PackageVisitsService {
     if (blocking.length > 0) {
       throw new BookingError(
         'BLOCKING_ISSUE_OPEN',
-        'Resolve the open issue linked to this visit before completing it',
+        'Resolve the blocking issue linked to this visit before completing it',
         409,
         'visitId',
         false,

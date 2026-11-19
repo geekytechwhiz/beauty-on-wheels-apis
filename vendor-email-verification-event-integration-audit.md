@@ -96,9 +96,9 @@ These are package artifacts, not deployed-resource evidence.
 
 ### Attempted AWS runtime verification
 
-Resolved repository defaults: account credentials identify account `542476693486`, region `us-east-1`, stage `dev`; expected names are `nvdev-bw-vendor-event-bus`, `nvdev-bw-vendor-email-verification-stream`, and `nvdev-bw-email-notification`.
+Resolved repository defaults: account credentials identify account `338460632523`, region `us-east-1`, stage `dev`; expected names are `nvdev-bw-vendor-event-bus`, `nvdev-bw-vendor-email-verification-stream`, and `nvdev-bw-email-notification`.
 
-`aws sts get-caller-identity` succeeded. Each of the following read-only commands failed with an explicit identity-policy deny from `arn:aws:iam::542476693486:policy/force-mfa`:
+`aws sts get-caller-identity` succeeded. Each of the following read-only commands failed with an explicit identity-policy deny from `arn:aws:iam::338460632523:policy/force-mfa`:
 
 - `aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE --region us-east-1 ...` — denied `cloudformation:ListStacks`.
 - `aws events describe-event-bus --name nvdev-bw-vendor-event-bus --region us-east-1` — denied `events:DescribeEventBus`.

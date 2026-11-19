@@ -107,6 +107,8 @@ export interface ManagerWorkPage {
 
 export interface ManagerPlanningPage extends Omit<ManagerWorkPage, 'issues' | 'issuesAvailable' | 'crewSummaries' | 'total'> {
   counts: { scheduled: number; assigned: number; unassigned: number };
+  /** Whole requested planning scope; never derived from the current page. */
+  capacityWorkload?: { assignedCapacityUnits: number };
   tab: 'unassigned' | 'assigned' | 'availability';
 }
 

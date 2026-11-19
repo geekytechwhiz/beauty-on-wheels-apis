@@ -175,7 +175,7 @@ export class AuthenticationService {
             event: "postlogout",
         });
 
-        const userId = request.context.userContext?.userId;
+        const userId = request.context.userContext?.identityId || request.context.userContext?.userId;
         const authHeader = request.context.authHeader;
 
         if (!userId || !authHeader) {

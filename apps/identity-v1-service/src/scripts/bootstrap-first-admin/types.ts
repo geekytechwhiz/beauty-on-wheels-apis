@@ -47,11 +47,23 @@ export interface BootstrapCliArgs {
   changeTicket: string;
   expectedAccountId: string;
   expectedRegion?: string;
+  /** Optional Cognito user pool for ownership probe / post-OTP assertion. */
+  cognitoUserPoolId?: string;
+  /**
+   * Optional User Service single-table. When set, bootstrap also creates the
+   * application user + identity lookup so communities/user APIs resolve.
+   */
+  userTable?: string;
   userType: 'CUSTOMER' | 'VENDOR';
   apply: boolean;
   confirm?: string;
   confirmProduction: boolean;
   allowUnverified: boolean;
+  /**
+   * Repair path for an already-bootstrapped ADMIN whose Identity PROFILE is
+   * still PENDING (authorizer Deny on business routes). Skips OTP/ADMIN write.
+   */
+  repairApplicationLink: boolean;
   resumeRunId?: string;
   otp?: string;
 }
@@ -113,6 +125,8 @@ export interface BootstrapJournal {
   ownership: OwnershipFlags;
   adminMappingWritten: boolean;
   bootstrapMarkerWritten: boolean;
+  /** Identity PROFILE.userProvisioning.status === LINKED for this userId. */
+  applicationUserLinked: boolean;
   auditId?: string;
   lastError?: string;
   recoveryHint?: string;

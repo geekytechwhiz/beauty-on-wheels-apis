@@ -1746,7 +1746,7 @@
         "tags": [
           "Capacity"
         ],
-        "operationId": "listvendorcapacityproposals.get./vendors/{vendorId}/capacity-proposals",
+        "operationId": "capacityproposals-list.get./vendors/{vendorId}/capacity-proposals",
         "consumes": [
           "application/json"
         ],

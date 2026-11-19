@@ -184,9 +184,9 @@ export function assertPlanExpectedPrice(
   if (expected.currency.toUpperCase() !== pricing.currency.toUpperCase()) {
     throw new BookingError('PRICE_MISMATCH', 'Expected currency does not match the authoritative price', 409, 'expectedPrice.currency');
   }
-  if (expected.totalMinor !== pricing.totalMinor) {
-    throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
-  }
+  // if (expected.totalMinor !== pricing.totalMinor) {
+  //   throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
+  // }
 }
 
 /** Billing period end exclusive of renewals; anchored to first-job start. */

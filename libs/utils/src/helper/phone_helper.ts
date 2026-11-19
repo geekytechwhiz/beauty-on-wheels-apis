@@ -19,7 +19,7 @@ import {
    */
   export function normalizePhoneNumber(
     phone?: string | null,
-    defaultCountry: CountryCode = 'ZA'
+    defaultCountry: CountryCode = 'IN'
   ): PhoneDetails {
   
     if (!phone || phone.trim().length === 0) {

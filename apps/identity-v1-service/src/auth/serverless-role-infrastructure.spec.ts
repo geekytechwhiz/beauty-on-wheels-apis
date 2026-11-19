@@ -7,15 +7,19 @@ describe('identity role infrastructure', () => {
     'utf8',
   );
 
-  it('registers pre-token generation without creating a user pool', () => {
+  it('creates the Cognito user pool and registers pre-token generation', () => {
     expect(template).toContain('handler: src/handlers/pre-token-generation.handler');
     expect(template).toContain('AWS::Lambda::Permission');
     expect(template).toContain('cognito-idp.amazonaws.com');
     expect(template).toContain('AWS::CloudFormation::CustomResource');
     expect(template).toContain('cognito-idp:DescribeUserPool');
     expect(template).toContain('cognito-idp:UpdateUserPool');
-    expect(template).toContain('iam:PassRole');
-    expect(template).not.toContain('AWS::Cognito::UserPool');
+    expect(template).toContain('AWS::Cognito::UserPool');
+    expect(template).toContain('AWS::Cognito::UserPoolClient');
+    expect(template).toContain('CognitoUserPool:');
+    expect(template).toContain('CognitoIdentityAppClient:');
+    expect(template).toContain('UserPoolId: !Ref CognitoUserPool');
+    expect(template).toContain('SourceArn: !GetAtt CognitoUserPool.Arn');
   });
 
   it('keeps pre-token generation on the identity-table read role for V2_0', () => {

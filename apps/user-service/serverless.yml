@@ -1,4 +1,4 @@
-service: user-service
+service: aps1dev-user-service
 
 frameworkVersion: "3"
 
@@ -11,10 +11,10 @@ plugins:
 
 provider:
   name: aws
-  profile: ci-user-bw
+  profile:  carish-new
   runtime: nodejs22.x
   stage: ${opt:stage,'dev'}
-  region: ${opt:region,'us-east-1'}
+  region: ${opt:region,'ap-south-1'}
   versionFunctions: false
 
   environment:

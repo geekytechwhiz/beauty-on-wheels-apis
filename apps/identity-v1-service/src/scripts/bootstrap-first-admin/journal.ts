@@ -184,6 +184,7 @@ export function createInitialJournal(input: {
     },
     adminMappingWritten: false,
     bootstrapMarkerWritten: false,
+    applicationUserLinked: false,
     createdAt: input.nowIso,
     updatedAt: input.nowIso,
     version: 1,

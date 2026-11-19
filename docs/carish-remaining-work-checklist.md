@@ -14,4 +14,4 @@ Frontends: sibling `/Applications/Utilities/projects/agent-hub/app-dev/beauty-on
 | **G** Package authoring | service-catalog-service | Vendors can create/patch offerings | ManagerPackages / createProviderOffering | Block vendor create/publish of customer packages; Admin/catalog-only authoring |
 | **H** Contracts verify | vendor-service | Capabilities, coverage, proposals, issues largely implemented | partner api-clients | Fix any source gaps; no duplicate work |
 
-Deploy: `dev` stage, `AWS_PROFILE=ci-user-bw`. Never production.
+Deploy: `dev` stage, `AWS_PROFILE=ci-user-carish`. Never production.

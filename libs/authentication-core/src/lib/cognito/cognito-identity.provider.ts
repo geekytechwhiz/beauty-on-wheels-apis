@@ -99,12 +99,20 @@ function asSub(attributes?: { Name?: string; Value?: string }[]): string | undef
 }
 
 export class CognitoIdentityService implements CognitoAuthClient {
+  private readonly client: CognitoIdentityProviderClient;
+
   constructor(
-    private readonly client: CognitoIdentityProviderClient = new CognitoIdentityProviderClient(
-      {},
-    ),
+    client?: CognitoIdentityProviderClient,
     private readonly config: CognitoConfig = getCognitoConfig(),
-  ) {}
+  ) {
+    // Pin the SDK client to the configured Cognito region so stacks outside
+    // us-east-1 (e.g. ap-south-1) do not inherit a wrong DEFAULT_REGION fallback.
+    this.client =
+      client ??
+      new CognitoIdentityProviderClient({
+        region: this.config.region,
+      });
+  }
 
   async findOrCreateUser(
     input: FindOrCreateCognitoUserInput,

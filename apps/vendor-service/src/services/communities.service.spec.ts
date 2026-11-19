@@ -62,7 +62,7 @@ function directory(communityId: string, status = 'ACTIVE'): CommunityDirectoryIt
     localityId: 'KAKKANAD',
     localityName: 'Kakkanad',
     postalCode: '682030',
-    directoryStatus: status,
+    status,
     searchText: `${communityId} kochi kakkanad 682030`,
   };
 }

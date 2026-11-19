@@ -66,15 +66,16 @@
     "spec": "serverless openapi generate -o openapi.json -f json -a 3.0.4 -p postman.json",
     "api:spec": "bash scripts/deploy-and-export-api-specs.sh",
     "api:deploy-and-spec": "bash scripts/deploy-and-export-api-specs.sh --deploy",
-   
-    "vehicle":"export AWS_PROFILE=ci-user-bw && cd apps/vehicle-service && serverless deploy --stage dev",
-    "vendor":"export AWS_PROFILE=ci-user-bw && cd apps/vendor-service && serverless deploy --stage dev",
-    "catalog": "export AWS_PROFILE=ci-user-bw && cd apps/service-catalog-service && serverless deploy --stage dev",
-    "idenitity":"export AWS_PROFILE=ci-user-bw && cd apps/identity-v1-service && serverless deploy --stage dev",
-    "user": "export AWS_PROFILE=ci-user-bw && cd apps/user-service && serverless deploy --stage dev",
-    "availability":"export AWS_PROFILE=ci-user-bw && cd apps/availability-service && serverless deploy --stage dev",
-    "booking":"export AWS_PROFILE=ci-user-bw && cd apps/booking-service && serverless deploy --stage dev",
-    "deploy:all": "pnpm run vehicle && pnpm run vendor && pnpm run catalog && pnpm run idenitity && pnpm run user && pnpm run availability && pnpm run booking"
+    "authorizer":"export AWS_PROFILE=carish-new && cd apps/authorizer-service && serverless deploy --stage dev --region ap-south-1",
+    "vehicle":"export AWS_PROFILE=carish-new && cd apps/vehicle-service && serverless deploy --stage dev --region ap-south-1",
+    "vendor":"export AWS_PROFILE=carish-new && cd apps/vendor-service && serverless deploy --stage dev --region ap-south-1",
+    "catalog": "export AWS_PROFILE=carish-new && cd apps/service-catalog-service && serverless deploy --stage dev --region ap-south-1",
+    "idenitity":"export AWS_PROFILE=carish-new && cd apps/identity-v1-service && serverless deploy --stage dev --region ap-south-1",
+    "user": "export AWS_PROFILE=carish-new && cd apps/user-service && serverless deploy --stage dev --region ap-south-1",
+    "availability":"export AWS_PROFILE=carish-new && cd apps/availability-service && serverless deploy --stage dev --region ap-south-1",
+    "booking":"export AWS_PROFILE=carish-new && cd apps/booking-service && serverless deploy --stage dev --region ap-south-1",
+    "bff":"export AWS_PROFILE=carish-new && cd apps/partner-bff && serverless deploy --stage dev --region ap-south-1",
+    "deploy:all": "pnpm run vehicle && pnpm run vendor && pnpm run catalog && pnpm run idenitity && pnpm run authorizer && pnpm run user && pnpm run availability && pnpm run booking"
   },
   "private": true,
   "engines": {

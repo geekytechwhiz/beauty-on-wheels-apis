@@ -82,7 +82,7 @@ describe('toBaseError', () => {
 
   it('maps AWS access denied errors to 403 FORBIDDEN', () => {
     const denied = new Error(
-      'User: arn:aws:iam::542476693486:user/example is not authorized to perform: dynamodb:GetItem on resource: arn:aws:dynamodb:us-east-1:542476693486:table/template-service-dev with an explicit deny in an identity-based policy',
+      'User: arn:aws:iam::338460632523:user/example is not authorized to perform: dynamodb:GetItem on resource: arn:aws:dynamodb:us-east-1:338460632523:table/template-service-dev with an explicit deny in an identity-based policy',
     );
     denied.name = 'AccessDeniedException';
 

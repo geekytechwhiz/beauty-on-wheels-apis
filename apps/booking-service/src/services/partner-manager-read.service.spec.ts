@@ -56,6 +56,21 @@ describe('PartnerManagerReadService', () => {
     await expect(service.read(event({ query: { date: '2026-11-13', view: 'all', cursor } }))).rejects.toMatchObject({ statusCode: 400 });
   });
 
+  it('returns whole-scope planning workload independently of the selected page', async () => {
+    plans.listVendorVisitsForDate.mockResolvedValue([
+      { ...visit, visitId: 'assigned-30', crewAssignment: { crewId: 'crew-1', assignedAt: '2026-11-12T00:00:00.000Z', assignedBy: 'owner-1' } },
+      { ...visit, visitId: 'assigned-60', durationMinutes: 60, crewAssignment: { crewId: 'crew-1', assignedAt: '2026-11-12T00:00:00.000Z', assignedBy: 'owner-1' } },
+      { ...visit, visitId: 'unassigned', durationMinutes: 90 },
+      { ...visit, visitId: 'cancelled', status: 'CANCELLED', durationMinutes: 90, crewAssignment: { crewId: 'crew-1', assignedAt: '2026-11-12T00:00:00.000Z', assignedBy: 'owner-1' } },
+    ]);
+    const result = await service.read(event({ action: 'planning', query: { date: '2026-11-13', tab: 'assigned', pageSize: 1 } })) as {
+      items: Array<{ visitId: string }>;
+      capacityWorkload: { assignedCapacityUnits: number };
+    };
+    expect(result.items).toHaveLength(1);
+    expect(result.capacityWorkload).toEqual({ assignedCapacityUnits: 3 });
+  });
+
   describe('active blockers', () => {
     const issue = (overrides: Partial<VendorIssueRecord>): VendorIssueRecord => ({
       issueId: 'issue', vendorId: 'vendor-1', visitId: 'visit-1', type: 'ACCESS_PROBLEM', description: 'Gate closed', status: 'OPEN',

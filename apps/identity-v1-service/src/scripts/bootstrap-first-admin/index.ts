@@ -1,5 +1,11 @@
 export { parseBootstrapArgs, isProductionStage } from './args';
 export {
+  ensureApplicationUserLinked,
+  ensureUserServiceApplicationUser,
+  linkIdentityApplicationUser,
+  verifyApplicationUserLinked,
+} from './application-user-link';
+export {
   buildAdminRoleMappingItem,
   buildAuditItem,
   buildBootstrapMarkerItem,

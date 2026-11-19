@@ -1,0 +1,36 @@
+node scripts/bootstrap-first-admin.mjs \
+  --stage dev \
+  --table identity-table-dev \
+  --user-table aps1dev-user-service-dev-user \
+  --api-base-url "https://9c575iz2j0.execute-api.ap-south-1.amazonaws.com/dev" \
+  --destination "+919090909090" \
+  --approved-by "alice@example.com" \
+  --executed-by "bob@example.com" \
+  --change-ticket "CHG-001" \
+  --expected-account-id "338460632523" \
+  --expected-region ap-south-1 \
+  --cognito-user-pool-id ap-south-1_yA23QvbVx \
+  --allow-unverified \
+  --otp 123456 \
+  --apply \
+  --confirm "BOOTSTRAP FIRST ADMIN"
+
+# If ADMIN already exists but packages/communities still 403 with
+# "explicit deny in an identity-based policy", repair the missing LINKED
+# application-user mapping (and User Service row) without re-running OTP:
+#
+# node scripts/bootstrap-first-admin.mjs \
+#   --stage dev \
+#   --table identity-table-dev \
+#   --user-table aps1dev-user-service-dev-user \
+#   --api-base-url "https://9c575iz2j0.execute-api.ap-south-1.amazonaws.com/dev" \
+#   --destination "+919090909090" \
+#   --approved-by "alice@example.com" \
+#   --executed-by "bob@example.com" \
+#   --change-ticket "CHG-001" \
+#   --expected-account-id "338460632523" \
+#   --expected-region ap-south-1 \
+#   --cognito-user-pool-id ap-south-1_yA23QvbVx \
+#   --repair-application-link \
+#   --apply \
+#   --confirm "BOOTSTRAP FIRST ADMIN"

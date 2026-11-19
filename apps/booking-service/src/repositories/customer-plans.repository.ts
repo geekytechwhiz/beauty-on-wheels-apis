@@ -302,6 +302,7 @@ export class CustomerPlansRepository extends BaseRepository {
         ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
       };
     const page = await this.queryPage<PackageVisitDdbItem>(params);
+    console.info("Vendor Scheduled Vist", page)
     return {
       items: page.items.map((item) => ({
         record: toVisitRecord(item),

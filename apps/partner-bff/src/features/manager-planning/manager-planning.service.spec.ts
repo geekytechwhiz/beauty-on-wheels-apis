@@ -7,6 +7,7 @@ const sourceAsOf = '2026-11-13T06:30:00.000Z';
 const planning: ManagerPlanningPage = {
   timezone: 'Asia/Kolkata', date: '2026-11-14', tab: 'availability', sourceAsOf, nextCursor: null, hasMore: false,
   counts: { scheduled: 3, assigned: 2, unassigned: 1 },
+  capacityWorkload: { assignedCapacityUnits: 3 },
   summary: { expected: 3, completed: 0, inProgress: 0, notStarted: 2, blocked: 0, unassigned: 1, missed: 0, cancelled: 0 },
   items: [],
 };
@@ -15,23 +16,47 @@ const client: PartnerInternalClient = {
   resolveOperationalAccess: jest.fn(),
   readBooking: jest.fn(async () => planning),
   readVendor: jest.fn(async () => ({
-    crews: [{ crewId: 'crew-1', vendorId: 'vendor-1', name: 'Crew One', vanLabel: 'Van One', status: 'ACTIVE', staff: [{ staffId: 'staff-1', name: 'Ravi', status: 'ACTIVE' }] }],
+    crews: [{ crewId: 'crew-1', vendorId: 'vendor-1', name: 'Crew One', vanLabel: 'Van One', status: 'ACTIVE', availabilityStatus: 'AVAILABLE', capacityPerDay: 4, staff: [{ staffId: 'staff-1', name: 'Ravi', status: 'ACTIVE' }] }],
     commitments: [{ commitmentId: 'commitment-1', communityId: 'community-1', quantity: 4, reservedSoldQuantity: 0, status: 'ACCEPTED', window: { startDate: '2026-11-14', endDate: '2026-11-14', dailyWindow: { startTime: '09:00', endTime: '18:00' } } }],
     sourceAsOf,
   } as VendorManagerData)),
 };
 
 describe('ManagerPlanningService', () => {
-  it('returns only the availability tab and does not fabricate dated confirmation or capacity', async () => {
+  it('returns only the availability tab, while using whole-scope aggregates for capacity', async () => {
     const query = parseManagerPlanningQuery({ date: '2026-11-14', tab: 'availability', pageSize: '10' }, new Date(sourceAsOf));
     const result = await new ManagerPlanningService(client, () => new Date(sourceAsOf)).get(actor, query);
     expect(result.data).toMatchObject({ counts: { scheduled: 3, assigned: 2, unassigned: 1 }, tab: 'availability' });
     expect(result.data.items).toEqual([expect.objectContaining({ crewId: 'crew-1', datedAvailabilityConfirmation: { status: 'UNAVAILABLE', reason: 'DATED_CONFIRMATION_NOT_SUPPORTED' } })]);
-    expect(result.data.capacity).toMatchObject({ acceptedCommitmentCapacity: 4, configuredCapacity: { status: 'UNAVAILABLE' }, effectiveOperationalCapacity: { status: 'UNAVAILABLE' } });
+    expect(result.data.capacity).toMatchObject({
+      acceptedCommitmentCapacity: 4,
+      configuredCapacity: { status: 'AVAILABLE', capacityPerDay: 4, eligibleCrewCount: 1 },
+      effectiveOperationalCapacity: { status: 'AVAILABLE', capacityPerDay: 4, assignedCapacityUnits: 3, availableCapacityUnits: 1 },
+    });
+    expect(result.sections.capacity).toMatchObject({ available: true });
   });
 
   it('validates tab filters', () => {
     expect(() => parseManagerPlanningQuery({ tab: 'all' }, new Date(sourceAsOf))).toThrow('tab must be unassigned, assigned, or availability');
+  });
+
+  it('keeps crew capacity available when optional commitment data is unavailable', async () => {
+    const partial: PartnerInternalClient = {
+      ...client,
+      readVendor: jest.fn(async () => ({
+        crews: [{ crewId: 'crew-1', vendorId: 'vendor-1', name: 'Crew One', vanLabel: 'Van One', status: 'ACTIVE', availabilityStatus: 'AVAILABLE', capacityPerDay: 4, staff: [] }],
+        unavailableSections: ['commitments'],
+        sourceAsOf,
+      } as VendorManagerData)),
+    };
+    const query = parseManagerPlanningQuery({ date: '2026-11-14', tab: 'availability' }, new Date(sourceAsOf));
+    const result = await new ManagerPlanningService(partial, () => new Date(sourceAsOf)).get(actor, query);
+    expect(result.data.capacity).toMatchObject({
+      acceptedCommitmentCapacity: null,
+      configuredCapacity: { status: 'AVAILABLE', capacityPerDay: 4 },
+      effectiveOperationalCapacity: { status: 'AVAILABLE', availableCapacityUnits: 1 },
+    });
+    expect(result.sections.capacity).toMatchObject({ available: true });
   });
 
   it('preserves the required planning result when optional vendor display data fails', async () => {

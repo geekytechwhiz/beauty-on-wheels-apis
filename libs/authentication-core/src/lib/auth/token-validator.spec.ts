@@ -187,6 +187,13 @@ describe('validateAccessToken', () => {
         jwksCache: cache,
         expectedTokenUse: 'access',
       }),
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      metadata: {
+        reason: 'token_use_mismatch',
+        tokenUse: 'id',
+        expectedTokenUse: 'access',
+      },
+    });
   });
 });

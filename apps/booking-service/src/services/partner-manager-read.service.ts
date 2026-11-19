@@ -77,6 +77,15 @@ interface ProjectedVisit {
   service: { serviceId: string; name: string; estimatedMinutes: number };
 }
 
+/**
+ * Aggregate workload expressed in Vendor's 30-minute crew-capacity units.
+ * This is deliberately separate from the paginated planning items: a BFF
+ * must never infer the day's capacity from whichever page or tab was read.
+ */
+interface PlanningCapacityWorkload {
+  assignedCapacityUnits: number;
+}
+
 interface CrewSummary {
   crewId: string;
   /** Whole filtered day for this crew, independent of the requested page and view. */
@@ -242,6 +251,7 @@ export class PartnerManagerReadService {
         assigned: scheduled.filter((visit) => Boolean(visit.crewAssignment?.crewId)).length,
         unassigned: scheduled.filter((visit) => !visit.crewAssignment?.crewId).length,
       },
+      capacityWorkload: planningCapacityWorkload(visits),
       summary: progress(visits, [], true),
       items: page.items.map(project),
       nextCursor: page.nextCursor,
@@ -276,6 +286,19 @@ export class PartnerManagerReadService {
     }
     return issues;
   }
+}
+
+/**
+ * Capacity is consumed by every non-cancelled assignment in the requested
+ * planning scope, including completed and missed visits that already used a
+ * crew's time. Vendor defines a capacity unit as 30 minutes.
+ */
+function planningCapacityWorkload(visits: readonly PackageVisitRecord[]): PlanningCapacityWorkload {
+  return {
+    assignedCapacityUnits: visits
+      .filter((visit) => Boolean(visit.crewAssignment?.crewId) && visit.status !== PACKAGE_VISIT_STATUS.CANCELLED)
+      .reduce((total, visit) => total + Math.max(1, Math.ceil((visit.durationMinutes ?? 0) / 30)), 0),
+  };
 }
 
 function parseActor(value: unknown): DelegatedPartnerActor {

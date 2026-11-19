@@ -84,6 +84,47 @@ export function commitmentQuantityForDate(
     .reduce((total, commitment) => total + commitment.quantity, 0);
 }
 
+/**
+ * Vendor owns roster eligibility and the daily limit. A BFF can safely total
+ * only eligible crews; inactive or understaffed crews are not operational
+ * capacity even though they remain visible in the roster.
+ */
+export function configuredCrewCapacity(crews: readonly SchedulingCrew[] | undefined) {
+  if (!crews) return { status: 'UNAVAILABLE' as const, reason: 'DEPENDENCY_UNAVAILABLE' as const };
+  const eligibleCrews = crews.filter((crew) => crew.availabilityStatus === 'AVAILABLE');
+  return {
+    status: 'AVAILABLE' as const,
+    capacityPerDay: eligibleCrews.reduce((total, crew) => total + crew.capacityPerDay, 0),
+    eligibleCrewCount: eligibleCrews.length,
+    unavailableCrewCount: crews.length - eligibleCrews.length,
+    capacityUnit: 'THIRTY_MINUTE_SLOT' as const,
+  };
+}
+
+/**
+ * Booking owns actual assigned work. Keep this calculation at the aggregate
+ * level so pagination and the selected planning tab cannot change capacity.
+ */
+export function effectiveCrewCapacity(
+  configured: ReturnType<typeof configuredCrewCapacity>,
+  assignedCapacityUnits: number | undefined,
+) {
+  if (configured.status !== 'AVAILABLE') return configured;
+  if (typeof assignedCapacityUnits !== 'number'
+    || !Number.isInteger(assignedCapacityUnits)
+    || assignedCapacityUnits < 0) {
+    return { status: 'UNAVAILABLE' as const, reason: 'NOT_SUPPORTED' as const };
+  }
+  return {
+    status: 'AVAILABLE' as const,
+    capacityPerDay: configured.capacityPerDay,
+    assignedCapacityUnits,
+    availableCapacityUnits: Math.max(0, configured.capacityPerDay - assignedCapacityUnits),
+    eligibleCrewCount: configured.eligibleCrewCount,
+    capacityUnit: configured.capacityUnit,
+  };
+}
+
 /** The unavailable shape is unchanged from before Vendor supplied contacts. */
 export function pointOfContactView(crew: SchedulingCrew | undefined) {
   const contact = crew?.pointOfContact;

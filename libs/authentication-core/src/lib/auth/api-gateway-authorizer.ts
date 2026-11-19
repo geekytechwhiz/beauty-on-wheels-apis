@@ -190,10 +190,20 @@ export async function evaluateApiGatewayAuthorizer(
       event: 'authorizer_denied',
       statusCode: status,
       code,
+      reason:
+        typeof metadata?.reason === 'string' ? metadata.reason : undefined,
       identityId:
         typeof metadata?.identityId === 'string' ? metadata.identityId : undefined,
       tokenUse:
         typeof metadata?.tokenUse === 'string' ? metadata.tokenUse : undefined,
+      expectedTokenUse:
+        typeof metadata?.expectedTokenUse === 'string'
+          ? metadata.expectedTokenUse
+          : undefined,
+      clientId:
+        typeof metadata?.clientId === 'string' ? metadata.clientId : undefined,
+      issuer:
+        typeof metadata?.issuer === 'string' ? metadata.issuer : undefined,
       methodArn: event.methodArn,
       policyResource: toExecuteApiWildcardResource(event.methodArn),
       hasToken: Boolean(readAuthorizerToken(event)),

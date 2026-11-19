@@ -50,11 +50,14 @@ export function parseBootstrapArgs(argv: string[]): BootstrapCliArgs {
   const changeTicket = required(args, 'change-ticket');
   const expectedAccountId = required(args, 'expected-account-id');
   const expectedRegion = value(args, 'expected-region')?.trim();
+  const cognitoUserPoolId = value(args, 'cognito-user-pool-id')?.trim();
+  const userTable = value(args, 'user-table')?.trim();
   const userTypeRaw = (value(args, 'user-type') ?? 'CUSTOMER').trim().toUpperCase();
   const apply = hasFlag(args, 'apply');
   const confirm = value(args, 'confirm');
   const confirmProduction = hasFlag(args, 'confirm-production');
   const allowUnverified = hasFlag(args, 'allow-unverified');
+  const repairApplicationLink = hasFlag(args, 'repair-application-link');
   const resumeRunId = value(args, 'resume-run-id')?.trim();
   // --otp is accepted only for automated tests; operators should use the hidden prompt.
   const otp = value(args, 'otp');
@@ -70,8 +73,20 @@ export function parseBootstrapArgs(argv: string[]): BootstrapCliArgs {
   if (expectedRegion) {
     assertSafeText('expected-region', expectedRegion, 32);
   }
+  if (cognitoUserPoolId) {
+    assertSafeText('cognito-user-pool-id', cognitoUserPoolId, 128);
+  }
+  if (userTable) {
+    assertSafeText('user-table', userTable, 128);
+  }
   if (resumeRunId) {
     assertSafeText('resume-run-id', resumeRunId, 80);
+  }
+  if (repairApplicationLink && resumeRunId) {
+    throw new BootstrapError(
+      'Use either --repair-application-link or --resume-run-id, not both',
+      'INVALID_ARGUMENT',
+    );
   }
 
   if (!/^[a-z0-9-]+$/.test(stage)) {
@@ -124,6 +139,13 @@ export function parseBootstrapArgs(argv: string[]): BootstrapCliArgs {
     );
   }
 
+  if (repairApplicationLink && !apply) {
+    throw new BootstrapError(
+      '--repair-application-link requires --apply (it writes LINKED / User Service rows)',
+      'REPAIR_REQUIRES_APPLY',
+    );
+  }
+
   if (allowUnverified && isProductionStage(stage)) {
     throw new BootstrapError(
       'Production cannot allow unverified destinations',
@@ -157,11 +179,14 @@ export function parseBootstrapArgs(argv: string[]): BootstrapCliArgs {
     changeTicket,
     expectedAccountId,
     expectedRegion,
+    cognitoUserPoolId,
+    userTable,
     userType: userTypeRaw,
     apply,
     confirm,
     confirmProduction,
     allowUnverified,
+    repairApplicationLink,
     resumeRunId,
     otp,
   };

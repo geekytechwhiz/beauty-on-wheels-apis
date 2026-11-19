@@ -5,7 +5,8 @@
 # Then on protected http events:
 #   authorizer: ${self:custom.securedAuthorizer}
 #
-# Deploy apps/authorizer-service first so ${stage}-platform-authorizer exists.
+# Deploy identity-v1-service (Cognito exports) then authorizer-service so
+# ${stage}-platform-authorizer exists and validates the same Cognito pool/client.
 # Leave public routes (health, login, OTP, register, refresh) without an authorizer.
 
 name: platformAuthorizer

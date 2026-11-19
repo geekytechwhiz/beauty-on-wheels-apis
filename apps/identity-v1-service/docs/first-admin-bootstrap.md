@@ -63,7 +63,9 @@ Resume a recoverable run:
   --confirm "BOOTSTRAP FIRST ADMIN"
 ```
 
-Optional: `--user-type CUSTOMER|VENDOR` (default `CUSTOMER`), `--allow-unverified` (non-prod only; for fixed-OTP stages), `--expected-region us-east-1`.
+Optional: `--user-type CUSTOMER|VENDOR` (default `CUSTOMER`), `--allow-unverified` (non-prod only; for fixed-OTP stages), `--expected-region ap-south-1`, `--cognito-user-pool-id <poolId>` (or set `COGNITO_USER_POOL_ID`) so the CLI can probe Cognito ownership and assert the principal exists after OTP verify.
+
+OTP verify (via the Identity API) is what creates **both** the Cognito user and the Identity DynamoDB record. The CLI does not invent Cognito users itself.
 
 After a successful apply, **sign in again** so Cognito Pre Token Generation V2_0 issues a fresh access token that includes `ADMIN` in `roles`.
 
@@ -75,7 +77,26 @@ After a successful apply, **sign in again** so Cognito Pre Token Generation V2_0
 4. Checks active status and stage verification policy.
 5. Confirms `ROLE#ADMIN` / `METADATA` exists and that no first-admin marker / ADMIN mapping already exists.
 6. Atomically writes ADMIN mapping + `SYSTEM#FIRST_ADMIN_BOOTSTRAP` marker + audit log (same storage contract as `IdentityRepository.ensureUserRoleMapping`). Does **not** change META `roleId`.
-7. Persists a durable operation journal (`SYSTEM#FIRST_ADMIN_BOOTSTRAP_JOURNAL` / `RUN#{runId}`) and verifies the mapping after commit.
+7. Marks Identity `PROFILE.userProvisioning` as `LINKED` with the Identity `userId` as the application subject (required by the platform authorizer for business routes). When `--user-table` is set, also creates the User Service profile + identity lookup.
+8. Persists a durable operation journal (`SYSTEM#FIRST_ADMIN_BOOTSTRAP_JOURNAL` / `RUN#{runId}`) and verifies the mapping + LINKED status after commit.
+
+If an earlier bootstrap left ADMIN in place but `userProvisioning` still `PENDING` (API Gateway 403 “explicit deny in an identity-based policy” on packages/communities), repair without OTP:
+
+```bash
+node scripts/bootstrap-first-admin.mjs \
+  --stage dev \
+  --table identity-table-dev \
+  --user-table aps1dev-user-service-dev-user \
+  --api-base-url "https://<identity-api-base>" \
+  --destination "+15555550100" \
+  --approved-by "alice@example.com" \
+  --executed-by "bob@example.com" \
+  --change-ticket "CHG-001" \
+  --expected-account-id "123456789012" \
+  --repair-application-link \
+  --apply \
+  --confirm "BOOTSTRAP FIRST ADMIN"
+```
 
 ## Least-privilege AWS permissions
 
@@ -90,7 +111,8 @@ Operator role/session needs approximately:
 | `dynamodb:DeleteItem` | Identity table (lock release / safe compensation only) |
 | `dynamodb:Query` | Identity table |
 | `dynamodb:Scan` | Identity table (ADMIN mapping existence check; no role-to-user GSI) |
-| `dynamodb:ConditionCheckItem` / `dynamodb:TransactWriteItems` | Identity table |
+| `dynamodb:ConditionCheckItem` / `dynamodb:TransactWriteItems` / `dynamodb:UpdateItem` | Identity table |
+| `dynamodb:GetItem` / `dynamodb:TransactWriteItems` | User Service table (only when `--user-table` is set) |
 
 Network access to the Identity API base URL is also required (OTP send/verify). Cognito admin APIs are **not** required for the happy path; OTP goes through Identity. Do not grant broad `cognito-idp:AdminDeleteUser` to the bootstrap role.
 

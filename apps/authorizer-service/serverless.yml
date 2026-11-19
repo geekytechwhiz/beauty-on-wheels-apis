@@ -12,8 +12,8 @@ provider:
   name: aws
   runtime: nodejs22.x
   stage: ${opt:stage, 'dev'}
-  region: ${opt:region, 'us-east-1'}
-  profile: ci-user-bw
+  region: ${opt:region, 'ap-south-1'}
+  profile: carish-new
   versionFunctions: false
   tracing:
     lambda: true
@@ -35,11 +35,13 @@ provider:
     DYNAMODB_TABLE_NAME: identity-table-${self:provider.stage}
     IDENTITY_TABLE: identity-table-${self:provider.stage}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    # Must match Identity Service Cognito (OTP/login issuer). Hardcoded us-east-1
+    # placeholders caused 401 on /me while verify-otp still returned valid JWTs.
     COGNITO_REGION: ${self:provider.region}
-    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '2npl84o4lc11hd3ras553u71o3'}
-    COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
+    COGNITO_USER_POOL_ID: ap-south-1_yA23QvbVx
+    COGNITO_APP_CLIENT_ID: 56u405fmu8odppj170ctrt4onp
+    COGNITO_ISSUER: https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_yA23QvbVx
+    COGNITO_JWKS_URI: https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_yA23QvbVx/.well-known/jwks.json
 
   iam:
     role:
@@ -59,6 +61,8 @@ provider:
           Resource: '*'
 
 custom:
+  # Same prefix as identity-v1-service Cognito export names.
+  resourcePrefix: nv${self:provider.stage}-bw
   esbuild:
     bundle: true
     minify: false

@@ -541,9 +541,9 @@
     },
     "/vendors/{vendorId}/community-visit-schedules": {
       "get": {
-        "summary": "listCommunityVisitSchedules",
+        "summary": "listVisitSchedules",
         "description": "",
-        "operationId": "listCommunityVisitSchedules.get./vendors/{vendorId}/community-visit-schedules",
+        "operationId": "listVisitSchedules.get./vendors/{vendorId}/community-visit-schedules",
         "consumes": [
           "application/json"
         ],
@@ -565,9 +565,9 @@
         }
       },
       "put": {
-        "summary": "publishCommunityVisitSchedule",
+        "summary": "publishVisit",
         "description": "",
-        "operationId": "publishCommunityVisitSchedule.put./vendors/{vendorId}/community-visit-schedules",
+        "operationId": "publishVisit.put./vendors/{vendorId}/community-visit-schedules",
         "consumes": [
           "application/json"
         ],
@@ -591,9 +591,9 @@
     },
     "/vendors/{vendorId}/community-visits": {
       "get": {
-        "summary": "listCommunityVisits",
+        "summary": "listVisits",
         "description": "",
-        "operationId": "listCommunityVisits.get./vendors/{vendorId}/community-visits",
+        "operationId": "listVisits.get./vendors/{vendorId}/community-visits",
         "consumes": [
           "application/json"
         ],
@@ -617,9 +617,9 @@
     },
     "/vendors/{vendorId}/community-visits/{visitId}": {
       "patch": {
-        "summary": "updateCommunityVisitCapacity",
+        "summary": "updateVisitCapacity",
         "description": "",
-        "operationId": "updateCommunityVisitCapacity.patch./vendors/{vendorId}/community-visits/{visitId}",
+        "operationId": "updateVisitCapacity.patch./vendors/{vendorId}/community-visits/{visitId}",
         "consumes": [
           "application/json"
         ],
@@ -649,9 +649,9 @@
     },
     "/vendors/{vendorId}/community-visits/{visitId}/cancel": {
       "post": {
-        "summary": "cancelCommunityVisit",
+        "summary": "cancelVisit",
         "description": "",
-        "operationId": "cancelCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/cancel",
+        "operationId": "cancelVisit.post./vendors/{vendorId}/community-visits/{visitId}/cancel",
         "consumes": [
           "application/json"
         ],
@@ -681,9 +681,9 @@
     },
     "/vendors/{vendorId}/community-visits/{visitId}/unblock": {
       "post": {
-        "summary": "unblockCommunityVisit",
+        "summary": "unblockVisit",
         "description": "",
-        "operationId": "unblockCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/unblock",
+        "operationId": "unblockVisit.post./vendors/{vendorId}/community-visits/{visitId}/unblock",
         "consumes": [
           "application/json"
         ],
@@ -713,9 +713,9 @@
     },
     "/vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate": {
       "post": {
-        "summary": "deactivateCommunityVisitSchedule",
+        "summary": "deactivateVisit",
         "description": "",
-        "operationId": "deactivateCommunityVisitSchedule.post./vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate",
+        "operationId": "deactivateVisit.post./vendors/{vendorId}/community-visit-schedules/{scheduleId}/deactivate",
         "consumes": [
           "application/json"
         ],
@@ -777,9 +777,9 @@
     },
     "/vendors/{vendorId}/community-visits/{visitId}/reservations": {
       "post": {
-        "summary": "reserveCommunityVisit",
+        "summary": "reserveVisit",
         "description": "",
-        "operationId": "reserveCommunityVisit.post./vendors/{vendorId}/community-visits/{visitId}/reservations",
+        "operationId": "reserveVisit.post./vendors/{vendorId}/community-visits/{visitId}/reservations",
         "consumes": [
           "application/json"
         ],
@@ -809,9 +809,9 @@
     },
     "/vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}": {
       "delete": {
-        "summary": "releaseCommunityVisit",
+        "summary": "releaseVisit",
         "description": "",
-        "operationId": "releaseCommunityVisit.delete./vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}",
+        "operationId": "releaseVisit.delete./vendors/{vendorId}/community-visits/{visitId}/reservations/{bookingId}",
         "consumes": [
           "application/json"
         ],

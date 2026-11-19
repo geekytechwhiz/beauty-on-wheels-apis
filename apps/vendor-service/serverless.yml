@@ -1,4 +1,4 @@
-service: vendor-service-api
+service: aps1dev-carish-vendor
 
 frameworkVersion: "3"
 
@@ -9,17 +9,17 @@ plugins:
   - serverless-offline
   - serverless-openapi-documenter
   # Keep the generated CloudFormation template below its 500-resource limit.
-  # stacks-map nests Method/Permission/GatewayResponse; strip-log-groups drops
+  # stacks-map nests GatewayResponse/Permission; strip-log-groups drops
   # per-function LogGroups that cannot be force-migrated (name collisions).
   - serverless-plugin-split-stacks
   - ./strip-log-groups.js
 provider:
   name: aws
   runtime: nodejs22.x
-  # profile: ci-user-bw
+  profile:  carish-new
   stage: ${opt:stage,'dev'}
 
-  region: ${opt:region,'us-east-1'}
+  region: ${opt:region,'ap-south-1'}
 
   versionFunctions: false
 
@@ -70,6 +70,7 @@ provider:
             - dynamodb:ConditionCheckItem
           Resource:
             - !GetAtt VendorTable.Arn
+            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user-service-dev-user
             - !Join [ "/", [ !GetAtt VendorTable.Arn, "index", "*" ] ]
         - Effect: Allow
           Action:
@@ -103,7 +104,9 @@ provider:
 custom:
   # Split generated resources by CloudFormation type. Keep this strategy stable:
   # changing it for an existing stage can require recreating that stage.
-  # stacks-map.js nests Method / GatewayResponse / Permission for NEW resources
+  # stacks-map.js nests GatewayResponse / Permission for NEW resources.
+  # Methods must remain in the parent stack: protected methods reference the
+  # parent authorizer, which itself references the nested REST API.
   # only (no force:true — force recreate fails with "already exists" on this stage).
   splitStacks:
     perFunction: false
@@ -5737,7 +5740,7 @@ functions:
                 schema:
                   type: string
 
-  listvendorcapacityproposals:
+  capacityproposals-list:
     handler: src/handlers/capacity-proposals-handler.handleListvendorcapacityproposals
     events:
       - http:
@@ -9168,7 +9171,7 @@ resources:
     VendorTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:service}-${sls:stage}-vendor
+        TableName: ${sls:stage}-vendor
 
         BillingMode: PAY_PER_REQUEST
 
@@ -9407,7 +9410,7 @@ resources:
     VendorDocumentsBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${self:service}-${sls:stage}-vendor-documents
+        BucketName: ${self:service}-vendor-documents-${sls:stage}
         BucketEncryption:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:

@@ -6,7 +6,7 @@
  *   --region us-east-1 --table vendor-service-api-dev-vendor --vendor-id <id> [--vendor-id <id>]
  *
  * Add --apply only after reviewing dry-run output. The AWS SDK is pinned to
- * ci-user-bw so this command cannot silently use a developer's default profile.
+ *  carish-new so this command cannot silently use a developer's default profile.
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
@@ -96,7 +96,7 @@ async function main() {
   if (!input.region || !input.table || input.vendorIds.length === 0) {
     throw new Error('--region, --table, and at least one --vendor-id are required');
   }
-  process.env.AWS_PROFILE = 'ci-user-bw';
+  process.env.AWS_PROFILE = ' carish-new';
   const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: input.region }));
   const results = await repairVendorDiscoveryIndexes({ ...input, document: client });
   console.log(JSON.stringify({ dryRun: !input.apply, results }));

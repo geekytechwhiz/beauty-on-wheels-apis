@@ -34,7 +34,8 @@ export interface CommunityDirectoryItem {
   countryCode?: string | null;
   /** Public label only; no association contact or intake data is replicated. */
   accessType?: string | null;
-  directoryStatus: string;
+  /** Canonical lifecycle status supplied by user-service. */
+  status: string;
   searchText: string;
 }
 
@@ -152,7 +153,7 @@ export class CommunitiesRepository extends BaseRepository {
 
   /** Canonical directory records are replicated locally as COMMUNITY#{id}/META. */
   async getDirectoryCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
-    const item = await this.get<CommunityDirectoryItem>(this.getTableName(), {
+    const item = await this.get<CommunityDirectoryItem>("user-service-dev-user", {
       PK: `COMMUNITY#${communityId}`,
       SK: 'META',
     });
@@ -161,7 +162,7 @@ export class CommunitiesRepository extends BaseRepository {
 
   async getActiveCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
     const item = await this.getDirectoryCommunity(communityId);
-    return item?.directoryStatus === 'ACTIVE' ? item : null;
+    return item?.status?.toLocaleUpperCase() === 'ACTIVE' ? item : null;
   }
 
   async listByCommunity(params: {

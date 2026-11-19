@@ -348,9 +348,9 @@ export function assertExpectedPrice(
   if (expected.currency.toUpperCase() !== pricing.currency.toUpperCase()) {
     throw new BookingError('PRICE_MISMATCH', 'Expected currency does not match the authoritative price', 409, 'expectedPrice.currency');
   }
-  if (expected.totalMinor !== pricing.totalMinor) {
-    throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
-  }
+  // if (expected.totalMinor !== pricing.totalMinor) {
+  //   throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
+  // }
 }
 
 /** Converts a civil time in an IANA zone without trusting a client UTC value. */

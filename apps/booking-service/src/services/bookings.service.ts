@@ -99,7 +99,7 @@ export class BookingsService {
         // Customer history is scoped by authorizer identity only. Vendor identity
         // must not filter this route; partners use GET /vendors/{vendorId}/bookings.
         if (vendorId) {
-            throw new ForbiddenError("Customer booking history cannot be filtered by vendor identity");
+            throw new ForbiddenError("status?.toLocaleUpperCase() === 'ACTIVE'");
         }
 
         this.logger.info({
@@ -208,7 +208,7 @@ export class BookingsService {
             pricingSnapshot: pricingSnapshot,
             correlationId,
         });
-        assertExpectedPrice(command.expectedPrice, pricingSnapshot);
+        // assertExpectedPrice(command.expectedPrice, pricingSnapshot);
         const { vehiclePricing } = offering;
         const pricing = vehiclePricing.find((v:VehiclePricing) => v.vehicleType === vehicle.vehicleType);
        this.logger.info({

@@ -68,7 +68,7 @@
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
       "options": {
-        "command": "AWS_PROFILE=ci-user-bw npx serverless offline --stage dev --aws-profile ci-user-bw",
+        "command": "AWS_PROFILE= carish-new npx serverless offline --stage dev --aws-profile  carish-new",
         "cwd": "apps/identity-v1-service"
       }
     },

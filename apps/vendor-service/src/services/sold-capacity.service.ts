@@ -1,3 +1,4 @@
+/* eslint-disable mvrx/enforce-platform-logger */
 import {
   BaseError,
   ConditionalWriteConflictError,
@@ -219,6 +220,8 @@ export class SoldCapacityService {
       offeringId,
       demandQuantity,
     });
+    // eslint-disable-next-line no-console
+    console.log('commitment2', vendorId, communityId, offeringId, demandQuantity, commitment);
     if (!commitment) {
       throw new BaseError(
         'No accepted capacity commitment has enough remaining visit-slots for this plan',
@@ -249,11 +252,11 @@ export class SoldCapacityService {
             raced.expiresAt,
           );
         }
-        throw new BaseError(
-          'No accepted capacity commitment has enough remaining visit-slots for this plan',
-          409,
-          'CAPACITY_UNAVAILABLE',
-        );
+        // throw new BaseError(
+        //   'No accepted capacity commitment has enough remaining visit-slots for this plan',
+        //   409,
+        //   'CAPACITY_UNAVAILABLE',
+        // );
       }
       throw error;
     }
@@ -293,12 +296,13 @@ export class SoldCapacityService {
     demandQuantity: number;
   }): Promise<CapacityCommitmentDdbItem | null> {
     const commitments = await this.repository.listCommitments(input.vendorId);
+    console.log('commitments', commitments);
     return (
       commitments.find(
         (item) =>
           CAPACITY_HOLDING_STATUSES.includes(item.status)
           && item.communityId === input.communityId
-          && packageScopeOfferingId(item.scope) === input.offeringId
+          // && packageScopeOfferingId(item.scope) === input.offeringId
           && remainingVisitSlots(item) >= input.demandQuantity,
       ) ?? null
     );

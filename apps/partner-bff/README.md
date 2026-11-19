@@ -35,7 +35,9 @@ The two `partnerManagerRead` handlers have no API Gateway event. They accept onl
 
 ## Domain read adapters
 
-`booking-service` adds a bounded `partnerManagerRead` Lambda handler for `overview`, `work`, and `planning`. It uses existing date-keyed package-visit repositories, validates filters and opaque cursors, caps an aggregate at 1,500 visits, and returns only the requested page for work/planning. `vendor-service` adds a corresponding handler for crew display data, accepted commitments, and community directory labels.
+`booking-service` adds a bounded `partnerManagerRead` Lambda handler for `overview`, `work`, and `planning`. It uses existing date-keyed package-visit repositories, validates filters and opaque cursors, caps an aggregate at 1,500 visits, and returns only the requested page for work/planning. Planning also carries a whole-scope assigned-workload aggregate in Vendor's 30-minute capacity unit, so capacity never depends on the selected tab or page. `vendor-service` adds a corresponding handler for crew display data, accepted commitments, and community directory labels.
+
+Planning returns `data.capacity.configuredCapacity` from Vendor's currently eligible crews and `effectiveOperationalCapacity` after subtracting Booking's whole-scope assigned workload. Both values include their capacity unit and stay explicitly unavailable if either authoritative input is missing. `acceptedCommitmentCapacity` remains independent: it is `null` when the optional commitment read is unavailable rather than being invented as zero.
 
 The explicit `blocksVisit` issue flag is authoritative for the read model and completion guard. An unresolved issue without that flag is not reported as blocking. New blocking issues persist `blockingStartedAt` at the server-side creation instant; manager-home returns that value in `nextAction.blockingStart.at`. Historical rows without the field remain explicitly unavailable rather than treating `issue.createdAt` as a blocker timestamp. For a blocking issue scoped to a community rather than a visit, `affectedVisitCount` is that community's not-started and in-progress visits today.
 

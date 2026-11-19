@@ -120,7 +120,7 @@ export class CommunityPostalPlaceLookup implements PostalPlaceLookup {
         limit: 100,
         lastEvaluatedKey,
       });
-      items.push(...page.items.filter((item) => item.directoryStatus === 'ACTIVE'));
+      items.push(...page.items.filter((item) => item.status === 'ACTIVE'));
       lastEvaluatedKey = page.lastEvaluatedKey;
     } while (lastEvaluatedKey);
     return items;

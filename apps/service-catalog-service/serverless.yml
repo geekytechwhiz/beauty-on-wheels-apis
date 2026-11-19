@@ -1,4 +1,4 @@
-service: service-catalog-service
+service: aps1dev-catalog-service
 
 frameworkVersion: "3"
 
@@ -13,8 +13,8 @@ provider:
   runtime: nodejs22.x
 
   stage: ${opt:stage,'dev'}
-  profile: ci-user-bw
-  region: ${opt:region,'us-east-1'}
+  profile:  carish-new
+  region: ${opt:region,'ap-south-1'}
 
   versionFunctions: false
 
@@ -23,7 +23,7 @@ provider:
 
     SERVICE_NAME: service-catalog-service
     LOG_LEVEL: INFO
-    DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-service-catalog
+    DYNAMODB_TABLE_NAME:  service-catalog-${self:provider.stage}
     # IAM invoke of the vendor pricing-configuration function. Catalog does not call the owner HTTP API.
     VENDOR_PRICING_CONFIGURATION_FUNCTION: vendor-service-api-${self:provider.stage}-getPricingConfiguration
     VENDOR_DISCOVERY_FACTS_FUNCTION: vendor-service-api-${self:provider.stage}-getDiscoveryFacts
@@ -3305,7 +3305,7 @@ resources:
     ServiceCatalogTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:service}-${self:provider.stage}-service-catalog
+        TableName: service-catalog-${self:provider.stage}
 
         BillingMode: PAY_PER_REQUEST
 

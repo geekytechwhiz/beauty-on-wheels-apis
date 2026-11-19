@@ -1,4 +1,4 @@
-service: vehicle-service
+service: aps1dev-vehicle-service
 
 frameworkVersion: "3"
 
@@ -12,11 +12,11 @@ plugins:
 provider:
   name: aws
   runtime: nodejs22.x
-  profile: ci-user-bw
+  profile:  carish-new
   stage: ${opt:stage,'dev'}
 
 
-  region: ${opt:region,'us-east-1'}
+  region: ${opt:region,'ap-south-1'}
 
   versionFunctions: false
 

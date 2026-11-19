@@ -17,6 +17,11 @@ import { runPreflight } from './preflight';
 import { fingerprintDestination, sanitizeForLog } from './sanitize';
 import { destinationKindOf, meetsDestinationVerificationPolicy } from './verification-policy';
 import {
+  ensureApplicationUserLinked,
+  loadIdentityIdForUser,
+  verifyApplicationUserLinked,
+} from './application-user-link';
+import {
   assertReadyForAdminCommit,
   commitFirstAdminMapping,
   countAdminRoleMappings,
@@ -73,6 +78,18 @@ export async function runFirstAdminBootstrap(
     fetchImpl: deps.fetchImpl,
     region: deps.region,
   });
+
+  if (deps.args.repairApplicationLink) {
+    return repairApplicationUserLink({
+      deps,
+      mode,
+      destinationKind,
+      preflightAccountId: preflight.accountId,
+      preflightRegion: preflight.region,
+      now,
+      log,
+    });
+  }
 
   let journal: BootstrapJournal | undefined;
   try {
@@ -264,6 +281,25 @@ export async function runFirstAdminBootstrap(
         deps.args.otp = undefined;
       }
 
+      // OTP verify is the path that creates Cognito + Identity. Fail closed if
+      // Cognito is probeable and the destination still has no principal.
+      if (deps.cognito?.probeExists) {
+        const cognitoAfterVerify = await deps.cognito.probeExists(
+          deps.args.destination,
+        );
+        if (cognitoAfterVerify === false) {
+          throw new BootstrapError(
+            'OTP verify succeeded but Cognito user was not found for destination',
+            'COGNITO_USER_MISSING_AFTER_OTP',
+            {
+              recoverable: true,
+              recoveryHint:
+                'Inspect Cognito user pool and Identity /otp/verify logs. Resume after Cognito create succeeds; do not invent a Cognito user from the CLI.',
+            },
+          );
+        }
+      }
+
       journal = await persist(
         deps,
         advanceJournal(journal, SAGA_STATE.OTP_VERIFIED, {}, now()),
@@ -451,6 +487,35 @@ export async function runFirstAdminBootstrap(
       advanceJournal(journal, SAGA_STATE.VERIFIED, {}, now()),
       mode,
     );
+
+    if (!journal.applicationUserLinked) {
+      const linkResult = await linkApplicationUserForBootstrap({
+        deps,
+        userId,
+        user,
+        nowIso: now(),
+        log,
+      });
+      journal = await persist(
+        deps,
+        advanceJournal(
+          journal,
+          SAGA_STATE.VERIFIED,
+          { applicationUserLinked: true },
+          now(),
+        ),
+        mode,
+      );
+      log({
+        event: 'application_user_linked',
+        runId: journal.runId,
+        userId,
+        ...linkResult,
+      });
+    }
+
+    await verifyApplicationUserLinked(deps.db, deps.args.table, userId);
+
     journal = await persist(
       deps,
       advanceJournal(journal, SAGA_STATE.COMPLETED, {}, now()),
@@ -465,7 +530,7 @@ export async function runFirstAdminBootstrap(
       state: SAGA_STATE.COMPLETED,
       userId,
       message:
-        'First admin mapping created and verified. The user must sign in again so Cognito pre-token generation issues a fresh access token with ADMIN.',
+        'First admin mapping created, application user LINKED, and verified. The user must sign in again so Cognito pre-token generation issues a fresh access token with ADMIN.',
     };
   } catch (error) {
     const message =
@@ -553,4 +618,130 @@ async function persist(
   }
   await putJournal(deps.db, deps.args.table, journal);
   return journal;
+}
+
+async function linkApplicationUserForBootstrap(input: {
+  deps: BootstrapDeps;
+  userId: string;
+  user: Record<string, unknown> | null;
+  nowIso: string;
+  log: (payload: Record<string, unknown>) => void;
+}) {
+  const identityId =
+    (typeof input.user?.identityId === 'string' &&
+      input.user.identityId.trim()) ||
+    (await loadIdentityIdForUser(
+      input.deps.db,
+      input.deps.args.table,
+      input.userId,
+    ));
+  if (!identityId) {
+    throw new BootstrapError(
+      'META.identityId is missing; cannot link application user',
+      'IDENTITY_ID_MISSING',
+      {
+        recoverable: true,
+        recoveryHint:
+          'OTP verify should write Cognito sub onto META. Inspect USER#/META then re-run --repair-application-link.',
+      },
+    );
+  }
+
+  const phone =
+    typeof input.user?.phoneNumber === 'string'
+      ? input.user.phoneNumber
+      : undefined;
+  const email =
+    typeof input.user?.email === 'string' ? input.user.email : undefined;
+
+  return ensureApplicationUserLinked(input.deps.db, {
+    identityTable: input.deps.args.table,
+    userId: input.userId,
+    identityId,
+    now: input.nowIso,
+    phone,
+    email,
+    userTable: input.deps.args.userTable,
+  });
+}
+
+/**
+ * Repair an existing first-admin whose ROLE#ADMIN exists but PROFILE is still
+ * PENDING (authorizer Deny on packages/communities/etc.).
+ */
+async function repairApplicationUserLink(input: {
+  deps: BootstrapDeps;
+  mode: 'dry-run' | 'apply';
+  destinationKind: ReturnType<typeof destinationKindOf>;
+  preflightAccountId: string;
+  preflightRegion: string;
+  now: () => string;
+  log: (payload: Record<string, unknown>) => void;
+}): Promise<BootstrapResult> {
+  const { deps, mode, destinationKind, now, log } = input;
+  const userId = await findUserIdByDestination(
+    deps.db,
+    deps.args.table,
+    deps.args.destination,
+    destinationKind,
+  );
+  if (!userId) {
+    throw new BootstrapError(
+      'Identity userId was not found for destination',
+      'IDENTITY_NOT_FOUND',
+    );
+  }
+
+  const roles = await listUserRoleIds(deps.db, deps.args.table, userId);
+  if (!roles.includes('ADMIN')) {
+    throw new BootstrapError(
+      'Target is not an ADMIN; run the full first-admin bootstrap instead of --repair-application-link',
+      'TARGET_NOT_ADMIN',
+    );
+  }
+
+  const user = await loadUserMeta(deps.db, deps.args.table, userId);
+  log({
+    event: 'repair_application_link_plan',
+    mode,
+    userId,
+    accountId: input.preflightAccountId,
+    region: input.preflightRegion,
+    userTable: deps.args.userTable ?? null,
+  });
+
+  if (mode !== 'apply') {
+    return {
+      mode,
+      runId: 'repair-application-link',
+      state: SAGA_STATE.VALIDATED,
+      userId,
+      message:
+        'Dry run only. Re-run with --repair-application-link --apply --confirm "BOOTSTRAP FIRST ADMIN".',
+    };
+  }
+
+  const linkResult = await linkApplicationUserForBootstrap({
+    deps,
+    userId,
+    user,
+    nowIso: now(),
+    log,
+  });
+  await verifyApplicationUserLinked(deps.db, deps.args.table, userId);
+  log({
+    event: 'application_user_linked',
+    userId,
+    repair: true,
+    ...linkResult,
+  });
+
+  return {
+    mode,
+    runId: 'repair-application-link',
+    state: SAGA_STATE.COMPLETED,
+    userId,
+    message:
+      'Application user LINKED for existing ADMIN. Sign in again with a fresh access token, then retry packages/communities.',
+  };
 }

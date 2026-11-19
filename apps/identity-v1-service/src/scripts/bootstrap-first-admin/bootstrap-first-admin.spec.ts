@@ -5,6 +5,7 @@ import {
   QueryCommand,
   ScanCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 
 import {
@@ -16,6 +17,7 @@ import {
   BootstrapError,
   compensateBootstrapRun,
   createInitialJournal,
+  ensureApplicationUserLinked,
   meetsDestinationVerificationPolicy,
   parseBootstrapArgs,
   runFirstAdminBootstrap,
@@ -28,8 +30,19 @@ import type { BootstrapCliArgs, BootstrapJournal } from './types';
 
 type Item = Record<string, unknown>;
 
-function itemKey(item: { PK?: unknown; SK?: unknown }): string {
-  return `${String(item.PK)}|${String(item.SK)}`;
+const DEFAULT_TABLE = 'identity-table-dev';
+const USER_TABLE = 'user-table-dev';
+
+function itemKey(
+  item: { PK?: unknown; SK?: unknown },
+  tableName: string = DEFAULT_TABLE,
+): string {
+  return `${tableName}|${String(item.PK)}|${String(item.SK)}`;
+}
+
+/** Identity-table store key helper for assertions and seeds. */
+function tkey(pk: string, sk: string, tableName: string = DEFAULT_TABLE): string {
+  return itemKey({ PK: pk, SK: sk }, tableName);
 }
 
 function createMemoryDb(seed: Item[] = []) {
@@ -41,12 +54,14 @@ function createMemoryDb(seed: Item[] = []) {
   const db = {
     send: jest.fn(async (command: unknown) => {
       if (command instanceof GetCommand) {
-        const key = itemKey(command.input.Key as Item);
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
+        const key = itemKey(command.input.Key as Item, table);
         return { Item: store.get(key) };
       }
       if (command instanceof PutCommand) {
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
         const item = command.input.Item as Item;
-        const key = itemKey(item);
+        const key = itemKey(item, table);
         const condition = command.input.ConditionExpression ?? '';
         if (
           condition.includes('attribute_not_exists(PK)') &&
@@ -118,7 +133,8 @@ function createMemoryDb(seed: Item[] = []) {
         return {};
       }
       if (command instanceof DeleteCommand) {
-        const key = itemKey(command.input.Key as Item);
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
+        const key = itemKey(command.input.Key as Item, table);
         const condition = command.input.ConditionExpression ?? '';
         if (condition.includes('runId = :runId')) {
           const existing = store.get(key);
@@ -135,25 +151,33 @@ function createMemoryDb(seed: Item[] = []) {
         return {};
       }
       if (command instanceof QueryCommand) {
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
         const pk = (
           command.input.ExpressionAttributeValues as Record<string, unknown>
         )?.[':pk'];
         const prefix = (
           command.input.ExpressionAttributeValues as Record<string, unknown>
         )?.[':prefix'];
-        const items = [...store.values()].filter(
-          (item) =>
-            item.PK === pk &&
-            typeof item.SK === 'string' &&
-            typeof prefix === 'string' &&
-            item.SK.startsWith(prefix),
-        );
+        const items = [...store.entries()]
+          .filter(([key]) => key.startsWith(`${table}|`))
+          .map(([, item]) => item)
+          .filter(
+            (item) =>
+              item.PK === pk &&
+              typeof item.SK === 'string' &&
+              typeof prefix === 'string' &&
+              item.SK.startsWith(prefix),
+          );
         return { Items: items };
       }
       if (command instanceof ScanCommand) {
-        const items = [...store.values()].filter(
-          (item) => item.entityType === 'UserRole' && item.roleId === 'ADMIN',
-        );
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
+        const items = [...store.entries()]
+          .filter(([key]) => key.startsWith(`${table}|`))
+          .map(([, item]) => item)
+          .filter(
+            (item) => item.entityType === 'UserRole' && item.roleId === 'ADMIN',
+          );
         return { Count: items.length, Items: items };
       }
       if (command instanceof TransactWriteCommand) {
@@ -161,7 +185,8 @@ function createMemoryDb(seed: Item[] = []) {
         for (const entry of items) {
           const put = entry.Put;
           if (!put?.Item) continue;
-          const key = itemKey(put.Item as Item);
+          const table = String(put.TableName ?? DEFAULT_TABLE);
+          const key = itemKey(put.Item as Item, table);
           if (
             put.ConditionExpression?.includes('attribute_not_exists(PK)') &&
             store.has(key)
@@ -173,11 +198,45 @@ function createMemoryDb(seed: Item[] = []) {
         }
         for (const entry of items) {
           if (entry.Put?.Item) {
-            store.set(itemKey(entry.Put.Item as Item), {
+            const table = String(entry.Put.TableName ?? DEFAULT_TABLE);
+            store.set(itemKey(entry.Put.Item as Item, table), {
               ...(entry.Put.Item as Item),
             });
           }
         }
+        return {};
+      }
+      if (command instanceof UpdateCommand) {
+        const table = String(command.input.TableName ?? DEFAULT_TABLE);
+        const key = itemKey(command.input.Key as Item, table);
+        const existing = store.get(key);
+        if (!existing) {
+          const err = new Error('ConditionalCheckFailed');
+          err.name = 'ConditionalCheckFailedException';
+          throw err;
+        }
+        const values =
+          (command.input.ExpressionAttributeValues as Record<string, unknown>) ??
+          {};
+        const provisioning = existing.userProvisioning as
+          | { status?: string; userId?: string }
+          | undefined;
+        const status = provisioning?.status;
+        const allowed =
+          !status ||
+          status === values[':pending'] ||
+          (status === values[':linked'] &&
+            provisioning?.userId === values[':userId']);
+        if (!allowed) {
+          const err = new Error('ConditionalCheckFailed');
+          err.name = 'ConditionalCheckFailedException';
+          throw err;
+        }
+        store.set(key, {
+          ...existing,
+          userProvisioning: values[':provisioning'],
+          updatedAt: values[':updatedAt'],
+        });
         return {};
       }
       throw new Error(`Unhandled command ${command?.constructor?.name}`);
@@ -201,26 +260,39 @@ function baseArgs(overrides: Partial<BootstrapCliArgs> = {}): BootstrapCliArgs {
     apply: false,
     confirmProduction: false,
     allowUnverified: false,
+    repairApplicationLink: false,
     ...overrides,
   };
 }
 
 function seedHappyPath(store: Map<string, Item>, userId = 'u-1') {
-  store.set(`USER#${userId}|META`, {
+  store.set(tkey(`USER#${userId}`, 'META'), {
     PK: `USER#${userId}`,
     SK: 'META',
     userId,
+    identityId: `cognito-sub-${userId}`,
     status: 'ACTIVE',
     emailVerified: true,
     phoneVerified: false,
+    phoneNumber: '+15555550100',
     roleId: 'user',
   });
-  store.set(`EMAIL#admin@example.com|LOOKUP`, {
+  store.set(tkey(`USER#${userId}`, 'PROFILE'), {
+    PK: `USER#${userId}`,
+    SK: 'PROFILE',
+    userId,
+    entityType: 'Profile',
+    userProvisioning: {
+      status: 'PENDING',
+      requestedAt: '2020-01-01T00:00:00.000Z',
+    },
+  });
+  store.set(tkey('EMAIL#admin@example.com', 'LOOKUP'), {
     PK: 'EMAIL#admin@example.com',
     SK: 'LOOKUP',
     userId,
   });
-  store.set('ROLE#ADMIN|METADATA', {
+  store.set(tkey('ROLE#ADMIN', 'METADATA'), {
     PK: 'ROLE#ADMIN',
     SK: 'METADATA',
     roleId: 'ADMIN',
@@ -495,6 +567,27 @@ describe('OTP client', () => {
       }),
     ).resolves.toEqual({ success: true, referenceId: 'ref-1' });
   });
+
+  it('unwraps Identity API envelope for send referenceId', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        statusCode: 200,
+        data: { success: true, referenceId: 'ref-envelope' },
+        error: null,
+      }),
+    });
+    await expect(
+      sendOtpChallenge({
+        apiBaseUrl: 'https://example.com',
+        destination: 'a@b.com',
+        userType: 'CUSTOMER',
+        fetchImpl: fetchImpl as never,
+      }),
+    ).resolves.toEqual({ success: true, referenceId: 'ref-envelope' });
+  });
 });
 
 describe('runFirstAdminBootstrap saga', () => {
@@ -566,13 +659,13 @@ describe('runFirstAdminBootstrap saga', () => {
 
     expect(result.mode).toBe('dry-run');
     expect(result.userId).toBe('u-1');
-    expect(store.has('USER#u-1|ROLE#ADMIN')).toBe(false);
+    expect(store.has(tkey('USER#u-1', 'ROLE#ADMIN'))).toBe(false);
     expect(store.has(itemKey(BOOTSTRAP_KEYS.marker))).toBe(false);
     expect(JSON.stringify(logs)).not.toContain('must-be-discarded');
     expect(JSON.stringify(logs)).not.toContain('999999');
   });
 
-  it('successful apply writes ADMIN mapping, marker, and audit atomically', async () => {
+  it('successful apply writes ADMIN mapping, marker, audit, and LINKED application user', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
 
@@ -581,6 +674,7 @@ describe('runFirstAdminBootstrap saga', () => {
         apply: true,
         confirm: BOOTSTRAP_CONFIRM_PHRASE,
         otp: '999999',
+        userTable: USER_TABLE,
       }),
       region: 'us-east-1',
       sts: sts as never,
@@ -593,7 +687,7 @@ describe('runFirstAdminBootstrap saga', () => {
     });
 
     expect(result.state).toBe(SAGA_STATE.COMPLETED);
-    expect(store.get('USER#u-1|ROLE#ADMIN')).toMatchObject({
+    expect(store.get(tkey('USER#u-1', 'ROLE#ADMIN'))).toMatchObject({
       entityType: 'UserRole',
       roleId: 'ADMIN',
       userId: 'u-1',
@@ -604,7 +698,92 @@ describe('runFirstAdminBootstrap saga', () => {
       runId: 'run-ok',
     });
     // Legacy profile roleId must remain untouched.
-    expect(store.get('USER#u-1|META')?.roleId).toBe('user');
+    expect(store.get(tkey('USER#u-1', 'META'))?.roleId).toBe('user');
+    expect(store.get(tkey('USER#u-1', 'PROFILE'))?.userProvisioning).toMatchObject({
+      status: 'LINKED',
+      userId: 'u-1',
+    });
+    expect(
+      store.get(tkey('IDENTITY#cognito-sub-u-1', 'LOOKUP', USER_TABLE)),
+    ).toMatchObject({
+      entityType: 'IdentityUserLookup',
+      userId: 'u-1',
+    });
+    expect(
+      store.get(tkey('USER#u-1', 'PROFILE', USER_TABLE)),
+    ).toMatchObject({
+      entityType: 'CustomerProfile',
+      userId: 'u-1',
+      status: 'active',
+    });
+  });
+
+  it('repair-application-link links an existing ADMIN without rewriting ROLE#ADMIN', async () => {
+    const { db, store } = createMemoryDb();
+    seedHappyPath(store);
+    store.set(tkey('USER#u-1', 'ROLE#ADMIN'), {
+      PK: 'USER#u-1',
+      SK: 'ROLE#ADMIN',
+      entityType: 'UserRole',
+      roleId: 'ADMIN',
+      userId: 'u-1',
+    });
+    store.set(itemKey(BOOTSTRAP_KEYS.marker), {
+      ...BOOTSTRAP_KEYS.marker,
+      entityType: 'AdminBootstrap',
+      targetUserId: 'u-1',
+    });
+
+    const result = await runFirstAdminBootstrap({
+      args: baseArgs({
+        apply: true,
+        confirm: BOOTSTRAP_CONFIRM_PHRASE,
+        repairApplicationLink: true,
+        userTable: USER_TABLE,
+      }),
+      region: 'us-east-1',
+      sts: sts as never,
+      dynamo: dynamo as never,
+      db,
+      fetchImpl: fetchMock() as never,
+      promptOtp: async () => {
+        throw new Error('OTP must not run during repair');
+      },
+      log: () => undefined,
+    });
+
+    expect(result.state).toBe(SAGA_STATE.COMPLETED);
+    expect(store.get(tkey('USER#u-1', 'PROFILE'))?.userProvisioning).toMatchObject({
+      status: 'LINKED',
+      userId: 'u-1',
+    });
+    expect(
+      store.get(tkey('IDENTITY#cognito-sub-u-1', 'LOOKUP', USER_TABLE))?.userId,
+    ).toBe('u-1');
+  });
+
+  it('ensureApplicationUserLinked is idempotent when already LINKED', async () => {
+    const { db, store } = createMemoryDb();
+    seedHappyPath(store);
+    store.set(tkey('USER#u-1', 'PROFILE'), {
+      PK: 'USER#u-1',
+      SK: 'PROFILE',
+      userProvisioning: {
+        status: 'LINKED',
+        userId: 'u-1',
+        requestedAt: '2020-01-01T00:00:00.000Z',
+        linkedAt: '2020-01-01T00:00:00.000Z',
+      },
+    });
+
+    const first = await ensureApplicationUserLinked(db, {
+      identityTable: 'identity-table-dev',
+      userId: 'u-1',
+      identityId: 'cognito-sub-u-1',
+      now: '2020-01-02T00:00:00.000Z',
+    });
+    expect(first.identityLink).toBe('already-linked');
+    expect(first.userService).toBe('skipped');
   });
 
   it('fails on OTP verify without committing ADMIN', async () => {
@@ -629,7 +808,7 @@ describe('runFirstAdminBootstrap saga', () => {
       }),
     ).rejects.toMatchObject({ code: 'OTP_VERIFY_FAILED' });
 
-    expect(store.has('USER#u-1|ROLE#ADMIN')).toBe(false);
+    expect(store.has(tkey('USER#u-1', 'ROLE#ADMIN'))).toBe(false);
   });
 
   it('reuses existing identity without marking createdIdentityAccount', async () => {
@@ -668,7 +847,7 @@ describe('runFirstAdminBootstrap saga', () => {
 
   it('fails when identity META is missing after OTP', async () => {
     const { db, store } = createMemoryDb();
-    store.set('ROLE#ADMIN|METADATA', {
+    store.set(tkey('ROLE#ADMIN', 'METADATA'), {
       PK: 'ROLE#ADMIN',
       SK: 'METADATA',
       roleId: 'ADMIN',
@@ -696,8 +875,8 @@ describe('runFirstAdminBootstrap saga', () => {
   it('fails when identity is inactive', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
-    store.set('USER#u-1|META', {
-      ...store.get('USER#u-1|META'),
+    store.set(tkey('USER#u-1', 'META'), {
+      ...store.get(tkey('USER#u-1', 'META')),
       status: 'suspended',
     });
 
@@ -723,7 +902,7 @@ describe('runFirstAdminBootstrap saga', () => {
   it('fails when ADMIN role metadata is missing', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
-    store.delete('ROLE#ADMIN|METADATA');
+    store.delete(tkey('ROLE#ADMIN', 'METADATA'));
 
     await expect(
       runFirstAdminBootstrap({
@@ -747,7 +926,7 @@ describe('runFirstAdminBootstrap saga', () => {
   it('fails when an ADMIN mapping already exists', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
-    store.set('USER#other|ROLE#ADMIN', {
+    store.set(tkey('USER#other', 'ROLE#ADMIN'), {
       PK: 'USER#other',
       SK: 'ROLE#ADMIN',
       entityType: 'UserRole',
@@ -835,7 +1014,7 @@ describe('runFirstAdminBootstrap saga', () => {
       code: 'DYNAMODB_TRANSACTION_FAILED',
       recoverable: true,
     });
-    expect(store.has('USER#u-1|ROLE#ADMIN')).toBe(false);
+    expect(store.has(tkey('USER#u-1', 'ROLE#ADMIN'))).toBe(false);
   });
 
   it('fails preflight on Cognito/API unreachable base URL', async () => {
@@ -858,6 +1037,14 @@ describe('runFirstAdminBootstrap saga', () => {
   it('safe compensation does not delete reused identity', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
+    // No downstream provisioning marker — compensation may run for a reused
+    // identity that never entered PENDING/LINKED.
+    store.set(tkey('USER#u-1', 'PROFILE'), {
+      PK: 'USER#u-1',
+      SK: 'PROFILE',
+      userId: 'u-1',
+      entityType: 'Profile',
+    });
     const journal = createInitialJournal({
       runId: 'run-comp',
       stage: 'dev',
@@ -886,13 +1073,13 @@ describe('runFirstAdminBootstrap saga', () => {
       nowIso: '2020-01-01T00:00:00.000Z',
     });
     expect(result.state).toBe(SAGA_STATE.COMPENSATED);
-    expect(store.has('USER#u-1|META')).toBe(true);
+    expect(store.has(tkey('USER#u-1', 'META'))).toBe(true);
   });
 
   it('stops in recoverable state when downstream provisioning is observed', async () => {
     const { db, store } = createMemoryDb();
     seedHappyPath(store);
-    store.set('USER#u-1|PROFILE', {
+    store.set(tkey('USER#u-1', 'PROFILE'), {
       PK: 'USER#u-1',
       SK: 'PROFILE',
       userProvisioning: { status: 'PENDING' },
@@ -923,7 +1110,7 @@ describe('runFirstAdminBootstrap saga', () => {
     });
     expect(result.state).toBe(SAGA_STATE.NEEDS_MANUAL_RECOVERY);
     expect(result.recoveryHint).toMatch(/Downstream/i);
-    expect(store.has('USER#u-1|META')).toBe(true);
+    expect(store.has(tkey('USER#u-1', 'META'))).toBe(true);
   });
 
   it('resumes a validated journal and commits ADMIN', async () => {
@@ -948,7 +1135,7 @@ describe('runFirstAdminBootstrap saga', () => {
     journal.userId = 'u-1';
     journal.referenceId = 'ref-1';
     journal.ownership.identityExistedBeforeRun = true;
-    store.set(`${journal.PK}|${journal.SK}`, journal as unknown as Item);
+    store.set(itemKey(journal), journal as unknown as Item);
 
     const result = await runFirstAdminBootstrap({
       args: baseArgs({
@@ -968,7 +1155,11 @@ describe('runFirstAdminBootstrap saga', () => {
     });
 
     expect(result.state).toBe(SAGA_STATE.COMPLETED);
-    expect(store.get('USER#u-1|ROLE#ADMIN')?.roleId).toBe('ADMIN');
+    expect(store.get(tkey('USER#u-1', 'ROLE#ADMIN'))?.roleId).toBe('ADMIN');
+    expect(store.get(tkey('USER#u-1', 'PROFILE'))?.userProvisioning).toMatchObject({
+      status: 'LINKED',
+      userId: 'u-1',
+    });
   });
 });
 

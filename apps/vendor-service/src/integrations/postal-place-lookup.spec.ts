@@ -15,7 +15,7 @@ describe('CommunityPostalPlaceLookup', () => {
           localityId: 'KOCHI_MARINE_DRIVE',
           localityName: 'Marine Drive',
           postalCode: '682018',
-          directoryStatus: 'ACTIVE',
+          status: 'ACTIVE',
           searchText: 'tata tritvam marine drive',
         }],
       }),

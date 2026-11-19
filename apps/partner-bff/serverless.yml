@@ -12,7 +12,7 @@ provider:
   name: aws
   runtime: nodejs22.x
   stage: ${opt:stage,'dev'}
-  region: ${opt:region,'us-east-1'}
+  region: ${opt:region,'ap-south-1'}
   versionFunctions: false
   environment:
     SERVICE_NAME: partner-bff

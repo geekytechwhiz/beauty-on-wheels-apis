@@ -2,7 +2,16 @@ import { ValidationError } from '@api-hub/utils';
 
 import type { ManagerPlanningPage, PartnerActor, PartnerInternalClient, VendorManagerData } from '../../clients/partner-internal.client';
 import { requireManagerDate, todayInOperationsTimeZone } from '../../shared/time';
-import { commitmentQuantityForDate, crewMap, labelMap, members, visitView, type SectionAvailability } from '../manager-shared';
+import {
+  commitmentQuantityForDate,
+  configuredCrewCapacity,
+  crewMap,
+  effectiveCrewCapacity,
+  labelMap,
+  members,
+  visitView,
+  type SectionAvailability,
+} from '../manager-shared';
 
 export type PlanningTab = 'unassigned' | 'assigned' | 'availability';
 export interface ManagerPlanningQuery {
@@ -53,6 +62,13 @@ export class ManagerPlanningService {
     }
     const crews = crewMap(vendor?.crews);
     const communityLabels = labelMap(labels?.communities);
+    const configuredCapacity = configuredCrewCapacity(vendor?.crews);
+    const effectiveOperationalCapacity = effectiveCrewCapacity(
+      configuredCapacity,
+      planning.capacityWorkload?.assignedCapacityUnits,
+    );
+    const commitmentsAvailable = Boolean(vendor?.commitments)
+      && !vendor?.unavailableSections?.includes('commitments');
     const items = query.tab === 'availability'
       ? (vendor?.crews ?? []).map((crew) => ({
         crewId: crew.crewId,
@@ -64,10 +80,11 @@ export class ManagerPlanningService {
       : planning.items.map((visit) => visitView(visit, communityLabels, crews));
     const capacity = {
       acceptedCommitmentCapacity: vendor
+        && commitmentsAvailable
         ? commitmentQuantityForDate(vendor.commitments, query.date, query.communityId)
         : null,
-      configuredCapacity: { status: 'UNAVAILABLE', reason: vendor ? 'NOT_SUPPORTED' : 'DEPENDENCY_UNAVAILABLE' },
-      effectiveOperationalCapacity: { status: 'UNAVAILABLE', reason: vendor ? 'DATED_AVAILABILITY_NOT_SUPPORTED' : 'DEPENDENCY_UNAVAILABLE' },
+      configuredCapacity,
+      effectiveOperationalCapacity,
     };
     return {
       schemaVersion: '1.0',
@@ -77,8 +94,10 @@ export class ManagerPlanningService {
       freshness: { booking: planning.sourceAsOf, ...(vendor?.sourceAsOf ? { vendor: vendor.sourceAsOf } : {}) },
       sections: {
         planning: { available: true, sourceAsOf: planning.sourceAsOf },
-        crews: vendor ? { available: true, sourceAsOf: vendor.sourceAsOf } : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
-        capacity: vendor ? { available: true, sourceAsOf: vendor.sourceAsOf } : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
+        crews: vendor?.crews ? { available: true, sourceAsOf: vendor.sourceAsOf } : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
+        capacity: configuredCapacity.status === 'AVAILABLE' && effectiveOperationalCapacity.status === 'AVAILABLE'
+          ? { available: true, sourceAsOf: planning.sourceAsOf }
+          : { available: false, reason: configuredCapacity.status === 'UNAVAILABLE' ? 'DEPENDENCY_UNAVAILABLE' : 'NOT_SUPPORTED' },
         communityLabels: labels || communityIds.length === 0
           ? { available: true, ...(labels?.sourceAsOf ? { sourceAsOf: labels.sourceAsOf } : {}) }
           : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },

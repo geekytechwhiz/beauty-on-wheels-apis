@@ -53,27 +53,50 @@ export type ValidateAccessTokenOptions = {
  * claim is accepted so tokens issued before that claim still validate. `scope`
  * is not interpreted as an application role.
  */
+function unauthorizedToken(
+  reason: string,
+  metadata: Record<string, unknown> = {},
+): never {
+  throw new UnauthorizedError('Invalid token', undefined, {
+    metadata: { reason, ...metadata },
+  });
+}
+
 export async function validateAccessToken(
   token: string,
   options: ValidateAccessTokenOptions = {},
 ): Promise<VerifiedPayload> {
   const trimmed = token.trim();
   if (!trimmed || trimmed.split('.').length !== 3) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('malformed_jwt');
   }
 
   const config = options.config ?? getCognitoConfig();
   const decoded = jwt.decode(trimmed, { complete: true });
   if (!decoded || typeof decoded === 'string' || !decoded.header?.kid) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('malformed_jwt');
   }
+
+  const unverified =
+    decoded.payload && typeof decoded.payload === 'object'
+      ? (decoded.payload as jwt.JwtPayload)
+      : undefined;
+  const peekTokenUse = asString(unverified?.token_use);
+  const peekClientId =
+    asString(unverified?.client_id) ?? asString(unverified?.aud);
+  const peekIssuer = asString(unverified?.iss);
 
   const cache = options.jwksCache ?? getJwksCache(config.jwksUri);
   let pem: string;
   try {
     pem = await cache.getPem(decoded.header.kid);
   } catch {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('jwks_key_missing', {
+      tokenUse: peekTokenUse,
+      clientId: peekClientId,
+      issuer: peekIssuer,
+      kid: decoded.header.kid,
+    });
   }
 
   let payload: jwt.JwtPayload;
@@ -84,26 +107,43 @@ export async function validateAccessToken(
       clockTolerance: 5,
     }) as jwt.JwtPayload;
   } catch {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('signature_or_expiry', {
+      tokenUse: peekTokenUse,
+      clientId: peekClientId,
+      issuer: peekIssuer,
+    });
   }
 
   const issuer = asString(payload.iss);
   if (!issuer || !issuerMatchesPool(issuer, config)) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('issuer_mismatch', {
+      tokenUse: asString(payload.token_use),
+      clientId: asString(payload.client_id) ?? asString(payload.aud),
+      issuer,
+      expectedIssuer: config.issuer,
+    });
   }
 
   if (!audienceMatches(payload, config.appClientId)) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('client_mismatch', {
+      tokenUse: asString(payload.token_use),
+      clientId: asString(payload.client_id) ?? asString(payload.aud),
+      expectedClientId: config.appClientId,
+    });
   }
 
   const sub = asString(payload.sub);
   if (!sub) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('missing_sub', {
+      tokenUse: asString(payload.token_use),
+    });
   }
 
   const parsedRoles = parseAccessTokenRolesClaim(payload.roles);
   if (!parsedRoles.ok) {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('invalid_roles_claim', {
+      tokenUse: asString(payload.token_use),
+    });
   }
   if (parsedRoles.roles) {
     payload.roles = parsedRoles.roles;
@@ -112,10 +152,14 @@ export async function validateAccessToken(
   const tokenUse = asString(payload.token_use);
   if (options.expectedTokenUse) {
     if (tokenUse !== options.expectedTokenUse) {
-      throw new UnauthorizedError('Invalid token');
+      unauthorizedToken('token_use_mismatch', {
+        tokenUse,
+        expectedTokenUse: options.expectedTokenUse,
+        clientId: asString(payload.client_id) ?? asString(payload.aud),
+      });
     }
   } else if (tokenUse && tokenUse !== 'access' && tokenUse !== 'id') {
-    throw new UnauthorizedError('Invalid token');
+    unauthorizedToken('token_use_unsupported', { tokenUse });
   }
 
   return payload as VerifiedPayload;

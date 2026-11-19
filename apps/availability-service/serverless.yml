@@ -1,4 +1,4 @@
-service: availability-service
+service: aps1dev-availability-api
 
 frameworkVersion: "3"
 
@@ -11,14 +11,14 @@ plugins:
 
 provider:
   name: aws
-  profile: ci-user-bw
+  profile:  carish-new
   runtime: nodejs22.x
   stage: ${opt:stage,'dev'}
-  region: ${opt:region,'us-east-1'}
+  region: ${opt:region,'ap-south-1'}
   versionFunctions: false
   environment:
     CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
-    SERVICE_NAME: availability-service
+    SERVICE_NAME: aps1dev-availability-api
     LOG_LEVEL: INFO
     DYNAMODB_TABLE_NAME: availability-table-${self:provider.stage}
     SLOT_HOLD_TTL_SECONDS: "600"
@@ -1042,7 +1042,7 @@ functions:
                 responseModels:
                   application/json: ErrorResponse
 
-  listCommunityVisitSchedules:
+  listVisitSchedules:
     handler: src/handlers/community-visits.handleListCommunityVisitSchedules
     events:
       - http:
@@ -1051,7 +1051,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  publishCommunityVisitSchedule:
+  publishVisit:
     handler: src/handlers/community-visits.handlePublishCommunityVisitSchedule
     events:
       - http:
@@ -1060,7 +1060,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  listCommunityVisits:
+  listVisits:
     handler: src/handlers/community-visits.handleListCommunityVisits
     events:
       - http:
@@ -1069,7 +1069,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  updateCommunityVisitCapacity:
+  updateVisitCapacity:
     handler: src/handlers/community-visits.handleUpdateCommunityVisitCapacity
     events:
       - http:
@@ -1078,7 +1078,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  cancelCommunityVisit:
+  cancelVisit:
     handler: src/handlers/community-visits.handleCancelCommunityVisit
     events:
       - http:
@@ -1087,7 +1087,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  unblockCommunityVisit:
+  unblockVisit:
     handler: src/handlers/community-visits.handleUnblockCommunityVisit
     events:
       - http:
@@ -1096,7 +1096,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  deactivateCommunityVisitSchedule:
+  deactivateVisit:
     handler: src/handlers/community-visits.handleDeactivateCommunityVisitSchedule
     events:
       - http:
@@ -1114,7 +1114,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  reserveCommunityVisit:
+  reserveVisit:
     handler: src/handlers/community-visits.handleReserveCommunityVisit
     events:
       - http:
@@ -1123,7 +1123,7 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
 
-  releaseCommunityVisit:
+  releaseVisit:
     handler: src/handlers/community-visits.handleReleaseCommunityVisit
     events:
       - http:
@@ -1202,6 +1202,8 @@ resources:
 
     AvailabilityTable:
       Type: AWS::DynamoDB::Table
+      # Delete with the stack so a redeploy after `sls remove` does not hit
+      # AWS::EarlyValidation::ResourceExistenceCheck on the fixed TableName.
       DeletionPolicy: Retain
       UpdateReplacePolicy: Retain
       Properties:

@@ -39,7 +39,9 @@ Vendor onboarding status (`PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `PE
 
 Tokens that omit `roles` still validate. Authorization uses `roles` when the claim is present and does not treat a missing claim as `CUSTOMER` or `VENDOR`.
 
-Deploy attaches `preTokenGeneration` to `COGNITO_USER_POOL_ID` with `LambdaVersion: V2_0`. `V1_0` customizes the ID token only and will not add `roles`.
+Deploy creates the Identity Service Cognito user pool and its application client, then attaches `preTokenGeneration` with `LambdaVersion: V2_0`. The pool and client IDs are injected into the existing authentication handlers, so registration, login, refresh, OTP, and session flows continue to use the same Cognito provider implementation. `V1_0` customizes the ID token only and will not add `roles`.
+
+The user pool has `Retain` policies and deletion protection enabled. For an already deployed, manually created pool, import that pool into this stack before this change is deployed, or migrate users deliberately; CloudFormation cannot automatically adopt an existing Cognito user pool merely by matching its name.
 
 ### Backfill existing users
 

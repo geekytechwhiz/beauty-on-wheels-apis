@@ -225,7 +225,7 @@ describe('VendorsService', () => {
       cityId: 'KOCHI',
       cityName: 'Kochi',
       localityName: 'Palarivattom',
-      directoryStatus: 'ACTIVE',
+      status: 'ACTIVE',
       searchText: 'test',
     });
     const onboardingService = new VendorsService(

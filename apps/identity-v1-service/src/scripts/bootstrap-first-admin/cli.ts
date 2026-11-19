@@ -20,6 +20,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { STSClient } from '@aws-sdk/client-sts';
 
 import { parseBootstrapArgs } from './args';
+import { createBootstrapCognito } from './cognito';
 import { promptHiddenOtp } from './prompt';
 import { runFirstAdminBootstrap } from './saga';
 import { sanitizeForLog } from './sanitize';
@@ -46,6 +47,14 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   });
   const sts = new STSClient({ region });
 
+  const cognitoUserPoolId =
+    args.cognitoUserPoolId ||
+    process.env.COGNITO_USER_POOL_ID?.trim() ||
+    undefined;
+  const cognito = cognitoUserPoolId
+    ? createBootstrapCognito({ region, userPoolId: cognitoUserPoolId })
+    : undefined;
+
   const result = await runFirstAdminBootstrap({
     args,
     region,
@@ -54,6 +63,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     db,
     fetchImpl: fetch,
     promptOtp: promptHiddenOtp,
+    cognito,
   });
 
   // eslint-disable-next-line no-console

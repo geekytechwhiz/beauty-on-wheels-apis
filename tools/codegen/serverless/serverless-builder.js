@@ -41,7 +41,7 @@ class ServerlessBuilder {
 
       stage: "${opt:stage,'dev'}",
 
-      region: "${opt:region,'us-east-1'}",
+      region: "${opt:region,'ap-south-1'}",
 
       timeout: 30,
 

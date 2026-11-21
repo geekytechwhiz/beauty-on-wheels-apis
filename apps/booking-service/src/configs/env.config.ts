@@ -34,6 +34,11 @@ export const env = {
    * Forced off for prod/production stages regardless of this flag.
    */
   PAYMENT_SANDBOX_ENABLED: process.env.PAYMENT_SANDBOX_ENABLED || 'true',
+  /**
+   * Local/test escape hatch for exercising the online choice before a payment
+   * provider is available. It is deliberately forbidden in production.
+   */
+  ALLOW_UNPAID_ONLINE_BOOKING: process.env.ALLOW_UNPAID_ONLINE_BOOKING || 'false',
   /** SANDBOX | RAZORPAY. RAZORPAY requires key/secret; falls back to SANDBOX when unset. */
   PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER || 'SANDBOX',
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || '',
@@ -48,3 +53,30 @@ export const env = {
   AWS_REGION: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1',
   STAGE: process.env.STAGE || process.env.AWS_STAGE || '',
 };
+
+export function isProductionStage(stage = env.STAGE): boolean {
+  return ['prod', 'production'].includes(stage.trim().toLowerCase());
+}
+
+export function isUnpaidOnlineBookingEnabled(): boolean {
+  const enabled = (process.env.ALLOW_UNPAID_ONLINE_BOOKING
+    ?? env.ALLOW_UNPAID_ONLINE_BOOKING
+    ?? 'false').trim().toLowerCase() === 'true';
+  const stage = process.env.STAGE ?? process.env.AWS_STAGE ?? env.STAGE;
+  return enabled && !isProductionStage(stage);
+}
+
+/** Fails Lambda initialization rather than permitting a production bypass. */
+export function validatePaymentConfiguration(input = {
+  stage: env.STAGE,
+  allowUnpaidOnlineBooking: env.ALLOW_UNPAID_ONLINE_BOOKING,
+}): void {
+  if (
+    isProductionStage(input.stage)
+    && input.allowUnpaidOnlineBooking.trim().toLowerCase() === 'true'
+  ) {
+    throw new Error('ALLOW_UNPAID_ONLINE_BOOKING must not be enabled in production');
+  }
+}
+
+validatePaymentConfiguration();

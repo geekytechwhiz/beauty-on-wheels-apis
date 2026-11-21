@@ -23,6 +23,22 @@ function snapshotFields(booking: Booking) {
   };
 }
 
+/**
+ * Vendor/customer/list GSI1 sort key for bookings.
+ *
+ * Prefer schedule.date (true service date). Package-linked first jobs (planId set,
+ * no schedule) must not index activation/order bookingDate under a civil day —
+ * PackageVisit on GSI3 is the operational work record once scheduled.
+ */
+export function bookingWorkGsi1Sk(booking: Booking, id: string): string {
+  const serviceDate = booking.schedule?.date?.trim();
+  if (serviceDate) return `BOOKING#${serviceDate}#${id}`;
+  if (booking.planId?.trim()) return `BOOKING#UNSCHEDULED#${id}`;
+  const bookingDate = booking.bookingDate?.trim();
+  if (bookingDate) return `BOOKING#${bookingDate}#${id}`;
+  return `BOOKING#UNSCHEDULED#${id}`;
+}
+
 export class BookingsMapper {
   static toDomain(item: BookingDdbItem | BookingLookupDdbItem): Booking {
     return {
@@ -54,6 +70,7 @@ export class BookingsMapper {
       totalAmount: item.totalAmount,
       paymentMethod: item.paymentMethod,
       paymentStatus: item.paymentStatus,
+      slotReserved: item.slotReserved,
       bookingStatus: item.bookingStatus,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -67,7 +84,7 @@ export class BookingsMapper {
       PK: `BOOKING#${id}`,
       SK: `BOOKING#${id}`,
       GSI1PK: 'BOOKING_LIST',
-      GSI1SK: `BOOKING#${booking.bookingDate}#${id}`,
+      GSI1SK: bookingWorkGsi1Sk(booking, id),
       id,
       ...(booking.reference ? { reference: booking.reference } : {}),
       customerId: booking.customerId!,
@@ -82,6 +99,7 @@ export class BookingsMapper {
       totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
+      ...(booking.slotReserved === undefined ? {} : { slotReserved: booking.slotReserved }),
       bookingStatus: booking.bookingStatus || 'CREATED',
       version,
       createdAt: createdAt || timestamp,
@@ -98,7 +116,7 @@ export class BookingsMapper {
       PK: `CUSTOMER#${customerId}`,
       SK: `BOOKING#${id}`,
       GSI1PK: `CUSTOMER#${customerId}`,
-      GSI1SK: `BOOKING#${booking.bookingDate}#${id}`,
+      GSI1SK: bookingWorkGsi1Sk(booking, id),
       id,
       ...(booking.reference ? { reference: booking.reference } : {}),
       customerId,
@@ -113,6 +131,7 @@ export class BookingsMapper {
       totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
+      ...(booking.slotReserved === undefined ? {} : { slotReserved: booking.slotReserved }),
       bookingStatus: booking.bookingStatus || 'CREATED',
       createdAt: createdAt || timestamp,
       updatedAt: timestamp,
@@ -128,7 +147,7 @@ export class BookingsMapper {
       PK: `VENDOR#${vendorId}`,
       SK: `BOOKING#${id}`,
       GSI1PK: `VENDOR#${vendorId}`,
-      GSI1SK: `BOOKING#${booking.bookingDate}#${id}`,
+      GSI1SK: bookingWorkGsi1Sk(booking, id),
       id,
       ...(booking.reference ? { reference: booking.reference } : {}),
       customerId: booking.customerId!,
@@ -143,6 +162,7 @@ export class BookingsMapper {
       totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus || 'PENDING',
+      ...(booking.slotReserved === undefined ? {} : { slotReserved: booking.slotReserved }),
       bookingStatus: booking.bookingStatus || 'CREATED',
       createdAt: createdAt || timestamp,
       updatedAt: timestamp,

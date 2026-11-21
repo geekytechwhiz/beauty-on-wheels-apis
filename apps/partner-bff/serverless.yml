@@ -18,21 +18,11 @@ provider:
     SERVICE_NAME: partner-bff
     LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
     CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
-    VENDOR_OPERATIONAL_ACCESS_FUNCTION: vendor-service-api-${self:provider.stage}-getOperationalAccess
-    VENDOR_PARTNER_MANAGER_READ_FUNCTION: vendor-service-api-${self:provider.stage}-partnerManagerRead
-    BOOKING_PARTNER_MANAGER_READ_FUNCTION: booking-service-${self:provider.stage}-partnerManagerRead
-  iam:
-    role:
-      # Downstream Lambda resource policies identify this exact workload role.
-      name: ${self:service}-${self:provider.stage}-execution
-      statements:
-        - Effect: Allow
-          Action:
-            - lambda:InvokeFunction
-          Resource:
-            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
-            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_PARTNER_MANAGER_READ_FUNCTION}
-            - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.BOOKING_PARTNER_MANAGER_READ_FUNCTION}
+    # Domain HTTP bases for this account/region (ap-south-1). Override at deploy with BOOKING_BASE_URL / VENDOR_BASE_URL.
+    BOOKING_BASE_URL: ${env:BOOKING_BASE_URL, 'https://ho3jui18ua.execute-api.ap-south-1.amazonaws.com/dev'}
+    VENDOR_BASE_URL: ${env:VENDOR_BASE_URL, 'https://flxnnhk0be.execute-api.ap-south-1.amazonaws.com/dev'}
+    # Same SSM parameter owned by authorizer-service. Never forward the user JWT downstream.
+    INTERNAL_SERVICE_TOKEN: ${file(../../infra/serverless/config/internal-service-token.yml):value}
 
 custom:
   httpCors: ${file(../../infra/serverless/config/rest-api-cors.yml)}
@@ -47,7 +37,7 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels Partner BFF
-    description: Partner manager read contracts. Requests use the platform access-token authorizer; downstream calls use Lambda execution-role IAM, never the user token.
+    description: Partner manager read contracts. Requests use the platform access-token authorizer; downstream domain calls use the platform internal bearer from SSM, never the user token.
     securitySchemes:
       bearerAuth:
         type: http
@@ -108,7 +98,7 @@ custom:
                     pagination: { type: object, properties: { nextCursor: { type: string, nullable: true }, hasMore: { type: boolean }, total: { type: integer, nullable: true }, totalAvailability: { type: string, enum: [available, unavailable] } } }
                 meta: { type: object }
       - name: PartnerManagerPlanningResponse
-        description: Platform envelope with a requested planning tab, scoped counts, capacity availability, and page cursor.
+        description: Platform envelope with a requested planning tab, scoped counts, and capacity. data.capacity.commitments contains the Vendor capacity-commitment rows that apply to the requested date/community; section availability is explicit when Vendor cannot provide them.
         content:
           application/json:
             schema:
@@ -146,7 +136,7 @@ functions:
     timeout: 20
     events:
       - http:
-          path: /partner/manager/home
+          path: /partner/{vendorId}/manager/home
           method: get
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
@@ -172,7 +162,7 @@ functions:
     timeout: 20
     events:
       - http:
-          path: /partner/manager/work
+          path: /partner/{vendorId}/manager/work
           method: get
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
@@ -217,7 +207,7 @@ functions:
     timeout: 20
     events:
       - http:
-          path: /partner/manager/planning
+          path: /partner/{vendorId}/manager/planning
           method: get
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}

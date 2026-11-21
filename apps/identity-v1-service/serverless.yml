@@ -92,8 +92,8 @@ provider:
             - !GetAtt CognitoUserPool.Arn
         - Effect: Allow
           Action: events:PutEvents
-          Resource: "*"
-            # Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-arn # to be added later
+          Resource:
+            Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-arn
         - Effect: Allow
           Action: sqs:SendMessage
           Resource:
@@ -144,7 +144,7 @@ custom:
     security:
       - bearerAuth: []
     servers:
-      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+      - url: https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}
         description: Deployed API Gateway stage
         variables:
           apiId:
@@ -943,12 +943,14 @@ functions:
     description: Adds identityId, userType, linked application userId, role, and roles to Cognito access tokens. REGISTRANT is not written as VENDOR. The pool trigger is V2_0.
     timeout: 5
     memorySize: 256
-  # attachPreTokenGeneration:
-  #   handler: src/handlers/attach-pre-token-generation.handler
-  #   description: Points the service-owned user pool pre-token trigger at V2_0.
-  #   timeout: 60
-  #   memorySize: 256
-  #   role: !GetAtt AttachPreTokenGenerationRole.Arn
+  # Custom resource (not LambdaConfig on CognitoUserPool): pool env refs and
+  # the trigger ARN would otherwise form a CloudFormation cycle.
+  attachPreTokenGeneration:
+    handler: src/handlers/attach-pre-token-generation.handler
+    description: Points the service-owned user pool pre-token trigger at V2_0.
+    timeout: 60
+    memorySize: 256
+    role: !GetAtt AttachPreTokenGenerationRole.Arn
   backfillCustomerRoles:
     handler: src/handlers/backfill-customer-roles.handler
     description: One-shot backfill of CUSTOMER mappings for legacy users.
@@ -1172,139 +1174,144 @@ resources:
               Resource: !GetAtt IdentityUserProvisionedDlq.Arn
               Condition:
                 StringEquals: { aws:SourceAccount: !Ref AWS::AccountId }
-    # IdentityUserProvisionedRule:
-    #   Type: AWS::Events::Rule
-    #   DependsOn: IdentityUserProvisionedDlqPolicy
-    #   Properties:
-    #     Name: ${self:custom.resourcePrefix}-identity-user-provisioned
-    #     EventBusName:
-    #       Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-    #     EventPattern:
-    #       source: [user-service]
-    #       detail-type: [User.Provisioned]
-    #     State: ENABLED
-    #     Targets:
-    #       - Id: IdentityUserProvisioned
-    #         Arn: !GetAtt OnUserProvisionedLambdaFunction.Arn
-    #         DeadLetterConfig: { Arn: !GetAtt IdentityUserProvisionedDlq.Arn }
-    #         RetryPolicy: { MaximumRetryAttempts: 3 }
-    # IdentityUserProvisionedEventPermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     FunctionName: !GetAtt OnUserProvisionedLambdaFunction.Arn
-    #     Action: lambda:InvokeFunction
-    #     Principal: events.amazonaws.com
-    #     SourceArn: !GetAtt IdentityUserProvisionedRule.Arn
-    # AttachPreTokenGenerationRole:
-    #   Type: AWS::IAM::Role
-    #   Properties:
-    #     AssumeRolePolicyDocument:
-    #       Version: "2012-10-17"
-    #       Statement:
-    #         - Effect: Allow
-    #           Principal:
-    #             Service: lambda.amazonaws.com
-    #           Action: sts:AssumeRole
-    #     ManagedPolicyArns:
-    #       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-    #     Policies:
-    #       - PolicyName: attach-pre-token-generation
-    #         PolicyDocument:
-    #           Version: "2012-10-17"
-    #           Statement:
-    #             - Effect: Allow
-    #               Action:
-    #                 - cognito-idp:DescribeUserPool
-    #                 - cognito-idp:UpdateUserPool
-    #               Resource:
-    #                 - !GetAtt CognitoUserPool.Arn
-    #             - Effect: Allow
-    #               Action:
-    #                 - xray:PutTraceSegments
-    #                 - xray:PutTelemetryRecords
-    #               Resource: "*"
-    # PreTokenGenerationCognitoPermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     FunctionName: !GetAtt PreTokenGenerationLambdaFunction.Arn
-    #     Action: lambda:InvokeFunction
-    #     Principal: cognito-idp.amazonaws.com
-    #     SourceArn: !GetAtt CognitoUserPool.Arn
-    # AttachPreTokenGenerationTrigger:
-    #   Type: AWS::CloudFormation::CustomResource
-    #   DependsOn:
-    #     - PreTokenGenerationCognitoPermission
-    #   Properties:
-    #     ServiceToken: !GetAtt AttachPreTokenGenerationLambdaFunction.Arn
-    #     UserPoolId: !Ref CognitoUserPool
-    #     FunctionArn: !GetAtt PreTokenGenerationLambdaFunction.Arn
-    # VendorRoleDlq:
-    #   Type: AWS::SQS::Queue
-    #   Properties:
-    #     QueueName: ${self:custom.resourcePrefix}-identity-vendor-role-dlq
-    #     MessageRetentionPeriod: 1209600
-    #     SqsManagedSseEnabled: true
-    # VendorRoleDlqPolicy:
-    #   Type: AWS::SQS::QueuePolicy
-    #   Properties:
-    #     Queues:
-    #       - !Ref VendorRoleDlq
-    #     PolicyDocument:
-    #       Version: "2012-10-17"
-    #       Statement:
-    #         - Sid: AllowEventBridgeSendToVendorRoleDlq
-    #           Effect: Allow
-    #           Principal:
-    #             Service: events.amazonaws.com
-    #           Action: sqs:SendMessage
-    #           Resource: !GetAtt VendorRoleDlq.Arn
-    #           Condition:
-    #             StringEquals:
-    #               aws:SourceAccount: !Ref AWS::AccountId
-    # VendorAccountProvisioningRule:
-    #   Type: AWS::Events::Rule
-    #   Properties:
-    #     Name: ${self:custom.resourcePrefix}-identity-vendor-account-provisioning
-    #     EventBusName:
-    #       Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-    #     EventPattern:
-    #       source: [vendor-service]
-    #       detail-type: [Vendor.AccountProvisioningRequested]
-    #     State: ENABLED
-    #     Targets:
-    #       - Id: IdentityVendorAccountProvisioning
-    #         Arn: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
-    #         RetryPolicy: { MaximumRetryAttempts: 3 }
-    # VendorAccountProvisioningPermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     FunctionName: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
-    #     Action: lambda:InvokeFunction
-    #     Principal: events.amazonaws.com
-    #     SourceArn: !GetAtt VendorAccountProvisioningRule.Arn
-   
-   
-    # StaffAccountProvisioningRule:
-    #   Type: AWS::Events::Rule
-    #   Properties:
-    #     Name: ${self:custom.resourcePrefix}-identity-staff-account-provisioning
-    #     EventBusName:
-    #       Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
-    #     EventPattern:
-    #       source: [vendor-service]
-    #       detail-type: [Staff.AccountProvisioningRequested]
-    #     State: ENABLED
-    #     Targets:
-    #       - Id: IdentityStaffAccountProvisioning
-    #         Arn: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
-    #         RetryPolicy: { MaximumRetryAttempts: 3 }
-    # StaffAccountProvisioningPermission:
-    #   Type: AWS::Lambda::Permission
-    #   Properties:
-    #     FunctionName: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
-    #     Action: lambda:InvokeFunction
-    #     Principal: events.amazonaws.com
-    #     SourceArn: !GetAtt StaffAccountProvisioningRule.Arn
+    IdentityUserProvisionedRule:
+      Type: AWS::Events::Rule
+      DependsOn: IdentityUserProvisionedDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-user-provisioned
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [user-service]
+          detail-type: [User.Provisioned]
+        State: ENABLED
+        Targets:
+          - Id: IdentityUserProvisioned
+            Arn: !GetAtt OnUserProvisionedLambdaFunction.Arn
+            DeadLetterConfig: { Arn: !GetAtt IdentityUserProvisionedDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    IdentityUserProvisionedEventPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnUserProvisionedLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt IdentityUserProvisionedRule.Arn
+    AttachPreTokenGenerationRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: attach-pre-token-generation
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cognito-idp:DescribeUserPool
+                    - cognito-idp:UpdateUserPool
+                  Resource:
+                    - !GetAtt CognitoUserPool.Arn
+                - Effect: Allow
+                  Action:
+                    - xray:PutTraceSegments
+                    - xray:PutTelemetryRecords
+                  Resource: "*"
+    PreTokenGenerationCognitoPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt PreTokenGenerationLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: cognito-idp.amazonaws.com
+        SourceArn: !GetAtt CognitoUserPool.Arn
+    AttachPreTokenGenerationTrigger:
+      Type: AWS::CloudFormation::CustomResource
+      DependsOn:
+        - PreTokenGenerationCognitoPermission
+        # Keep the provider Lambda until the custom resource finishes Delete
+        # so rollback does not skip detach with "associated Lambda does not exist".
+        - AttachPreTokenGenerationLambdaFunction
+      Properties:
+        ServiceToken: !GetAtt AttachPreTokenGenerationLambdaFunction.Arn
+        UserPoolId: !Ref CognitoUserPool
+        FunctionArn: !GetAtt PreTokenGenerationLambdaFunction.Arn
+    VendorRoleDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resourcePrefix}-identity-vendor-role-dlq
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+    VendorRoleDlqPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref VendorRoleDlq
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: AllowEventBridgeSendToVendorRoleDlq
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt VendorRoleDlq.Arn
+              Condition:
+                StringEquals:
+                  aws:SourceAccount: !Ref AWS::AccountId
+    VendorAccountProvisioningRule:
+      Type: AWS::Events::Rule
+      DependsOn: VendorRoleDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-vendor-account-provisioning
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [vendor-service]
+          detail-type: [Vendor.AccountProvisioningRequested]
+        State: ENABLED
+        Targets:
+          - Id: IdentityVendorAccountProvisioning
+            Arn: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
+            DeadLetterConfig: { Arn: !GetAtt VendorRoleDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    VendorAccountProvisioningPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt VendorAccountProvisioningLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt VendorAccountProvisioningRule.Arn
+    StaffAccountProvisioningRule:
+      Type: AWS::Events::Rule
+      DependsOn: VendorRoleDlqPolicy
+      Properties:
+        Name: ${self:custom.resourcePrefix}-identity-staff-account-provisioning
+        EventBusName:
+          Fn::ImportValue: ${self:custom.resourcePrefix}-vendor-event-bus-name
+        EventPattern:
+          source: [vendor-service]
+          detail-type: [Staff.AccountProvisioningRequested]
+        State: ENABLED
+        Targets:
+          - Id: IdentityStaffAccountProvisioning
+            Arn: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
+            DeadLetterConfig: { Arn: !GetAtt VendorRoleDlq.Arn }
+            RetryPolicy: { MaximumRetryAttempts: 3 }
+    StaffAccountProvisioningPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt StaffAccountProvisioningLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt StaffAccountProvisioningRule.Arn
     GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 
     GatewayResponseDefault5XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault5XX}

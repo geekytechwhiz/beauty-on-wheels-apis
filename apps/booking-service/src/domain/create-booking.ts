@@ -179,13 +179,13 @@ export function assertVendorEligible(vendor: VendorSnapshot, vendorId: string): 
   if (vendor.vendorId !== vendorId) {
     throw new BookingError('VENDOR_MISMATCH', 'Vendor does not match the booking', 409, 'vendorId');
   }
-  // const eligible =
-  //   vendor.status === 'ACTIVE' &&
-  //   vendor.operationalStatus === 'ONLINE' &&
-  //   (!vendor.onboardingStatus || REVIEW_READY.has(vendor.onboardingStatus));
-  // if (!eligible) {
-  //   throw new BookingError('VENDOR_NOT_ELIGIBLE', 'Vendor is not eligible for bookings', 409, 'vendorId');
-  // }
+  const eligible =
+    vendor.status === 'ACTIVE' &&
+    vendor.operationalStatus === 'ONLINE' &&
+    (!vendor.onboardingStatus || REVIEW_READY.has(vendor.onboardingStatus));
+  if (!eligible) {
+    throw new BookingError('VENDOR_NOT_ELIGIBLE', 'Vendor is not eligible for bookings', 409, 'vendorId');
+  }
 }
 
  
@@ -230,24 +230,7 @@ export function assertOfferingCommunity(input: {
   }
 }
 
-export function assertLocation(
-  command: Pick<CreateBookingCommand, 'location'>,
-  _vendor: VendorSnapshot,
-  profile: CustomerProfile,
-): void {
-  // const location = command.location;
-  // if (location.fulfilmentType === 'community') {
-  //   if (!profile.communityIds.includes(location.communityId!)) {
-  //     throw new BookingError(
-  //       'COMMUNITY_NOT_ASSIGNED',
-  //       'Customer is not a member of the selected community',
-  //       409,
-  //       'location.communityId',
-  //     );
-  //   }
-  // }
-}
-
+ 
 export function authoritativeOfferingVersion(price: CatalogPrice): {
   offeringVersion: number;
   catalogVersion: number;
@@ -344,13 +327,12 @@ export function assertExpectedPrice(
   expected: { totalMinor: number; currency: string },
   pricing: PricingSnapshot,
 ): void {
-  console.log('assertExpectedPrice', expected, pricing);
   if (expected.currency.toUpperCase() !== pricing.currency.toUpperCase()) {
     throw new BookingError('PRICE_MISMATCH', 'Expected currency does not match the authoritative price', 409, 'expectedPrice.currency');
   }
-  // if (expected.totalMinor !== pricing.totalMinor) {
-  //   throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
-  // }
+  if (expected.totalMinor !== pricing.totalMinor) {
+    throw new BookingError('PRICE_MISMATCH', 'Expected price does not match the authoritative price', 409, 'expectedPrice.totalMinor');
+  }
 }
 
 /** Converts a civil time in an IANA zone without trusting a client UTC value. */

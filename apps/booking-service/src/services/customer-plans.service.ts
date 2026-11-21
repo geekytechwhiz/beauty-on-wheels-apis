@@ -1,3 +1,4 @@
+import { createChildLogger, createLogger } from '@api-hub/observability';
 import {
   ConditionalWriteConflictError,
   ConflictError,
@@ -7,15 +8,13 @@ import {
   NotFoundError,
   ValidationError,
 } from '@api-hub/utils';
-import { createChildLogger, createLogger } from '@api-hub/observability';
 
 import { authorizationHeader, headerValue, requireCustomerId } from '../auth/access';
 import {
-  assertLocation,
   assertOfferingCommunity,
   assertVehicleOwnership,
   assertVendorEligible,
-  communityOfferingEnforcementEnabled,
+  communityOfferingEnforcementEnabled
 } from '../domain/create-booking';
 import {
   assertPackageSellable,
@@ -95,7 +94,7 @@ export class CustomerPlansService {
 
     assertVehicleOwnership(vehicle, customerId, command.vehicleId);
     assertVendorEligible(eligibility.vendor, vendorId);
-    assertLocation(command, eligibility.vendor, profile);
+    // assertLocation(command, eligibility.vendor, profile);
     assertPackageSellable(catalogPackage, { ...command, vendorId });
     if (command.packageVersion !== undefined && catalogPackage.version !== command.packageVersion) {
       throw new BookingError('PACKAGE_VERSION_MISMATCH', 'Package terms changed; refresh and retry', 409, 'packageVersion', false);
@@ -151,6 +150,7 @@ export class CustomerPlansService {
         scheduledVisits: 0,
         unscheduledVisits: total,
         inProgressVisits: 0,
+        blockedVisits: 0,
       },
       version: 1,
       createdAt: now,

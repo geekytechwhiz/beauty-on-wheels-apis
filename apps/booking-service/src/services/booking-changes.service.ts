@@ -398,7 +398,7 @@ export class BookingChangesService {
     assertVendorEligible(eligibility.vendor, command.vendorId);
  
     assertOffering(offering, command, vehicle.vehicleType);
-    assertLocation({ location }, eligibility.vendor, profile);
+    // assertLocation({ location }, eligibility.vendor, profile);
     assertOfferingCommunity({
       enforced: communityOfferingEnforcementEnabled(),
       fulfilmentType: location.fulfilmentType,

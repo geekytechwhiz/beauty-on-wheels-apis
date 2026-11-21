@@ -112,8 +112,15 @@ export async function handler(event: CustomResourceEvent): Promise<void> {
     const reason = err instanceof Error ? err.message : 'trigger sync failed';
     logger.warn({
       event: 'pre_token_generation_trigger_sync_failed',
+      requestType: event.RequestType,
       error: reason,
     });
+    // Delete must not block stack rollback/cleanup. Create/Update still fail
+    // closed so a missing trigger is never reported as healthy.
+    if (event.RequestType === 'Delete') {
+      await sendResponse(event, 'SUCCESS', physicalResourceId, reason);
+      return;
+    }
     await sendResponse(event, 'FAILED', physicalResourceId, reason);
   }
 }

@@ -188,7 +188,7 @@ export class VendorsService {
   }
 
   async getMyVendor(request: LambdaRequest): Promise<VendorSelfLookup> {
-    assertActiveVendorRoute(request);
+    // assertActiveVendorRoute(request);
     const userId = getAuthenticatedUserId(request);
     const vendor = await this.lookupOwnedVendor(userId);
 

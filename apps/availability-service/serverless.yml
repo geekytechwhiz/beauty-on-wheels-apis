@@ -20,6 +20,8 @@ provider:
     CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
     SERVICE_NAME: aps1dev-availability-api
     LOG_LEVEL: INFO
+    REGION: ${self:provider.region}
+    DEFAULT_REGION: ${self:provider.region}
     DYNAMODB_TABLE_NAME: availability-table-${self:provider.stage}
     SLOT_HOLD_TTL_SECONDS: "600"
     EXPIRY_LOOKBACK_HOURS: "48"

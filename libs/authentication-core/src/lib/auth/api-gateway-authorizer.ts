@@ -6,6 +6,12 @@ import { authenticate } from './authenticate';
 import {
   toAuthorizerContext,
 } from './authorizer-context';
+import {
+  INTERNAL_SERVICE_PRINCIPAL,
+  matchesInternalServiceToken,
+  readConfiguredInternalServiceToken,
+  toInternalServiceAuthorizerContext,
+} from './internal-service-auth';
 
 export type AuthorizerEffect = 'Allow' | 'Deny';
 
@@ -31,7 +37,14 @@ export interface TokenAuthorizerEvent {
   headers?: Record<string, string | undefined>;
 }
 
-export type EvaluateAuthorizerOptions = AuthenticateOptions;
+export type EvaluateAuthorizerOptions = AuthenticateOptions & {
+  /**
+   * Shared service-to-service bearer token (from SSM). When the request
+   * Authorization matches, Cognito validation is skipped and an INTERNAL
+   * principal is allowed for the stage.
+   */
+  internalServiceToken?: string;
+};
 
 const logger = createLogger({
   service: 'api-gateway-authorizer',
@@ -64,9 +77,9 @@ export function authorizerResourceForPrincipal(
   _ctx: Pick<AuthContext, 'roles' | 'permissions' | 'phoneVerified' | 'phoneNumber'>,
   methodArn: string,
 ): { effect: AuthorizerEffect; resource: string } {
-  // Route authorization is intentionally owned by this custom authorizer.
-  // A verified, mapped principal may invoke every route; downstream services
-  // consume the trusted authorizer context but do not re-apply role checks.
+  // TOKEN authorizer Allow is identity + application-user only.
+  // Downstream services assert application roles from the trusted context.
+  // Permission identifiers are not consulted.
   return {
     effect: 'Allow',
     resource: toExecuteApiWildcardResource(methodArn),
@@ -142,7 +155,7 @@ function throwGatewayUnauthorized(): never {
 }
 
 /**
- * Validates a Cognito JWT, resolves identity → user → roles → permissions,
+ * Validates a Cognito JWT, resolves identity → user → roles,
  * and returns an API Gateway IAM policy. Never inspects client-supplied identity headers.
  *
  * Invalid/missing tokens throw `"Unauthorized"` (API Gateway 401). Authenticated
@@ -154,9 +167,29 @@ export async function evaluateApiGatewayAuthorizer(
   event: TokenAuthorizerEvent,
   options: EvaluateAuthorizerOptions = {},
 ): Promise<AuthorizerIamPolicy> {
+  const authorizationToken = readAuthorizerToken(event);
+  const internalToken =
+    options.internalServiceToken?.trim() ||
+    readConfiguredInternalServiceToken();
+  if (matchesInternalServiceToken(authorizationToken, internalToken)) {
+    logger.info({
+      event: 'authorizer_allowed',
+      identityId: INTERNAL_SERVICE_PRINCIPAL,
+      authKind: 'internal',
+      methodArn: event.methodArn,
+      effect: 'Allow',
+    });
+    return buildIamPolicy(
+      INTERNAL_SERVICE_PRINCIPAL,
+      'Allow',
+      event.methodArn,
+      toInternalServiceAuthorizerContext(),
+    );
+  }
+
   try {
     const ctx: AuthContext = await authenticate(
-      authorizerRequest(readAuthorizerToken(event)),
+      authorizerRequest(authorizationToken),
       {
         userDirectory: options.userDirectory,
         requireApplicationUser: options.requireApplicationUser ?? true,
@@ -206,7 +239,7 @@ export async function evaluateApiGatewayAuthorizer(
         typeof metadata?.issuer === 'string' ? metadata.issuer : undefined,
       methodArn: event.methodArn,
       policyResource: toExecuteApiWildcardResource(event.methodArn),
-      hasToken: Boolean(readAuthorizerToken(event)),
+      hasToken: Boolean(authorizationToken),
     });
 
     if (status === 403 || (err instanceof BaseError && err.code === 'APPLICATION_USER_NOT_FOUND')) {

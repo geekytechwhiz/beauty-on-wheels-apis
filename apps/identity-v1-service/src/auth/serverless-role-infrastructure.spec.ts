@@ -14,6 +14,9 @@ describe('identity role infrastructure', () => {
     expect(template).toContain('AWS::CloudFormation::CustomResource');
     expect(template).toContain('cognito-idp:DescribeUserPool');
     expect(template).toContain('cognito-idp:UpdateUserPool');
+    expect(template).not.toContain('cognito-idp:TagResource');
+    expect(template).not.toContain('cognito-idp:UntagResource');
+    expect(template).toContain('AttachPreTokenGenerationLambdaFunction');
     expect(template).toContain('AWS::Cognito::UserPool');
     expect(template).toContain('AWS::Cognito::UserPoolClient');
     expect(template).toContain('CognitoUserPool:');

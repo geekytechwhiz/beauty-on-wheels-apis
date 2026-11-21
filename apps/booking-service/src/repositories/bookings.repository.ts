@@ -68,6 +68,7 @@ export class BookingsRepository extends BaseRepository {
     booking: Booking,
     meta: { idempotencyKey: string; requestHash: string },
     contact?: { customerEmail?: string; customerName?: string },
+    outbox?: BookingConfirmedOutbox,
   ): Promise<Booking> {
     const id = booking.id!;
     const timestamp = new Date().toISOString();
@@ -90,8 +91,7 @@ export class BookingsRepository extends BaseRepository {
       entityType: 'AuditLog',
     };
 
-    await this.transactWrite({
-      TransactItems: [
+    const transactItems: any[] = [
         {
           Put: {
             TableName: this.getTableName(),
@@ -133,8 +133,29 @@ export class BookingsRepository extends BaseRepository {
             Item: auditItem,
           },
         },
-      ],
-    });
+    ];
+
+    if (outbox) {
+      transactItems.push({
+        Put: {
+          TableName: this.getTableName(),
+          Item: {
+            PK: `BOOKING#${id}`,
+            SK: 'OUTBOX#BOOKING_CONFIRMED',
+            GSI1PK: 'OUTBOX#BOOKING_CONFIRMED',
+            GSI1SK: timestamp,
+            entityType: 'BookingConfirmationOutbox',
+            bookingId: id,
+            ...outbox,
+            createdAt: timestamp,
+            expiresAt: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60),
+          },
+          ConditionExpression: 'attribute_not_exists(PK)',
+        },
+      });
+    }
+
+    await this.transactWrite({ TransactItems: transactItems });
 
     return BookingsMapper.toDomain(detailsItem);
   }
@@ -232,8 +253,10 @@ export class BookingsRepository extends BaseRepository {
   }
 
   /**
-   * Inclusive civil-date range on vendor booking lookups.
-   * GSI1SK is BOOKING#{bookingDate}#{id}.
+   * Inclusive civil-date range on vendor booking lookups for operational dashboards.
+   * GSI1SK is BOOKING#{serviceDate}#{id} for one-time work.
+   * Package-linked rows (planId) are excluded: PackageVisit on GSI3 is canonical,
+   * and legacy first-job projections may still carry activation bookingDate keys.
    */
   async listVendorBookingsForDateRange(
     vendorId: string,
@@ -244,6 +267,7 @@ export class BookingsRepository extends BaseRepository {
       TableName: this.getTableName(),
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :gsi1pk AND GSI1SK BETWEEN :from AND :to',
+      FilterExpression: 'attribute_not_exists(planId)',
       ExpressionAttributeValues: {
         ':gsi1pk': `VENDOR#${vendorId}`,
         ':from': `BOOKING#${fromDate}`,

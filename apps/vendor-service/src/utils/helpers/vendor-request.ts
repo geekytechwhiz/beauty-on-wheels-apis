@@ -45,7 +45,7 @@ export function getOptionalAuthenticatedUserId(
 }
 
 export function getAuthenticatedUserId(request: LambdaRequest): string {
-  const userId = getOptionalAuthenticatedUserId(request);
+  const userId = request.context.authContext?.userId; 
   if (userId) {
     return userId;
   }

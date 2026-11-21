@@ -109,13 +109,13 @@ export class CommunitiesService {
 
   async listCommunities(request: LambdaRequest): Promise<CommunityListResponse> {
     const started = Date.now();
-    if (!hasCallerIdentity(request)) {
-      getAuthenticatedUserId(request);
-    }
+    // if (!hasCallerIdentity(request)) {
+    //   getAuthenticatedUserId(request);
+    // }
     const statusQuery = getQueryParam(request, 'status');
-    if (statusQuery && !isAdminCaller(request) && statusQuery !== COMMUNITY_STATUS.ACTIVE) {
-      throw new ValidationError('Only an administrator can filter community status');
-    }
+    // if (statusQuery && !isAdminCaller(request) && statusQuery !== COMMUNITY_STATUS.ACTIVE) {
+    //   throw new ValidationError('Only an administrator can filter community status');
+    // }
     const status =
       isAdminCaller(request) && statusQuery === 'all'
         ? undefined

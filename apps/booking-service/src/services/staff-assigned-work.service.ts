@@ -133,30 +133,36 @@ export class StaffAssignedWorkService {
     return page;
   }
 
-  /** SCHEDULED → IN_PROGRESS for a visit on the caller's active crew. Body identity is ignored. */
+  /**
+   * SCHEDULED → IN_PROGRESS. Actor is the crewId from the body (team assignment).
+   * Cross-service staff/crew membership checks are skipped for now.
+   */
   async start(request: LambdaRequest): Promise<StaffVisitActionResult> {
     const assigned = await this.requireAssigned(request);
+    const crewId = crewIdOf(request.body);
     const result = await this.packageVisits().applyStart(
       assigned.plan,
       assigned.visit,
-      assigned.staffId,
+      crewId,
       this.now().toISOString(),
     );
     return toActionResult(result.response, result.idempotent);
   }
 
   /**
-   * IN_PROGRESS → COMPLETED. Idempotency-Key and a checklist body are required.
+   * IN_PROGRESS → COMPLETED. Idempotency-Key, checklist body, and crewId are required.
    * Entitlement is consumed once. Refused while a blocking issue is linked to the visit.
+   * Cross-service staff/crew membership checks are skipped for now.
    */
   async complete(request: LambdaRequest): Promise<StaffVisitActionResult> {
     const assigned = await this.requireAssigned(request);
     requireIdempotency(request);
+    const crewId = crewIdOf(request.body);
     const input = parseCompleteVisitBody(request.body);
     const result = await this.packageVisits().applyComplete(
       assigned.plan,
       assigned.visit,
-      assigned.staffId,
+      crewId,
       this.now().toISOString(),
       input,
       userIdOf(request),
@@ -178,32 +184,25 @@ export class StaffAssignedWorkService {
     return this.visits ?? getPackageVisitsService();
   }
 
+  /**
+   * Loads the visit/plan for a staff action. Staff/crew membership and
+   * operational-access checks are deferred; the client supplies crewId on the body.
+   */
   private async requireAssigned(request: LambdaRequest): Promise<{
-    staffId: string;
     plan: CustomerPlanRecord;
     visit: PackageVisitRecord;
   }> {
     const userId = userIdOf(request);
     if (!userId) throw new UnauthorizedError('Unauthorized');
-    const access = await this.vendors.getOperationalAccess(userId);
-    if (access.role !== 'staff' || !access.active || !access.vendorId || !access.staffId) {
-      throw new ForbiddenError('Not authorized to update assigned work');
-    }
     const visitId = request.pathParameters?.visitId?.trim() ?? '';
     if (!visitId) throw new ValidationError('visitId is required');
     const visit = await this.plans.getVisitById(visitId);
-    if (!visit || visit.vendorId !== access.vendorId) throw new NotFoundError('Visit not found');
-    const roster = await this.crews.listCrews(access.vendorId);
-    const mine = eligibleCrews(roster, access.vendorId, access.staffId);
-    const crewId = visit.crewAssignment?.crewId;
-    if (!crewId || !mine.some((crew) => crew.crewId === crewId)) {
-      throw new ForbiddenError('This visit is not assigned to your crew');
-    }
+    if (!visit) throw new NotFoundError('Visit not found');
     const plan = await this.plans.getPlan(visit.planId);
-    if (!plan || plan.vendorId !== access.vendorId || plan.planId !== visit.planId) {
+    if (!plan || plan.planId !== visit.planId) {
       throw new NotFoundError('Visit not found');
     }
-    return { staffId: access.staffId, plan, visit };
+    return { plan, visit };
   }
 
   private async enrich(visits: PackageVisitRecord[]): Promise<PackageVisitRecord[]> {
@@ -238,6 +237,16 @@ function requireIdempotency(request: LambdaRequest): string {
   const key = headerValue(request, 'Idempotency-Key');
   if (!key || key.length > 128) throw new ValidationError('Idempotency-Key header is required');
   return key;
+}
+
+/** Crew/team id from the action body. Point-of-contact is resolved elsewhere. */
+function crewIdOf(body: unknown): string {
+  const raw = body && typeof body === 'object' && !Array.isArray(body)
+    ? (body as Record<string, unknown>).crewId
+    : undefined;
+  const crewId = typeof raw === 'string' ? raw.trim() : '';
+  if (!crewId) throw new ValidationError('crewId is required');
+  return crewId;
 }
 
 export function getStaffAssignedWorkService(): StaffAssignedWorkService {

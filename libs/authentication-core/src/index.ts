@@ -27,5 +27,6 @@ export * from './lib/auth/authenticate';
 export * from './lib/auth/authorize';
 export * from './lib/auth/authorizer-context';
 export * from './lib/auth/api-gateway-authorizer';
+export * from './lib/auth/internal-service-auth';
 export * from './lib/auth/dynamodb-user-directory';
 export * from './lib/cognito/cognito-identity.provider';

@@ -283,6 +283,7 @@ export class CustomerPlanPaymentsService {
               scheduledVisits: progress.scheduledVisits,
               unscheduledVisits: progress.unscheduledVisits,
               inProgressVisits: progress.inProgressVisits,
+              blockedVisits: progress.blockedVisits,
             },
             ...(plan.validityDays && !plan.validUntil
               ? { validUntil: validityEndsAt(plan.activatedAt ?? now, plan.validityDays) }
@@ -317,6 +318,7 @@ export class CustomerPlanPaymentsService {
           scheduledVisits: progress.scheduledVisits,
           unscheduledVisits: progress.unscheduledVisits,
           inProgressVisits: progress.inProgressVisits,
+          blockedVisits: progress.blockedVisits,
         },
         updatedAt: now,
         version: plan.version + 1,
@@ -368,7 +370,12 @@ function toResponse(record: PlanPaymentRecord): CustomerPlanPaymentResponse {
   };
 }
 
-/** First package job: paid/confirmed, no Availability slot or branch; times are provider-coordinated. */
+/**
+ * First package job commerce linkage: paid/confirmed, no Availability slot.
+ * bookingDate is the activation/order civil day — not a scheduled service date.
+ * PackageVisit rows stay UNSCHEDULED until the vendor schedules them; GSI1 for
+ * this booking uses BOOKING#UNSCHEDULED#{id} so operational date queries skip it.
+ */
 function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: string): Booking {
   const offeringId = plan.offeringId || plan.packageId;
   const totalAmount = plan.pricingSnapshot.totalAmount;
@@ -399,6 +406,7 @@ function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: 
           0,
         ) || 1),
     },
+    // Activation/order date only; not indexed as operational work (see bookingWorkGsi1Sk).
     bookingDate: now.slice(0, 10),
     slotId: '',
     location: plan.location,

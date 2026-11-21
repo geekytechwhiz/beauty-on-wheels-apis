@@ -455,7 +455,14 @@ export class CapacityProposalsRepository extends BaseRepository {
   async reserveSoldCapacity(input: {
     vendorId: string;
     commitmentId: string;
+    /** Demand slot-units to reserve. */
     quantity: number;
+    /**
+     * Commitment `quantity` from the consistent read used for selection.
+     * Dynamo ConditionExpressions cannot compute `quantity - :qty`; the
+     * remaining-cap check is `reservedSoldQuantity <= commitmentQuantity - quantity`.
+     */
+    commitmentQuantity: number;
     idempotencyKey: string;
     planId: string;
     kind?: CapacityReservationKind;
@@ -466,6 +473,7 @@ export class CapacityProposalsRepository extends BaseRepository {
       vendorId,
       commitmentId,
       quantity,
+      commitmentQuantity,
       idempotencyKey,
       planId,
       kind = CAPACITY_RESERVATION_KIND.SOLD,
@@ -474,6 +482,12 @@ export class CapacityProposalsRepository extends BaseRepository {
     } = input;
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error('quantity must be a positive integer');
+    }
+    if (!Number.isInteger(commitmentQuantity) || commitmentQuantity < 1) {
+      throw new Error('commitmentQuantity must be a positive integer');
+    }
+    if (commitmentQuantity < quantity) {
+      throw new Error('commitmentQuantity must be >= demand quantity');
     }
     if (kind === CAPACITY_RESERVATION_KIND.HOLD && !expiresAt) {
       throw new Error('expiresAt is required for capacity holds');
@@ -507,6 +521,7 @@ export class CapacityProposalsRepository extends BaseRepository {
           vendorId,
           commitmentId,
           delta: quantity,
+          commitmentQuantity,
           updatedAt: now,
         }),
       ] as never,
@@ -605,6 +620,8 @@ export class CapacityProposalsRepository extends BaseRepository {
     commitmentId: string;
     delta: number;
     updatedAt: string;
+    /** Required on increment — commitment.quantity from the selection read. */
+    commitmentQuantity?: number;
   }): Record<string, unknown> {
     const absDelta = Math.abs(input.delta);
     const isIncrement = input.delta > 0;
@@ -614,9 +631,23 @@ export class CapacityProposalsRepository extends BaseRepository {
     const statusValues = Object.fromEntries(
       CAPACITY_HOLDING_STATUSES.map((status, index) => [`:holdingStatus${index}`, status]),
     );
+    /**
+     * DynamoDB ConditionExpressions do not support attribute arithmetic
+     * (`quantity - :qty` is a ValidationException). Bound remaining capacity with a
+     * precomputed `:maxReserved` (= commitmentQuantity - demand) and pin `#quantity`
+     * so a concurrent reduction cannot silently oversell.
+     */
     const conditionExpression = isIncrement
-      ? `#status IN (${statusPlaceholders}) AND reservedSoldQuantity <= quantity - :qty`
+      ? `#status IN (${statusPlaceholders})`
+        + ' AND #quantity = :commitmentQuantity'
+        + ' AND reservedSoldQuantity <= :maxReserved'
       : `#status IN (${statusPlaceholders}) AND reservedSoldQuantity >= :qty`;
+    const incrementValues = isIncrement
+      ? {
+        ':commitmentQuantity': input.commitmentQuantity as number,
+        ':maxReserved': (input.commitmentQuantity as number) - absDelta,
+      }
+      : { ':qty': absDelta };
     return {
       Update: {
         TableName: this.getTableName(),
@@ -629,11 +660,13 @@ export class CapacityProposalsRepository extends BaseRepository {
         ExpressionAttributeValues: {
           ':delta': input.delta,
           ':updatedAt': input.updatedAt,
-          ':qty': absDelta,
+          ...incrementValues,
           ...statusValues,
         },
         ConditionExpression: conditionExpression,
-        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeNames: isIncrement
+          ? { '#status': 'status', '#quantity': 'quantity' }
+          : { '#status': 'status' },
       },
     };
   }

@@ -22,15 +22,17 @@ const MAX_OPERATIONS_SUMMARY_DAYS = 14;
  * Aggregation rules (documented for tests and OpenAPI):
  *
  * expected
- *   Package visits: SCHEDULED + IN_PROGRESS + COMPLETED + MISSED.
+ *   Package visits: SCHEDULED + IN_PROGRESS + COMPLETED + MISSED + BLOCKED.
  *   One-time bookings: CONFIRMED + CHECKED_IN + IN_PROGRESS + COMPLETED.
- *   Includes missed package visits. Excludes CANCELLED and UNSCHEDULED visits,
+ *   Includes missed and blocked package visits. Excludes CANCELLED and UNSCHEDULED visits,
  *   and excludes CREATED / PENDING / PENDING_PAYMENT bookings.
  *
  * completed / inProgress / waiting / missed / cancelled
  *   Package visits: COMPLETED, IN_PROGRESS, SCHEDULED, MISSED, CANCELLED.
+ *   BLOCKED contributes to expected and needsAttention (as waiting-equivalent attention)
+ *   but is not a separate operations-summary metric; home-summary exposes blocked counts.
  *   One-time bookings: COMPLETED, IN_PROGRESS, CONFIRMED|CHECKED_IN, (none), CANCELLED.
- *   Bookings have no MISSED status.
+ *   Bookings have no MISSED or BLOCKED status.
  *
  * cancelled vs expected
  *   Cancelled work is counted only in metrics.cancelled and is excluded from expected.
@@ -54,10 +56,12 @@ export const OPERATIONS_SUMMARY_METRIC_STATUS = {
     PACKAGE_VISIT_STATUS.IN_PROGRESS,
     PACKAGE_VISIT_STATUS.COMPLETED,
     PACKAGE_VISIT_STATUS.MISSED,
+    PACKAGE_VISIT_STATUS.BLOCKED,
   ],
   visitCompleted: [PACKAGE_VISIT_STATUS.COMPLETED],
   visitInProgress: [PACKAGE_VISIT_STATUS.IN_PROGRESS],
   visitWaiting: [PACKAGE_VISIT_STATUS.SCHEDULED],
+  visitBlocked: [PACKAGE_VISIT_STATUS.BLOCKED],
   visitMissed: [PACKAGE_VISIT_STATUS.MISSED],
   visitCancelled: [PACKAGE_VISIT_STATUS.CANCELLED],
   bookingExpected: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] as const,
@@ -383,6 +387,8 @@ function visitKind(status: PackageVisitStatus): OperationsWorkKind | null {
   if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitCompleted)) return 'completed';
   if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitInProgress)) return 'inProgress';
   if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitWaiting)) return 'waiting';
+  // Persisted BLOCKED still needs manager attention on the board; surface with waiting.
+  if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitBlocked)) return 'waiting';
   if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitMissed)) return 'missed';
   if (countsAs(status, OPERATIONS_SUMMARY_METRIC_STATUS.visitCancelled)) return 'cancelled';
   return null;

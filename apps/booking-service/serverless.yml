@@ -24,26 +24,36 @@
       CORS_ALLOWED_ORIGINS: ${self:custom.corsAllowedOrigins}
 
       SERVICE_NAME: booking-service
+      STAGE: ${self:provider.stage}
       # LOG_LEVEL: ${ssm:/common/log-level}
+      REGION: ${self:provider.region}
+      DEFAULT_REGION: ${self:provider.region}
       DYNAMODB_TABLE_NAME: ${self:provider.environment.BOOKING_TABLE}
       BOOKING_TABLE: booking-table-${self:provider.stage}
       CATALOG_BASE_URL: ${env:CATALOG_BASE_URL, ''}
       VENDOR_BASE_URL: ${env:VENDOR_BASE_URL, ''}
-      VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: vendor-service-api-${self:provider.stage}-getCheckoutEligibility
-      VENDOR_OPERATIONAL_ACCESS_FUNCTION: vendor-service-api-${self:provider.stage}-getOperationalAccess
-      VENDOR_SCHEDULING_CREWS_FUNCTION: vendor-service-api-${self:provider.stage}-listSchedulingCrews
-      VENDOR_RESERVE_CAPACITY_FUNCTION: vendor-service-api-${self:provider.stage}-reserveSoldCapacity
+      VENDOR_CHECKOUT_ELIGIBILITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-getCheckoutEligibility
+      VENDOR_OPERATIONAL_ACCESS_FUNCTION:  aps1dev-carish-vendor-${self:provider.stage}-getOperationalAccess
+      VENDOR_SCHEDULING_CREWS_FUNCTION:  aps1dev-carish-vendor-${self:provider.stage}-listSchedulingCrews
+      VENDOR_RESERVE_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-reserveSoldCapacity
       TRAVEL_BUFFER_MINUTES: ${env:TRAVEL_BUFFER_MINUTES, '30'}
       USER_BASE_URL: ${env:USER_BASE_URL, ''}
       VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
       AVAILABILITY_BASE_URL: ${env:AVAILABILITY_BASE_URL, ''}
-      AVAILABILITY_RESERVE_BOOKING_FUNCTION: availability-service-${self:provider.stage}-reserveBooking
-      AVAILABILITY_CONSUME_HOLD_FUNCTION: availability-service-${self:provider.stage}-consumeHold
-      AVAILABILITY_RELEASE_ALLOCATION_FUNCTION: availability-service-${self:provider.stage}-releaseAllocation
+      AVAILABILITY_RESERVE_BOOKING_FUNCTION: aps1dev-availability-api-${self:provider.stage}-reserveBooking
+      AVAILABILITY_CONSUME_HOLD_FUNCTION: aps1dev-availability-api-${self:provider.stage}-consumeHold
+      AVAILABILITY_RELEASE_ALLOCATION_FUNCTION: aps1dev-availability-api-${self:provider.stage}-releaseAllocation
       # Turn on only after catalog GSI3 is ACTIVE, the backfill is verified, and catalog enforcement is on.
       COMMUNITY_OFFERING_ENFORCEMENT: 'false'
       # Sandbox payment completion for local/dev/staging. Set false when a real gateway owns confirmation.
       PAYMENT_SANDBOX_ENABLED: ${env:PAYMENT_SANDBOX_ENABLED, 'true'}
+      # Local/test only: permits an ONLINE selection without fabricating payment success.
+      # The Lambda startup guard rejects this setting for prod/production.
+      ALLOW_UNPAID_ONLINE_BOOKING: ${env:ALLOW_UNPAID_ONLINE_BOOKING, 'false'}
+      PAYMENT_PROVIDER: ${env:PAYMENT_PROVIDER, 'SANDBOX'}
+      RAZORPAY_KEY_ID: ${env:RAZORPAY_KEY_ID, ''}
+      RAZORPAY_KEY_SECRET: ${env:RAZORPAY_KEY_SECRET, ''}
+      RAZORPAY_WEBHOOK_SECRET: ${env:RAZORPAY_WEBHOOK_SECRET, ''}
       EVIDENCE_BUCKET: !Ref BookingEvidenceBucket
       EVIDENCE_UPLOAD_URL_EXPIRY: '900'
       # Booking.Confirmed is consumed asynchronously by Email Service.
@@ -142,7 +152,7 @@
       security:
         - bearerAuth: []
       servers:
-        - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+        - url: https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}
           description: Deployed API Gateway stage
           variables:
             apiId:
@@ -248,6 +258,12 @@
                       currency:
                         type: string
                         pattern: '^[A-Za-z]{3}$'
+                  paymentMethod:
+                    type: string
+                    enum:
+                      - CASH_ON_SERVICE
+                      - ONLINE
+                    description: Cash confirms with payment PENDING; ONLINE requires configured Razorpay or the non-production unpaid-booking flag.
                   notes:
                     type: string
                     maxLength: 2000
@@ -412,6 +428,9 @@
                     type: number
                   paymentMethod:
                     type: string
+                    enum:
+                      - CASH_ON_SERVICE
+                      - ONLINE
                   notes:
                     type: string
                   createdAt:
@@ -427,6 +446,9 @@
                       - PAID
                       - FAILED
                       - REFUNDED
+                  slotReserved:
+                    type: boolean
+                    description: True when Availability capacity was reserved for this booking.
                   bookingStatus:
                     type: string
                     enum:
@@ -623,6 +645,215 @@
                         waiting:
                           type: integer
                           minimum: 0
+        - name: VendorHomeSummaryResponse
+          description: Vendor manager home dashboard for one civil day plus upcoming package visits
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - vendorId
+                  - timezone
+                  - date
+                  - today
+                  - tomorrow
+                  - upcoming
+                properties:
+                  vendorId:
+                    type: string
+                  timezone:
+                    type: string
+                    description: Resolved vendor IANA timezone
+                  date:
+                    type: string
+                    format: date
+                  today:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - visits
+                      - crew
+                      - completion
+                      - needsAttention
+                    properties:
+                      visits:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - total
+                          - completed
+                          - inProgress
+                          - notStarted
+                          - blocked
+                          - missed
+                          - cancelled
+                        properties:
+                          total:
+                            type: integer
+                            minimum: 0
+                            description: SCHEDULED+IN_PROGRESS+COMPLETED+BLOCKED+MISSED. Excludes CANCELLED and UNSCHEDULED.
+                          completed:
+                            type: integer
+                            minimum: 0
+                          inProgress:
+                            type: integer
+                            minimum: 0
+                          notStarted:
+                            type: integer
+                            minimum: 0
+                            description: SCHEDULED visits
+                          blocked:
+                            type: integer
+                            minimum: 0
+                            description: Persisted BLOCKED status only
+                          missed:
+                            type: integer
+                            minimum: 0
+                          cancelled:
+                            type: integer
+                            minimum: 0
+                            description: Visible separately; excluded from total
+                      crew:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - assigned
+                          - unassigned
+                        properties:
+                          assigned:
+                            type: integer
+                            minimum: 0
+                          unassigned:
+                            type: integer
+                            minimum: 0
+                      completion:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - completed
+                          - total
+                          - percentage
+                        properties:
+                          completed:
+                            type: integer
+                            minimum: 0
+                          total:
+                            type: integer
+                            minimum: 0
+                            description: Same denominator as today.visits.total
+                          percentage:
+                            type: integer
+                            minimum: 0
+                            description: Round(100*completed/total), or 0 when total is 0
+                      needsAttention:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - communityId
+                            - visitWindowId
+                            - visitCount
+                            - blockedCount
+                            - unassignedCount
+                          properties:
+                            communityId:
+                              type: string
+                            communityName:
+                              type: string
+                            visitWindowId:
+                              type: string
+                            visitWindowName:
+                              type: string
+                            visitCount:
+                              type: integer
+                              minimum: 1
+                            blockedCount:
+                              type: integer
+                              minimum: 0
+                            unassignedCount:
+                              type: integer
+                              minimum: 0
+                  tomorrow:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - date
+                      - totalVisits
+                      - assignedVisits
+                      - unassignedVisits
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      totalVisits:
+                        type: integer
+                        minimum: 0
+                      assignedVisits:
+                        type: integer
+                        minimum: 0
+                      unassignedVisits:
+                        type: integer
+                        minimum: 0
+                  upcoming:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - fromDate
+                      - toDate
+                      - days
+                    properties:
+                      fromDate:
+                        type: string
+                        format: date
+                      toDate:
+                        type: string
+                        format: date
+                      days:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - date
+                            - totalVisits
+                            - assignedVisits
+                            - unassignedVisits
+                            - communities
+                          properties:
+                            date:
+                              type: string
+                              format: date
+                            totalVisits:
+                              type: integer
+                              minimum: 0
+                            assignedVisits:
+                              type: integer
+                              minimum: 0
+                            unassignedVisits:
+                              type: integer
+                              minimum: 0
+                            communities:
+                              type: array
+                              items:
+                                type: object
+                                additionalProperties: false
+                                required:
+                                  - communityId
+                                  - visitCount
+                                  - unassignedCount
+                                properties:
+                                  communityId:
+                                    type: string
+                                  communityName:
+                                    type: string
+                                  visitCount:
+                                    type: integer
+                                    minimum: 1
+                                  unassignedCount:
+                                    type: integer
+                                    minimum: 1
         - name: ErrorResponse
           description: Platform error envelope
           content:
@@ -1055,35 +1286,43 @@
                   settlementExecuted:
                     type: boolean
         - name: CrewAssignmentRequest
-          description: Assign or clear a crew on scheduled package visits
+          description: Schedule selected package visits into a date range and visit window, and assign them to a crew
           content:
             application/json:
               schema:
                 type: object
+                additionalProperties: false
                 required:
-                  - scheduledDate
+                  - scheduleStartDate
+                  - scheduleEndDate
                   - communityId
                   - visitWindowId
                   - crewId
                   - visitIds
                 properties:
-                  scheduledDate:
+                  scheduleStartDate:
                     type: string
+                    description: Inclusive YYYY-MM-DD commitment start
+                  scheduleEndDate:
+                    type: string
+                    description: Inclusive YYYY-MM-DD commitment end (max 7 calendar days from start)
                   communityId:
                     type: string
                   visitWindowId:
                     type: string
+                    description: Must match the customer preference stored on each visit
                   crewId:
                     type: string
+                    description: Vendor team/crew id (not a staff id)
                   visitIds:
                     type: array
+                    minItems: 1
+                    maxItems: 25
                     items:
                       type: string
-                  mode:
-                    type: string
-                    enum: [assign, unassign]
                   replaceExisting:
                     type: boolean
+                    description: Required to move a SCHEDULED visit from another crew
         - name: CreateVendorIssueRequest
           description: Details for a vendor or crew issue
           content:
@@ -1283,12 +1522,14 @@
                     type: string
                   status:
                     type: string
-                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, UNSCHEDULED]
                   startedAt:
                     type: string
                   completedAt:
                     type: string
                   missedAt:
+                    type: string
+                  blockedAt:
                     type: string
                   entitlementConsumed:
                     type: boolean
@@ -1408,7 +1649,7 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "Create booking"
-            description: "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity, service details, capacity, and pricing are validated server-side; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required."
+            description: "Creates a booking from a selected civil date/time. CASH_ON_SERVICE confirms an unpaid booking; ONLINE remains pending until verified Razorpay confirmation unless the non-production unpaid-online flag is enabled. Customer identity, service details, capacity, and pricing are validated server-side. Idempotency-Key is required."
             swaggerTags:
               - Bookings
             bodyType: CreateBookingRequest
@@ -1417,7 +1658,7 @@
                 description: "Booking created"
             documentation:
               summary: Create booking
-              description: Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity and authoritative price are server-assigned; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required.
+              description: Creates a booking from a selected civil date/time. The response separately reports bookingStatus, paymentMethod, paymentStatus, and slotReserved. Customer identity and authoritative price are server-assigned; Idempotency-Key is required.
               requestModels:
                 application/json: CreateBookingRequest
               tags:
@@ -1519,7 +1760,43 @@
 
     partnerManagerRead:
       handler: src/handlers/internal.partnerManagerRead
-      description: Internal IAM invoke for Partner BFF manager reads. No HTTP route; delegated owner membership is revalidated.
+      description: Legacy IAM invoke for Partner BFF manager reads. Prefer the HTTP internal route.
+
+    partnerManagerReadHttp:
+      handler: src/handlers/internal-http.handlePartnerManagerRead
+      timeout: 20
+      description: Internal HTTP Partner BFF manager reads (overview/work/planning). Auth is the platform internal bearer.
+      events:
+        - http:
+            path: /internal/partner/manager/read
+            method: post
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Internal partner manager read"
+            swaggerTags:
+              - Internal
+            documentation:
+              summary: Internal partner manager read
+              description: >
+                Partner BFF only. Authorization is the platform internal service token.
+                Body carries the delegated actor plus action overview|work|planning and query filters.
+                Membership is revalidated inside Booking before any visit data is returned.
+              tags:
+                - Internal
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Manager read payload
+                - statusCode: "401"
+                  responseBody:
+                    description: Missing or invalid internal token
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "403"
+                  responseBody:
+                    description: Caller is not the internal service principal
+                  responseModels:
+                    application/json: ErrorResponse
 
     publishBookingConfirmedEvent:
       handler: src/handlers/booking-confirmed-event.handleBookingConfirmedEvent
@@ -1824,6 +2101,45 @@
                 - statusCode: "200"
                   responseBody:
                     description: Payment status
+                - statusCode: "400"
+                  responseBody:
+                    description: Request failed
+                  responseModels:
+                    application/json: ErrorResponse
+              pathParams:
+                - name: bookingId
+                  description: bookingId
+                  schema:
+                    type: string
+                - name: paymentId
+                  description: paymentId
+                  schema:
+                    type: string
+
+    confirmbookingpayment:
+      handler: src/handlers/customer-payments.handleConfirmProviderPayment
+      events:
+        - http:
+            path: /bookings/{bookingId}/payments/{paymentId}/confirm
+            method: post
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Confirm booking payment with provider signature"
+            description: "Razorpay checkout callback. The backend verifies the signature and only then marks the payment PAID."
+            swaggerTags:
+              - Payments
+            responseData:
+              200:
+                description: "Payment confirmed"
+            documentation:
+              summary: Confirm booking payment
+              description: Razorpay checkout callback. The backend verifies the signature and only then marks the payment PAID.
+              tags:
+                - Payments
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Payment confirmed
                 - statusCode: "400"
                   responseBody:
                     description: Request failed
@@ -2418,6 +2734,122 @@
                   schema:
                     type: string
 
+    blockplanvisit:
+      handler: src/handlers/customer-plans.handleBlockPlanVisit
+      events:
+        - http:
+            path: /customer-plans/{planId}/visits/{visitId}/block
+            method: post
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Block a package visit"
+            description: "Vendor manager only. Persists SCHEDULED → BLOCKED with a required reason. Keeps the Availability reservation and crew assignment. Appends scheduleHistory action blocked."
+            swaggerTags:
+              - Customer Plans
+            bodyType: object
+            request:
+              schemas:
+                application/json:
+                  type: object
+                  required:
+                    - reason
+                  properties:
+                    reason:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                      description: Required blocking reason persisted on the visit
+            responseData:
+              200:
+                description: "Visit blocked"
+              400:
+                description: "Missing reason"
+              403:
+                description: "Not a vendor manager for this plan"
+              409:
+                description: "Invalid transition or already blocked with a different reason"
+            documentation:
+              summary: Block a package visit
+              description: Vendor manager only. Persists SCHEDULED → BLOCKED with a required reason. Does not infer BLOCKED from issues or missing crew.
+              tags:
+                - Customer Plans
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Visit blocked
+                - statusCode: "400"
+                  responseBody:
+                    description: Missing reason
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "403"
+                  responseBody:
+                    description: Forbidden
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "409"
+                  responseBody:
+                    description: Invalid transition
+                  responseModels:
+                    application/json: ErrorResponse
+              pathParams:
+                - name: planId
+                  description: planId
+                  schema:
+                    type: string
+                - name: visitId
+                  description: visitId
+                  schema:
+                    type: string
+
+    unblockplanvisit:
+      handler: src/handlers/customer-plans.handleUnblockPlanVisit
+      events:
+        - http:
+            path: /customer-plans/{planId}/visits/{visitId}/unblock
+            method: post
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Unblock a package visit"
+            description: "Vendor manager only. Persists BLOCKED → SCHEDULED and clears blockedAt, blockedBy, and blockReason. Appends scheduleHistory action unblocked."
+            swaggerTags:
+              - Customer Plans
+            responseData:
+              200:
+                description: "Visit unblocked"
+              403:
+                description: "Not a vendor manager for this plan"
+              409:
+                description: "Invalid transition"
+            documentation:
+              summary: Unblock a package visit
+              description: Vendor manager only. Persists BLOCKED → SCHEDULED and clears block fields.
+              tags:
+                - Customer Plans
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Visit unblocked
+                - statusCode: "403"
+                  responseBody:
+                    description: Forbidden
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "409"
+                  responseBody:
+                    description: Invalid transition
+                  responseModels:
+                    application/json: ErrorResponse
+              pathParams:
+                - name: planId
+                  description: planId
+                  schema:
+                    type: string
+                - name: visitId
+                  description: visitId
+                  schema:
+                    type: string
+
     startplanvisit:
       handler: src/handlers/customer-plans.handleStartPlanVisit
       events:
@@ -2626,14 +3058,14 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "List vendor package visits"
-            description: "Owner-only scheduled package visits for the caller's vendor. Dated rows come from GSI3 or GSI1. UNSCHEDULED entitlements are excluded. Staff and other vendors receive 403."
+            description: "Owner-only package-visit work queue. Omit date filters to list all vendor package visits on GSI1 (scheduled + UNSCHEDULED, any community). Pass date or fromDate/toDate for a dated board (GSI3 single day / GSI1 range; scheduled only). Optional communityId, visitWindowId, status, and search filter in memory. Staff and other vendors receive 403."
             swaggerTags:
               - Customer Plans
             queryStringParameters:
               date:
                 required: false
                 type: string
-                description: Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata when no range is sent.
+                description: Exact scheduled date YYYY-MM-DD. When omitted with fromDate/toDate also omitted, returns the full vendor work queue.
               fromDate:
                 required: false
                 type: string
@@ -2645,13 +3077,14 @@
               communityId:
                 required: false
                 type: string
+                description: Filter to one community after the vendor query.
               visitWindowId:
                 required: false
                 type: string
               status:
                 required: false
                 type: string
-                description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, or MISSED.
+                description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, or UNSCHEDULED. UNSCHEDULED cannot be combined with a date filter.
               search:
                 required: false
                 type: string
@@ -2666,16 +3099,16 @@
                 description: Opaque pagination token.
             responseData:
               200:
-                description: "Scheduled package visits"
+                description: "Vendor package visits"
               400:
                 description: "Invalid filter"
               401:
                 description: "Unauthenticated"
               403:
                 description: "Staff, another vendor, or no membership"
-            documentation:
+              documentation:
               summary: List vendor package visits
-              description: Owner-only scheduled package visits. Does not change GET /vendors/{vendorId}/bookings.
+              description: Owner-only package-visit work queue (scheduled and unscheduled when no date filter). Does not change GET /vendors/{vendorId}/bookings.
               tags:
                 - Customer Plans
               queryParams:
@@ -2703,7 +3136,7 @@
                   required: false
                   schema:
                     type: string
-                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, UNSCHEDULED]
                 - name: search
                   required: false
                   schema:
@@ -2876,6 +3309,95 @@
                   schema:
                     type: string
 
+    getvendorhomesummary:
+      handler: src/handlers/vendor-home-summary.handleVendorHomeSummary
+      events:
+        - http:
+            path: /vendors/{vendorId}/home-summary
+            method: get
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Vendor home summary"
+            description: >
+              Read-only manager dashboard. Package visits from GSI3
+              (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1
+              BOOKING#{date}# range with planId excluded. GSI2 is not used.
+              date defaults to today in the vendor IANA timezone; upcomingDays
+              default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total;
+              blocked is persisted BLOCKED only. Completion % uses today.visits.total.
+              Does not include proposals or profile greetings.
+            swaggerTags:
+              - Customer Plans
+            queryStringParameters:
+              date:
+                required: false
+                type: string
+                description: Civil date YYYY-MM-DD. Defaults to today in the resolved vendor timezone.
+              upcomingDays:
+                required: false
+                type: integer
+                description: Calendar days after date to include in upcoming (1-7). Default 3.
+            responseData:
+              200:
+                description: "Vendor home summary"
+                bodyType: VendorHomeSummaryResponse
+              400:
+                description: "Invalid date or upcomingDays"
+              403:
+                description: "Forbidden"
+              409:
+                description: "Timezone unresolved/ambiguous or range too large"
+            documentation:
+              summary: Vendor home summary
+              description: >
+                Read-only manager dashboard. Package visits from GSI3
+                (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1
+                BOOKING#{date}# range with planId excluded. GSI2 is not used.
+                UNSCHEDULED excluded; CANCELLED excluded from total; blocked is
+                persisted BLOCKED only. Completion % uses today.visits.total.
+              tags:
+                - Customer Plans
+              queryParams:
+                - name: date
+                  required: false
+                  description: Civil date YYYY-MM-DD. Defaults to today in the resolved vendor timezone.
+                  schema:
+                    type: string
+                    format: date
+                - name: upcomingDays
+                  required: false
+                  description: Calendar days after date (1-7). Default 3.
+                  schema:
+                    type: integer
+                    minimum: 1
+                    maximum: 7
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Vendor home summary
+                  responseModels:
+                    application/json: VendorHomeSummaryResponse
+                - statusCode: "400"
+                  responseBody:
+                    description: Invalid date or upcomingDays
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "403"
+                  responseBody:
+                    description: Forbidden
+                  responseModels:
+                    application/json: ErrorResponse
+                - statusCode: "409"
+                  responseBody:
+                    description: Timezone unresolved/ambiguous or range too large
+                  responseModels:
+                    application/json: ErrorResponse
+              pathParams:
+                - name: vendorId
+                  description: Vendor id. Must match the caller's owner membership, or the caller must be a platform admin.
+                  schema:
+                    type: string
+
     listvendorpackagevisitassignments:
       handler: src/handlers/crew-assignments.handleListCrewAssignments
       events:
@@ -2941,35 +3463,40 @@
             method: put
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
-            summary: "Assign a crew to package visits"
-            description: "Assigns or clears a crew on existing scheduled PackageVisit rows. Does not reschedule the customer, release availability, or consume entitlements. Overlapping crew or staff assignments return 409. Capacity overload and a short travel buffer are warnings and still save. Repeating the same assignment is idempotent. At most 25 visits, written in one transaction."
+            summary: "Schedule and assign package visits"
+            description: "Canonical manager action for community package visits. Schedules selected UNSCHEDULED (or reschedules SCHEDULED) visits into an inclusive date range of at most seven days and a visit window, and assigns them to a crew in one transaction. Does not call Availability or invent exact arrival times. Requires Idempotency-Key. visitWindowId must match the customer preference on each visit. replaceExisting is required to move a visit off another crew. Unassign uses DELETE /vendors/{vendorId}/package-visits/{visitId}/assignment."
             swaggerTags:
               - Customer Plans
             responseData:
               200:
-                description: "Assignment saved"
+                description: "Visits scheduled and assigned"
               400:
-                description: "Invalid body"
+                description: "Invalid body or missing Idempotency-Key"
               403:
                 description: "Staff, another vendor, or a visit from another vendor"
               404:
                 description: "Crew or visit not found"
               409:
-                description: "Inactive crew, crew size, overlap, or concurrent update"
+                description: "Inactive crew, crew size, window mismatch, overlap, idempotency conflict, or concurrent update"
             documentation:
-              summary: Assign a crew to package visits
-              description: "Owner-only. mode assign updates crewAssignment. mode unassign clears it. replaceExisting is required to move a visit off another crew. Authorization uses vendor membership lookup, not assertAdminAccess. Platform admin override uses the authorizer role."
+              summary: Schedule and assign package visits
+              description: "Owner-only bulk schedule-and-assign. Persists SCHEDULED status with scheduleStartDate, scheduleEndDate, visitWindowId, and crewAssignment on each PackageVisit. Authorization uses the existing custom authorizer plus vendor membership lookup already used by this route."
               tags:
                 - Customer Plans
+              requestHeaders:
+                - name: Idempotency-Key
+                  description: Required. Replay with the same key and body returns the original result.
+                  schema:
+                    type: string
               requestModels:
                 application/json: CrewAssignmentRequest
               requestBody:
-                description: "scheduledDate, communityId, visitWindowId, crewId, and visitIds. Optional mode assign|unassign and replaceExisting."
+                description: "communityId, scheduleStartDate, scheduleEndDate, visitWindowId, crewId, visitIds. Optional replaceExisting."
                 required: true
               methodResponses:
                 - statusCode: "200"
                   responseBody:
-                    description: Saved assignment, workload, and travel warnings
+                    description: scheduleId, range, window, crew, scheduledVisitCount, and per-visit status
                 - statusCode: "400"
                   responseBody:
                     description: Invalid body
@@ -3079,7 +3606,7 @@
               status:
                 required: false
                 type: string
-                description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or UNSCHEDULED.
+                description: SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, or UNSCHEDULED.
               limit:
                 required: false
                 type: integer
@@ -3121,7 +3648,7 @@
                   required: false
                   schema:
                     type: string
-                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, UNSCHEDULED]
+                    enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, UNSCHEDULED]
                 - name: limit
                   required: false
                   schema:
@@ -4257,12 +4784,12 @@
 
   resources:
     Resources:
-      # PartnerBffManagerReadInvokePermission:
-      #   Type: AWS::Lambda::Permission
-      #   Properties:
-      #     FunctionName: !GetAtt PartnerManagerReadLambdaFunction.Arn
-      #     Action: lambda:InvokeFunction
-      #     Principal: !Sub arn:aws:iam::${AWS::AccountId}:role/partner-bff-${self:provider.stage}-execution
+      PartnerBffManagerReadInvokePermission:
+        Type: AWS::Lambda::Permission
+        Properties:
+          FunctionName: !GetAtt PartnerManagerReadLambdaFunction.Arn
+          Action: lambda:InvokeFunction
+          Principal: !Sub arn:aws:iam::${AWS::AccountId}:role/partner-bff-${self:provider.stage}-execution
 
       GatewayResponseDefault4XX: ${file(../../infra/serverless/config/rest-gateway-cors-responses.yml):GatewayResponseDefault4XX}
 

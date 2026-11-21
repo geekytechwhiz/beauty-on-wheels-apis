@@ -1,52 +1,66 @@
-import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 import {
-    createLogger,
-    createChildLogger
+    createChildLogger,
+    createLogger
 } from "@api-hub/observability";
+import { EntityIdGenerator, LambdaRequest } from "@api-hub/utils";
 
+import { bookingConfirmedIdempotencyKey, type BookingConfirmedPayload } from '@api-hub/event-platform';
 import {
-    BookingsRepository,
-    getBookingsRepository
-} from "../repositories/bookings.repository";
-import {
-    ValidationError,
-    ConflictError,
-    NotFoundError,
     BusinessRuleError,
+    ConditionalWriteConflictError,
+    ConflictError,
     ForbiddenError,
-    ConditionalWriteConflictError
+    NotFoundError,
+    ValidationError
 } from "@api-hub/utils";
-import { Booking } from "../types/api-types";
 import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
+import { isUnpaidOnlineBookingEnabled } from '../configs/env.config';
 import {
-    assertHoldMatchesCommand,
+    ReservationSnapshot,
+    VehiclePricing,
     assertExpectedPrice,
-    assertLocation,
-    assertOfferingCommunity,
-    communityOfferingEnforcementEnabled,
+    assertHoldMatchesCommand,
     assertOffering,
+    assertOfferingCommunity,
     assertVehicleOwnership,
     assertVendorEligible,
     authoritativeOfferingVersion,
     buildPricingSnapshot,
     civilTimeToUtc,
+    communityOfferingEnforcementEnabled,
     moneyToMinor,
     payableAmount,
-    requestFingerprint,
-    ReservationSnapshot,
-    VehiclePricing,
+    requestFingerprint
 } from "../domain/create-booking";
 import { BookingError } from "../errors";
 import { AvailabilityGateway, getAvailabilityGateway } from "../integrations/availability.client";
 import { CatalogGateway, getCatalogGateway } from "../integrations/catalog.client";
+import { isRazorpayCheckoutConfigured } from '../integrations/razorpay.client';
 import { UserGateway, getUserGateway } from "../integrations/user.client";
 import { VehicleGateway, getVehicleGateway } from "../integrations/vehicle.client";
 import { VendorGateway, getVendorGateway } from "../integrations/vendor.client";
 import { BookingsMapper } from "../mappers/bookings.mapper";
+import {
+    BookingsRepository,
+    getBookingsRepository
+} from "../repositories/bookings.repository";
 import { validateCreateBooking } from "../schemas/bookings.schema";
+import { Booking } from "../types/api-types";
 import { BookingDdbItem, BookingIdempotencyItem } from "../types/repository.types";
 import { getCustomerPlansService } from "./customer-plans.service";
-import { bookingConfirmedIdempotencyKey, type BookingConfirmedPayload } from '@api-hub/event-platform';
+
+type BookingCreationPaymentPlan = {
+    paymentMethod: 'CASH_ON_SERVICE' | 'ONLINE';
+    bookingStatus: 'PENDING_PAYMENT' | 'CONFIRMED';
+    publishConfirmation: boolean;
+};
+
+type BookingConfirmationSource = Pick<Booking,
+    'id' | 'customerId' | 'vendorId' | 'vendorName' | 'bookingDate' | 'slotId' | 'totalAmount'
+> & {
+    customerEmail?: string;
+    customerName?: string;
+};
 
 const baseLogger = createLogger({
     service: "bookings-service",
@@ -133,6 +147,7 @@ export class BookingsService {
         const correlationId = (request.context as any)?.correlationId || "unknown";
         const customerId = requireCustomerId(request);
         const command = validateCreateBooking(request);
+        const paymentPlan = this.bookingCreationPaymentPlan(command.paymentMethod);
         this.logger.info({
             event: "postbookings_start",
             command: command,
@@ -177,7 +192,7 @@ export class BookingsService {
         assertVendorEligible(eligibility.vendor, command.vendorId);
       
         assertOffering(offering, command, vehicle.vehicleType);
-        assertLocation(command, eligibility.vendor, profile);
+        // assertLocation(command, eligibility.vendor, profile);
         assertOfferingCommunity({
             enforced: communityOfferingEnforcementEnabled(),
             fulfilmentType: command.location.fulfilmentType,
@@ -208,7 +223,7 @@ export class BookingsService {
             pricingSnapshot: pricingSnapshot,
             correlationId,
         });
-        // assertExpectedPrice(command.expectedPrice, pricingSnapshot);
+        assertExpectedPrice(command.expectedPrice, pricingSnapshot);
         const { vehiclePricing } = offering;
         const pricing = vehiclePricing.find((v:VehiclePricing) => v.vehicleType === vehicle.vehicleType);
        this.logger.info({
@@ -316,18 +331,24 @@ export class BookingsService {
             notes: command.notes,
             pricingSnapshot,
             totalAmount: pricingSnapshot.totalAmount,
+            paymentMethod: paymentPlan.paymentMethod,
             paymentStatus: "PENDING",
-            bookingStatus: "PENDING_PAYMENT",
+            bookingStatus: paymentPlan.bookingStatus,
+            slotReserved: true,
         };
 
         try {
+            const contact = {
+                customerEmail: profile.email,
+                customerName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || undefined,
+            };
+            const outbox = paymentPlan.publishConfirmation
+                ? this.bookingConfirmedOutbox({ ...booking, ...contact })
+                : undefined;
             await this.repository.createBooking(booking, {
                 idempotencyKey,
                 requestHash: hash,
-            }, {
-                customerEmail: profile.email,
-                customerName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || undefined,
-            });
+            }, contact, outbox);
         } catch (error) {
             if (error instanceof ConditionalWriteConflictError) {
                 await this.releaseReservationQuietly(bookingId, correlationId);
@@ -615,7 +636,7 @@ export class BookingsService {
     private async resume(
         record: BookingIdempotencyItem,
         hash: string,
-        correlationId: string,
+        _correlationId: string,
     ): Promise<Booking> {
         if (record.requestHash !== hash) {
             throw new BookingError(
@@ -680,6 +701,48 @@ export class BookingsService {
     }
 
     /**
+     * Legacy requests retain their historic PENDING_PAYMENT workflow. Explicit
+     * payment choices make the distinction visible to new mobile clients.
+     */
+    private bookingCreationPaymentPlan(method?: 'CASH_ON_SERVICE' | 'ONLINE'): BookingCreationPaymentPlan {
+        if (method === 'CASH_ON_SERVICE') {
+            return {
+                paymentMethod: method,
+                bookingStatus: 'CONFIRMED',
+                publishConfirmation: true,
+            };
+        }
+        if (method === 'ONLINE') {
+            if (isRazorpayCheckoutConfigured()) {
+                return {
+                    paymentMethod: method,
+                    bookingStatus: 'PENDING_PAYMENT',
+                    publishConfirmation: false,
+                };
+            }
+            if (isUnpaidOnlineBookingEnabled()) {
+                return {
+                    paymentMethod: method,
+                    bookingStatus: 'CONFIRMED',
+                    publishConfirmation: true,
+                };
+            }
+            throw new BookingError(
+                'ONLINE_PAYMENT_UNAVAILABLE',
+                'Online booking requires configured Razorpay checkout or ALLOW_UNPAID_ONLINE_BOOKING outside production',
+                503,
+                'paymentMethod',
+                true,
+            );
+        }
+        return {
+            paymentMethod: 'ONLINE',
+            bookingStatus: 'PENDING_PAYMENT',
+            publishConfirmation: false,
+        };
+    }
+
+    /**
      * Direct-Lambda integration point for a future Payment Service. This method
      * is intentionally not reachable from API Gateway. The caller must have
      * already verified the payment gateway event and must provide the immutable
@@ -730,7 +793,7 @@ export class BookingsService {
      * outbox. The payment response therefore never waits on Email Service,
      * while the status change and publish intent remain atomic.
      */
-    private bookingConfirmedOutbox(original: BookingDdbItem): {
+    private bookingConfirmedOutbox(original: BookingConfirmationSource): {
         eventId: string;
         idempotencyKey: string;
         correlationId: string;

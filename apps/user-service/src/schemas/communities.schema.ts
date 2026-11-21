@@ -14,8 +14,7 @@ import {
 const communityCode = z
   .string()
   .trim()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(40);
+   
 
 const locationId = z.string().trim().regex(/^[A-Z][A-Z0-9_]{0,149}$/);
 const postalCode = z.string().trim().regex(/^[1-9][0-9]{5}$/);

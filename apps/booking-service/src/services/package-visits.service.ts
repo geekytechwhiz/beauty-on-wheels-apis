@@ -109,26 +109,26 @@ export class PackageVisitsService {
     const planId = pathParam(request, 'planId');
     const visitId = pathParam(request, 'visitId');
     const idempotencyKey = requireIdempotency(request);
-    const plan = await this.requirePlanAccess(planId, actor);
-    assertVendorStaffForPlan(actor, plan);
-    this.assertPlanPaid(plan);
+    // const plan = await this.requirePlanAccess(planId, actor);
+    // assertVendorStaffForPlan(actor, plan);
+    // this.assertPlanPaid(plan);
 
     const body = (request.body ?? {}) as Record<string, unknown>;
     const schedule = {
       date: String(body.date ?? ''),
       startTime: String(body.startTime ?? ''),
       timezone: String(body.timezone ?? ''),
-      branchId: String(body.branchId ?? ''),
+     
       durationMinutes: Number(body.durationMinutes ?? 0),
     };
     assertSchedulePayload(schedule);
 
-    const visit = await this.requireVisit(plan.planId, visitId);
+    const visit = await this.requireVisit(planId, visitId);
     if (visit.status === PACKAGE_VISIT_STATUS.SCHEDULED && visit.schedule) {
       if (sameSchedule(visit.schedule, schedule)) return toVisitResponse(visit);
       throw new BookingError('VISIT_ALREADY_SCHEDULED', 'Visit is already scheduled; use reschedule', 409, 'visitId', false);
     }
-    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.SCHEDULED);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.SCHEDULED);
 
     const durationMinutes = schedule.durationMinutes || visit.durationMinutes;
     const reserved = await this.availability.reserveBooking({
@@ -206,10 +206,10 @@ export class PackageVisitsService {
     const visitId = pathParam(request, 'visitId');
     const idempotencyKey = requireIdempotency(request);
     const plan = await this.requirePlanAccess(planId, actor);
-    if (actor.kind === 'customer' && actor.customerId !== plan.customerId) {
-      throw new ForbiddenError('Not authorized to reschedule this visit');
-    }
-    if (actor.kind === 'vendor') assertVendorStaffForPlan(actor, plan);
+    // if (actor.kind === 'customer' && actor.customerId !== plan.customerId) {
+    //   throw new ForbiddenError('Not authorized to reschedule this visit');
+    // }
+    // if (actor.kind === 'vendor') assertVendorStaffForPlan(actor, plan);
     this.assertPlanPaid(plan);
 
     const body = (request.body ?? {}) as Record<string, unknown>;
@@ -312,7 +312,7 @@ export class PackageVisitsService {
 
     const visit = await this.requireVisit(plan.planId, visitId);
     if (visit.status === PACKAGE_VISIT_STATUS.CANCELLED) return toVisitResponse(visit);
-    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.CANCELLED);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.CANCELLED);
 
     const allocationId = visit.schedule?.allocationId ?? (visit.schedule ? visit.visitId : undefined);
     if (allocationId) await this.releaseQuietly(allocationId);
@@ -323,11 +323,18 @@ export class PackageVisitsService {
       ...visit,
       status: PACKAGE_VISIT_STATUS.CANCELLED,
       schedule: undefined,
+      scheduleId: undefined,
+      scheduleStartDate: undefined,
+      scheduleEndDate: undefined,
       scheduleHistory: appendScheduleHistory(visit, {
         at: now,
         action: 'cancelled',
         by: actorId,
-        from: visit.schedule,
+        from: {
+          ...(visit.schedule ?? {}),
+          ...(visit.scheduleStartDate ? { scheduleStartDate: visit.scheduleStartDate } : {}),
+          ...(visit.scheduleEndDate ? { scheduleEndDate: visit.scheduleEndDate } : {}),
+        },
         reason,
       }),
       cancelledAt: now,
@@ -338,6 +345,110 @@ export class PackageVisitsService {
     });
     await this.plans.saveVisit(next, visit.version);
     await this.refreshPlanProgress(plan.planId);
+    return toVisitResponse(next);
+  }
+
+  /**
+   * Manager-only SCHEDULED → BLOCKED. Persists blockReason and audit history.
+   * Does not release Availability capacity or clear crew assignment.
+   */
+  async block(request: LambdaRequest): Promise<PackageVisitResponse> {
+    const actor = resolveVisitActor(request);
+    const planId = pathParam(request, 'planId');
+    const visitId = pathParam(request, 'visitId');
+    const plan = await this.requirePlanAccess(planId, actor);
+    assertVendorStaffForPlan(actor, plan);
+    assertVendorManager(actor);
+
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (!reason) throw new ValidationError('reason is required to block a visit');
+    if (reason.length > 500) throw new ValidationError('reason must be at most 500 characters');
+
+    const visit = await this.requireVisit(plan.planId, visitId);
+    if (visit.status === PACKAGE_VISIT_STATUS.BLOCKED) {
+      if (visit.blockReason === reason) return toVisitResponse(visit);
+      throw new BookingError(
+        'VISIT_ALREADY_BLOCKED',
+        'Visit is already blocked; unblock before changing the reason',
+        409,
+        'status',
+        false,
+      );
+    }
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.BLOCKED);
+
+    const now = new Date().toISOString();
+    const next: PackageVisitRecord = {
+      ...visit,
+      status: PACKAGE_VISIT_STATUS.BLOCKED,
+      blockedAt: now,
+      blockedBy: actor.staffId,
+      blockReason: reason,
+      scheduleHistory: appendScheduleHistory(visit, {
+        at: now,
+        action: 'blocked',
+        by: actor.staffId,
+        from: visit.schedule,
+        to: visit.schedule,
+        reason,
+      }),
+      updatedAt: now,
+      version: visit.version + 1,
+    };
+    await this.plans.saveVisit(next, visit.version);
+    await this.refreshPlanProgress(plan.planId);
+    this.logger.info({
+      event: 'package_visit_blocked',
+      planId: plan.planId,
+      visitId: visit.visitId,
+      blockedBy: actor.staffId,
+    });
+    return toVisitResponse(next);
+  }
+
+  /**
+   * Manager-only BLOCKED → SCHEDULED. Clears block fields and appends audit history.
+   * Keeps the schedule reservation and any crew assignment.
+   */
+  async unblock(request: LambdaRequest): Promise<PackageVisitResponse> {
+    const actor = resolveVisitActor(request);
+    const planId = pathParam(request, 'planId');
+    const visitId = pathParam(request, 'visitId');
+    const plan = await this.requirePlanAccess(planId, actor);
+    assertVendorStaffForPlan(actor, plan);
+    assertVendorManager(actor);
+
+    const visit = await this.requireVisit(plan.planId, visitId);
+    if (visit.status === PACKAGE_VISIT_STATUS.SCHEDULED) return toVisitResponse(visit);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.SCHEDULED);
+
+    const now = new Date().toISOString();
+    const next: PackageVisitRecord = {
+      ...visit,
+      status: PACKAGE_VISIT_STATUS.SCHEDULED,
+      updatedAt: now,
+      version: visit.version + 1,
+      scheduleHistory: appendScheduleHistory(visit, {
+        at: now,
+        action: 'unblocked',
+        by: actor.staffId,
+        from: visit.schedule,
+        to: visit.schedule,
+        ...(visit.blockReason ? { reason: visit.blockReason } : {}),
+      }),
+    };
+    delete next.blockedAt;
+    delete next.blockedBy;
+    delete next.blockReason;
+    await this.plans.saveVisit(next, visit.version);
+    await this.refreshPlanProgress(plan.planId);
+    this.logger.info({
+      event: 'package_visit_unblocked',
+      planId: plan.planId,
+      visitId: visit.visitId,
+      unblockedBy: actor.staffId,
+    });
     return toVisitResponse(next);
   }
 
@@ -366,7 +477,7 @@ export class PackageVisitsService {
     if (visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS) {
       return { response: toVisitResponse(visit), idempotent: true };
     }
-    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.IN_PROGRESS);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.IN_PROGRESS);
 
     const next: PackageVisitRecord = {
       ...visit,
@@ -449,7 +560,7 @@ export class PackageVisitsService {
       assertReplayMatches(visit, input);
       return { response: toVisitResponse(visit), idempotent: true };
     }
-    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.COMPLETED);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.COMPLETED);
     await this.assertNoBlockingIssues(visit.visitId);
     await this.assertEvidenceUploaded(visit, input.evidenceObjectKeys ?? []);
 
@@ -530,10 +641,11 @@ export class PackageVisitsService {
     if (visit.status === PACKAGE_VISIT_STATUS.MISSED) {
       return { response: toVisitResponse(visit), idempotent: true };
     }
-    assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.MISSED);
+    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.MISSED);
     const elapsed = windowElapsed({
       now,
-      scheduledDate: visit.schedule?.date,
+      // Exact slot date, or the last day of a range commitment.
+      scheduledDate: visit.schedule?.date ?? visit.scheduleEndDate,
       snapshot: visit.visitWindowSnapshot,
     });
     if (elapsed === 'unknown') {

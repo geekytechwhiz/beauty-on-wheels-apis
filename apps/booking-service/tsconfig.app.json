@@ -26,6 +26,9 @@
       "path": "../../libs/observability/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/authentication-core/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/middleware/tsconfig.lib.json"
     },
     {

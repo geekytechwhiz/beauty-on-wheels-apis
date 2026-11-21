@@ -339,12 +339,14 @@ function parsePartnerActor(value: unknown): {
   const vendorId = typeof source.vendorId === 'string' ? source.vendorId.trim() : '';
   const correlationId = typeof source.correlationId === 'string' ? source.correlationId.trim() : '';
   const roles = Array.isArray(source.roles) ? source.roles.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
-  const permissions = Array.isArray(source.permissions) ? source.permissions.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
   if (!userId || !vendorId || !correlationId) throw new BaseError('Delegated actor is required', 401, 'UNAUTHORIZED');
-  const managerRole = roles.some((role) => ['vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner'].includes(role.trim().toLowerCase().replace(/[\s-]+/g, '_')));
-  const managerPermission = permissions.some((permission) => ['vendor:read', 'operations:view', 'visits:view'].includes(permission.trim().toLowerCase()));
-  if (!managerRole && !managerPermission) throw new BaseError('Partner manager access is required', 403, 'FORBIDDEN');
-  return { userId, vendorId, roles, permissions, correlationId };
+  const managerRole = roles.some((role) =>
+    ['root', 'admin', 'vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner'].includes(
+      role.trim().toLowerCase().replace(/[\s-]+/g, '_'),
+    ),
+  );
+  if (!managerRole) throw new BaseError('Partner manager access is required', 403, 'FORBIDDEN');
+  return { userId, vendorId, roles, permissions: [], correlationId };
 }
 
 function parseCommunityIds(value: unknown): string[] {

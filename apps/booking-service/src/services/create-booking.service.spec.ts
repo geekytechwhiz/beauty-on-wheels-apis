@@ -11,6 +11,7 @@ import { BookingError } from '../errors';
 import { Booking } from '../types/api-types';
 import { requestFingerprint } from '../domain/create-booking';
 import { validateCreateBooking } from '../schemas/bookings.schema';
+import { validatePaymentConfiguration } from '../configs/env.config';
 
 const command = {
   vendorId: 'vendor_001', branchId: 'branch_001', vehicleId: 'vehicle_001', offeringId: 'offering_001',
@@ -38,6 +39,7 @@ describe('Create booking flow', () => {
   let service: BookingsService;
 
   beforeEach(() => {
+    delete process.env.ALLOW_UNPAID_ONLINE_BOOKING;
     repository = { getIdempotency: jest.fn().mockResolvedValue(null), createBooking: jest.fn().mockImplementation(async (booking: Booking) => booking), getBookingDetailsItem: jest.fn(), getBookingById: jest.fn(), updateBookingStatus: jest.fn() } as unknown as jest.Mocked<BookingsRepository>;
     catalog = {
       getOffering: jest.fn().mockResolvedValue({
@@ -68,6 +70,76 @@ describe('Create booking flow', () => {
     expect(availability.reserveBooking).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-10-25', startTime: '10:00', durationMinutes: 45 }));
   });
 
+  it('confirms a cash booking without creating a payment attempt and records the due payment state', async () => {
+    users.getProfile.mockResolvedValue({
+      communityIds: ['community_001'],
+      email: 'customer@example.com',
+      firstName: 'Customer',
+    });
+
+    const result = await service.postbookings(request({ ...command, paymentMethod: 'CASH_ON_SERVICE' }));
+
+    expect(result).toMatchObject({
+      bookingStatus: 'CONFIRMED',
+      paymentMethod: 'CASH_ON_SERVICE',
+      paymentStatus: 'PENDING',
+      slotReserved: true,
+    });
+    expect(availability.reserveBooking).toHaveBeenCalledTimes(1);
+    expect(repository.createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'CASH_ON_SERVICE', bookingStatus: 'CONFIRMED' }),
+      expect.anything(),
+      expect.objectContaining({ customerEmail: 'customer@example.com' }),
+      expect.objectContaining({ eventId: expect.stringMatching(/^Booking\.Confirmed:/) }),
+    );
+  });
+
+  it('confirms an explicitly online booking as payment pending only when the development bypass is enabled', async () => {
+    process.env.ALLOW_UNPAID_ONLINE_BOOKING = 'true';
+    const result = await service.postbookings(request({ ...command, paymentMethod: 'ONLINE' }));
+
+    expect(result).toMatchObject({
+      bookingStatus: 'CONFIRMED',
+      paymentMethod: 'ONLINE',
+      paymentStatus: 'PENDING',
+      slotReserved: true,
+    });
+    expect(repository.createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'ONLINE' }),
+      expect.anything(),
+      expect.anything(),
+      undefined,
+    );
+  });
+
+  it('rejects an explicitly online booking without Razorpay or the development bypass before reserving capacity', async () => {
+    process.env.ALLOW_UNPAID_ONLINE_BOOKING = 'false';
+
+    await expect(service.postbookings(request({ ...command, paymentMethod: 'ONLINE' }))).rejects.toMatchObject({
+      code: 'ONLINE_PAYMENT_UNAVAILABLE',
+      statusCode: 503,
+    });
+    expect(availability.reserveBooking).not.toHaveBeenCalled();
+    expect(repository.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('does not persist a confirmed cash booking when Availability reports a slot conflict', async () => {
+    availability.reserveBooking.mockRejectedValue(new BookingError('SLOT_UNAVAILABLE', 'slot is full', 409));
+
+    await expect(service.postbookings(request({ ...command, paymentMethod: 'CASH_ON_SERVICE' }))).rejects.toMatchObject({
+      code: 'SLOT_UNAVAILABLE',
+      statusCode: 409,
+    });
+    expect(repository.createBooking).not.toHaveBeenCalled();
+  });
+
+  it('rejects the unpaid-online bypass in production configuration', () => {
+    expect(() => validatePaymentConfiguration({
+      stage: 'production',
+      allowUnpaidOnlineBooking: 'true',
+    })).toThrow('ALLOW_UNPAID_ONLINE_BOOKING');
+  });
+
   it('rejects removed slot and version request fields at the boundary', async () => {
     await expect(service.postbookings(request({ ...command, slotId: 'slot', offeringVersion: 1 }))).rejects.toThrow();
     expect(availability.reserveBooking).not.toHaveBeenCalled();
@@ -80,7 +152,7 @@ describe('Create booking flow', () => {
     expect(availability.reserveBooking).not.toHaveBeenCalled();
     expect(result).toMatchObject({ holdId: 'hold-1', slotId: 'held-slot' });
     expect(result.schedule).toMatchObject({ date: '2026-10-25', startTime: '10:00', endTime: '12:00', durationMinutes: 120 });
-    expect(repository.createBooking).toHaveBeenCalledWith(expect.objectContaining({ holdId: 'hold-1' }), expect.anything());
+    expect(repository.createBooking).toHaveBeenCalledWith(expect.objectContaining({ holdId: 'hold-1' }), expect.anything(), expect.anything(), undefined);
   });
 
   it('uses reserveBooking and stores no holdId when none is supplied', async () => {

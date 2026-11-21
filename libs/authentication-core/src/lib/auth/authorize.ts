@@ -2,24 +2,31 @@ import { BaseError, ForbiddenError, LambdaRequest, UnauthorizedError } from '@ap
 
 import { authenticate, getAuthContext } from './authenticate';
 import type { AuthContext, AuthenticateOptions, AuthorizeOptions } from './auth-context';
+import { resolveApplicationRoles } from './application-roles';
 
-function hasRequiredPermissions(
+function hasRequiredRoles(
   granted: string[],
   required: string[],
   requireAll: boolean,
 ): boolean {
-  const grantedSet = new Set(granted);
-  if (requireAll) {
-    return required.every((permission) => grantedSet.has(permission));
+  const grantedSet = new Set(resolveApplicationRoles(granted));
+  const needed = resolveApplicationRoles(required);
+  if (needed.length === 0) {
+    return true;
   }
-  return required.some((permission) => grantedSet.has(permission));
+  if (requireAll) {
+    return needed.every((role) => grantedSet.has(role));
+  }
+  return needed.some((role) => grantedSet.has(role));
 }
 
 /**
- * Ensures the request is authenticated and the caller has the required permission(s).
+ * Ensures the request is authenticated and the caller has the required role(s).
  *
  * 401 when authentication fails.
- * 403 when the identity is valid but lacks the permission (or has no application user).
+ * 403 when the identity is valid but lacks the role (or has no application user).
+ *
+ * Platform authorization is role-only. Permission identifiers are not checked.
  */
 export async function authorize(
   request: LambdaRequest,
@@ -43,14 +50,14 @@ export async function authorize(
     );
   }
 
-  const required = options.permissions ?? [];
+  const required = options.roles ?? [];
   if (required.length === 0) {
     return ctx;
   }
 
   const requireAll = options.requireAll !== false;
-  if (!hasRequiredPermissions(ctx.permissions, required, requireAll)) {
-    throw new ForbiddenError('Insufficient permissions');
+  if (!hasRequiredRoles(ctx.roles, required, requireAll)) {
+    throw new ForbiddenError('Insufficient role');
   }
 
   return ctx;

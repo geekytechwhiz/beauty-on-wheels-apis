@@ -54,6 +54,8 @@ export const CreateBookingSchema = z.object({
     totalMinor: z.number().int().nonnegative(),
     currency: z.string().regex(/^[A-Za-z]{3}$/),
   }).strict(),
+  /** Omitted is retained for legacy clients and follows the historic checkout flow. */
+  paymentMethod: z.enum(['CASH_ON_SERVICE', 'ONLINE']).optional(),
   notes: z.string().trim().max(2000).optional(),
   holdId: z.string().trim().min(1).optional(),
 }).strict().superRefine((value, context) => {

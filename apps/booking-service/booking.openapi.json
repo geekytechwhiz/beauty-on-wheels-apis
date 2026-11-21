@@ -25,8 +25,8 @@
           "vehicleId",
           "offeringId",
           "schedule",
-          "location"
-          ,"addOnIds",
+          "location",
+          "addOnIds",
           "expectedPrice"
         ],
         "properties": {
@@ -44,11 +44,23 @@
           },
           "schedule": {
             "type": "object",
-            "required": ["date", "startTime", "timezone"],
+            "required": [
+              "date",
+              "startTime",
+              "timezone"
+            ],
             "properties": {
-              "date": { "type": "string", "format": "date" },
-              "startTime": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
-              "timezone": { "type": "string" }
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "startTime": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "timezone": {
+                "type": "string"
+              }
             }
           },
           "location": {
@@ -72,17 +84,41 @@
               "addressId": {
                 "type": "string"
               }
+            },
+            "addOnIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "expectedPrice": {
+              "type": "object",
+              "required": [
+                "totalMinor",
+                "currency"
+              ],
+              "properties": {
+                "totalMinor": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "currency": {
+                  "type": "string"
+                }
+              }
+            },
+            "paymentMethod": {
+              "type": "string",
+              "enum": [
+                "CASH_ON_SERVICE",
+                "ONLINE"
+              ],
+              "description": "Optional for legacy clients. CASH_ON_SERVICE confirms an unpaid booking; ONLINE requires Razorpay or the non-production unpaid-booking flag."
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 2000
             }
-          ,"addOnIds": { "type": "array", "items": { "type": "string" } }
-          ,"expectedPrice": {
-            "type": "object",
-            "required": ["totalMinor", "currency"],
-            "properties": {
-              "totalMinor": { "type": "integer", "minimum": 0 },
-              "currency": { "type": "string" }
-            }
-          }
-          ,"notes": { "type": "string", "maxLength": 2000 }
           }
         }
       },
@@ -197,7 +233,11 @@
             "type": "number"
           },
           "paymentMethod": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "CASH_ON_SERVICE",
+              "ONLINE"
+            ]
           },
           "paymentStatus": {
             "type": "string",
@@ -206,6 +246,10 @@
               "PAID",
               "REFUNDED"
             ]
+          },
+          "slotReserved": {
+            "type": "boolean",
+            "description": "True when Availability capacity was reserved."
           },
           "bookingStatus": {
             "type": "string",
@@ -271,7 +315,11 @@
                   "type": "number"
                 },
                 "paymentMethod": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "CASH_ON_SERVICE",
+                    "ONLINE"
+                  ]
                 },
                 "paymentStatus": {
                   "type": "string",
@@ -280,6 +328,9 @@
                     "PAID",
                     "REFUNDED"
                   ]
+                },
+                "slotReserved": {
+                  "type": "boolean"
                 },
                 "bookingStatus": {
                   "type": "string",
@@ -380,6 +431,280 @@
       },
       "bookingId": {
         "type": "string"
+      },
+      "VendorHomeSummaryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "vendorId",
+          "timezone",
+          "date",
+          "today",
+          "tomorrow",
+          "upcoming"
+        ],
+        "properties": {
+          "vendorId": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Resolved vendor IANA timezone"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "today": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "visits",
+              "crew",
+              "completion",
+              "needsAttention"
+            ],
+            "properties": {
+              "visits": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "total",
+                  "completed",
+                  "inProgress",
+                  "notStarted",
+                  "blocked",
+                  "missed",
+                  "cancelled"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "SCHEDULED+IN_PROGRESS+COMPLETED+BLOCKED+MISSED. Excludes CANCELLED and UNSCHEDULED."
+                  },
+                  "completed": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "inProgress": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "notStarted": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "SCHEDULED visits"
+                  },
+                  "blocked": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Persisted BLOCKED status only"
+                  },
+                  "missed": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cancelled": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Visible separately; excluded from total"
+                  }
+                }
+              },
+              "crew": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "assigned",
+                  "unassigned"
+                ],
+                "properties": {
+                  "assigned": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "unassigned": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "completion": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "completed",
+                  "total",
+                  "percentage"
+                ],
+                "properties": {
+                  "completed": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Same denominator as today.visits.total"
+                  },
+                  "percentage": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Round(100*completed/total), or 0 when total is 0"
+                  }
+                }
+              },
+              "needsAttention": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "communityId",
+                    "visitWindowId",
+                    "visitCount",
+                    "blockedCount",
+                    "unassignedCount"
+                  ],
+                  "properties": {
+                    "communityId": {
+                      "type": "string"
+                    },
+                    "communityName": {
+                      "type": "string"
+                    },
+                    "visitWindowId": {
+                      "type": "string"
+                    },
+                    "visitWindowName": {
+                      "type": "string"
+                    },
+                    "visitCount": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "blockedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unassignedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "tomorrow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "totalVisits",
+              "assignedVisits",
+              "unassignedVisits"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "totalVisits": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "assignedVisits": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unassignedVisits": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "upcoming": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fromDate",
+              "toDate",
+              "days"
+            ],
+            "properties": {
+              "fromDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "toDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "days": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "date",
+                    "totalVisits",
+                    "assignedVisits",
+                    "unassignedVisits",
+                    "communities"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "totalVisits": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "assignedVisits": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unassignedVisits": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "communities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "communityId",
+                          "visitCount",
+                          "unassignedCount"
+                        ],
+                        "properties": {
+                          "communityId": {
+                            "type": "string"
+                          },
+                          "communityName": {
+                            "type": "string"
+                          },
+                          "visitCount": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "unassignedCount": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -482,7 +807,7 @@
       },
       "post": {
         "summary": "Create booking",
-        "description": "Creates a booking from an availability hold. Customer identity comes from the access token. quoteId and totalAmount are not accepted. Idempotency-Key is required.",
+        "description": "Creates a booking with an independent payment state. CASH_ON_SERVICE confirms an unpaid booking; ONLINE requires Razorpay or the non-production unpaid-online flag. Customer identity comes from the access token and Idempotency-Key is required.",
         "operationId": "postbookings",
         "parameters": [],
         "tags": [
@@ -1252,6 +1577,380 @@
               },
               "Access-Control-Allow-Credentials": {
                 "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/home-summary": {
+      "get": {
+        "summary": "Vendor home summary",
+        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today.visits.total. Does not include proposals or profile greetings.",
+        "operationId": "getvendorhomesummary",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "Vendor id. Must match the caller's owner membership, or the caller must be a platform admin.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Civil date YYYY-MM-DD. Defaults to today in the resolved vendor timezone.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "upcomingDays",
+            "in": "query",
+            "description": "Calendar days after date (1-7). Default 3.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          }
+        ],
+        "tags": [
+          "Customer Plans"
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor home summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorHomeSummaryResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date or upcomingDays",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Timezone unresolved/ambiguous or range too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/block": {
+      "post": {
+        "summary": "Block a package visit",
+        "description": "Vendor manager only. Persists SCHEDULED \u2192 BLOCKED with a required reason. Keeps the Availability reservation and crew assignment. Appends scheduleHistory action blocked. BLOCKED is not inferred from issues or missing crew.",
+        "operationId": "blockplanvisit",
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/planId"
+            }
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/visitId"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Customer Plans"
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit blocked",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing reason",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/unblock": {
+      "post": {
+        "summary": "Unblock a package visit",
+        "description": "Vendor manager only. Persists BLOCKED \u2192 SCHEDULED and clears blockedAt, blockedBy, and blockReason. Appends scheduleHistory action unblocked.",
+        "operationId": "unblockplanvisit",
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/planId"
+            }
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/visitId"
+            }
+          }
+        ],
+        "tags": [
+          "Customer Plans"
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit unblocked",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "CORS origin",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "CORS credentials",
                 "schema": {
                   "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
                 }

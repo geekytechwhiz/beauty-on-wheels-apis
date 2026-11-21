@@ -10,7 +10,9 @@ import type {
  * Same rule Booking applies to its blocked counts. Re-checked here so a
  * Booking deployment that still projects resolved blockers cannot block a visit.
  */
-export function isActiveBlocker(issue: Pick<ManagerIssue, 'blocksVisit' | 'status'>): boolean {
+export function isActiveBlocker(
+  issue: Pick<ManagerIssue, 'blocksVisit' | 'status'>,
+): boolean {
   return issue.blocksVisit === true && issue.status !== 'RESOLVED';
 }
 
@@ -20,11 +22,20 @@ export type SectionAvailability = {
   sourceAsOf?: string;
 };
 
-export function labelMap(communities: readonly CommunityLabel[] | undefined): Map<string, string> {
-  return new Map((communities ?? []).map((community) => [community.communityId, community.name]));
+export function labelMap(
+  communities: readonly CommunityLabel[] | undefined,
+): Map<string, string> {
+  return new Map(
+    (communities ?? []).map((community) => [
+      community.communityId,
+      community.name,
+    ]),
+  );
 }
 
-export function crewMap(crews: readonly SchedulingCrew[] | undefined): Map<string, SchedulingCrew> {
+export function crewMap(
+  crews: readonly SchedulingCrew[] | undefined,
+): Map<string, SchedulingCrew> {
   return new Map((crews ?? []).map((crew) => [crew.crewId, crew]));
 }
 
@@ -42,28 +53,42 @@ export function visitView(
     ...(visit.statusAt ? { statusAt: visit.statusAt } : {}),
     ...(visit.reviewStatus ? { reviewStatus: visit.reviewStatus } : {}),
     ...(visit.parkingBay ? { parkingBay: visit.parkingBay } : {}),
-    assignmentStatus: visit.crewId ? 'ASSIGNED' as const : 'UNASSIGNED' as const,
-    ...(visit.communityId ? {
-      community: {
-        communityId: visit.communityId,
-        ...(communities.get(visit.communityId) ? { displayName: communities.get(visit.communityId) } : {}),
-      },
-    } : {}),
-    ...(visit.visitWindowId ? {
-      visitWindow: {
-        visitWindowId: visit.visitWindowId,
-        ...(visit.visitWindowName ? { displayName: visit.visitWindowName } : {}),
-        ...(visit.window?.startTime ? { startTime: visit.window.startTime } : {}),
-        ...(visit.window?.endTime ? { endTime: visit.window.endTime } : {}),
-      },
-    } : {}),
-    ...(visit.crewId ? {
-      crew: {
-        crewId: visit.crewId,
-        ...(crew?.name ? { displayName: crew.name } : {}),
-        ...(crew?.vanLabel ? { vanLabel: crew.vanLabel } : {}),
-      },
-    } : {}),
+    assignmentStatus: visit.crewId
+      ? ('ASSIGNED' as const)
+      : ('UNASSIGNED' as const),
+    ...(visit.communityId
+      ? {
+          community: {
+            communityId: visit.communityId,
+            ...(communities.get(visit.communityId)
+              ? { displayName: communities.get(visit.communityId) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(visit.visitWindowId
+      ? {
+          visitWindow: {
+            visitWindowId: visit.visitWindowId,
+            ...(visit.visitWindowName
+              ? { displayName: visit.visitWindowName }
+              : {}),
+            ...(visit.window?.startTime
+              ? { startTime: visit.window.startTime }
+              : {}),
+            ...(visit.window?.endTime ? { endTime: visit.window.endTime } : {}),
+          },
+        }
+      : {}),
+    ...(visit.crewId
+      ? {
+          crew: {
+            crewId: visit.crewId,
+            ...(crew?.name ? { displayName: crew.name } : {}),
+            ...(crew?.vanLabel ? { vanLabel: crew.vanLabel } : {}),
+          },
+        }
+      : {}),
     vehicle: visit.vehicle ?? {},
     service: visit.service,
   };
@@ -75,13 +100,75 @@ export function commitmentQuantityForDate(
   communityId?: string,
   visitWindow?: { startTime?: string; endTime?: string },
 ): number | null {
+  const applicable = commitmentsForDate(
+    commitments,
+    date,
+    communityId,
+    visitWindow,
+  );
+  if (!applicable) return null;
+  return applicable.reduce(
+    (total, commitment) => total + commitment.quantity,
+    0,
+  );
+}
+
+/**
+ * The Vendor endpoint returns the full commitment history. Keep only records
+ * that hold supply on this calendar date; a recurring commitment is not in
+ * effect on omitted weekdays, and CANCELLED records have released capacity.
+ */
+export function commitmentsForDate(
+  commitments: readonly CapacityCommitment[] | undefined,
+  date: string,
+  communityId?: string,
+  visitWindow?: { startTime?: string; endTime?: string },
+): CapacityCommitment[] | null {
   if (!commitments) return null;
+  const dayOfWeek = weekdayForDate(date);
   return commitments
-    .filter((commitment) => commitment.status !== 'CANCELLED')
-    .filter((commitment) => date >= commitment.window.startDate && date <= commitment.window.endDate)
-    .filter((commitment) => !communityId || commitment.communityId === communityId)
-    .filter((commitment) => !visitWindow?.startTime || commitment.window.dailyWindow.startTime === visitWindow.startTime)
-    .reduce((total, commitment) => total + commitment.quantity, 0);
+    .filter((commitment) => isCapacityHoldingStatus(commitment.status))
+    .filter(
+      (commitment) =>
+        date >= commitment.window.startDate &&
+        date <= commitment.window.endDate,
+    )
+    .filter(
+      (commitment) =>
+        !commitment.window.daysOfWeek?.length ||
+        commitment.window.daysOfWeek.includes(dayOfWeek),
+    )
+    .filter(
+      (commitment) => !communityId || commitment.communityId === communityId,
+    )
+    .filter(
+      (commitment) =>
+        !visitWindow?.startTime ||
+        commitment.window.dailyWindow.startTime === visitWindow.startTime,
+    )
+    .filter(
+      (commitment) =>
+        !visitWindow?.endTime ||
+        commitment.window.dailyWindow.endTime === visitWindow.endTime,
+    );
+}
+
+function isCapacityHoldingStatus(status: string): boolean {
+  return (
+    status === 'ACTIVE' || status === 'CHANGE_PENDING' || status === 'REDUCED'
+  );
+}
+
+function weekdayForDate(date: string): string {
+  return [
+    'SUNDAY',
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY',
+    'SATURDAY',
+  ][new Date(`${date}T00:00:00Z`).getUTCDay()]!;
 }
 
 /**
@@ -89,12 +176,23 @@ export function commitmentQuantityForDate(
  * only eligible crews; inactive or understaffed crews are not operational
  * capacity even though they remain visible in the roster.
  */
-export function configuredCrewCapacity(crews: readonly SchedulingCrew[] | undefined) {
-  if (!crews) return { status: 'UNAVAILABLE' as const, reason: 'DEPENDENCY_UNAVAILABLE' as const };
-  const eligibleCrews = crews.filter((crew) => crew.availabilityStatus === 'AVAILABLE');
+export function configuredCrewCapacity(
+  crews: readonly SchedulingCrew[] | undefined,
+) {
+  if (!crews)
+    return {
+      status: 'UNAVAILABLE' as const,
+      reason: 'DEPENDENCY_UNAVAILABLE' as const,
+    };
+  const eligibleCrews = crews.filter(
+    (crew) => crew.availabilityStatus === 'AVAILABLE',
+  );
   return {
     status: 'AVAILABLE' as const,
-    capacityPerDay: eligibleCrews.reduce((total, crew) => total + crew.capacityPerDay, 0),
+    capacityPerDay: eligibleCrews.reduce(
+      (total, crew) => total + crew.capacityPerDay,
+      0,
+    ),
     eligibleCrewCount: eligibleCrews.length,
     unavailableCrewCount: crews.length - eligibleCrews.length,
     capacityUnit: 'THIRTY_MINUTE_SLOT' as const,
@@ -110,16 +208,21 @@ export function effectiveCrewCapacity(
   assignedCapacityUnits: number | undefined,
 ) {
   if (configured.status !== 'AVAILABLE') return configured;
-  if (typeof assignedCapacityUnits !== 'number'
-    || !Number.isInteger(assignedCapacityUnits)
-    || assignedCapacityUnits < 0) {
+  if (
+    typeof assignedCapacityUnits !== 'number' ||
+    !Number.isInteger(assignedCapacityUnits) ||
+    assignedCapacityUnits < 0
+  ) {
     return { status: 'UNAVAILABLE' as const, reason: 'NOT_SUPPORTED' as const };
   }
   return {
     status: 'AVAILABLE' as const,
     capacityPerDay: configured.capacityPerDay,
     assignedCapacityUnits,
-    availableCapacityUnits: Math.max(0, configured.capacityPerDay - assignedCapacityUnits),
+    availableCapacityUnits: Math.max(
+      0,
+      configured.capacityPerDay - assignedCapacityUnits,
+    ),
     eligibleCrewCount: configured.eligibleCrewCount,
     capacityUnit: configured.capacityUnit,
   };
@@ -128,7 +231,8 @@ export function effectiveCrewCapacity(
 /** The unavailable shape is unchanged from before Vendor supplied contacts. */
 export function pointOfContactView(crew: SchedulingCrew | undefined) {
   const contact = crew?.pointOfContact;
-  if (!contact?.staffId || !contact.name) return { status: 'UNAVAILABLE' as const, reason: 'NOT_SUPPORTED' as const };
+  if (!contact?.staffId || !contact.name)
+    return { status: 'UNAVAILABLE' as const, reason: 'NOT_SUPPORTED' as const };
   return {
     status: 'AVAILABLE' as const,
     staffId: contact.staffId,

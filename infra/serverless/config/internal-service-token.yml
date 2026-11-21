@@ -1,0 +1,15 @@
+# Shared internal bearer for service-to-service HTTP (Partner BFF → domain APIs).
+# Authorizer-service owns the SSM parameter; callers resolve the same path.
+#
+# Create/rotate:
+#   export INTERNAL_SERVICE_TOKEN="$(openssl rand -hex 32)"
+#   aws ssm put-parameter --name "/${STAGE}/platform/internal-service-token" \
+#     --type String --value "$INTERNAL_SERVICE_TOKEN" --overwrite
+#   Redeploy authorizer-service and partner-bff so Lambdas pick up the new value.
+#
+# Path (per stage):
+parameterName: /${self:provider.stage}/platform/internal-service-token
+# Same resolution as authorizer-service (nested ${ssm:...}/${env:...} defaults are invalid
+# Serverless syntax). Deploy with INTERNAL_SERVICE_TOKEN set, or rely on the stage default
+# that authorizer seeds into SSM on first deploy.
+value: ${env:INTERNAL_SERVICE_TOKEN, '${self:provider.stage}-platform-internal-service-token'}

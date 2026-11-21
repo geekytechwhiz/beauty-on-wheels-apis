@@ -206,25 +206,9 @@ describe('DynamoDbAuthUserDirectory', () => {
     await expect(directory.getUserRoles('u-1')).resolves.toEqual(['vendor']);
   });
 
-  it('unions permissions across roles', async () => {
-    ddbMock
-      .on(QueryCommand, {
-        ExpressionAttributeValues: {
-          ':pk': 'ROLE#vendor',
-          ':skPrefix': 'PERMISSION#',
-        },
-      })
-      .resolves({ Items: [{ permissionId: 'vendor:read' }] })
-      .on(QueryCommand, {
-        ExpressionAttributeValues: {
-          ':pk': 'ROLE#dispatcher',
-          ':skPrefix': 'PERMISSION#',
-        },
-      })
-      .resolves({ Items: [{ permissionId: 'booking:read' }] });
-
+  it('does not load permission rows for role-only authorization', async () => {
     await expect(
       directory.getPermissionsForRoles(['vendor', 'dispatcher']),
-    ).resolves.toEqual(['vendor:read', 'booking:read']);
+    ).resolves.toEqual([]);
   });
 });

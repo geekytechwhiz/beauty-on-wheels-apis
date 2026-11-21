@@ -24,6 +24,7 @@ function client(issueAvailable = true): PartnerInternalClient {
       if (query.communityIds) return { communities: [{ communityId: 'community-1', name: 'Green Acres' }], sourceAsOf: now.toISOString() } as VendorManagerData;
       return { crews: [{ crewId: 'crew-1', vendorId: 'vendor-1', name: 'North Crew', vanLabel: 'Van 1', status: 'ACTIVE', availabilityStatus: 'AVAILABLE', capacityPerDay: 4, staff: [{ staffId: 'staff-1', name: 'Ravi', status: 'ACTIVE' }, { staffId: 'staff-2', name: 'Asha', status: 'ACTIVE' }] }], commitments: [], sourceAsOf: now.toISOString() } as VendorManagerData;
     }),
+    readCapacityCommitments: jest.fn(async () => []),
   };
 }
 

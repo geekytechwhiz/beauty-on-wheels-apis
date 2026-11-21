@@ -153,7 +153,11 @@ export class CommunitiesRepository extends BaseRepository {
 
   /** Canonical directory records are replicated locally as COMMUNITY#{id}/META. */
   async getDirectoryCommunity(communityId: string): Promise<CommunityDirectoryItem | null> {
-    const item = await this.get<CommunityDirectoryItem>("user-service-dev-user", {
+    const userTable =
+      process.env.USER_TABLE_NAME?.trim() ||
+      process.env.DYNAMODB_USER_TABLE_NAME?.trim() ||
+      'aps1dev-user-service-dev-user';
+    const item = await this.get<CommunityDirectoryItem>(userTable, {
       PK: `COMMUNITY#${communityId}`,
       SK: 'META',
     });

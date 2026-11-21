@@ -1,7 +1,7 @@
 import { LambdaRequest } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
-import { assertVendorOperationsAccess } from '../auth/vendor-operations';
+import { actorDetails } from '../auth/vendor-operations';
 import { enrichVisitFromPlan } from '../domain/package-visit';
 import {
   SUMMARY_VISIT_CAP,
@@ -44,7 +44,7 @@ export class VendorPackageVisitsService {
 
   async list(request: LambdaRequest): Promise<{ items: VendorPackageVisitItem[]; nextToken: string | null }> {
     const vendorId = pathVendorId(request);
-    // await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    await actorDetails(request, vendorId, this.vendors);
     const parameters = requestQuery(request);
     const query = parseVendorVisitQuery(parameters, this.now());
     const cursor = decodeVisitToken(parameters.nextToken);
@@ -54,10 +54,11 @@ export class VendorPackageVisitsService {
     let nextToken: string | null = null;
 
     for (let read = 0; read < MAX_READS && items.length < query.limit; read += 1) {
-      const page = await this.plans.queryVendorScheduledVisits({
+      const page = await this.plans.queryVendorPackageVisits({
         vendorId,
-        fromDate: query.fromDate,
-        toDate: query.toDate,
+        ...(query.fromDate ? { fromDate: query.fromDate } : {}),
+        ...(query.toDate ? { toDate: query.toDate } : {}),
+        ...(query.status ? { status: query.status } : {}),
         limit: PAGE_READ,
         ...(exclusiveStartKey ? { exclusiveStartKey } : {}),
       });
@@ -88,8 +89,11 @@ export class VendorPackageVisitsService {
     this.logger.info({
       event: 'vendor_package_visits_listed',
       vendorId,
+      dateScoped: query.dateScoped,
       fromDate: query.fromDate,
       toDate: query.toDate,
+      status: query.status,
+      communityId: query.communityId,
       count: items.length,
     });
     return { items, nextToken };
@@ -97,7 +101,7 @@ export class VendorPackageVisitsService {
 
   async summary(request: LambdaRequest): Promise<VendorVisitSummary> {
     const vendorId = pathVendorId(request);
-    await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    await actorDetails(request, vendorId, this.vendors);
     const range = parseSummaryRange(requestQuery(request), this.now());
     const visits: PackageVisitRecord[] = [];
     for (const date of eachDate(range.fromDate, range.toDate)) {

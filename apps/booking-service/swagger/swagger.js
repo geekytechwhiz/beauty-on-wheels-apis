@@ -29,7 +29,7 @@
       },
       "post": {
         "summary": "Create booking",
-        "description": "Creates a PENDING_PAYMENT booking from a selected civil date/time. Customer identity, service details, capacity, and pricing are validated server-side; slotId, holdId, quoteId, and offeringVersion are not accepted. Idempotency-Key is required.",
+        "description": "Creates a booking from a selected civil date/time. CASH_ON_SERVICE confirms an unpaid booking; ONLINE remains pending until verified Razorpay confirmation unless the non-production unpaid-online flag is enabled. Customer identity, service details, capacity, and pricing are validated server-side. Idempotency-Key is required.",
         "tags": [
           "Bookings"
         ],
@@ -113,6 +113,28 @@
         "responses": {
           "204": {
             "description": "Cancelled"
+          }
+        }
+      }
+    },
+    "/internal/partner/manager/read": {
+      "post": {
+        "summary": "Internal partner manager read",
+        "description": "",
+        "tags": [
+          "Internal"
+        ],
+        "operationId": "partnerManagerReadHttp.post./internal/partner/manager/read",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
           }
         }
       }
@@ -351,6 +373,41 @@
         "responses": {
           "200": {
             "description": "Payment status"
+          }
+        }
+      }
+    },
+    "/bookings/{bookingId}/payments/{paymentId}/confirm": {
+      "post": {
+        "summary": "Confirm booking payment with provider signature",
+        "description": "Razorpay checkout callback. The backend verifies the signature and only then marks the payment PAID.",
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "confirmbookingpayment.post./bookings/{bookingId}/payments/{paymentId}/confirm",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment confirmed"
           }
         }
       }
@@ -844,6 +901,100 @@
         }
       }
     },
+    "/customer-plans/{planId}/visits/{visitId}/block": {
+      "post": {
+        "summary": "Block a package visit",
+        "description": "Vendor manager only. Persists SCHEDULED → BLOCKED with a required reason. Keeps the Availability reservation and crew assignment. Appends scheduleHistory action blocked.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "blockplanvisit.post./customer-plans/{planId}/visits/{visitId}/block",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Body required in the request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/object"
+            }
+          },
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit blocked"
+          },
+          "400": {
+            "description": "Missing reason"
+          },
+          "403": {
+            "description": "Not a vendor manager for this plan"
+          },
+          "409": {
+            "description": "Invalid transition or already blocked with a different reason"
+          }
+        }
+      }
+    },
+    "/customer-plans/{planId}/visits/{visitId}/unblock": {
+      "post": {
+        "summary": "Unblock a package visit",
+        "description": "Vendor manager only. Persists BLOCKED → SCHEDULED and clears blockedAt, blockedBy, and blockReason. Appends scheduleHistory action unblocked.",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "unblockplanvisit.post./customer-plans/{planId}/visits/{visitId}/unblock",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "visitId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visit unblocked"
+          },
+          "403": {
+            "description": "Not a vendor manager for this plan"
+          },
+          "409": {
+            "description": "Invalid transition"
+          }
+        }
+      }
+    },
     "/customer-plans/{planId}/visits/{visitId}/start": {
       "post": {
         "summary": "Start a package visit",
@@ -1077,7 +1228,7 @@
             "in": "query",
             "name": "status",
             "type": "string",
-            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, or MISSED.",
+            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or BLOCKED.",
             "required": false
           },
           {
@@ -1213,6 +1364,61 @@
           },
           "400": {
             "description": "Invalid or reversed date range"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Timezone unresolved/ambiguous or range too large"
+          }
+        }
+      }
+    },
+    "/vendors/{vendorId}/home-summary": {
+      "get": {
+        "summary": "Vendor home summary",
+        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today.visits.total. Does not include proposals or profile greetings.\n",
+        "tags": [
+          "Customer Plans"
+        ],
+        "operationId": "getvendorhomesummary.get./vendors/{vendorId}/home-summary",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "type": "string",
+            "description": "Civil date YYYY-MM-DD. Defaults to today in the resolved vendor timezone.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "upcomingDays",
+            "type": "integer",
+            "description": "Calendar days after date to include in upcoming (1-7). Default 3.",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor home summary",
+            "schema": {
+              "$ref": "#/definitions/VendorHomeSummaryResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid date or upcomingDays"
           },
           "403": {
             "description": "Forbidden"
@@ -1395,7 +1601,7 @@
             "in": "query",
             "name": "status",
             "type": "string",
-            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or UNSCHEDULED.",
+            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, or UNSCHEDULED.",
             "required": false
           },
           {
@@ -2543,6 +2749,10 @@
           "type": "number"
         },
         "paymentMethod": {
+          "enum": [
+            "CASH_ON_SERVICE",
+            "ONLINE"
+          ],
           "title": "Booking.paymentMethod",
           "type": "string"
         },
@@ -2555,6 +2765,11 @@
           ],
           "title": "Booking.paymentStatus",
           "type": "string"
+        },
+        "slotReserved": {
+          "title": "Booking.slotReserved",
+          "description": "True only after Availability has durably accepted the allocation.",
+          "type": "boolean"
         },
         "bookingStatus": {
           "enum": [

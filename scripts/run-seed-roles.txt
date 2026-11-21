@@ -1,0 +1,15 @@
+# Dry run (no writes):
+node scripts/seed-identity-role-catalog.mjs \
+  --stage dev \
+  --table identity-table-dev \
+  --region ap-south-1
+
+# Apply (creates missing ROLE#*/METADATA rows only):
+node scripts/seed-identity-role-catalog.mjs \
+  --stage dev \
+  --table identity-table-dev \
+  --region ap-south-1 \
+  --apply
+
+# Roles seeded: ROOT, ADMIN, STAFF, VENDOR, CUSTOMER, REGISTRANT, GUEST
+# Authorization is role-only — no PERMISSION# rows are written.

@@ -6,6 +6,8 @@ import { handleAuthorize, requiresApplicationUser } from './authorizer';
 jest.mock('@api-hub/authentication-core', () => ({
   DynamoDbAuthUserDirectory: jest.fn().mockImplementation(() => ({})),
   evaluateApiGatewayAuthorizer: jest.fn(),
+  readConfiguredInternalServiceToken: () =>
+    process.env.INTERNAL_SERVICE_TOKEN?.trim() || undefined,
 }));
 
 const evaluateMock = evaluateApiGatewayAuthorizer as jest.MockedFunction<
@@ -36,8 +38,8 @@ describe('handleAuthorize', () => {
       context: {
         identityId: 'cognito-sub-1',
         userId: 'u-1',
-        roles: '["vendor"]',
-        permissions: '["vendor:read"]',
+        roles: '["VENDOR"]',
+        permissions: '[]',
       },
     };
     evaluateMock.mockResolvedValue(policy);
@@ -53,7 +55,37 @@ describe('handleAuthorize', () => {
       userDirectory: expect.any(Object),
       requireApplicationUser: true,
       expectedTokenUse: 'access',
+      internalServiceToken: undefined,
     });
+  });
+
+  it('forwards the configured internal service token to the shared evaluator', async () => {
+    process.env.INTERNAL_SERVICE_TOKEN = 'platform-internal-token';
+    evaluateMock.mockResolvedValue({
+      principalId: 'internal-service',
+      policyDocument: {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Action: 'execute-api:Invoke',
+            Effect: 'Allow',
+            Resource: 'arn:aws:execute-api:us-east-1:123:api/dev/*/*',
+          },
+        ],
+      },
+    });
+
+    const event: APIGatewayTokenAuthorizerEvent = {
+      type: 'TOKEN',
+      methodArn: METHOD_ARN,
+      authorizationToken: 'Bearer platform-internal-token',
+    };
+
+    await handleAuthorize(event);
+    expect(evaluateMock).toHaveBeenCalledWith(event, expect.objectContaining({
+      internalServiceToken: 'platform-internal-token',
+    }));
+    delete process.env.INTERNAL_SERVICE_TOKEN;
   });
 
   it.each([

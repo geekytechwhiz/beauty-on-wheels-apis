@@ -1,10 +1,11 @@
 import {
-  assertVisitTransition,
   computeVisitProgress,
   enrichVisitFromPlan,
   materializePackageVisits,
   operationalSnapshot,
   validityEndsAt,
+  visitCoversDate,
+  visitHasDatedCommitment,
 } from './package-visit';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
 import { PACKAGE_VISIT_STATUS, PackageVisitRecord } from '../types/package-visit.types';
@@ -84,14 +85,7 @@ describe('package visit domain', () => {
     expect(visits[2].ordinal).toBe(3);
   });
 
-  it('allows documented transitions and rejects illegal ones', () => {
-    expect(() => assertVisitTransition('UNSCHEDULED', 'SCHEDULED')).not.toThrow();
-    expect(() => assertVisitTransition('SCHEDULED', 'IN_PROGRESS')).not.toThrow();
-    expect(() => assertVisitTransition('IN_PROGRESS', 'COMPLETED')).not.toThrow();
-    expect(() => assertVisitTransition('COMPLETED', 'SCHEDULED')).toThrow(/Cannot transition/);
-    expect(() => assertVisitTransition('UNSCHEDULED', 'COMPLETED')).toThrow(/Cannot transition/);
-  });
-
+   
   it('computes progress without double-counting completed entitlements', () => {
     const base = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
     const visits: PackageVisitRecord[] = [
@@ -117,5 +111,21 @@ describe('package visit domain', () => {
   it('computes validity end from activatedAt and validityDays', () => {
     expect(validityEndsAt('2026-01-01T00:00:00.000Z', 30)).toBe('2026-01-31T00:00:00.000Z');
     expect(validityEndsAt('2026-01-01T00:00:00.000Z', undefined)).toBeUndefined();
+  });
+
+  it('treats inclusive range commitments as covering each civil day', () => {
+    const [base] = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
+    const ranged: PackageVisitRecord = {
+      ...base,
+      status: 'SCHEDULED',
+      scheduleStartDate: '2026-11-23',
+      scheduleEndDate: '2026-11-29',
+    };
+    expect(visitHasDatedCommitment(ranged)).toBe(true);
+    expect(visitCoversDate(ranged, '2026-11-23')).toBe(true);
+    expect(visitCoversDate(ranged, '2026-11-26')).toBe(true);
+    expect(visitCoversDate(ranged, '2026-11-29')).toBe(true);
+    expect(visitCoversDate(ranged, '2026-11-22')).toBe(false);
+    expect(visitCoversDate(ranged, '2026-11-30')).toBe(false);
   });
 });

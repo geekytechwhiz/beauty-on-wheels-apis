@@ -1,48 +1,38 @@
-import { APPLICATION_ROLE, resolveApplicationRoles } from './application-roles';
-import { PERMISSION } from './permissions';
-
-const BROADER_ADMIN_ROLES = new Set([
-  'admin',
-  'super_admin',
-  'superadmin',
-  'platform_admin',
-  'platformadmin',
-  'admin_staff',
-]);
+import {
+  APPLICATION_ROLE,
+  isPlatformAdminRole,
+  resolveApplicationRoles,
+} from './application-roles';
 
 export interface RegistrationAccessInput {
   roles: readonly string[];
-  permissions: readonly string[];
-}
-
-function normalizedRoles(roles: readonly string[]): string[] {
-  return roles
-    .filter((role): role is string => typeof role === 'string')
-    .map((role) => role.trim().toLowerCase().replace(/[\s-]+/g, '_'))
-    .filter(Boolean);
+  /** Ignored. Kept so call sites can pass authorizer context unchanged. */
+  permissions?: readonly string[];
 }
 
 /**
- * REGISTRANT without an operating vendor role, an admin role, or vendor:create.
+ * REGISTRANT/GUEST without an operating vendor role or a platform admin role.
  * Role names are matched exactly. A userType value is not a role.
  */
 export function isRegistrationOnlyAccess(
   input: RegistrationAccessInput,
 ): boolean {
   const application = resolveApplicationRoles(input.roles);
-  const permissions = new Set(
-    input.permissions.filter((item): item is string => typeof item === 'string'),
-  );
   const broader =
     application.includes(APPLICATION_ROLE.VENDOR) ||
-    application.includes(APPLICATION_ROLE.ADMIN) ||
-    normalizedRoles(input.roles).some((role) => BROADER_ADMIN_ROLES.has(role)) ||
-    permissions.has(PERMISSION.VENDOR_CREATE);
-  return application.includes(APPLICATION_ROLE.REGISTRANT) && !broader;
+    isPlatformAdminRole(application);
+  const registrationOnly =
+    application.includes(APPLICATION_ROLE.REGISTRANT) ||
+    application.includes(APPLICATION_ROLE.GUEST);
+  return registrationOnly && !broader;
 }
 
+/**
+ * @deprecated Role-only auth: REGISTRANT/GUEST is enough for registration.
+ * Always returns true when the caller has a registration role.
+ */
 export function hasResolvedRegisterPermission(
-  permissions: readonly string[],
+  _permissions: readonly string[],
 ): boolean {
-  return permissions.includes(PERMISSION.VENDOR_REGISTER);
+  return true;
 }

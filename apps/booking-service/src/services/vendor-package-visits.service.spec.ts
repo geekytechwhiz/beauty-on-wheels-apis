@@ -89,14 +89,14 @@ function request(input: {
 }
 
 describe('VendorPackageVisitsService', () => {
-  let plans: jest.Mocked<Pick<CustomerPlansRepository, 'queryVendorScheduledVisits' | 'listVendorVisitsForDate' | 'getPlan'>>;
+  let plans: jest.Mocked<Pick<CustomerPlansRepository, 'queryVendorPackageVisits' | 'listVendorVisitsForDate' | 'getPlan'>>;
   let vendors: jest.Mocked<OperationalAccessGateway>;
   let service: VendorPackageVisitsService;
 
   beforeEach(() => {
     plans = {
-      queryVendorScheduledVisits: jest.fn().mockResolvedValue({
-        items: [{ record: visit(), resumeKey: { PK: 'a', SK: 'b', GSI3PK: 'c', GSI3SK: 'd' } }],
+      queryVendorPackageVisits: jest.fn().mockResolvedValue({
+        items: [{ record: visit(), resumeKey: { PK: 'a', SK: 'b', GSI1PK: 'c', GSI1SK: 'd' } }],
       }),
       listVendorVisitsForDate: jest.fn().mockImplementation(async (_vendorId: string, date: string) => (
         date === '2026-10-29' ? [visit(), visit({ visitId: 'later', status: 'UNSCHEDULED', schedule: undefined })] : []
@@ -113,14 +113,14 @@ describe('VendorPackageVisitsService', () => {
     );
   });
 
-  it('lists the owner vendor and enriches visits that predate the snapshot', async () => {
+  it('lists the owner vendor work queue without inventing a date and enriches legacy rows', async () => {
     const page = await service.list(request());
     expect(vendors.getOperationalAccess).toHaveBeenCalledWith('owner-1');
-    expect(plans.queryVendorScheduledVisits).toHaveBeenCalledWith(expect.objectContaining({
+    expect(plans.queryVendorPackageVisits).toHaveBeenCalledWith(expect.objectContaining({
       vendorId: 'vendor-1',
-      fromDate: '2026-10-29',
-      toDate: '2026-10-29',
+      limit: 40,
     }));
+    expect(plans.queryVendorPackageVisits.mock.calls[0][0].fromDate).toBeUndefined();
     expect(page.items[0]).toMatchObject({
       visitId: 'visit-1',
       communityId: 'community-1',
@@ -132,21 +132,42 @@ describe('VendorPackageVisitsService', () => {
     expect(page.nextToken).toBeNull();
   });
 
+  it('includes unscheduled entitlements on the undated work queue', async () => {
+    plans.queryVendorPackageVisits.mockResolvedValue({
+      items: [
+        { record: visit({ visitId: 'open', status: 'UNSCHEDULED', schedule: undefined }), resumeKey: { PK: '1' } },
+        { record: visit(), resumeKey: { PK: '2' } },
+      ],
+    });
+    const page = await service.list(request());
+    expect(page.items.map((item) => item.visitId)).toEqual(['open', 'visit-1']);
+    expect(page.items[0].status).toBe('UNSCHEDULED');
+  });
+
+  it('uses the dated board when date is provided', async () => {
+    await service.list(request({ query: { date: '2026-10-29' } }));
+    expect(plans.queryVendorPackageVisits).toHaveBeenCalledWith(expect.objectContaining({
+      vendorId: 'vendor-1',
+      fromDate: '2026-10-29',
+      toDate: '2026-10-29',
+    }));
+  });
+
   it('denies staff and a vendor id that is not the membership', async () => {
     vendors.getOperationalAccess.mockResolvedValue({ role: 'staff', vendorId: 'vendor-1', staffId: 'staff-1', active: true });
     await expect(service.list(request())).rejects.toBeInstanceOf(ForbiddenError);
     vendors.getOperationalAccess.mockResolvedValue({ role: 'owner', vendorId: 'vendor-1', active: true });
     await expect(service.list(request({ vendorId: 'vendor-2' }))).rejects.toBeInstanceOf(ForbiddenError);
-    expect(plans.queryVendorScheduledVisits).not.toHaveBeenCalled();
+    expect(plans.queryVendorPackageVisits).not.toHaveBeenCalled();
   });
 
   it('rejects an unauthenticated caller before reading visits', async () => {
     await expect(service.list(request({ userId: '' }))).rejects.toThrow();
-    expect(plans.queryVendorScheduledVisits).not.toHaveBeenCalled();
+    expect(plans.queryVendorPackageVisits).not.toHaveBeenCalled();
   });
 
   it('filters community, window, status, and registration on the server page', async () => {
-    plans.queryVendorScheduledVisits.mockResolvedValue({
+    plans.queryVendorPackageVisits.mockResolvedValue({
       items: [
         { record: visit(), resumeKey: { PK: '1' } },
         { record: visit({ visitId: 'other', registrationNumber: 'MH01CD9999' }), resumeKey: { PK: '2' } },
@@ -161,9 +182,9 @@ describe('VendorPackageVisitsService', () => {
   it('returns a next token without repeating the last included visit', async () => {
     const rows = [1, 2, 3].map((ordinal) => ({
       record: visit({ visitId: `visit-${ordinal}`, ordinal }),
-      resumeKey: { PK: 'CUSTOMER_PLAN#plan-1', SK: `VISIT#00${ordinal}`, GSI3PK: 'p', GSI3SK: `s${ordinal}` },
+      resumeKey: { PK: 'CUSTOMER_PLAN#plan-1', SK: `VISIT#00${ordinal}`, GSI1PK: 'p', GSI1SK: `s${ordinal}` },
     }));
-    plans.queryVendorScheduledVisits.mockImplementation(async (input) => {
+    plans.queryVendorPackageVisits.mockImplementation(async (input) => {
       const start = typeof input.exclusiveStartKey?.SK === 'string' ? input.exclusiveStartKey.SK : '';
       const items = start ? rows.filter((row) => String(row.resumeKey.SK) > start) : rows;
       return { items };
@@ -172,7 +193,7 @@ describe('VendorPackageVisitsService', () => {
     expect(page.items.map((item) => item.visitId)).toEqual(['visit-1', 'visit-2']);
     expect(page.nextToken).toBeTruthy();
     const second = await service.list(request({ query: { limit: '2', nextToken: page.nextToken! } }));
-    expect(plans.queryVendorScheduledVisits).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(plans.queryVendorPackageVisits).toHaveBeenLastCalledWith(expect.objectContaining({
       exclusiveStartKey: rows[1].resumeKey,
     }));
     expect(second.items.map((item) => item.visitId)).toEqual(['visit-3']);

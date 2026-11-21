@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import { ValidationError } from '@api-hub/utils';
 
 import { BookingError } from '../errors';
@@ -7,6 +9,11 @@ import {
   PackageVisitRecord,
   PackageVisitStatus,
 } from '../types/package-visit.types';
+import {
+  appendScheduleHistory,
+  commitmentSnapshot,
+  visitCoversDate,
+} from './package-visit';
 import {
   OPERATIONS_TIMEZONE,
   addCalendarDays,
@@ -20,6 +27,8 @@ export const DEFAULT_TRAVEL_BUFFER_MINUTES = 30;
 /** One TransactWrite covers the whole request. Larger groups are rejected. */
 export const MAX_ASSIGNMENT_VISITS = 25;
 export const MAX_ASSIGNMENT_DAYS = 14;
+/** Inclusive manager commitment window for community range scheduling. */
+export const MAX_SCHEDULE_RANGE_DAYS = 7;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^(\d{2}):(\d{2})$/;
@@ -34,6 +43,7 @@ const SCHEDULE_STATUSES: readonly PackageVisitStatus[] = [
   PACKAGE_VISIT_STATUS.IN_PROGRESS,
   PACKAGE_VISIT_STATUS.COMPLETED,
   PACKAGE_VISIT_STATUS.MISSED,
+  PACKAGE_VISIT_STATUS.BLOCKED,
 ];
 
 export interface SchedulingCrewMember {
@@ -60,10 +70,14 @@ export interface WindowInterval {
   endTime?: string;
 }
 
+/**
+ * Manager bulk schedule-and-assign for the community service model.
+ * Each selected visit becomes SCHEDULED and crew-assigned for the range + window.
+ */
 export interface AssignmentCommand {
-  mode: 'assign' | 'unassign';
-  scheduledDate: string;
   communityId: string;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
   visitWindowId: string;
   crewId: string;
   visitIds: string[];
@@ -165,11 +179,19 @@ export interface AssignmentSchedule {
 }
 
 export interface AssignmentWriteResult {
-  scheduledDate: string;
+  scheduleId: string;
   communityId: string;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
   visitWindowId: string;
   crewId: string;
-  visitIds: string[];
+  status: typeof PACKAGE_VISIT_STATUS.SCHEDULED;
+  scheduledVisitCount: number;
+  visits: Array<{
+    visitId: string;
+    status: typeof PACKAGE_VISIT_STATUS.SCHEDULED;
+    crewId: string;
+  }>;
   idempotent: boolean;
   workload: Workload;
   travelWarnings: TravelWarning[];
@@ -179,6 +201,8 @@ export interface AssignmentWriteResult {
 
 interface OccupiedSlot {
   date: string;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
   communityId: string;
   visitWindowId: string;
   crewId: string;
@@ -209,13 +233,17 @@ export function assertCrewAssignable(crew: SchedulingCrew): string[] {
 
 export function parseAssignmentCommand(body: unknown): AssignmentCommand {
   const record = asRecord(body);
-  const mode = record.mode === undefined || record.mode === 'assign'
-    ? 'assign'
-    : record.mode === 'unassign'
-      ? 'unassign'
-      : undefined;
-  if (!mode) throw new ValidationError('mode must be assign or unassign');
-  const scheduledDate = requireDate(record.scheduledDate, 'scheduledDate');
+  if (record.mode === 'unassign') {
+    throw new ValidationError('Unassign is not supported on this endpoint; use DELETE /vendors/{vendorId}/package-visits/{visitId}/assignment');
+  }
+  const scheduleStartDate = requireDate(record.scheduleStartDate, 'scheduleStartDate');
+  const scheduleEndDate = requireDate(record.scheduleEndDate, 'scheduleEndDate');
+  if (scheduleEndDate < scheduleStartDate) {
+    throw new ValidationError('scheduleEndDate must be on or after scheduleStartDate');
+  }
+  if (inclusiveDayCount(scheduleStartDate, scheduleEndDate) > MAX_SCHEDULE_RANGE_DAYS) {
+    throw new ValidationError(`Date range cannot exceed ${MAX_SCHEDULE_RANGE_DAYS} calendar days`);
+  }
   const communityId = requireId(record.communityId, 'communityId');
   const visitWindowId = requireId(record.visitWindowId, 'visitWindowId');
   const crewId = requireId(record.crewId, 'crewId');
@@ -225,14 +253,32 @@ export function parseAssignmentCommand(body: unknown): AssignmentCommand {
     throw new ValidationError('replaceExisting must be a boolean');
   }
   return {
-    mode,
-    scheduledDate,
     communityId,
+    scheduleStartDate,
+    scheduleEndDate,
     visitWindowId,
     crewId,
     visitIds,
-    replaceExisting: mode === 'assign' ? replaceExisting : false,
+    replaceExisting,
   };
+}
+
+export function hashAssignmentRequest(command: AssignmentCommand): string {
+  const canonical = JSON.stringify({
+    communityId: command.communityId,
+    scheduleStartDate: command.scheduleStartDate,
+    scheduleEndDate: command.scheduleEndDate,
+    visitWindowId: command.visitWindowId,
+    crewId: command.crewId,
+    visitIds: [...command.visitIds].sort(),
+    replaceExisting: command.replaceExisting,
+  });
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
+export function newScheduleId(): string {
+  const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  return `SCH-${day}-${randomBytes(12).toString('hex')}`;
 }
 
 export function parseAssignmentRange(
@@ -314,21 +360,83 @@ export function visitEligible(visit: PackageVisitRecord, command: AssignmentComm
   if (visit.vendorId !== vendorId) {
     throw conflict('CROSS_VENDOR_VISIT', 'Visit belongs to a different vendor', 'visitId');
   }
-  if (visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED || !visit.schedule) {
-    throw conflict('VISIT_NOT_ASSIGNABLE', 'Unscheduled visits cannot be assigned', 'visitId');
-  }
-  if (visit.status !== PACKAGE_VISIT_STATUS.SCHEDULED) {
-    throw conflict('VISIT_NOT_ASSIGNABLE', `A ${visit.status} visit cannot be assigned`, 'visitId');
-  }
-  if (visit.schedule.date !== command.scheduledDate) {
-    throw conflict('VISIT_NOT_ASSIGNABLE', 'Visit is not scheduled on the requested date', 'scheduledDate');
-  }
   if (visit.communityId !== command.communityId) {
     throw conflict('VISIT_NOT_ASSIGNABLE', 'Visit is not in the requested community', 'communityId');
   }
+  // Customer morning/evening preference is authoritative — never silently override.
   if (visit.visitWindowId !== command.visitWindowId) {
-    throw conflict('VISIT_NOT_ASSIGNABLE', 'Visit is not in the requested visit window', 'visitWindowId');
+    throw conflict(
+      'VISIT_WINDOW_MISMATCH',
+      'Visit window does not match the customer preference stored on this visit',
+      'visitWindowId',
+    );
   }
+  if (visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED) return;
+  if (visit.status !== PACKAGE_VISIT_STATUS.SCHEDULED) {
+    throw conflict('VISIT_NOT_ASSIGNABLE', `A ${visit.status} visit cannot be scheduled`, 'visitId');
+  }
+  // Reschedule / reassign path.
+  if (
+    visit.crewAssignment
+    && visit.crewAssignment.crewId !== command.crewId
+    && !command.replaceExisting
+  ) {
+    throw conflict('CREW_ASSIGNMENT_CONFLICT', 'Visit is already assigned to another crew', 'visitId');
+  }
+}
+
+export function sameRangeAssignment(visit: PackageVisitRecord, command: AssignmentCommand): boolean {
+  return visit.status === PACKAGE_VISIT_STATUS.SCHEDULED
+    && visit.scheduleStartDate === command.scheduleStartDate
+    && visit.scheduleEndDate === command.scheduleEndDate
+    && visit.visitWindowId === command.visitWindowId
+    && visit.communityId === command.communityId
+    && visit.crewAssignment?.crewId === command.crewId
+    && !visit.schedule?.allocationId;
+}
+
+export function scheduleAndAssignVisit(input: {
+  visit: PackageVisitRecord;
+  command: AssignmentCommand;
+  scheduleId: string;
+  actorId: string;
+  now: string;
+}): PackageVisitRecord {
+  const { visit, command, scheduleId, actorId, now } = input;
+  const action = visit.status === PACKAGE_VISIT_STATUS.SCHEDULED ? 'rescheduled' : 'scheduled';
+  const next: PackageVisitRecord = {
+    ...visit,
+    status: PACKAGE_VISIT_STATUS.SCHEDULED,
+    scheduleId,
+    scheduleStartDate: command.scheduleStartDate,
+    scheduleEndDate: command.scheduleEndDate,
+    visitWindowId: command.visitWindowId,
+    communityId: command.communityId,
+    crewAssignment: {
+      crewId: command.crewId,
+      assignedAt: now,
+      assignedBy: actorId,
+    },
+    scheduleHistory: appendScheduleHistory(visit, {
+      at: now,
+      action,
+      by: actorId,
+      from: commitmentSnapshot(visit),
+      to: {
+        scheduleStartDate: command.scheduleStartDate,
+        scheduleEndDate: command.scheduleEndDate,
+        visitWindowId: command.visitWindowId,
+        crewId: command.crewId,
+        scheduleId,
+      },
+      reason: `bulk-schedule:${scheduleId}`,
+    }),
+    updatedAt: now,
+    version: visit.version + 1,
+  };
+  // Range commitments do not keep an exact Availability slot.
+  delete next.schedule;
+  return next;
 }
 
 export function assignmentConflicts(input: {
@@ -338,7 +446,7 @@ export function assignmentConflicts(input: {
   const conflicts: AssignmentConflict[] = [];
   for (const other of input.others) {
     if (sameSlot(input.target, other) && other.crewId === input.target.crewId) continue;
-    if (other.date !== input.target.date) continue;
+    if (!dateRangesOverlap(input.target, other)) continue;
     const sameCrew = other.crewId === input.target.crewId;
     const sharedStaff = input.target.staffIds.filter((staffId) => other.staffIds.includes(staffId));
     if (!sameCrew && sharedStaff.length === 0 && !other.crewRecordMissing) continue;
@@ -442,7 +550,7 @@ export function buildAssignmentSchedule(input: {
   const crewById = new Map(input.crews.map((crew) => [crew.crewId, crew]));
   const days = eachDate(input.fromDate, input.toDate).map((date) => {
     const dayVisits = input.visits.filter((visit) => (
-      visit.schedule?.date === date && SCHEDULE_STATUSES.includes(visit.status)
+      SCHEDULE_STATUSES.includes(visit.status) && visitCoversDate(visit, date)
     ));
     const groups = groupVisits(dayVisits, input.intervals, crewById);
     const occupied = occupiedSlots(dayVisits, input.intervals, crewById);
@@ -577,10 +685,13 @@ function occupiedSlots(
 ): OccupiedSlot[] {
   const buckets = new Map<string, PackageVisitRecord[]>();
   for (const visit of visits) {
-    if (!OCCUPYING_STATUSES.includes(visit.status) || !visit.crewAssignment || !visit.schedule || !visit.communityId || !visit.visitWindowId) {
+    if (!OCCUPYING_STATUSES.includes(visit.status) || !visit.crewAssignment || !visit.communityId || !visit.visitWindowId) {
       continue;
     }
-    const key = `${visit.schedule.date}\u0000${visit.communityId}\u0000${visit.visitWindowId}\u0000${visit.crewAssignment.crewId}`;
+    const start = visit.scheduleStartDate ?? visit.schedule?.date;
+    const end = visit.scheduleEndDate ?? visit.schedule?.date;
+    if (!start || !end) continue;
+    const key = `${start}\u0000${end}\u0000${visit.communityId}\u0000${visit.visitWindowId}\u0000${visit.crewAssignment.crewId}`;
     const list = buckets.get(key) ?? [];
     list.push(visit);
     buckets.set(key, list);
@@ -589,8 +700,12 @@ function occupiedSlots(
     const sample = group[0];
     const crewId = sample.crewAssignment!.crewId;
     const crew = crews.get(crewId);
+    const scheduleStartDate = sample.scheduleStartDate ?? sample.schedule!.date;
+    const scheduleEndDate = sample.scheduleEndDate ?? sample.schedule!.date;
     return {
-      date: sample.schedule!.date,
+      date: scheduleStartDate,
+      scheduleStartDate,
+      scheduleEndDate,
       communityId: sample.communityId!,
       visitWindowId: sample.visitWindowId!,
       crewId,
@@ -599,6 +714,11 @@ function occupiedSlots(
       ...(crew ? {} : { crewRecordMissing: true }),
     };
   });
+}
+
+function dateRangesOverlap(left: OccupiedSlot, right: OccupiedSlot): boolean {
+  return left.scheduleStartDate <= right.scheduleEndDate
+    && right.scheduleStartDate <= left.scheduleEndDate;
 }
 
 function conflictsAmong(slots: OccupiedSlot[]): AssignmentConflict[] {
@@ -633,7 +753,8 @@ function intervalsConflict(left: WindowInterval, right: WindowInterval): 'overla
 }
 
 function sameSlot(left: OccupiedSlot, right: OccupiedSlot): boolean {
-  return left.date === right.date
+  return left.scheduleStartDate === right.scheduleStartDate
+    && left.scheduleEndDate === right.scheduleEndDate
     && left.communityId === right.communityId
     && left.visitWindowId === right.visitWindowId;
 }

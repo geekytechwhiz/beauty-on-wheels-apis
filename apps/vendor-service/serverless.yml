@@ -28,20 +28,41 @@ provider:
 
     SERVICE_NAME: vendor-service
     LOG_LEVEL: INFO
-    DYNAMODB_TABLE_NAME: ${self:service}-${self:provider.stage}-vendor
+    REGION: ${self:provider.region}
+    DEFAULT_REGION: ${self:provider.region}
+    # Must match VendorTable.TableName / VendorDocumentsBucket.BucketName exactly.
+    # Drift here causes AccessDenied on GSI Query (IAM grants the CFN table ARN).
+    DYNAMODB_TABLE_NAME: ${self:custom.vendorTableName}
+    USER_TABLE_NAME: user-${self:provider.stage}
     IDENTITY_TABLE: identity-table-${self:provider.stage}
-    DOCUMENT_BUCKET: ${self:service}-${self:provider.stage}-vendor-documents
-    DOCUMENTS_BUCKET_NAME: ${self:service}-${self:provider.stage}-vendor-documents
+    DOCUMENT_BUCKET: ${self:custom.vendorDocumentsBucketName}
+    DOCUMENTS_BUCKET_NAME: ${self:custom.vendorDocumentsBucketName}
     DOCUMENT_UPLOAD_URL_EXPIRY: ${env:DOCUMENT_UPLOAD_URL_EXPIRY, '900'}
     DOCUMENT_DOWNLOAD_URL_EXPIRY: ${env:DOCUMENT_DOWNLOAD_URL_EXPIRY, '900'}
     DOCUMENT_MAX_FILE_SIZE: ${env:DOCUMENT_MAX_FILE_SIZE, '10485760'}
     DOCUMENT_ALLOWED_CONTENT_TYPES: ${env:DOCUMENT_ALLOWED_CONTENT_TYPES, 'application/pdf,image/jpeg,image/png'}
     EVENT_BUS_NAME: ${self:custom.vendorEventBusName}
     COGNITO_REGION: ${self:provider.region}
-    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID, '3p3fj5dq1m41cn2b7mbono23qo'}
-    COGNITO_ISSUER: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}
-    COGNITO_JWKS_URI: https://cognito-idp.${self:provider.region}.amazonaws.com/${env:COGNITO_USER_POOL_ID, 'us-east-1_LeQxyLZ3x'}/.well-known/jwks.json
+    # Identity owns the user pool; ImportValue keeps new-account deploys on the live pool.
+    COGNITO_USER_POOL_ID:
+      Fn::ImportValue: ${self:custom.resourcePrefix}-identity-cognito-user-pool-id
+    COGNITO_APP_CLIENT_ID:
+      Fn::ImportValue: ${self:custom.resourcePrefix}-identity-cognito-app-client-id
+    COGNITO_ISSUER:
+      Fn::Join:
+        - ''
+        - - https://cognito-idp.
+          - !Ref AWS::Region
+          - .amazonaws.com/
+          - Fn::ImportValue: ${self:custom.resourcePrefix}-identity-cognito-user-pool-id
+    COGNITO_JWKS_URI:
+      Fn::Join:
+        - ''
+        - - https://cognito-idp.
+          - !Ref AWS::Region
+          - .amazonaws.com/
+          - Fn::ImportValue: ${self:custom.resourcePrefix}-identity-cognito-user-pool-id
+          - /.well-known/jwks.json
     CATALOG_BASE_URL: ${env:CATALOG_BASE_URL, ''}
     CATALOG_BOOKING_READINESS_FUNCTION: service-catalog-service-${self:provider.stage}-getBookingReadinessFacts
     AVAILABILITY_BOOKING_READINESS_FUNCTION: availability-service-${self:provider.stage}-getBookingReadinessFacts
@@ -70,7 +91,8 @@ provider:
             - dynamodb:ConditionCheckItem
           Resource:
             - !GetAtt VendorTable.Arn
-            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user-service-dev-user
+            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.environment.USER_TABLE_NAME}
+            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:provider.environment.USER_TABLE_NAME}/index/*
             - !Join [ "/", [ !GetAtt VendorTable.Arn, "index", "*" ] ]
         - Effect: Allow
           Action:
@@ -120,6 +142,9 @@ custom:
   # nv{stage}-bw-  e.g. nvdev-bw-
   resourcePrefix: nv${self:provider.stage}-bw
   vendorEventBusName: ${self:custom.resourcePrefix}-vendor-event-bus
+  # Single source of truth for physical resource names (env + CFN Properties).
+  vendorTableName: ${sls:stage}-vendor
+  vendorDocumentsBucketName: ${self:service}-vendor-documents-${sls:stage}
 
   securedAuthorizer: ${file(../../infra/serverless/config/http-api-authorizer.yml)}
 
@@ -162,7 +187,7 @@ custom:
     security:
       - bearerAuth: []
     servers:
-      - url: https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}
+      - url: https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}
         description: Deployed API Gateway stage
         variables:
           apiId:
@@ -3310,7 +3335,7 @@ custom:
 functions:
 
   createvendor:
-    handler: src/handlers/vendors-handler.handleCreatevendor
+    handler: src/handlers/vendorsHandler.handleCreatevendor
     events:
       - http:
           path: /vendors
@@ -3664,7 +3689,7 @@ functions:
             - Vendors
 
   listvendors:
-    handler: src/handlers/vendors-handler.handleListvendors
+    handler: src/handlers/vendorsHandler.handleListvendors
     events:
       - http:
           path: /vendors
@@ -3714,7 +3739,7 @@ functions:
 
 
   getvendorme:
-    handler: src/handlers/vendors-handler.handleGetMyVendor
+    handler: src/handlers/vendorsHandler.handleGetMyVendor
     events:
       - http:
           path: /vendors/me
@@ -3763,7 +3788,7 @@ functions:
                   application/json: ErrorResponse
 
   getvendor:
-    handler: src/handlers/vendors-handler.handleGetvendor
+    handler: src/handlers/vendorsHandler.handleGetvendor
     events:
       - http:
           path: /vendors/{vendorId}
@@ -3825,7 +3850,7 @@ functions:
 
 
   updatevendor:
-    handler: src/handlers/vendors-handler.handleUpdatevendor
+    handler: src/handlers/vendorsHandler.handleUpdatevendor
     events:
       - http:
           path: /vendors/{vendorId}
@@ -3899,7 +3924,7 @@ functions:
               application/json: UpdateVendorRequest
 
   acceptvendordetails:
-    handler: src/handlers/vendors-handler.handleAcceptVendorDetails
+    handler: src/handlers/vendorsHandler.handleAcceptVendorDetails
     events:
       - http:
           path: /vendors/{vendorId}/details-acceptance
@@ -3973,7 +3998,7 @@ functions:
               application/json: AcceptVendorDetailsRequest
 
   updatevendorstatus:
-    handler: src/handlers/vendors-handler.handleUpdatevendorstatus
+    handler: src/handlers/vendorsHandler.handleUpdatevendorstatus
     events:
       - http:
           path: /vendors/{vendorId}/status
@@ -4055,7 +4080,7 @@ functions:
 
 
   # updatevendoroperationalstatus:
-  #   handler: src/handlers/vendors-handler.handleUpdatevendoroperationalstatus
+  #   handler: src/handlers/vendorsHandler.handleUpdatevendoroperationalstatus
   #   events:
   #     - http:
   #         path: /vendors/{vendorId}/operational-status
@@ -4198,7 +4223,7 @@ functions:
                   type: string
 
   approvevendor:
-    handler: src/handlers/vendors-handler.handleApprovevendor
+    handler: src/handlers/vendorsHandler.handleApprovevendor
     events:
       - http:
           path: /vendors/{vendorId}/approve
@@ -4272,7 +4297,7 @@ functions:
               application/json: ApproveVendorRequest
 
   rejectvendor:
-    handler: src/handlers/vendors-handler.handleRejectvendor
+    handler: src/handlers/vendorsHandler.handleRejectvendor
     events:
       - http:
           path: /vendors/{vendorId}/reject
@@ -4346,7 +4371,7 @@ functions:
               application/json: RejectVendorRequest
 
   getvendorstatushistory:
-    handler: src/handlers/vendors-handler.handleGetvendorstatushistory
+    handler: src/handlers/vendorsHandler.handleGetvendorstatushistory
     events:
       - http:
           path: /vendors/{vendorId}/status-history
@@ -8191,7 +8216,40 @@ functions:
 
   getOperationalAccess:
     handler: src/handlers/internal.getOperationalAccess
-    description: Internal IAM invoke. Resolves owner or staff membership from the authenticated user id. No HTTP route.
+    description: Legacy IAM invoke. Prefer POST /internal/operational-access.
+
+  getOperationalAccessHttp:
+    handler: src/handlers/internal-http.handleGetOperationalAccess
+    timeout: 10
+    description: Internal HTTP membership resolution for Partner BFF. Auth is the platform internal bearer.
+    events:
+      - http:
+          path: /internal/operational-access
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Internal operational access"
+          swaggerTags:
+            - Internal
+          documentation:
+            summary: Internal operational access
+            description: Partner BFF only. Body `{ userId }`. Returns owner/staff/none membership for that application user.
+            tags:
+              - Internal
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Operational access
+              - statusCode: "401"
+                responseBody:
+                  description: Missing or invalid internal token
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller is not the internal service principal
+                responseModels:
+                  application/json: ErrorResponse
 
   listSchedulingCrews:
     handler: src/handlers/internal.listSchedulingCrews
@@ -8199,7 +8257,42 @@ functions:
 
   partnerManagerRead:
     handler: src/handlers/internal.partnerManagerRead
-    description: Internal IAM invoke for Partner BFF crews, commitments, and approved community labels. No HTTP route; delegated owner membership is revalidated.
+    description: Legacy IAM invoke for Partner BFF crews, commitments, and community labels. Prefer the HTTP internal route.
+
+  partnerManagerReadHttp:
+    handler: src/handlers/internal-http.handlePartnerManagerRead
+    timeout: 20
+    description: Internal HTTP Partner BFF vendor manager reads. Auth is the platform internal bearer.
+    events:
+      - http:
+          path: /internal/partner/manager/read
+          method: post
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          summary: "Internal partner manager vendor read"
+          swaggerTags:
+            - Internal
+          documentation:
+            summary: Internal partner manager vendor read
+            description: >
+              Partner BFF only. Body carries the delegated actor and optional includeCrews,
+              includeCommitments, and communityIds. Membership is revalidated before data is returned.
+            tags:
+              - Internal
+            methodResponses:
+              - statusCode: "200"
+                responseBody:
+                  description: Vendor manager data
+              - statusCode: "401"
+                responseBody:
+                  description: Missing or invalid internal token
+                responseModels:
+                  application/json: ErrorResponse
+              - statusCode: "403"
+                responseBody:
+                  description: Caller is not the internal service principal
+                responseModels:
+                  application/json: ErrorResponse
 
   getDiscoveryFacts:
     handler: src/handlers/internal.getDiscoveryFacts
@@ -9171,7 +9264,7 @@ resources:
     VendorTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${sls:stage}-vendor
+        TableName: ${self:custom.vendorTableName}
 
         BillingMode: PAY_PER_REQUEST
 
@@ -9410,7 +9503,7 @@ resources:
     VendorDocumentsBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${self:service}-vendor-documents-${sls:stage}
+        BucketName: ${self:custom.vendorDocumentsBucketName}
         BucketEncryption:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:

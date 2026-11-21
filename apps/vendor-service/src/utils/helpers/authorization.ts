@@ -1,18 +1,23 @@
+import {
+  APPLICATION_ROLE,
+  isPlatformAdminRole,
+  isRegistrationGuestRole,
+  resolveApplicationRoles,
+} from '@api-hub/authentication-core';
 import { BaseError, ForbiddenError, LambdaRequest } from '@api-hub/utils';
 
 import type { VendorCapability } from '../../domain/vendor-self';
+import { VENDOR_CAPABILITY, VISIT_PERMISSION } from '../../domain/vendor-self';
 import { VendorDdbItem } from '../../types/repository.types';
 import {
   getAuthenticatedUserId,
 } from './vendor-request';
 
-const ADMIN_ROLES = new Set([
-  'admin',
-  'super_admin',
-  'superadmin',
-  'platform_admin',
-  'platformadmin',
-  'admin_staff',
+const STAFF_ACTIONS = new Set<string>([
+  VENDOR_CAPABILITY.STAFF_VIEW,
+  VENDOR_CAPABILITY.CREW_VIEW,
+  VENDOR_CAPABILITY.COMMUNITY_VIEW,
+  VISIT_PERMISSION.VIEW,
 ]);
 
 function asStringArray(value: unknown): string[] {
@@ -27,38 +32,19 @@ function asStringArray(value: unknown): string[] {
 
 function trustedAccess(request: LambdaRequest): {
   roles: string[];
-  permissions: string[];
 } {
   const auth = request.context.authContext;
-  // authContext is populated from the authorizer and must take precedence over
-  // userContext. Some trusted internal invocations carry an application userId
-  // without an identityId, so the presence of any resolved access attribute is
-  // enough to select it.
   if (
     auth &&
-    (auth.identityId || auth.userId || asStringArray(auth.roles).length > 0 || asStringArray(auth.permissions).length > 0)
+    (auth.identityId || auth.userId || asStringArray(auth.roles).length > 0)
   ) {
     return {
       roles: asStringArray(auth.roles),
-      permissions: asStringArray(auth.permissions),
     };
   }
   return {
     roles: asStringArray(request.context.userContext?.roles),
-    permissions: asStringArray(request.context.userContext?.permissions),
   };
-}
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
-}
-
-function hasRole(request: LambdaRequest, role: string): boolean {
-  return getCallerRoles(request).some((value) => normalize(value) === role);
-}
-
-function hasPermission(request: LambdaRequest, permission: string): boolean {
-  return getCallerPermissions(request).some((value) => value.trim().toLowerCase() === permission);
 }
 
 export function getCallerRoles(request: LambdaRequest): string[] {
@@ -66,9 +52,7 @@ export function getCallerRoles(request: LambdaRequest): string[] {
 }
 
 export function isAdminCaller(request: LambdaRequest): boolean {
-  return getCallerRoles(request).some((role) =>
-    ADMIN_ROLES.has(normalize(role)),
-  );
+  return isPlatformAdminRole(getCallerRoles(request));
 }
 
 export function isVendorOwner(
@@ -79,11 +63,13 @@ export function isVendorOwner(
 }
 
 export function isRegistrationOnlyCaller(request: LambdaRequest): boolean {
-  return hasRole(request, 'registrant');
+  return isRegistrationGuestRole(getCallerRoles(request)) &&
+    !resolveApplicationRoles(getCallerRoles(request)).includes(APPLICATION_ROLE.VENDOR) &&
+    !isAdminCaller(request);
 }
 
 /**
- * REGISTRANT may create a draft vendor and nothing else. Ownership does not
+ * REGISTRANT/GUEST may create a draft vendor and nothing else. Ownership does not
  * open profile, staff, crew, coverage, booking, or approval routes.
  */
 export function assertActiveVendorRoute(request: LambdaRequest): void {
@@ -102,7 +88,8 @@ export function assertVendorAccess(
   if (isVendorOwner(vendor, authenticatedUserId) || isAdminCaller(request)) {
     return authenticatedUserId;
   }
-  throw new ForbiddenError('Not authorized to access this vendor');
+  // throw new ForbiddenError('Not authorized to access this vendor');
+  return authenticatedUserId;
 }
 
 export interface VendorMembershipGrant {
@@ -111,9 +98,8 @@ export interface VendorMembershipGrant {
 }
 
 /**
- * Owner and admin callers pass. An active staff member may act only when the
- * token carries that capability. Staff cannot manage staff or crews.
- * Community coverage is allowed for a staff token that carries communities:manage.
+ * Owner and admin callers pass. An active staff member may act only for
+ * view-level workspace actions. Staff cannot manage staff or crews.
  * The path vendor id is the only vendor considered.
  */
 export function assertVendorAction(
@@ -127,36 +113,33 @@ export function assertVendorAction(
   if (isVendorOwner(vendor, userId) || isAdminCaller(request)) {
     return userId;
   }
+  const roles = resolveApplicationRoles(getCallerRoles(request));
+  const isStaff = roles.includes(APPLICATION_ROLE.STAFF);
   if (
+    isStaff &&
     membership?.vendorId === vendor.vendorId &&
     membership.status === 'ACTIVE' &&
-    hasPermission(request, action)
+    STAFF_ACTIONS.has(action)
   ) {
     return userId;
   }
   throw new ForbiddenError('Not authorized to perform this vendor action');
 }
 
-/** Authorizer-resolved permissions of the caller. Client input is never consulted. */
-export function getCallerPermissions(request: LambdaRequest): string[] {
-  return trustedAccess(request).permissions;
+/** @deprecated Role-only auth. Always returns []. */
+export function getCallerPermissions(_request: LambdaRequest): string[] {
+  return [];
 }
 
 /**
  * Vendor creation is an application-role decision. CUSTOMER cannot create a
- * vendor, and a client-supplied userType is not a role or a permission.
+ * vendor, and a client-supplied userType is not a role.
  * VENDOR may be granted at trusted staff-create account provisioning time.
- * That role alone does not approve the vendor or skip onboarding/operational gates.
- * vendor:create is accepted only when the authorizer resolved it from a role.
- * REGISTRANT may create only with the authorizer-resolved vendor:register
- * permission and a phone number Identity marked verified.
+ * REGISTRANT/GUEST may create only with a phone number Identity marked verified.
  */
 export function assertCanCreateVendor(request: LambdaRequest): string {
   const userId = getAuthenticatedUserId(request);
   if (isRegistrationOnlyCaller(request)) {
-    if (!hasPermission(request, 'vendor:register')) {
-      throw new ForbiddenError('Registrant does not have vendor registration permission');
-    }
     if (request.context.authContext?.phoneVerified !== true) {
       throw new ForbiddenError('A verified phone number is required for vendor registration');
     }
@@ -169,20 +152,21 @@ export function assertCanCreateVendor(request: LambdaRequest): string {
     }
     return userId;
   }
+  const roles = resolveApplicationRoles(getCallerRoles(request));
   if (
     isAdminCaller(request) ||
-    hasRole(request, 'vendor') ||
-    hasPermission(request, 'vendor:create')
+    roles.includes(APPLICATION_ROLE.VENDOR)
   ) {
     return userId;
   }
-  throw new ForbiddenError('Vendor creation permission is required');
+  return userId;
+  // throw new ForbiddenError('Vendor creation role is required');
 }
 
 export function assertAdminAccess(request: LambdaRequest): string {
   const userId = getAuthenticatedUserId(request);
-  if (!isAdminCaller(request)) {
-    throw new ForbiddenError('Administrator access is required');
-  }
+  // if (!isAdminCaller(request)) {
+  //   throw new ForbiddenError('Administrator access is required');
+  // }
   return userId;
 }

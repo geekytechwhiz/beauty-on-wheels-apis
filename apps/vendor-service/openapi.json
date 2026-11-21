@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.4",
   "components": {
     "schemas": {
       "CreateVendorRequest": {
@@ -4189,7 +4189,7 @@
       "status": {
         "type": "string"
       },
-      "limit-2287f28e-f950-46ce-9ff8-d32df1a2da46": {
+      "limit-09ee4586-7d70-4133-bb1d-27924eb79664": {
         "type": "string"
       },
       "fromDate": {
@@ -4204,13 +4204,13 @@
       "dailyWindowEnd": {
         "type": "string"
       },
-      "limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6": {
+      "limit-83032e38-c84b-462b-a7bf-4e9d8f2b6878": {
         "type": "string"
       },
       "commitmentId": {
         "type": "string"
       },
-      "limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d": {
+      "limit-78a45dba-c0dd-40e5-8d6b-2d094c3f1685": {
         "type": "string"
       },
       "serviceAreaId": {
@@ -4228,7 +4228,7 @@
       "documentId": {
         "type": "string"
       },
-      "status-240e447d-1922-4dad-b0fb-7cc971a1f432": {
+      "status-52ff949d-611e-4a93-aef8-6d05302e9321": {
         "type": "string",
         "enum": [
           "PENDING",
@@ -4239,7 +4239,7 @@
       "requestId": {
         "type": "string"
       },
-      "status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e": {
+      "status-ea699902-a219-4861-84bf-bc4808fbf806": {
         "type": "string",
         "enum": [
           "PENDING_REVIEW",
@@ -8059,7 +8059,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-2287f28e-f950-46ce-9ff8-d32df1a2da46"
+              "$ref": "#/components/schemas/limit-09ee4586-7d70-4133-bb1d-27924eb79664"
             }
           },
           {
@@ -9344,7 +9344,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6"
+              "$ref": "#/components/schemas/limit-83032e38-c84b-462b-a7bf-4e9d8f2b6878"
             }
           },
           {
@@ -9631,7 +9631,7 @@
       "get": {
         "summary": "List vendor capacity proposals",
         "description": "Vendor owner or active staff with communities:manage. The vendor is the one the caller belongs to. DRAFT proposals are not shown.",
-        "operationId": "listvendorcapacityproposals",
+        "operationId": "list",
         "parameters": [
           {
             "name": "vendorId",
@@ -9666,7 +9666,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d"
+              "$ref": "#/components/schemas/limit-78a45dba-c0dd-40e5-8d6b-2d094c3f1685"
             }
           },
           {
@@ -11701,7 +11701,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-331530af-0e64-4cef-b0ba-d467435787c4",
+        "operationId": "updatevendorstaff-b0a171e4-5573-40f7-b6f6-7425b44601f6",
         "parameters": [
           {
             "name": "vendorId",
@@ -15125,7 +15125,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-240e447d-1922-4dad-b0fb-7cc971a1f432"
+              "$ref": "#/components/schemas/status-52ff949d-611e-4a93-aef8-6d05302e9321"
             }
           }
         ],
@@ -15768,7 +15768,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e"
+              "$ref": "#/components/schemas/status-ea699902-a219-4861-84bf-bc4808fbf806"
             }
           }
         ],

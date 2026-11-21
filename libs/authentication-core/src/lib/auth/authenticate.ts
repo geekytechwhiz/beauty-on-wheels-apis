@@ -7,11 +7,9 @@ import {
 
 import type { AuthContext, AuthenticateOptions } from './auth-context';
 import {
-  APPLICATION_ROLE,
   effectiveAccessTokenRoles,
   parseAccessTokenRolesClaim,
 } from './application-roles';
-import { issuedRegistrationPermissions } from './permissions';
 import { readAuthorizerContextFromEvent } from './authorizer-context';
 import { readBearerToken, validateAccessToken } from './token-validator';
 import { USER_STATUS } from '../constants/identity.constants';
@@ -131,20 +129,8 @@ async function resolveApplicationUser(
     directoryRoleIds,
     profileRoleId: user.roleId,
   });
-  // REGISTRANT permissions are issued here. A ROLE#REGISTRANT permission row
-  // cannot add vendor:read, vendor:create, or vendor:update.
-  const directoryPermissionRoles = ctx.roles.filter(
-    (role) => role !== APPLICATION_ROLE.REGISTRANT,
-  );
-  const directoryPermissions = await directory.getPermissionsForRoles(
-    directoryPermissionRoles,
-  );
-  ctx.permissions = [
-    ...new Set([
-      ...directoryPermissions,
-      ...issuedRegistrationPermissions(ctx.roles),
-    ]),
-  ];
+  // Role-only authorization: never load or issue permission identifiers.
+  ctx.permissions = [];
   return ctx;
 }
 

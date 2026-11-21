@@ -2446,27 +2446,27 @@
           }
         },
         "example": {
-                "items": [
-                  {
-                    "packageId": "pkg_1",
-                    "packageName": "Weekend Exterior",
-                    "communityId": "community-1",
-                    "categoryId": "cat-wash",
-                    "enabled": false,
-                    "eligibility": "held",
-                    "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
-                    "vendorId": "vendor-1",
-                    "fulfilmentVendorIds": [
-                      "vendor-1"
-                    ],
-                    "capacityCommitmentIds": [
-                      "cmt-1"
-                    ],
-                    "version": 2,
-                    "createdAt": "2026-11-01T00:00:00.000Z",
-                    "updatedAt": "2026-11-02T00:00:00.000Z"
-                  }
-                ],
+          "items": [
+            {
+              "packageId": "pkg_1",
+              "packageName": "Weekend Exterior",
+              "communityId": "community-1",
+              "categoryId": "cat-wash",
+              "enabled": false,
+              "eligibility": "held",
+              "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
+              "vendorId": "vendor-1",
+              "fulfilmentVendorIds": [
+                "vendor-1"
+              ],
+              "capacityCommitmentIds": [
+                "cmt-1"
+              ],
+              "version": 2,
+              "createdAt": "2026-11-01T00:00:00.000Z",
+              "updatedAt": "2026-11-02T00:00:00.000Z"
+            }
+          ],
           "total": 1,
           "pagination": {
             "limit": 25,
@@ -2553,7 +2553,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-4b9ae5f9-2efc-41e7-a182-795c83885918": {
+      "status-3f68b436-bee3-42b7-84e2-048f3160646d": {
         "type": "string",
         "enum": [
           "draft",
@@ -2568,7 +2568,7 @@
       "packageId": {
         "type": "string"
       },
-      "status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37": {
+      "status-ccea4ed6-5ca6-4ae9-b281-305269184576": {
         "type": "string",
         "enum": [
           "open",
@@ -2579,7 +2579,7 @@
           "disabled"
         ]
       },
-      "limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb": {
+      "limit-a6d4086d-d3da-42a6-b8e3-8b6bb5920c2b": {
         "type": "integer",
         "minimum": 1,
         "maximum": 100,
@@ -3552,7 +3552,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-4b9ae5f9-2efc-41e7-a182-795c83885918"
+              "$ref": "#/components/schemas/status-3f68b436-bee3-42b7-84e2-048f3160646d"
             }
           },
           {
@@ -4600,7 +4600,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-d4c4eb1a-39e6-4f8b-8ed7-d4dc52d30c37"
+              "$ref": "#/components/schemas/status-ccea4ed6-5ca6-4ae9-b281-305269184576"
             }
           },
           {
@@ -4609,7 +4609,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-d5b3752b-359f-4ed4-8f28-fa2a1f80cbeb"
+              "$ref": "#/components/schemas/limit-a6d4086d-d3da-42a6-b8e3-8b6bb5920c2b"
             }
           },
           {
@@ -4821,7 +4821,7 @@
             "description": "",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/communityId"
             }
           },
           {
@@ -4830,7 +4830,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/categoryId"
             }
           }
         ],

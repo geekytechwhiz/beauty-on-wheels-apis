@@ -20,10 +20,10 @@ export async function requireAuth(request: LambdaRequest): Promise<AuthContext> 
   });
 }
 
-export function requirePermission(permissions: string[] | AuthorizeOptions) {
-  const options: AuthorizeOptions = Array.isArray(permissions)
-    ? { permissions }
-    : permissions;
+export function requireRole(roles: string[] | AuthorizeOptions) {
+  const options: AuthorizeOptions = Array.isArray(roles)
+    ? { roles }
+    : roles;
 
   return async (request: LambdaRequest): Promise<AuthContext> => {
     await requireAuth(request);
@@ -33,3 +33,6 @@ export function requirePermission(permissions: string[] | AuthorizeOptions) {
     });
   };
 }
+
+/** @deprecated Use {@link requireRole}. Platform auth is role-only. */
+export const requirePermission = requireRole;

@@ -25,6 +25,8 @@ provider:
 
     SERVICE_NAME: vehicle-service
     LOG_LEVEL: INFO
+    REGION: ${self:provider.region}
+    DEFAULT_REGION: ${self:provider.region}
     DYNAMODB_TABLE_NAME: vehicle-table-${self:provider.stage}
   
   iam:

@@ -30,11 +30,16 @@ provider:
   environment:
     SERVICE_NAME: authorizer-service
     REGION: ${self:provider.region}
+    DEFAULT_REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
     LOG_LEVEL: info
     DYNAMODB_TABLE_NAME: identity-table-${self:provider.stage}
     IDENTITY_TABLE: identity-table-${self:provider.stage}
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    # Shared bearer for service-to-service HTTP. Same value is written to SSM so
+    # Partner BFF and other callers can resolve /{stage}/platform/internal-service-token.
+    # Rotate with INTERNAL_SERVICE_TOKEN=<random> then redeploy authorizer + callers.
+    INTERNAL_SERVICE_TOKEN: ${self:custom.internalServiceToken}
     # Must match Identity Service Cognito (OTP/login issuer). Hardcoded us-east-1
     # placeholders caused 401 on /me while verify-otp still returned valid JWTs.
     COGNITO_REGION: ${self:provider.region}
@@ -63,6 +68,8 @@ provider:
 custom:
   # Same prefix as identity-v1-service Cognito export names.
   resourcePrefix: nv${self:provider.stage}-bw
+  # Seed written into SSM on first deploy. Prefer env INTERNAL_SERVICE_TOKEN for a random value.
+  internalServiceToken: ${env:INTERNAL_SERVICE_TOKEN, '${self:provider.stage}-platform-internal-service-token'}
   esbuild:
     bundle: true
     minify: false
@@ -75,7 +82,7 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels - Authorizer Service
-    description: Shared Cognito JWT and identity RBAC API Gateway authorizer. This service does not expose HTTP routes.
+    description: Shared Cognito JWT and platform internal-token API Gateway authorizer. This service does not expose HTTP routes.
     securitySchemes:
       bearerAuth:
         type: http
@@ -147,7 +154,7 @@ functions:
   authorizer:
     name: ${self:provider.stage}-platform-authorizer
     handler: src/handlers/authorizer.handleAuthorize
-    description: Shared Cognito JWT + identity RBAC API Gateway TOKEN authorizer
+    description: Shared Cognito JWT + platform internal-token API Gateway TOKEN authorizer
     memorySize: 256
     timeout: 10
 
@@ -160,6 +167,22 @@ resources:
         Action: lambda:InvokeFunction
         Principal: apigateway.amazonaws.com
         SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*
+
+    # Shared internal bearer for Partner BFF → domain HTTP calls. Retain across stack
+    # updates so rotations are intentional (set INTERNAL_SERVICE_TOKEN then redeploy).
+    PlatformInternalServiceToken:
+      Type: AWS::SSM::Parameter
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        Name: /${self:provider.stage}/platform/internal-service-token
+        Type: String
+        Description: Platform internal service bearer token for service-to-service HTTP
+        Value: ${self:custom.internalServiceToken}
+        Tags:
+          Service: ${self:service}
+          Stage: ${self:provider.stage}
+          ManagedBy: serverless
 
   Outputs:
     AuthorizerLambdaArn:
@@ -177,3 +200,8 @@ resources:
       Value: ${self:provider.stage}-platform-authorizer
       Export:
         Name: ${self:provider.stage}-platform-authorizer-function-name
+    PlatformInternalServiceTokenParameter:
+      Description: SSM parameter name for the platform internal service bearer token
+      Value: /${self:provider.stage}/platform/internal-service-token
+      Export:
+        Name: ${self:provider.stage}-platform-internal-service-token-parameter

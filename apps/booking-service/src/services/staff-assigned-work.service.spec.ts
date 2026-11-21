@@ -269,7 +269,7 @@ describe('StaffAssignedWorkService', () => {
     expect(encodeStaffToken(0)).toEqual(expect.any(String));
   });
 
-  it('starts the caller crew visit and ignores a client staff id and clock', async () => {
+  it('starts a visit with crewId from the body and ignores a client clock', async () => {
     const visits = {
       applyStart: jest.fn().mockResolvedValue({
         response: {
@@ -287,12 +287,12 @@ describe('StaffAssignedWorkService', () => {
     const result = await actions.start({
       ...request(),
       pathParameters: { visitId: 'visit-1' },
-      body: { staffId: 'staff-evil', vendorId: 'vendor-evil', startedAt: '2000-01-01T00:00:00.000Z' },
+      body: { crewId: 'crew-1', staffId: 'staff-evil', startedAt: '2000-01-01T00:00:00.000Z' },
     } as LambdaRequest);
     expect(visits.applyStart).toHaveBeenCalledWith(
       expect.objectContaining({ planId: 'plan-1' }),
       expect.objectContaining({ visitId: 'visit-1' }),
-      'staff-1',
+      'crew-1',
       NOW.toISOString(),
     );
     expect(result).toEqual({
@@ -305,20 +305,20 @@ describe('StaffAssignedWorkService', () => {
     expect(result).not.toHaveProperty('customerId');
   });
 
-  it('refuses a visit assigned to another crew and does not write it', async () => {
+  it('requires crewId on start', async () => {
     const visits = { applyStart: jest.fn() };
     const actions = actionService(visits);
-    (plans as unknown as { getVisitById: jest.Mock }).getVisitById = jest.fn().mockResolvedValue(visit({
-      crewAssignment: { crewId: 'crew-9', assignedAt: '2026-10-28T00:00:00.000Z', assignedBy: 'owner-1' },
-    }));
+    (plans as unknown as { getVisitById: jest.Mock }).getVisitById = jest.fn().mockResolvedValue(visit());
+    plans.getPlan.mockResolvedValue({ planId: 'plan-1', vendorId: 'vendor-1' } as CustomerPlanRecord);
     await expect(actions.start({
       ...request(),
       pathParameters: { visitId: 'visit-1' },
-    } as LambdaRequest)).rejects.toMatchObject({ statusCode: 403 });
+      body: { staffId: 'staff-1' },
+    } as LambdaRequest)).rejects.toMatchObject({ statusCode: 400 });
     expect(visits.applyStart).not.toHaveBeenCalled();
   });
 
-  it('completes once for the caller and requires an idempotency key', async () => {
+  it('completes once for the crew and requires an idempotency key', async () => {
     const visits = {
       applyComplete: jest.fn().mockResolvedValue({
         response: {
@@ -337,12 +337,14 @@ describe('StaffAssignedWorkService', () => {
       ...request(),
       pathParameters: { visitId: 'visit-1' },
       event: { headers: {} },
+      body: { crewId: 'crew-1' },
     } as LambdaRequest)).rejects.toMatchObject({ statusCode: 400 });
     const completed = await actions.complete({
       ...request(),
       pathParameters: { visitId: 'visit-1' },
       event: { headers: { 'Idempotency-Key': 'complete-1' } },
       body: {
+        crewId: 'crew-1',
         completedAt: '1999-01-01T00:00:00.000Z',
         checklist: [{ itemId: 'wash', label: 'Exterior washed', done: true }],
       },
@@ -350,7 +352,7 @@ describe('StaffAssignedWorkService', () => {
     expect(visits.applyComplete).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      'staff-1',
+      'crew-1',
       NOW.toISOString(),
       { checklist: [{ itemId: 'wash', label: 'Exterior washed', done: true }] },
       expect.anything(),

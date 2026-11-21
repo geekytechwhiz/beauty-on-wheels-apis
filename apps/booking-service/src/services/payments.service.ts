@@ -29,6 +29,11 @@ import {
 import { getBookingsService } from './bookings.service';
 import { CustomerPaymentRecord, PaymentProvider } from '../types/payment.types';
 
+type BookingPaymentLifecycle = {
+  confirmPaidBooking(input: { bookingId: string; amount: number; currency: string }): Promise<unknown>;
+  failPaymentBooking(input: { bookingId: string }): Promise<unknown>;
+};
+
 const baseLogger = createChildLogger(createLogger({ service: 'payments-service', redactPII: true }), {
   service: 'PaymentsService',
 });
@@ -58,6 +63,7 @@ export class PaymentsService {
   constructor(
     private readonly payments: PaymentsRepository = getPaymentsRepository(),
     private readonly bookings: BookingsRepository = getBookingsRepository(),
+    private readonly bookingLifecycle: BookingPaymentLifecycle = getBookingsService(),
   ) {}
 
   async initiate(request: LambdaRequest): Promise<CustomerPaymentResponse> {
@@ -78,6 +84,9 @@ export class PaymentsService {
     if (!booking) throw new NotFoundError(`Booking with ID ${bookingId} not found`);
     if (booking.customerId !== customerId) {
       throw new ForbiddenError('Not authorized to pay for this booking');
+    }
+    if (booking.paymentMethod === 'CASH_ON_SERVICE') {
+      throw new BusinessRuleError('Cash-on-service bookings do not have an online payment attempt');
     }
     if (booking.paymentStatus === 'PAID' || booking.bookingStatus === 'CONFIRMED') {
       throw new BusinessRuleError('Booking is already paid');
@@ -271,7 +280,7 @@ export class PaymentsService {
 
     if (event === 'payment.failed') {
       if (payment.status === 'PENDING') {
-        await getBookingsService().failPaymentBooking({ bookingId: payment.bookingId });
+        await this.bookingLifecycle.failPaymentBooking({ bookingId: payment.bookingId });
         await this.payments.savePayment({
           ...payment,
           status: 'FAILED',
@@ -319,7 +328,7 @@ export class PaymentsService {
       return this.markPaid(payment);
     }
 
-    await getBookingsService().failPaymentBooking({ bookingId });
+    await this.bookingLifecycle.failPaymentBooking({ bookingId });
     payment = await this.payments.savePayment({
       ...payment,
       status: outcome === 'CANCELLED' ? 'CANCELLED' : 'FAILED',
@@ -333,7 +342,7 @@ export class PaymentsService {
     payment: CustomerPaymentRecord,
     providerPaymentId?: string,
   ): Promise<CustomerPaymentResponse> {
-    await getBookingsService().confirmPaidBooking({
+    await this.bookingLifecycle.confirmPaidBooking({
       bookingId: payment.bookingId,
       amount: payment.amountMinor,
       currency: payment.currency,
@@ -359,7 +368,7 @@ export class PaymentsService {
       completedAt: new Date().toISOString(),
     });
     try {
-      await getBookingsService().failPaymentBooking({ bookingId: payment.bookingId });
+      await this.bookingLifecycle.failPaymentBooking({ bookingId: payment.bookingId });
     } catch (error) {
       this.logger.warn({
         event: 'payment_expiry_booking_fail_skipped',

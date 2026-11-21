@@ -10,10 +10,15 @@ import {
   PlanPaymentIdempotencyItem,
   PlanPaymentRecord,
 } from '../types/customer-plan.types';
+import { addCalendarDays } from '../domain/vendor-package-visits';
+import { visitCoversDate, visitIndexDate } from '../domain/package-visit';
 import {
   PackageVisitDdbItem,
   PackageVisitRecord,
 } from '../types/package-visit.types';
+
+/** Max inclusive commitment window days (manager bulk schedule). */
+export const MAX_RANGE_SCHEDULE_DAYS = 7;
 
 /**
  * Key layout (shared booking table):
@@ -21,8 +26,10 @@ import {
  *   plan payment    PK CUSTOMER_PLAN#{planId}  SK PAYMENT#{paymentId}    GSI1 CUSTOMER#{customerId} / PLAN_PAYMENT#{createdAt}#{paymentId}
  *   package visit   PK CUSTOMER_PLAN#{planId}  SK VISIT#{ordinal:03d}#{visitId}
  *                   GSI1 VENDOR#{vendorId} / VISIT#{date|UNSCHEDULED}#{startTime|0000}#{visitId}
- *                   GSI2 VISIT#{visitId} / META
- *                   GSI3 (when scheduled) VENDOR#{vendorId}#DATE#{date} / VISIT#{startTime}#{visitId}
+ *                   GSI2 VISIT#{visitId} / META  (visit lookup only — not vendor work)
+ *                   GSI3 (scheduled only) VENDOR#{vendorId}#DATE#{date} / VISIT#{startTime}#{visitId}
+ *                     exact slot → schedule.date; range commitment → scheduleStartDate (primary)
+ *                     listVendorVisitsForDate also overlaps GSI1 lookback for range coverage
  *   plan idempotency  PK PLAN_IDEMPOTENCY#{customerId}#{key}  SK PLAN_IDEMPOTENCY
  * The customer GSI1 prefix `PLAN#` never collides with the `BOOKING#` and
  * `PAYMENT#` prefixes already used on `CUSTOMER#{customerId}`.
@@ -222,9 +229,14 @@ export class CustomerPlansRepository extends BaseRepository {
     return items[0] ? toVisitRecord(items[0]) : null;
   }
 
-  /** Access pattern: vendor scheduled visits for a date via GSI3. */
+  /**
+   * Vendor scheduled visits operationally expected on a civil date.
+   * GSI3 holds exact-slot rows and range rows indexed under scheduleStartDate.
+   * A bounded GSI1 lookback (max commitment window − 1) finds range commitments
+   * whose start is earlier than `date` but whose end still covers it.
+   */
   async listVendorVisitsForDate(vendorId: string, date: string): Promise<PackageVisitRecord[]> {
-    const params: QueryCommandInput = {
+    const gsi3Params: QueryCommandInput = {
       TableName: this.getTableName(),
       IndexName: 'GSI3',
       KeyConditionExpression: 'GSI3PK = :gsi3pk AND begins_with(GSI3SK, :prefix)',
@@ -234,49 +246,95 @@ export class CustomerPlansRepository extends BaseRepository {
       },
       ScanIndexForward: true,
     };
-    const items = await this.queryAll<PackageVisitDdbItem>(params);
-    return items.map(toVisitRecord);
+    const fromGsi3 = (await this.queryAll<PackageVisitDdbItem>(gsi3Params)).map(toVisitRecord);
+
+    const lookbackStart = addCalendarDays(date, -(MAX_RANGE_SCHEDULE_DAYS - 1));
+    const gsi1Params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK BETWEEN :from AND :to',
+      ExpressionAttributeValues: {
+        ':pk': `VENDOR#${vendorId}`,
+        ':from': `VISIT#${lookbackStart}`,
+        ':to': `VISIT#${date}#\uffff`,
+      },
+      ScanIndexForward: true,
+    };
+    const fromGsi1 = (await this.queryAll<PackageVisitDdbItem>(gsi1Params))
+      .map(toVisitRecord)
+      .filter((visit) => visitCoversDate(visit, date));
+
+    return [...new Map([...fromGsi3, ...fromGsi1].map((visit) => [visit.visitId, visit])).values()];
   }
 
   /**
    * One schedule timezone sample for operations summary when the requested range
-   * has no dated rows. Skips UNSCHEDULED GSI1 keys. Newest scheduled first.
+   * has no dated rows. Uses a civil-date GSI1 range so VISIT#UNSCHEDULED#... keys
+   * (lexically after YYYY-MM-DD) cannot crowd out scheduled samples.
    */
   async sampleVendorVisitTimezone(vendorId: string): Promise<string | undefined> {
     const params: QueryCommandInput = {
       TableName: this.getTableName(),
       IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :prefix)',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK BETWEEN :from AND :to',
       ExpressionAttributeValues: {
         ':pk': `VENDOR#${vendorId}`,
-        ':prefix': 'VISIT#',
+        ':from': 'VISIT#1970-01-01',
+        ':to': 'VISIT#9999-12-31#\uffff',
       },
       ScanIndexForward: false,
       Limit: 25,
     };
     const page = await this.queryPage<PackageVisitDdbItem>(params);
     for (const item of page.items) {
-      if (!item.schedule?.date || item.status === 'UNSCHEDULED') continue;
-      const timezone = item.schedule.timezone?.trim();
+      if (item.status === 'UNSCHEDULED') continue;
+      if (!item.schedule?.date && !item.scheduleStartDate) continue;
+      const timezone = item.schedule?.timezone?.trim() || item.visitWindowSnapshot?.timezone?.trim();
       if (timezone) return timezone;
     }
     return undefined;
   }
 
   /**
-   * Scheduled visits for one day (GSI3) or an inclusive date range (GSI1).
-   * UNSCHEDULED rows use GSI1SK `VISIT#UNSCHEDULED#...` and are outside both key ranges.
+   * Vendor package-visit work queue.
+   *
+   * Access patterns:
+   * - No dates → GSI1 `VENDOR#{vendorId}` / begins_with `VISIT#` (scheduled + UNSCHEDULED).
+   *   Optional status=UNSCHEDULED narrows to `VISIT#UNSCHEDULED#`.
+   * - Single day → GSI3 `VENDOR#{vendorId}#DATE#{date}` (scheduled for that civil day).
+   * - Inclusive range → GSI1 BETWEEN dated `VISIT#` keys (UNSCHEDULED is outside the range).
    */
-  async queryVendorScheduledVisits(input: {
+  async queryVendorPackageVisits(input: {
     vendorId: string;
-    fromDate: string;
-    toDate: string;
+    fromDate?: string;
+    toDate?: string;
+    status?: string;
     limit: number;
     exclusiveStartKey?: Record<string, unknown>;
   }): Promise<{ items: PackageVisitPageRow[]; lastEvaluatedKey?: Record<string, unknown> }> {
-    const singleDay = input.fromDate === input.toDate;
-    const params: QueryCommandInput = singleDay
-      ? {
+    const dateScoped = Boolean(input.fromDate && input.toDate);
+    const singleDay = dateScoped && input.fromDate === input.toDate;
+    const unscheduledOnly = !dateScoped && input.status === 'UNSCHEDULED';
+
+    let params: QueryCommandInput;
+    let resume: (item: PackageVisitDdbItem) => Record<string, unknown>;
+
+    if (!dateScoped) {
+      params = {
+        TableName: this.getTableName(),
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :prefix)',
+        ExpressionAttributeValues: {
+          ':pk': `VENDOR#${input.vendorId}`,
+          ':prefix': unscheduledOnly ? 'VISIT#UNSCHEDULED#' : 'VISIT#',
+        },
+        ScanIndexForward: true,
+        Limit: input.limit,
+        ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
+      };
+      resume = gsi1ResumeKey;
+    } else if (singleDay) {
+      params = {
         TableName: this.getTableName(),
         IndexName: 'GSI3',
         KeyConditionExpression: 'GSI3PK = :pk AND begins_with(GSI3SK, :prefix)',
@@ -287,29 +345,47 @@ export class CustomerPlansRepository extends BaseRepository {
         ScanIndexForward: true,
         Limit: input.limit,
         ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
-      }
-      : {
+      };
+      resume = gsi3ResumeKey;
+    } else {
+      // Expand start lookback so range commitments that began before fromDate
+      // but still overlap the requested window remain visible.
+      const rangeFrom = addCalendarDays(input.fromDate!, -(MAX_RANGE_SCHEDULE_DAYS - 1));
+      params = {
         TableName: this.getTableName(),
         IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK BETWEEN :from AND :to',
         ExpressionAttributeValues: {
           ':pk': `VENDOR#${input.vendorId}`,
-          ':from': `VISIT#${input.fromDate}`,
+          ':from': `VISIT#${rangeFrom}`,
           ':to': `VISIT#${input.toDate}#\uffff`,
         },
         ScanIndexForward: true,
         Limit: input.limit,
         ...(input.exclusiveStartKey ? { ExclusiveStartKey: input.exclusiveStartKey } : {}),
       };
+      resume = gsi1ResumeKey;
+    }
+
     const page = await this.queryPage<PackageVisitDdbItem>(params);
-    console.info("Vendor Scheduled Vist", page)
     return {
       items: page.items.map((item) => ({
         record: toVisitRecord(item),
-        resumeKey: singleDay ? gsi3ResumeKey(item) : gsi1ResumeKey(item),
+        resumeKey: resume(item),
       })),
       ...(page.lastEvaluatedKey ? { lastEvaluatedKey: page.lastEvaluatedKey } : {}),
     };
+  }
+
+  /** @deprecated Prefer queryVendorPackageVisits — kept for call-site clarity during migrate. */
+  async queryVendorScheduledVisits(input: {
+    vendorId: string;
+    fromDate: string;
+    toDate: string;
+    limit: number;
+    exclusiveStartKey?: Record<string, unknown>;
+  }): Promise<{ items: PackageVisitPageRow[]; lastEvaluatedKey?: Record<string, unknown> }> {
+    return this.queryVendorPackageVisits(input);
   }
 
   /**
@@ -358,6 +434,7 @@ export class CustomerPlansRepository extends BaseRepository {
   /**
    * Writes every visit in one TransactWrite. A version or status mismatch fails the whole group.
    * Callers keep the batch at or below the DynamoDB transaction item limit.
+   * Requires the persisted row to already be SCHEDULED (crew-only updates).
    */
   async saveVisits(updates: Array<{ next: PackageVisitRecord; expectedVersion: number }>): Promise<void> {
     if (updates.length === 0) return;
@@ -374,6 +451,51 @@ export class CustomerPlansRepository extends BaseRepository {
           },
         },
       })),
+    });
+  }
+
+  /**
+   * Bulk schedule-and-assign: UNSCHEDULED → SCHEDULED or reschedule while SCHEDULED.
+   * Optional idempotency row is written in the same transaction.
+   */
+  async saveScheduleAssignments(input: {
+    updates: Array<{ next: PackageVisitRecord; expectedVersion: number; fromStatus: 'UNSCHEDULED' | 'SCHEDULED' }>;
+    idempotency?: VisitScheduleIdempotencyItem;
+  }): Promise<void> {
+    if (input.updates.length === 0 && !input.idempotency) return;
+    const visitItems = input.updates.map((update) => ({
+      Put: {
+        TableName: this.getTableName(),
+        Item: toVisitItem(update.next),
+        ConditionExpression: 'version = :expectedVersion AND #status = :fromStatus',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':expectedVersion': update.expectedVersion,
+          ':fromStatus': update.fromStatus,
+        },
+      },
+    }));
+    const idempotencyItems = input.idempotency
+      ? [{
+        Put: {
+          TableName: this.getTableName(),
+          Item: input.idempotency,
+          ConditionExpression: 'attribute_not_exists(PK)',
+        },
+      }]
+      : [];
+    await this.transactWrite({
+      TransactItems: [...visitItems, ...idempotencyItems],
+    });
+  }
+
+  async getScheduleIdempotency(
+    vendorId: string,
+    idempotencyKey: string,
+  ): Promise<VisitScheduleIdempotencyItem | null> {
+    return this.get<VisitScheduleIdempotencyItem>(this.getTableName(), {
+      PK: `VISIT_SCHEDULE_IDEMPOTENCY#${vendorId}#${idempotencyKey}`,
+      SK: 'IDEMPOTENCY',
     });
   }
 
@@ -493,20 +615,25 @@ function visitSk(visit: PackageVisitRecord): string {
 }
 
 function toVisitItem(record: PackageVisitRecord): PackageVisitDdbItem {
-  const date = record.schedule?.date;
+  const indexDate = visitIndexDate(record);
   const startTime = record.schedule?.startTime ?? '00:00';
+  const scheduled = Boolean(indexDate) && record.status !== 'UNSCHEDULED';
   const item: PackageVisitDdbItem = {
     PK: `CUSTOMER_PLAN#${record.planId}`,
     SK: visitSk(record),
     GSI1PK: `VENDOR#${record.vendorId}`,
-    GSI1SK: `VISIT#${date ?? 'UNSCHEDULED'}#${startTime}#${record.visitId}`,
+    GSI1SK: `VISIT#${scheduled ? indexDate : 'UNSCHEDULED'}#${startTime}#${record.visitId}`,
     GSI2PK: `VISIT#${record.visitId}`,
     GSI2SK: 'META',
     entityType: 'PackageVisit',
     ...record,
   };
-  if (date) {
-    item.GSI3PK = `VENDOR#${record.vendorId}#DATE#${date}`;
+  // GSI3 is the vendor/date work index for home-summary and day lists.
+  // Range commitments are indexed under scheduleStartDate; readers overlap-query
+  // via GSI1 lookback so every day in the window remains discoverable.
+  // Omit attributes on Put so DynamoDB drops stale GSI3 entries (e.g. cancel).
+  if (scheduled && indexDate) {
+    item.GSI3PK = `VENDOR#${record.vendorId}#DATE#${indexDate}`;
     item.GSI3SK = `VISIT#${startTime}#${record.visitId}`;
   }
   const opsIndex = opsScheduleIndex(record);
@@ -517,11 +644,14 @@ function toVisitItem(record: PackageVisitRecord): PackageVisitDdbItem {
   return item;
 }
 
-/** Cross-vendor dispatch and demand. One partition per civil date. */
+/** Cross-vendor dispatch and demand. One partition per civil date (start of commitment). */
 export function opsScheduleIndex(
-  record: Pick<PackageVisitRecord, 'schedule' | 'status' | 'communityId' | 'visitWindowId' | 'vendorId' | 'visitId'>,
+  record: Pick<
+    PackageVisitRecord,
+    'schedule' | 'scheduleStartDate' | 'status' | 'communityId' | 'visitWindowId' | 'vendorId' | 'visitId'
+  >,
 ): { GSI4PK: string; GSI4SK: string } | undefined {
-  const date = record.schedule?.date;
+  const date = visitIndexDate(record as PackageVisitRecord);
   if (!date || record.status === 'UNSCHEDULED') return undefined;
   const communityId = record.communityId?.trim() || '_';
   const visitWindowId = record.visitWindowId?.trim() || '_';
@@ -529,6 +659,36 @@ export function opsScheduleIndex(
   return {
     GSI4PK: `OPS_SCHEDULE#${date}`,
     GSI4SK: `${communityId}#${visitWindowId}#${record.vendorId}#${record.status}#${startTime}#${record.visitId}`,
+  };
+}
+
+export interface VisitScheduleIdempotencyItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  idempotencyKey: string;
+  requestHash: string;
+  result: Record<string, unknown>;
+  entityType: 'VisitScheduleIdempotency';
+  createdAt: string;
+}
+
+export function buildScheduleIdempotencyItem(input: {
+  vendorId: string;
+  idempotencyKey: string;
+  requestHash: string;
+  result: Record<string, unknown>;
+  createdAt: string;
+}): VisitScheduleIdempotencyItem {
+  return {
+    PK: `VISIT_SCHEDULE_IDEMPOTENCY#${input.vendorId}#${input.idempotencyKey}`,
+    SK: 'IDEMPOTENCY',
+    vendorId: input.vendorId,
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    result: input.result,
+    entityType: 'VisitScheduleIdempotency',
+    createdAt: input.createdAt,
   };
 }
 

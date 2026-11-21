@@ -427,6 +427,73 @@
           "response": []
         },
         {
+          "name": "Get vendor home summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/:vendorId/home-summary?date=2026-11-20&upcomingDays=3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                ":vendorId",
+                "home-summary"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-11-20",
+                  "description": "Optional civil date YYYY-MM-DD. Defaults to today in the vendor IANA timezone."
+                },
+                {
+                  "key": "upcomingDays",
+                  "value": "3",
+                  "description": "Calendar days after date (1-7). Default 3."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "vendorId",
+                  "value": "vendor-1"
+                }
+              ]
+            },
+            "description": "Owner or platform admin. Read-only dashboard for package visits and one-time bookings for one day plus upcomingDays. Package-linked bookings (planId) are excluded. total excludes CANCELLED and UNSCHEDULED. blocked is the persisted BLOCKED status. Completion percentage denominator is today.visits.total (0 when empty). Does not include proposals."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('home summary path is vendor scoped', function () {",
+                  "  pm.expect(pm.request.url.getPath()).to.include('/home-summary');",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data || body;",
+                  "  pm.test('home summary shape', function () {",
+                  "    pm.expect(data).to.include.keys('vendorId', 'timezone', 'date', 'today', 'tomorrow', 'upcoming');",
+                  "    pm.expect(data.today.visits).to.include.keys('total', 'completed', 'inProgress', 'notStarted', 'blocked', 'missed', 'cancelled');",
+                  "    pm.expect(data.today.crew).to.have.keys('assigned', 'unassigned');",
+                  "    pm.expect(data.today.completion).to.have.keys('completed', 'total', 'percentage');",
+                  "    pm.expect(data.upcoming.days).to.be.an('array');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
           "name": "Summarize vendor package visits",
           "request": {
             "method": "GET",
@@ -705,7 +772,7 @@
           "response": []
         },
         {
-          "name": "Assign package visits to a crew",
+          "name": "Schedule and assign package visits",
           "request": {
             "method": "PUT",
             "header": [
@@ -716,11 +783,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"scheduledDate\": \"2026-10-29\",\n  \"communityId\": \"community-1\",\n  \"visitWindowId\": \"morning\",\n  \"crewId\": \"crew-1\",\n  \"visitIds\": [\"visit-1\"],\n  \"replaceExisting\": false\n}",
+              "raw": "{\n  \"communityId\": \"community-1\",\n  \"scheduleStartDate\": \"2026-10-29\",\n  \"scheduleEndDate\": \"2026-11-04\",\n  \"visitWindowId\": \"morning\",\n  \"crewId\": \"crew-1\",\n  \"visitIds\": [\"visit-1\"],\n  \"replaceExisting\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -745,7 +816,7 @@
                 }
               ]
             },
-            "description": "Owner-only. Replaces an existing crew only when replaceExisting is true. Conflicts return 409. This does not call availability reserve."
+            "description": "Owner-only bulk schedule-and-assign. Schedules selected visits into a date range (max 7 days) and visit window, and assigns a crew. Requires Idempotency-Key. visitWindowId must match the customer preference. Does not call Availability."
           },
           "event": [
             {
@@ -753,9 +824,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('assignment body uses crew and visit ids', function () {",
+                  "pm.test('schedule-assign body uses range, crew, and visit ids', function () {",
                   "  const body = JSON.parse(pm.request.body.raw);",
                   "  pm.expect(body.crewId).to.be.a('string');",
+                  "  pm.expect(body.scheduleStartDate).to.be.a('string');",
+                  "  pm.expect(body.scheduleEndDate).to.be.a('string');",
                   "  pm.expect(body).to.not.have.property('vendorId');",
                   "});"
                 ]
@@ -1042,6 +1115,88 @@
               }
             }
           ],
+          "response": []
+        },
+        {
+          "name": "Block package visit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer gate locked\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customer-plans/:planId/visits/:visitId/block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customer-plans",
+                ":planId",
+                "visits",
+                ":visitId",
+                "block"
+              ],
+              "variable": [
+                {
+                  "key": "planId",
+                  "value": "plan-1"
+                },
+                {
+                  "key": "visitId",
+                  "value": "visit-1"
+                }
+              ]
+            },
+            "description": "Vendor manager only. Persists SCHEDULED → BLOCKED with a required reason. Keeps schedule and crew assignment."
+          },
+          "response": []
+        },
+        {
+          "name": "Unblock package visit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customer-plans/:planId/visits/:visitId/unblock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customer-plans",
+                ":planId",
+                "visits",
+                ":visitId",
+                "unblock"
+              ],
+              "variable": [
+                {
+                  "key": "planId",
+                  "value": "plan-1"
+                },
+                {
+                  "key": "visitId",
+                  "value": "visit-1"
+                }
+              ]
+            },
+            "description": "Vendor manager only. Persists BLOCKED → SCHEDULED and clears block fields."
+          },
           "response": []
         }
       ]

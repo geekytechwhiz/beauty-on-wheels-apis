@@ -16,6 +16,7 @@ describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
         vendorId: 'vendor_1',
         commitmentId: 'cmt_1',
         quantity: 4,
+        commitmentQuantity: 10,
         idempotencyKey: 'plan-1',
         planId: 'plan-1',
       }),
@@ -31,11 +32,12 @@ describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
                 SK: VendorKeyBuilder.capacityCommitmentSk('cmt_1'),
               },
               ConditionExpression: expect.stringContaining(
-                'reservedSoldQuantity <= quantity - :qty',
+                'reservedSoldQuantity <= :maxReserved',
               ),
               ExpressionAttributeValues: expect.objectContaining({
                 ':delta': 4,
-                ':qty': 4,
+                ':commitmentQuantity': 10,
+                ':maxReserved': 6,
                 ':holdingStatus0': CAPACITY_COMMITMENT_STATUS.ACTIVE,
               }),
             }),

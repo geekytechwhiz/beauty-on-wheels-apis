@@ -116,6 +116,7 @@ export interface CustomerPlanRecord {
     scheduledVisits: number;
     unscheduledVisits: number;
     inProgressVisits: number;
+    blockedVisits?: number;
   };
   version: number;
   createdAt: string;

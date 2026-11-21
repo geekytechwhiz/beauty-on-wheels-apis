@@ -47,7 +47,10 @@ export interface StaffCrewView {
 export interface StaffAssignedVisit {
   visitId: string;
   crewId: string;
+  /** Exact-slot date when present; otherwise the commitment start date. */
   scheduledDate: string;
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
   communityId?: string;
   visitWindowId?: string;
   visitWindowName?: string;
@@ -262,7 +265,7 @@ export function staffWorkMetrics(visits: readonly PackageVisitRecord[]): StaffWo
 
 export function toStaffAssignedVisit(visit: PackageVisitRecord): StaffAssignedVisit | undefined {
   const crewId = visit.crewAssignment?.crewId;
-  const scheduledDate = visit.schedule?.date;
+  const scheduledDate = visit.schedule?.date ?? visit.scheduleStartDate;
   if (!crewId || !scheduledDate) return undefined;
   const clock = describeWindowClock(visit.visitWindowSnapshot);
   const serviceName = visit.serviceName?.trim();
@@ -270,6 +273,8 @@ export function toStaffAssignedVisit(visit: PackageVisitRecord): StaffAssignedVi
     visitId: visit.visitId,
     crewId,
     scheduledDate,
+    ...(visit.scheduleStartDate ? { scheduleStartDate: visit.scheduleStartDate } : {}),
+    ...(visit.scheduleEndDate ? { scheduleEndDate: visit.scheduleEndDate } : {}),
     ...(visit.communityId ? { communityId: visit.communityId } : {}),
     ...(visit.visitWindowId ? { visitWindowId: visit.visitWindowId } : {}),
     ...(visit.visitWindowName ? { visitWindowName: visit.visitWindowName } : {}),

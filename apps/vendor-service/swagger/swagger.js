@@ -3585,6 +3585,50 @@
         }
       }
     },
+    "/internal/operational-access": {
+      "post": {
+        "summary": "Internal operational access",
+        "description": "",
+        "tags": [
+          "Internal"
+        ],
+        "operationId": "getOperationalAccessHttp.post./internal/operational-access",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
+    "/internal/partner/manager/read": {
+      "post": {
+        "summary": "Internal partner manager vendor read",
+        "description": "",
+        "tags": [
+          "Internal"
+        ],
+        "operationId": "partnerManagerReadHttp.post./internal/partner/manager/read",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "200 response"
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/capacity-change-requests": {
       "post": {
         "summary": "Request a capacity change",

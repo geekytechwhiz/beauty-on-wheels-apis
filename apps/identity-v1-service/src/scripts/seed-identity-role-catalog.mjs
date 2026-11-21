@@ -5,6 +5,20 @@ import {
     PutCommand,
 } from '@aws-sdk/lib-dynamodb';
 
+/**
+ * Seeds platform application role metadata into the Identity table.
+ *
+ * Roles are ROLE#{roleId}/METADATA catalog rows used by first-admin bootstrap
+ * and admin role APIs. Authorization is role-only (no permission rows).
+ *
+ * Usage:
+ *   node apps/identity-v1-service/src/scripts/seed-identity-role-catalog.mjs \
+ *     --stage dev --table identity-table-dev --region ap-south-1
+ *
+ *   # write:
+ *   ... --apply
+ */
+
 function option(name, fallback) {
     const i = process.argv.indexOf(name);
     return i >= 0 ? process.argv[i + 1] : fallback;
@@ -19,11 +33,27 @@ if (!table || !region) {
     throw new Error('Provide --table and --region');
 }
 
+/** Canonical platform roles. GUEST is the registration/guest twin of REGISTRANT. */
 const roles = [
+    {
+        roleId: 'ROOT',
+        name: 'Root',
+        description: 'Platform root administrator. Highest privilege.',
+    },
     {
         roleId: 'ADMIN',
         name: 'Administrator',
         description: 'Platform administrator',
+    },
+    {
+        roleId: 'STAFF',
+        name: 'Staff',
+        description: 'Operational vendor employee',
+    },
+    {
+        roleId: 'VENDOR',
+        name: 'Vendor',
+        description: 'Approved vendor application role',
     },
     {
         roleId: 'CUSTOMER',
@@ -33,12 +63,12 @@ const roles = [
     {
         roleId: 'REGISTRANT',
         name: 'Registrant',
-        description: 'Vendor registration role',
+        description: 'Vendor registration / guest access (pre-approval)',
     },
     {
-        roleId: 'VENDOR',
-        name: 'Vendor',
-        description: 'Approved vendor application role',
+        roleId: 'GUEST',
+        name: 'Guest',
+        description: 'Guest / registrant alias for registration-only access',
     },
 ];
 
@@ -49,6 +79,7 @@ const ddb = DynamoDBDocumentClient.from(
 console.log(`${apply ? 'APPLY' : 'DRY RUN'} · ${table} · ${region}`);
 
 for (const role of roles) {
+    const now = new Date().toISOString();
     const item = {
         PK: `ROLE#${role.roleId}`,
         SK: 'METADATA',
@@ -56,8 +87,8 @@ for (const role of roles) {
         roleId: role.roleId,
         name: role.name,
         description: role.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
         GSI1PK: 'ROLE_CATALOG',
         GSI1SK: `ROLE#${role.roleId}`,
     };

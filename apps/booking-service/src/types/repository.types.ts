@@ -97,8 +97,9 @@ export interface BookingDdbItem {
   pricingSnapshot?: PricingSnapshotDdb;
   quoteId?: string;
   totalAmount: number;
-  paymentMethod?: string;
+  paymentMethod?: 'CASH_ON_SERVICE' | 'ONLINE';
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  slotReserved?: boolean;
   bookingStatus: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   version: number;
   createdAt: string;
@@ -138,8 +139,9 @@ export interface BookingLookupDdbItem {
   pricingSnapshot?: PricingSnapshotDdb;
   quoteId?: string;
   totalAmount: number;
-  paymentMethod?: string;
+  paymentMethod?: 'CASH_ON_SERVICE' | 'ONLINE';
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  slotReserved?: boolean;
   bookingStatus: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;

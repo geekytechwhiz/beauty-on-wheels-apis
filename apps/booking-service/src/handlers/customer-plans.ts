@@ -90,6 +90,16 @@ export const handleCancelPlanVisit = withApiHandler(
   async (request: LambdaRequest) => getPackageVisitsService().cancel(request),
 );
 
+export const handleBlockPlanVisit = withApiHandler(
+  { operation: 'blockplanvisit' },
+  async (request: LambdaRequest) => getPackageVisitsService().block(request),
+);
+
+export const handleUnblockPlanVisit = withApiHandler(
+  { operation: 'unblockplanvisit' },
+  async (request: LambdaRequest) => getPackageVisitsService().unblock(request),
+);
+
 export const handleStartPlanVisit = withApiHandler(
   { operation: 'startplanvisit' },
   async (request: LambdaRequest) => getPackageVisitsService().start(request),

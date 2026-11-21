@@ -1,5 +1,6 @@
 import { ValidationError } from '@api-hub/utils';
 
+import { visitCoversDate, visitHasDatedCommitment, visitIndexDate } from './package-visit';
 import {
   PACKAGE_VISIT_STATUS,
   PackageVisitRecord,
@@ -26,17 +27,24 @@ export const VISIT_METRIC_STATUS = {
     PACKAGE_VISIT_STATUS.IN_PROGRESS,
     PACKAGE_VISIT_STATUS.COMPLETED,
     PACKAGE_VISIT_STATUS.MISSED,
+    PACKAGE_VISIT_STATUS.BLOCKED,
   ],
   completed: [PACKAGE_VISIT_STATUS.COMPLETED],
   inProgress: [PACKAGE_VISIT_STATUS.IN_PROGRESS],
   waiting: [PACKAGE_VISIT_STATUS.SCHEDULED],
+  blocked: [PACKAGE_VISIT_STATUS.BLOCKED],
   missed: [PACKAGE_VISIT_STATUS.MISSED],
   cancelled: [PACKAGE_VISIT_STATUS.CANCELLED],
 } as const;
 
 export interface VendorVisitQuery {
-  fromDate: string;
-  toDate: string;
+  /**
+   * When false, list the vendor work queue on GSI1 (scheduled + unscheduled).
+   * When true, list a dated board (scheduled rows only) for fromDate..toDate.
+   */
+  dateScoped: boolean;
+  fromDate?: string;
+  toDate?: string;
   communityId?: string;
   visitWindowId?: string;
   status?: PackageVisitStatus;
@@ -107,9 +115,13 @@ export interface VendorPackageVisitItem {
   communityId?: string;
   visitWindowId?: string;
   visitWindowName?: string;
+  /** Exact-slot civil date when present. Prefer scheduleStartDate/scheduleEndDate for range commitments. */
   scheduledDate?: string;
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
   startTime?: string;
   status: PackageVisitStatus;
+  crewId?: string;
   vehicle: {
     vehicleId?: string;
     registrationNumber?: string;
@@ -174,7 +186,7 @@ function optionalId(value: string | undefined, field: string): string | undefine
 
 export function parseVendorVisitQuery(
   query: Record<string, string | undefined> | null | undefined,
-  now: Date,
+  _now: Date,
 ): VendorVisitQuery {
   const source = query ?? {};
   const date = source.date?.trim();
@@ -183,21 +195,23 @@ export function parseVendorVisitQuery(
   if (date && (from || to)) {
     throw new ValidationError('date cannot be combined with fromDate or toDate');
   }
-  let fromDate: string;
-  let toDate: string;
+  let dateScoped = false;
+  let fromDate: string | undefined;
+  let toDate: string | undefined;
   if (date) {
     fromDate = requireDate(date, 'date');
     toDate = fromDate;
+    dateScoped = true;
   } else if (from || to) {
     fromDate = requireDate(from, 'fromDate');
     toDate = requireDate(to, 'toDate');
-  } else {
-    fromDate = calendarDateInTimeZone(now);
-    toDate = fromDate;
+    dateScoped = true;
   }
-  if (fromDate > toDate) throw new ValidationError('fromDate must be on or before toDate');
-  if (inclusiveDayCount(fromDate, toDate) > MAX_LIST_DAYS) {
-    throw new ValidationError(`Date range cannot exceed ${MAX_LIST_DAYS} days`);
+  if (dateScoped) {
+    if (fromDate! > toDate!) throw new ValidationError('fromDate must be on or before toDate');
+    if (inclusiveDayCount(fromDate!, toDate!) > MAX_LIST_DAYS) {
+      throw new ValidationError(`Date range cannot exceed ${MAX_LIST_DAYS} days`);
+    }
   }
   const statusRaw = source.status?.trim();
   let status: PackageVisitStatus | undefined;
@@ -208,6 +222,9 @@ export function parseVendorVisitQuery(
     }
     status = statusRaw as PackageVisitStatus;
   }
+  if (dateScoped && status === PACKAGE_VISIT_STATUS.UNSCHEDULED) {
+    throw new ValidationError('status=UNSCHEDULED cannot be combined with a date filter');
+  }
   const searchRaw = source.search?.trim();
   if (searchRaw && searchRaw.length > 20) throw new ValidationError('search must be at most 20 characters');
   const limitRaw = source.limit?.trim();
@@ -216,8 +233,9 @@ export function parseVendorVisitQuery(
     throw new ValidationError('limit must be an integer from 1 to 50');
   }
   return {
-    fromDate,
-    toDate,
+    dateScoped,
+    ...(fromDate ? { fromDate } : {}),
+    ...(toDate ? { toDate } : {}),
     ...(optionalId(source.communityId, 'communityId')
       ? { communityId: optionalId(source.communityId, 'communityId') }
       : {}),
@@ -251,9 +269,23 @@ export function parseSummaryRange(
 
 export function visitMatchesFilters(
   visit: PackageVisitRecord,
-  filters: Pick<VendorVisitQuery, 'communityId' | 'visitWindowId' | 'status' | 'search'>,
+  filters: Pick<
+    VendorVisitQuery,
+    'dateScoped' | 'fromDate' | 'toDate' | 'communityId' | 'visitWindowId' | 'status' | 'search'
+  >,
 ): boolean {
-  if (!visit.schedule?.date || visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED) return false;
+  const unscheduled = visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED || !visitHasDatedCommitment(visit);
+  if (filters.dateScoped) {
+    // Dated boards are scheduled demand only; UNSCHEDULED lives on GSI1 without a civil date.
+    if (unscheduled) return false;
+    if (filters.fromDate && filters.toDate) {
+      if (!visitOverlapsRange(visit, filters.fromDate, filters.toDate)) return false;
+    } else if (filters.fromDate && !visitCoversDate(visit, filters.fromDate) && visitIndexDate(visit)! < filters.fromDate) {
+      return false;
+    } else if (filters.toDate && !visitCoversDate(visit, filters.toDate) && visitIndexDate(visit)! > filters.toDate) {
+      return false;
+    }
+  }
   if (filters.status && visit.status !== filters.status) return false;
   if (filters.communityId && visit.communityId !== filters.communityId) return false;
   if (filters.visitWindowId && visit.visitWindowId !== filters.visitWindowId) return false;
@@ -262,6 +294,15 @@ export function visitMatchesFilters(
     if (!registration.includes(filters.search.toUpperCase())) return false;
   }
   return true;
+}
+
+/** Inclusive overlap of a visit commitment with [fromDate, toDate]. */
+export function visitOverlapsRange(visit: PackageVisitRecord, fromDate: string, toDate: string): boolean {
+  if (visit.scheduleStartDate && visit.scheduleEndDate) {
+    return visit.scheduleStartDate <= toDate && fromDate <= visit.scheduleEndDate;
+  }
+  const date = visit.schedule?.date;
+  return Boolean(date) && date! >= fromDate && date! <= toDate;
 }
 
 export function toVendorPackageVisit(visit: PackageVisitRecord): VendorPackageVisitItem {
@@ -273,8 +314,11 @@ export function toVendorPackageVisit(visit: PackageVisitRecord): VendorPackageVi
     ...(visit.visitWindowId ? { visitWindowId: visit.visitWindowId } : {}),
     ...(visit.visitWindowName ? { visitWindowName: visit.visitWindowName } : {}),
     ...(visit.schedule?.date ? { scheduledDate: visit.schedule.date } : {}),
+    ...(visit.scheduleStartDate ? { scheduleStartDate: visit.scheduleStartDate } : {}),
+    ...(visit.scheduleEndDate ? { scheduleEndDate: visit.scheduleEndDate } : {}),
     ...(visit.schedule?.startTime ? { startTime: visit.schedule.startTime } : {}),
     status: visit.status,
+    ...(visit.crewAssignment?.crewId ? { crewId: visit.crewAssignment.crewId } : {}),
     vehicle: {
       ...(visit.vehicleId ? { vehicleId: visit.vehicleId } : {}),
       ...(visit.registrationNumber ? { registrationNumber: visit.registrationNumber } : {}),
@@ -299,10 +343,11 @@ function completionPercent(completed: number, expected: number): number {
 }
 
 function datedVisits(visits: readonly PackageVisitRecord[], fromDate: string, toDate: string): PackageVisitRecord[] {
-  return visits.filter((visit) => {
-    const date = visit.schedule?.date;
-    return Boolean(date) && date! >= fromDate && date! <= toDate && visit.status !== PACKAGE_VISIT_STATUS.UNSCHEDULED;
-  });
+  return visits.filter((visit) => (
+    visit.status !== PACKAGE_VISIT_STATUS.UNSCHEDULED
+    && visitHasDatedCommitment(visit)
+    && visitOverlapsRange(visit, fromDate, toDate)
+  ));
 }
 
 export function summarizeVendorVisits(input: {
@@ -311,14 +356,14 @@ export function summarizeVendorVisits(input: {
   fromDate: string;
   toDate: string;
 }): VendorVisitSummary {
-  const inRange = datedVisits(input.visits, input.fromDate, input.toDate);
-  const todayVisits = inRange.filter((visit) => visit.schedule?.date === input.today);
+  const inRange = uniqueByVisitId(datedVisits(input.visits, input.fromDate, input.toDate));
+  const todayVisits = inRange.filter((visit) => visitCoversDate(visit, input.today));
   const metrics = metricsFor(todayVisits);
-  const groups = demandGroups(inRange);
+  const groups = demandGroups(inRange, input.fromDate, input.toDate);
   const demandVisits = inRange.filter((visit) => countsAs(visit.status, VISIT_METRIC_STATUS.expected));
   const days = eachDate(input.fromDate, input.toDate).map((date) => ({
     date,
-    count: demandVisits.filter((visit) => visit.schedule?.date === date).length,
+    count: demandVisits.filter((visit) => visitCoversDate(visit, date)).length,
   }));
   const upcoming = groups.filter((group) =>
     group.date >= input.today && (group.waiting > 0 || group.inProgress > 0));
@@ -345,6 +390,10 @@ export function summarizeVendorVisits(input: {
       groups,
     },
   };
+}
+
+function uniqueByVisitId(visits: readonly PackageVisitRecord[]): PackageVisitRecord[] {
+  return [...new Map(visits.map((visit) => [visit.visitId, visit])).values()];
 }
 
 function metricsFor(visits: readonly PackageVisitRecord[]): VendorVisitMetrics {
@@ -409,30 +458,37 @@ function communitySummaries(visits: readonly PackageVisitRecord[]): VendorVisitC
     .sort((left, right) => right.scheduled - left.scheduled || left.communityId.localeCompare(right.communityId));
 }
 
-function demandGroups(visits: readonly PackageVisitRecord[]): VendorVisitDemandGroup[] {
+function demandGroups(
+  visits: readonly PackageVisitRecord[],
+  fromDate: string,
+  toDate: string,
+): VendorVisitDemandGroup[] {
   const groups = new Map<string, VendorVisitDemandGroup>();
   for (const visit of visits) {
-    if (!countsAs(visit.status, VISIT_METRIC_STATUS.expected) || !visit.schedule?.date) continue;
+    if (!countsAs(visit.status, VISIT_METRIC_STATUS.expected) || !visitHasDatedCommitment(visit)) continue;
     const communityId = visit.communityId ?? '';
     const visitWindowId = visit.visitWindowId ?? '';
-    const key = `${visit.schedule.date}\u0000${communityId}\u0000${visitWindowId}`;
-    const current = groups.get(key) ?? {
-      date: visit.schedule.date,
-      communityId,
-      visitWindowId,
-      ...(visit.visitWindowName ? { visitWindowName: visit.visitWindowName } : {}),
-      scheduled: 0,
-      waiting: 0,
-      inProgress: 0,
-      completed: 0,
-      missed: 0,
-    };
-    current.scheduled += 1;
-    if (countsAs(visit.status, VISIT_METRIC_STATUS.waiting)) current.waiting += 1;
-    if (countsAs(visit.status, VISIT_METRIC_STATUS.inProgress)) current.inProgress += 1;
-    if (countsAs(visit.status, VISIT_METRIC_STATUS.completed)) current.completed += 1;
-    if (countsAs(visit.status, VISIT_METRIC_STATUS.missed)) current.missed += 1;
-    groups.set(key, current);
+    for (const date of eachDate(fromDate, toDate)) {
+      if (!visitCoversDate(visit, date)) continue;
+      const key = `${date}\u0000${communityId}\u0000${visitWindowId}`;
+      const current = groups.get(key) ?? {
+        date,
+        communityId,
+        visitWindowId,
+        ...(visit.visitWindowName ? { visitWindowName: visit.visitWindowName } : {}),
+        scheduled: 0,
+        waiting: 0,
+        inProgress: 0,
+        completed: 0,
+        missed: 0,
+      };
+      current.scheduled += 1;
+      if (countsAs(visit.status, VISIT_METRIC_STATUS.waiting)) current.waiting += 1;
+      if (countsAs(visit.status, VISIT_METRIC_STATUS.inProgress)) current.inProgress += 1;
+      if (countsAs(visit.status, VISIT_METRIC_STATUS.completed)) current.completed += 1;
+      if (countsAs(visit.status, VISIT_METRIC_STATUS.missed)) current.missed += 1;
+      groups.set(key, current);
+    }
   }
   return [...groups.values()].sort((left, right) =>
     left.date.localeCompare(right.date)

@@ -38,13 +38,13 @@ function visit(overrides: Partial<PackageVisitRecord> = {}): PackageVisitRecord 
 
 describe('vendor package visit handlers through request middleware', () => {
   const now = () => new Date('2026-10-29T02:30:00.000Z');
-  let plans: jest.Mocked<Pick<CustomerPlansRepository, 'queryVendorScheduledVisits' | 'listVendorVisitsForDate' | 'getPlan'>>;
+  let plans: jest.Mocked<Pick<CustomerPlansRepository, 'queryVendorPackageVisits' | 'listVendorVisitsForDate' | 'getPlan'>>;
   let vendors: jest.Mocked<OperationalAccessGateway>;
   let service: VendorPackageVisitsService;
 
   beforeEach(() => {
     plans = {
-      queryVendorScheduledVisits: jest.fn().mockResolvedValue({
+      queryVendorPackageVisits: jest.fn().mockResolvedValue({
         items: [
           { record: visit(), resumeKey: { PK: 'a' } },
           { record: visit({ visitId: 'other-community', communityId: 'community-2', registrationNumber: 'KL07ZZ9999' }), resumeKey: { PK: 'b' } },
@@ -93,10 +93,11 @@ describe('vendor package visit handlers through request middleware', () => {
     });
 
     const page = await service.list(request);
-    expect(plans.queryVendorScheduledVisits).toHaveBeenCalledWith(expect.objectContaining({
+    expect(plans.queryVendorPackageVisits).toHaveBeenCalledWith(expect.objectContaining({
       vendorId: 'vendor-1',
       fromDate: '2026-10-30',
       toDate: '2026-10-30',
+      status: 'SCHEDULED',
     }));
     expect(page.items.map((item) => item.visitId)).toEqual(['visit-match']);
   });

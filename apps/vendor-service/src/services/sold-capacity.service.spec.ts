@@ -95,4 +95,48 @@ describe('SoldCapacityService offeringId matching', () => {
     ).rejects.toThrow(BaseError);
     expect(repository.reserveSoldCapacity).not.toHaveBeenCalled();
   });
+
+  it('rejects when remaining visit-slots are below plan demand', async () => {
+    repository.listCommitments.mockResolvedValue([
+      commitment({ commitmentId: 'cmt_small', quantity: 2, reservedSoldQuantity: 0 }),
+    ]);
+
+    await expect(
+      service.holdPlanCapacity({
+        vendorId: 'vendor-1',
+        communityId: 'com-1',
+        offeringId: 'pkg_car_wash',
+        demandQuantity: 4,
+        planId: 'plan_3',
+        expiresAt: '2026-11-01T01:00:00.000Z',
+      }),
+    ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+    expect(repository.reserveSoldCapacity).not.toHaveBeenCalled();
+  });
+
+  it('passes commitmentQuantity from the selected commitment into reserveSoldCapacity', async () => {
+    const match = commitment({ commitmentId: 'cmt_match', quantity: 8 });
+    repository.listCommitments.mockResolvedValue([match]);
+    repository.getCommitment.mockResolvedValue({
+      ...match,
+      reservedSoldQuantity: 2,
+    });
+
+    await service.holdPlanCapacity({
+      vendorId: 'vendor-1',
+      communityId: 'com-1',
+      offeringId: 'pkg_car_wash',
+      demandQuantity: 2,
+      planId: 'plan_4',
+      expiresAt: '2026-11-01T01:00:00.000Z',
+    });
+
+    expect(repository.reserveSoldCapacity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commitmentId: 'cmt_match',
+        quantity: 2,
+        commitmentQuantity: 8,
+      }),
+    );
+  });
 });

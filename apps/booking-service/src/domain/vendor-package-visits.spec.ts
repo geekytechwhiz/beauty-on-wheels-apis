@@ -50,10 +50,17 @@ describe('vendor package visit queries', () => {
     expect(calendarDateInTimeZone(new Date('2026-10-28T18:00:00.000Z'))).toBe('2026-10-28');
   });
 
-  it('defaults a missing date to today and rejects an inverted range', () => {
-    expect(parseVendorVisitQuery({}, now)).toMatchObject({ fromDate: '2026-10-29', toDate: '2026-10-29', limit: 20 });
+  it('omits date scope for the vendor work queue and rejects inverted or conflicting filters', () => {
+    expect(parseVendorVisitQuery({}, now)).toMatchObject({ dateScoped: false, limit: 20 });
+    expect(parseVendorVisitQuery({}, now).fromDate).toBeUndefined();
+    expect(parseVendorVisitQuery({ date: '2026-10-29' }, now)).toMatchObject({
+      dateScoped: true,
+      fromDate: '2026-10-29',
+      toDate: '2026-10-29',
+    });
     expect(() => parseVendorVisitQuery({ fromDate: '2026-10-30', toDate: '2026-10-29' }, now)).toThrow(/fromDate/);
     expect(() => parseVendorVisitQuery({ date: '2026-10-29', fromDate: '2026-10-29' }, now)).toThrow(/cannot be combined/);
+    expect(() => parseVendorVisitQuery({ date: '2026-10-29', status: 'UNSCHEDULED' }, now)).toThrow(/UNSCHEDULED/);
     expect(() => parseVendorVisitQuery({ status: 'Active' }, now)).toThrow(/status/);
     expect(() => parseVendorVisitQuery({ limit: '0' }, now)).toThrow(/limit/);
   });
@@ -66,11 +73,15 @@ describe('vendor package visit queries', () => {
     });
   });
 
-  it('matches registration search without treating unscheduled rows as dated', () => {
-    expect(visitMatchesFilters(visit(), { search: 'kl07ab' })).toBe(true);
-    expect(visitMatchesFilters(visit(), { search: 'MH01' })).toBe(false);
-    expect(visitMatchesFilters(visit({ status: 'UNSCHEDULED', schedule: undefined }), {})).toBe(false);
-    expect(visitMatchesFilters(visit({ communityId: 'other' }), { communityId: 'community-1' })).toBe(false);
+  it('matches registration and community filters and keeps unscheduled on the undated work queue', () => {
+    expect(visitMatchesFilters(visit(), { dateScoped: false, search: 'kl07ab' })).toBe(true);
+    expect(visitMatchesFilters(visit(), { dateScoped: false, search: 'MH01' })).toBe(false);
+    expect(visitMatchesFilters(visit({ status: 'UNSCHEDULED', schedule: undefined }), { dateScoped: false })).toBe(true);
+    expect(visitMatchesFilters(visit({ status: 'UNSCHEDULED', schedule: undefined }), { dateScoped: true })).toBe(false);
+    expect(visitMatchesFilters(visit({ communityId: 'other' }), {
+      dateScoped: false,
+      communityId: 'community-1',
+    })).toBe(false);
   });
 });
 

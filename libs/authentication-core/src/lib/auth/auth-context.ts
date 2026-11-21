@@ -2,6 +2,10 @@ export interface AuthContext {
   identityId: string;
   userId?: string;
   roles: string[];
+  /**
+   * Always empty. Kept for authorizer context wire compatibility.
+   * Platform authorization uses {@link roles} only.
+   */
   permissions: string[];
   claims: Record<string, unknown>;
   /** Verified Identity phone. Never taken from the request body. */
@@ -26,12 +30,16 @@ export interface AuthUser {
 }
 
 /**
- * Application directory used to resolve Cognito identity → user → roles → permissions.
+ * Application directory used to resolve Cognito identity → user → roles.
  * Services implement this against their identity store. JWT validation does not require it.
  */
 export interface AuthUserDirectory {
   findUserByIdentityId(identityId: string): Promise<AuthUser | null>;
   getUserRoles(userId: string): Promise<string[]>;
+  /**
+   * Deprecated for authorization. Implementations may return [].
+   * Role-only auth never consults this for Allow/Deny decisions.
+   */
   getPermissionsForRoles(roleIds: string[]): Promise<string[]>;
 }
 
@@ -47,7 +55,8 @@ export interface AuthenticateOptions {
 }
 
 export interface AuthorizeOptions {
-  permissions: string[];
-  /** When true, the caller must have every listed permission (default). */
+  /** Required application role codes (e.g. ADMIN, VENDOR). */
+  roles: string[];
+  /** When true, the caller must have every listed role (default). */
   requireAll?: boolean;
 }

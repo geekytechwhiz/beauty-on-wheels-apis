@@ -19,21 +19,23 @@ Bootstrap Completed
 | Claim | Meaning |
 |---|---|
 | `sub` | Cognito identity id. Not the application `userId`, username, or phone number. |
-| `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["REGISTRANT"]`, `["ADMIN"]`, `["CUSTOMER","VENDOR"]`. |
-| `role` | One scalar chosen from `roles`: `ADMIN`, then `VENDOR`, then `REGISTRANT`, then `CUSTOMER`. `REGISTRANT` is never written as `VENDOR`. |
+| `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["REGISTRANT"]`, `["ADMIN"]`, `["ROOT"]`, `["CUSTOMER","VENDOR"]`. |
+| `role` | One scalar chosen from `roles`: `ROOT`, then `ADMIN`, then `VENDOR`, then `STAFF`, then `REGISTRANT`/`GUEST`, then `CUSTOMER`. `REGISTRANT` is never written as `VENDOR`. |
 | `userType` | Account classification (`CUSTOMER`, `VENDOR`, or `ADMIN`). Not an authorization role. |
 | `userId` | Linked User Service id, when present. Not Cognito `sub`. |
 | `identityId` | Cognito `sub` stored on the identity. |
 | `token_use` | `access` |
 | `scope` | Cognito OAuth scopes. Not an application role. |
 
-`userType` classifies the account or the OTP challenge. Application roles and permissions authorize actions. A vendor record and its owner membership belong to Vendor Service.
+`userType` classifies the account or the OTP challenge. **Application roles authorize actions** (role-only). Permission identifiers are not consulted by the authorizer or service asserts. A vendor record and its owner membership belong to Vendor Service.
+
+Platform roles: `ROOT`, `ADMIN`, `STAFF`, `VENDOR`, `CUSTOMER`, `REGISTRANT`, `GUEST`. Seed the catalog with `node scripts/seed-identity-role-catalog.mjs --stage dev --table identity-table-dev --region ap-south-1 --apply`.
 
 `POST /otp/send` may store `userType: "VENDOR"` on the server-side challenge. That value is not a role. `POST /otp/verify` accepts only `destination` and `otp`. It uses the stored challenge and the verified destination. Role and permission fields are rejected.
 
-A new phone identity created from a `VENDOR` challenge receives `REGISTRANT` and the server-issued permission `vendor:register`. It does not receive `CUSTOMER`, `VENDOR`, or `ADMIN`. An email challenge, including one stored as `VENDOR`, still receives `CUSTOMER`. An existing identity keeps its roles; an OTP request cannot promote it. Password registration stays `CUSTOMER`. `VENDOR` is still granted only by vendor email verification or approval. `ADMIN` is still assigned only by an existing admin through `POST /users/{userId}/roles`, or once by the local first-admin operator CLI when no ADMIN mapping exists yet (see [docs/first-admin-bootstrap.md](./docs/first-admin-bootstrap.md)). Public OTP never accepts `userType=ADMIN`.
+A new phone identity created from a `VENDOR` challenge receives `REGISTRANT`. It does not receive `CUSTOMER`, `VENDOR`, or `ADMIN`. An email challenge, including one stored as `VENDOR`, still receives `CUSTOMER`. An existing identity keeps its roles; an OTP request cannot promote it. Password registration stays `CUSTOMER`. `VENDOR` is still granted only by vendor email verification or approval. `ADMIN` / `ROOT` are assigned only by an existing admin through `POST /users/{userId}/roles`, or once by the local first-admin operator CLI when no ADMIN mapping exists yet (see [docs/first-admin-bootstrap.md](./docs/first-admin-bootstrap.md)). Public OTP never accepts `userType=ADMIN`.
 
-`REGISTRANT` can only begin vendor registration. The authorizer does not copy DynamoDB permissions stored on that role. It adds `vendor:register` and nothing else. That permission is not `vendor:create`, `vendor:read`, or `vendor:update`.
+`REGISTRANT` / `GUEST` can only begin vendor registration (plus phone verification). Downstream services assert the role; they do not check permission identifiers.
 
 Vendor onboarding status (`PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `PENDING_REVIEW`) stays on the vendor record and is not written into the token. Approving a vendor adds `VENDOR` and leaves any existing `CUSTOMER` mapping in place.
 

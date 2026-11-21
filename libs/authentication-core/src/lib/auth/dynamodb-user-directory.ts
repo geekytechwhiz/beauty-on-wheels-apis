@@ -9,7 +9,6 @@ import type { AuthUser, AuthUserDirectory } from './auth-context';
 const USER_PREFIX = 'USER#';
 const IDENTITY_PREFIX = 'IDENTITY#';
 const ROLE_PREFIX = 'ROLE#';
-const PERMISSION_PREFIX = 'PERMISSION#';
 const META_SK = 'META';
 const PROFILE_SK = 'PROFILE';
 const LOOKUP_SK = 'LOOKUP';
@@ -39,10 +38,6 @@ interface UserRoleItem {
   roleId?: string;
 }
 
-interface RolePermissionItem {
-  permissionId?: string;
-}
-
 function resolveIdentityTable(): string {
   const table =
     process.env.DYNAMODB_TABLE_NAME?.trim() ||
@@ -56,8 +51,9 @@ function resolveIdentityTable(): string {
 }
 
 /**
- * Resolves Cognito `sub` → application user → roles → permissions from the
+ * Resolves Cognito `sub` → application user → roles from the
  * Identity single-table (PK/SK schema used by identity-v1-service).
+ * Permission rows are not used for authorization.
  */
 export class DynamoDbAuthUserDirectory
   extends BaseRepository
@@ -141,24 +137,11 @@ export class DynamoDbAuthUserDirectory
     return user?.roleId ? [user.roleId] : [];
   }
 
-  async getPermissionsForRoles(roleIds: string[]): Promise<string[]> {
-    const unique = new Set<string>();
-    for (const roleId of roleIds) {
-      const permissions = await this.query<RolePermissionItem>({
-        TableName: this.tableName,
-        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
-        ExpressionAttributeValues: {
-          ':pk': `${ROLE_PREFIX}${roleId.trim()}`,
-          ':skPrefix': PERMISSION_PREFIX,
-        },
-      });
-      for (const permission of permissions) {
-        if (permission.permissionId) {
-          unique.add(permission.permissionId);
-        }
-      }
-    }
-    return [...unique];
+  /**
+   * Intentionally empty. Role-only authorization never loads permission rows.
+   */
+  async getPermissionsForRoles(_roleIds: string[]): Promise<string[]> {
+    return [];
   }
 }
 

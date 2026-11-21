@@ -1,8 +1,13 @@
 /**
  * Application roles carried on the access-token `roles` claim.
  * These are role codes, not Cognito OAuth scopes.
+ *
+ * Platform authorization is role-only. Fine-grained permission rows are not
+ * consulted by the authorizer or service asserts.
  */
 export const APPLICATION_ROLE = {
+  /** Unauthenticated / registration guest. Alias of REGISTRANT in the catalog. */
+  GUEST: 'GUEST',
   CUSTOMER: 'CUSTOMER',
   /**
    * Phone-verified vendor registration only. The code does not contain
@@ -14,31 +19,51 @@ export const APPLICATION_ROLE = {
   /** Operational vendor employee. Membership remains vendor-service owned. */
   STAFF: 'STAFF',
   ADMIN: 'ADMIN',
+  /** Platform root. Highest privilege; includes every admin capability. */
+  ROOT: 'ROOT',
 } as const;
 
 export type ApplicationRole =
   (typeof APPLICATION_ROLE)[keyof typeof APPLICATION_ROLE];
 
 const APPLICATION_ROLE_ORDER: readonly ApplicationRole[] = [
+  APPLICATION_ROLE.GUEST,
   APPLICATION_ROLE.CUSTOMER,
   APPLICATION_ROLE.REGISTRANT,
   APPLICATION_ROLE.VENDOR,
   APPLICATION_ROLE.STAFF,
   APPLICATION_ROLE.ADMIN,
+  APPLICATION_ROLE.ROOT,
 ];
 
 const APPLICATION_ROLE_BY_KEY: Readonly<Record<string, ApplicationRole>> = {
+  guest: APPLICATION_ROLE.GUEST,
   customer: APPLICATION_ROLE.CUSTOMER,
   registrant: APPLICATION_ROLE.REGISTRANT,
   vendor: APPLICATION_ROLE.VENDOR,
   staff: APPLICATION_ROLE.STAFF,
   admin: APPLICATION_ROLE.ADMIN,
+  root: APPLICATION_ROLE.ROOT,
 };
+
+/** Roles that may administer platform resources (catalog, vendor approval, etc.). */
+export const PLATFORM_ADMIN_ROLES: ReadonlySet<ApplicationRole> = new Set([
+  APPLICATION_ROLE.ROOT,
+  APPLICATION_ROLE.ADMIN,
+]);
+
+/** Roles that may operate a vendor workspace as a manager/owner. */
+export const PLATFORM_VENDOR_MANAGER_ROLES: ReadonlySet<ApplicationRole> = new Set([
+  APPLICATION_ROLE.ROOT,
+  APPLICATION_ROLE.ADMIN,
+  APPLICATION_ROLE.VENDOR,
+]);
 
 /**
  * Maps stored role ids onto the access-token role set.
  * The registration default `user` is not an application role and is omitted.
- * Input order does not matter; output is CUSTOMER, REGISTRANT, VENDOR, ADMIN.
+ * GUEST and REGISTRANT are distinct codes; both mean registration/guest access.
+ * Input order does not matter; output follows {@link APPLICATION_ROLE_ORDER}.
  */
 export function resolveApplicationRoles(
   roleIds: ReadonlyArray<string | undefined | null>,
@@ -58,11 +83,14 @@ export function resolveApplicationRoles(
 
 /**
  * Scalar access-token `role` for clients that read one value.
- * REGISTRANT stays distinct from VENDOR. ADMIN remains the highest.
+ * ROOT remains the highest; REGISTRANT/GUEST stay distinct from VENDOR.
  */
 export function primaryApplicationRole(
   roles: readonly ApplicationRole[],
 ): ApplicationRole | undefined {
+  if (roles.includes(APPLICATION_ROLE.ROOT)) {
+    return APPLICATION_ROLE.ROOT;
+  }
   if (roles.includes(APPLICATION_ROLE.ADMIN)) {
     return APPLICATION_ROLE.ADMIN;
   }
@@ -75,10 +103,33 @@ export function primaryApplicationRole(
   if (roles.includes(APPLICATION_ROLE.REGISTRANT)) {
     return APPLICATION_ROLE.REGISTRANT;
   }
+  if (roles.includes(APPLICATION_ROLE.GUEST)) {
+    return APPLICATION_ROLE.GUEST;
+  }
   if (roles.includes(APPLICATION_ROLE.CUSTOMER)) {
     return APPLICATION_ROLE.CUSTOMER;
   }
   return undefined;
+}
+
+export function hasApplicationRole(
+  roles: readonly string[],
+  required: ApplicationRole | readonly ApplicationRole[],
+): boolean {
+  const granted = new Set(resolveApplicationRoles(roles));
+  const needed = Array.isArray(required) ? required : [required];
+  return needed.some((role) => granted.has(role));
+}
+
+export function isPlatformAdminRole(roles: readonly string[]): boolean {
+  return hasApplicationRole(roles, [...PLATFORM_ADMIN_ROLES]);
+}
+
+export function isRegistrationGuestRole(roles: readonly string[]): boolean {
+  return hasApplicationRole(roles, [
+    APPLICATION_ROLE.REGISTRANT,
+    APPLICATION_ROLE.GUEST,
+  ]);
 }
 
 export type ParsedAccessTokenRoles =

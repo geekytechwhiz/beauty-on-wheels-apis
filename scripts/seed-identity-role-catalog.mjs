@@ -1,3 +1,11 @@
+/**
+ * Repo-root convenience wrapper for the Identity role catalog seed.
+ *
+ * Prefer:
+ *   node apps/identity-v1-service/src/scripts/seed-identity-role-catalog.mjs ...
+ *
+ * This file mirrors that script so operators can run from scripts/.
+ */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
     DynamoDBDocumentClient,
@@ -21,9 +29,24 @@ if (!table || !region) {
 
 const roles = [
     {
+        roleId: 'ROOT',
+        name: 'Root',
+        description: 'Platform root administrator. Highest privilege.',
+    },
+    {
         roleId: 'ADMIN',
         name: 'Administrator',
         description: 'Platform administrator',
+    },
+    {
+        roleId: 'STAFF',
+        name: 'Staff',
+        description: 'Operational vendor employee',
+    },
+    {
+        roleId: 'VENDOR',
+        name: 'Vendor',
+        description: 'Approved vendor application role',
     },
     {
         roleId: 'CUSTOMER',
@@ -33,12 +56,12 @@ const roles = [
     {
         roleId: 'REGISTRANT',
         name: 'Registrant',
-        description: 'Vendor registration role',
+        description: 'Vendor registration / guest access (pre-approval)',
     },
     {
-        roleId: 'VENDOR',
-        name: 'Vendor',
-        description: 'Approved vendor application role',
+        roleId: 'GUEST',
+        name: 'Guest',
+        description: 'Guest / registrant alias for registration-only access',
     },
 ];
 
@@ -49,6 +72,7 @@ const ddb = DynamoDBDocumentClient.from(
 console.log(`${apply ? 'APPLY' : 'DRY RUN'} · ${table} · ${region}`);
 
 for (const role of roles) {
+    const now = new Date().toISOString();
     const item = {
         PK: `ROLE#${role.roleId}`,
         SK: 'METADATA',
@@ -56,8 +80,8 @@ for (const role of roles) {
         roleId: role.roleId,
         name: role.name,
         description: role.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
         GSI1PK: 'ROLE_CATALOG',
         GSI1SK: `ROLE#${role.roleId}`,
     };

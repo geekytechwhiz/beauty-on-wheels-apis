@@ -101,6 +101,20 @@ function statement(result: Awaited<ReturnType<typeof evaluateApiGatewayAuthorize
 }
 
 describe('evaluateApiGatewayAuthorizer', () => {
+  it('allows a matching internal service token without Cognito validation', async () => {
+    const result = await evaluateApiGatewayAuthorizer(event('Bearer internal-secret-token'), {
+      userDirectory: directory(),
+      internalServiceToken: 'internal-secret-token',
+    });
+    expect(result.principalId).toBe('internal-service');
+    expect(statement(result).Effect).toBe('Allow');
+    expect(result.context).toMatchObject({
+      identityId: 'internal-service',
+      roles: '["INTERNAL"]',
+      authKind: 'internal',
+    });
+  });
+
   it('throws Unauthorized for a missing token', async () => {
     await expect(
       evaluateApiGatewayAuthorizer(event(undefined), {
@@ -224,7 +238,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
       identityId: 'cognito-sub-1',
       userId: 'u-1',
       roles: JSON.stringify(['VENDOR']),
-      permissions: JSON.stringify([PERMISSION.VENDOR_READ]),
+      permissions: JSON.stringify([]),
     });
   });
 
@@ -298,7 +312,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
     expect(result.context?.userId).toBe('u-1');
   });
 
-  it('returns Allow with roles and permissions on successful authorization', async () => {
+  it('returns Allow with roles and empty permissions on successful authorization', async () => {
     const token = signToken();
     const result = await evaluateApiGatewayAuthorizer(event(`Bearer ${token}`), {
       userDirectory: directory({
@@ -314,7 +328,7 @@ describe('evaluateApiGatewayAuthorizer', () => {
       identityId: 'cognito-sub-1',
       userId: 'u-1',
       roles: JSON.stringify(['VENDOR']),
-      permissions: JSON.stringify([PERMISSION.VENDOR_READ, PERMISSION.BOOKING_READ]),
+      permissions: JSON.stringify([]),
     });
   });
 });
@@ -364,11 +378,10 @@ describe('REGISTRANT authorizer policy', () => {
       identityId: 'cognito-sub-1',
       userId: 'u-1',
       roles: JSON.stringify([APPLICATION_ROLE.REGISTRANT]),
-      permissions: JSON.stringify([PERMISSION.VENDOR_REGISTER]),
+      permissions: JSON.stringify([]),
       phoneNumber: '+919876543210',
       phoneVerified: 'true',
     });
-    expect(result.context?.permissions).not.toContain(PERMISSION.VENDOR_CREATE);
   });
 
   it('allows a REGISTRANT to invoke another vendor route', async () => {

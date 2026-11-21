@@ -13,14 +13,19 @@ const unknown = windowInterval({ visitWindowId: 'night', label: 'Night' }, 'nigh
 
 function slot(overrides: Partial<{
   date: string;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
   communityId: string;
   visitWindowId: string;
   crewId: string;
   staffIds: string[];
   interval: ReturnType<typeof windowInterval>;
 }> = {}) {
+  const date = overrides.date ?? '2026-10-30';
   return {
-    date: '2026-10-30',
+    date,
+    scheduleStartDate: overrides.scheduleStartDate ?? date,
+    scheduleEndDate: overrides.scheduleEndDate ?? date,
     communityId: 'community-1',
     visitWindowId: 'night',
     crewId: 'crew-1',
@@ -31,21 +36,31 @@ function slot(overrides: Partial<{
 }
 
 describe('crew assignment rules', () => {
-  it('requires a bounded visit list and does not trust extra fields as staff', () => {
+  it('requires a bounded visit list and a max seven-day range', () => {
     expect(parseAssignmentCommand({
-      scheduledDate: '2026-10-30',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
       communityId: 'community-1',
       visitWindowId: 'night',
       crewId: 'crew-1',
       visitIds: ['visit-1', 'visit-2'],
-    })).toMatchObject({ mode: 'assign', replaceExisting: false });
+    })).toMatchObject({ replaceExisting: false, scheduleStartDate: '2026-10-30' });
     expect(() => parseAssignmentCommand({
-      scheduledDate: '2026-10-30',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
       communityId: 'community-1',
       visitWindowId: 'night',
       crewId: 'crew-1',
       visitIds: ['visit-1', 'visit-1'],
     })).toThrow(/unique/);
+    expect(() => parseAssignmentCommand({
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-10',
+      communityId: 'community-1',
+      visitWindowId: 'night',
+      crewId: 'crew-1',
+      visitIds: ['visit-1'],
+    })).toThrow(/7 calendar days/);
   });
 
   it('uses the plan window and treats a missing snapshot as unknown', () => {

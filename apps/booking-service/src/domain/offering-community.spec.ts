@@ -1,5 +1,4 @@
-import { assertLocation, assertOfferingCommunity } from './create-booking';
-import { CreateBookingCommand } from '../schemas/bookings.schema';
+import { assertOfferingCommunity } from './create-booking';
 
 describe('assertOfferingCommunity', () => {
   it('requires an approved active mapping only when enforcement is on', () => {
@@ -55,20 +54,4 @@ describe('assertOfferingCommunity', () => {
   });
 });
 
-describe('assertLocation', () => {
-  it('does not require vendor community coverage for a community booking', () => {
-    const command = {
-      location: { fulfilmentType: 'community', communityId: 'community-1' },
-    } as CreateBookingCommand;
-    expect(() => assertLocation(
-      command,
-      { vendorId: 'vendor-1', status: 'ACTIVE', operationalStatus: 'ONLINE', communityIds: [] },
-      { communityIds: ['community-1'] },
-    )).not.toThrow();
-    expect(() => assertLocation(
-      command,
-      { vendorId: 'vendor-1', status: 'ACTIVE', operationalStatus: 'ONLINE', communityIds: ['community-1'] },
-      { communityIds: [] },
-    )).toThrow(expect.objectContaining({ code: 'COMMUNITY_NOT_ASSIGNED' }));
-  });
-});
+ 

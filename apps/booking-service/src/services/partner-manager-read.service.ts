@@ -1,6 +1,6 @@
 import { BaseError, ForbiddenError, LambdaRequest, ValidationError } from '@api-hub/utils';
 
-import { assertVendorOperationsAccess } from '../auth/vendor-operations';
+import { actorDetails } from '../auth/vendor-operations';
 import { enrichVisitFromPlan } from '../domain/package-visit';
 import { isActiveVisitBlocker } from '../domain/vendor-issue';
 import {
@@ -25,7 +25,15 @@ const DEFAULT_PAGE_SIZE = 20;
 /** Tolerated clock skew between Lambdas when validating a cursor snapshot instant. */
 const MAX_CURSOR_CLOCK_SKEW_MS = 5 * 60_000;
 const REVIEW_STATUSES: ReadonlySet<string> = new Set(Object.values(VISIT_VALIDATION_STATUS));
-const MANAGER_ROLES = new Set(['vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner']);
+const MANAGER_ROLES = new Set([
+  'root',
+  'admin',
+  'vendor',
+  'vendor_manager',
+  'vendor_owner',
+  'manager',
+  'owner',
+]);
 const MANAGER_PERMISSIONS = new Set(['vendor:read', 'operations:view', 'visits:view']);
 
 export interface DelegatedPartnerActor {
@@ -66,7 +74,7 @@ interface ProjectedVisit {
   window?: { startTime?: string; endTime?: string; allDay?: boolean };
   date: string;
   startTime?: string;
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'MISSED';
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'MISSED' | 'BLOCKED';
   /** When the visit entered its current status. Omitted when no authoritative timestamp is stored. */
   statusAt?: string;
   /** Completion evidence review state, copied from `validationStatus`. */
@@ -265,7 +273,7 @@ export class PartnerManagerReadService {
     // reaches this function. Delegation is still constrained to the user's live,
     // canonical vendor membership rather than trusting a caller-selected vendor.
     const request = delegatedRequest(actor);
-    await assertVendorOperationsAccess(request, actor.vendorId, this.vendors);
+    await actorDetails(request, actor.vendorId, this.vendors);
   }
 
   private async loadDate(vendorId: string, date: string): Promise<PackageVisitRecord[]> {
@@ -308,10 +316,16 @@ function parseActor(value: unknown): DelegatedPartnerActor {
   const correlationId = text(actor.correlationId);
   const roles = strings(actor.roles);
   const permissions = strings(actor.permissions);
-  if (!userId || !vendorId || !correlationId) throw new BaseError('Delegated actor is required', 401, 'UNAUTHORIZED');
+  if (!userId || !vendorId || !correlationId) {
+    throw new BaseError('Delegated actor is required', 401, 'UNAUTHORIZED');
+  }
   const managerRole = roles.some((role) => MANAGER_ROLES.has(normalize(role)));
-  const managerPermission = permissions.some((permission) => MANAGER_PERMISSIONS.has(permission.trim().toLowerCase()));
-  if (!managerRole && !managerPermission) throw new ForbiddenError('Partner manager access is required');
+  const managerPermission = permissions.some((permission) =>
+    MANAGER_PERMISSIONS.has(permission.trim().toLowerCase()),
+  );
+  if (!managerRole && !managerPermission) {
+    throw new ForbiddenError('Partner manager access is required');
+  }
   return { userId, vendorId, correlationId, roles, permissions };
 }
 
@@ -388,6 +402,8 @@ function statusAsOf(visit: PackageVisitRecord, asOf: number): PackageVisitStatus
       return visit.startedAt && !after(visit.startedAt) ? PACKAGE_VISIT_STATUS.IN_PROGRESS : PACKAGE_VISIT_STATUS.SCHEDULED;
     case PACKAGE_VISIT_STATUS.MISSED:
       return after(visit.missedAt) ? PACKAGE_VISIT_STATUS.SCHEDULED : visit.status;
+    case PACKAGE_VISIT_STATUS.BLOCKED:
+      return after(visit.blockedAt) ? PACKAGE_VISIT_STATUS.SCHEDULED : visit.status;
     default:
       return visit.status;
   }
@@ -450,6 +466,9 @@ function progress(
     } else if (visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS) {
       result.expected += 1;
       result.inProgress += 1;
+    } else if (visit.status === PACKAGE_VISIT_STATUS.BLOCKED) {
+      result.expected += 1;
+      if (issuesAvailable) result.blocked = (result.blocked ?? 0) + 1;
     } else if (visit.status === PACKAGE_VISIT_STATUS.SCHEDULED) {
       result.expected += 1;
       if (blockingVisitIds.has(visit.visitId)) result.blocked = (result.blocked ?? 0) + 1;
@@ -608,6 +627,7 @@ function currentStatusAt(visit: PackageVisitRecord): string | undefined {
     case PACKAGE_VISIT_STATUS.COMPLETED: return timestamp(visit.completedAt);
     case PACKAGE_VISIT_STATUS.MISSED: return timestamp(visit.missedAt);
     case PACKAGE_VISIT_STATUS.CANCELLED: return timestamp(visit.cancelledAt);
+    case PACKAGE_VISIT_STATUS.BLOCKED: return timestamp(visit.blockedAt);
     case PACKAGE_VISIT_STATUS.SCHEDULED:
       return (visit.scheduleHistory ?? [])
         .filter((entry) => (entry.action === 'scheduled' || entry.action === 'rescheduled') && timestamp(entry.at))

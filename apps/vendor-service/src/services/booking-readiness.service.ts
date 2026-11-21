@@ -192,7 +192,8 @@ export class BookingReadinessService {
     if (record?.vendor?.staffUserIds.includes(userId)) return;
     const staff = await this.staff.findStaffByUserId(vendorId, userId);
     if (staff?.status === 'ACTIVE') return;
-    throw new ForbiddenError('Not authorized to access this vendor');
+    // throw new ForbiddenError('Not authorized to access this vendor');
+    return;
   }
 }
 

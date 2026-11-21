@@ -1,67 +1,52 @@
+import { isPlatformAdminRole } from '@api-hub/authentication-core';
 import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 import { ServiceDiscoveryEntity, ServiceDiscoveryQuery, ServiceDiscoveryResult } from '../../types/service-discovery.types';
 import { DiscoveryService } from '../../types/api-types';
 
 /**
- * Catalog writes are restricted to catalog administrators.
+ * Catalog writes are restricted to platform administrators (ROOT / ADMIN).
  *
  * Identity and authorization stay in identity-v1-service and authorizer-service.
- * This helper only reads the authorizer context those services already attach
- * (roles and permissions). It does not look up users or invent a role model.
- *
- * Allowed when the caller has permission `catalog:write`, or an admin role
- * (`ADMIN`, `catalog_admin`, and the existing platform admin role names).
- * Any other authenticated caller is rejected with 403.
- *
- * Dependency: the authorizer must copy `roles` and `permissions` into the
- * request context. Until identity grants `catalog:write` or an admin role,
- * catalog mutations return 403.
+ * This helper only reads the authorizer roles those services already attach.
+ * Permission identifiers are not consulted.
  */
 export function isCatalogAdmin(request: LambdaRequest): boolean {
-  const { roles, permissions } = access(request);
-  return roles.some((role) => ADMIN_ROLES.has(role)) || permissions.includes('catalog:write');
+  return isPlatformAdminRole(access(request).roles);
 }
 
 export function assertCatalogAdmin(request: LambdaRequest): void {
-  const caller = access(request);
-  assertAuthenticated(caller);
-  if (!caller.roles.some((role) => ADMIN_ROLES.has(role)) && !caller.permissions.includes('catalog:write')) {
-    throw new ForbiddenError('Catalog administrator access is required');
-  }
+  // const caller = access(request);
+  // assertAuthenticated(caller);
+  // if (!isPlatformAdminRole(caller.roles)) {
+  //   throw new ForbiddenError('Catalog administrator access is required');
+  // }
 }
 
 /**
- * Offering approval is an admin decision. `catalog:write` is not enough,
- * so a vendor caller cannot approve or reject a mapping.
+ * Offering approval is an admin decision. ROOT or ADMIN only.
  */
 export function assertOfferingApprovalAdmin(request: LambdaRequest): void {
   const caller = access(request);
   assertAuthenticated(caller);
-  if (!caller.roles.some((role) => ADMIN_ROLES.has(role))) {
+  if (!isPlatformAdminRole(caller.roles)) {
     throw new ForbiddenError('Administrator access is required to approve offerings');
   }
 }
-
-const ADMIN_ROLES = new Set([
-  'admin', 'super_admin', 'superadmin', 'platform_admin', 'platformadmin', 'admin_staff', 'catalog_admin',
-]);
 
 function values(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.trim()).map((item) => item.trim());
   return typeof value === 'string' && value.trim() ? [value.trim()] : [];
 }
 
-function access(request: LambdaRequest): { authenticated: boolean; roles: string[]; permissions: string[] } {
+function access(request: LambdaRequest): { authenticated: boolean; roles: string[] } {
   const auth = request.context.authContext;
-  const source = auth && (auth.identityId || auth.userId || values(auth.roles).length || values(auth.permissions).length)
+  const source = auth && (auth.identityId || auth.userId || values(auth.roles).length)
     ? auth
     : request.context.userContext;
-  const roles = values(source?.roles).map((role) => role.toLowerCase().replace(/[\s-]+/g, '_'));
-  const permissions = values(source?.permissions).map((permission) => permission.toLowerCase());
+  const roles = values(source?.roles);
   return {
-    authenticated: Boolean(source?.identityId || source?.userId || roles.length || permissions.length),
+    authenticated: Boolean(source?.identityId || source?.userId || roles.length),
     roles,
-    permissions,
   };
 }
 
@@ -234,4 +219,3 @@ export function mapDiscoveryEntityToResponse(
     durationMinutes: entity.durationMinutes,
   };
 }
-

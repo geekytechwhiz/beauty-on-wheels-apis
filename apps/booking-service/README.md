@@ -12,7 +12,13 @@ Bootstrap Completed
 
 ## Checkout
 
-Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, and `expectedPrice.totalMinor`. Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs. The persisted booking is a `PENDING_PAYMENT` immutable snapshot; only the trusted payment Lambda or the sandbox-complete path (when `PAYMENT_SANDBOX_ENABLED=true`) can confirm it.
+Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment location, add-on IDs, `expectedPrice.totalMinor`, and an optional `paymentMethod` (`CASH_ON_SERVICE` or `ONLINE`). Customer identity is resolved from the authorizer. Booking reads vendor eligibility, the authoritative offering/duration, and pricing from Service Catalog, then asks Availability Service to atomically reserve capacity. `slotId`, `holdId`, `quoteId`, and `offeringVersion` are not customer inputs.
+
+- `CASH_ON_SERVICE` creates a `CONFIRMED` booking with `paymentStatus: PENDING` (payment is due at service) and `slotReserved: true`; no payment attempt or provider identifier is created.
+- Explicit `ONLINE` uses the existing pending-payment/Razorpay flow when Razorpay is configured. In local/test/dev only, `ALLOW_UNPAID_ONLINE_BOOKING=true` instead creates a `CONFIRMED` booking with `paymentStatus: PENDING` and `slotReserved: true`, without fabricating a provider payment. Startup rejects that flag in `prod`/`production`.
+- Omitting `paymentMethod` retains the historic `PENDING_PAYMENT` flow for older clients.
+
+The mobile client should use `bookingStatus`, `paymentMethod`, `paymentStatus`, and `slotReserved` independently: show “Booking confirmed — payment pending” when status is `CONFIRMED`, method is `ONLINE`, and payment remains `PENDING`.
 
 Package plans (`POST /customer-plans`) purchase a catalog PACKAGE offering. They are community-based at purchase (no `branchId` required). After payment, Booking materializes one **PackageVisit** row per entitlement unit (`UNSCHEDULED`). Vendors schedule visits via `/customer-plans/{planId}/visits/...`, which reserves Availability capacity (`bookingId = visitId`, plus `planId` / `packageVisitId` metadata). Entitlement is consumed only on vendor **complete** (idempotent). Multi-visit confirm-schedules is sequential and may return `scheduleState: PARTIAL` when some reservations fail.
 
@@ -23,11 +29,43 @@ Visit routes (customer owner or vendor staff; start/complete/schedule are vendor
 - `POST .../schedule`, `.../reschedule`, `.../cancel`, `.../start`, `.../complete`
 - `POST /customer-plans/{planId}/visits/confirm-schedules` — batch schedule with partial-failure reporting
 
-Visit statuses: `UNSCHEDULED` → `SCHEDULED` → `IN_PROGRESS` → `COMPLETED` (also `CANCELLED` / `MISSED`).
+Visit statuses: `UNSCHEDULED` → `SCHEDULED` → `IN_PROGRESS` → `COMPLETED` (also `CANCELLED` / `MISSED` / `BLOCKED`).
+
+Manager block/unblock (persisted `BLOCKED`, required reason; keeps Availability reservation and crew):
+
+- `POST /customer-plans/{planId}/visits/{visitId}/block` — body `{ "reason": "..." }`
+- `POST /customer-plans/{planId}/visits/{visitId}/unblock`
+
+Vendor home dashboard (package visits + one-time bookings; package-linked bookings with `planId` excluded):
+
+- `GET /vendors/{vendorId}/home-summary?date=YYYY-MM-DD&upcomingDays=3`
+
+Indexes (do **not** use GSI2 for vendor work — GSI2 is visit lookup `VISIT#{visitId}` / `META`):
+
+| Work | Index | Keys |
+|------|-------|------|
+| Scheduled package visits by day | **GSI3** | `GSI3PK = VENDOR#{vendorId}#DATE#{date}`, `GSI3SK = VISIT#{startTime}#{visitId}` |
+| One-time bookings by date | **GSI1** | `GSI1PK = VENDOR#{vendorId}`, `GSI1SK = BOOKING#{serviceDate}#{bookingId}` |
+| Unscheduled package visits | GSI1 only | `GSI1SK = VISIT#UNSCHEDULED#...` (excluded from home-summary) |
+| Package-linked first-job Booking | GSI1 | `GSI1SK = BOOKING#UNSCHEDULED#{id}`; `bookingDate` is activation/order day, not service date |
+
+GSI1 is left unchanged for existing consumers (`VISIT#` / `BOOKING#` prefixes). Home-summary does not unify both work types on one BETWEEN query.
+
+After deploying GSI3 (must be ACTIVE), run the resumable backfill (dry-run first):
+
+```bash
+pnpm exec ts-node --transpile-only apps/booking-service/src/scripts/backfill-vendor-work-indexes.ts \
+  --table booking-service-<stage>-booking
+pnpm exec ts-node --transpile-only apps/booking-service/src/scripts/backfill-vendor-work-indexes.ts \
+  --table booking-service-<stage>-booking --apply
+```
+
+Counting: `total` excludes `CANCELLED` and `UNSCHEDULED`; `blocked` is persisted `BLOCKED` only; completion `%` uses `today.visits.total` (0 when empty). PackageVisit is canonical when a Booking shares the same visit/job id.
 
 Customer payment HTTP paths:
 
 - `POST /bookings/{bookingId}/payments` — initiate payment bound to the booking snapshot amount (Idempotency-Key required).
+- `POST /bookings/{bookingId}/payments/{paymentId}/confirm` — verify a Razorpay checkout callback before payment and booking state change.
 - `GET /bookings/{bookingId}/payments/{paymentId}` — reconcile status after restart/timeout.
 - `POST /bookings/{bookingId}/payments/{paymentId}/sandbox-complete` — staging/dev only; `SUCCESS` calls the same confirm path as a verified gateway.
 

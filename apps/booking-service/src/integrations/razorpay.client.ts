@@ -133,6 +133,12 @@ export function getRazorpayGateway(): RazorpayGateway {
   return gateway;
 }
 
+/** A real checkout is available only when the selected provider has credentials. */
+export function isRazorpayCheckoutConfigured(): boolean {
+  return env.PAYMENT_PROVIDER.trim().toUpperCase() === 'RAZORPAY'
+    && getRazorpayGateway().isConfigured();
+}
+
 export function setRazorpayGatewayForTests(value: RazorpayGateway | undefined) {
   gateway = value;
 }

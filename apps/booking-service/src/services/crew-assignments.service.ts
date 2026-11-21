@@ -1,32 +1,39 @@
-import { ConditionalWriteConflictError, LambdaRequest, NotFoundError } from '@api-hub/utils';
+import { ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
-import { assertVendorOperationsAccess } from '../auth/vendor-operations';
+import { actorDetails } from '../auth/vendor-operations';
 import {
   AssignmentSchedule,
   AssignmentWriteResult,
   DEFAULT_TRAVEL_BUFFER_MINUTES,
   WindowInterval,
   assertCrewAssignable,
-  assignVisit,
   assignmentConflicts,
   buildAssignmentSchedule,
+  hashAssignmentRequest,
+  newScheduleId,
   occupiedFromVisits,
   parseAssignmentCommand,
   parseAssignmentRange,
-  sameAssignment,
+  sameRangeAssignment,
+  scheduleAndAssignVisit,
   travelWarningsFor,
   visitEligible,
   windowInterval,
   workloadFor,
   consensusInterval,
 } from '../domain/crew-assignment';
-import { enrichVisitFromPlan, withoutCrewAssignment } from '../domain/package-visit';
+import { computeVisitProgress, enrichVisitFromPlan, withoutCrewAssignment } from '../domain/package-visit';
 import { SUMMARY_VISIT_CAP, addCalendarDays } from '../domain/vendor-package-visits';
 import { BookingError } from '../errors';
+import { requireIdempotencyKey } from '../http/idempotency';
 import { SchedulingCrewGateway, getSchedulingCrewGateway } from '../integrations/scheduling-crews.client';
 import { OperationalAccessGateway, getOperationalAccessGateway } from '../integrations/vendor.client';
-import { CustomerPlansRepository, getCustomerPlansRepository } from '../repositories/customer-plans.repository';
+import {
+  CustomerPlansRepository,
+  buildScheduleIdempotencyItem,
+  getCustomerPlansRepository,
+} from '../repositories/customer-plans.repository';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
 import { PACKAGE_VISIT_STATUS, PackageVisitRecord } from '../types/package-visit.types';
 import { env } from '../configs/env.config';
@@ -46,7 +53,7 @@ export class CrewAssignmentsService {
 
   async list(request: LambdaRequest): Promise<AssignmentSchedule> {
     const vendorId = pathVendorId(request);
-    // await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    await actorDetails(request, vendorId, this.vendors);
     const range = parseAssignmentRange(queryOf(request), this.now());
     const loaded = await this.loadRange(vendorId, range.fromDate, range.toDate);
     return buildAssignmentSchedule({
@@ -59,18 +66,27 @@ export class CrewAssignmentsService {
   }
 
   /**
-   * Does not reserve Availability capacity. Scheduling already calls
-   * AvailabilityGateway.reserveBooking with the visit id, and that contract
-   * has no crew id. Calling it again would reserve the same visit twice.
-   * This method checks crew, staff, community, and visit-window overlap only.
-   * capacityAdvisory compares durations with the stored window. It does not
-   * change slot capacity. Removing an assignment does not release the reservation.
+   * Canonical manager action for Carish community planning:
+   * schedule selected UNSCHEDULED (or reschedule SCHEDULED) package visits into a
+   * date range + visit window and assign them to a crew in one transaction.
+   *
+   * Does not call Availability. Exact arrival times, towers, floors, and vehicle
+   * order are intentionally out of scope — the team decides order on site.
    */
   async assign(request: LambdaRequest): Promise<AssignmentWriteResult> {
     const vendorId = pathVendorId(request);
-    const actor = await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    const actor = await actorDetails(request, vendorId, this.vendors);
+    const idempotencyKey = requireIdempotencyKey(request);
     const command = parseAssignmentCommand(request.body);
-    if (command.mode === 'unassign') return this.unassignMany(vendorId, actor.userId, command);
+    const requestHash = hashAssignmentRequest(command);
+
+    const existing = await this.plans.getScheduleIdempotency(vendorId, idempotencyKey);
+    if (existing) {
+      if (existing.requestHash !== requestHash) {
+        throw new ConflictError('Idempotency-Key was reused with a different request');
+      }
+      return existing.result as AssignmentWriteResult;
+    }
 
     const roster = await this.crews.listCrews(vendorId);
     const crew = roster.find((item) => item.crewId === command.crewId && item.vendorId === vendorId);
@@ -80,22 +96,14 @@ export class CrewAssignmentsService {
     const visits = await this.loadCommandVisits(command.visitIds);
     const plans = await this.plansFor(visits);
     const enriched = visits.map((visit) => enrichVisitFromPlan(visit, plans.get(visit.planId)));
-    enriched.forEach((visit) => visitEligible(visit, command, vendorId));
 
-    const intervals = new Map(enriched.map((visit) => [visit.visitId, this.intervalFor(visit, plans.get(visit.planId))]));
-    const targetInterval = consensusInterval([...intervals.values()]);
-    const neighbors = await this.loadRange(
-      vendorId,
-      addCalendarDays(command.scheduledDate, -1),
-      addCalendarDays(command.scheduledDate, 1),
-    );
-    const moving = new Set(command.visitIds);
-    const staying = neighbors.visits.filter((visit) => !moving.has(visit.visitId));
     for (const visit of enriched) {
-      if (visit.crewAssignment && visit.crewAssignment.crewId !== command.crewId && !command.replaceExisting) {
+      visitEligible(visit, command, vendorId);
+      const plan = plans.get(visit.planId);
+      if (!plan || plan.paymentStatus !== 'PAID') {
         throw new BookingError(
-          'CREW_ASSIGNMENT_CONFLICT',
-          'Visit is already assigned to another crew',
+          'VISIT_NOT_ASSIGNABLE',
+          'Visit is not an active paid-plan entitlement',
           409,
           'visitId',
           false,
@@ -103,10 +111,37 @@ export class CrewAssignmentsService {
       }
     }
 
+    if (enriched.every((visit) => sameRangeAssignment(visit, command))) {
+      const scheduleId = enriched[0].scheduleId ?? newScheduleId();
+      return this.toWriteResult({
+        scheduleId,
+        command,
+        visits: enriched,
+        idempotent: true,
+        workload: workloadFor(
+          enriched.map((visit) => visit.durationMinutes),
+          consensusInterval(enriched.map((visit) => this.intervalFor(visit, plans.get(visit.planId)))),
+        ),
+        travelWarnings: [],
+      });
+    }
+
+    const intervals = new Map(enriched.map((visit) => [visit.visitId, this.intervalFor(visit, plans.get(visit.planId))]));
+    const targetInterval = consensusInterval([...intervals.values()]);
+    const neighbors = await this.loadRange(
+      vendorId,
+      addCalendarDays(command.scheduleStartDate, -1),
+      addCalendarDays(command.scheduleEndDate, 1),
+    );
+    const moving = new Set(command.visitIds);
+    const staying = neighbors.visits.filter((visit) => !moving.has(visit.visitId));
+
     const others = occupiedFromVisits(staying, neighbors.intervals, roster);
     const conflicts = assignmentConflicts({
       target: {
-        date: command.scheduledDate,
+        date: command.scheduleStartDate,
+        scheduleStartDate: command.scheduleStartDate,
+        scheduleEndDate: command.scheduleEndDate,
         communityId: command.communityId,
         visitWindowId: command.visitWindowId,
         crewId: command.crewId,
@@ -120,65 +155,93 @@ export class CrewAssignmentsService {
     }
 
     const now = this.now().toISOString();
-    const updates = enriched.flatMap((visit) => {
-      if (sameAssignment(visit, command.crewId)) return [];
-      return [{
-        next: assignVisit(visit, command.crewId, actor.userId, now),
-        expectedVersion: visit.version,
-      }];
-    });
-    await this.persist(updates);
+    const scheduleId = newScheduleId();
+    const updates = enriched.map((visit) => ({
+      next: scheduleAndAssignVisit({
+        visit,
+        command,
+        scheduleId,
+        actorId: actor.userId,
+        now,
+      }),
+      expectedVersion: visit.version,
+      fromStatus: (visit.status === PACKAGE_VISIT_STATUS.SCHEDULED
+        ? PACKAGE_VISIT_STATUS.SCHEDULED
+        : PACKAGE_VISIT_STATUS.UNSCHEDULED) as 'UNSCHEDULED' | 'SCHEDULED',
+    }));
 
-    const resulting = [
-      ...staying.filter((visit) => (
-        visit.crewAssignment?.crewId === command.crewId
-        && visit.schedule?.date === command.scheduledDate
-        && visit.communityId === command.communityId
-        && visit.visitWindowId === command.visitWindowId
-      )),
-      ...enriched,
-    ];
+    const resultingVisits = updates.map((update) => update.next);
     const workload = workloadFor(
-      resulting
-        .filter((visit) => visit.status === PACKAGE_VISIT_STATUS.SCHEDULED
-          || visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS
-          || visit.status === PACKAGE_VISIT_STATUS.COMPLETED)
-        .map((visit) => visit.durationMinutes),
+      resultingVisits.map((visit) => visit.durationMinutes),
       targetInterval,
     );
     const projected = occupiedFromVisits(
-      [...staying, ...enriched.map((visit) => (
-        sameAssignment(visit, command.crewId) ? visit : assignVisit(visit, command.crewId, actor.userId, now)
-      ))],
+      [...staying, ...resultingVisits],
       new Map([...neighbors.intervals, ...intervals]),
       roster,
     );
     const travelWarnings = travelWarningsFor(projected, this.travelBufferMinutes)
       .filter((warning) => warning.crewId === command.crewId);
 
-    this.logger.info({
-      event: 'crew_assignment_saved',
-      vendorId,
-      crewId: command.crewId,
-      visitCount: command.visitIds.length,
-      idempotent: updates.length === 0,
-    });
-    return {
-      scheduledDate: command.scheduledDate,
-      communityId: command.communityId,
-      visitWindowId: command.visitWindowId,
-      crewId: command.crewId,
-      visitIds: command.visitIds,
-      idempotent: updates.length === 0,
+    const result = this.toWriteResult({
+      scheduleId,
+      command,
+      visits: resultingVisits,
+      idempotent: false,
       workload,
       travelWarnings,
-      capacityAdvisory: workload.overloaded === true,
-    };
+    });
+
+    try {
+      await this.plans.saveScheduleAssignments({
+        updates,
+        idempotency: buildScheduleIdempotencyItem({
+          vendorId,
+          idempotencyKey,
+          requestHash,
+          result: result as unknown as Record<string, unknown>,
+          createdAt: now,
+        }),
+      });
+    } catch (error) {
+      if (error instanceof ConditionalWriteConflictError) {
+        const raced = await this.plans.getScheduleIdempotency(vendorId, idempotencyKey);
+        if (raced && raced.requestHash === requestHash) {
+          return raced.result as AssignmentWriteResult;
+        }
+        throw new BookingError(
+          'ASSIGNMENT_CONFLICT',
+          'A visit changed while it was being scheduled. Reload and retry',
+          409,
+          'visitId',
+          true,
+        );
+      }
+      throw error;
+    }
+
+    await this.refreshPlans(enriched.map((visit) => visit.planId));
+
+    this.logger.info({
+      event: 'package_visits_schedule_assigned',
+      vendorId,
+      scheduleId,
+      crewId: command.crewId,
+      visitCount: command.visitIds.length,
+      scheduleStartDate: command.scheduleStartDate,
+      scheduleEndDate: command.scheduleEndDate,
+      idempotencyKey,
+    });
+    return result;
   }
 
-  async remove(request: LambdaRequest): Promise<AssignmentWriteResult> {
+  async remove(request: LambdaRequest): Promise<{
+    visitId: string;
+    crewId: string;
+    idempotent: boolean;
+  }> {
     const vendorId = pathVendorId(request);
-    const actor = await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    const actor = await actorDetails(request, vendorId, this.vendors);
     const visitId = request.pathParameters?.visitId?.trim() ?? '';
     if (!visitId) throw new BookingError('VISIT_NOT_FOUND', 'Visit not found', 404, 'visitId', false);
     const visit = await this.plans.getVisitById(visitId);
@@ -187,7 +250,7 @@ export class CrewAssignmentsService {
       throw new BookingError('CROSS_VENDOR_VISIT', 'Visit belongs to a different vendor', 403, 'visitId', false);
     }
     if (!visit.crewAssignment) {
-      return emptyRemoval(visit, true);
+      return { visitId, crewId: '', idempotent: true };
     }
     if (visit.status !== PACKAGE_VISIT_STATUS.SCHEDULED) {
       throw new BookingError(
@@ -199,79 +262,10 @@ export class CrewAssignmentsService {
       );
     }
     const now = this.now().toISOString();
+    const crewId = visit.crewAssignment.crewId;
     const next = withoutCrewAssignment({ ...visit, updatedAt: now, version: visit.version + 1 });
-    await this.persist([{ next, expectedVersion: visit.version }]);
-    this.logger.info({ event: 'crew_assignment_removed', vendorId, visitId, actorId: actor.userId });
-    return emptyRemoval(visit, false);
-  }
-
-  private async unassignMany(
-    vendorId: string,
-    actorId: string,
-    command: ReturnType<typeof parseAssignmentCommand>,
-  ): Promise<AssignmentWriteResult> {
-    const visits = await this.loadCommandVisits(command.visitIds);
-    const plans = await this.plansFor(visits);
-    const enriched = visits.map((visit) => enrichVisitFromPlan(visit, plans.get(visit.planId)));
-    const now = this.now().toISOString();
-    const updates = enriched.flatMap((visit) => {
-      if (visit.vendorId !== vendorId) {
-        throw new BookingError('CROSS_VENDOR_VISIT', 'Visit belongs to a different vendor', 403, 'visitId', false);
-      }
-      if (visit.schedule?.date !== command.scheduledDate
-        || visit.communityId !== command.communityId
-        || visit.visitWindowId !== command.visitWindowId) {
-        throw new BookingError('VISIT_NOT_ASSIGNABLE', 'Visit is not in the requested group', 409, 'visitId', false);
-      }
-      if (!visit.crewAssignment) return [];
-      if (visit.crewAssignment.crewId !== command.crewId) {
-        throw new BookingError(
-          'CREW_ASSIGNMENT_CONFLICT',
-          'Visit is assigned to a different crew',
-          409,
-          'visitId',
-          false,
-        );
-      }
-      if (visit.status !== PACKAGE_VISIT_STATUS.SCHEDULED) {
-        throw new BookingError(
-          'VISIT_NOT_ASSIGNABLE',
-          `A ${visit.status} visit assignment cannot be removed`,
-          409,
-          'visitId',
-          false,
-        );
-      }
-      return [{
-        next: withoutCrewAssignment({ ...visit, updatedAt: now, version: visit.version + 1 }),
-        expectedVersion: visit.version,
-      }];
-    });
-    await this.persist(updates);
-    this.logger.info({
-      event: 'crew_assignment_removed',
-      vendorId,
-      crewId: command.crewId,
-      visitCount: updates.length,
-      actorId,
-    });
-    return {
-      scheduledDate: command.scheduledDate,
-      communityId: command.communityId,
-      visitWindowId: command.visitWindowId,
-      crewId: command.crewId,
-      visitIds: command.visitIds,
-      idempotent: updates.length === 0,
-      workload: workloadFor([], { known: false, allDay: false }),
-      travelWarnings: [],
-      capacityAdvisory: false,
-    };
-  }
-
-  private async persist(updates: Array<{ next: PackageVisitRecord; expectedVersion: number }>): Promise<void> {
-    if (updates.length === 0) return;
     try {
-      await this.plans.saveVisits(updates);
+      await this.plans.saveVisits([{ next, expectedVersion: visit.version }]);
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
         throw new BookingError(
@@ -284,6 +278,55 @@ export class CrewAssignmentsService {
       }
       throw error;
     }
+    this.logger.info({ event: 'crew_assignment_removed', vendorId, visitId, actorId: actor.userId });
+    return { visitId, crewId, idempotent: false };
+  }
+
+  private toWriteResult(input: {
+    scheduleId: string;
+    command: ReturnType<typeof parseAssignmentCommand>;
+    visits: PackageVisitRecord[];
+    idempotent: boolean;
+    workload: ReturnType<typeof workloadFor>;
+    travelWarnings: ReturnType<typeof travelWarningsFor>;
+  }): AssignmentWriteResult {
+    return {
+      scheduleId: input.scheduleId,
+      communityId: input.command.communityId,
+      scheduleStartDate: input.command.scheduleStartDate,
+      scheduleEndDate: input.command.scheduleEndDate,
+      visitWindowId: input.command.visitWindowId,
+      crewId: input.command.crewId,
+      status: PACKAGE_VISIT_STATUS.SCHEDULED,
+      scheduledVisitCount: input.visits.length,
+      visits: input.visits.map((visit) => ({
+        visitId: visit.visitId,
+        status: PACKAGE_VISIT_STATUS.SCHEDULED,
+        crewId: input.command.crewId,
+      })),
+      idempotent: input.idempotent,
+      workload: input.workload,
+      travelWarnings: input.travelWarnings,
+      capacityAdvisory: input.workload.overloaded === true,
+    };
+  }
+
+  private async refreshPlans(planIds: string[]): Promise<void> {
+    const unique = [...new Set(planIds)];
+    await Promise.all(unique.map(async (planId) => {
+      const plan = await this.plans.getPlan(planId);
+      if (!plan) return;
+      const visits = await this.plans.listVisits(planId);
+      const progress = computeVisitProgress(visits);
+      await this.plans.savePlan({
+        ...plan,
+        visitProgress: progress,
+        scheduleState: progress.scheduleState,
+        remainingVisits: progress.remainingVisits,
+        updatedAt: this.now().toISOString(),
+        version: plan.version + 1,
+      }, plan.version).catch(() => undefined);
+    }));
   }
 
   private async loadCommandVisits(visitIds: string[]): Promise<PackageVisitRecord[]> {
@@ -342,20 +385,6 @@ function datesBetween(fromDate: string, toDate: string): string[] {
     dates.push(cursor);
   }
   return dates;
-}
-
-function emptyRemoval(visit: PackageVisitRecord, idempotent: boolean): AssignmentWriteResult {
-  return {
-    scheduledDate: visit.schedule?.date ?? '',
-    communityId: visit.communityId ?? '',
-    visitWindowId: visit.visitWindowId ?? '',
-    crewId: visit.crewAssignment?.crewId ?? '',
-    visitIds: [visit.visitId],
-    idempotent,
-    workload: workloadFor([], { known: false, allDay: false }),
-    travelWarnings: [],
-    capacityAdvisory: false,
-  };
 }
 
 function travelBufferFromEnv(): number {

@@ -2,9 +2,11 @@
  * Package visit lifecycle (Booking SCREAMING_SNAKE convention, matching plans/bookings).
  *
  * UNSCHEDULED → SCHEDULED → IN_PROGRESS → COMPLETED
- * UNSCHEDULED | SCHEDULED → CANCELLED
+ * UNSCHEDULED | SCHEDULED | BLOCKED → CANCELLED
  * SCHEDULED → MISSED (vendor/policy mark when visit window elapsed unused)
+ * SCHEDULED ↔ BLOCKED (manager sets or clears an operational block; reason required to block)
  * SCHEDULED → UNSCHEDULED is not allowed; use reschedule to change the slot.
+ * BLOCKED is a persisted status. It is not inferred from crew assignment or issue rows.
  */
 export const PACKAGE_VISIT_STATUS = {
   UNSCHEDULED: 'UNSCHEDULED',
@@ -13,6 +15,7 @@ export const PACKAGE_VISIT_STATUS = {
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
   MISSED: 'MISSED',
+  BLOCKED: 'BLOCKED',
 } as const;
 
 export type PackageVisitStatus =
@@ -29,6 +32,11 @@ export const PACKAGE_SCHEDULE_STATE = {
 export type PackageScheduleState =
   (typeof PACKAGE_SCHEDULE_STATE)[keyof typeof PACKAGE_SCHEDULE_STATE];
 
+/**
+ * Exact civil-day slot (legacy one-time / Availability-backed package scheduling).
+ * Community range commitments use scheduleStartDate/scheduleEndDate on the visit
+ * instead — they do not invent an arrival time or branch slot.
+ */
 export interface PackageVisitSchedule {
   date: string;
   startTime: string;
@@ -40,12 +48,29 @@ export interface PackageVisitSchedule {
   durationMinutes: number;
 }
 
+/** Snapshot written to scheduleHistory for exact and range commitments. */
+export interface PackageVisitScheduleSnapshot {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  timezone?: string;
+  branchId?: string;
+  slotId?: string;
+  allocationId?: string;
+  durationMinutes?: number;
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
+  visitWindowId?: string;
+  crewId?: string;
+  scheduleId?: string;
+}
+
 export interface PackageVisitScheduleHistoryEntry {
   at: string;
-  action: 'scheduled' | 'rescheduled' | 'released' | 'cancelled';
+  action: 'scheduled' | 'rescheduled' | 'released' | 'cancelled' | 'blocked' | 'unblocked';
   by: string;
-  from?: Partial<PackageVisitSchedule>;
-  to?: Partial<PackageVisitSchedule>;
+  from?: PackageVisitScheduleSnapshot;
+  to?: PackageVisitScheduleSnapshot;
   reason?: string;
 }
 
@@ -126,6 +151,17 @@ export interface PackageVisitRecord {
   status: PackageVisitStatus;
   durationMinutes: number;
   schedule?: PackageVisitSchedule;
+  /**
+   * Shared id for visits scheduled together in one manager bulk action.
+   * Absent on exact-slot schedules that never went through bulk range assign.
+   */
+  scheduleId?: string;
+  /**
+   * Inclusive community commitment window. Distinct from createdAt and from
+   * exact `schedule.date` when that field is used for Availability slots.
+   */
+  scheduleStartDate?: string;
+  scheduleEndDate?: string;
   scheduleHistory: PackageVisitScheduleHistoryEntry[];
   /** Present only while this visit is assigned to a vendor crew. Cleared on cancel and reschedule. */
   crewAssignment?: PackageVisitCrewAssignment;
@@ -142,6 +178,11 @@ export interface PackageVisitRecord {
   cancelledBy?: string;
   cancelReason?: string;
   missedAt?: string;
+  /** Set when status becomes BLOCKED. Cleared on unblock. */
+  blockedAt?: string;
+  blockedBy?: string;
+  /** Required when blocking. Cleared on unblock. */
+  blockReason?: string;
   /** Set when the visit is completed. Absent on visits completed before evidence was required. */
   completionEvidence?: VisitCompletionEvidence;
   /** PENDING_REVIEW until an admin decides. Absent on legacy completed visits. */
@@ -192,6 +233,7 @@ export interface PackageVisitProgress {
   scheduledVisits: number;
   unscheduledVisits: number;
   inProgressVisits: number;
+  blockedVisits: number;
   byService: Array<{
     serviceId: string;
     total: number;

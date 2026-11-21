@@ -131,7 +131,10 @@ describe('CustomerPlanPaymentsService', () => {
       serviceIds: [],
       slotId: '',
     }));
-    expect(bookings.createPackageLinkedBooking.mock.calls[0][0]).not.toHaveProperty('branchId');
+    const linked = bookings.createPackageLinkedBooking.mock.calls[0][0];
+    expect(linked).not.toHaveProperty('branchId');
+    expect(linked).not.toHaveProperty('schedule');
+    expect(typeof linked.bookingDate).toBe('string');
     expect(plans.savePlan).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'AWAITING_FIRST_JOB',

@@ -35,6 +35,10 @@ Resource ownership is not implemented here.
 
 The shared API Gateway Lambda authorizer (`evaluateApiGatewayAuthorizer`) returns an IAM `Allow`/`Deny` policy and a string context of `identityId`, `userId`, `roles`, and `permissions`. Downstream Lambdas hydrate `AuthContext` from `requestContext.authorizer` and do not re-validate the JWT.
 
+### Internal service token
+
+When `INTERNAL_SERVICE_TOKEN` (from SSM `/{stage}/platform/internal-service-token`) matches the `Authorization` bearer, Cognito validation is skipped and the authorizer allows principal `internal-service` with role `INTERNAL`. Use `isInternalServiceAuth()` in `/internal/*` handlers. User JWTs are never accepted as a substitute for this token on those routes.
+
 ## Configuration
 
 ```
@@ -44,4 +48,5 @@ COGNITO_APP_CLIENT_ID
 COGNITO_ISSUER
 COGNITO_JWKS_URI
 DYNAMODB_TABLE_NAME   # identity table for the authorizer directory
+INTERNAL_SERVICE_TOKEN # optional; platform internal bearer for service-to-service HTTP
 ```

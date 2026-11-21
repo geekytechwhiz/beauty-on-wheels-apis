@@ -47,4 +47,26 @@ describe('buildUpdateUserPoolInput', () => {
     expect(input.LambdaConfig?.CustomMessage).toBe(pool.LambdaConfig?.CustomMessage);
     expect(input.PoolName).toBe('bw-user-pool');
   });
+
+  it('omits UserPoolTags and strips UnusedAccountValidityDays', () => {
+    const input = buildUpdateUserPoolInput(
+      {
+        ...pool,
+        UserPoolTags: {
+          Service: 'identity',
+          'aws:cloudformation:stack-name': 'identity-dev',
+        },
+        AdminCreateUserConfig: {
+          AllowAdminCreateUserOnly: false,
+          UnusedAccountValidityDays: 7,
+        },
+      } as UserPoolType,
+      functionArn,
+      'attach',
+    );
+    expect(input.UserPoolTags).toBeUndefined();
+    expect(input.AdminCreateUserConfig).toEqual({
+      AllowAdminCreateUserOnly: false,
+    });
+  });
 });

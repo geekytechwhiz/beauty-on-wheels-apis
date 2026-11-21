@@ -1,4 +1,3 @@
-import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { createLogger } from '@api-hub/observability';
 import { BaseError } from '@api-hub/utils';
 
@@ -164,6 +163,7 @@ export interface PartnerInternalClient {
   resolveOperationalAccess(userId: string): Promise<OperationalAccess>;
   readBooking(actor: PartnerActor, action: 'overview' | 'work' | 'planning', query: object): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage>;
   readVendor(actor: PartnerActor, query: { includeCrews?: boolean; includeCommitments?: boolean; communityIds?: string[] }): Promise<VendorManagerData>;
+  readCapacityCommitments(actor: PartnerActor): Promise<CapacityCommitment[]>;
 }
 
 /**
@@ -173,18 +173,34 @@ export interface PartnerInternalClient {
 const MEMBERSHIP_TIMEOUT_MS = 4_000;
 const READ_TIMEOUT_MS = 6_000;
 
-export class LambdaPartnerInternalClient implements PartnerInternalClient {
+export interface HttpPartnerInternalClientConfig {
+  bookingBaseUrl: string;
+  vendorBaseUrl: string;
+  internalServiceToken: string;
+}
+
+/**
+ * Partner BFF → domain services over HTTPS.
+ * Authentication is the platform internal bearer from SSM; the user JWT is never forwarded.
+ */
+export class HttpPartnerInternalClient implements PartnerInternalClient {
   constructor(
-    private readonly lambda: LambdaClient = new LambdaClient({}),
-    private readonly config = {
-      operationalAccessFunction: process.env.VENDOR_OPERATIONAL_ACCESS_FUNCTION ?? '',
-      vendorManagerReadFunction: process.env.VENDOR_PARTNER_MANAGER_READ_FUNCTION ?? '',
-      bookingManagerReadFunction: process.env.BOOKING_PARTNER_MANAGER_READ_FUNCTION ?? '',
+    private readonly config: HttpPartnerInternalClientConfig = {
+      bookingBaseUrl: process.env.BOOKING_BASE_URL ?? '',
+      vendorBaseUrl: process.env.VENDOR_BASE_URL ?? '',
+      internalServiceToken: process.env.INTERNAL_SERVICE_TOKEN ?? '',
     },
+    private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
   async resolveOperationalAccess(userId: string): Promise<OperationalAccess> {
-    const result = await this.invoke(this.config.operationalAccessFunction, { userId }, 'vendor membership', MEMBERSHIP_TIMEOUT_MS);
+    const result = await this.post(
+      this.config.vendorBaseUrl,
+      '/internal/operational-access',
+      { userId },
+      'vendor membership',
+      MEMBERSHIP_TIMEOUT_MS,
+    );
     const body = record(result);
     if (body.role !== 'owner' && body.role !== 'staff' && body.role !== 'none') {
       throw unavailable('Vendor Service returned an invalid membership response');
@@ -203,57 +219,122 @@ export class LambdaPartnerInternalClient implements PartnerInternalClient {
     action: 'overview' | 'work' | 'planning',
     query: object,
   ): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage> {
-    return this.invoke(this.config.bookingManagerReadFunction, { actor, action, query }, `Booking ${action}`, READ_TIMEOUT_MS) as Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage>;
+    return this.post(
+      this.config.bookingBaseUrl,
+      '/internal/partner/manager/read',
+      { actor, action, query },
+      `Booking ${action}`,
+      READ_TIMEOUT_MS,
+    ) as Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage>;
   }
 
   async readVendor(
     actor: PartnerActor,
     query: { includeCrews?: boolean; includeCommitments?: boolean; communityIds?: string[] },
   ): Promise<VendorManagerData> {
-    return this.invoke(this.config.vendorManagerReadFunction, { actor, ...query }, 'Vendor manager data', READ_TIMEOUT_MS) as Promise<VendorManagerData>;
+    return this.post(
+      this.config.vendorBaseUrl,
+      '/internal/partner/manager/read',
+      { actor, ...query },
+      'Vendor manager data',
+      READ_TIMEOUT_MS,
+    ) as Promise<VendorManagerData>;
   }
 
-  private async invoke(functionName: string, payload: unknown, dependency: string, timeoutMs: number): Promise<unknown> {
-    if (!functionName.trim()) {
-      throw unavailable(`${dependency} internal function is not configured`);
+  async readCapacityCommitments(actor: PartnerActor): Promise<CapacityCommitment[]> {
+    const data = await this.readVendor(actor, { includeCommitments: true });
+    return Array.isArray(data.commitments) ? data.commitments : [];
+  }
+
+  private async post(
+    baseUrl: string,
+    path: string,
+    body: unknown,
+    dependency: string,
+    timeoutMs: number,
+  ): Promise<unknown> {
+    const base = baseUrl.trim().replace(/\/$/, '');
+    const token = this.config.internalServiceToken.trim();
+    if (!base) {
+      throw unavailable(`${dependency} base URL is not configured`);
     }
-    let response;
+    if (!token) {
+      throw unavailable('Internal service token is not configured');
+    }
+
+    const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+    let response: Response;
     try {
-      response = await this.lambda.send(new InvokeCommand({
-        FunctionName: functionName,
-        InvocationType: 'RequestResponse',
-        Payload: Buffer.from(JSON.stringify(payload)),
-      }), { abortSignal: AbortSignal.timeout(timeoutMs) });
+      response = await this.fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
     } catch (error) {
+      const cause =
+        error instanceof Error && error.cause instanceof Error
+          ? error.cause.message
+          : undefined;
       logger.warn({
-        event: 'partner_dependency_invoke_failed',
+        event: 'partner_dependency_http_failed',
         dependency,
-        functionName,
+        path,
+        url,
         errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : undefined,
+        ...(cause ? { errorCause: cause } : {}),
         timeoutMs,
       });
       throw unavailable(`${dependency} is unavailable`);
     }
-    if (response.FunctionError) {
-      logger.warn({ event: 'partner_dependency_function_error', dependency, functionName, functionError: response.FunctionError });
-      throw unavailable(`${dependency} failed`);
+
+    const raw = await response.text();
+    let parsed: unknown = {};
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        throw unavailable(`${dependency} returned an unreadable response`);
+      }
     }
-    const raw = response.Payload ? Buffer.from(response.Payload).toString('utf8') : '';
-    let parsed: unknown;
-    try {
-      parsed = raw ? JSON.parse(raw) : {};
-    } catch {
-      throw unavailable(`${dependency} returned an unreadable response`);
+
+    if (!response.ok) {
+      const error = record(record(parsed).error);
+      const statusCode = typeof error.statusCode === 'number' ? error.statusCode : response.status;
+      logger.warn({
+        event: 'partner_dependency_http_rejected',
+        dependency,
+        path,
+        statusCode,
+        errorCode: text(error.code),
+      });
+      throw new BaseError(
+        text(error.message) ?? `${dependency} failed`,
+        statusCode >= 500 ? 502 : statusCode,
+        text(error.code) ?? 'DEPENDENCY_ERROR',
+        undefined,
+        { retryable: statusCode >= 500 },
+      );
     }
-    const envelope = record(parsed);
-    if (envelope.error) {
-      const error = record(envelope.error);
-      const statusCode = typeof error.statusCode === 'number' ? error.statusCode : 502;
-      logger.warn({ event: 'partner_dependency_rejected', dependency, functionName, statusCode, errorCode: text(error.code) });
-      throw new BaseError(text(error.message) ?? `${dependency} failed`, statusCode, text(error.code) ?? 'DEPENDENCY_ERROR');
-    }
-    return envelope.data ?? parsed;
+
+    return unwrapData(parsed);
   }
+}
+
+/** @deprecated Use {@link HttpPartnerInternalClient}. Kept as a type alias for existing imports. */
+export const LambdaPartnerInternalClient = HttpPartnerInternalClient;
+
+function unwrapData(parsed: unknown): unknown {
+  const envelope = record(parsed);
+  if ('data' in envelope) {
+    return envelope.data;
+  }
+  return parsed;
 }
 
 function unavailable(message: string): BaseError {

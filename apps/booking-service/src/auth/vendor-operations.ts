@@ -1,7 +1,6 @@
 import { ForbiddenError, LambdaRequest, UnauthorizedError } from '@api-hub/utils';
 
 import { isAdminRequest } from './admin';
-
 import { OperationalAccessGateway } from '../integrations/vendor.client';
 
 function userIdOf(request: LambdaRequest): string | undefined {
@@ -16,7 +15,7 @@ function userIdOf(request: LambdaRequest): string | undefined {
  * A path vendor id that does not match the membership is denied.
  * Staff are denied. Platform admins may read the path vendor.
  */
-export async function assertVendorOperationsAccess(
+export async function actorDetails(
   request: LambdaRequest,
   pathVendorId: string,
   vendors: OperationalAccessGateway,

@@ -31,19 +31,19 @@ describe('assertCatalogAdmin', () => {
     ).toThrow(ForbiddenError);
   });
 
-  it('allows catalog:write and the admin role', () => {
+  it('allows ADMIN and ROOT roles only', () => {
     expect(() =>
       assertCatalogAdmin(
         request({
           authContext: {
-            identityId: 'admin-1',
+            identityId: 'writer-1',
             roles: [],
             permissions: ['catalog:write'],
             claims: {},
           },
         }),
       ),
-    ).not.toThrow();
+    ).toThrow(ForbiddenError);
 
     expect(() =>
       assertCatalogAdmin(
@@ -57,11 +57,24 @@ describe('assertCatalogAdmin', () => {
         }),
       ),
     ).not.toThrow();
+
+    expect(() =>
+      assertCatalogAdmin(
+        request({
+          authContext: {
+            identityId: 'root-1',
+            roles: ['ROOT'],
+            permissions: [],
+            claims: {},
+          },
+        }),
+      ),
+    ).not.toThrow();
   });
 });
 
 describe('assertOfferingApprovalAdmin', () => {
-  it('rejects a vendor and a catalog writer who is not an admin', () => {
+  it('rejects a vendor who is not an admin', () => {
     expect(() => assertOfferingApprovalAdmin(request({}))).toThrow(UnauthorizedError);
     expect(() =>
       assertOfferingApprovalAdmin(
@@ -69,7 +82,7 @@ describe('assertOfferingApprovalAdmin', () => {
           authContext: {
             identityId: 'vendor-1',
             roles: ['VENDOR'],
-            permissions: ['catalog:write'],
+            permissions: [],
             claims: {},
           },
         }),

@@ -394,7 +394,7 @@ describe('VendorsService', () => {
           identityId: 'sub-1',
           userId: 'user-1',
           roles: ['REGISTRANT'],
-          permissions: ['vendor:register'],
+          permissions: [],
           phoneVerified: true,
           phoneNumber: '+919811122233',
           claims: {},
@@ -469,12 +469,7 @@ describe('VendorsService', () => {
     expect(repository.createVendor).toHaveBeenCalledTimes(1);
   });
 
-  it('denies REGISTRANT without vendor:register and CUSTOMER with userType VENDOR', async () => {
-    await expect(
-      service.createvendor(
-        registrantRequest(registrationBody, { permissions: [] }),
-      ),
-    ).rejects.toThrow(ForbiddenError);
+  it('denies CUSTOMER with userType VENDOR', async () => {
     await expect(
       service.createvendor(
         vendorAuthorized(['CUSTOMER'], {
@@ -519,7 +514,7 @@ describe('VendorsService', () => {
             authContext: {
               identityId: 'sub-1',
               roles: ['REGISTRANT'],
-              permissions: ['vendor:register'],
+              permissions: [],
               phoneVerified: true,
               phoneNumber: '+919811122233',
               claims: {},
@@ -587,9 +582,9 @@ describe('VendorsService', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('allows vendor creation when the authorizer resolved vendor:create', async () => {
+  it('allows vendor creation when the authorizer resolved the VENDOR role', async () => {
     const result = await service.createvendor(
-      vendorAuthorized([], { body: createBody }, ['vendor:create']),
+      vendorAuthorized(['VENDOR'], { body: createBody }),
     );
     expect(result.createdBy).toBe('user-1');
     expect(result.ownerUserId).toBeUndefined();

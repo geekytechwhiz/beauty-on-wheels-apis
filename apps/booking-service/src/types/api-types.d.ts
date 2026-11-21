@@ -98,8 +98,10 @@ export interface Booking {
   /** Preserved when a historical booking already stored a quote. Create no longer accepts it. */
   quoteId?: string;
   totalAmount?: number;
-  paymentMethod?: string;
+  paymentMethod?: 'CASH_ON_SERVICE' | 'ONLINE';
   paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  /** True only after Availability has durably accepted the allocation. */
+  slotReserved?: boolean;
   bookingStatus?: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdAt?: string;
   updatedAt?: string;

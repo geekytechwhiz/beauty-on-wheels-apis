@@ -28,6 +28,14 @@ describe('resolveApplicationRoles', () => {
     expect(resolveApplicationRoles(['PENDING_VENDOR', 'pending_vendor'])).toEqual([]);
   });
 
+  it('recognizes ROOT, STAFF, and GUEST', () => {
+    expect(resolveApplicationRoles(['guest', 'ROOT', 'staff'])).toEqual([
+      'GUEST',
+      'STAFF',
+      'ROOT',
+    ]);
+  });
+
   it('returns an empty list when the user only has the generic role', () => {
     expect(resolveApplicationRoles(['user', 'USER', ''])).toEqual([]);
   });

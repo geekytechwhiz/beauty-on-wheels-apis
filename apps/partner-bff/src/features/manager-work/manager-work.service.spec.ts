@@ -29,6 +29,7 @@ function clientWith(work: ManagerWorkPage, crews: () => Promise<VendorManagerDat
     readVendor: jest.fn(async (_actor, query) => query.communityIds
       ? { communities: [{ communityId: 'community-1', name: 'Green Acres' }], sourceAsOf }
       : crews()),
+    readCapacityCommitments: jest.fn(async () => []),
   };
 }
 

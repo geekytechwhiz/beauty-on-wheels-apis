@@ -43,15 +43,30 @@ export class PaymentsRepository extends BaseRepository {
     return this.getPayment(bookingId, pointer.paymentId);
   }
 
+  /**
+   * Provider order lookup for Razorpay webhooks when notes omit booking/payment ids.
+   * GSI2PK = PAYMENT_PROVIDER#{provider}#{providerOrderId}, GSI2SK = PAYMENT#{paymentId}.
+   */
+  async getPaymentByProviderOrderId(
+    providerOrderId: string,
+    provider: CustomerPaymentRecord['provider'] = 'RAZORPAY',
+  ): Promise<CustomerPaymentRecord | null> {
+    const orderId = providerOrderId.trim();
+    if (!orderId) return null;
+    const item = await this.queryOne<CustomerPaymentDdbItem>({
+      TableName: this.getTableName(),
+      IndexName: 'GSI2',
+      KeyConditionExpression: 'GSI2PK = :pk AND begins_with(GSI2SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': providerOrderPk(provider, orderId),
+        ':prefix': 'PAYMENT#',
+      },
+    });
+    return item ? toRecord(item) : null;
+  }
+
   async createPayment(record: CustomerPaymentRecord): Promise<CustomerPaymentRecord> {
-    const item: CustomerPaymentDdbItem = {
-      PK: `BOOKING#${record.bookingId}`,
-      SK: `PAYMENT#${record.paymentId}`,
-      GSI1PK: `CUSTOMER#${record.customerId}`,
-      GSI1SK: `PAYMENT#${record.createdAt}#${record.paymentId}`,
-      entityType: 'CustomerPayment',
-      ...record,
-    };
+    const item = toItem(record);
     const idempotency: CustomerPaymentIdempotencyDdbItem = {
       PK: `PAYMENT_IDEMPOTENCY#${record.customerId}#${record.bookingId}#${record.idempotencyKey}`,
       SK: 'PAYMENT_IDEMPOTENCY',
@@ -82,17 +97,30 @@ export class PaymentsRepository extends BaseRepository {
   }
 
   async savePayment(record: CustomerPaymentRecord): Promise<CustomerPaymentRecord> {
-    const item: CustomerPaymentDdbItem = {
-      PK: `BOOKING#${record.bookingId}`,
-      SK: `PAYMENT#${record.paymentId}`,
-      GSI1PK: `CUSTOMER#${record.customerId}`,
-      GSI1SK: `PAYMENT#${record.createdAt}#${record.paymentId}`,
-      entityType: 'CustomerPayment',
-      ...record,
-    };
-    await this.put(this.getTableName(), item);
+    await this.put(this.getTableName(), toItem(record));
     return record;
   }
+}
+
+function providerOrderPk(provider: CustomerPaymentRecord['provider'], providerOrderId: string): string {
+  return `PAYMENT_PROVIDER#${provider}#${providerOrderId}`;
+}
+
+function toItem(record: CustomerPaymentRecord): CustomerPaymentDdbItem {
+  return {
+    PK: `BOOKING#${record.bookingId}`,
+    SK: `PAYMENT#${record.paymentId}`,
+    GSI1PK: `CUSTOMER#${record.customerId}`,
+    GSI1SK: `PAYMENT#${record.createdAt}#${record.paymentId}`,
+    ...(record.providerOrderId
+      ? {
+          GSI2PK: providerOrderPk(record.provider, record.providerOrderId),
+          GSI2SK: `PAYMENT#${record.paymentId}`,
+        }
+      : {}),
+    entityType: 'CustomerPayment',
+    ...record,
+  };
 }
 
 function toRecord(item: CustomerPaymentDdbItem): CustomerPaymentRecord {

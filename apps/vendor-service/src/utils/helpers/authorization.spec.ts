@@ -21,34 +21,27 @@ function request(overrides: Record<string, unknown> = {}): LambdaRequest {
 const vendor = { vendorId: 'vendor-1', ownerUserId: 'user-1' };
 
 describe('vendor creation authorization', () => {
-  const caller = (roles: string[], permissions: string[] = []) =>
+  const caller = (roles: string[]) =>
     request({
       context: {
         authContext: {
           identityId: 'sub-1',
           userId: 'user-1',
           roles,
-          permissions,
+          permissions: [],
         },
       },
     });
 
-  it('allows a stored VENDOR role and vendor:create permission', () => {
+  it('allows a stored VENDOR role', () => {
     expect(assertCanCreateVendor(caller(['VENDOR']))).toBe('user-1');
-    expect(assertCanCreateVendor(caller([], ['vendor:create']))).toBe('user-1');
   });
 
   it('separates a customer from a vendor owner', () => {
     expect(() => assertCanCreateVendor(caller(['CUSTOMER']))).toThrow(ForbiddenError);
-    expect(() => assertCanCreateVendor(caller(['CUSTOMER'], ['user:read']))).toThrow(
-      ForbiddenError,
-    );
   });
 
-  const registrant = (
-    permissions: string[] = ['vendor:register'],
-    extra: Record<string, unknown> = {},
-  ) =>
+  const registrant = (extra: Record<string, unknown> = {}) =>
     request({
       body: extra.body,
       context: {
@@ -56,7 +49,7 @@ describe('vendor creation authorization', () => {
           identityId: 'sub-1',
           userId: 'user-1',
           roles: ['REGISTRANT'],
-          permissions,
+          permissions: [],
           phoneVerified: true,
           phoneNumber: '+919876543210',
           claims: {},
@@ -65,29 +58,25 @@ describe('vendor creation authorization', () => {
         userContext: {
           userId: 'user-1',
           roles: ['ADMIN'],
-          permissions: ['vendor:create', 'vendor:read', 'vendor:update'],
+          permissions: [],
         },
       },
     });
 
-  it('allows REGISTRANT only with the resolved vendor:register permission and a verified phone', () => {
+  it('allows REGISTRANT with a verified phone', () => {
     expect(assertCanCreateVendor(registrant())).toBe('user-1');
-  });
-
-  it('denies REGISTRANT when vendor:register was not resolved', () => {
-    expect(() => assertCanCreateVendor(registrant([]))).toThrow(ForbiddenError);
   });
 
   it('denies an unverified REGISTRANT phone', () => {
     expect(() =>
-      assertCanCreateVendor(registrant(['vendor:register'], { auth: { phoneVerified: false } })),
+      assertCanCreateVendor(registrant({ auth: { phoneVerified: false } })),
     ).toThrow(ForbiddenError);
   });
 
   it('reports a missing verified phone instead of accepting one from the body', () => {
     expect(() =>
       assertCanCreateVendor(
-        registrant(['vendor:register'], {
+        registrant({
           auth: { phoneNumber: undefined },
           body: { ownerDetails: { phoneNumber: '+910000000000' } },
         }),
@@ -97,8 +86,7 @@ describe('vendor creation authorization', () => {
     );
   });
 
-  it('does not let a userContext role or permission widen REGISTRANT', () => {
-    expect(() => assertCanCreateVendor(registrant([]))).toThrow(ForbiddenError);
+  it('does not let a userContext role widen REGISTRANT for vendor resources', () => {
     expect(() =>
       assertVendorAccess(registrant(), vendor),
     ).toThrow(ForbiddenError);
@@ -208,7 +196,7 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
     ).toThrow(ForbiddenError);
   });
 
-  it('treats case-insensitive admin roles as administrator access', () => {
+  it('treats case-insensitive admin and root roles as administrator access', () => {
     expect(
       assertAdminAccess(
         request({
@@ -216,16 +204,23 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
         }),
       ),
     ).toBe('admin-1');
+    expect(
+      assertAdminAccess(
+        request({
+          context: { userContext: { userId: 'root-1', roles: ['ROOT'] } },
+        }),
+      ),
+    ).toBe('root-1');
   });
 
-  it('lets an active staff member read only with an explicit view capability', () => {
+  it('lets an active STAFF member read only view-level actions', () => {
     const staffRequest = request({
       context: {
         authContext: {
           identityId: 'sub-2',
           userId: 'staff-user',
-          roles: [],
-          permissions: ['staff:view'],
+          roles: ['STAFF'],
+          permissions: [],
           claims: {},
         },
         userContext: { userId: 'staff-user' },
@@ -247,7 +242,16 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
 
   it('denies staff view for an inactive membership or another vendor', () => {
     const staffRequest = request({
-      context: { userContext: { userId: 'staff-user', permissions: ['crew:view'] } },
+      context: {
+        authContext: {
+          identityId: 'sub-2',
+          userId: 'staff-user',
+          roles: ['STAFF'],
+          permissions: [],
+          claims: {},
+        },
+        userContext: { userId: 'staff-user' },
+      },
     });
     expect(() => assertVendorAction(
       staffRequest,

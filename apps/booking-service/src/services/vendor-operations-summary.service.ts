@@ -1,7 +1,7 @@
-import { DEFAULT_TIMEZONE, LambdaRequest } from '@api-hub/utils';
+import { LambdaRequest } from '@api-hub/utils';
 import { createChildLogger, createLogger } from '@api-hub/observability';
 
-import { assertVendorOperationsAccess } from '../auth/vendor-operations';
+import { actorDetails } from '../auth/vendor-operations';
 import { enrichVisitFromPlan } from '../domain/package-visit';
 import {
   SUMMARY_VISIT_CAP,
@@ -48,7 +48,7 @@ export class VendorOperationsSummaryService {
 
   async summary(request: LambdaRequest): Promise<VendorOperationsSummary> {
     const vendorId = pathVendorId(request);
-    await assertVendorOperationsAccess(request, vendorId, this.vendors);
+    await actorDetails(request, vendorId, this.vendors);
     const range = parseOperationsSummaryRange(requestQuery(request));
 
     const visits: PackageVisitRecord[] = [];
@@ -82,13 +82,13 @@ export class VendorOperationsSummaryService {
 
     const planCache = new Map<string, CustomerPlanRecord | null>();
     const enriched = await this.enrich(visits, planCache);
-    // const timezone = await this.resolveTimezone(vendorId, enriched, bookings);
+    const timezone = await this.resolveTimezone(vendorId, enriched, bookings);
     const result = summarizeVendorOperations({
       visits: enriched,
       bookings,
       fromDate: range.fromDate,
       toDate: range.toDate,
-      timezone: DEFAULT_TIMEZONE,
+      timezone,
     });
 
     this.logger.info({

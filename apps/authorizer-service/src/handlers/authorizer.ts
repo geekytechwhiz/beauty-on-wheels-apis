@@ -6,6 +6,7 @@ import type {
 import {
   DynamoDbAuthUserDirectory,
   evaluateApiGatewayAuthorizer,
+  readConfiguredInternalServiceToken,
 } from '@api-hub/authentication-core';
 
 let directory: DynamoDbAuthUserDirectory | undefined;
@@ -33,9 +34,11 @@ function getDirectory(): DynamoDbAuthUserDirectory {
 }
 
 /**
- * Cognito access tokens only. When User Service provisioning is linked,
- * `context.userId` is that verified application user. Cognito `sub` is never
- * copied into it. An in-progress, failed, or unreadable link does not Allow.
+ * Cognito access tokens, or the platform internal service token from SSM.
+ * When User Service provisioning is linked, `context.userId` is that verified
+ * application user. Cognito `sub` is never copied into it. An in-progress,
+ * failed, or unreadable link does not Allow. Internal token callers receive
+ * an INTERNAL principal with no application userId.
  */
 export const handleAuthorize = async (
   event: APIGatewayTokenAuthorizerEvent,
@@ -44,5 +47,6 @@ export const handleAuthorize = async (
     userDirectory: getDirectory(),
     requireApplicationUser: requiresApplicationUser(event.methodArn),
     expectedTokenUse: 'access',
+    internalServiceToken: readConfiguredInternalServiceToken(),
   });
 };

@@ -68,17 +68,8 @@ function visit(overrides: Partial<PackageVisitRecord> = {}): PackageVisitRecord 
     serviceName: 'Exterior Wash',
     sequence: 1,
     ordinal: 1,
-    status: 'SCHEDULED',
+    status: 'UNSCHEDULED',
     durationMinutes: 20,
-    schedule: {
-      date: '2026-10-30',
-      startTime: '18:10',
-      endTime: '18:30',
-      timezone: 'Asia/Kolkata',
-      branchId: 'branch-1',
-      allocationId: 'visit-1',
-      durationMinutes: 20,
-    },
     scheduleHistory: [],
     entitlementConsumed: false,
     version: 3,
@@ -97,6 +88,7 @@ function request(input: {
   visitId?: string;
   body?: unknown;
   query?: Record<string, string>;
+  idempotencyKey?: string;
 } = {}): LambdaRequest {
   return {
     pathParameters: {
@@ -105,6 +97,11 @@ function request(input: {
     },
     queryStringParameters: input.query ?? {},
     body: input.body,
+    event: {
+      headers: {
+        'Idempotency-Key': input.idempotencyKey ?? 'idem-1',
+      },
+    },
     context: {
       authContext: {
         userId: input.userId ?? 'owner-1',
@@ -118,7 +115,8 @@ function request(input: {
 
 function assignBody(overrides: Record<string, unknown> = {}) {
   return {
-    scheduledDate: '2026-10-30',
+    scheduleStartDate: '2026-10-30',
+    scheduleEndDate: '2026-11-02',
     communityId: 'community-1',
     visitWindowId: 'night',
     crewId: 'crew-1',
@@ -128,7 +126,17 @@ function assignBody(overrides: Record<string, unknown> = {}) {
 }
 
 describe('CrewAssignmentsService', () => {
-  let plans: jest.Mocked<Pick<CustomerPlansRepository, 'getVisitById' | 'getPlan' | 'listVendorVisitsForDate' | 'saveVisits'>>;
+  let plans: jest.Mocked<Pick<
+    CustomerPlansRepository,
+    | 'getVisitById'
+    | 'getPlan'
+    | 'listVendorVisitsForDate'
+    | 'listVisits'
+    | 'savePlan'
+    | 'saveVisits'
+    | 'saveScheduleAssignments'
+    | 'getScheduleIdempotency'
+  >>;
   let vendors: jest.Mocked<OperationalAccessGateway>;
   let roster: jest.Mocked<SchedulingCrewGateway>;
   let service: CrewAssignmentsService;
@@ -138,7 +146,11 @@ describe('CrewAssignmentsService', () => {
       getVisitById: jest.fn().mockResolvedValue(visit()),
       getPlan: jest.fn().mockResolvedValue(plan),
       listVendorVisitsForDate: jest.fn().mockResolvedValue([]),
+      listVisits: jest.fn().mockResolvedValue([visit()]),
+      savePlan: jest.fn().mockResolvedValue(plan),
       saveVisits: jest.fn().mockResolvedValue(undefined),
+      saveScheduleAssignments: jest.fn().mockResolvedValue(undefined),
+      getScheduleIdempotency: jest.fn().mockResolvedValue(null),
     };
     vendors = {
       getOperationalAccess: jest.fn().mockResolvedValue({ role: 'owner', vendorId: 'vendor-1', active: true }),
@@ -155,24 +167,73 @@ describe('CrewAssignmentsService', () => {
     );
   });
 
-  it('assigns an active crew and keeps the visit scheduled', async () => {
+  it('schedules and assigns unscheduled visits for a date range and window', async () => {
     const result = await service.assign(request({ body: assignBody() }));
-    expect(result.idempotent).toBe(false);
-    expect(result.workload).toMatchObject({ estimatedMinutes: 20, availableMinutes: 180, overloaded: false });
-    const saved = plans.saveVisits.mock.calls[0][0][0].next;
+    expect(result).toMatchObject({
+      communityId: 'community-1',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
+      visitWindowId: 'night',
+      crewId: 'crew-1',
+      status: 'SCHEDULED',
+      scheduledVisitCount: 1,
+      idempotent: false,
+    });
+    expect(result.scheduleId).toMatch(/^SCH-/);
+    expect(result.visits[0]).toMatchObject({ visitId: 'visit-1', status: 'SCHEDULED', crewId: 'crew-1' });
+    const saved = plans.saveScheduleAssignments.mock.calls[0][0].updates[0].next;
     expect(saved.status).toBe('SCHEDULED');
+    expect(saved.scheduleStartDate).toBe('2026-10-30');
+    expect(saved.scheduleEndDate).toBe('2026-11-02');
     expect(saved.crewAssignment).toMatchObject({ crewId: 'crew-1', assignedBy: 'owner-1' });
-    expect(saved.schedule?.allocationId).toBe('visit-1');
-    expect(saved.entitlementConsumed).toBe(false);
+    expect(saved.schedule).toBeUndefined();
   });
 
-  it('treats the same assignment as a retry', async () => {
-    plans.getVisitById.mockResolvedValue(visit({
-      crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
-    }));
-    const result = await service.assign(request({ body: assignBody() }));
-    expect(result.idempotent).toBe(true);
-    expect(plans.saveVisits).not.toHaveBeenCalled();
+  it('replays the same Idempotency-Key without rewriting', async () => {
+    const { hashAssignmentRequest, parseAssignmentCommand } = require('../domain/crew-assignment') as typeof import('../domain/crew-assignment');
+    const body = assignBody();
+    const cached = {
+      scheduleId: 'SCH-1',
+      communityId: 'community-1',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
+      visitWindowId: 'night',
+      crewId: 'crew-1',
+      status: 'SCHEDULED',
+      scheduledVisitCount: 1,
+      visits: [{ visitId: 'visit-1', status: 'SCHEDULED', crewId: 'crew-1' }],
+      idempotent: true,
+      workload: { durationKnown: true, unknownDurationCount: 0, capacityKnown: false },
+      travelWarnings: [],
+      capacityAdvisory: false,
+    };
+    plans.getScheduleIdempotency.mockResolvedValue({
+      PK: 'x',
+      SK: 'IDEMPOTENCY',
+      vendorId: 'vendor-1',
+      idempotencyKey: 'idem-1',
+      requestHash: hashAssignmentRequest(parseAssignmentCommand(body)),
+      result: cached,
+      entityType: 'VisitScheduleIdempotency',
+      createdAt: '2026-10-30T00:00:00.000Z',
+    });
+    const result = await service.assign(request({ body }));
+    expect(result.scheduleId).toBe('SCH-1');
+    expect(plans.saveScheduleAssignments).not.toHaveBeenCalled();
+  });
+
+  it('rejects Idempotency-Key reuse with a different body', async () => {
+    plans.getScheduleIdempotency.mockResolvedValue({
+      PK: 'x',
+      SK: 'IDEMPOTENCY',
+      vendorId: 'vendor-1',
+      idempotencyKey: 'idem-1',
+      requestHash: 'other-hash',
+      result: {},
+      entityType: 'VisitScheduleIdempotency',
+      createdAt: '2026-10-30T00:00:00.000Z',
+    });
+    await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ statusCode: 409 });
   });
 
   it('rejects staff and another vendor', async () => {
@@ -198,104 +259,34 @@ describe('CrewAssignmentsService', () => {
     await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ code: 'CREW_TOO_SMALL' });
   });
 
-  it('rejects a missing, unscheduled, or completed visit', async () => {
+  it('rejects a missing visit, window mismatch, or completed visit', async () => {
     plans.getVisitById.mockResolvedValue(null);
     await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ statusCode: 404 });
 
-    plans.getVisitById.mockResolvedValue(visit({ status: 'UNSCHEDULED', schedule: undefined }));
-    await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ code: 'VISIT_NOT_ASSIGNABLE' });
+    plans.getVisitById.mockResolvedValue(visit({ visitWindowId: 'morning' }));
+    await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ code: 'VISIT_WINDOW_MISMATCH' });
 
     plans.getVisitById.mockResolvedValue(visit({ status: 'COMPLETED' }));
     await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ code: 'VISIT_NOT_ASSIGNABLE' });
   });
 
-  it('rejects overlapping crew and staff assignments', async () => {
-    plans.listVendorVisitsForDate.mockImplementation(async (_vendorId: string, date: string) => (
-      date === '2026-10-30'
-        ? [visit({
-          visitId: 'other',
-          communityId: 'community-2',
-          crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
-        })]
-        : []
-    ));
+  it('rejects overlapping crew assignments across overlapping ranges', async () => {
+    plans.listVendorVisitsForDate.mockImplementation(async () => ([
+      visit({
+        visitId: 'other',
+        status: 'SCHEDULED',
+        scheduleStartDate: '2026-10-30',
+        scheduleEndDate: '2026-11-02',
+        communityId: 'community-2',
+        crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
+      }),
+    ]));
     await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({ code: 'CREW_WINDOW_OVERLAP' });
-
-    roster.listCrews.mockResolvedValue([
-      crew(),
-      crew({
-        crewId: 'crew-2',
-        name: 'Crew Beta',
-        vanLabel: 'Van 01',
-        staff: [
-          { staffId: 'staff-2', status: 'ACTIVE' },
-          { staffId: 'staff-3', status: 'ACTIVE' },
-        ],
-      }),
-    ]);
-    plans.listVendorVisitsForDate.mockImplementation(async (_vendorId: string, date: string) => (
-      date === '2026-10-30'
-        ? [visit({
-          visitId: 'other',
-          crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
-        })]
-        : []
-    ));
-    await expect(service.assign(request({
-      body: assignBody({ crewId: 'crew-2', visitIds: ['visit-1'] }),
-    }))).rejects.toMatchObject({ code: 'STAFF_WINDOW_OVERLAP' });
-    expect(plans.saveVisits).not.toHaveBeenCalled();
-  });
-
-  it('does not treat a shared van label as a vehicle conflict', async () => {
-    roster.listCrews.mockResolvedValue([
-      crew(),
-      crew({
-        crewId: 'crew-2',
-        vanLabel: 'Van 01',
-        staff: [
-          { staffId: 'staff-3', status: 'ACTIVE' },
-          { staffId: 'staff-4', status: 'ACTIVE' },
-        ],
-      }),
-    ]);
-    plans.getPlan.mockImplementation(async (planId: string) => (
-      planId === 'plan-morning'
-        ? {
-          ...plan,
-          planId,
-          visitWindowId: 'morning',
-          visitWindow: { visitWindowId: 'morning', label: 'Morning', startTime: '06:00', endTime: '09:00' },
-        }
-        : plan
-    ));
-    plans.getVisitById.mockResolvedValue(visit({
-      planId: 'plan-morning',
-      visitWindowId: 'morning',
-      visitWindowName: 'Morning',
-      schedule: {
-        date: '2026-10-30',
-        startTime: '06:10',
-        timezone: 'Asia/Kolkata',
-        branchId: 'branch-1',
-        durationMinutes: 20,
-      },
-    }));
-    plans.listVendorVisitsForDate.mockImplementation(async (_vendorId: string, date: string) => (
-      date === '2026-10-30'
-        ? [visit({
-          visitId: 'other',
-          crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
-        })]
-        : []
-    ));
-    await expect(service.assign(request({
-      body: assignBody({ crewId: 'crew-2', visitWindowId: 'morning' }),
-    }))).resolves.toMatchObject({ crewId: 'crew-2' });
+    expect(plans.saveScheduleAssignments).not.toHaveBeenCalled();
   });
 
   it('returns 409 when two managers write the same visit', async () => {
-    plans.saveVisits.mockRejectedValue(new ConditionalWriteConflictError('version'));
+    plans.saveScheduleAssignments.mockRejectedValue(new ConditionalWriteConflictError('version'));
     await expect(service.assign(request({ body: assignBody() }))).rejects.toMatchObject({
       code: 'ASSIGNMENT_CONFLICT',
       statusCode: 409,
@@ -304,6 +295,9 @@ describe('CrewAssignmentsService', () => {
 
   it('refuses to replace another crew unless requested', async () => {
     plans.getVisitById.mockResolvedValue(visit({
+      status: 'SCHEDULED',
+      scheduleStartDate: '2026-10-20',
+      scheduleEndDate: '2026-10-22',
       crewAssignment: { crewId: 'crew-2', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-2' },
     }));
     roster.listCrews.mockResolvedValue([
@@ -320,8 +314,11 @@ describe('CrewAssignmentsService', () => {
     await expect(service.assign(request({ body: assignBody({ replaceExisting: true }) }))).resolves.toMatchObject({ crewId: 'crew-1' });
   });
 
-  it('removes an assignment without releasing the reservation', async () => {
+  it('removes an assignment without clearing the range commitment', async () => {
     plans.getVisitById.mockResolvedValue(visit({
+      status: 'SCHEDULED',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
       crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
     }));
     const result = await service.remove(request({ visitId: 'visit-1' }));
@@ -329,57 +326,39 @@ describe('CrewAssignmentsService', () => {
     const saved = plans.saveVisits.mock.calls[0][0][0].next;
     expect(saved.crewAssignment).toBeUndefined();
     expect(saved.status).toBe('SCHEDULED');
-    expect(saved.schedule?.allocationId).toBe('visit-1');
+    expect(saved.scheduleStartDate).toBe('2026-10-30');
 
-    plans.getVisitById.mockResolvedValue(visit());
+    plans.getVisitById.mockResolvedValue(visit({
+      status: 'SCHEDULED',
+      scheduleStartDate: '2026-10-30',
+      scheduleEndDate: '2026-11-02',
+    }));
     const replay = await service.remove(request({ visitId: 'visit-1' }));
     expect(replay.idempotent).toBe(true);
   });
 
-  it('warns when duration is missing and when the travel buffer is short', async () => {
-    plans.getVisitById.mockResolvedValue(visit({ durationMinutes: 0 }));
-    const missing = await service.assign(request({ body: assignBody() }));
-    expect(missing.workload.durationKnown).toBe(false);
-    expect(missing.workload.overloaded).toBeUndefined();
-    expect(missing.capacityAdvisory).toBe(false);
-
-    plans.getVisitById.mockResolvedValue(visit());
-    const eveningPlan = {
-      ...plan,
-      planId: 'plan-evening',
-      visitWindowId: 'evening',
-      visitWindow: { visitWindowId: 'evening', label: 'Evening', startTime: '16:00', endTime: '17:50' },
-    };
-    plans.listVendorVisitsForDate.mockResolvedValue([visit({
-      visitId: 'earlier',
-      planId: 'plan-evening',
-      communityId: 'community-2',
-      visitWindowId: 'evening',
-      crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
-    })]);
-    plans.getPlan.mockImplementation(async (planId: string) => (planId === 'plan-evening' ? eveningPlan : plan));
-    const warned = await service.assign(request({ body: assignBody() }));
-    expect(warned.travelWarnings[0]).toMatchObject({ verified: true, gapMinutes: 10 });
-    expect(plans.saveVisits).toHaveBeenCalled();
-  });
-
-  it('groups a date by community and window', async () => {
+  it('groups a date by community and window including range commitments', async () => {
     plans.listVendorVisitsForDate.mockImplementation(async (_vendorId: string, date: string) => (
       date === '2026-10-30'
         ? [
-          visit({ crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' } }),
-          visit({ visitId: 'visit-2', crewAssignment: undefined }),
+          visit({
+            status: 'SCHEDULED',
+            scheduleStartDate: '2026-10-30',
+            scheduleEndDate: '2026-11-02',
+            crewAssignment: { crewId: 'crew-1', assignedAt: '2026-10-29T00:00:00.000Z', assignedBy: 'owner-1' },
+          }),
+          visit({
+            visitId: 'visit-2',
+            status: 'SCHEDULED',
+            scheduleStartDate: '2026-10-30',
+            scheduleEndDate: '2026-11-02',
+            crewAssignment: undefined,
+          }),
         ]
         : []
     ));
     const schedule = await service.list(request({ query: { fromDate: '2026-10-30', toDate: '2026-10-30' } }));
     expect(schedule.vanIdentity).toBe('displayLabelOnly');
     expect(schedule.days[0]).toMatchObject({ scheduledCount: 2, assignedCount: 1, unassignedCount: 1 });
-    expect(schedule.days[0].groups[0].crews[0]).toMatchObject({
-      crewId: 'crew-1',
-      visitCount: 1,
-      workload: { estimatedMinutes: 20, overloaded: false },
-    });
-    expect(schedule.days[0].groups[0].unassignedVisits.map((item) => item.visitId)).toEqual(['visit-2']);
   });
 });

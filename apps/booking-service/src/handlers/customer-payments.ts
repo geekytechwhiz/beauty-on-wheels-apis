@@ -25,6 +25,12 @@ export const handleGetPayment = withApiHandler(
   async (request: LambdaRequest) => getPaymentsService().getPayment(request),
 );
 
+/** Customer checkout callback; the service verifies the provider signature. */
+export const handleConfirmProviderPayment = withApiHandler(
+  { operation: 'confirmbookingpayment' },
+  async (request: LambdaRequest) => getPaymentsService().confirmProviderPayment(request),
+);
+
 export const handleSandboxCompletePayment = withApiHandler(
   { operation: 'sandboxcompletepayment' },
   async (request: LambdaRequest) => getPaymentsService().sandboxComplete(request),

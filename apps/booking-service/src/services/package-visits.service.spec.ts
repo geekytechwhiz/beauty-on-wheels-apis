@@ -75,7 +75,7 @@ function customerRequest(overrides: Partial<{ body: unknown; path: Record<string
   } as unknown as LambdaRequest;
 }
 
-function vendorRequest(overrides: Partial<{ body: unknown; key: string }> = {}): LambdaRequest {
+function vendorRequest(overrides: Partial<{ body: unknown; key: string; roles?: string[] }> = {}): LambdaRequest {
   return {
     body: overrides.body ?? {
       date: '2026-01-10',
@@ -89,7 +89,7 @@ function vendorRequest(overrides: Partial<{ body: unknown; key: string }> = {}):
     context: {
       authContext: {
         userId: 'staff-1',
-        roles: ['vendor_staff'],
+        roles: overrides.roles ?? ['vendor_staff'],
         permissions: [],
         claims: { vendorId: 'vendor-1', staffId: 'staff-1' },
       },
@@ -447,5 +447,67 @@ describe('PackageVisitsService', () => {
     expect(availability.reserveBooking).not.toHaveBeenCalled();
     expect(availability.releaseAllocation).not.toHaveBeenCalled();
     expect(availability.consumeHold).not.toHaveBeenCalled();
+  });
+
+  it('blocks a scheduled visit with a required reason for managers only', async () => {
+    const scheduled: PackageVisitRecord = {
+      ...visit,
+      status: 'SCHEDULED',
+      schedule: {
+        date: '2026-01-10',
+        startTime: '09:00',
+        timezone: 'Asia/Kolkata',
+        branchId: 'branch-1',
+        allocationId: 'visit-1',
+        durationMinutes: 30,
+      },
+      crewAssignment: { crewId: 'crew-1', assignedAt: '2026-01-09T00:00:00.000Z', assignedBy: 'staff-1' },
+    };
+    plans.getVisit.mockResolvedValue(scheduled);
+
+    await expect(service.block(vendorRequest({ body: { reason: 'Gate locked' } })))
+      .rejects.toMatchObject({ statusCode: 403 });
+
+    const blocked = await service.block(vendorRequest({
+      body: { reason: 'Gate locked' },
+      roles: ['vendor_manager'],
+    }));
+    expect(blocked.status).toBe('BLOCKED');
+    expect(blocked.blockReason).toBe('Gate locked');
+    expect(plans.saveVisit.mock.calls.at(-1)?.[0]).toMatchObject({
+      status: 'BLOCKED',
+      blockReason: 'Gate locked',
+      crewAssignment: scheduled.crewAssignment,
+      schedule: scheduled.schedule,
+    });
+    expect(availability.releaseAllocation).not.toHaveBeenCalled();
+  });
+
+  it('unblocks a blocked visit back to SCHEDULED and clears block fields', async () => {
+    const blocked: PackageVisitRecord = {
+      ...visit,
+      status: 'BLOCKED',
+      blockReason: 'Gate locked',
+      blockedAt: '2026-01-10T01:00:00.000Z',
+      blockedBy: 'manager-1',
+      schedule: {
+        date: '2026-01-10',
+        startTime: '09:00',
+        timezone: 'Asia/Kolkata',
+        branchId: 'branch-1',
+        allocationId: 'visit-1',
+        durationMinutes: 30,
+      },
+    };
+    plans.getVisit.mockResolvedValue(blocked);
+    const result = await service.unblock(vendorRequest({ roles: ['vendor_owner'] }));
+    expect(result.status).toBe('SCHEDULED');
+    expect(result.blockReason).toBeUndefined();
+    expect(plans.saveVisit.mock.calls.at(-1)?.[0]).toMatchObject({
+      status: 'SCHEDULED',
+      schedule: blocked.schedule,
+    });
+    expect(plans.saveVisit.mock.calls.at(-1)?.[0].blockedAt).toBeUndefined();
+    expect(plans.saveVisit.mock.calls.at(-1)?.[0].blockReason).toBeUndefined();
   });
 });

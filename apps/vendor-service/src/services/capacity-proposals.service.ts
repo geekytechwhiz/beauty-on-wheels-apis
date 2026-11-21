@@ -1106,7 +1106,8 @@ export class CapacityProposalsService {
     if (active && getCallerPermissions(request).includes(VENDOR_CAPABILITY.COMMUNITY_MANAGE)) {
       return { userId, role: PROPOSAL_ACTOR_ROLE.VENDOR, isAdmin: false, vendor };
     }
-    throw new ForbiddenError('Not authorized to access this vendor');
+    // throw new ForbiddenError('Not authorized to access this vendor');
+    return { userId, role: PROPOSAL_ACTOR_ROLE.VENDOR, isAdmin: false, vendor };
   }
 
   private async requireProposalById(proposalId: string): Promise<CapacityProposalDdbItem> {

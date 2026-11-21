@@ -22,7 +22,13 @@ export type SnsTopicAdapterOptions = {
  * Publishes a {@link BaseEvent} JSON body to a single SNS topic with standard message attributes.
  */
 export function createSnsTopicAdapter(options: SnsTopicAdapterOptions): EventPublishAdapter {
-  const region = options.region ?? process.env.DEFAULT_REGION ?? process.env.DP_REGION ?? 'us-east-1';
+  const region =
+    options.region ??
+    process.env.AWS_REGION ??
+    process.env.AWS_DEFAULT_REGION ??
+    process.env.DEFAULT_REGION ??
+    process.env.DP_REGION ??
+    'us-east-1';
   const maxAttempts = options.maxAttempts ?? parsePositiveInt(process.env.SNS_MAX_ATTEMPTS, 5);
   const connectionTimeoutMs =
     options.connectionTimeoutMs ?? parsePositiveInt(process.env.SNS_CONNECTION_TIMEOUT_MS, 5_000);

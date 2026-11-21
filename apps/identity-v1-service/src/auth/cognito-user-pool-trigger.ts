@@ -21,7 +21,9 @@ const USER_POOL_FIELDS = [
   'DeviceConfiguration',
   'EmailConfiguration',
   'SmsConfiguration',
-  'UserPoolTags',
+  // Never copy UserPoolTags into UpdateUserPool. Describe includes
+  // aws:cloudformation:* system tags; end-user principals cannot mutate
+  // them, and omitting tags leaves the live tag set unchanged.
   'AdminCreateUserConfig',
   'UserPoolAddOns',
   'AccountRecoverySetting',
@@ -94,6 +96,13 @@ export function buildUpdateUserPoolInput(
     if (value !== undefined) {
       input[field] = value as never;
     }
+  }
+
+  // Describe exposes UnusedAccountValidityDays; UpdateUserPool rejects it.
+  if (input.AdminCreateUserConfig) {
+    const admin = { ...input.AdminCreateUserConfig } as Record<string, unknown>;
+    delete admin.UnusedAccountValidityDays;
+    input.AdminCreateUserConfig = admin as typeof input.AdminCreateUserConfig;
   }
 
   input.LambdaConfig =

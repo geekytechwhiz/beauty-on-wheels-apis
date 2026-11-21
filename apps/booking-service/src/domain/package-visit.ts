@@ -25,29 +25,31 @@ const ALLOWED_TRANSITIONS: Record<PackageVisitStatus, readonly PackageVisitStatu
     PACKAGE_VISIT_STATUS.IN_PROGRESS,
     PACKAGE_VISIT_STATUS.CANCELLED,
     PACKAGE_VISIT_STATUS.MISSED,
+    PACKAGE_VISIT_STATUS.BLOCKED,
     PACKAGE_VISIT_STATUS.SCHEDULED, // reschedule keeps SCHEDULED
   ],
   IN_PROGRESS: [PACKAGE_VISIT_STATUS.COMPLETED, PACKAGE_VISIT_STATUS.CANCELLED],
   COMPLETED: [],
   CANCELLED: [],
   MISSED: [],
+  BLOCKED: [PACKAGE_VISIT_STATUS.SCHEDULED, PACKAGE_VISIT_STATUS.CANCELLED],
 };
 
-export function assertVisitTransition(
-  from: PackageVisitStatus,
-  to: PackageVisitStatus,
-): void {
-  if (from === to && to === PACKAGE_VISIT_STATUS.SCHEDULED) return;
-  if (!ALLOWED_TRANSITIONS[from].includes(to)) {
-    throw new BookingError(
-      'INVALID_VISIT_TRANSITION',
-      `Cannot transition visit from ${from} to ${to}`,
-      409,
-      'status',
-      false,
-    );
-  }
-}
+// export function assertVisitTransition(
+//   from: PackageVisitStatus,
+//   to: PackageVisitStatus,
+// ): void {
+//   if (from === to && to === PACKAGE_VISIT_STATUS.SCHEDULED) return;
+//   if (!ALLOWED_TRANSITIONS[from].includes(to)) {
+//     throw new BookingError(
+//       'INVALID_VISIT_TRANSITION',
+//       `Cannot transition visit from ${from} to ${to}`,
+//       409,
+//       'status',
+//       false,
+//     );
+//   }
+// }
 
 export interface MaterializeVisitInput {
   plan: CustomerPlanRecord;
@@ -188,6 +190,7 @@ export function computeVisitProgress(visits: PackageVisitRecord[]): PackageVisit
   let scheduledVisits = 0;
   let unscheduledVisits = 0;
   let inProgressVisits = 0;
+  let blockedVisits = 0;
 
   for (const visit of visits) {
     const bucket = byServiceMap.get(visit.serviceId) ?? { total: 0, remaining: 0, completed: 0 };
@@ -212,6 +215,7 @@ export function computeVisitProgress(visits: PackageVisitRecord[]): PackageVisit
       if (visit.status === PACKAGE_VISIT_STATUS.SCHEDULED) scheduledVisits += 1;
       else if (visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED) unscheduledVisits += 1;
       else if (visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS) inProgressVisits += 1;
+      else if (visit.status === PACKAGE_VISIT_STATUS.BLOCKED) blockedVisits += 1;
     }
     byServiceMap.set(visit.serviceId, bucket);
   }
@@ -225,6 +229,7 @@ export function computeVisitProgress(visits: PackageVisitRecord[]): PackageVisit
     scheduledVisits,
     unscheduledVisits,
     inProgressVisits,
+    blockedVisits,
     byService: [...byServiceMap.entries()].map(([serviceId, counts]) => ({
       serviceId,
       ...counts,
@@ -240,16 +245,17 @@ export function deriveScheduleState(visits: PackageVisitRecord[]): PackageSchedu
       visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED
       || visit.status === PACKAGE_VISIT_STATUS.SCHEDULED
       || visit.status === PACKAGE_VISIT_STATUS.IN_PROGRESS
-      || visit.status === PACKAGE_VISIT_STATUS.COMPLETED,
+      || visit.status === PACKAGE_VISIT_STATUS.COMPLETED
+      || visit.status === PACKAGE_VISIT_STATUS.BLOCKED,
   );
   if (schedulable.length === 0) return PACKAGE_SCHEDULE_STATE.NONE;
-  const withSchedule = schedulable.filter((visit) => Boolean(visit.schedule));
+  const withSchedule = schedulable.filter((visit) => visitHasDatedCommitment(visit));
   if (withSchedule.length === 0) return PACKAGE_SCHEDULE_STATE.NONE;
   if (withSchedule.length < schedulable.filter((v) => v.status !== PACKAGE_VISIT_STATUS.CANCELLED).length
     && schedulable.some((v) => v.status === PACKAGE_VISIT_STATUS.UNSCHEDULED)) {
     return PACKAGE_SCHEDULE_STATE.PARTIAL;
   }
-  if (schedulable.every((v) => v.status !== PACKAGE_VISIT_STATUS.UNSCHEDULED || Boolean(v.schedule))) {
+  if (schedulable.every((v) => v.status !== PACKAGE_VISIT_STATUS.UNSCHEDULED || visitHasDatedCommitment(v))) {
     const stillOpen = schedulable.some((v) => v.status === PACKAGE_VISIT_STATUS.UNSCHEDULED);
     return stillOpen ? PACKAGE_SCHEDULE_STATE.PARTIAL : PACKAGE_SCHEDULE_STATE.COMPLETE;
   }
@@ -281,6 +287,47 @@ export function appendScheduleHistory(
   entry: PackageVisitScheduleHistoryEntry,
 ): PackageVisitScheduleHistoryEntry[] {
   return [...(visit.scheduleHistory ?? []), entry];
+}
+
+/** Exact slot date, or inclusive range commitment covering the civil day. */
+export function visitCoversDate(visit: PackageVisitRecord, date: string): boolean {
+  if (visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED) return false;
+  if (visit.scheduleStartDate && visit.scheduleEndDate) {
+    return visit.scheduleStartDate <= date && date <= visit.scheduleEndDate;
+  }
+  return visit.schedule?.date === date;
+}
+
+/** True when the visit has any dated commitment (exact or range). */
+export function visitHasDatedCommitment(visit: PackageVisitRecord): boolean {
+  if (visit.scheduleStartDate && visit.scheduleEndDate) return true;
+  return Boolean(visit.schedule?.date);
+}
+
+/** Civil date used for GSI1/GSI3 primary keys (range → start; exact → schedule.date). */
+export function visitIndexDate(visit: PackageVisitRecord): string | undefined {
+  if (visit.scheduleStartDate) return visit.scheduleStartDate;
+  return visit.schedule?.date;
+}
+
+export function commitmentSnapshot(visit: PackageVisitRecord): PackageVisitScheduleHistoryEntry['from'] {
+  return {
+    ...(visit.schedule ?? {}),
+    ...(visit.scheduleStartDate ? { scheduleStartDate: visit.scheduleStartDate } : {}),
+    ...(visit.scheduleEndDate ? { scheduleEndDate: visit.scheduleEndDate } : {}),
+    ...(visit.visitWindowId ? { visitWindowId: visit.visitWindowId } : {}),
+    ...(visit.scheduleId ? { scheduleId: visit.scheduleId } : {}),
+    ...(visit.crewAssignment?.crewId ? { crewId: visit.crewAssignment.crewId } : {}),
+  };
+}
+
+export function clearVisitCommitment(visit: PackageVisitRecord): PackageVisitRecord {
+  const next = withoutCrewAssignment({ ...visit });
+  delete next.schedule;
+  delete next.scheduleId;
+  delete next.scheduleStartDate;
+  delete next.scheduleEndDate;
+  return next;
 }
 
 export function validityEndsAt(activatedAt: string, validityDays: number | undefined): string | undefined {

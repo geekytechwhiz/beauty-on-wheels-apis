@@ -1,8 +1,10 @@
 import { APPLICATION_ROLE, resolveApplicationRoles } from './application-roles';
 
 /**
- * Canonical permission identifiers used by authorize().
- * Values are stored on Role → Permission items in the identity table.
+ * Legacy permission identifiers.
+ *
+ * Platform authorization is role-only. These constants remain for identity
+ * admin APIs and older tests; the authorizer and service asserts do not use them.
  */
 export const PERMISSION = {
   USER_READ: 'user:read',
@@ -11,11 +13,6 @@ export const PERMISSION = {
   VENDOR_READ: 'vendor:read',
   VENDOR_CREATE: 'vendor:create',
   VENDOR_UPDATE: 'vendor:update',
-  /**
-   * Lets a phone-verified registrant start vendor registration.
-   * Issued in code for the REGISTRANT role only. It is not vendor:create,
-   * vendor:read, or vendor:update.
-   */
   VENDOR_REGISTER: 'vendor:register',
 
   VEHICLE_READ: 'vehicle:read',
@@ -31,10 +28,6 @@ export const PERMISSION = {
   PRICING_READ: 'pricing:read',
   PRICING_UPDATE: 'pricing:update',
 
-  /**
-   * Catalog mutations. Identity must grant this permission or an admin role
-   * before service-catalog write handlers allow the call.
-   */
   CATALOG_READ: 'catalog:read',
   CATALOG_WRITE: 'catalog:write',
 } as const;
@@ -42,13 +35,14 @@ export const PERMISSION = {
 export type PermissionId = (typeof PERMISSION)[keyof typeof PERMISSION];
 
 /**
- * Server-issued permission for REGISTRANT. DynamoDB rows on that role are
- * ignored so a stored vendor:read or vendor:create cannot widen it.
+ * @deprecated Role-only auth no longer issues registration permissions.
+ * Prefer checking REGISTRANT/GUEST via {@link resolveApplicationRoles}.
  */
 export function issuedRegistrationPermissions(
   roles: readonly string[],
 ): PermissionId[] {
-  return resolveApplicationRoles(roles).includes(APPLICATION_ROLE.REGISTRANT)
+  return resolveApplicationRoles(roles).includes(APPLICATION_ROLE.REGISTRANT) ||
+    resolveApplicationRoles(roles).includes(APPLICATION_ROLE.GUEST)
     ? [PERMISSION.VENDOR_REGISTER]
     : [];
 }

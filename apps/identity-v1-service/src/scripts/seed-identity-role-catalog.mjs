@@ -46,9 +46,14 @@ const roles = [
         description: 'Platform administrator',
     },
     {
+        roleId: 'BUDDY',
+        name: 'Buddy',
+        description: 'Partner/vendor team member with mobile OTP login',
+    },
+    {
         roleId: 'STAFF',
         name: 'Staff',
-        description: 'Operational vendor employee',
+        description: 'Platform employee. Partner team members use BUDDY.',
     },
     {
         roleId: 'VENDOR',

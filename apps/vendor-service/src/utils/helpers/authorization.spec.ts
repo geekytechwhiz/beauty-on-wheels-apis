@@ -213,54 +213,75 @@ describe('vendor access helpers with API Gateway authorizer context', () => {
     ).toBe('root-1');
   });
 
-  it('lets an active STAFF member read only view-level actions', () => {
-    const staffRequest = request({
+  it('lets an active BUDDY member read only view-level actions', () => {
+    const buddyRequest = request({
       context: {
         authContext: {
           identityId: 'sub-2',
-          userId: 'staff-user',
-          roles: ['STAFF'],
+          userId: 'buddy-user',
+          roles: ['BUDDY'],
           permissions: [],
           claims: {},
         },
-        userContext: { userId: 'staff-user' },
+        userContext: { userId: 'buddy-user' },
       },
     });
     expect(assertVendorAction(
-      staffRequest,
+      buddyRequest,
       vendor,
       'staff:view',
       { vendorId: 'vendor-1', status: 'ACTIVE' },
-    )).toBe('staff-user');
+    )).toBe('buddy-user');
     expect(() => assertVendorAction(
-      staffRequest,
+      buddyRequest,
       vendor,
       'staff:manage',
       { vendorId: 'vendor-1', status: 'ACTIVE' },
     )).toThrow(ForbiddenError);
   });
 
-  it('denies staff view for an inactive membership or another vendor', () => {
+  it('still accepts legacy STAFF application role when membership is active', () => {
     const staffRequest = request({
       context: {
         authContext: {
-          identityId: 'sub-2',
-          userId: 'staff-user',
+          identityId: 'sub-legacy',
+          userId: 'legacy-staff',
           roles: ['STAFF'],
           permissions: [],
           claims: {},
         },
-        userContext: { userId: 'staff-user' },
+        userContext: { userId: 'legacy-staff' },
+      },
+    });
+    expect(assertVendorAction(
+      staffRequest,
+      vendor,
+      'crew:view',
+      { vendorId: 'vendor-1', status: 'ACTIVE' },
+    )).toBe('legacy-staff');
+  });
+
+  it('denies buddy view for an inactive membership or another vendor', () => {
+    const buddyRequest = request({
+      context: {
+        authContext: {
+          identityId: 'sub-2',
+          userId: 'buddy-user',
+          roles: ['BUDDY'],
+          permissions: [],
+          claims: {},
+        },
+        userContext: { userId: 'buddy-user' },
       },
     });
     expect(() => assertVendorAction(
-      staffRequest,
+      buddyRequest,
       vendor,
       'crew:view',
       { vendorId: 'vendor-1', status: 'INACTIVE' },
     )).toThrow(ForbiddenError);
     expect(() => assertVendorAction(
-      staffRequest,
+      buddyRequest,
       vendor,
       'crew:view',
       { vendorId: 'vendor-2', status: 'ACTIVE' },

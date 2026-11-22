@@ -739,7 +739,9 @@ paths:
       summary: Update vendor crew
       operationId: updateVendorCrew
       description: |
-        Updates name, van label, members, or status. The final crew state is validated.
+        Updates name, van label, members, status, or an advisory planning visit limit. The final crew state is validated.
+        `planningVisitLimit` is a manager planning guardrail only; it does not alter committed
+        community capacity or Booking assignment capacity.
         Send `revision` from the last read to reject a concurrent update.
       requestBody:
         required: true
@@ -1921,6 +1923,10 @@ components:
             type: string
         status:
           $ref: '#/components/schemas/CrewStatus'
+        planningVisitLimit:
+          type: integer
+          minimum: 0
+          description: Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity.
         revision:
           type: integer
           minimum: 0
@@ -1971,6 +1977,10 @@ components:
             $ref: '#/components/schemas/CrewMember'
         status:
           $ref: '#/components/schemas/CrewStatus'
+        planningVisitLimit:
+          type: integer
+          minimum: 0
+          description: Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity.
         revision:
           type: integer
         createdAt:

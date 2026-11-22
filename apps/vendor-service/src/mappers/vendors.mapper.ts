@@ -28,7 +28,7 @@ import {
 } from '../utils/constants/vendor-key-builder';
 
 const DEFAULT_STATUS: VendorStatus = 'PENDING_VERIFICATION';
-const DEFAULT_OPERATIONAL_STATUS: OperationalStatus = 'OFFLINE';
+const DEFAULT_OPERATIONAL_STATUS: OperationalStatus = 'ONLINE';
 
 export class VendorsMapper {
   static toDomain(
@@ -46,11 +46,7 @@ export class VendorsMapper {
        businessType: item. businessType,
       businessName: item.businessName,
       contactName: item.contactName,
-      phoneNumber: item.phoneNumber,
-      loginPhoneNumber: item.loginPhoneNumber,
-      identityId: item.identityId,
-      accountProvisioningStatus: item.accountProvisioningStatus,
-      accountProvisionedAt: item.accountProvisionedAt,
+      phoneNumber: item.phoneNumber, 
       email: item.email,
       description: item.description,
       profileImageUrl: item.profileImageUrl,

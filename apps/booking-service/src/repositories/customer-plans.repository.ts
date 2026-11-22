@@ -121,6 +121,21 @@ export class CustomerPlansRepository extends BaseRepository {
     return item ? toPaymentRecord(item) : null;
   }
 
+  /** Payment attempts are colocated with the plan, so this is a bounded strongly-consistent read. */
+  async listPayments(planId: string): Promise<PlanPaymentRecord[]> {
+    const items = await this.queryAll<PlanPaymentDdbItem>({
+      TableName: this.getTableName(),
+      ConsistentRead: true,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: {
+        ':pk': `CUSTOMER_PLAN#${planId}`,
+        ':prefix': 'PAYMENT#',
+      },
+      ScanIndexForward: false,
+    });
+    return items.map(toPaymentRecord);
+  }
+
   async getIdempotentPayment(customerId: string, planId: string, idempotencyKey: string): Promise<PlanPaymentRecord | null> {
     const pointer = await this.get<PlanPaymentIdempotencyItem>(this.getTableName(), {
       PK: `PLAN_PAYMENT_IDEMPOTENCY#${customerId}#${planId}#${idempotencyKey}`,

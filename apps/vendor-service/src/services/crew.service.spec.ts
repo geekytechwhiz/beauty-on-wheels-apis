@@ -201,6 +201,41 @@ describe('CrewService', () => {
     }))).rejects.toThrow(ConflictError);
   });
 
+  it('persists and returns the advisory planning visit limit without changing the crew roster', async () => {
+    jest.spyOn(service as never, 'requireAction').mockResolvedValue(vendorItem());
+    repository.getCrew.mockResolvedValue(crewItem());
+    repository.updateCrew.mockResolvedValue(undefined);
+
+    const updated = await service.updatevendorcrew(authRequest({
+      pathParameters: { vendorId: 'vendor-1', crewId: 'crew-1' },
+      params: { vendorId: 'vendor-1', crewId: 'crew-1' },
+      body: { planningVisitLimit: 12, revision: 1 },
+    }));
+
+    expect(updated).toMatchObject({
+      crewId: 'crew-1',
+      planningVisitLimit: 12,
+      staffIds: ['staff-1', 'staff-2'],
+      revision: 2,
+    });
+    expect(repository.updateCrew).toHaveBeenCalledWith(
+      expect.objectContaining({ planningVisitLimit: 12, staffIds: ['staff-1', 'staff-2'] }),
+      1,
+    );
+  });
+
+  it('returns a persisted planning visit limit from crew reads', async () => {
+    jest.spyOn(service as never, 'requireAction').mockResolvedValue(vendorItem());
+    repository.getCrew.mockResolvedValue(crewItem({ planningVisitLimit: 8 }));
+
+    const detail = await service.getvendorcrew(authRequest({
+      pathParameters: { vendorId: 'vendor-1', crewId: 'crew-1' },
+      params: { vendorId: 'vendor-1', crewId: 'crew-1' },
+    }));
+
+    expect(detail.planningVisitLimit).toBe(8);
+  });
+
   it('turns a conditional write conflict into a conflict response', async () => {
     repository.getCrew.mockResolvedValue(crewItem());
     repository.updateCrew.mockRejectedValue(new ConditionalWriteConflictError(new Error('conflict')));

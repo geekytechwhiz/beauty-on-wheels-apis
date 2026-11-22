@@ -15,6 +15,7 @@ import {
 export class CommunitiesMapper {
   static toItem(input: {
     vendor: VendorDdbItem;
+    communityName: string;
     communityId: string;
     assignedBy: string;
     assignedAt: string;
@@ -24,6 +25,7 @@ export class CommunitiesMapper {
       SK: VendorKeyBuilder.communitySk(input.communityId),
       vendorId: input.vendor.vendorId,
       communityId: input.communityId,
+      communityName: input.communityName,
       assignedBy: input.assignedBy,
       assignedAt: input.assignedAt,
       status: input.vendor.status,
@@ -60,6 +62,7 @@ export class CommunitiesMapper {
     return {
       vendorId: item.vendorId,
       communityId: item.communityId,
+      communityName: item.communityName,
       assignedBy: item.assignedBy,
       assignedAt: item.assignedAt,
       status: item.status as VendorStatus,

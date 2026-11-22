@@ -33,7 +33,8 @@ export function resolveVisitActor(request: LambdaRequest): VisitActor {
     role.includes('vendor_staff')
     || role.includes('vendor-staff')
     || role.includes('vendor')
-    || role === 'staff');
+    || role === 'staff'
+    || role === 'buddy');
 
   if (claimVendorId && staffId && isStaff) {
     return { kind: 'vendor', vendorId: claimVendorId, staffId, isManager };

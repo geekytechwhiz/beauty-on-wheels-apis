@@ -28,8 +28,8 @@ import sys
 import tempfile
 import uuid
 
-REGION = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
-POOL = os.getenv("COGNITO_USER_POOL_ID", "us-east-1_LeQxyLZ3x")
+REGION = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "ap-south-1"))
+POOL = os.getenv("COGNITO_USER_POOL_ID", "ap-south-1_yA23QvbVx")
 TABLE = os.getenv("DYNAMODB_TABLE_NAME", "identity-table-dev")
 MARKER = {"PK": "SYSTEM#FIRST_ADMIN_BOOTSTRAP", "SK": "META"}
 
@@ -151,14 +151,15 @@ def main():
         cursor = page.get("PaginationToken")
         if not cursor: break
     require(len(users) <= 1, "Multiple Cognito identities have this phone; resolve manually.")
-    # Stable bootstrap username lets a retry recover even before DynamoDB was written.
-    username = phone
+    # Pool uses phone_number as AliasAttributes, so Username must not be E.164.
+    # Match authentication-core: bow_<uuid>; retries recover via list-users by phone.
     if users:
         username = users[0]["Username"]
     else:
         unsupported = required - {"sub", "phone_number", "email", "name"}
         require(not unsupported,
                 "Unsupported required Cognito attributes: " + ", ".join(sorted(unsupported)))
+        username = "bow_" + uuid.uuid4().hex
         attributes = [{"Name": "phone_number", "Value": phone}]
         if "email" in required:
             # Reserved .test domain: never imply a deliverable or verified email.
@@ -169,12 +170,20 @@ def main():
         if "name" in required:
             attributes.append({"Name": "name", "Value": "Root Admin"})
         try:
-            aws("cognito-idp", "admin-create-user", {
+            created = aws("cognito-idp", "admin-create-user", {
                 "UserPoolId": POOL, "Username": username, "MessageAction": "SUPPRESS",
                 "TemporaryPassword": "Aa1!" + secrets.token_hex(32),
                 "UserAttributes": attributes})
+            username = created.get("User", {}).get("Username") or username
         except RuntimeError as error:
-            if "UsernameExistsException" not in str(error): raise
+            # Concurrent create with same phone alias: re-resolve by phone.
+            if "UsernameExistsException" not in str(error) and "AliasExistsException" not in str(error):
+                raise
+            page = aws("cognito-idp", "list-users", {
+                "UserPoolId": POOL, "Filter": 'phone_number = "' + phone + '"'})
+            found = page.get("Users") or []
+            require(len(found) == 1, "Could not recover Cognito identity after create conflict.")
+            username = found[0]["Username"]
     cognito = aws("cognito-idp", "admin-get-user",
                   {"UserPoolId": POOL, "Username": username})
     attrs = {x["Name"]: x["Value"] for x in cognito["UserAttributes"]}

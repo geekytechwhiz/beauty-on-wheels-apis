@@ -1,7 +1,7 @@
 import { ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError, ValidationError } from '@api-hub/utils';
 import { randomUUID } from 'crypto';
 
-import { resolveCoverageApprovalStatus } from '../domain/community';
+import { resolveCoverageApprovalStatus, uniqueCommunities } from '../domain/community';
 import { ONBOARDING_SECTION_ORDER, ONBOARDING_STATUS } from '../domain/onboarding';
 import { computeStateFromAggregate, toVendorAggregate, VendorAggregate } from '../domain/vendor-aggregate';
 import { CapabilitiesMapper } from '../mappers/capabilities.mapper';
@@ -16,7 +16,7 @@ import { OnboardingResponse } from '../types/api-types';
 import { VendorBankDdbItem, VendorBaselineCapacityDdbItem, VendorDdbItem } from '../types/repository.types';
 import { VendorKeyBuilder } from '../utils/constants/vendor-key-builder';
 import { assertVendorAccess, getVendorId } from '../utils/helpers';
-import { MAX_VENDOR_COMMUNITIES, isCommunityId, normalizeCommunityId, uniqueCommunityIds } from '../domain/community';
+import { MAX_VENDOR_COMMUNITIES, isCommunityId, normalizeCommunityId } from '../domain/community';
 import { generateVendorEmailVerificationOtp, hashVendorEmailVerificationToken, hasValidRegisteredEmail, VENDOR_EMAIL_VERIFICATION_EXPIRY_MINUTES } from '../domain/email-verification';
 
 type ProfilePatch = NonNullable<UpdateOnboardingRequest['sections']['BUSINESS_INFO']>;
@@ -243,20 +243,25 @@ export class OnboardingService {
   }
 
   private async replaceCommunities(aggregate: VendorAggregate, requested: string[], request: LambdaRequest) {
-    const ids = uniqueCommunityIds(requested.map(normalizeCommunityId));
-    if (ids.some((id) => !isCommunityId(id))) throw new ValidationError('Invalid communityId');
-    if (ids.length > MAX_VENDOR_COMMUNITIES) throw new ValidationError(`A vendor can belong to at most ${MAX_VENDOR_COMMUNITIES} communities`);
-    for (const communityId of ids) {
-      if (!await this.communities.getActiveCommunity(communityId)) throw new ValidationError(`Community ${communityId} is unavailable`);
+    const communities = uniqueCommunities(requested.map((communityId) => ({ communityId, communityName: aggregate.communities.find((item) => item.communityId === communityId)?.communityName ?? "" })));
+    if (communities.some((community) => !isCommunityId(community.communityId)))
+      throw new ValidationError('Invalid communityId');
+    if (communities.length > MAX_VENDOR_COMMUNITIES)
+      throw new ValidationError(
+        `A vendor can belong to at most ${MAX_VENDOR_COMMUNITIES} communities`,
+      );
+    for (const community of communities) {
+      if (!(await this.communities.getActiveCommunity(community.communityId)))
+        throw new ValidationError(`Community ${community.communityId} is unavailable`);
     }
     const current = await this.communities.listByVendor(aggregate.profile!.vendorId);
-    const desired = new Set(ids);
+    const desired = new Set(communities.map((community) => community.communityId));
     const currentIds = new Set(current.map((item) => item.communityId));
     const now = new Date().toISOString();
     const actor = String(request.context.userContext?.userId ?? aggregate.profile!.ownerUserId);
-    aggregate.profile = { ...aggregate.profile!, communityIds: ids };
+    aggregate.profile = { ...aggregate.profile!, communityIds: communities.map((community) => community.communityId) };
     return {
-      puts: ids.filter((id) => !currentIds.has(id)).map((communityId) => CommunitiesMapper.toItem({ vendor: aggregate.profile!, communityId, assignedBy: actor, assignedAt: now }) as unknown as Record<string, unknown>),
+      puts: communities.filter((community) => !currentIds.has(community.communityId)).map((community) => CommunitiesMapper.toItem({ vendor: aggregate.profile!, communityId: community.communityId, communityName: community.communityName, assignedBy: actor, assignedAt: now }) as unknown as Record<string, unknown>),
       deletes: current.filter((item) => !desired.has(item.communityId)).map((item) => ({ PK: item.PK, SK: item.SK })),
     };
   }

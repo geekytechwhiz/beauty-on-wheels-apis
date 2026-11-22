@@ -135,6 +135,11 @@ export class CrewService {
       vanLabel: composed.vanLabel,
       staffIds: composed.staffIds,
       status: body.status ?? existing.status,
+      ...(body.planningVisitLimit !== undefined
+        ? { planningVisitLimit: body.planningVisitLimit }
+        : existing.planningVisitLimit !== undefined
+          ? { planningVisitLimit: existing.planningVisitLimit }
+          : {}),
       updatedAt: new Date().toISOString(),
     };
     try {

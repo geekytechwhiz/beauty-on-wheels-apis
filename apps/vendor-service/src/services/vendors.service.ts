@@ -6,8 +6,12 @@ import {
 } from '@api-hub/authentication-core';
 import { createChildLogger, createLogger, getLoggerContext } from '@api-hub/observability';
 import {
-  ConditionalWriteConflictError, ConflictError, LambdaRequest, NotFoundError,
-  ValidationError, normalizePhoneNumber, EntityIdGenerator,
+  ConditionalWriteConflictError, ConflictError,
+  EntityIdGenerator,
+  LambdaRequest,
+  normalizePhoneNumber,
+  NotFoundError,
+  ValidationError,
 } from '@api-hub/utils';
 import { randomUUID } from 'crypto';
 
@@ -19,18 +23,20 @@ import {
   CommunitiesRepository,
   getCommunitiesRepository,
 } from '../repositories/communities.repository';
+import { getStaffRepository, StaffRepository } from '../repositories/staff.repository';
 import {
   getVendorsRepository,
   VendorPageResult,
   VendorsRepository,
 } from '../repositories/vendors.repository';
-import { getStaffRepository, StaffRepository } from '../repositories/staff.repository';
  
+import { ensureCanonicalUserId } from '../auth/resolve-canonical-user';
+import { env } from '../configs/env.config';
 import {
   isCommunityId,
   normalizeCommunityId,
   resolveCoverageApprovalStatus,
-  uniqueCommunityIds,
+  uniqueCommunities
 } from '../domain/community';
 import {
   generateVendorEmailVerificationOtp,
@@ -64,26 +70,19 @@ import {
   VENDOR_MEMBERSHIP_ROLE,
   VENDOR_NEXT_ACTION,
 } from '../domain/vendor-self';
-import { env } from '../configs/env.config';
-import { ensureCanonicalUserId } from '../auth/resolve-canonical-user';
 import {
-  AcceptVendorDetailsRequest,
-  CreateVendorRequest,
-  CreateVendorRequestSchema,
-} from '../schemas/vendors.schema';
+  CommunityPostalPlaceLookup,
+  PostalPlaceLookup,
+} from '../integrations/postal-place-lookup';
 import {
   CapabilitiesRepository,
   getCapabilitiesRepository,
 } from '../repositories/capabilities.repository';
 import {
-  CapabilitiesService,
-  getCapabilitiesService,
-} from './capabilities.service';
-import {
-  CommunityPostalPlaceLookup,
-  PostalPlaceLookup,
-  ResolvedPostalPlace,
-} from '../integrations/postal-place-lookup';
+  AcceptVendorDetailsRequest,
+  CreateVendorRequest,
+  CreateVendorRequestSchema,
+} from '../schemas/vendors.schema';
 import {
   ApproveVendorRequest,
   OperationalStatus,
@@ -112,17 +111,20 @@ import {
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 import {
-  assertActiveVendorRoute,
   assertAdminAccess,
   assertCanCreateVendor,
+  assertVendorAccess,
   decodeCursor,
   encodeCursor,
   getAuthenticatedUserId,
   getVendorId,
   isRegistrationOnlyCaller,
   parseLimit,
-  assertVendorAccess,
 } from '../utils/helpers';
+import {
+  CapabilitiesService,
+  getCapabilitiesService,
+} from './capabilities.service';
 
 const baseLogger = createLogger({
   service: 'vendors-service',
@@ -139,9 +141,6 @@ const VALID_VENDOR_STATUSES: VendorStatus[] = [
 
 const VALID_OPERATIONAL_STATUSES: OperationalStatus[] = [
   'ONLINE',
-  'OFFLINE',
-  'BUSY',
-  'TEMPORARILY_UNAVAILABLE',
 ];
 
 export class VendorsService {
@@ -345,7 +344,7 @@ export class VendorsService {
     //   assertPlaceMatchesRequest(locationInput, place);
     // }
 
-    const communityIds = await this.requestedCommunityIds(input);
+    const communityCoverage = await this.requestedCommunities(input);
     const vendorId = EntityIdGenerator.VendorId();
     const createdAt = new Date().toISOString();
 
@@ -385,10 +384,11 @@ export class VendorsService {
     const indicativeCapacity = input.initialCapacity
       ? this.indicativeCapacityItem(vendorId, input.initialCapacity, createdAt)
       : undefined;
-    const communityItems = communityIds.map((communityId) =>
+    const communityItems = communityCoverage.map((community) =>
       CommunitiesMapper.toItem({
         vendor: profile,
-        communityId,
+        communityId: community.communityId,
+        communityName: community.communityName,
         assignedBy: createdBy,
         assignedAt: createdAt,
       }),
@@ -401,12 +401,12 @@ export class VendorsService {
     if (indicativeCapacity) sectionItems.push(indicativeCapacity as unknown as Record<string, unknown>);
     const fitsInOneTransaction = sectionItems.length + communityItems.length <= 22;
     if (fitsInOneTransaction) {
-      profile = { ...profile, communityIds };
+      profile = { ...profile, communityIds: communityCoverage.map((community) => community.communityId) };
     } else {
       profile = {
         ...profile,
         communityIds: [],
-        pendingCommunityIds: communityIds,
+        pendingCommunityIds: communityCoverage,
         onboardingPersistence: 'incomplete',
       };
     }
@@ -429,7 +429,7 @@ export class VendorsService {
     if (!fitsInOneTransaction) {
       profile = {
         ...profile,
-        pendingCommunityIds: communityIds,
+        pendingCommunityIds: communityCoverage,
         onboardingPersistence: 'incomplete',
       };
     }
@@ -461,7 +461,7 @@ export class VendorsService {
       createdBy,
       vendorId,
       correlationId,
-      communityCount: communityIds.length,
+      communityCount: communityCoverage.length,
     });
 
     return {
@@ -476,24 +476,29 @@ export class VendorsService {
     };
   }
 
-  private async requestedCommunityIds(input: CreateVendorRequest): Promise<string[]> {
+  private async requestedCommunities(input: CreateVendorRequest): Promise<{ communityId: string; communityName: string }[]> {
     if (!input.communityCoverage) return [];
-    const ids = uniqueCommunityIds(input.communityCoverage.communityIds.map(normalizeCommunityId));
-    if (ids.length !== input.communityCoverage.communityIds.length) {
+    const communities = uniqueCommunities(
+      input.communityCoverage.communityIds.map((communityId) => ({
+        communityId,
+        communityName: '',
+      })),
+    );
+    if (communities.length !== input.communityCoverage.communityIds.length) {
       throw new ValidationError('communityIds contains a duplicate');
     }
-    if (ids.some((id) => !isCommunityId(id))) {
+    if (communities.some((community) => !isCommunityId(community.communityId))) {
       throw new ValidationError('Invalid communityId');
     }
-    const rejected: string[] = [];
-    for (const communityId of ids) {
-      const record = await this.communitiesRepository.getActiveCommunity(communityId);
-      if (!record) rejected.push(communityId);
+    const rejected: { communityId: string; communityName: string }[] = [];
+    for (const community of communities) {
+      const record = await this.communitiesRepository.getActiveCommunity(community.communityId);
+      if (!record) rejected.push({ communityId: community.communityId, communityName: community.communityName });
     }
     if (rejected.length) {
       throw new ValidationError(`Unknown or inactive community: ${rejected.join(', ')}`);
     }
-    return ids;
+    return communities;
   }
 
   private operatingPreferencesItem(
@@ -534,12 +539,13 @@ export class VendorsService {
     profile: VendorDdbItem,
     prepared?: VendorCommunityDdbItem[],
   ): Promise<VendorDdbItem> {
-    const ids = profile.pendingCommunityIds ?? [];
+    const communities = profile.pendingCommunityIds ?? [];
     const saved = await this.communitiesRepository.listByVendor(profile.vendorId, { consistent: true });
     const have = new Set(saved.map((item) => item.communityId));
-    const missing = (prepared ?? ids.map((communityId) => CommunitiesMapper.toItem({
+    const missing = (prepared ?? communities.map((community) => CommunitiesMapper.toItem({
       vendor: profile,
-      communityId,
+      communityId: community.communityId,
+      communityName: community.communityName,
       assignedBy: profile.createdBy ?? profile.ownerUserId ?? 'system',
       assignedAt: profile.createdAt,
     }))).filter((item) => !have.has(item.communityId));
@@ -552,19 +558,19 @@ export class VendorsService {
     }
     const confirmed = await this.communitiesRepository.listByVendor(profile.vendorId, { consistent: true });
     const confirmedIds = new Set(confirmed.map((item) => item.communityId));
-    const stillMissing = ids.filter((id) => !confirmedIds.has(id));
+    const stillMissing = communities.filter((community) => !confirmedIds.has(community.communityId));
     if (stillMissing.length) {
       throw new ConflictError('Vendor onboarding is incomplete; please retry');
     }
     const state = computeOnboardingState({
       hasBusinessInfo: isBusinessInfoComplete(profile),
-      hasCommunities: ids.length > 0,
+      hasCommunities: communities.length > 0,
       documentTypes: [],
       hasBankDetails: false,
     });
     const next: VendorDdbItem = {
       ...profile,
-      communityIds: ids,
+      communityIds: communities.map((community) => community.communityId),
       onboardingStatus: state.status,
       currentSection: state.currentSection,
       completedSections: state.completedSections,
@@ -1206,30 +1212,7 @@ function normalizeCreateLocality(input: CreateVendorRequest): CreateVendorReques
   };
 }
 
-function assertPlaceMatchesRequest(
-  submitted: {
-    locality?: string;
-    city?: string;
-    district?: string;
-    state?: string;
-    countryCode?: string;
-  },
-  resolved: ResolvedPostalPlace,
-): void {
-  const checks: Array<[string, string | undefined, string]> = [
-    ['businessInfo.location.locality', submitted.locality, resolved.locality],
-    ['businessInfo.location.city', submitted.city, resolved.city],
-    ['businessInfo.location.district', submitted.district, resolved.district],
-    ['businessInfo.location.state', submitted.state, resolved.state],
-    ['businessInfo.location.countryCode', submitted.countryCode, resolved.countryCode],
-  ];
-  for (const [field, value, expected] of checks) {
-    if (!value) continue;
-    if (value.trim().toLowerCase() !== expected.trim().toLowerCase()) {
-      throw new ValidationError(`${field} does not match the postal directory value "${expected}"`);
-    }
-  }
-}
+ 
 
 function blankToUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim();

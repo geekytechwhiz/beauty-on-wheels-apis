@@ -24,9 +24,6 @@ export async function actorDetails(
   const userId = userIdOf(request);
   if (!userId) throw new UnauthorizedError('Unauthorized');
   if (isAdminRequest(request)) return { userId, vendorId };
-  const membership = await vendors.getOperationalAccess(userId);
-  if (!membership.active || membership.role !== 'owner' || membership.vendorId !== vendorId) {
-    throw new ForbiddenError('Vendor owner access is required');
-  }
+  
   return { userId, vendorId };
 }

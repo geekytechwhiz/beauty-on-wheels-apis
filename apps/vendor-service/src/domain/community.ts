@@ -52,16 +52,17 @@ export function isCommunityId(value: string): boolean {
   return COMMUNITY_ID_PATTERN.test(value);
 }
 
-export function uniqueCommunityIds(values: readonly string[]): string[] {
+export function uniqueCommunities(values: readonly {communityId: string, communityName: string}[]):
+ {communityId: string, communityName: string}[] {
   const seen = new Set<string>();
-  const result: string[] = [];
+  const communities = new Set<{communityId: string, communityName: string}>();
   for (const value of values) {
-    const id = normalizeCommunityId(value);
+    const id = normalizeCommunityId(value.communityId);
     if (seen.has(id)) {
       continue;
     }
-    seen.add(id);
-    result.push(id);
+    seen.add(id); 
+    communities.add({communityId: id, communityName: value.communityName});
   }
-  return result;
+  return Array.from(communities);
 }

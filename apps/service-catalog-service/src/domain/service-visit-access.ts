@@ -52,7 +52,8 @@ export class HttpVisitAccess implements VisitAccess {
         staffDirectory: true,
       };
     }
-    const role = roles.includes('staff') && !roles.some((item) => OWNER_ROLES.has(item))
+    const role = (roles.includes('buddy') || roles.includes('staff'))
+      && !roles.some((item) => OWNER_ROLES.has(item))
       ? 'staff'
       : 'owner';
     return {

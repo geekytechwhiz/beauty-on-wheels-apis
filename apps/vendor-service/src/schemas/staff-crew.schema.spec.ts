@@ -1,6 +1,6 @@
 import { LambdaRequest } from '@api-hub/utils';
 
-import { validateCreateCrewRequest } from './crew.schema';
+import { validateCreateCrewRequest, validateUpdateCrewRequest } from './crew.schema';
 import { validateCreateStaffRequest } from './staff.schema';
 
 describe('staff and crew request schemas', () => {
@@ -40,6 +40,19 @@ describe('staff and crew request schemas', () => {
   it('rejects a crew with one member', () => {
     expect(() => validateCreateCrewRequest({
       body: { name: 'Morning Crew A', vanLabel: 'Van KL-07', staffIds: ['staff-1'] },
+    } as LambdaRequest)).toThrow(/Request validation failed/);
+  });
+
+  it('accepts a non-negative integer planning visit limit and rejects an invalid limit', () => {
+    expect(validateUpdateCrewRequest({
+      body: { planningVisitLimit: 0 },
+    } as LambdaRequest)).toEqual({ planningVisitLimit: 0 });
+
+    expect(() => validateUpdateCrewRequest({
+      body: { planningVisitLimit: 1.5 },
+    } as LambdaRequest)).toThrow(/Request validation failed/);
+    expect(() => validateUpdateCrewRequest({
+      body: { planningVisitLimit: -1 },
     } as LambdaRequest)).toThrow(/Request validation failed/);
   });
 });

@@ -5,7 +5,7 @@
 
 export type VendorStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'REJECTED';
 
-export type OperationalStatus = 'ONLINE' | 'OFFLINE' | 'BUSY' | 'TEMPORARILY_UNAVAILABLE';
+export type OperationalStatus = 'ONLINE'  
 
 export type  businessType = 'INDIVIDUAL' | 'BUSINESS';
 
@@ -575,6 +575,11 @@ export interface UpdateCrewRequest {
   vanLabel?: string;
   staffIds?: string[];
   status?: CrewStatus;
+  /**
+   * Optional manager planning ceiling for this crew. This is not a committed
+   * community capacity and does not alter assignment or commitment capacity.
+   */
+  planningVisitLimit?: number;
   revision?: number;
 }
 
@@ -592,6 +597,11 @@ export interface Crew {
   staffIds: string[];
   members: CrewMember[];
   status: CrewStatus;
+  /**
+   * Optional manager planning ceiling for this crew. It is advisory only and
+   * intentionally separate from the vendor/community capacity commitments.
+   */
+  planningVisitLimit?: number;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -666,6 +676,7 @@ export interface VendorCommunityAssignment {
   assignedBy: string;
   assignedAt: string;
   status: VendorStatus;
+  communityName: string;
   operationalStatus: OperationalStatus;
   approvalStatus: CommunityCoverageApprovalStatus;
 }

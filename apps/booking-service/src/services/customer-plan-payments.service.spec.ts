@@ -67,6 +67,7 @@ describe('CustomerPlanPaymentsService', () => {
     plans = {
       getPlan: jest.fn().mockResolvedValue(plan),
       getIdempotentPayment: jest.fn().mockResolvedValue(null),
+      listPayments: jest.fn().mockResolvedValue([]),
       createPayment: jest.fn().mockImplementation(async (record: PlanPaymentRecord) => record),
       getPayment: jest.fn().mockResolvedValue(pendingPayment),
       savePayment: jest.fn().mockImplementation(async (record: PlanPaymentRecord) => record),
@@ -79,6 +80,19 @@ describe('CustomerPlanPaymentsService', () => {
     } as unknown as jest.Mocked<BookingsRepository>;
     vendors = {
       getCheckoutEligibility: jest.fn(),
+      holdPlanCapacity: jest.fn().mockResolvedValue({
+        commitmentId: 'cmt_1',
+        quantity: 10,
+        reservedSoldQuantity: 3,
+        remainingSoldCapacity: 7,
+      }),
+      confirmPlanCapacity: jest.fn().mockResolvedValue({
+        commitmentId: 'cmt_1',
+        quantity: 10,
+        reservedSoldQuantity: 3,
+        remainingSoldCapacity: 7,
+      }),
+      releasePlanCapacity: jest.fn().mockResolvedValue(undefined),
       reservePlanCapacity: jest.fn().mockResolvedValue({
         commitmentId: 'cmt_1',
         quantity: 10,
@@ -95,12 +109,30 @@ describe('CustomerPlanPaymentsService', () => {
     expect(result).toMatchObject({ planId: 'plan-1', amountMinor: 1999, providerAmountMinor: 199900, currency: 'INR', status: 'PENDING', provider: 'SANDBOX' });
     expect(result).not.toHaveProperty('customerId');
     expect(plans.createPayment).toHaveBeenCalledWith(expect.objectContaining({ amountMinor: 1999, customerId: 'customer-1' }));
+    expect(vendors.holdPlanCapacity).toHaveBeenCalledWith(expect.objectContaining({
+      vendorId: 'vendor_1',
+      communityId: 'comm_1',
+      offeringId: 'pkg',
+      demandQuantity: 3,
+      planId: 'plan-1',
+      paymentId: expect.any(String),
+      expiresAt: expect.any(String),
+    }));
   });
 
   it('requires an Idempotency-Key and replays an existing payment', async () => {
     await expect(service.initiate(request({ key: null }))).rejects.toThrow('Idempotency-Key');
     plans.getIdempotentPayment.mockResolvedValue(pendingPayment);
     await expect(service.initiate(request())).resolves.toMatchObject({ paymentId: 'pay-id-1' });
+    expect(plans.createPayment).not.toHaveBeenCalled();
+  });
+
+  it('reuses the active payment attempt instead of creating a second hold for the plan', async () => {
+    plans.listPayments.mockResolvedValue([pendingPayment]);
+
+    await expect(service.initiate(request({ key: 'new-key' }))).resolves.toMatchObject({ paymentId: 'pay-id-1' });
+
+    expect(vendors.holdPlanCapacity).not.toHaveBeenCalled();
     expect(plans.createPayment).not.toHaveBeenCalled();
   });
 
@@ -113,12 +145,13 @@ describe('CustomerPlanPaymentsService', () => {
   it('marks the plan AWAITING_FIRST_JOB, materializes visits, and links the first job when sandbox completion succeeds', async () => {
     const result = await service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } }));
 
-    expect(vendors.reservePlanCapacity).toHaveBeenCalledWith({
+    expect(vendors.confirmPlanCapacity).toHaveBeenCalledWith({
       vendorId: 'vendor_1',
       communityId: 'comm_1',
       offeringId: 'pkg',
       demandQuantity: 3,
       planId: 'plan-1',
+      paymentId: 'pay-id-1',
     });
     expect(result.status).toBe('PAID');
     expect(plans.createVisitsIfAbsent).toHaveBeenCalled();
@@ -159,6 +192,7 @@ describe('CustomerPlanPaymentsService', () => {
     expect(cancelled.status).toBe('CANCELLED');
     expect(plans.savePlan).not.toHaveBeenCalled();
     expect(bookings.createPackageLinkedBooking).not.toHaveBeenCalled();
+    expect(vendors.releasePlanCapacity).toHaveBeenCalledTimes(2);
   });
 
   it('does not activate when the stored payment amount disagrees with the plan snapshot', async () => {
@@ -172,6 +206,7 @@ describe('CustomerPlanPaymentsService', () => {
     plans.getPayment.mockResolvedValue({ ...pendingPayment, expiresAt: '2020-01-01T00:00:00.000Z' });
     const result = await service.getPayment(request({ paymentId: 'pay-id-1' }));
     expect(result.status).toBe('EXPIRED');
+    expect(vendors.releasePlanCapacity).toHaveBeenCalledWith('plan-1');
   });
 
   it('rejects another customer completing a payment', async () => {
@@ -179,16 +214,15 @@ describe('CustomerPlanPaymentsService', () => {
       .rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('refuses activation when vendor capacity reservation is unavailable', async () => {
-    vendors.reservePlanCapacity.mockRejectedValue(
+  it('refuses checkout before creating a payment when vendor capacity is unavailable', async () => {
+    vendors.holdPlanCapacity.mockRejectedValue(
       new BookingError('CAPACITY_UNAVAILABLE', 'No capacity', 409, undefined, false),
     );
 
     await expect(
-      service.sandboxComplete(request({ paymentId: 'pay-id-1', body: { outcome: 'SUCCESS' } })),
+      service.initiate(request()),
     ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE', statusCode: 409 });
 
-    expect(plans.savePlan).not.toHaveBeenCalled();
-    expect(bookings.createPackageLinkedBooking).not.toHaveBeenCalled();
+    expect(plans.createPayment).not.toHaveBeenCalled();
   });
 });

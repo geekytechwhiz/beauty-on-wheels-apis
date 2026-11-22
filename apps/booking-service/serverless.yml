@@ -36,6 +36,9 @@
       VENDOR_OPERATIONAL_ACCESS_FUNCTION:  aps1dev-carish-vendor-${self:provider.stage}-getOperationalAccess
       VENDOR_SCHEDULING_CREWS_FUNCTION:  aps1dev-carish-vendor-${self:provider.stage}-listSchedulingCrews
       VENDOR_RESERVE_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-reserveSoldCapacity
+      VENDOR_HOLD_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-holdSoldCapacity
+      VENDOR_CONFIRM_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-confirmSoldCapacity
+      VENDOR_RELEASE_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-releaseSoldCapacity
       TRAVEL_BUFFER_MINUTES: ${env:TRAVEL_BUFFER_MINUTES, '30'}
       USER_BASE_URL: ${env:USER_BASE_URL, ''}
       VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
@@ -97,6 +100,9 @@
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_OPERATIONAL_ACCESS_FUNCTION}
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_SCHEDULING_CREWS_FUNCTION}
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RESERVE_CAPACITY_FUNCTION}
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_HOLD_CAPACITY_FUNCTION}
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CONFIRM_CAPACITY_FUNCTION}
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RELEASE_CAPACITY_FUNCTION}
           - Effect: Allow
             Action:
               - events:PutEvents
@@ -3106,7 +3112,7 @@
                 description: "Unauthenticated"
               403:
                 description: "Staff, another vendor, or no membership"
-              documentation:
+            documentation:
               summary: List vendor package visits
               description: Owner-only package-visit work queue (scheduled and unscheduled when no date filter). Does not change GET /vendors/{vendorId}/bookings.
               tags:

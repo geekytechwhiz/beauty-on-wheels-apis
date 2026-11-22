@@ -15,6 +15,9 @@ export const UpdateCrewRequestSchema = z.object({
   vanLabel: z.string().trim().min(1).max(80).optional(),
   staffIds: z.array(staffId).min(2).max(20).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  // This is a planning guardrail, not a capacity commitment. Zero deliberately
+  // means that the manager has closed this crew to additional planned visits.
+  planningVisitLimit: z.number().int().nonnegative().optional(),
   revision: z.number().int().nonnegative().optional(),
 }).strict();
 

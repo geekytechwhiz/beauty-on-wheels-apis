@@ -1773,6 +1773,11 @@
               "INACTIVE"
             ]
           },
+          "planningVisitLimit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity."
+          },
           "revision": {
             "type": "integer"
           }
@@ -1830,6 +1835,11 @@
               "ACTIVE",
               "INACTIVE"
             ]
+          },
+          "planningVisitLimit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity."
           },
           "revision": {
             "type": "integer"

@@ -16,7 +16,16 @@ export const APPLICATION_ROLE = {
    */
   REGISTRANT: 'REGISTRANT',
   VENDOR: 'VENDOR',
-  /** Operational vendor employee. Membership remains vendor-service owned. */
+  /**
+   * Partner/vendor team member (buddy). Login-capable via mobile OTP.
+   * Vendor membership remains vendor-service owned.
+   */
+  BUDDY: 'BUDDY',
+  /**
+   * Platform employee. Not used for partner team members — those are BUDDY.
+   * Existing ROLE#STAFF mappings from earlier partner provisioning remain until
+   * an explicit migration; do not silently rewrite them to BUDDY.
+   */
   STAFF: 'STAFF',
   ADMIN: 'ADMIN',
   /** Platform root. Highest privilege; includes every admin capability. */
@@ -31,6 +40,7 @@ const APPLICATION_ROLE_ORDER: readonly ApplicationRole[] = [
   APPLICATION_ROLE.CUSTOMER,
   APPLICATION_ROLE.REGISTRANT,
   APPLICATION_ROLE.VENDOR,
+  APPLICATION_ROLE.BUDDY,
   APPLICATION_ROLE.STAFF,
   APPLICATION_ROLE.ADMIN,
   APPLICATION_ROLE.ROOT,
@@ -41,6 +51,7 @@ const APPLICATION_ROLE_BY_KEY: Readonly<Record<string, ApplicationRole>> = {
   customer: APPLICATION_ROLE.CUSTOMER,
   registrant: APPLICATION_ROLE.REGISTRANT,
   vendor: APPLICATION_ROLE.VENDOR,
+  buddy: APPLICATION_ROLE.BUDDY,
   staff: APPLICATION_ROLE.STAFF,
   admin: APPLICATION_ROLE.ADMIN,
   root: APPLICATION_ROLE.ROOT,
@@ -99,6 +110,9 @@ export function primaryApplicationRole(
   }
   if (roles.includes(APPLICATION_ROLE.STAFF)) {
     return APPLICATION_ROLE.STAFF;
+  }
+  if (roles.includes(APPLICATION_ROLE.BUDDY)) {
+    return APPLICATION_ROLE.BUDDY;
   }
   if (roles.includes(APPLICATION_ROLE.REGISTRANT)) {
     return APPLICATION_ROLE.REGISTRANT;

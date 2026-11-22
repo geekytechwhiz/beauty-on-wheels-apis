@@ -1173,7 +1173,7 @@
     "/vendors/{vendorId}/package-visits": {
       "get": {
         "summary": "List vendor package visits",
-        "description": "Owner-only scheduled package visits for the caller's vendor. Dated rows come from GSI3 or GSI1. UNSCHEDULED entitlements are excluded. Staff and other vendors receive 403.",
+        "description": "Owner-only package-visit work queue. Omit date filters to list all vendor package visits on GSI1 (scheduled + UNSCHEDULED, any community). Pass date or fromDate/toDate for a dated board (GSI3 single day / GSI1 range; scheduled only). Optional communityId, visitWindowId, status, and search filter in memory. Staff and other vendors receive 403.",
         "tags": [
           "Customer Plans"
         ],
@@ -1195,7 +1195,7 @@
             "in": "query",
             "name": "date",
             "type": "string",
-            "description": "Exact scheduled date YYYY-MM-DD. Defaults to today in Asia/Kolkata when no range is sent.",
+            "description": "Exact scheduled date YYYY-MM-DD. When omitted with fromDate/toDate also omitted, returns the full vendor work queue.",
             "required": false
           },
           {
@@ -1216,6 +1216,7 @@
             "in": "query",
             "name": "communityId",
             "type": "string",
+            "description": "Filter to one community after the vendor query.",
             "required": false
           },
           {
@@ -1228,7 +1229,7 @@
             "in": "query",
             "name": "status",
             "type": "string",
-            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, or BLOCKED.",
+            "description": "SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, MISSED, BLOCKED, or UNSCHEDULED. UNSCHEDULED cannot be combined with a date filter.",
             "required": false
           },
           {
@@ -1255,7 +1256,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Scheduled package visits"
+            "description": "Vendor package visits"
           },
           "400": {
             "description": "Invalid filter"
@@ -1478,8 +1479,8 @@
         }
       },
       "put": {
-        "summary": "Assign a crew to package visits",
-        "description": "Assigns or clears a crew on existing scheduled PackageVisit rows. Does not reschedule the customer, release availability, or consume entitlements. Overlapping crew or staff assignments return 409. Capacity overload and a short travel buffer are warnings and still save. Repeating the same assignment is idempotent. At most 25 visits, written in one transaction.",
+        "summary": "Schedule and assign package visits",
+        "description": "Canonical manager action for community package visits. Schedules selected UNSCHEDULED (or reschedules SCHEDULED) visits into an inclusive date range of at most seven days and a visit window, and assigns them to a crew in one transaction. Does not call Availability or invent exact arrival times. Requires Idempotency-Key. visitWindowId must match the customer preference on each visit. replaceExisting is required to move a visit off another crew. Unassign uses DELETE /vendors/{vendorId}/package-visits/{visitId}/assignment.",
         "tags": [
           "Customer Plans"
         ],
@@ -1500,10 +1501,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Assignment saved"
+            "description": "Visits scheduled and assigned"
           },
           "400": {
-            "description": "Invalid body"
+            "description": "Invalid body or missing Idempotency-Key"
           },
           "403": {
             "description": "Staff, another vendor, or a visit from another vendor"
@@ -1512,7 +1513,7 @@
             "description": "Crew or visit not found"
           },
           "409": {
-            "description": "Inactive crew, crew size, overlap, or concurrent update"
+            "description": "Inactive crew, crew size, window mismatch, overlap, idempotency conflict, or concurrent update"
           }
         }
       }

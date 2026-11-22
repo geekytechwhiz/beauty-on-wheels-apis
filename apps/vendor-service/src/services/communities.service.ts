@@ -16,7 +16,7 @@ import {
   isCommunityId,
   normalizeCommunityId,
   resolveCoverageApprovalStatus,
-  uniqueCommunityIds,
+  uniqueCommunities,
 } from '../domain/community';
 import { VENDOR_CAPABILITY, VISIT_PERMISSION } from '../domain/vendor-self';
 import { CommunitiesMapper } from '../mappers/communities.mapper';
@@ -114,8 +114,9 @@ export class CommunitiesService {
     const userId = assertAdminAccess(request);
     const vendorId = getVendorId(request);
     const body = request.body as ReplaceVendorCommunitiesRequest;
-    const communityIds = this.parseCommunityIds(body.communityIds ?? []);
-    return this.writeAssignments(vendorId, userId, communityIds, 'replace');
+    const communities:any = body.communityIds?.map((id) => ( {values: {communityId: id, communityName: ''}})) ?? [];
+    const communityIds = uniqueCommunities(communities)?.map((item) => item.communityId) ?? [];
+    return this.writeAssignments(vendorId, userId, communityIds.map((id) => ({communityId: id, communityName: ''})), 'replace');
   }
 
   async addvendorcommunity(
@@ -129,11 +130,15 @@ export class CommunitiesService {
     if (existing.some((item) => item.communityId === communityId)) {
       return { data: existing.map((item) => CommunitiesMapper.toDomain(item)) };
     }
-    const communityIds = uniqueCommunityIds([
-      ...existing.map((item) => item.communityId),
-      communityId,
-    ]);
-    return this.writeAssignments(vendorId, userId, communityIds, 'add');
+    const communities = existing.map((item) => ({communityId: item.communityId, communityName: item.communityName}));
+   
+    const uniqueCommunityObjects = uniqueCommunities(communities);
+    return this.writeAssignments(
+      vendorId,
+      userId,
+      uniqueCommunityObjects,
+      'add',
+    );
   }
 
   /**
@@ -215,9 +220,10 @@ export class CommunitiesService {
     if (!body.expectedUpdatedAt || body.expectedUpdatedAt !== vendor.updatedAt) {
       throw new ConflictError('Vendor community assignment conflict');
     }
-    const communityIds = this.parseCommunityIds(body.communityIds ?? []);
+    const communities:any = body.communityIds?.map((id) => ( {values: {communityId: id, communityName: ''}})) ?? [];
+    const communityIds = uniqueCommunities(communities)?.map((item) => item.communityId) ?? [];
     await this.assertActiveDirectoryCommunities(communityIds);
-    await this.writeAssignments(vendorId, userId, communityIds, 'replace', body.expectedUpdatedAt);
+    await this.writeAssignments(vendorId, userId, communityIds.map((id) => ({communityId: id, communityName:   ''})), 'replace', body.expectedUpdatedAt);
     const saved = await this.requireVendor(vendorId);
     return { data: await this.presentCoverage(saved) };
   }
@@ -324,18 +330,19 @@ export class CommunitiesService {
     }
     const communityIds = existing
       .map((item) => item.communityId)
-      .filter((id) => id !== communityId);
+      .filter((id) => id !== communityId).map((id) => ({communityId: id, communityName: existing.find((item) => item.communityId === id)?.communityName ?? ''}));
     return this.writeAssignments(vendorId, userId, communityIds, 'remove');
   }
 
   private async writeAssignments(
     vendorId: string,
     userId: string,
-    communityIds: string[],
+    communities: {communityId: string, communityName: string}[],
+
     action: 'replace' | 'add' | 'remove',
     lockedUpdatedAt?: string,
   ): Promise<{ data: VendorCommunityAssignment[] }> {
-    if (communityIds.length > MAX_VENDOR_COMMUNITIES) {
+    if (communities.length > MAX_VENDOR_COMMUNITIES) {
       throw new ValidationError(
         `A vendor can belong to at most ${MAX_VENDOR_COMMUNITIES} communities`,
       );
@@ -346,7 +353,7 @@ export class CommunitiesService {
       throw new ConflictError('Vendor community assignment conflict');
     }
     const existing = await this.communitiesRepository.listByVendor(vendorId);
-    const next = new Set(communityIds);
+    const next = new Set(communities.map((item) => item.communityId));
     const current = new Set(existing.map((item) => item.communityId));
     const same =
       next.size === current.size && [...next].every((id) => current.has(id));
@@ -361,15 +368,16 @@ export class CommunitiesService {
     const assignedAt = new Date().toISOString();
     const profile = VendorsMapper.applyCommunityIds(
       vendor,
-      communityIds,
+      communities.map((item) => item.communityId),
       assignedAt,
     );
     const toDelete = existing.filter((item) => !next.has(item.communityId));
-    const toAdd = communityIds.filter((id) => !current.has(id));
-    const puts = toAdd.map((communityId) => ({
+    const toAdd = communities.filter((item) => !current.has(item.communityId));
+    const puts = toAdd.map((item) => ({
       item: CommunitiesMapper.toItem({
         vendor: profile,
-        communityId,
+        communityId: item.communityId,
+        communityName: item.communityName,
         assignedBy: userId,
         assignedAt,
       }),
@@ -395,7 +403,7 @@ export class CommunitiesService {
       vendorId,
       userId,
       action,
-      communityCount: communityIds.length,
+      communityCount: communities.length,
     });
 
     const saved = await this.communitiesRepository.listByVendor(vendorId);
@@ -410,11 +418,11 @@ export class CommunitiesService {
     return vendor;
   }
 
-  private parseCommunityIds(values: string[]): string[] {
-    return uniqueCommunityIds(
-      values.map((value) => this.parseCommunityId(value)),
-    );
-  }
+  // private parseCommunityIds(values: string[]): string[] {
+  //   return uniqueCommunities(
+  //     values.map((value) => this.parseCommunityId(value)),
+  //   );
+  // }
 
   private parseCommunityId(value: string | undefined): string {
     const id = normalizeCommunityId(value ?? '');
@@ -427,11 +435,11 @@ export class CommunitiesService {
   private parseIdQuery(request: LambdaRequest): string[] | undefined {
     const raw = queryText(request, 'ids');
     if (!raw) return undefined;
-    const ids = uniqueCommunityIds(raw.split(',').map((value) => value.trim()).filter(Boolean));
+    const ids = uniqueCommunities(raw.split(',').map((value) => value.trim()).filter(Boolean).map((value) => ({communityId: value, communityName: ''})));
     if (ids.length < 1 || ids.length > MAX_VENDOR_COMMUNITIES) {
       throw new ValidationError(`ids must contain 1 to ${MAX_VENDOR_COMMUNITIES} community ids`);
     }
-    return this.parseCommunityIds(ids);
+    return ids.map((item) => item.communityId);
   }
 
   private async assertActiveDirectoryCommunities(communityIds: string[]): Promise<void> {

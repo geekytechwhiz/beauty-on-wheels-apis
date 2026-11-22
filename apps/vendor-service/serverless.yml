@@ -1463,11 +1463,18 @@ custom:
                       type: string
                     role:
                       type: string
+                      description: Application role label for partner team members (BUDDY)
                     status:
                       type: string
                       enum:
                         - ACTIVE
                         - INACTIVE
+                    provisioningStatus:
+                      type: string
+                      enum:
+                        - PENDING
+                        - COMPLETED
+                        - FAILED
                     createdAt:
                       type: string
                     updatedAt:
@@ -1501,11 +1508,18 @@ custom:
                         type: string
                       role:
                         type: string
+                        description: Application role label for partner team members (BUDDY)
                       status:
                         type: string
                         enum:
                           - ACTIVE
                           - INACTIVE
+                      provisioningStatus:
+                        type: string
+                        enum:
+                          - PENDING
+                          - COMPLETED
+                          - FAILED
                       createdAt:
                         type: string
                       updatedAt:
@@ -8313,6 +8327,14 @@ functions:
   reserveSoldCapacity:
     handler: src/handlers/internal.reserveSoldCapacity
     description: Internal IAM invoke. Atomically reserves sold visit-slots on a capacity commitment for a paid plan. No HTTP route.
+
+  holdSoldCapacity:
+    handler: src/handlers/internal.holdSoldCapacity
+    description: Internal IAM invoke. Atomically holds capacity while a customer plan payment is pending. No HTTP route.
+
+  confirmSoldCapacity:
+    handler: src/handlers/internal.confirmSoldCapacity
+    description: Internal IAM invoke. Converts a valid plan checkout hold into a sold capacity reservation. No HTTP route.
 
   releaseSoldCapacity:
     handler: src/handlers/internal.releaseSoldCapacity

@@ -17,6 +17,15 @@ export interface ReservePlanCapacityInput {
   planId: string;
 }
 
+export interface HoldPlanCapacityInput extends ReservePlanCapacityInput {
+  paymentId: string;
+  expiresAt: string;
+}
+
+export interface ConfirmPlanCapacityInput extends ReservePlanCapacityInput {
+  paymentId?: string;
+}
+
 export interface ReservePlanCapacityResult {
   commitmentId: string;
   quantity: number;
@@ -31,7 +40,16 @@ export interface VendorGateway {
    */
   getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility>;
 
-  /** Reserves sold visit-slots on a vendor capacity commitment before plan activation. */
+  /** Holds capacity while a checkout payment is pending. */
+  holdPlanCapacity(input: HoldPlanCapacityInput): Promise<ReservePlanCapacityResult>;
+
+  /** Converts a valid checkout hold to a durable sold reservation. */
+  confirmPlanCapacity(input: ConfirmPlanCapacityInput): Promise<ReservePlanCapacityResult>;
+
+  /** Releases a pending hold or a sold reservation for a cancelled/refunded plan. */
+  releasePlanCapacity(planId: string): Promise<void>;
+
+  /** Legacy direct sold reservation. New checkouts must use hold + confirm. */
   reservePlanCapacity(input: ReservePlanCapacityInput): Promise<ReservePlanCapacityResult>;
 }
 
@@ -111,11 +129,53 @@ export class LambdaVendorGateway implements VendorGateway, OperationalAccessGate
   }
 
   async reservePlanCapacity(input: ReservePlanCapacityInput): Promise<ReservePlanCapacityResult> {
-    const functionName = env.VENDOR_RESERVE_CAPACITY_FUNCTION.trim();
+    return parseReservePlanCapacity(await this.invokeCapacity(
+      env.VENDOR_RESERVE_CAPACITY_FUNCTION.trim(),
+      input,
+      'reserve sold capacity',
+      'VENDOR_RESERVE_CAPACITY_FUNCTION',
+    ));
+  }
+
+  async holdPlanCapacity(input: HoldPlanCapacityInput): Promise<ReservePlanCapacityResult> {
+    return parseReservePlanCapacity(await this.invokeCapacity(
+      env.VENDOR_HOLD_CAPACITY_FUNCTION.trim(),
+      input,
+      'hold capacity',
+      'VENDOR_HOLD_CAPACITY_FUNCTION',
+    ));
+  }
+
+  async confirmPlanCapacity(input: ConfirmPlanCapacityInput): Promise<ReservePlanCapacityResult> {
+    return parseReservePlanCapacity(await this.invokeCapacity(
+      env.VENDOR_CONFIRM_CAPACITY_FUNCTION.trim(),
+      input,
+      'confirm capacity',
+      'VENDOR_CONFIRM_CAPACITY_FUNCTION',
+    ));
+  }
+
+  async releasePlanCapacity(planId: string): Promise<void> {
+    const payload = await this.invokeCapacity(
+      env.VENDOR_RELEASE_CAPACITY_FUNCTION.trim(),
+      { planId },
+      'release capacity',
+      'VENDOR_RELEASE_CAPACITY_FUNCTION',
+    );
+    const envelope = asRecord(payload);
+    if (envelope.error) throw mapVendorCapacityFailure(envelope.error);
+  }
+
+  private async invokeCapacity(
+    functionName: string,
+    input: object,
+    action: string,
+    configName: string,
+  ): Promise<unknown> {
     if (!functionName) {
       throw new BookingError(
         'DEPENDENCY_UNAVAILABLE',
-        'VENDOR_RESERVE_CAPACITY_FUNCTION is not configured',
+        `${configName} is not configured`,
         502,
         undefined,
         true,
@@ -133,7 +193,7 @@ export class LambdaVendorGateway implements VendorGateway, OperationalAccessGate
     } catch {
       throw new BookingError(
         'DEPENDENCY_UNAVAILABLE',
-        'Vendor Service could not be invoked',
+        `Vendor Service could not ${action}`,
         502,
         undefined,
         true,
@@ -143,7 +203,7 @@ export class LambdaVendorGateway implements VendorGateway, OperationalAccessGate
     if (output.FunctionError) {
       throw new BookingError(
         'DEPENDENCY_UNAVAILABLE',
-        'Vendor Service failed while reserving sold capacity',
+        `Vendor Service failed while attempting to ${action}`,
         502,
         undefined,
         true,
@@ -158,12 +218,12 @@ export class LambdaVendorGateway implements VendorGateway, OperationalAccessGate
       } catch {
         throw new BookingError(
           'DEPENDENCY_UNAVAILABLE',
-          'Vendor Service returned an unreadable capacity reserve response',
+          `Vendor Service returned an unreadable capacity ${action} response`,
           502,
         );
       }
     }
-    return parseReservePlanCapacity(parsed);
+    return parsed;
   }
 
   async getOperationalAccess(userId: string): Promise<OperationalAccess> {

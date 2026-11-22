@@ -2,6 +2,7 @@ import {
   APPLICATION_ROLE,
   effectiveAccessTokenRoles,
   parseAccessTokenRolesClaim,
+  primaryApplicationRole,
   resolveApplicationRoles,
 } from './application-roles';
 
@@ -28,9 +29,10 @@ describe('resolveApplicationRoles', () => {
     expect(resolveApplicationRoles(['PENDING_VENDOR', 'pending_vendor'])).toEqual([]);
   });
 
-  it('recognizes ROOT, STAFF, and GUEST', () => {
-    expect(resolveApplicationRoles(['guest', 'ROOT', 'staff'])).toEqual([
+  it('recognizes ROOT, STAFF, BUDDY, and GUEST', () => {
+    expect(resolveApplicationRoles(['guest', 'ROOT', 'staff', 'buddy'])).toEqual([
       'GUEST',
+      'BUDDY',
       'STAFF',
       'ROOT',
     ]);
@@ -56,6 +58,27 @@ describe('resolveApplicationRoles', () => {
         'PENDING_REVIEW',
       ]),
     ).toEqual([]);
+  });
+});
+
+describe('primaryApplicationRole', () => {
+  it('prefers STAFF (platform) over BUDDY when both are present', () => {
+    expect(
+      primaryApplicationRole([
+        APPLICATION_ROLE.CUSTOMER,
+        APPLICATION_ROLE.BUDDY,
+        APPLICATION_ROLE.STAFF,
+      ]),
+    ).toBe(APPLICATION_ROLE.STAFF);
+  });
+
+  it('selects BUDDY ahead of CUSTOMER', () => {
+    expect(
+      primaryApplicationRole([
+        APPLICATION_ROLE.CUSTOMER,
+        APPLICATION_ROLE.BUDDY,
+      ]),
+    ).toBe(APPLICATION_ROLE.BUDDY);
   });
 });
 

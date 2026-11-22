@@ -62,7 +62,7 @@ export interface VendorDdbItem {
    * Set only while a create transaction had to be split. Retries finish the
    * community rows from this list and then clear it. Not an API field.
    */
-  pendingCommunityIds?: string[];
+  pendingCommunityIds?: { communityId: string; communityName: string }[];
   /** Present only when the initial create has not finished its community rows. */
   onboardingPersistence?: 'incomplete';
   latestReview?: VendorStatusReviewRecord;
@@ -249,6 +249,8 @@ export interface CrewDdbItem {
   /** Designated crew contact; must be one of `staffIds`. Absent on crews created before designation existed. */
   pointOfContactStaffId?: string;
   status: CrewStatus;
+  /** Optional advisory ceiling used by a manager while planning visits. */
+  planningVisitLimit?: number;
   revision: number;
   createdAt: string;
   updatedAt: string;
@@ -276,6 +278,7 @@ export interface VendorCommunityDdbItem {
   SK: string;
   vendorId: string;
   communityId: string;
+  communityName: string;
   assignedBy: string;
   assignedAt: string;
   status: VendorStatus;

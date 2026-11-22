@@ -77,55 +77,71 @@ export class CustomerPlanPaymentsService {
       throw new BusinessRuleError(`Plan ${planId} is not awaiting payment`);
     }
 
+    // A plan has one capacity pointer, keyed by planId. Reuse a live payment attempt
+    // rather than creating another payment that could outlive or release the same hold.
+    const inFlight = (await this.plans.listPayments(planId))
+      .find((payment) => payment.status === 'PENDING');
+    if (inFlight) {
+      const reconciled = await this.reconcileExpiry(inFlight);
+      if (reconciled.status === 'PENDING') return toResponse(reconciled);
+    }
+
     const amountMinor = plan.pricingSnapshot.totalMinor;
     const currency = plan.pricingSnapshot.currency.toUpperCase();
     const providerAmountMinor = toProviderMinor(amountMinor, currency);
     const provider = resolveProvider();
     const now = new Date();
     const paymentId = EntityIdGenerator.PaymentId();
+    const expiresAt = new Date(now.getTime() + PAYMENT_TTL_MS).toISOString();
+
+    // Capacity is held before a provider checkout is created. This prevents a payment
+    // from succeeding only to be rejected during activation because another checkout
+    // consumed the final capacity in the meantime.
+    await this.holdCapacity(plan, paymentId, expiresAt);
 
     let checkoutToken = `sandbox_${randomUUID()}`;
     let checkoutKeyId: string | undefined;
     let providerOrderId: string | undefined;
-    if (provider === 'RAZORPAY') {
-      const razorpay = getRazorpayGateway();
-      const order = await razorpay.createOrder({
-        amountPaise: providerAmountMinor,
-        currency,
-        receipt: paymentId,
-        notes: { planId, paymentId, customerId },
-      });
-      assertProviderAmountMatches(amountMinor, currency, order.amount);
-      checkoutToken = order.id;
-      providerOrderId = order.id;
-      checkoutKeyId = razorpay.publicKeyId();
-    }
-
-    const record: PlanPaymentRecord = {
-      paymentId,
-      planId,
-      customerId,
-      amountMinor,
-      providerAmountMinor,
-      currency,
-      status: 'PENDING',
-      provider,
-      checkoutToken,
-      ...(checkoutKeyId ? { checkoutKeyId } : {}),
-      ...(providerOrderId ? { providerOrderId } : {}),
-      idempotencyKey,
-      expiresAt: new Date(now.getTime() + PAYMENT_TTL_MS).toISOString(),
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    };
-
+    let record: PlanPaymentRecord;
     try {
+      if (provider === 'RAZORPAY') {
+        const razorpay = getRazorpayGateway();
+        const order = await razorpay.createOrder({
+          amountPaise: providerAmountMinor,
+          currency,
+          receipt: paymentId,
+          notes: { planId, paymentId, customerId },
+        });
+        assertProviderAmountMatches(amountMinor, currency, order.amount);
+        checkoutToken = order.id;
+        providerOrderId = order.id;
+        checkoutKeyId = razorpay.publicKeyId();
+      }
+
+      record = {
+        paymentId,
+        planId,
+        customerId,
+        amountMinor,
+        providerAmountMinor,
+        currency,
+        status: 'PENDING',
+        provider,
+        checkoutToken,
+        ...(checkoutKeyId ? { checkoutKeyId } : {}),
+        ...(providerOrderId ? { providerOrderId } : {}),
+        idempotencyKey,
+        expiresAt,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
       await this.plans.createPayment(record);
     } catch (error) {
       if (error instanceof ConditionalWriteConflictError) {
         const raced = await this.plans.getIdempotentPayment(customerId, planId, idempotencyKey);
         if (raced) return toResponse(raced);
       }
+      await this.releaseCapacityAfterCheckoutFailure(planId);
       throw error;
     }
     this.logger.info({ event: 'plan_payment_initiated', planId, paymentId, provider });
@@ -164,6 +180,7 @@ export class CustomerPlanPaymentsService {
     if (outcome === 'SUCCESS') return toResponse(await this.markPaid(payment));
 
     const now = new Date().toISOString();
+    await this.vendors.releasePlanCapacity(payment.planId);
     return toResponse(await this.plans.savePayment({
       ...payment,
       status: outcome === 'CANCELLED' ? 'CANCELLED' : 'FAILED',
@@ -213,7 +230,7 @@ export class CustomerPlanPaymentsService {
       || payment.currency.toUpperCase() !== plan.pricingSnapshot.currency.toUpperCase()) {
       throw new BookingError('PAYMENT_AMOUNT_MISMATCH', 'Payment amount does not match the plan', 409, 'amount');
     }
-    await this.activate(plan);
+    await this.activate(plan, payment);
     const now = new Date().toISOString();
     return this.plans.savePayment({
       ...payment,
@@ -224,34 +241,21 @@ export class CustomerPlanPaymentsService {
     });
   }
 
-  private async activate(plan: CustomerPlanRecord): Promise<void> {
+  private async activate(plan: CustomerPlanRecord, payment: PlanPaymentRecord): Promise<void> {
     const now = new Date().toISOString();
     const alreadyPaid = (plan.status === 'ACTIVE' || plan.status === 'AWAITING_FIRST_JOB')
       && plan.paymentStatus === 'PAID'
       && Boolean(plan.firstJobId);
 
-    /**
-     * Reserve sold capacity at payment activation only (not at PENDING_PAYMENT create).
-     * Soft-hold at create would need release on abandoned carts; unpaid plans may still
-     * oversell until payment completes — accepted MVP limitation.
-     */
+    /** Converts the payment-time hold to sold capacity. Legacy pending payments reacquire. */
     if (!alreadyPaid) {
-      const communityId = plan.location.communityId;
-      if (!communityId) {
-        throw new BookingError(
-          'CAPACITY_UNAVAILABLE',
-          'Plan community is required to reserve vendor capacity',
-          409,
-          'location.communityId',
-          false,
-        );
-      }
-      await this.vendors.reservePlanCapacity({
+      await this.vendors.confirmPlanCapacity({
         vendorId: plan.vendorId,
-        communityId,
+        communityId: this.capacityCommunityId(plan),
         offeringId: plan.offeringId || plan.packageId,
         demandQuantity: planVisitSlotDemand(plan),
         planId: plan.planId,
+        paymentId: payment.paymentId,
       });
     }
 
@@ -337,8 +341,45 @@ export class CustomerPlanPaymentsService {
 
   private async reconcileExpiry(payment: PlanPaymentRecord): Promise<PlanPaymentRecord> {
     if (payment.status !== 'PENDING' || Date.parse(payment.expiresAt) > Date.now()) return payment;
+    // Release before persisting EXPIRED. If the vendor dependency is temporarily unavailable,
+    // leaving this payment PENDING lets the next retry complete the release instead of leaking a hold.
+    await this.vendors.releasePlanCapacity(payment.planId);
     const now = new Date().toISOString();
     return this.plans.savePayment({ ...payment, status: 'EXPIRED', updatedAt: now, completedAt: now });
+  }
+
+  private async holdCapacity(plan: CustomerPlanRecord, paymentId: string, expiresAt: string): Promise<void> {
+    await this.vendors.holdPlanCapacity({
+      vendorId: plan.vendorId,
+      communityId: this.capacityCommunityId(plan),
+      offeringId: plan.offeringId || plan.packageId,
+      demandQuantity: planVisitSlotDemand(plan),
+      planId: plan.planId,
+      paymentId,
+      expiresAt,
+    });
+  }
+
+  private capacityCommunityId(plan: CustomerPlanRecord): string {
+    const communityId = plan.location.communityId;
+    if (!communityId) {
+      throw new BookingError(
+        'CAPACITY_UNAVAILABLE',
+        'Plan community is required to reserve vendor capacity',
+        409,
+        'location.communityId',
+        false,
+      );
+    }
+    return communityId;
+  }
+
+  private async releaseCapacityAfterCheckoutFailure(planId: string): Promise<void> {
+    try {
+      await this.vendors.releasePlanCapacity(planId);
+    } catch (releaseError) {
+      this.logger.error({ event: 'plan_capacity_hold_release_failed', planId, error: releaseError });
+    }
   }
 
   private async requireOwnedPlan(planId: string, customerId: string, forbidden: string): Promise<CustomerPlanRecord> {

@@ -1,3 +1,7 @@
+jest.mock('../events/publish-staff-account-provisioning', () => ({
+  publishStaffAccountProvisioningRequested: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { LambdaRequest } from '@api-hub/utils';
 import {
   ConflictError,
@@ -8,21 +12,38 @@ import {
 
 import { ValidationError } from '@api-hub/utils';
 
+import { publishStaffAccountProvisioningRequested } from '../events/publish-staff-account-provisioning';
 import { StaffService } from './staff.service';
 import { CrewRepository } from '../repositories/crew.repository';
 import { StaffRepository } from '../repositories/staff.repository';
 import { VendorsRepository } from '../repositories/vendors.repository';
 import { CrewDdbItem, StaffDdbItem, VendorDdbItem } from '../types/repository.types';
 
+const publishProvisioning = publishStaffAccountProvisioningRequested as jest.MockedFunction<
+  typeof publishStaffAccountProvisioningRequested
+>;
+
 function authRequest(overrides: Record<string, unknown> = {}): LambdaRequest {
+  const overrideContext = (overrides.context ?? {}) as Record<string, unknown>;
+  const overrideAuth = (overrideContext.authContext ?? {}) as Record<string, unknown>;
+  const overrideUser = (overrideContext.userContext ?? {}) as Record<string, unknown>;
   return {
     pathParameters: { vendorId: 'vendor-1', ...(overrides.pathParameters as object) },
     params: { vendorId: 'vendor-1', ...(overrides.params as object) },
     body: overrides.body,
-    context: {
-      userContext: { userId: 'user-1' },
-    },
     ...overrides,
+    context: {
+      ...overrideContext,
+      userContext: { userId: 'user-1', ...overrideUser },
+      authContext: {
+        identityId: 'identity-1',
+        userId: 'user-1',
+        roles: ['VENDOR'],
+        permissions: [],
+        claims: {},
+        ...overrideAuth,
+      },
+    },
   } as unknown as LambdaRequest;
 }
 
@@ -76,6 +97,7 @@ describe('StaffService', () => {
   let service: StaffService;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     repository = {
       createStaff: jest.fn(),
       getStaff: jest.fn(),
@@ -84,6 +106,7 @@ describe('StaffService', () => {
       findStaffByPhone: jest.fn().mockResolvedValue(null),
       listMembershipsByUserId: jest.fn().mockResolvedValue([]),
       updateStaff: jest.fn(),
+      deactivateStaff: jest.fn(),
     } as unknown as jest.Mocked<StaffRepository>;
 
     vendorsRepository = {
@@ -123,7 +146,7 @@ describe('StaffService', () => {
   });
 
   describe('createvendorstaff', () => {
-    it('creates staff without a portal identity when userId is omitted', async () => {
+    it('creates a PENDING BUDDY staff record and requests account provisioning', async () => {
       repository.createStaff.mockResolvedValue(undefined);
 
       const result = await service.createvendorstaff(
@@ -131,7 +154,6 @@ describe('StaffService', () => {
           body: {
             name: 'Ananya Reddy',
             phoneNumber: '+919900112233',
-            role: 'STYLIST',
           },
         }),
       );
@@ -139,50 +161,25 @@ describe('StaffService', () => {
       expect(result.userId).toBeUndefined();
       expect(result.vendorId).toBe('vendor-1');
       expect(result.status).toBe('ACTIVE');
-      expect(repository.findStaffByUserId).not.toHaveBeenCalled();
+      expect(result.role).toBe('BUDDY');
+      expect(result.provisioningStatus).toBe('PENDING');
+      expect(result.email).toBeUndefined();
       const saved = repository.createStaff.mock.calls[0][0];
       expect(saved.userId).toBeUndefined();
+      expect(saved.role).toBe('BUDDY');
+      expect(saved.provisioningStatus).toBe('PENDING');
       expect(saved.PK).toBe('VENDOR#vendor-1');
       expect(saved.SK).toMatch(/^STAFF#/);
       expect(saved.entityType).toBe('Staff');
-    });
-
-    it('associates an existing portal userId when explicitly provided', async () => {
-      repository.findStaffByUserId.mockResolvedValue(null);
-      repository.createStaff.mockResolvedValue(undefined);
-
-      const result = await service.createvendorstaff(
-        authRequest({
-          body: {
-            userId: 'portal-user-1',
-            name: 'Ananya Reddy',
-            phoneNumber: '+919900112233',
-          },
+      expect(publishProvisioning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vendorId: 'vendor-1',
+          phoneNumber: '+919900112233',
+          displayName: 'Ananya Reddy',
+          staffId: expect.any(String),
         }),
+        expect.any(String),
       );
-
-      expect(result.userId).toBe('portal-user-1');
-      expect(repository.findStaffByUserId).toHaveBeenCalledWith(
-        'vendor-1',
-        'portal-user-1',
-      );
-    });
-
-    it('rejects a duplicate portal identity on the same vendor', async () => {
-      repository.findStaffByUserId.mockResolvedValue(staffItem({ userId: 'portal-user-1' }));
-
-      await expect(
-        service.createvendorstaff(
-          authRequest({
-            body: {
-              userId: 'portal-user-1',
-              name: 'Duplicate',
-              phoneNumber: '+919900000000',
-            },
-          }),
-        ),
-      ).rejects.toThrow(ConflictError);
-      expect(repository.createStaff).not.toHaveBeenCalled();
     });
 
     it('rejects an invalid Indian mobile number', async () => {
@@ -241,7 +238,16 @@ describe('StaffService', () => {
       await expect(
         service.createvendorstaff(
           authRequest({
-            context: { userContext: {} },
+            context: {
+              userContext: {},
+              authContext: {
+                identityId: undefined,
+                userId: undefined,
+                roles: [],
+                permissions: [],
+                claims: {},
+              },
+            },
             body: { name: 'Ananya Reddy', phoneNumber: '+919900112233' },
           }),
         ),
@@ -296,20 +302,21 @@ describe('StaffService', () => {
   });
 
   describe('updatevendorstaff', () => {
-    it('updates vendor staff profile fields', async () => {
-      repository.getStaff.mockResolvedValue(staffItem());
+    it('updates the staff display name only', async () => {
+      repository.getStaff.mockResolvedValue(staffItem({ role: 'BUDDY' }));
       repository.updateStaff.mockResolvedValue(undefined);
 
       const result = await service.updatevendorstaff(
         authRequest({
           pathParameters: { vendorId: 'vendor-1', staffId: 'staff-1' },
           params: { vendorId: 'vendor-1', staffId: 'staff-1' },
-          body: { role: 'LEAD_STYLIST', phoneNumber: '+919900112244' },
+          body: { name: 'Ananya Updated' },
         }),
       );
 
-      expect(result.role).toBe('LEAD_STYLIST');
-      expect(result.phoneNumber).toBe('+919900112244');
+      expect(result.name).toBe('Ananya Updated');
+      expect(result.role).toBe('BUDDY');
+      expect(result.phoneNumber).toBe('+919900112233');
       expect(result.userId).toBeUndefined();
     });
   });
@@ -317,7 +324,7 @@ describe('StaffService', () => {
   describe('deactivatevendorstaff', () => {
     it('soft-deletes staff by setting status INACTIVE', async () => {
       repository.getStaff.mockResolvedValue(staffItem());
-      repository.updateStaff.mockResolvedValue(undefined);
+      repository.deactivateStaff = jest.fn().mockResolvedValue(undefined);
 
       await service.deactivatevendorstaff(
         authRequest({
@@ -326,12 +333,11 @@ describe('StaffService', () => {
         }),
       );
 
-      expect(repository.updateStaff).toHaveBeenCalledWith(
+      expect(repository.deactivateStaff).toHaveBeenCalledWith(
         expect.objectContaining({
           staffId: 'staff-1',
-          status: 'INACTIVE',
+          status: 'ACTIVE',
         }),
-        { releasePhone: true },
       );
     });
 
@@ -363,12 +369,12 @@ describe('StaffService', () => {
       expect(repository.updateStaff).not.toHaveBeenCalled();
     });
 
-    it('allows an active staff member with staff:view to read, and denies management', async () => {
+    it('allows an active BUDDY with membership to read, and denies management', async () => {
       repository.getStaff.mockResolvedValue(staffItem());
       repository.listMembershipsByUserId.mockResolvedValue([{
-        PK: 'STAFF_USER#staff-user',
+        PK: 'STAFF_USER#buddy-user',
         SK: 'VENDOR#vendor-1',
-        userId: 'staff-user',
+        userId: 'buddy-user',
         vendorId: 'vendor-1',
         staffId: 'staff-9',
         status: 'ACTIVE',
@@ -380,8 +386,14 @@ describe('StaffService', () => {
       });
       const reader = authRequest({
         context: {
-          userContext: { userId: 'staff-user' },
-          authContext: { identityId: 'sub', userId: 'staff-user', roles: [], permissions: ['staff:view'], claims: {} },
+          userContext: { userId: 'buddy-user' },
+          authContext: {
+            identityId: 'sub',
+            userId: 'buddy-user',
+            roles: ['BUDDY'],
+            permissions: [],
+            claims: {},
+          },
         },
         pathParameters: { vendorId: 'vendor-1', staffId: 'staff-1' },
         params: { vendorId: 'vendor-1', staffId: 'staff-1' },

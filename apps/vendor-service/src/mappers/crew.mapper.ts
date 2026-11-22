@@ -23,6 +23,9 @@ export class CrewMapper {
       staffIds: item.staffIds,
       members: item.staffIds.map((staffId) => CrewMapper.toMember(staffId, staffById.get(staffId))),
       status: item.status,
+      ...(item.planningVisitLimit !== undefined
+        ? { planningVisitLimit: item.planningVisitLimit }
+        : {}),
       revision: item.revision,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,

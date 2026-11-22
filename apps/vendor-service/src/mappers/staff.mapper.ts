@@ -45,7 +45,7 @@ export class StaffMapper {
       vendorId,
       name: request.name,
       phoneNumber: request.phoneNumber,
-      role: 'STAFF',
+      role: 'BUDDY',
       status: request.status ?? DEFAULT_STATUS,
       provisioningStatus: 'PENDING',
       createdAt,

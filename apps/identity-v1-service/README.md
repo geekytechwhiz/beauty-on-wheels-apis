@@ -20,7 +20,7 @@ Bootstrap Completed
 |---|---|
 | `sub` | Cognito identity id. Not the application `userId`, username, or phone number. |
 | `roles` | Application roles from `USER#` / `ROLE#` mappings. Examples: `["CUSTOMER"]`, `["REGISTRANT"]`, `["ADMIN"]`, `["ROOT"]`, `["CUSTOMER","VENDOR"]`. |
-| `role` | One scalar chosen from `roles`: `ROOT`, then `ADMIN`, then `VENDOR`, then `STAFF`, then `REGISTRANT`/`GUEST`, then `CUSTOMER`. `REGISTRANT` is never written as `VENDOR`. |
+| `role` | One scalar chosen from `roles`: `ROOT`, then `ADMIN`, then `VENDOR`, then `STAFF`, then `BUDDY`, then `REGISTRANT`/`GUEST`, then `CUSTOMER`. `REGISTRANT` is never written as `VENDOR`. |
 | `userType` | Account classification (`CUSTOMER`, `VENDOR`, or `ADMIN`). Not an authorization role. |
 | `userId` | Linked User Service id, when present. Not Cognito `sub`. |
 | `identityId` | Cognito `sub` stored on the identity. |
@@ -29,7 +29,7 @@ Bootstrap Completed
 
 `userType` classifies the account or the OTP challenge. **Application roles authorize actions** (role-only). Permission identifiers are not consulted by the authorizer or service asserts. A vendor record and its owner membership belong to Vendor Service.
 
-Platform roles: `ROOT`, `ADMIN`, `STAFF`, `VENDOR`, `CUSTOMER`, `REGISTRANT`, `GUEST`. Seed the catalog with `node scripts/seed-identity-role-catalog.mjs --stage dev --table identity-table-dev --region ap-south-1 --apply`.
+Platform roles: `ROOT`, `ADMIN`, `STAFF` (platform employee), `BUDDY` (partner team member), `VENDOR`, `CUSTOMER`, `REGISTRANT`, `GUEST`. Partner staff create grants `BUDDY` (not `STAFF`). Seed the catalog with `node scripts/seed-identity-role-catalog.mjs --stage dev --table identity-table-dev --region ap-south-1 --apply`.
 
 `POST /otp/send` may store `userType: "VENDOR"` on the server-side challenge. That value is not a role. `POST /otp/verify` accepts only `destination` and `otp`. It uses the stored challenge and the verified destination. Role and permission fields are rejected.
 

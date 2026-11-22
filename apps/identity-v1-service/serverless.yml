@@ -963,7 +963,7 @@ functions:
     memorySize: 256
   staffAccountProvisioning:
     handler: src/handlers/staff-account-provisioning.handler
-    description: Resolves Cognito and canonical identity, then grants STAFF without replacing existing roles.
+    description: Resolves Cognito and canonical identity, then grants BUDDY without replacing existing roles.
     timeout: 60
     memorySize: 256
   onIdentityProfileInserted:

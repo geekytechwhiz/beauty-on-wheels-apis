@@ -4229,13 +4229,10 @@
       "type": "string"
     },
     "OperationalStatus": {
-      "enum": [
-        "ONLINE",
-        "OFFLINE",
-        "BUSY",
-        "TEMPORARILY_UNAVAILABLE"
-      ],
       "title": "OperationalStatus",
+      "enum": [
+        "ONLINE"
+      ],
       "type": "string"
     },
     "businessType": {
@@ -6656,6 +6653,11 @@
           "$ref": "#/definitions/CrewStatus",
           "title": "UpdateCrewRequest.status"
         },
+        "planningVisitLimit": {
+          "title": "UpdateCrewRequest.planningVisitLimit",
+          "description": "Optional manager planning ceiling for this crew. This is not a committed\ncommunity capacity and does not alter assignment or commitment capacity.",
+          "type": "number"
+        },
         "revision": {
           "title": "UpdateCrewRequest.revision",
           "type": "number"
@@ -6725,6 +6727,11 @@
         "status": {
           "$ref": "#/definitions/CrewStatus",
           "title": "Crew.status"
+        },
+        "planningVisitLimit": {
+          "title": "Crew.planningVisitLimit",
+          "description": "Optional manager planning ceiling for this crew. It is advisory only and\nintentionally separate from the vendor/community capacity commitments.",
+          "type": "number"
         },
         "revision": {
           "title": "Crew.revision",
@@ -7106,6 +7113,10 @@
           "$ref": "#/definitions/VendorStatus",
           "title": "VendorCommunityAssignment.status"
         },
+        "communityName": {
+          "title": "VendorCommunityAssignment.communityName",
+          "type": "string"
+        },
         "operationalStatus": {
           "$ref": "#/definitions/OperationalStatus",
           "title": "VendorCommunityAssignment.operationalStatus"
@@ -7121,6 +7132,7 @@
         "assignedBy",
         "assignedAt",
         "status",
+        "communityName",
         "operationalStatus",
         "approvalStatus"
       ],

@@ -98,9 +98,15 @@ export interface VendorMembershipGrant {
 }
 
 /**
- * Owner and admin callers pass. An active staff member may act only for
- * view-level workspace actions. Staff cannot manage staff or crews.
+ * Owner and admin callers pass. An active partner buddy (team member) may act
+ * only for view-level workspace actions. Buddies cannot manage staff or crews.
  * The path vendor id is the only vendor considered.
+ *
+ * APPLICATION_ROLE.BUDDY is the partner-employee role. Legacy ROLE#STAFF
+ * mappings from earlier partner provisioning are still accepted when the
+ * caller also has an active vendor membership, so existing buddies keep
+ * working until an explicit STAFF→BUDDY migration. Platform STAFF without
+ * membership remains denied.
  */
 export function assertVendorAction(
   request: LambdaRequest,
@@ -114,9 +120,11 @@ export function assertVendorAction(
     return userId;
   }
   const roles = resolveApplicationRoles(getCallerRoles(request));
-  const isStaff = roles.includes(APPLICATION_ROLE.STAFF);
+  const isPartnerTeamMember =
+    roles.includes(APPLICATION_ROLE.BUDDY) ||
+    roles.includes(APPLICATION_ROLE.STAFF);
   if (
-    isStaff &&
+    isPartnerTeamMember &&
     membership?.vendorId === vendor.vendorId &&
     membership.status === 'ACTIVE' &&
     STAFF_ACTIONS.has(action)

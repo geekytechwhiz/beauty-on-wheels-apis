@@ -1,6 +1,7 @@
 import { LambdaRequest } from '@api-hub/utils';
 
 import { AvailabilityGateway } from '../integrations/availability.client';
+import { VendorGateway } from '../integrations/vendor.client';
 import { CustomerPlansRepository } from '../repositories/customer-plans.repository';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
 import { PackageVisitRecord } from '../types/package-visit.types';
@@ -101,6 +102,7 @@ function vendorRequest(overrides: Partial<{ body: unknown; key: string; roles?: 
 describe('PackageVisitsService', () => {
   let plans: jest.Mocked<CustomerPlansRepository>;
   let availability: jest.Mocked<AvailabilityGateway>;
+  let vendors: jest.Mocked<VendorGateway>;
   let issues: { listBlockingVisitIssues: jest.Mock };
   let storage: jest.Mocked<EvidenceStorage>;
   let service: PackageVisitsService;
@@ -140,13 +142,28 @@ describe('PackageVisitsService', () => {
       releaseAllocation: jest.fn().mockResolvedValue(undefined),
       consumeHold: jest.fn(),
     } as unknown as jest.Mocked<AvailabilityGateway>;
+    vendors = {
+      getCheckoutEligibility: jest.fn(),
+      holdPlanCapacity: jest.fn(),
+      confirmPlanCapacity: jest.fn(),
+      releasePlanCapacity: jest.fn(),
+      reservePlanCapacity: jest.fn(),
+      reserveVisitCapacity: jest.fn().mockResolvedValue({
+        commitmentId: 'cmt_1',
+        date: '2026-01-10',
+        quantity: 4,
+        reservedSoldQuantity: 1,
+        remainingSoldCapacity: 3,
+      }),
+      releaseVisitCapacity: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<VendorGateway>;
     issues = { listBlockingVisitIssues: jest.fn().mockResolvedValue([]) };
     storage = {
       isConfigured: jest.fn().mockReturnValue(true),
       createUploadUrl: jest.fn(),
       headObject: jest.fn().mockResolvedValue({ contentType: 'image/jpeg' }),
     } as unknown as jest.Mocked<EvidenceStorage>;
-    service = new PackageVisitsService(plans, availability, issues, () => storage);
+    service = new PackageVisitsService(plans, availability, vendors, issues, () => storage);
   });
 
   it('lets the customer list visits but not schedule or complete', async () => {
@@ -156,13 +173,24 @@ describe('PackageVisitsService', () => {
     await expect(service.complete(customerRequest())).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('schedules a visit after reserving availability', async () => {
+  it('schedules a visit after reserving availability and day sold capacity', async () => {
     const result = await service.schedule(vendorRequest());
     expect(availability.reserveBooking).toHaveBeenCalledWith(expect.objectContaining({
       bookingId: 'visit-1',
       packageVisitId: 'visit-1',
       planId: 'plan-1',
       branchId: 'branch-1',
+    }));
+    expect(vendors.reserveVisitCapacity).toHaveBeenCalledWith(expect.objectContaining({
+      vendorId: 'vendor-1',
+      communityId: 'c1',
+      offeringId: 'pkg',
+      planId: 'plan-1',
+      visitId: 'visit-1',
+      date: '2026-01-10',
+      startTime: '09:00',
+      endTime: '09:30',
+      demandQuantity: 1,
     }));
     expect(result.status).toBe('SCHEDULED');
     expect(plans.saveVisit).toHaveBeenCalled();
@@ -242,8 +270,17 @@ describe('PackageVisitsService', () => {
     expect(plans.saveVisit.mock.calls[0][0].crewAssignment).toBeUndefined();
     expect(plans.saveVisit.mock.calls[0][0].status).toBe('CANCELLED');
     expect(availability.releaseAllocation).toHaveBeenCalledWith('visit-1');
+    expect(vendors.releaseVisitCapacity).toHaveBeenCalledWith('visit-1');
 
     plans.getVisit.mockResolvedValue(assigned);
+    availability.reserveBooking.mockResolvedValue({
+      slotId: 'slot-2',
+      date: '2026-01-11',
+      startTime: '10:00',
+      endTime: '10:30',
+      timezone: 'Asia/Kolkata',
+      durationMinutes: 30,
+    });
     await service.reschedule(vendorRequest({
       body: {
         date: '2026-01-11',
@@ -255,6 +292,14 @@ describe('PackageVisitsService', () => {
     }));
     const rescheduled = plans.saveVisit.mock.calls.at(-1)?.[0];
     expect(availability.reserveBooking).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-01-11' }));
+    expect(vendors.releaseVisitCapacity).toHaveBeenCalledWith('visit-1');
+    expect(vendors.reserveVisitCapacity).toHaveBeenCalledWith(expect.objectContaining({
+      visitId: 'visit-1',
+      date: '2026-01-11',
+      startTime: '10:00',
+      endTime: '10:30',
+      demandQuantity: 1,
+    }));
     expect(rescheduled.crewAssignment).toBeUndefined();
     expect(rescheduled.status).toBe('SCHEDULED');
     expect(rescheduled.schedule).toBeDefined();

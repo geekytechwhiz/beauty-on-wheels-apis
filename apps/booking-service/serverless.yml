@@ -39,6 +39,8 @@
       VENDOR_HOLD_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-holdSoldCapacity
       VENDOR_CONFIRM_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-confirmSoldCapacity
       VENDOR_RELEASE_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-releaseSoldCapacity
+      VENDOR_RESERVE_VISIT_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-reserveVisitSoldCapacity
+      VENDOR_RELEASE_VISIT_CAPACITY_FUNCTION: aps1dev-carish-vendor-${self:provider.stage}-releaseVisitSoldCapacity
       TRAVEL_BUFFER_MINUTES: ${env:TRAVEL_BUFFER_MINUTES, '30'}
       USER_BASE_URL: ${env:USER_BASE_URL, ''}
       VEHICLE_BASE_URL: ${env:VEHICLE_BASE_URL, ''}
@@ -103,6 +105,8 @@
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_HOLD_CAPACITY_FUNCTION}
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_CONFIRM_CAPACITY_FUNCTION}
               - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RELEASE_CAPACITY_FUNCTION}
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RESERVE_VISIT_CAPACITY_FUNCTION}
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:provider.environment.VENDOR_RELEASE_VISIT_CAPACITY_FUNCTION}
           - Effect: Allow
             Action:
               - events:PutEvents

@@ -3,6 +3,7 @@ import {
   enrichVisitFromPlan,
   materializePackageVisits,
   operationalSnapshot,
+  planVisitSlotDemand,
   validityEndsAt,
   visitCoversDate,
   visitHasDatedCommitment,
@@ -127,5 +128,84 @@ describe('package visit domain', () => {
     expect(visitCoversDate(ranged, '2026-11-29')).toBe(true);
     expect(visitCoversDate(ranged, '2026-11-22')).toBe(false);
     expect(visitCoversDate(ranged, '2026-11-30')).toBe(false);
+  });
+
+  describe('planVisitSlotDemand', () => {
+    it('G: rounds 45- and 60-minute washes up by 30-minute slot units', () => {
+      expect(
+        planVisitSlotDemand({
+          entitlements: [{ serviceId: 'wash-45', quantity: 2 }],
+          includedServices: [
+            {
+              name: 'Wash 45',
+              serviceKey: 'wash-45',
+              categoryId: 'cat',
+              visitsPerPeriod: 2,
+              durationMinutes: 45,
+            },
+          ],
+        }),
+      ).toBe(4); // 2 * ceil(45/30) = 2 * 2
+      expect(
+        planVisitSlotDemand({
+          entitlements: [{ serviceId: 'wash-60', quantity: 3 }],
+          includedServices: [
+            {
+              name: 'Wash 60',
+              serviceKey: 'wash-60',
+              categoryId: 'cat',
+              visitsPerPeriod: 3,
+              durationMinutes: 60,
+            },
+          ],
+        }),
+      ).toBe(6); // 3 * ceil(60/30) = 3 * 2
+    });
+
+    it('F: 30-minute washes consume one slot-unit per entitlement', () => {
+      expect(
+        planVisitSlotDemand({
+          entitlements: [{ serviceId: 'wash-30', quantity: 50 }],
+          includedServices: [
+            {
+              name: 'Wash 30',
+              serviceKey: 'wash-30',
+              categoryId: 'cat',
+              visitsPerPeriod: 50,
+              durationMinutes: 30,
+            },
+          ],
+        }),
+      ).toBe(50);
+    });
+
+    it('M: anonymised TestFullWash shape yields period demand=200 (100+100 × 1 slot)', () => {
+      // Period demand only — compared to quantity×serviceDays at payment, not to
+      // a single day's commitment quantity. Package PA-… TestFullWash: 100 exterior
+      // (15m) + 100 interior (20m). Both ceil to 1 slot-unit → demand 200 per plan.
+      const demand = planVisitSlotDemand({
+        entitlements: [
+          { serviceId: 'full_wash_exterior', quantity: 100 },
+          { serviceId: 'full_wash_interior', quantity: 100 },
+        ],
+        includedServices: [
+          {
+            name: 'Exterior Wash and Dry',
+            serviceKey: 'full_wash_exterior',
+            categoryId: 'cat-full-wash',
+            visitsPerPeriod: 100,
+            durationMinutes: 15,
+          },
+          {
+            name: 'Cabin Vacuum and Surface Wipe',
+            serviceKey: 'full_wash_interior',
+            categoryId: 'cat-full-wash',
+            visitsPerPeriod: 100,
+            durationMinutes: 20,
+          },
+        ],
+      });
+      expect(demand).toBe(200);
+    });
   });
 });

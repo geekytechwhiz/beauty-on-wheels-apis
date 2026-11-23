@@ -83,14 +83,18 @@ describe('CustomerPlanPaymentsService', () => {
       holdPlanCapacity: jest.fn().mockResolvedValue({
         commitmentId: 'cmt_1',
         quantity: 10,
-        reservedSoldQuantity: 3,
-        remainingSoldCapacity: 7,
+        reservedSoldQuantity: 0,
+        remainingSoldCapacity: 10,
+        claimedPeriodQuantity: 3,
+        periodSupply: 10,
       }),
       confirmPlanCapacity: jest.fn().mockResolvedValue({
         commitmentId: 'cmt_1',
         quantity: 10,
-        reservedSoldQuantity: 3,
-        remainingSoldCapacity: 7,
+        reservedSoldQuantity: 0,
+        remainingSoldCapacity: 10,
+        claimedPeriodQuantity: 3,
+        periodSupply: 10,
       }),
       releasePlanCapacity: jest.fn().mockResolvedValue(undefined),
       reservePlanCapacity: jest.fn().mockResolvedValue({
@@ -98,7 +102,11 @@ describe('CustomerPlanPaymentsService', () => {
         quantity: 10,
         reservedSoldQuantity: 3,
         remainingSoldCapacity: 7,
+        claimedPeriodQuantity: 3,
+        periodSupply: 10,
       }),
+      reserveVisitCapacity: jest.fn(),
+      releaseVisitCapacity: jest.fn(),
     } as unknown as jest.Mocked<VendorGateway>;
     service = new CustomerPlanPaymentsService(plans, bookings, vendors);
   });

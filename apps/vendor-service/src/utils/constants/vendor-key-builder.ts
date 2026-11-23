@@ -23,6 +23,8 @@ export const CAPACITY_LEDGER_ENTITY_TYPE = 'CapacityLedger' as const;
 export const CAPACITY_LOOKUP_ENTITY_TYPE = 'CapacityLookup' as const;
 export const CAPACITY_IDEMPOTENCY_ENTITY_TYPE = 'CapacityIdempotency' as const;
 export const PLAN_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE = 'PlanSoldCapacityReservation' as const;
+export const VISIT_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE = 'VisitSoldCapacityReservation' as const;
+export const COMMITMENT_DAY_SOLD_ENTITY_TYPE = 'CommitmentDaySold' as const;
 
 export const VENDOR_PROFILE_SK = 'PROFILE';
 export const VENDOR_OWNER_SK = 'OWNER';
@@ -208,6 +210,15 @@ export const VendorKeyBuilder = {
   planSoldCapacityReservationPk: (planId: string) => `PLAN_SOLD_CAPACITY#${planId}`,
 
   planSoldCapacityReservationSk: () => 'RESERVE',
+
+  /** One row per scheduled package visit sold-capacity debit. */
+  visitSoldCapacityReservationPk: (visitId: string) => `VISIT_SOLD_CAPACITY#${visitId}`,
+
+  visitSoldCapacityReservationSk: () => 'RESERVE',
+
+  /** Per commitment service-day sold ledger (under the vendor partition). */
+  commitmentDaySoldSk: (commitmentId: string, date: string) =>
+    `CAPACITY_DAY_SOLD#${commitmentId}#${date}`,
 
   /** Cross-vendor admin listing: GSI1 CAPACITY_COMMITMENT / STATUS#<status>#<windowStart>#<id>. */
   capacityCommitmentGsi1Pk: () => CAPACITY_COMMITMENT_GSI1_PK,

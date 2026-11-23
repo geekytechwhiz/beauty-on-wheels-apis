@@ -7,25 +7,27 @@ import { DayOfWeek } from '../types/api-types';
 /**
  * CAPACITY UNIT
  * -------------
- * `quantity` and `reservedSoldQuantity` are **workload slot-units** reserved PER
- * SERVICE-WINDOW DAY (not a calendar total over the window).
+ * Commitment `quantity` = workload slot-units **per service-window day**.
  *
- * One slot-unit ≈ {@link CAPACITY_SLOT_MINUTES} minutes of service work. Booking
- * computes plan demand as sum over entitlements of
+ * One slot-unit ≈ {@link CAPACITY_SLOT_MINUTES} minutes of service work.
+ *
+ * Plan lifetime demand (booking `planVisitSlotDemand`) = sum over entitlements of
  *   quantity * max(1, ceil(durationMinutes / CAPACITY_SLOT_MINUTES)).
- * Legacy plans without usable durations still consume 1 unit per entitlement.
+ * That is a **period** total (all visits in the plan), not a daily quantity.
  *
- * A vendor's daily capacity is:
+ * Sales paths must compare matching grains:
+ * - **Payment hold/confirm** — period eligibility: periodDemand vs
+ *   `quantity * serviceDays(window)`. Claims `claimedPeriodQuantity` on the
+ *   commitment; does **not** debit daily slot capacity.
+ * - **Visit schedule** — daily debit: visitSlotUnits(duration) against that
+ *   date’s day ledger (`CommitmentDaySold`), capped by `quantity`.
+ *
+ * Legacy plan reservations (pre period-eligibility) stored lifetime demand in
+ * `reservedSoldQuantity` on the commitment. Those rows still release via the
+ * legacy debit path (`consumesDailySlots !== false` with no `claimedPeriodQuantity`).
+ *
+ * A vendor's crew daily capacity (accept-time only) is:
  *   activeCrewCount * maxVisitsPerCrewPerDay          (default 4 slot-units per crew per day)
- *
- * A new commitment is allowed only when, for every day of its window, the quantity of
- * non-cancelled commitments (all communities) whose window covers that day AND whose daily
- * time range overlaps, plus the new quantity, stays within the daily capacity.
- *
- * Migration: existing commitments and reservations keep their stored integers. New
- * holds/sales may consume more units per visit when durations exceed one slot. Ops
- * should re-size commitments for long-wash packages; do not silently reinterpret old
- * rows as minute-weighted.
  *
  * TODO: derive per-day capacity from availability-service community visit capacity /
  * operating-hours productive slots once a cross-service read exists.
@@ -159,10 +161,17 @@ export interface CapacityCommitmentDdbItem {
   rate: PayoutRate;
   status: CapacityCommitmentStatus;
   /**
-   * Slot-units held or sold against this commitment (same unit as `quantity`).
-   * Includes unpaid checkout holds and paid sales. Decremented on hold release / refund.
+   * Legacy / visit-aggregate counter. New payment holds claim
+   * {@link claimedPeriodQuantity} instead. Visit schedule debits the per-day
+   * ledger; this field may still be updated for legacy plan-level slot debits.
    */
   reservedSoldQuantity: number;
+  /**
+   * Period slot-units claimed by plan purchase holds/sales (same unit as plan
+   * lifetime demand). Compared to `quantity * serviceDays(window)`, not to
+   * the daily `quantity` alone. Absent on pre-migration rows (= 0).
+   */
+  claimedPeriodQuantity?: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -180,6 +189,10 @@ export interface CapacityCommitmentDdbItem {
 /**
  * Idempotency pointer for plan checkout hold → sold conversion (keyed by planId).
  * Absent `kind` on legacy rows means sold (payment-time reserve before holds existed).
+ *
+ * `quantity` is the plan's period demand (lifetime visit-slot units). New rows set
+ * `consumesDailySlots: false` and claim period capacity only. Legacy rows omit the
+ * flag (treated as true) and debited `reservedSoldQuantity` at payment time.
  */
 export interface PlanSoldCapacityReservationDdbItem {
   PK: string;
@@ -191,12 +204,74 @@ export interface PlanSoldCapacityReservationDdbItem {
   idempotencyKey: string;
   /** hold = unpaid checkout; sold = paid. Legacy rows without kind are treated as sold. */
   kind?: CapacityReservationKind;
+  /**
+   * false = period eligibility claim only (default for new writes).
+   * true / absent = legacy payment-time daily-pool debit of `quantity`.
+   */
+  consumesDailySlots?: boolean;
   /** Present on holds; ignored once converted to sold. */
   expiresAt?: string;
   paymentId?: string;
   createdAt: string;
   updatedAt?: string;
   entityType: 'PlanSoldCapacityReservation';
+}
+
+/**
+ * Per-visit sold capacity debit against a commitment service day.
+ * Written when a package visit receives an actual date + window.
+ */
+export interface VisitSoldCapacityReservationDdbItem {
+  PK: string;
+  SK: string;
+  visitId: string;
+  planId: string;
+  vendorId: string;
+  commitmentId: string;
+  /** Civil date YYYY-MM-DD the visit consumes. */
+  date: string;
+  /** Visit slot-units for this occurrence (not plan lifetime demand). */
+  quantity: number;
+  startTime?: string;
+  endTime?: string;
+  createdAt: string;
+  updatedAt?: string;
+  entityType: 'VisitSoldCapacityReservation';
+}
+
+/**
+ * Daily sold ledger for one commitment service day.
+ * `reservedSoldQuantity` is capped by the commitment's per-day `quantity`.
+ */
+export interface CommitmentDaySoldDdbItem {
+  PK: string;
+  SK: string;
+  vendorId: string;
+  commitmentId: string;
+  date: string;
+  reservedSoldQuantity: number;
+  updatedAt: string;
+  entityType: 'CommitmentDaySold';
+}
+
+/** True when the plan pointer debits the legacy commitment reservedSoldQuantity pool. */
+export function planReservationConsumesDailySlots(
+  item: Pick<PlanSoldCapacityReservationDdbItem, 'consumesDailySlots'>,
+): boolean {
+  return item.consumesDailySlots !== false;
+}
+
+/** Period supply for a commitment: daily quantity × served civil dates in the window. */
+export function commitmentPeriodSupply(
+  commitment: Pick<CapacityCommitmentDdbItem, 'quantity' | 'window'>,
+): number {
+  return commitment.quantity * expandWindowDates(commitment.window).length;
+}
+
+export function claimedPeriodQuantityOf(
+  commitment: Pick<CapacityCommitmentDdbItem, 'claimedPeriodQuantity'>,
+): number {
+  return commitment.claimedPeriodQuantity ?? 0;
 }
 
 export function reservationKindOf(
@@ -323,7 +398,8 @@ export function expandWindowDates(window: ServiceWindow): string[] {
   return dates;
 }
 
-function windowServesDate(window: ServiceWindow, date: string): boolean {
+/** True when the window serves the given civil date (range + daysOfWeek). */
+export function windowServesDate(window: ServiceWindow, date: string): boolean {
   if (date < window.startDate || date > window.endDate) {
     return false;
   }
@@ -336,6 +412,23 @@ function windowServesDate(window: ServiceWindow, date: string): boolean {
 function dailyWindowsOverlap(a: DailyWindow, b: DailyWindow): boolean {
   return toMinutes(a.startTime) < toMinutes(b.endTime)
     && toMinutes(b.startTime) < toMinutes(a.endTime);
+}
+
+/**
+ * True when a scheduled visit interval [startTime, endTime) fits inside the
+ * commitment daily window (same HH:mm convention; overnight unsupported).
+ */
+export function visitFitsDailyWindow(
+  window: DailyWindow,
+  startTime: string,
+  endTime: string,
+): boolean {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  if (!(end > start)) {
+    return false;
+  }
+  return start >= toMinutes(window.startTime) && end <= toMinutes(window.endTime);
 }
 
 /** True when two windows share at least one served day with overlapping daily time ranges. */

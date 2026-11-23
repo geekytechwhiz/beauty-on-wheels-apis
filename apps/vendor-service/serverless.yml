@@ -8326,19 +8326,27 @@ functions:
 
   reserveSoldCapacity:
     handler: src/handlers/internal.reserveSoldCapacity
-    description: Internal IAM invoke. Atomically reserves sold visit-slots on a capacity commitment for a paid plan. No HTTP route.
+    description: Internal IAM invoke. Claims period eligibility (plan lifetime demand vs quantity×serviceDays) for a paid plan. No HTTP route.
 
   holdSoldCapacity:
     handler: src/handlers/internal.holdSoldCapacity
-    description: Internal IAM invoke. Atomically holds capacity while a customer plan payment is pending. No HTTP route.
+    description: Internal IAM invoke. Claims period eligibility while a customer plan payment is pending. No HTTP route.
 
   confirmSoldCapacity:
     handler: src/handlers/internal.confirmSoldCapacity
-    description: Internal IAM invoke. Converts a valid plan checkout hold into a sold capacity reservation. No HTTP route.
+    description: Internal IAM invoke. Converts a valid period-eligibility hold into a durable sold claim. No HTTP route.
 
   releaseSoldCapacity:
     handler: src/handlers/internal.releaseSoldCapacity
-    description: Internal IAM invoke. Releases sold visit-slots reserved for a customer plan. No HTTP route.
+    description: Internal IAM invoke. Releases period eligibility claimed for a customer plan. No HTTP route.
+
+  reserveVisitSoldCapacity:
+    handler: src/handlers/internal.reserveVisitSoldCapacity
+    description: Internal IAM invoke. Reserves visit slot-units against a commitment service day. No HTTP route.
+
+  releaseVisitSoldCapacity:
+    handler: src/handlers/internal.releaseVisitSoldCapacity
+    description: Internal IAM invoke. Releases a visit sold-capacity debit. No HTTP route.
 
   createcapacitychangerequest:
     handler: src/handlers/capacity-change-requests-handler.handleCreatecapacitychangerequest

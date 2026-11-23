@@ -4,14 +4,19 @@ import {
   CommittedLoad,
   ServiceWindow,
   assertCapacityAvailable,
+  claimedPeriodQuantityOf,
   commitmentIdForProposal,
+  commitmentPeriodSupply,
   dailyCapacity,
   expandWindowDates,
   hasOfferingScopedCapacity,
   packageScopeForWrite,
   packageScopeOfferingId,
   peakCommittedQuantity,
+  planReservationConsumesDailySlots,
   validateServiceWindow,
+  visitFitsDailyWindow,
+  windowServesDate,
   windowsOverlap,
 } from './capacity-commitment';
 
@@ -114,6 +119,50 @@ describe('assertCapacityAvailable', () => {
 
   it('rejects everything when the vendor has no crew capacity', () => {
     expect(() => assertCapacityAvailable({ commitments: [], window: target, quantity: 1, capacityPerDay: 0 })).toThrow(ConflictError);
+  });
+});
+
+describe('period supply and visit window alignment', () => {
+  it('computes period supply as daily quantity × service days', () => {
+    expect(
+      commitmentPeriodSupply({
+        quantity: 2,
+        window: window('2026-11-01', '2026-11-30'),
+      }),
+    ).toBe(60);
+    expect(
+      commitmentPeriodSupply({
+        quantity: 7,
+        window: window('2026-11-01', '2026-11-30'),
+      }),
+    ).toBe(210);
+    expect(
+      commitmentPeriodSupply({
+        quantity: 5,
+        window: window('2026-11-02', '2026-11-08', '09:00', '13:00', ['MONDAY']),
+      }),
+    ).toBe(5);
+  });
+
+  it('treats missing claimedPeriodQuantity as zero', () => {
+    expect(claimedPeriodQuantityOf({})).toBe(0);
+    expect(claimedPeriodQuantityOf({ claimedPeriodQuantity: 12 })).toBe(12);
+  });
+
+  it('treats absent consumesDailySlots as legacy daily debit', () => {
+    expect(planReservationConsumesDailySlots({})).toBe(true);
+    expect(planReservationConsumesDailySlots({ consumesDailySlots: true })).toBe(true);
+    expect(planReservationConsumesDailySlots({ consumesDailySlots: false })).toBe(false);
+  });
+
+  it('checks civil date and daily clock for visit alignment', () => {
+    const w = window('2026-11-01', '2026-11-30', '09:00', '13:00', ['SUNDAY']);
+    expect(windowServesDate(w, '2026-11-01')).toBe(true); // Sunday
+    expect(windowServesDate(w, '2026-11-02')).toBe(false); // Monday
+    expect(visitFitsDailyWindow(w.dailyWindow, '09:00', '09:30')).toBe(true);
+    expect(visitFitsDailyWindow(w.dailyWindow, '12:30', '13:00')).toBe(true);
+    expect(visitFitsDailyWindow(w.dailyWindow, '12:30', '13:30')).toBe(false);
+    expect(visitFitsDailyWindow(w.dailyWindow, '08:30', '09:00')).toBe(false);
   });
 });
 

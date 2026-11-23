@@ -9,7 +9,9 @@ import {
   CapacityCommitmentStatus,
   CapacityLedgerDdbItem,
   CapacityReservationKind,
+  CommitmentDaySoldDdbItem,
   PlanSoldCapacityReservationDdbItem,
+  VisitSoldCapacityReservationDdbItem,
 } from '../domain/capacity-commitment';
 import {
   CapacityIdempotencyDdbItem,
@@ -19,7 +21,9 @@ import {
 import {
   CAPACITY_LEDGER_ENTITY_TYPE,
   CAPACITY_LOOKUP_ENTITY_TYPE,
+  COMMITMENT_DAY_SOLD_ENTITY_TYPE,
   PLAN_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE,
+  VISIT_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE,
   VendorKeyBuilder,
 } from '../utils/constants/vendor-key-builder';
 
@@ -325,6 +329,34 @@ export class CapacityProposalsRepository extends BaseRepository {
     );
   }
 
+  async getVisitSoldCapacityReservation(
+    visitId: string,
+  ): Promise<VisitSoldCapacityReservationDdbItem | null> {
+    return this.get<VisitSoldCapacityReservationDdbItem>(
+      this.getTableName(),
+      {
+        PK: VendorKeyBuilder.visitSoldCapacityReservationPk(visitId),
+        SK: VendorKeyBuilder.visitSoldCapacityReservationSk(),
+      },
+      { consistent: true },
+    );
+  }
+
+  async getCommitmentDaySold(
+    vendorId: string,
+    commitmentId: string,
+    date: string,
+  ): Promise<CommitmentDaySoldDdbItem | null> {
+    return this.get<CommitmentDaySoldDdbItem>(
+      this.getTableName(),
+      {
+        PK: VendorKeyBuilder.vendorPk(vendorId),
+        SK: VendorKeyBuilder.commitmentDaySoldSk(commitmentId, date),
+      },
+      { consistent: true },
+    );
+  }
+
   // ---- writes ------------------------------------------------------------
 
   /** Idempotency record + proposal + id lookup, only while coverage is still APPROVED. */
@@ -447,25 +479,29 @@ export class CapacityProposalsRepository extends BaseRepository {
   }
 
   /**
-   * Atomically records a plan reservation pointer and increments `reservedSoldQuantity`.
-   * Condition: commitment is capacity-holding and `reservedSoldQuantity + quantity <= quantity` cap
-   * (i.e. remaining slot-units >= quantity). Fails the transaction when oversold.
-   * Use kind=hold at checkout; kind=sold at payment confirmation (or legacy direct reserve).
+   * Atomically records a plan reservation pointer and claims period (or legacy daily) capacity.
+   *
+   * Default `consumesDailySlots: false` claims `claimedPeriodQuantity` against
+   * `periodSupply` (= daily quantity × service days). Legacy callers may pass
+   * `consumesDailySlots: true` to debit `reservedSoldQuantity` against daily `quantity`.
    */
   async reserveSoldCapacity(input: {
     vendorId: string;
     commitmentId: string;
-    /** Demand slot-units to reserve. */
+    /** Plan period demand (lifetime visit-slot units) stored on the pointer. */
     quantity: number;
     /**
-     * Commitment `quantity` from the consistent read used for selection.
-     * Dynamo ConditionExpressions cannot compute `quantity - :qty`; the
-     * remaining-cap check is `reservedSoldQuantity <= commitmentQuantity - quantity`.
+     * When consumesDailySlots=true: commitment daily `quantity`.
+     * When false (default): unused for the cap (periodSupply is required instead).
      */
     commitmentQuantity: number;
+    /** Required when consumesDailySlots=false. periodSupply = quantity * serviceDays. */
+    periodSupply?: number;
     idempotencyKey: string;
     planId: string;
     kind?: CapacityReservationKind;
+    /** false (default) = period eligibility; true = legacy daily-pool debit. */
+    consumesDailySlots?: boolean;
     expiresAt?: string;
     paymentId?: string;
   }): Promise<void> {
@@ -474,9 +510,11 @@ export class CapacityProposalsRepository extends BaseRepository {
       commitmentId,
       quantity,
       commitmentQuantity,
+      periodSupply,
       idempotencyKey,
       planId,
       kind = CAPACITY_RESERVATION_KIND.SOLD,
+      consumesDailySlots = false,
       expiresAt,
       paymentId,
     } = input;
@@ -486,11 +524,18 @@ export class CapacityProposalsRepository extends BaseRepository {
     if (!Number.isInteger(commitmentQuantity) || commitmentQuantity < 1) {
       throw new Error('commitmentQuantity must be a positive integer');
     }
-    if (commitmentQuantity < quantity) {
-      throw new Error('commitmentQuantity must be >= demand quantity');
-    }
     if (kind === CAPACITY_RESERVATION_KIND.HOLD && !expiresAt) {
       throw new Error('expiresAt is required for capacity holds');
+    }
+    if (!consumesDailySlots) {
+      if (!Number.isInteger(periodSupply) || (periodSupply as number) < 1) {
+        throw new Error('periodSupply must be a positive integer for period eligibility');
+      }
+      if ((periodSupply as number) < quantity) {
+        throw new Error('periodSupply must be >= demand quantity');
+      }
+    } else if (commitmentQuantity < quantity) {
+      throw new Error('commitmentQuantity must be >= demand quantity');
     }
     const now = new Date().toISOString();
     const reservation: PlanSoldCapacityReservationDdbItem = {
@@ -502,6 +547,7 @@ export class CapacityProposalsRepository extends BaseRepository {
       quantity,
       idempotencyKey,
       kind,
+      consumesDailySlots,
       createdAt: now,
       updatedAt: now,
       entityType: PLAN_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE,
@@ -517,13 +563,21 @@ export class CapacityProposalsRepository extends BaseRepository {
             ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
           },
         },
-        this.commitmentSoldQuantityDeltaUpdate({
-          vendorId,
-          commitmentId,
-          delta: quantity,
-          commitmentQuantity,
-          updatedAt: now,
-        }),
+        consumesDailySlots
+          ? this.commitmentSoldQuantityDeltaUpdate({
+            vendorId,
+            commitmentId,
+            delta: quantity,
+            commitmentQuantity,
+            updatedAt: now,
+          })
+          : this.commitmentPeriodClaimDeltaUpdate({
+            vendorId,
+            commitmentId,
+            delta: quantity,
+            periodSupply: periodSupply as number,
+            updatedAt: now,
+          }),
       ] as never,
     });
   }
@@ -574,14 +628,22 @@ export class CapacityProposalsRepository extends BaseRepository {
     }
   }
 
-  /** Decrements sold quantity and removes the plan reservation pointer (refund/cancel/expired hold). */
+  /** Releases a plan pointer and undoes its period claim or legacy daily debit. */
   async releaseSoldCapacity(input: {
     vendorId: string;
     commitmentId: string;
     quantity: number;
     planId: string;
+    /** false = release period claim; true/omitted for legacy = release reservedSoldQuantity. */
+    consumesDailySlots?: boolean;
   }): Promise<void> {
-    const { vendorId, commitmentId, quantity, planId } = input;
+    const {
+      vendorId,
+      commitmentId,
+      quantity,
+      planId,
+      consumesDailySlots = true,
+    } = input;
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error('quantity must be a positive integer');
     }
@@ -603,9 +665,130 @@ export class CapacityProposalsRepository extends BaseRepository {
             },
           },
         },
-        this.commitmentSoldQuantityDeltaUpdate({
+        consumesDailySlots
+          ? this.commitmentSoldQuantityDeltaUpdate({
+            vendorId,
+            commitmentId,
+            delta: -quantity,
+            updatedAt: now,
+          })
+          : this.commitmentPeriodClaimDeltaUpdate({
+            vendorId,
+            commitmentId,
+            delta: -quantity,
+            updatedAt: now,
+          }),
+      ] as never,
+    });
+  }
+
+  /**
+   * Reserves visit slot-units against a commitment service day.
+   * Caps the day ledger by the commitment's per-day `quantity`.
+   */
+  async reserveVisitSoldCapacity(input: {
+    vendorId: string;
+    commitmentId: string;
+    commitmentQuantity: number;
+    planId: string;
+    visitId: string;
+    date: string;
+    quantity: number;
+    startTime?: string;
+    endTime?: string;
+  }): Promise<void> {
+    const {
+      vendorId,
+      commitmentId,
+      commitmentQuantity,
+      planId,
+      visitId,
+      date,
+      quantity,
+      startTime,
+      endTime,
+    } = input;
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error('quantity must be a positive integer');
+    }
+    if (!Number.isInteger(commitmentQuantity) || commitmentQuantity < 1) {
+      throw new Error('commitmentQuantity must be a positive integer');
+    }
+    if (commitmentQuantity < quantity) {
+      throw new Error('commitmentQuantity must be >= visit demand');
+    }
+    const now = new Date().toISOString();
+    const reservation: VisitSoldCapacityReservationDdbItem = {
+      PK: VendorKeyBuilder.visitSoldCapacityReservationPk(visitId),
+      SK: VendorKeyBuilder.visitSoldCapacityReservationSk(),
+      visitId,
+      planId,
+      vendorId,
+      commitmentId,
+      date,
+      quantity,
+      createdAt: now,
+      updatedAt: now,
+      entityType: VISIT_SOLD_CAPACITY_RESERVATION_ENTITY_TYPE,
+      ...(startTime ? { startTime } : {}),
+      ...(endTime ? { endTime } : {}),
+    };
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Put: {
+            TableName: this.getTableName(),
+            Item: reservation,
+            ConditionExpression: 'attribute_not_exists(PK) AND attribute_not_exists(SK)',
+          },
+        },
+        this.commitmentDaySoldDeltaUpdate({
           vendorId,
           commitmentId,
+          date,
+          delta: quantity,
+          commitmentQuantity,
+          updatedAt: now,
+        }),
+      ] as never,
+    });
+  }
+
+  async releaseVisitSoldCapacity(input: {
+    vendorId: string;
+    commitmentId: string;
+    visitId: string;
+    date: string;
+    quantity: number;
+  }): Promise<void> {
+    const { vendorId, commitmentId, visitId, date, quantity } = input;
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error('quantity must be a positive integer');
+    }
+    const now = new Date().toISOString();
+    await this.transactWrite({
+      TransactItems: [
+        {
+          Delete: {
+            TableName: this.getTableName(),
+            Key: {
+              PK: VendorKeyBuilder.visitSoldCapacityReservationPk(visitId),
+              SK: VendorKeyBuilder.visitSoldCapacityReservationSk(),
+            },
+            ConditionExpression:
+              'attribute_exists(PK) AND commitmentId = :commitmentId AND #date = :date AND #qty = :qty',
+            ExpressionAttributeNames: { '#qty': 'quantity', '#date': 'date' },
+            ExpressionAttributeValues: {
+              ':commitmentId': commitmentId,
+              ':date': date,
+              ':qty': quantity,
+            },
+          },
+        },
+        this.commitmentDaySoldDeltaUpdate({
+          vendorId,
+          commitmentId,
+          date,
           delta: -quantity,
           updatedAt: now,
         }),
@@ -614,6 +797,114 @@ export class CapacityProposalsRepository extends BaseRepository {
   }
 
   // ---- helpers -----------------------------------------------------------
+
+  private commitmentPeriodClaimDeltaUpdate(input: {
+    vendorId: string;
+    commitmentId: string;
+    delta: number;
+    updatedAt: string;
+    /** Required on increment — quantity * serviceDays from selection. */
+    periodSupply?: number;
+  }): Record<string, unknown> {
+    const absDelta = Math.abs(input.delta);
+    const isIncrement = input.delta > 0;
+    const statusPlaceholders = CAPACITY_HOLDING_STATUSES.map(
+      (_, index) => `:holdingStatus${index}`,
+    ).join(', ');
+    const statusValues = Object.fromEntries(
+      CAPACITY_HOLDING_STATUSES.map((status, index) => [`:holdingStatus${index}`, status]),
+    );
+    const conditionExpression = isIncrement
+      ? `#status IN (${statusPlaceholders})`
+        + ' AND if_not_exists(claimedPeriodQuantity, :zero) <= :maxClaimed'
+      : `#status IN (${statusPlaceholders})`
+        + ' AND if_not_exists(claimedPeriodQuantity, :zero) >= :qty';
+    const incrementValues = isIncrement
+      ? {
+        ':maxClaimed': (input.periodSupply as number) - absDelta,
+        ':zero': 0,
+      }
+      : { ':qty': absDelta, ':zero': 0 };
+    return {
+      Update: {
+        TableName: this.getTableName(),
+        Key: {
+          PK: VendorKeyBuilder.vendorPk(input.vendorId),
+          SK: VendorKeyBuilder.capacityCommitmentSk(input.commitmentId),
+        },
+        UpdateExpression:
+          'SET claimedPeriodQuantity = if_not_exists(claimedPeriodQuantity, :zero) + :delta,'
+          + ' updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':delta': input.delta,
+          ':updatedAt': input.updatedAt,
+          ...incrementValues,
+          ...statusValues,
+        },
+        ConditionExpression: conditionExpression,
+        ExpressionAttributeNames: { '#status': 'status' },
+      },
+    };
+  }
+
+  private commitmentDaySoldDeltaUpdate(input: {
+    vendorId: string;
+    commitmentId: string;
+    date: string;
+    delta: number;
+    updatedAt: string;
+    /** Required on increment — commitment per-day quantity. */
+    commitmentQuantity?: number;
+  }): Record<string, unknown> {
+    const absDelta = Math.abs(input.delta);
+    const isIncrement = input.delta > 0;
+    const key = {
+      PK: VendorKeyBuilder.vendorPk(input.vendorId),
+      SK: VendorKeyBuilder.commitmentDaySoldSk(input.commitmentId, input.date),
+    };
+    if (isIncrement) {
+      return {
+        Update: {
+          TableName: this.getTableName(),
+          Key: key,
+          UpdateExpression:
+            'SET vendorId = if_not_exists(vendorId, :vendorId),'
+            + ' commitmentId = if_not_exists(commitmentId, :commitmentId),'
+            + ' #date = if_not_exists(#date, :date),'
+            + ' entityType = if_not_exists(entityType, :entityType),'
+            + ' updatedAt = :updatedAt'
+            + ' ADD reservedSoldQuantity :qty',
+          ConditionExpression:
+            'attribute_not_exists(reservedSoldQuantity)'
+            + ' OR reservedSoldQuantity <= :maxReserved',
+          ExpressionAttributeNames: { '#date': 'date' },
+          ExpressionAttributeValues: {
+            ':vendorId': input.vendorId,
+            ':commitmentId': input.commitmentId,
+            ':date': input.date,
+            ':entityType': COMMITMENT_DAY_SOLD_ENTITY_TYPE,
+            ':updatedAt': input.updatedAt,
+            ':qty': absDelta,
+            ':maxReserved': (input.commitmentQuantity as number) - absDelta,
+          },
+        },
+      };
+    }
+    return {
+      Update: {
+        TableName: this.getTableName(),
+        Key: key,
+        UpdateExpression:
+          'SET updatedAt = :updatedAt ADD reservedSoldQuantity :delta',
+        ConditionExpression: 'attribute_exists(PK) AND reservedSoldQuantity >= :qty',
+        ExpressionAttributeValues: {
+          ':updatedAt': input.updatedAt,
+          ':delta': -absDelta,
+          ':qty': absDelta,
+        },
+      },
+    };
+  }
 
   private commitmentSoldQuantityDeltaUpdate(input: {
     vendorId: string;

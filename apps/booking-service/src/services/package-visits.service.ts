@@ -35,6 +35,8 @@ import {
 import { windowElapsed } from '../domain/visit-window';
 import { BookingError } from '../errors';
 import { AvailabilityGateway, getAvailabilityGateway } from '../integrations/availability.client';
+import { VendorGateway, getVendorGateway } from '../integrations/vendor.client';
+import { visitSlotUnits } from '../domain/ops-supply-demand';
 import {
   CustomerPlansRepository,
   getCustomerPlansRepository,
@@ -68,6 +70,7 @@ export class PackageVisitsService {
   constructor(
     private readonly plans: CustomerPlansRepository = getCustomerPlansRepository(),
     private readonly availability: AvailabilityGateway = getAvailabilityGateway(),
+    private readonly vendors: VendorGateway = getVendorGateway(),
     private readonly issues: Pick<VendorIssuesRepository, 'listBlockingVisitIssues'> = getVendorIssuesRepository(),
     private readonly evidence: () => EvidenceStorage = getEvidenceStorage,
   ) {}
@@ -101,24 +104,23 @@ export class PackageVisitsService {
   }
 
   /**
-   * Vendor schedules a single visit: reserve Availability capacity first, then
-   * persist SCHEDULED. Uses visitId as the availability bookingId for correlation.
+   * Vendor schedules a single visit: reserve Availability, then debit sold
+   * capacity for that civil date, then persist SCHEDULED.
    */
   async schedule(request: LambdaRequest): Promise<PackageVisitResponse> {
     const actor = resolveVisitActor(request);
     const planId = pathParam(request, 'planId');
     const visitId = pathParam(request, 'visitId');
     const idempotencyKey = requireIdempotency(request);
-    // const plan = await this.requirePlanAccess(planId, actor);
-    // assertVendorStaffForPlan(actor, plan);
-    // this.assertPlanPaid(plan);
+    const plan = await this.requirePlanAccess(planId, actor);
+    this.assertPlanPaid(plan);
 
     const body = (request.body ?? {}) as Record<string, unknown>;
     const schedule = {
       date: String(body.date ?? ''),
       startTime: String(body.startTime ?? ''),
       timezone: String(body.timezone ?? ''),
-     
+      branchId: String(body.branchId ?? ''),
       durationMinutes: Number(body.durationMinutes ?? 0),
     };
     assertSchedulePayload(schedule);
@@ -128,7 +130,6 @@ export class PackageVisitsService {
       if (sameSchedule(visit.schedule, schedule)) return toVisitResponse(visit);
       throw new BookingError('VISIT_ALREADY_SCHEDULED', 'Visit is already scheduled; use reschedule', 409, 'visitId', false);
     }
-    //assertVisitTransition(visit.status, PACKAGE_VISIT_STATUS.SCHEDULED);
 
     const durationMinutes = schedule.durationMinutes || visit.durationMinutes;
     const reserved = await this.availability.reserveBooking({
@@ -146,6 +147,18 @@ export class PackageVisitsService {
       planId: plan.planId,
       ...(plan.location.communityId ? { communityId: plan.location.communityId } : {}),
     });
+
+    try {
+      await this.reserveVisitSold(plan, visit.visitId, {
+        date: reserved.date,
+        startTime: reserved.startTime,
+        endTime: reserved.endTime,
+        durationMinutes: reserved.durationMinutes ?? durationMinutes,
+      });
+    } catch (error) {
+      await this.releaseQuietly(visit.visitId);
+      throw error;
+    }
 
     const now = new Date().toISOString();
     const nextSchedule: PackageVisitSchedule = {
@@ -166,7 +179,7 @@ export class PackageVisitsService {
       scheduleHistory: appendScheduleHistory(visit, {
         at: now,
         action: 'scheduled',
-        by: actor.staffId,
+        by: actor.kind === 'vendor' ? actor.staffId : actor.customerId,
         to: nextSchedule,
         reason: `idempotency:${idempotencyKey}`,
       }),
@@ -179,6 +192,7 @@ export class PackageVisitsService {
       await this.plans.saveVisit(next, visit.version);
     } catch (error) {
       await this.releaseQuietly(visit.visitId);
+      await this.releaseVisitSoldQuietly(visit.visitId);
       if (error instanceof ConditionalWriteConflictError) {
         throw new ConflictError('Visit was updated concurrently; retry with the same idempotency key');
       }
@@ -257,6 +271,25 @@ export class PackageVisitsService {
       throw error;
     }
 
+    // Move sold capacity: release the old day debit first so the same visitId can
+    // re-reserve on the new date (visit reservation is keyed by visitId).
+    await this.releaseVisitSoldQuietly(visit.visitId);
+    try {
+      await this.reserveVisitSold(plan, visit.visitId, {
+        date: reserved.date,
+        startTime: reserved.startTime,
+        endTime: reserved.endTime,
+        durationMinutes: reserved.durationMinutes ?? durationMinutes,
+      });
+    } catch (error) {
+      await this.releaseQuietly(newAllocationId);
+      // Best-effort restore of the previous day debit when the new date is unavailable.
+      if (previousScheduleRestorable(visit.schedule)) {
+        await this.reserveVisitSoldQuietly(plan, visit.visitId, visit.schedule!);
+      }
+      throw error;
+    }
+
     const now = new Date().toISOString();
     const previous = visit.schedule;
     const nextSchedule: PackageVisitSchedule = {
@@ -291,6 +324,10 @@ export class PackageVisitsService {
       await this.plans.saveVisit(next, visit.version);
     } catch (error) {
       await this.releaseQuietly(newAllocationId);
+      await this.releaseVisitSoldQuietly(visit.visitId);
+      if (previousScheduleRestorable(previous)) {
+        await this.reserveVisitSoldQuietly(plan, visit.visitId, previous);
+      }
       if (error instanceof ConditionalWriteConflictError) {
         throw new ConflictError('Visit was updated concurrently; retry with the same idempotency key');
       }
@@ -316,6 +353,7 @@ export class PackageVisitsService {
 
     const allocationId = visit.schedule?.allocationId ?? (visit.schedule ? visit.visitId : undefined);
     if (allocationId) await this.releaseQuietly(allocationId);
+    if (visit.schedule) await this.releaseVisitSoldQuietly(visit.visitId);
 
     const now = new Date().toISOString();
     const actorId = actor.kind === 'vendor' ? actor.staffId : actor.customerId;
@@ -877,6 +915,78 @@ export class PackageVisitsService {
       });
     }
   }
+
+  private async reserveVisitSold(
+    plan: CustomerPlanRecord,
+    visitId: string,
+    schedule: Pick<PackageVisitSchedule, 'date' | 'startTime' | 'endTime' | 'durationMinutes'>,
+  ): Promise<void> {
+    const communityId = plan.location.communityId;
+    if (!communityId) {
+      throw new BookingError(
+        'CAPACITY_UNAVAILABLE',
+        'Plan community is required to reserve visit capacity',
+        409,
+        'location.communityId',
+        false,
+      );
+    }
+    const endTime = schedule.endTime
+      || endTimeFromStart(schedule.startTime, schedule.durationMinutes ?? 30);
+    await this.vendors.reserveVisitCapacity({
+      vendorId: plan.vendorId,
+      communityId,
+      offeringId: plan.offeringId || plan.packageId,
+      planId: plan.planId,
+      visitId,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime,
+      demandQuantity: visitSlotUnits(schedule.durationMinutes),
+    });
+  }
+
+  private async reserveVisitSoldQuietly(
+    plan: CustomerPlanRecord,
+    visitId: string,
+    schedule: PackageVisitSchedule,
+  ): Promise<void> {
+    try {
+      await this.reserveVisitSold(plan, visitId, schedule);
+    } catch (error) {
+      this.logger.error({
+        event: 'package_visit_sold_capacity_restore_failed',
+        visitId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async releaseVisitSoldQuietly(visitId: string): Promise<void> {
+    try {
+      await this.vendors.releaseVisitCapacity(visitId);
+    } catch (error) {
+      this.logger.error({
+        event: 'package_visit_sold_capacity_release_failed',
+        visitId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+function previousScheduleRestorable(
+  schedule: PackageVisitSchedule | undefined,
+): schedule is PackageVisitSchedule {
+  return Boolean(schedule?.date && schedule.startTime);
+}
+
+function endTimeFromStart(startTime: string, durationMinutes: number): string {
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const total = hours * 60 + minutes + Math.max(1, durationMinutes);
+  const endHours = Math.floor(total / 60) % 24;
+  const endMinutes = total % 60;
+  return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
 }
 
 function pathParam(request: LambdaRequest, name: string): string {

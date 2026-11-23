@@ -31,6 +31,28 @@ export interface ReservePlanCapacityResult {
   quantity: number;
   reservedSoldQuantity: number;
   remainingSoldCapacity: number;
+  claimedPeriodQuantity?: number;
+  periodSupply?: number;
+}
+
+export interface ReserveVisitCapacityInput {
+  vendorId: string;
+  communityId: string;
+  offeringId: string;
+  planId: string;
+  visitId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  demandQuantity: number;
+}
+
+export interface ReserveVisitCapacityResult {
+  commitmentId: string;
+  date: string;
+  quantity: number;
+  reservedSoldQuantity: number;
+  remainingSoldCapacity: number;
 }
 
 export interface VendorGateway {
@@ -40,17 +62,23 @@ export interface VendorGateway {
    */
   getCheckoutEligibility(vendorId: string, branchId?: string): Promise<CheckoutEligibility>;
 
-  /** Holds capacity while a checkout payment is pending. */
+  /** Holds period eligibility while a checkout payment is pending. */
   holdPlanCapacity(input: HoldPlanCapacityInput): Promise<ReservePlanCapacityResult>;
 
-  /** Converts a valid checkout hold to a durable sold reservation. */
+  /** Converts a valid checkout hold to a durable period claim. */
   confirmPlanCapacity(input: ConfirmPlanCapacityInput): Promise<ReservePlanCapacityResult>;
 
-  /** Releases a pending hold or a sold reservation for a cancelled/refunded plan. */
+  /** Releases a pending hold or period claim for a cancelled/refunded plan. */
   releasePlanCapacity(planId: string): Promise<void>;
 
   /** Legacy direct sold reservation. New checkouts must use hold + confirm. */
   reservePlanCapacity(input: ReservePlanCapacityInput): Promise<ReservePlanCapacityResult>;
+
+  /** Debits commitment day capacity when a package visit is scheduled. */
+  reserveVisitCapacity(input: ReserveVisitCapacityInput): Promise<ReserveVisitCapacityResult>;
+
+  /** Releases a visit day debit (cancel / reschedule-away). */
+  releaseVisitCapacity(visitId: string): Promise<void>;
 }
 
 export interface OperationalAccess {
@@ -161,6 +189,26 @@ export class LambdaVendorGateway implements VendorGateway, OperationalAccessGate
       { planId },
       'release capacity',
       'VENDOR_RELEASE_CAPACITY_FUNCTION',
+    );
+    const envelope = asRecord(payload);
+    if (envelope.error) throw mapVendorCapacityFailure(envelope.error);
+  }
+
+  async reserveVisitCapacity(input: ReserveVisitCapacityInput): Promise<ReserveVisitCapacityResult> {
+    return parseReserveVisitCapacity(await this.invokeCapacity(
+      env.VENDOR_RESERVE_VISIT_CAPACITY_FUNCTION.trim(),
+      input,
+      'reserve visit capacity',
+      'VENDOR_RESERVE_VISIT_CAPACITY_FUNCTION',
+    ));
+  }
+
+  async releaseVisitCapacity(visitId: string): Promise<void> {
+    const payload = await this.invokeCapacity(
+      env.VENDOR_RELEASE_VISIT_CAPACITY_FUNCTION.trim(),
+      { visitId },
+      'release visit capacity',
+      'VENDOR_RELEASE_VISIT_CAPACITY_FUNCTION',
     );
     const envelope = asRecord(payload);
     if (envelope.error) throw mapVendorCapacityFailure(envelope.error);
@@ -383,6 +431,43 @@ export function parseReservePlanCapacity(payload: unknown): ReservePlanCapacityR
   }
   return {
     commitmentId,
+    quantity,
+    reservedSoldQuantity,
+    remainingSoldCapacity,
+    ...(typeof body.claimedPeriodQuantity === 'number'
+      ? { claimedPeriodQuantity: body.claimedPeriodQuantity }
+      : {}),
+    ...(typeof body.periodSupply === 'number' ? { periodSupply: body.periodSupply } : {}),
+  };
+}
+
+export function parseReserveVisitCapacity(payload: unknown): ReserveVisitCapacityResult {
+  const envelope = asRecord(payload);
+  if (envelope.error) {
+    throw mapVendorCapacityFailure(envelope.error);
+  }
+  const body = asRecord(envelope.data ?? payload);
+  const commitmentId = body.commitmentId;
+  const date = body.date;
+  const quantity = body.quantity;
+  const reservedSoldQuantity = body.reservedSoldQuantity;
+  const remainingSoldCapacity = body.remainingSoldCapacity;
+  if (
+    typeof commitmentId !== 'string'
+    || typeof date !== 'string'
+    || typeof quantity !== 'number'
+    || typeof reservedSoldQuantity !== 'number'
+    || typeof remainingSoldCapacity !== 'number'
+  ) {
+    throw new BookingError(
+      'DEPENDENCY_UNAVAILABLE',
+      'Vendor Service did not return a visit capacity reservation',
+      502,
+    );
+  }
+  return {
+    commitmentId,
+    date,
     quantity,
     reservedSoldQuantity,
     remainingSoldCapacity,

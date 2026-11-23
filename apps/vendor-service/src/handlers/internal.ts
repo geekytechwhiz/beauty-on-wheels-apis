@@ -203,6 +203,42 @@ export const releaseSoldCapacity = async (event: {
   }
 };
 
+/**
+ * Reserves visit slot-units against a commitment service day when a package visit
+ * is scheduled. No HTTP route. Booking invokes from schedule/reschedule.
+ */
+export const reserveVisitSoldCapacity = async (event: {
+  vendorId?: unknown;
+  communityId?: unknown;
+  offeringId?: unknown;
+  planId?: unknown;
+  visitId?: unknown;
+  date?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
+  demandQuantity?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    const data = await getSoldCapacityService().reserveVisitCapacity(parseVisitCapacityEvent(event));
+    return { data };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
+/** Releases a visit sold-capacity debit (cancel / reschedule-away). No HTTP route. */
+export const releaseVisitSoldCapacity = async (event: {
+  visitId?: unknown;
+} | null): Promise<unknown> => {
+  try {
+    const visitId = requireId(event?.visitId, 'visitId');
+    await getSoldCapacityService().releaseVisitCapacity({ visitId });
+    return { data: { released: true } };
+  } catch (error) {
+    return failure(error);
+  }
+};
+
 function parseCapacityEvent(event: {
   vendorId?: unknown;
   communityId?: unknown;
@@ -237,6 +273,42 @@ function parseCapacityEvent(event: {
     ...(paymentId ? { paymentId } : {}),
     ...(expiresAt ? { expiresAt } : {}),
     ...(kind ? { kind } : {}),
+  };
+}
+
+function parseVisitCapacityEvent(event: {
+  vendorId?: unknown;
+  communityId?: unknown;
+  offeringId?: unknown;
+  planId?: unknown;
+  visitId?: unknown;
+  date?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
+  demandQuantity?: unknown;
+} | null) {
+  const vendorId = requireId(event?.vendorId, 'vendorId');
+  const communityId = requireId(event?.communityId, 'communityId');
+  const offeringId = requireId(event?.offeringId, 'offeringId');
+  const planId = requireId(event?.planId, 'planId');
+  const visitId = requireId(event?.visitId, 'visitId');
+  const date = requireId(event?.date, 'date');
+  const startTime = requireId(event?.startTime, 'startTime');
+  const endTime = requireId(event?.endTime, 'endTime');
+  const demandQuantity = event?.demandQuantity;
+  if (typeof demandQuantity !== 'number' || !Number.isInteger(demandQuantity) || demandQuantity < 1) {
+    throw new BaseError('demandQuantity must be a positive integer', 400, 'VALIDATION_ERROR');
+  }
+  return {
+    vendorId,
+    communityId,
+    offeringId,
+    planId,
+    visitId,
+    date,
+    startTime,
+    endTime,
+    demandQuantity,
   };
 }
 

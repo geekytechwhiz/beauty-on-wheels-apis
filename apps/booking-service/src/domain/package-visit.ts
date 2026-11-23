@@ -1,5 +1,6 @@
 import { EntityIdGenerator } from '@api-hub/utils';
 
+import { visitSlotUnits } from './ops-supply-demand';
 import { authoritativeWindowClock, mergeWindowSnapshot } from './visit-window';
 import { BookingError } from '../errors';
 import {
@@ -108,14 +109,26 @@ export function enrichVisitFromPlan(
 }
 
 /**
- * One visit row per entitlement unit. Prefer includedServices (name + duration)
- * keyed by entitlement serviceId; fall back to entitlement-only rows.
+ * Plan **period** demand in workload slot-units (same unit length as vendor
+ * commitment daily quantity). Used at payment for period eligibility
+ * (`demand` vs `quantity * serviceDays`), not as a single-day debit.
+ *
+ * Formula (see capacity-commitment CAPACITY_SLOT_MINUTES / visitSlotUnits):
+ *   sum over entitlements of
+ *     quantity * max(1, ceil(durationMinutes / 30))
+ *
+ * Duration comes from includedServices keyed by serviceId; missing durations
+ * default to one 30-minute slot so legacy plans still consume 1 unit per visit.
+ * Per-occurrence daily debits use `visitSlotUnits(visit.durationMinutes)` at schedule.
  */
-/**
- * MVP plan demand in visit-slots: one slot per entitlement unit (same unit as vendor commitments).
- */
-export function planVisitSlotDemand(plan: Pick<CustomerPlanRecord, 'entitlements'>): number {
-  return plan.entitlements.reduce((sum, entitlement) => sum + entitlement.quantity, 0);
+export function planVisitSlotDemand(
+  plan: Pick<CustomerPlanRecord, 'entitlements' | 'includedServices'>,
+): number {
+  const durationByService = durationLookup(plan.includedServices, plan.entitlements);
+  return plan.entitlements.reduce((sum, entitlement) => {
+    const minutes = durationByService.get(entitlement.serviceId);
+    return sum + entitlement.quantity * visitSlotUnits(minutes);
+  }, 0);
 }
 
 export function materializePackageVisits(input: MaterializeVisitInput): PackageVisitRecord[] {

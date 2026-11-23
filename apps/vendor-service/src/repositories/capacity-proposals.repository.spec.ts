@@ -5,7 +5,7 @@ import { CapacityProposalsRepository } from './capacity-proposals.repository';
 import { VendorKeyBuilder } from '../utils/constants/vendor-key-builder';
 
 describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
-  it('rejects the transaction when sold quantity plus demand would exceed commitment quantity', async () => {
+  it('period path claims claimedPeriodQuantity against periodSupply (default)', async () => {
     const repo = new CapacityProposalsRepository();
     const transactWrite = jest
       .spyOn(repo as unknown as { transactWrite: () => Promise<void> }, 'transactWrite')
@@ -17,6 +17,7 @@ describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
         commitmentId: 'cmt_1',
         quantity: 4,
         commitmentQuantity: 10,
+        periodSupply: 30,
         idempotencyKey: 'plan-1',
         planId: 'plan-1',
       }),
@@ -32,13 +33,96 @@ describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
                 SK: VendorKeyBuilder.capacityCommitmentSk('cmt_1'),
               },
               ConditionExpression: expect.stringContaining(
+                'if_not_exists(claimedPeriodQuantity, :zero) <= :maxClaimed',
+              ),
+              ExpressionAttributeValues: expect.objectContaining({
+                ':delta': 4,
+                ':maxClaimed': 26,
+                ':holdingStatus0': CAPACITY_COMMITMENT_STATUS.ACTIVE,
+              }),
+            }),
+          }),
+        ]),
+      }),
+    );
+
+    transactWrite.mockRestore();
+  });
+
+  it('legacy daily path debits reservedSoldQuantity when consumesDailySlots is true', async () => {
+    const repo = new CapacityProposalsRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: () => Promise<void> }, 'transactWrite')
+      .mockRejectedValue(new ConditionalWriteConflictError(new Error('oversold')));
+
+    await expect(
+      repo.reserveSoldCapacity({
+        vendorId: 'vendor_1',
+        commitmentId: 'cmt_1',
+        quantity: 4,
+        commitmentQuantity: 10,
+        consumesDailySlots: true,
+        idempotencyKey: 'plan-1',
+        planId: 'plan-1',
+      }),
+    ).rejects.toBeInstanceOf(ConditionalWriteConflictError);
+
+    expect(transactWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        TransactItems: expect.arrayContaining([
+          expect.objectContaining({
+            Update: expect.objectContaining({
+              ConditionExpression: expect.stringContaining(
                 'reservedSoldQuantity <= :maxReserved',
               ),
               ExpressionAttributeValues: expect.objectContaining({
                 ':delta': 4,
                 ':commitmentQuantity': 10,
                 ':maxReserved': 6,
-                ':holdingStatus0': CAPACITY_COMMITMENT_STATUS.ACTIVE,
+              }),
+            }),
+          }),
+        ]),
+      }),
+    );
+
+    transactWrite.mockRestore();
+  });
+});
+
+describe('CapacityProposalsRepository.reserveVisitSoldCapacity', () => {
+  it('caps the day ledger by the commitment per-day quantity', async () => {
+    const repo = new CapacityProposalsRepository();
+    const transactWrite = jest
+      .spyOn(repo as unknown as { transactWrite: () => Promise<void> }, 'transactWrite')
+      .mockRejectedValue(new ConditionalWriteConflictError(new Error('day full')));
+
+    await expect(
+      repo.reserveVisitSoldCapacity({
+        vendorId: 'vendor_1',
+        commitmentId: 'cmt_1',
+        commitmentQuantity: 5,
+        planId: 'plan-1',
+        visitId: 'visit-1',
+        date: '2026-11-01',
+        quantity: 2,
+        startTime: '09:00',
+        endTime: '09:30',
+      }),
+    ).rejects.toBeInstanceOf(ConditionalWriteConflictError);
+
+    expect(transactWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        TransactItems: expect.arrayContaining([
+          expect.objectContaining({
+            Update: expect.objectContaining({
+              Key: {
+                PK: VendorKeyBuilder.vendorPk('vendor_1'),
+                SK: VendorKeyBuilder.commitmentDaySoldSk('cmt_1', '2026-11-01'),
+              },
+              ExpressionAttributeValues: expect.objectContaining({
+                ':qty': 2,
+                ':maxReserved': 3,
               }),
             }),
           }),

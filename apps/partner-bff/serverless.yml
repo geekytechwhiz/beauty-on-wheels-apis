@@ -37,7 +37,12 @@ custom:
   documentation:
     version: 1.0.0
     title: Beauty on Wheels Partner BFF
-    description: Partner manager read contracts. Requests use the platform access-token authorizer; downstream domain calls use the platform internal bearer from SSM, never the user token.
+    description: >
+      Partner BFF client-facing contracts. Requests use the platform access-token authorizer;
+      downstream domain calls use the platform internal bearer from SSM, never the user token.
+      GET /partner/{vendorId}/manager/home is the approved vendor-home dashboard composition surface
+      (operationId getVendorHome). The previous sections-based manager-home payload is replaced by the
+      stable vendor/home/capacity/meta contract documented below.
     securitySchemes:
       bearerAuth:
         type: http
@@ -48,9 +53,16 @@ custom:
     tags:
       - name: Partner Manager
         description: Read-only manager screen contracts composed from domain-owned services.
+      - name: Vendor Home
+        description: Approved vendor dashboard BFF composition (vendor context, home summary, capacity widgets).
     models:
-      - name: PartnerManagerHomeResponse
-        description: Platform envelope whose data contains ordered manager-home cards, section availability, per-source freshness, blocker timestamps, and dated operational crew capacity.
+      - name: VendorHomeResponse
+        description: >
+          Platform envelope for the vendor home BFF. data.vendor is always present after auth.
+          data.home is null when the vendor is not dashboard-eligible (nextAction != OPEN_VENDOR_DASHBOARD)
+          or when the caller is staff (booking home-summary remains owner-or-admin). Optional capacity
+          widget failures set meta.partialData and meta.unavailableSections without failing the request.
+          Community display names are never fabricated when the source only has communityId.
         content:
           application/json:
             schema:
@@ -60,15 +72,79 @@ custom:
                 success: { type: boolean }
                 data:
                   type: object
-                  required: [schemaVersion, asOf, timezone, appliedFilters, freshness, sections, data]
+                  required: [vendor, home, capacity, meta]
                   properties:
-                    schemaVersion: { type: string, example: '1.0' }
-                    asOf: { type: string, format: date-time }
-                    timezone: { type: string, example: Asia/Kolkata }
-                    appliedFilters: { type: object }
-                    freshness: { type: object }
-                    sections: { type: object, description: Each section declares available or unavailable rather than fabricating missing data. }
-                    data: { type: object, properties: { nextAction: { type: object, nullable: true }, upcomingPlan: { type: object }, todayProgress: { type: object }, planAhead: { type: array, items: { type: object } } } }
+                    vendor:
+                      type: object
+                      required: [vendorId, membership, status, nextAction]
+                      properties:
+                        vendorId: { type: string }
+                        membership:
+                          type: object
+                          required: [role, permissions]
+                          properties:
+                            role: { type: string, enum: [owner, staff] }
+                            permissions: { type: array, items: { type: string } }
+                            staffId: { type: string }
+                        status: { type: string }
+                        onboarding: { type: object }
+                        nextAction: { type: string }
+                        detailsAcceptance: { type: object }
+                    home:
+                      type: object
+                      nullable: true
+                      properties:
+                        date: { type: string, format: date }
+                        timezone: { type: string }
+                        today: { type: object }
+                        tomorrow: { type: object }
+                        upcoming: { type: object }
+                    capacity:
+                      type: object
+                      required: [pendingProposals, commitments]
+                      properties:
+                        pendingProposals:
+                          type: array
+                          items:
+                            type: object
+                            required: [proposalId, communityId, quantity, status, responseDeadline, actionable, isPastDeadline]
+                            properties:
+                              proposalId: { type: string }
+                              communityId: { type: string }
+                              quantity: { type: integer }
+                              status: { type: string, enum: [SENT, COUNTERED] }
+                              responseDeadline: { type: string, format: date-time }
+                              actionable: { type: boolean }
+                              isPastDeadline: { type: boolean }
+                              packageScope: { type: object }
+                              serviceWindow: { type: object }
+                              counter: { type: object }
+                        commitments:
+                          type: array
+                          items:
+                            type: object
+                            required: [commitmentId, communityId, quantity, status, reservedSoldQuantity]
+                            properties:
+                              commitmentId: { type: string }
+                              communityId: { type: string }
+                              scope: { type: object }
+                              window: { type: object }
+                              quantity: { type: integer }
+                              rate: { type: object }
+                              status: { type: string, enum: [ACTIVE, CHANGE_PENDING] }
+                              reservedSoldQuantity: { type: integer }
+                    meta:
+                      type: object
+                      required: [generatedAt, partialData, unavailableSections, dashboardEligible]
+                      properties:
+                        generatedAt: { type: string, format: date-time }
+                        partialData: { type: boolean }
+                        unavailableSections:
+                          type: array
+                          items:
+                            type: string
+                            enum: [home, capacity.pendingProposals, capacity.commitments]
+                        dashboardEligible: { type: boolean }
                 meta: { type: object }
       - name: PartnerManagerWorkResponse
         description: >
@@ -131,6 +207,42 @@ custom:
                 meta: { type: object }
 
 functions:
+  vendorHome:
+    handler: src/main.handleVendorHome
+    timeout: 20
+    events:
+      - http:
+          path: /partner/{vendorId}/home
+          method: get
+          cors: ${self:custom.httpCors}
+          authorizer: ${self:custom.securedAuthorizer}
+          documentation:
+            summary: Get vendor home dashboard
+            description: Returns the vendor home dashboard.
+            tags: [Vendor Home]
+            pathParams:
+              - name: vendorId
+                description: Target vendor selector.
+                schema: { type: string }
+            methodResponses:
+              - statusCode: '200'
+                responseBody: { description: Vendor home dashboard response }
+                responseModels: { application/json: VendorHomeResponse }
+              - statusCode: '400'
+                responseBody: { description: Invalid vendorId }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '401'
+                responseBody: { description: Missing or invalid application authentication }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '403'
+                responseBody: { description: Caller lacks vendor membership or owner access for home-summary }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '404'
+                responseBody: { description: Vendor not found }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '502'
+                responseBody: { description: Core dependency failure (vendor context or home summary) }
+                responseModels: { application/json: ErrorResponse }
   managerHome:
     handler: src/main.handleManagerHome
     timeout: 20
@@ -141,21 +253,46 @@ functions:
           cors: ${self:custom.httpCors}
           authorizer: ${self:custom.securedAuthorizer}
           documentation:
-            summary: Read manager home
-            description: Reads the active manager's home cards. Vendor context comes exclusively from verified membership; client vendor headers are ignored.
-            tags: [Partner Manager]
+            operationId: getVendorHome
+            summary: Get vendor home dashboard
+            description: >
+              Approved vendor-home BFF operation (operationId getVendorHome). Composes vendor context,
+              booking home-summary (owners/admins only), and capacity widgets. Membership is resolved
+              via Vendor operational-access; unrelated callers receive 403. When nextAction is not
+              OPEN_VENDOR_DASHBOARD, home and capacity operational data are omitted. Optional capacity
+              dependency failures return 200 with meta.partialData and unavailableSections. Core
+              identity/home-summary failures return 4xx/5xx. No /vendors/{vendorId}/home alias is
+              exposed; this /partner/{vendorId}/manager/home path is the stable public route.
+            tags: [Vendor Home, Partner Manager]
+            pathParams:
+              - name: vendorId
+                description: Target vendor selector; membership is re-checked server-side and must match the caller's active vendor membership (or platform admin).
+                schema: { type: string }
+            queryParams:
+              - name: date
+                description: Optional civil date YYYY-MM-DD for the home summary; defaults to the vendor operations today.
+                schema: { type: string, format: date }
+              - name: upcomingDays
+                description: Upcoming day window for the home summary (1-7). Defaults to 3.
+                schema: { type: integer, minimum: 1, maximum: 7, default: 3 }
             methodResponses:
               - statusCode: '200'
-                responseBody: { description: Manager home response }
-                responseModels: { application/json: PartnerManagerHomeResponse }
+                responseBody: { description: Vendor home BFF response }
+                responseModels: { application/json: VendorHomeResponse }
               - statusCode: '400'
-                responseBody: { description: Invalid request }
+                responseBody: { description: Invalid vendorId, date, or upcomingDays }
                 responseModels: { application/json: ErrorResponse }
               - statusCode: '401'
                 responseBody: { description: Missing or invalid application authentication }
                 responseModels: { application/json: ErrorResponse }
               - statusCode: '403'
-                responseBody: { description: Caller lacks manager membership }
+                responseBody: { description: Caller lacks vendor membership or owner access for home-summary }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '404'
+                responseBody: { description: Vendor not found }
+                responseModels: { application/json: ErrorResponse }
+              - statusCode: '502'
+                responseBody: { description: Core dependency failure (vendor context or home summary) }
                 responseModels: { application/json: ErrorResponse }
   managerWork:
     handler: src/main.handleManagerWork
@@ -170,6 +307,10 @@ functions:
             summary: Read today's work
             description: Returns a stable summary over the requested filter scope and a paginated list for the requested view. Changing view does not recalculate the summary.
             tags: [Partner Manager]
+            pathParams:
+              - name: vendorId
+                description: Target vendor selector; membership is re-checked server-side and must match the caller's active owner vendor.
+                schema: { type: string }
             queryParams:
               - name: date
                 description: Service date in YYYY-MM-DD; defaults to the vendor operations date.
@@ -213,8 +354,12 @@ functions:
           authorizer: ${self:custom.securedAuthorizer}
           documentation:
             summary: Read work planning
-            description: Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported.
+            description: Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported. Roster availabilityStatus and pointOfContact are projected on the availability tab when Vendor supplies them.
             tags: [Partner Manager]
+            pathParams:
+              - name: vendorId
+                description: Target vendor selector; membership is re-checked server-side and must match the caller's active owner vendor.
+                schema: { type: string }
             queryParams:
               - name: date
                 description: Service date in YYYY-MM-DD; defaults to the vendor operations date.

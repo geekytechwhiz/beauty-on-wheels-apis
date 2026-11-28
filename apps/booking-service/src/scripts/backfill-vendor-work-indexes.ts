@@ -6,9 +6,10 @@
  *    GSI3SK = VISIT#{startTime}#{visitId}
  *
  * 2) Booking / CustomerBooking / VendorBooking projections with planId and no
- *    schedule.date whose GSI1SK is still BOOKING#{activationDate}#{id}:
+ *    schedule.date whose GSI1SK is still BOOKING#{legacyDate}#{id}:
  *    rewrite GSI1SK to BOOKING#UNSCHEDULED#{id}
- *    (bookingDate attribute is kept as activation/order audit; not deleted)
+ *    (bookingDate may still hold a legacy activation day or a later-synced
+ *    earliest service date; this backfill only fixes the GSI1 sort key)
  *
  * Dry-run by default. Does not delete the table or indexes. Safe to resume:
  * already-correct items are skipped; --start-key resumes a prior ExclusiveStartKey.

@@ -1,11 +1,11 @@
 {
   "item": [
     {
-      "id": "d6ce27eb-b12c-44b7-8467-bf78a4f12a4f",
+      "id": "12ca56d6-3fb5-4eed-a1a1-d1f43d586983",
       "name": "categories",
       "item": [
         {
-          "id": "ba6008a5-da89-4100-ab47-5e6431ba6476",
+          "id": "cb4d2281-f896-4444-a0f0-d8303afd7de5",
           "name": "List categories",
           "request": {
             "name": "List categories",
@@ -47,7 +47,7 @@
           },
           "response": [
             {
-              "id": "82290a2d-5fe0-4454-866c-112fe8f20023",
+              "id": "96869777-442b-4d9a-b768-6a382debcea5",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -110,12 +110,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"description\": \"string\",\n      \"displayOrder\": 2542,\n      \"active\": false,\n      \"serviceCount\": 792\n    },\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"description\": \"string\",\n      \"displayOrder\": 2196,\n      \"active\": false,\n      \"serviceCount\": 2415\n    }\n  ]\n}",
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"description\": \"string\",\n      \"displayOrder\": 9246,\n      \"active\": false,\n      \"serviceCount\": 2770\n    },\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"description\": \"string\",\n      \"displayOrder\": 7162,\n      \"active\": false,\n      \"serviceCount\": 4441\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "bfe631a6-d1dd-46ed-bd41-6ee836357e2d",
+              "id": "109e94f3-36d9-4e7c-8ec6-3d00fcaa3116",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -178,7 +178,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 1336,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 5473,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -189,7 +189,7 @@
           }
         },
         {
-          "id": "4e9034dd-fb3e-41ae-ac75-e462b282017f",
+          "id": "be87635a-ead1-4152-a15a-63132865e3dd",
           "name": "Create category",
           "request": {
             "name": "Create category",
@@ -244,7 +244,7 @@
           },
           "response": [
             {
-              "id": "699e9b1f-54b2-4727-8917-2726e2b5a19e",
+              "id": "ad88b9bf-0372-43c4-a4bd-a923d1d5d95f",
               "name": "Created",
               "originalRequest": {
                 "url": {
@@ -320,7 +320,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "cbc4e32b-3d01-4a09-9b74-069aee33a436",
+              "id": "0c111259-d087-46b3-a795-1413254744b9",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -391,7 +391,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -402,11 +402,11 @@
           }
         },
         {
-          "id": "c5d6a7dd-ed32-4b00-8eca-05b84dc3a7ff",
+          "id": "ba03916b-6d54-4ac8-aec7-fd33cfb01746",
           "name": "{categoryId}",
           "item": [
             {
-              "id": "d4e92682-ab45-442a-921c-e9fecde0fddc",
+              "id": "2c29bec0-0e91-4261-b784-b19090b27a07",
               "name": "Get category",
               "request": {
                 "name": "Get category",
@@ -456,7 +456,7 @@
               },
               "response": [
                 {
-                  "id": "fa6318be-7fc9-4fe4-bda1-c6558fc82d04",
+                  "id": "7b65d8c6-abee-473e-9066-a31101e4ab3e",
                   "name": "OK",
                   "originalRequest": {
                     "url": {
@@ -532,7 +532,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "09b05ac3-67e2-4d52-8142-086ba2f2588d",
+                  "id": "7d901636-f6d5-4b92-8625-3c3273261ecf",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -603,7 +603,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -614,7 +614,7 @@
               }
             },
             {
-              "id": "5b9bbe65-c20e-4b52-aef4-10f52ed77484",
+              "id": "bdf6187f-daf5-4326-8940-89757e6a89b5",
               "name": "Update category",
               "request": {
                 "name": "Update category",
@@ -677,7 +677,7 @@
               },
               "response": [
                 {
-                  "id": "386c4e71-6500-4f9f-997c-7593cf7c07ce",
+                  "id": "ab8d342e-1c47-4d0c-947f-64803ee59b4f",
                   "name": "Updated",
                   "originalRequest": {
                     "url": {
@@ -761,7 +761,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "d7136fec-4e47-42e7-b7c8-13f166f5b531",
+                  "id": "cb6b9516-17d4-44bb-8c12-4c6ebe694dd6",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -840,7 +840,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -851,7 +851,7 @@
               }
             },
             {
-              "id": "46353ba9-73a1-4454-9c0b-fcfe3e2db11e",
+              "id": "ed1fdea7-0713-4a63-854a-c022047324e9",
               "name": "Delete category",
               "request": {
                 "name": "Delete category",
@@ -901,7 +901,7 @@
               },
               "response": [
                 {
-                  "id": "23876bd6-33bd-4bbc-83a2-2f1f134ce792",
+                  "id": "b01a9873-c89c-4402-b492-88f2b2f450a3",
                   "name": "Deleted",
                   "originalRequest": {
                     "url": {
@@ -973,7 +973,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "5cff28dd-d3a4-406c-92d8-df8edbb7d46e",
+                  "id": "64fef727-53de-4932-857a-37a7a649659b",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1044,7 +1044,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1061,11 +1061,11 @@
       "event": []
     },
     {
-      "id": "f07bf307-48cb-4e0c-8238-718f6f56a02c",
+      "id": "a1ec6316-8722-4539-a364-e598b95fbd72",
       "name": "offerings",
       "item": [
         {
-          "id": "e7b51112-40c3-4b7c-ae8e-853a5686c4bc",
+          "id": "7a27e6bc-b41f-4f30-96d0-ed6f9d46bc4a",
           "name": "Discover marketplace offerings",
           "request": {
             "name": "Discover marketplace offerings",
@@ -1204,7 +1204,7 @@
           },
           "response": [
             {
-              "id": "cf9be108-294f-4368-8242-dad601774242",
+              "id": "106e05c7-72ca-41ca-8844-3a24ffcec455",
               "name": "OK",
               "originalRequest": {
                 "url": {
@@ -1349,7 +1349,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "84e2dfa1-c024-448f-95ca-cd0a4cbd53f9",
+              "id": "62eab92c-dce7-4a61-ac88-862dd290e0d1",
               "name": "Missing or invalid communityId, or other validation failure",
               "originalRequest": {
                 "url": {
@@ -1489,7 +1489,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1500,7 +1500,7 @@
           }
         },
         {
-          "id": "08aec497-2d39-438a-93d1-24c3de7ae420",
+          "id": "9a142afa-2b02-4030-8c98-f99c3167dabc",
           "name": "Create a provider offering",
           "request": {
             "name": "Create a provider offering",
@@ -1555,7 +1555,7 @@
           },
           "response": [
             {
-              "id": "f5de6e5e-7a2a-4d66-811d-7732a84adacd",
+              "id": "f6f1b576-0b4f-436f-b4e7-3f172a0798a4",
               "name": "Created",
               "originalRequest": {
                 "url": {
@@ -1631,7 +1631,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b6261481-0d53-452c-af1b-3a76d1a348f5",
+              "id": "73a06ba9-d5c0-44e1-803c-13ed2f3e63eb",
               "name": "Validation failed",
               "originalRequest": {
                 "url": {
@@ -1702,12 +1702,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "cfd5dfc2-20f7-47a9-8caa-6363dc66e523",
+              "id": "ef50d025-aadf-4b4b-ae9d-b4814dcf5b37",
               "name": "Unauthorized",
               "originalRequest": {
                 "url": {
@@ -1778,12 +1778,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "da13c58d-44e9-4434-8bca-b35c867d6d70",
+              "id": "7ed87ab3-013e-418a-bdf1-f0428d2993d1",
               "name": "Forbidden",
               "originalRequest": {
                 "url": {
@@ -1854,7 +1854,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1865,11 +1865,11 @@
           }
         },
         {
-          "id": "1d97a153-a519-429c-808d-29a5be5cabcb",
+          "id": "131ce635-7efe-483c-9f2e-dca51e7007d6",
           "name": "{offeringId}",
           "item": [
             {
-              "id": "da7e9bc4-6343-42e7-aa9a-f53b123abf9c",
+              "id": "12dd4f57-b0bd-493a-9752-9717016c3005",
               "name": "Get offering by id",
               "request": {
                 "name": "Get offering by id",
@@ -1926,7 +1926,7 @@
               },
               "response": [
                 {
-                  "id": "5a43e0a8-b2d8-4f12-b91d-1d94fc26d4a0",
+                  "id": "f0e1c0af-f40d-4966-b20d-b4ba539f7f68",
                   "name": "OK",
                   "originalRequest": {
                     "url": {
@@ -2002,12 +2002,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"offeringId\": \"string\",\n  \"offeringType\": \"PACKAGE\",\n  \"vendorId\": \"string\",\n  \"categoryId\": \"string\",\n  \"name\": \"string\",\n  \"billingPeriod\": \"yearly\",\n  \"currency\": \"string\",\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 9077,\n      \"durationMinutes\": 2511\n    },\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 6800,\n      \"durationMinutes\": 1361\n    }\n  ],\n  \"vehicleTypes\": [\n    \"string\",\n    \"string\"\n  ],\n  \"includedServices\": [\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 8487,\n      \"durationMinutes\": 4547,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    },\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 744,\n      \"durationMinutes\": 8412,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    }\n  ],\n  \"entitlements\": [\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3291,\n      \"name\": \"string\",\n      \"durationMinutes\": 3766,\n      \"categoryId\": \"string\"\n    },\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3804,\n      \"name\": \"string\",\n      \"durationMinutes\": 1320,\n      \"categoryId\": \"string\"\n    }\n  ],\n  \"status\": \"archived\",\n  \"active\": false,\n  \"version\": 1791,\n  \"displayOrder\": 7263,\n  \"createdAt\": \"1967-10-15T18:44:58.549Z\",\n  \"updatedAt\": \"1996-10-04T21:38:22.218Z\",\n  \"description\": \"string\",\n  \"validityDays\": 226,\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": true,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    },\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": false,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    }\n  ],\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"status\": \"inactive\",\n      \"approvalStatus\": \"approved\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"status\": \"inactive\",\n      \"approvalStatus\": \"rejected\"\n    }\n  ],\n  \"legacySource\": \"SERVICE\"\n}",
+                  "body": "{\n  \"offeringId\": \"string\",\n  \"offeringType\": \"SERVICE\",\n  \"vendorId\": \"string\",\n  \"categoryId\": \"string\",\n  \"name\": \"string\",\n  \"billingPeriod\": \"weekly\",\n  \"currency\": \"string\",\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 9616,\n      \"durationMinutes\": 8852\n    },\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 4297,\n      \"durationMinutes\": 9250\n    }\n  ],\n  \"vehicleTypes\": [\n    \"string\",\n    \"string\"\n  ],\n  \"includedServices\": [\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 1882,\n      \"durationMinutes\": 6613,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    },\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 2864,\n      \"durationMinutes\": 4934,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    }\n  ],\n  \"entitlements\": [\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3148,\n      \"name\": \"string\",\n      \"durationMinutes\": 8028,\n      \"categoryId\": \"string\"\n    },\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 6751,\n      \"name\": \"string\",\n      \"durationMinutes\": 6069,\n      \"categoryId\": \"string\"\n    }\n  ],\n  \"status\": \"archived\",\n  \"active\": false,\n  \"version\": 3061,\n  \"displayOrder\": 1650,\n  \"createdAt\": \"1961-08-20T12:12:23.415Z\",\n  \"updatedAt\": \"2009-02-17T10:15:00.057Z\",\n  \"description\": \"string\",\n  \"validityDays\": 134,\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": true,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    },\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": false,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    }\n  ],\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"status\": \"active\",\n      \"approvalStatus\": \"rejected\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"status\": \"active\",\n      \"approvalStatus\": \"approved\"\n    }\n  ],\n  \"legacySource\": \"SERVICE\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "4d211bf8-23b4-4c62-b8d9-9a087d2cc1b6",
+                  "id": "c175654c-e649-46a3-b4db-af5f00c4a529",
                   "name": "Not found",
                   "originalRequest": {
                     "url": {
@@ -2083,7 +2083,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -2094,7 +2094,7 @@
               }
             },
             {
-              "id": "657ff522-d671-4223-8158-8450d33e9753",
+              "id": "8cd04b12-3027-4d42-91d6-3dfd3602d357",
               "name": "Patch an owned offering",
               "request": {
                 "name": "Patch an owned offering",
@@ -2144,7 +2144,7 @@
               },
               "response": [
                 {
-                  "id": "ba2aa15a-c01c-4ea2-9072-7c446024ca32",
+                  "id": "2e240a00-3b65-4e8f-8b3a-41d1860f2783",
                   "name": "OK",
                   "originalRequest": {
                     "url": {
@@ -2215,12 +2215,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"offeringId\": \"string\",\n  \"offeringType\": \"PACKAGE\",\n  \"vendorId\": \"string\",\n  \"categoryId\": \"string\",\n  \"name\": \"string\",\n  \"billingPeriod\": \"yearly\",\n  \"currency\": \"string\",\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 9077,\n      \"durationMinutes\": 2511\n    },\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 6800,\n      \"durationMinutes\": 1361\n    }\n  ],\n  \"vehicleTypes\": [\n    \"string\",\n    \"string\"\n  ],\n  \"includedServices\": [\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 8487,\n      \"durationMinutes\": 4547,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    },\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 744,\n      \"durationMinutes\": 8412,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    }\n  ],\n  \"entitlements\": [\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3291,\n      \"name\": \"string\",\n      \"durationMinutes\": 3766,\n      \"categoryId\": \"string\"\n    },\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3804,\n      \"name\": \"string\",\n      \"durationMinutes\": 1320,\n      \"categoryId\": \"string\"\n    }\n  ],\n  \"status\": \"archived\",\n  \"active\": false,\n  \"version\": 1791,\n  \"displayOrder\": 7263,\n  \"createdAt\": \"1967-10-15T18:44:58.549Z\",\n  \"updatedAt\": \"1996-10-04T21:38:22.218Z\",\n  \"description\": \"string\",\n  \"validityDays\": 226,\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": true,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    },\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": false,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    }\n  ],\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"status\": \"inactive\",\n      \"approvalStatus\": \"approved\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"status\": \"inactive\",\n      \"approvalStatus\": \"rejected\"\n    }\n  ],\n  \"legacySource\": \"SERVICE\"\n}",
+                  "body": "{\n  \"offeringId\": \"string\",\n  \"offeringType\": \"SERVICE\",\n  \"vendorId\": \"string\",\n  \"categoryId\": \"string\",\n  \"name\": \"string\",\n  \"billingPeriod\": \"weekly\",\n  \"currency\": \"string\",\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 9616,\n      \"durationMinutes\": 8852\n    },\n    {\n      \"vehicleType\": \"string\",\n      \"price\": 4297,\n      \"durationMinutes\": 9250\n    }\n  ],\n  \"vehicleTypes\": [\n    \"string\",\n    \"string\"\n  ],\n  \"includedServices\": [\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 1882,\n      \"durationMinutes\": 6613,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    },\n    {\n      \"name\": \"string\",\n      \"categoryId\": \"string\",\n      \"visitsPerPeriod\": 2864,\n      \"durationMinutes\": 4934,\n      \"description\": \"string\",\n      \"tags\": [\n        \"string\",\n        \"string\"\n      ],\n      \"serviceKey\": \"string\"\n    }\n  ],\n  \"entitlements\": [\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 3148,\n      \"name\": \"string\",\n      \"durationMinutes\": 8028,\n      \"categoryId\": \"string\"\n    },\n    {\n      \"serviceId\": \"string\",\n      \"quantity\": 6751,\n      \"name\": \"string\",\n      \"durationMinutes\": 6069,\n      \"categoryId\": \"string\"\n    }\n  ],\n  \"status\": \"archived\",\n  \"active\": false,\n  \"version\": 3061,\n  \"displayOrder\": 1650,\n  \"createdAt\": \"1961-08-20T12:12:23.415Z\",\n  \"updatedAt\": \"2009-02-17T10:15:00.057Z\",\n  \"description\": \"string\",\n  \"validityDays\": 134,\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": true,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    },\n    {\n      \"visitWindowId\": \"string\",\n      \"label\": \"string\",\n      \"allDay\": false,\n      \"startTime\": \"string\",\n      \"endTime\": \"string\"\n    }\n  ],\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"status\": \"active\",\n      \"approvalStatus\": \"rejected\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"status\": \"active\",\n      \"approvalStatus\": \"approved\"\n    }\n  ],\n  \"legacySource\": \"SERVICE\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "eeb405bf-8d88-41b0-bbf6-8727f7a3061d",
+                  "id": "abf7e754-9460-43ff-8f1c-42ec32633536",
                   "name": "Not found",
                   "originalRequest": {
                     "url": {
@@ -2291,12 +2291,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "d181d553-deca-4331-99fc-157f35af15bc",
+                  "id": "f7417899-82de-4b29-b3ba-bfcfe5da82bb",
                   "name": "Version or status conflict",
                   "originalRequest": {
                     "url": {
@@ -2367,7 +2367,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -2378,7 +2378,7 @@
               }
             },
             {
-              "id": "605770f3-dec1-4bcb-a644-2ccda0597d1d",
+              "id": "a1c3e640-4580-472f-9d0f-2a9b2fc88313",
               "name": "Archive an owned offering",
               "request": {
                 "name": "Archive an owned offering",
@@ -2428,7 +2428,7 @@
               },
               "response": [
                 {
-                  "id": "b15919e0-fd34-4367-9f49-f73a501069a2",
+                  "id": "8ee5d59d-d3c8-4853-9a95-9af6de330800",
                   "name": "Archived",
                   "originalRequest": {
                     "url": {
@@ -2500,7 +2500,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "36c43dae-e8b2-42e4-b5ca-4f21f5722202",
+                  "id": "5bc76f0b-0e1e-4735-bbb4-8bf0a984ef11",
                   "name": "Not found",
                   "originalRequest": {
                     "url": {
@@ -2571,7 +2571,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -2582,11 +2582,11 @@
               }
             },
             {
-              "id": "c53e0764-2416-4851-b4f1-4bec8b730165",
+              "id": "ba39c76c-f861-45b0-9a74-18f22408a38f",
               "name": "communities",
               "item": [
                 {
-                  "id": "7ece1086-ab01-4d6f-b9f5-cf55c8a8f1f0",
+                  "id": "1d7eefd3-4001-40d9-b096-5a795ef64dc1",
                   "name": "Add offering communities",
                   "request": {
                     "name": "Add offering communities",
@@ -2657,7 +2657,7 @@
                   },
                   "response": [
                     {
-                      "id": "7157e2dd-6384-4e3e-8393-aadde598850f",
+                      "id": "4420cb14-07e5-40df-8f92-927a0db70911",
                       "name": "Updated community mappings",
                       "originalRequest": {
                         "url": {
@@ -2742,12 +2742,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"approvalStatus\": \"pending\",\n      \"status\": \"active\",\n      \"version\": 4,\n      \"approvalUpdatedAt\": \"string\",\n      \"approvalUpdatedBy\": \"string\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"approvalStatus\": \"approved\",\n      \"status\": \"active\",\n      \"version\": 3483,\n      \"approvalUpdatedAt\": \"string\",\n      \"approvalUpdatedBy\": \"string\"\n    }\n  ]\n}",
+                      "body": "{\n  \"communities\": [\n    {\n      \"communityId\": \"string\",\n      \"approvalStatus\": \"rejected\",\n      \"status\": \"inactive\",\n      \"version\": 2053,\n      \"approvalUpdatedAt\": \"string\",\n      \"approvalUpdatedBy\": \"string\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"approvalStatus\": \"pending\",\n      \"status\": \"active\",\n      \"version\": 7567,\n      \"approvalUpdatedAt\": \"string\",\n      \"approvalUpdatedBy\": \"string\"\n    }\n  ]\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "dac0ab24-3cd2-4360-bdcd-dcbc494ffa33",
+                      "id": "a15f5985-6cf4-4d49-a8df-c112b807b471",
                       "name": "Request failed",
                       "originalRequest": {
                         "url": {
@@ -2832,7 +2832,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -2843,11 +2843,11 @@
                   }
                 },
                 {
-                  "id": "59ee0bd0-0565-42ef-9a0c-83d7397152b4",
+                  "id": "cc78fd89-4e2d-45c4-96b7-2aa381b43864",
                   "name": "{communityId}",
                   "item": [
                     {
-                      "id": "7a284b16-7f7a-4fb1-8301-c654f9137aef",
+                      "id": "5fd6124c-ee07-4c66-aaab-e44f596cac68",
                       "name": "Set offering community status",
                       "request": {
                         "name": "Set offering community status",
@@ -2926,7 +2926,7 @@
                       },
                       "response": [
                         {
-                          "id": "299b3cea-08e2-484c-8d13-93b3f8bd314b",
+                          "id": "89b2cc89-ea7d-45ff-bb98-947e86454d43",
                           "name": "Updated mapping",
                           "originalRequest": {
                             "url": {
@@ -3019,12 +3019,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"communityId\": \"string\",\n  \"approvalStatus\": \"rejected\",\n  \"status\": \"active\",\n  \"version\": 5159,\n  \"approvalUpdatedAt\": \"string\",\n  \"approvalUpdatedBy\": \"string\"\n}",
+                          "body": "{\n  \"communityId\": \"string\",\n  \"approvalStatus\": \"pending\",\n  \"status\": \"active\",\n  \"version\": 3990,\n  \"approvalUpdatedAt\": \"string\",\n  \"approvalUpdatedBy\": \"string\"\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "349d73e4-1d73-4c52-9704-4e74b813797f",
+                          "id": "6029c023-2805-4a63-ba11-c4bf741006d7",
                           "name": "Request failed",
                           "originalRequest": {
                             "url": {
@@ -3117,7 +3117,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -3128,7 +3128,7 @@
                       }
                     },
                     {
-                      "id": "016c7be8-6db1-4e3b-a52c-370215f4c45b",
+                      "id": "2407d456-8499-4af7-8abe-3b1cd6179a0a",
                       "name": "Delete offering community",
                       "request": {
                         "name": "Delete offering community",
@@ -3194,7 +3194,7 @@
                       },
                       "response": [
                         {
-                          "id": "22c731cc-2ee1-469c-9c5c-e1188e94e3af",
+                          "id": "1acca3ff-f57c-4827-b279-1be4fdff1cd0",
                           "name": "Mapping removed",
                           "originalRequest": {
                             "url": {
@@ -3280,7 +3280,7 @@
                           "_postman_previewlanguage": "text"
                         },
                         {
-                          "id": "f6cff0db-12bc-4558-a8da-fecaddabc624",
+                          "id": "2684a064-50a8-4008-8e7c-83632327367c",
                           "name": "Request failed",
                           "originalRequest": {
                             "url": {
@@ -3365,7 +3365,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -3376,7 +3376,7 @@
                       }
                     },
                     {
-                      "id": "920f1481-4cbc-4a5f-879c-a80c05904247",
+                      "id": "ebbef4a0-7a34-44a0-aef8-8728e82426f7",
                       "name": "Set offering community approval",
                       "request": {
                         "name": "Set offering community approval",
@@ -3449,7 +3449,7 @@
                       },
                       "response": [
                         {
-                          "id": "52dc3a72-6945-4848-9ca7-1b50b2adfd53",
+                          "id": "59304e7a-7a08-4439-afc8-d2b7209bb988",
                           "name": "Updated mapping",
                           "originalRequest": {
                             "url": {
@@ -3538,12 +3538,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"communityId\": \"string\",\n  \"approvalStatus\": \"rejected\",\n  \"status\": \"active\",\n  \"version\": 5159,\n  \"approvalUpdatedAt\": \"string\",\n  \"approvalUpdatedBy\": \"string\"\n}",
+                          "body": "{\n  \"communityId\": \"string\",\n  \"approvalStatus\": \"pending\",\n  \"status\": \"active\",\n  \"version\": 3990,\n  \"approvalUpdatedAt\": \"string\",\n  \"approvalUpdatedBy\": \"string\"\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "d6dca866-e860-4f24-ba22-a38494e866c5",
+                          "id": "57e34f8f-9458-4560-bff4-7cc56bf8745d",
                           "name": "Request failed",
                           "originalRequest": {
                             "url": {
@@ -3632,12 +3632,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "5f40c2ca-683f-4b30-a229-cf56e5c543c8",
+                          "id": "575fdc0a-12b4-4df8-98b5-11fab9afec04",
                           "name": "Forbidden",
                           "originalRequest": {
                             "url": {
@@ -3726,7 +3726,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -3749,7 +3749,7 @@
       "event": []
     },
     {
-      "id": "1829bf99-81c1-40f4-aa20-7343a2a39184",
+      "id": "f4f83301-8523-435b-b208-b02b3272380a",
       "name": "List offerings for the authenticated provider",
       "request": {
         "name": "List offerings for the authenticated provider",
@@ -3810,7 +3810,7 @@
       },
       "response": [
         {
-          "id": "63349872-9d03-4a4b-9101-bc8b78163a2a",
+          "id": "8c5c1164-e1fe-4fde-93f5-1d35dd9eb3da",
           "name": "OK",
           "originalRequest": {
             "url": {
@@ -3893,7 +3893,7 @@
           "_postman_previewlanguage": "json"
         },
         {
-          "id": "d9ad04f5-1b98-4f74-abe3-a951fe80fe90",
+          "id": "c56e7b47-749c-4c36-89cc-84d01345af2e",
           "name": "Request failed",
           "originalRequest": {
             "url": {
@@ -3971,12 +3971,12 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
           "cookie": [],
           "_postman_previewlanguage": "json"
         },
         {
-          "id": "1b308547-6d3c-417a-9489-a83215b8d527",
+          "id": "5eade9de-2bb6-4970-bf19-b8ba84b28547",
           "name": "Unauthorized",
           "originalRequest": {
             "url": {
@@ -4054,7 +4054,7 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
           "cookie": [],
           "_postman_previewlanguage": "json"
         }
@@ -4065,15 +4065,15 @@
       }
     },
     {
-      "id": "d1ac62bb-29c0-46bb-8467-1e39c28afbea",
+      "id": "ec167ef7-9240-4d53-b554-bfea896c8ae6",
       "name": "admin",
       "item": [
         {
-          "id": "681895a1-3297-4219-b779-8ec65219d315",
+          "id": "2c8935a0-ed97-446d-a9fb-79e4db88fcc7",
           "name": "packages",
           "item": [
             {
-              "id": "0702ce9e-ffef-4fb4-833a-ff32f85c293e",
+              "id": "632af095-fe9c-4fac-9efa-8c4749e6fe5a",
               "name": "List Carish platform packages",
               "request": {
                 "name": "List Carish platform packages",
@@ -4116,7 +4116,7 @@
               },
               "response": [
                 {
-                  "id": "d497b674-f770-4fdf-9978-dd74ccc1a727",
+                  "id": "efc84af5-c551-48e0-9892-a4fba3d7ee0f",
                   "name": "Package page",
                   "originalRequest": {
                     "url": {
@@ -4181,7 +4181,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "b4cb5628-faa7-4151-b419-64a42093db12",
+                  "id": "e9baadb3-c9ad-4080-86a7-c26fcb017f55",
                   "name": "Invalid package-list request",
                   "originalRequest": {
                     "url": {
@@ -4245,7 +4245,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -4256,7 +4256,7 @@
               }
             },
             {
-              "id": "27daa98d-f646-475a-8506-eec3987c3075",
+              "id": "a4fcfecf-3678-42fe-9f0f-e4275446571d",
               "name": "Create a Carish package draft",
               "request": {
                 "name": "Create a Carish package draft",
@@ -4312,7 +4312,7 @@
               },
               "response": [
                 {
-                  "id": "334ac55e-b9bd-4d85-bcb7-8639f35f4b2d",
+                  "id": "ea832bc0-9268-4bed-8566-94866044fece",
                   "name": "Package draft",
                   "originalRequest": {
                     "url": {
@@ -4384,12 +4384,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"weekly\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 8048,\n  \"status\": \"published\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 4075,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 7257,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
+                  "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"oneTime\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 5635,\n  \"status\": \"draft\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 7427,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 4272,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "f51a1832-a491-4c45-a1c3-f9422b9718f2",
+                  "id": "94f78972-26d1-4bd5-9ed5-c2c8a501696e",
                   "name": "Invalid package draft",
                   "originalRequest": {
                     "url": {
@@ -4461,7 +4461,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -4472,11 +4472,11 @@
               }
             },
             {
-              "id": "f8cf36b6-9056-4463-b222-7c972bf7e4bf",
+              "id": "bc0ff2d6-dcb3-47ea-bf65-cda4890d3dbd",
               "name": "{packageId}",
               "item": [
                 {
-                  "id": "b8e5cfe2-b1db-4575-89e0-bf9ee7081985",
+                  "id": "7c34fe22-b445-41e5-86f9-647213205886",
                   "name": "Get Carish package and revision history",
                   "request": {
                     "name": "Get Carish package and revision history",
@@ -4527,7 +4527,7 @@
                   },
                   "response": [
                     {
-                      "id": "7cbc59f2-6b80-4849-96c6-2aa8cb52e754",
+                      "id": "517de0af-c261-404b-9cd3-76a194172229",
                       "name": "Package detail",
                       "originalRequest": {
                         "url": {
@@ -4599,12 +4599,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"weekly\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 5722,\n  \"status\": \"archived\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 4724,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 804,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
+                      "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"yearly\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 7121,\n  \"status\": \"published\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 5302,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 9402,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "dd84a84d-5b38-4370-b590-f167925d6043",
+                      "id": "37eaf68c-ea58-49ea-95a9-5ad37bc354fb",
                       "name": "Package not found",
                       "originalRequest": {
                         "url": {
@@ -4676,7 +4676,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -4687,7 +4687,7 @@
                   }
                 },
                 {
-                  "id": "d217ce8d-89ba-445f-8f49-a913da89e730",
+                  "id": "629f6b23-a8fa-427e-bae3-e42d27a98e2c",
                   "name": "Update Carish package draft",
                   "request": {
                     "name": "Update Carish package draft",
@@ -4751,7 +4751,7 @@
                   },
                   "response": [
                     {
-                      "id": "bbc62440-1c95-4f90-a282-2c43e6e2912d",
+                      "id": "4dc9cc4d-7e7e-43fd-a114-cdb017c29286",
                       "name": "Updated package draft",
                       "originalRequest": {
                         "url": {
@@ -4831,12 +4831,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"weekly\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 5722,\n  \"status\": \"archived\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 4724,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 804,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
+                      "body": "{\n  \"packageId\": \"string\",\n  \"name\": \"string\",\n  \"categoryId\": \"string\",\n  \"billingPeriod\": \"yearly\",\n  \"currency\": \"INR\",\n  \"displayOrder\": 7121,\n  \"status\": \"published\",\n  \"includedServices\": [\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"serviceKey\": \"<string>\",\n      \"categoryId\": \"<string>\",\n      \"visitsPerPeriod\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\",\n      \"description\": \"<string>\"\n    }\n  ],\n  \"vehiclePricing\": [\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    },\n    {\n      \"vehicleType\": \"<string>\",\n      \"price\": \"<integer>\",\n      \"durationMinutes\": \"<integer>\"\n    }\n  ],\n  \"version\": 5302,\n  \"description\": \"string\",\n  \"visitWindows\": [\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    },\n    {\n      \"visitWindowId\": \"<string>\",\n      \"label\": \"<string>\",\n      \"allDay\": \"<boolean>\",\n      \"startTime\": \"<string>\",\n      \"endTime\": \"<string>\"\n    }\n  ],\n  \"publishedVersion\": 9402,\n  \"createdAt\": \"string\",\n  \"createdBy\": \"string\",\n  \"updatedAt\": \"string\",\n  \"updatedBy\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "8fffe1c8-e734-48e6-8066-a0e73ea170d6",
+                      "id": "70a1313a-408a-4f8a-a363-ff9a52683b43",
                       "name": "Invalid package update",
                       "originalRequest": {
                         "url": {
@@ -4916,7 +4916,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -4927,7 +4927,7 @@
                   }
                 },
                 {
-                  "id": "92d5e692-58ae-4f54-a2f8-3b140662af69",
+                  "id": "864c6bf4-af84-47ed-9bb9-b075a693414d",
                   "name": "Publish Carish package",
                   "request": {
                     "name": "Publish Carish package",
@@ -4979,7 +4979,7 @@
                   },
                   "response": [
                     {
-                      "id": "82fda502-406d-47c0-80b0-6fdb637ca4f0",
+                      "id": "8c946be6-af93-4b53-8fa1-76041af8d464",
                       "name": "Published package",
                       "originalRequest": {
                         "url": {
@@ -5053,7 +5053,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "83b06919-8286-4fb8-b674-d5e1680795ec",
+                      "id": "7493c94e-b5d4-4073-91c8-f3bacac7d1c8",
                       "name": "Package not found",
                       "originalRequest": {
                         "url": {
@@ -5126,7 +5126,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -5137,7 +5137,7 @@
                   }
                 },
                 {
-                  "id": "9f7a0bfe-4ae9-4cfa-a8e5-9886fd52b410",
+                  "id": "85ad9a1e-d9f7-41cb-9589-26745bb1b7c4",
                   "name": "Pause Carish package sales",
                   "request": {
                     "name": "Pause Carish package sales",
@@ -5189,7 +5189,7 @@
                   },
                   "response": [
                     {
-                      "id": "987b1416-501c-4891-9cd5-3dcabee6e3a6",
+                      "id": "694c6577-80ab-4b09-a095-a5cf1740c2e0",
                       "name": "Paused package",
                       "originalRequest": {
                         "url": {
@@ -5263,7 +5263,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "1342ea45-c3ae-4a51-b437-67d5132cc2ae",
+                      "id": "deff1b23-a9db-48b4-8325-17c1de23276c",
                       "name": "Package not found",
                       "originalRequest": {
                         "url": {
@@ -5336,7 +5336,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -5347,7 +5347,7 @@
                   }
                 },
                 {
-                  "id": "844f3be7-9a45-4212-89fc-b13dc23845a7",
+                  "id": "689917dc-cd33-4392-a81d-b2ac75747bc1",
                   "name": "Resume Carish package sales",
                   "request": {
                     "name": "Resume Carish package sales",
@@ -5399,7 +5399,7 @@
                   },
                   "response": [
                     {
-                      "id": "a866738b-0783-4f0b-863b-3c0f3552908e",
+                      "id": "3023ea84-9656-4515-b926-30f590932910",
                       "name": "Published package",
                       "originalRequest": {
                         "url": {
@@ -5473,7 +5473,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "faf4c628-5b54-498b-825e-42eecad2beef",
+                      "id": "a0e77a5a-b1a4-4a00-a7ef-77bceb48f2f3",
                       "name": "Package not found",
                       "originalRequest": {
                         "url": {
@@ -5546,7 +5546,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -5557,7 +5557,7 @@
                   }
                 },
                 {
-                  "id": "ee87b098-4be5-4cda-b029-92365626040c",
+                  "id": "5854cac7-0785-4e3e-8403-641ddb179c7c",
                   "name": "Archive Carish package",
                   "request": {
                     "name": "Archive Carish package",
@@ -5609,7 +5609,7 @@
                   },
                   "response": [
                     {
-                      "id": "51e8bd06-fc66-41dc-a89d-3d72bae4605d",
+                      "id": "f6c834d7-53d8-4676-92b6-69d5c90bd9c4",
                       "name": "Archived package",
                       "originalRequest": {
                         "url": {
@@ -5683,7 +5683,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "b9cfe5e4-9f48-4374-9e4d-a0c30b3f07cd",
+                      "id": "283c4fa2-d355-4d3d-89ff-c3a6fdcd163b",
                       "name": "Package not found",
                       "originalRequest": {
                         "url": {
@@ -5756,7 +5756,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -5767,7 +5767,7 @@
                   }
                 },
                 {
-                  "id": "d04f975d-b969-47c9-ae43-1fe5e904c5c4",
+                  "id": "65a7d98d-1f10-42f9-9963-f64daef18405",
                   "name": "Set community sales eligibility for a Carish package",
                   "request": {
                     "name": "Set community sales eligibility for a Carish package",
@@ -5840,7 +5840,7 @@
                   },
                   "response": [
                     {
-                      "id": "bc446cee-635a-4d36-b0a4-b28f6102258f",
+                      "id": "8e282028-98f7-4890-ba72-c6e49869e459",
                       "name": "Sales control",
                       "originalRequest": {
                         "url": {
@@ -5930,7 +5930,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "20ce9d7a-b1f7-4710-9bb3-504ca44645e6",
+                      "id": "a97010c1-dec7-4aac-893b-9b8dc2545c16",
                       "name": "Invalid sales control",
                       "originalRequest": {
                         "url": {
@@ -6019,7 +6019,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -6036,7 +6036,7 @@
           "event": []
         },
         {
-          "id": "6e9c0835-c56c-45a3-bf4b-68b5a3212b46",
+          "id": "1a678f42-432a-4135-a61f-abc753638ee2",
           "name": "List community sales controls for Carish packages",
           "request": {
             "name": "List community sales controls for Carish packages",
@@ -6105,7 +6105,7 @@
           },
           "response": [
             {
-              "id": "2dd65df3-abaa-409a-add9-bd406f9c17eb",
+              "id": "30b16bfa-7ae2-4476-bd91-d3f890ed62b0",
               "name": "Sales-control page",
               "originalRequest": {
                 "url": {
@@ -6190,12 +6190,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"packageId\": \"pkg_1\",\n      \"packageName\": \"Weekend Exterior\",\n      \"communityId\": \"community-1\",\n      \"categoryId\": \"cat-wash\",\n      \"enabled\": false,\n      \"eligibility\": \"held\",\n      \"reason\": \"Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.\",\n      \"fulfilmentVendorIds\": [\n        \"vendor-1\"\n      ],\n      \"capacityCommitmentIds\": [\n        \"cmt-1\"\n      ],\n      \"version\": 2,\n      \"createdAt\": \"2026-11-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-11-02T00:00:00.000Z\"\n    }\n  ],\n  \"total\": 1,\n  \"pagination\": {\n    \"limit\": 25,\n    \"offset\": 0,\n    \"hasMore\": false,\n    \"totalAvailability\": \"complete\",\n    \"totalReason\": \"total is the filtered sales-control population, not the page length.\",\n    \"nextOffset\": null\n  }\n}",
+              "body": "{\n  \"items\": [\n    {\n      \"packageId\": \"pkg_1\",\n      \"packageName\": \"Weekend Exterior\",\n      \"communityId\": \"community-1\",\n      \"categoryId\": \"cat-wash\",\n      \"enabled\": false,\n      \"eligibility\": \"held\",\n      \"reason\": \"Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.\",\n      \"vendorId\": \"vendor-1\",\n      \"fulfilmentVendorIds\": [\n        \"vendor-1\"\n      ],\n      \"capacityCommitmentIds\": [\n        \"cmt-1\"\n      ],\n      \"version\": 2,\n      \"createdAt\": \"2026-11-01T00:00:00.000Z\",\n      \"updatedAt\": \"2026-11-02T00:00:00.000Z\"\n    }\n  ],\n  \"total\": 1,\n  \"pagination\": {\n    \"limit\": 25,\n    \"offset\": 0,\n    \"hasMore\": false,\n    \"totalAvailability\": \"complete\",\n    \"totalReason\": \"total is the filtered sales-control population, not the page length.\",\n    \"nextOffset\": null\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c0bcf5e9-d182-48af-8daa-2aeec2f84cfc",
+              "id": "f908501d-e991-43f6-b982-c4d08fd0b2ec",
               "name": "Invalid filter",
               "originalRequest": {
                 "url": {
@@ -6280,12 +6280,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "bf02311e-dc74-40c8-9c6a-c42c262145a0",
+              "id": "c103280b-2d61-43f3-b31a-e7dcab160b4e",
               "name": "Authentication is required",
               "originalRequest": {
                 "url": {
@@ -6370,12 +6370,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9df714e7-6c21-43bf-a3ca-d1ee159266cb",
+              "id": "4b54f519-54d0-44be-91ef-b34563cac4eb",
               "name": "Catalog administrator access is required",
               "originalRequest": {
                 "url": {
@@ -6460,7 +6460,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6474,16 +6474,16 @@
       "event": []
     },
     {
-      "id": "f9e1a81b-07a9-4e21-9b99-9c1f9d4096c5",
+      "id": "cd1be48d-274b-4925-a2b8-dafad0bac834",
       "name": "packages",
       "item": [
         {
-          "id": "6c00a880-01a4-43b6-84db-7d3cafd08562",
+          "id": "7d0074d3-e436-4505-9035-e647a4eb28e4",
           "name": "Discover sellable Carish packages for a community",
           "request": {
             "name": "Discover sellable Carish packages for a community",
             "description": {
-              "content": "",
+              "content": "Reads enabled sales-control rows from GSI3 for the community. Each item includes vendorId (primary fulfilment vendor) alongside the published package payload.\n",
               "type": "text/plain"
             },
             "url": {
@@ -6493,7 +6493,19 @@
               "host": [
                 "{{baseUrl}}"
               ],
-              "query": [],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "communityId",
+                  "value": "<string>",
+                  "description": "(Required) "
+                },
+                {
+                  "disabled": false,
+                  "key": "categoryId",
+                  "value": "<string>"
+                }
+              ],
               "variable": [
                 {
                   "description": "API Gateway id",
@@ -6520,8 +6532,8 @@
           },
           "response": [
             {
-              "id": "f5a0fc7e-3f50-4748-810f-307b44e11260",
-              "name": "Customer package page",
+              "id": "9926f6d3-679d-45cc-9b37-7becb4be3c3d",
+              "name": "Customer package page including vendorId",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -6530,7 +6542,16 @@
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "query": [],
+                  "query": [
+                    {
+                      "key": "communityId",
+                      "value": "<string>"
+                    },
+                    {
+                      "key": "categoryId",
+                      "value": "<string>"
+                    }
+                  ],
                   "variable": [
                     {
                       "description": "API Gateway id",
@@ -6584,7 +6605,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "0313a090-d63a-42a2-8d5b-748841224918",
+              "id": "2cbecd1e-8d32-4ee1-91e0-0b7bbcccd658",
               "name": "Invalid package-discovery request",
               "originalRequest": {
                 "url": {
@@ -6594,7 +6615,16 @@
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "query": [],
+                  "query": [
+                    {
+                      "key": "communityId",
+                      "value": "<string>"
+                    },
+                    {
+                      "key": "categoryId",
+                      "value": "<string>"
+                    }
+                  ],
                   "variable": [
                     {
                       "description": "API Gateway id",
@@ -6647,7 +6677,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6658,7 +6688,7 @@
           }
         },
         {
-          "id": "f023caa6-47b7-4134-9318-18660de20353",
+          "id": "15b7c2d3-744f-4639-b359-f912a73d2492",
           "name": "Get sellable Carish package",
           "request": {
             "name": "Get sellable Carish package",
@@ -6715,7 +6745,7 @@
           },
           "response": [
             {
-              "id": "ef876158-4f52-4d8f-ad6a-cef0656cf0f7",
+              "id": "52f70d32-f9c0-4a8d-8bf0-6f08da3b78c7",
               "name": "Customer package detail",
               "originalRequest": {
                 "url": {
@@ -6792,7 +6822,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "56a82d5d-0677-4e98-8101-72c0b548c632",
+              "id": "83416631-70eb-4434-a3c2-e033edca3091",
               "name": "Package not found or unavailable",
               "originalRequest": {
                 "url": {
@@ -6868,7 +6898,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 2383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8996,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6904,7 +6934,7 @@
     },
     {
       "type": "string",
-      "value": "https://{{apiId}}.execute-api.us-east-1.amazonaws.com/{{stage}}",
+      "value": "https://{{apiId}}.execute-api.ap-south-1.amazonaws.com/{{stage}}",
       "key": "baseUrl"
     }
   ],
@@ -6918,7 +6948,7 @@
     ]
   },
   "info": {
-    "_postman_id": "235459dd-ba94-436a-9e1e-832fe7e2fa24",
+    "_postman_id": "ed38e3dd-4023-450d-af9b-3a50453113b4",
     "name": "Carish service-catalog-service API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

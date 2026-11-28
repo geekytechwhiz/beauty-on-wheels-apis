@@ -814,11 +814,14 @@ export class CapacityProposalsRepository extends BaseRepository {
     const statusValues = Object.fromEntries(
       CAPACITY_HOLDING_STATUSES.map((status, index) => [`:holdingStatus${index}`, status]),
     );
+    // ConditionExpression cannot use if_not_exists (UpdateExpression SET only).
+    // Treat a missing claimedPeriodQuantity as 0 via attribute_not_exists + :zero <= :maxClaimed.
     const conditionExpression = isIncrement
       ? `#status IN (${statusPlaceholders})`
-        + ' AND if_not_exists(claimedPeriodQuantity, :zero) <= :maxClaimed'
+        + ' AND :zero <= :maxClaimed'
+        + ' AND (attribute_not_exists(claimedPeriodQuantity) OR claimedPeriodQuantity <= :maxClaimed)'
       : `#status IN (${statusPlaceholders})`
-        + ' AND if_not_exists(claimedPeriodQuantity, :zero) >= :qty';
+        + ' AND attribute_exists(claimedPeriodQuantity) AND claimedPeriodQuantity >= :qty';
     const incrementValues = isIncrement
       ? {
         ':maxClaimed': (input.periodSupply as number) - absDelta,

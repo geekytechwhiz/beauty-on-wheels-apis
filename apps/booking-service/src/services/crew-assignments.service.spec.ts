@@ -180,7 +180,7 @@ describe('CrewAssignmentsService', () => {
       idempotent: false,
     });
     expect(result.scheduleId).toMatch(/^SCH-/);
-    expect(result.visits[0]).toMatchObject({ visitId: 'visit-1', status: 'SCHEDULED', crewId: 'crew-1' });
+    expect(result?.visits[0]).toMatchObject({ visitId: 'visit-1', status: 'SCHEDULED', crewId: 'crew-1' });
     const saved = plans.saveScheduleAssignments.mock.calls[0][0].updates[0].next;
     expect(saved.status).toBe('SCHEDULED');
     expect(saved.scheduleStartDate).toBe('2026-10-30');

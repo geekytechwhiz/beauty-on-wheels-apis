@@ -20,7 +20,7 @@ Create booking accepts a vendor offering, vehicle, civil date/time, fulfilment l
 
 The mobile client should use `bookingStatus`, `paymentMethod`, `paymentStatus`, and `slotReserved` independently: show “Booking confirmed — payment pending” when status is `CONFIRMED`, method is `ONLINE`, and payment remains `PENDING`.
 
-Package plans (`POST /customer-plans`) purchase a catalog PACKAGE offering. They are community-based at purchase (no `branchId` required). After payment, Booking materializes one **PackageVisit** row per entitlement unit (`UNSCHEDULED`). Vendors schedule visits via `/customer-plans/{planId}/visits/...`, which reserves Availability capacity (`bookingId = visitId`, plus `planId` / `packageVisitId` metadata). Entitlement is consumed only on vendor **complete** (idempotent). Multi-visit confirm-schedules is sequential and may return `scheduleState: PARTIAL` when some reservations fail.
+Package plans (`POST /customer-plans`) purchase a catalog PACKAGE offering. They are community-based at purchase (no `branchId` required). After payment, Booking materializes one **PackageVisit** row per entitlement unit (`UNSCHEDULED`) and links a first-job Booking without inventing a service start date. Vendors schedule visits via `/customer-plans/{planId}/visits/...`, which reserves Availability capacity (`bookingId = visitId`, plus `planId` / `packageVisitId` metadata). When slots are confirmed, the linked Booking’s `bookingDate` is set to the earliest confirmed visit civil date (exact slot or range start) in the slot’s local timezone; `createdAt` / plan `activatedAt` remain the payment confirmation instant. Entitlement is consumed only on vendor **complete** (idempotent). Multi-visit confirm-schedules is sequential and may return `scheduleState: PARTIAL` when some reservations fail.
 
 Visit routes (customer owner or vendor staff; start/complete/schedule are vendor staff only):
 
@@ -46,8 +46,20 @@ Indexes (do **not** use GSI2 for vendor work — GSI2 is visit lookup `VISIT#{vi
 |------|-------|------|
 | Scheduled package visits by day | **GSI3** | `GSI3PK = VENDOR#{vendorId}#DATE#{date}`, `GSI3SK = VISIT#{startTime}#{visitId}` |
 | One-time bookings by date | **GSI1** | `GSI1PK = VENDOR#{vendorId}`, `GSI1SK = BOOKING#{serviceDate}#{bookingId}` |
+| Customer booking history | **GSI1** | `GSI1PK = CUSTOMER#{customerId}`, `GSI1SK = BOOKING#...` |
+| Community booking list | **GSI1** | `GSI1PK = COMMUNITY#{communityId}`, `GSI1SK = BOOKING#...` (community-fulfilled only) |
+| Admin global booking list | **GSI1** | `GSI1PK = BOOKING_LIST`, `GSI1SK = BOOKING#...` |
 | Unscheduled package visits | GSI1 only | `GSI1SK = VISIT#UNSCHEDULED#...` (excluded from home-summary) |
-| Package-linked first-job Booking | GSI1 | `GSI1SK = BOOKING#UNSCHEDULED#{id}`; `bookingDate` is activation/order day, not service date |
+| Package-linked first-job Booking | GSI1 | `GSI1SK = BOOKING#UNSCHEDULED#{id}` while unscheduled; `bookingDate` is the earliest confirmed PackageVisit civil service date (unset until a slot exists). Confirmation time stays on `createdAt` / plan `activatedAt`. |
+
+Booking list HTTP access patterns:
+
+- `GET /bookings` — authenticated customer self-history
+- `GET /customers/{customerId}/bookings` — self or platform admin
+- `GET /vendors/{vendorId}/bookings` — vendor owner or platform admin
+- `GET /communities/{communityId}/bookings` — admin (all) or vendor owner (own vendor only)
+- `GET /admin/bookings` — platform admin global list
+- `GET /bookings/{bookingId}` — owning customer, vendor owner, or platform admin
 
 GSI1 is left unchanged for existing consumers (`VISIT#` / `BOOKING#` prefixes). Home-summary does not unify both work types on one BETWEEN query.
 
@@ -60,7 +72,7 @@ pnpm exec ts-node --transpile-only apps/booking-service/src/scripts/backfill-ven
   --table booking-service-<stage>-booking --apply
 ```
 
-Counting: `total` excludes `CANCELLED` and `UNSCHEDULED`; `blocked` is persisted `BLOCKED` only; completion `%` uses `today.visits.total` (0 when empty). PackageVisit is canonical when a Booking shares the same visit/job id.
+Counting: `total` excludes `CANCELLED` and `UNSCHEDULED`; `blocked` is persisted `BLOCKED` only; completion `%` uses `today?.visits?.total` (0 when empty). PackageVisit is canonical when a Booking shares the same visit/job id.
 
 Customer payment HTTP paths:
 

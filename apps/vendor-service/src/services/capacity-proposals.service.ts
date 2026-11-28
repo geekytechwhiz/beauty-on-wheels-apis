@@ -21,7 +21,6 @@ import {
   ServiceWindow,
   assertCapacityAvailable,
   commitmentIdForProposal,
-  dailyCapacity,
   packageScopeForWrite,
   validateServiceWindow,
 } from '../domain/capacity-commitment';
@@ -803,7 +802,8 @@ export class CapacityProposalsService {
       commitments,
       window: proposal.serviceWindow,
       quantity: proposal.quantity,
-      capacityPerDay: dailyCapacity(activeCrewCount, this.maxVisitsPerCrewPerDay),
+      activeCrewCount,
+      maxVisitsPerCrewPerDay: this.maxVisitsPerCrewPerDay,
     });
 
     const at = now.toISOString();
@@ -1106,8 +1106,7 @@ export class CapacityProposalsService {
     if (active && getCallerPermissions(request).includes(VENDOR_CAPABILITY.COMMUNITY_MANAGE)) {
       return { userId, role: PROPOSAL_ACTOR_ROLE.VENDOR, isAdmin: false, vendor };
     }
-    // throw new ForbiddenError('Not authorized to access this vendor');
-    return { userId, role: PROPOSAL_ACTOR_ROLE.VENDOR, isAdmin: false, vendor };
+    throw new ForbiddenError('Not authorized to access this vendor');
   }
 
   private async requireProposalById(proposalId: string): Promise<CapacityProposalDdbItem> {

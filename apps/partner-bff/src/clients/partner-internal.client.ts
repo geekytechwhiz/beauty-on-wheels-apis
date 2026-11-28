@@ -73,8 +73,13 @@ export interface ManagerDay {
   progress: ManagerProgress;
 }
 
+/** How Booking chose the vendor operations timezone for this read. */
+export type ManagerTimezoneSource = 'SCHEDULE' | 'DEFAULT';
+
 export interface ManagerOverview {
   timezone: string;
+  /** Present on current Booking builds; omitted by older deployments. */
+  timezoneSource?: ManagerTimezoneSource;
   days: ManagerDay[];
   issues: ManagerIssue[];
   issuesAvailable: boolean;
@@ -89,6 +94,7 @@ export interface ManagerCrewSummary {
 
 export interface ManagerWorkPage {
   timezone: string;
+  timezoneSource?: ManagerTimezoneSource;
   date: string;
   /** Whole filtered day, independent of page and view. */
   summary: ManagerProgress;
@@ -143,6 +149,91 @@ export interface CapacityCommitment {
     dailyWindow: { startTime: string; endTime: string };
     daysOfWeek?: string[];
   };
+  scope?: Record<string, unknown>;
+  rate?: Record<string, unknown>;
+}
+
+/** Downstream commitment shape used by vendor-home mapping (BFF-owned projection input). */
+export type CapacityCommitmentSource = CapacityCommitment;
+
+export interface CapacityProposalSource {
+  proposalId: string;
+  communityId: string;
+  quantity: number;
+  status: string;
+  responseDeadline: string;
+  packageScope?: Record<string, unknown>;
+  serviceWindow?: Record<string, unknown>;
+  counter?: Record<string, unknown>;
+}
+
+export interface VendorContextSource {
+  hasVendor: boolean;
+  vendorId?: string;
+  status?: string;
+  onboarding?: { currentStep?: string; completed?: boolean };
+  nextAction: string;
+  membership?: {
+    role: 'owner' | 'staff';
+    permissions?: string[];
+    staffId?: string;
+  };
+  detailsAcceptance?: {
+    accepted: boolean;
+    acceptedRevision?: number;
+    acceptedAt?: string;
+    profileRevision: number;
+  };
+}
+
+export interface VendorHomeSummarySource {
+  vendorId: string;
+  timezone: string;
+  date: string;
+  today: {
+    visits: {
+      total: number;
+      completed: number;
+      inProgress: number;
+      notStarted: number;
+      blocked: number;
+      missed: number;
+      cancelled: number;
+    };
+    crew: { assigned: number; unassigned: number };
+    completion: { completed: number; total: number; percentage: number };
+    needsAttention: Array<{
+      communityId: string;
+      communityName?: string;
+      visitWindowId: string;
+      visitWindowName?: string;
+      visitCount: number;
+      blockedCount: number;
+      unassignedCount: number;
+    }>;
+  };
+  tomorrow: {
+    date: string;
+    totalVisits: number;
+    assignedVisits: number;
+    unassignedVisits: number;
+  };
+  upcoming: {
+    fromDate: string;
+    toDate: string;
+    days: Array<{
+      date: string;
+      totalVisits: number;
+      assignedVisits: number;
+      unassignedVisits: number;
+      communities: Array<{
+        communityId: string;
+        communityName?: string;
+        visitCount: number;
+        unassignedCount: number;
+      }>;
+    }>;
+  };
 }
 
 export interface CommunityLabel {
@@ -153,17 +244,38 @@ export interface CommunityLabel {
 export interface VendorManagerData {
   crews?: SchedulingCrew[];
   commitments?: CapacityCommitment[];
+  proposals?: CapacityProposalSource[];
   communities?: CommunityLabel[];
+  vendorContext?: VendorContextSource;
   /** Requested optional sections Vendor could not read; the others are still authoritative. */
-  unavailableSections?: Array<'commitments'>;
+  unavailableSections?: Array<'commitments' | 'proposals'>;
   sourceAsOf: string;
 }
 
 export interface PartnerInternalClient {
   resolveOperationalAccess(userId: string): Promise<OperationalAccess>;
-  readBooking(actor: PartnerActor, action: 'overview' | 'work' | 'planning', query: object): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage>;
-  readVendor(actor: PartnerActor, query: { includeCrews?: boolean; includeCommitments?: boolean; communityIds?: string[] }): Promise<VendorManagerData>;
+  readBooking(
+    actor: PartnerActor,
+    action: 'overview' | 'work' | 'planning' | 'homeSummary',
+    query: object,
+  ): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage | VendorHomeSummarySource>;
+  readVendor(
+    actor: PartnerActor,
+    query: {
+      includeCrews?: boolean;
+      includeCommitments?: boolean;
+      includeVendorContext?: boolean;
+      includeProposals?: boolean;
+      proposalStatuses?: Array<'SENT' | 'COUNTERED'>;
+      communityIds?: string[];
+    },
+  ): Promise<VendorManagerData>;
   readCapacityCommitments(actor: PartnerActor): Promise<CapacityCommitment[]>;
+  readHomeSummary(
+    actor: PartnerActor,
+    query: { date?: string; upcomingDays?: number },
+  ): Promise<VendorHomeSummarySource>;
+  readVendorBookings(actor: PartnerActor): Promise<VendorHomeSummarySource>;
 }
 
 /**
@@ -216,21 +328,40 @@ export class HttpPartnerInternalClient implements PartnerInternalClient {
 
   async readBooking(
     actor: PartnerActor,
-    action: 'overview' | 'work' | 'planning',
+    action: 'overview' | 'work' | 'planning' | 'homeSummary',
     query: object,
-  ): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage> {
+  ): Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage | VendorHomeSummarySource> {
     return this.post(
       this.config.bookingBaseUrl,
       '/internal/partner/manager/read',
       { actor, action, query },
       `Booking ${action}`,
       READ_TIMEOUT_MS,
-    ) as Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage>;
+    ) as Promise<ManagerOverview | ManagerWorkPage | ManagerPlanningPage | VendorHomeSummarySource>;
   }
 
+   async readVendorBookings(
+    actor: PartnerActor,
+  ): Promise<VendorHomeSummarySource> {
+    return this.get(
+      // this.config.bookingBaseUrl,
+      'https://ho3jui18ua.execute-api.ap-south-1.amazonaws.com/dev',
+      '/vendors/{vendorId}/bookings',
+      { vendorId: actor.vendorId },
+      `Vendor Bookings`,
+      READ_TIMEOUT_MS,
+    ) as Promise<VendorHomeSummarySource>;
+  }
   async readVendor(
     actor: PartnerActor,
-    query: { includeCrews?: boolean; includeCommitments?: boolean; communityIds?: string[] },
+    query: {
+      includeCrews?: boolean;
+      includeCommitments?: boolean;
+      includeVendorContext?: boolean;
+      includeProposals?: boolean;
+      proposalStatuses?: Array<'SENT' | 'COUNTERED'>;
+      communityIds?: string[];
+    },
   ): Promise<VendorManagerData> {
     return this.post(
       this.config.vendorBaseUrl,
@@ -246,85 +377,134 @@ export class HttpPartnerInternalClient implements PartnerInternalClient {
     return Array.isArray(data.commitments) ? data.commitments : [];
   }
 
-  private async post(
-    baseUrl: string,
-    path: string,
-    body: unknown,
-    dependency: string,
-    timeoutMs: number,
-  ): Promise<unknown> {
-    const base = baseUrl.trim().replace(/\/$/, '');
-    const token = this.config.internalServiceToken.trim();
-    if (!base) {
-      throw unavailable(`${dependency} base URL is not configured`);
-    }
-    if (!token) {
-      throw unavailable('Internal service token is not configured');
+  async readHomeSummary(
+    actor: PartnerActor,
+  ): Promise<VendorHomeSummarySource> {
+
+    const bookings = await this.readVendorBookings(actor);
+    logger.info({ event: 'readVendorBookings', bookings });
+    return bookings;
+  }
+
+    private async post(
+      baseUrl: string,
+      path: string,
+      body: unknown,
+      dependency: string,
+      timeoutMs: number,
+    ): Promise<unknown> {
+      const base = baseUrl.trim().replace(/\/$/, '');
+      const token = this.config.internalServiceToken.trim();
+      if (!base) {
+        throw unavailable(`${dependency} base URL is not configured`);
+      }
+      if (!token) {
+        throw unavailable('Internal service token is not configured');
+      }
+
+      const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+      let response: Response;
+      try {
+        response = await this.fetchImpl(url, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error) {
+        const cause =
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.message
+            : undefined;
+        logger.warn({
+          event: 'partner_dependency_http_failed',
+          dependency,
+          path,
+          url,
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : undefined,
+          ...(cause ? { errorCause: cause } : {}),
+          timeoutMs,
+        });
+        throw unavailable(`${dependency} is unavailable`);
+      }
+
+      const raw = await response.text();
+      let parsed: unknown = {};
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          throw unavailable(`${dependency} returned an unreadable response`);
+        }
+      }
+
+      if (!response.ok) {
+        const envelope = record(parsed);
+        const error = record(envelope.error);
+        const message = record(envelope.message);
+        const details = Array.isArray(error.details) ? error.details : [];
+        const detailMessage = details
+          .map((item) => text(record(item).message))
+          .find((item): item is string => Boolean(item));
+        const dependencyMessage =
+          text(error.message) ??
+          text(message.description) ??
+          detailMessage ??
+          `${dependency} failed`;
+        const statusCode =
+          typeof error.statusCode === 'number' ? error.statusCode : response.status;
+        logger.warn({
+          event: 'partner_dependency_http_rejected',
+          dependency,
+          path,
+          statusCode,
+          errorCode: text(error.code),
+          dependencyMessage,
+        });
+        throw new BaseError(
+          dependencyMessage,
+          statusCode >= 500 ? 502 : statusCode,
+          text(error.code) ?? 'DEPENDENCY_ERROR',
+          undefined,
+          { retryable: statusCode >= 500 },
+        );
+      }
+
+      return unwrapData(parsed);
     }
 
-    const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
-    let response: Response;
-    try {
-      response = await this.fetchImpl(url, {
-        method: 'POST',
+    private async get(
+      baseUrl: string,
+      path: string,
+      query: object,
+      dependency: string,
+      timeoutMs: number,
+    ): Promise<unknown> {
+      const base = baseUrl.trim().replace(/\/$/, '');
+      const token = this.config.internalServiceToken.trim();
+      if (!base) {
+        throw unavailable(`${dependency} base URL is not configured`);
+      }
+      if (!token) {
+        throw unavailable('Internal service token is not configured');
+      }
+      const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+      return await this.fetchImpl(url, {
+        method: 'GET',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
       });
-    } catch (error) {
-      const cause =
-        error instanceof Error && error.cause instanceof Error
-          ? error.cause.message
-          : undefined;
-      logger.warn({
-        event: 'partner_dependency_http_failed',
-        dependency,
-        path,
-        url,
-        errorName: error instanceof Error ? error.name : typeof error,
-        errorMessage: error instanceof Error ? error.message : undefined,
-        ...(cause ? { errorCause: cause } : {}),
-        timeoutMs,
-      });
-      throw unavailable(`${dependency} is unavailable`);
     }
-
-    const raw = await response.text();
-    let parsed: unknown = {};
-    if (raw) {
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        throw unavailable(`${dependency} returned an unreadable response`);
-      }
-    }
-
-    if (!response.ok) {
-      const error = record(record(parsed).error);
-      const statusCode = typeof error.statusCode === 'number' ? error.statusCode : response.status;
-      logger.warn({
-        event: 'partner_dependency_http_rejected',
-        dependency,
-        path,
-        statusCode,
-        errorCode: text(error.code),
-      });
-      throw new BaseError(
-        text(error.message) ?? `${dependency} failed`,
-        statusCode >= 500 ? 502 : statusCode,
-        text(error.code) ?? 'DEPENDENCY_ERROR',
-        undefined,
-        { retryable: statusCode >= 500 },
-      );
-    }
-
-    return unwrapData(parsed);
   }
-}
 
 /** @deprecated Use {@link HttpPartnerInternalClient}. Kept as a type alias for existing imports. */
 export const LambdaPartnerInternalClient = HttpPartnerInternalClient;

@@ -25,6 +25,7 @@ function client(issueAvailable = true): PartnerInternalClient {
       return { crews: [{ crewId: 'crew-1', vendorId: 'vendor-1', name: 'North Crew', vanLabel: 'Van 1', status: 'ACTIVE', availabilityStatus: 'AVAILABLE', capacityPerDay: 4, staff: [{ staffId: 'staff-1', name: 'Ravi', status: 'ACTIVE' }, { staffId: 'staff-2', name: 'Asha', status: 'ACTIVE' }] }], commitments: [], sourceAsOf: now.toISOString() } as VendorManagerData;
     }),
     readCapacityCommitments: jest.fn(async () => []),
+    readHomeSummary: jest.fn(),
   };
 }
 
@@ -48,8 +49,8 @@ describe('ManagerHomeService', () => {
   it('uses the backend blocker timestamp and computes dated crew availability from capacity and workload', async () => {
     const source = overview();
     source.issues[0] = { ...source.issues[0]!, blockingStartedAt: '2026-11-13T05:00:00.000Z' };
-    source.days[1]!.visits = [{
-      ...source.days[0]!.visits[0]!,
+    source.days[1]!?.visits = [{
+      ...source.days[0]!?.visits[0]!,
       visitId: 'visit-2',
       date: '2026-11-14',
       service: { serviceId: 'service-1', name: 'Wash', estimatedMinutes: 60 },
@@ -62,9 +63,26 @@ describe('ManagerHomeService', () => {
     });
     const upcoming = result.data.upcomingPlan as { groups: Array<{ crews: Array<Record<string, unknown>> }> };
     expect(upcoming.groups[0]!.crews[0]).toMatchObject({
+      availabilityConfirmation: {
+        status: 'UNAVAILABLE',
+        reason: 'DATED_CONFIRMATION_NOT_SUPPORTED',
+      },
       availability: { status: 'AVAILABLE' },
-      capacity: { capacityPerDay: 4, assignedCapacityUnits: 2, availableCapacityUnits: 2 },
+      capacity: {
+        capacityPerDay: 4,
+        assignedCapacityUnits: 2,
+        availableCapacityUnits: 2,
+        capacityUnit: 'THIRTY_MINUTE_SLOT',
+      },
     });
+    expect(result.appliedFilters).toEqual({
+      date: '2026-11-13',
+      fromDate: '2026-11-13',
+      toDate: '2026-11-16',
+    });
+    expect(result.data.communityLabels).toEqual([
+      { communityId: 'community-1', displayName: 'Green Acres' },
+    ]);
   });
 
   it('does not surface a resolved blocker as the next action', async () => {
@@ -79,8 +97,8 @@ describe('ManagerHomeService', () => {
   it('counts open visits in the community for a community-level blocking issue', async () => {
     const source = overview();
     const today = source.days[0]!;
-    const visit = today.visits[0]!;
-    today.visits = [
+    const visit = today?.visits[0]!;
+    today?.visits = [
       visit,
       { ...visit, visitId: 'visit-2', status: 'IN_PROGRESS' },
       { ...visit, visitId: 'visit-3', status: 'COMPLETED' },
@@ -96,8 +114,8 @@ describe('ManagerHomeService', () => {
   it('returns window times and the current window aggregated across communities', async () => {
     const source = overview();
     const today = source.days[0]!;
-    const visit = { ...today.visits[0]!, window: { startTime: '11:00', endTime: '14:00' } };
-    today.visits = [
+    const visit = { ...today?.visits[0]!, window: { startTime: '11:00', endTime: '14:00' } };
+    today?.visits = [
       visit,
       { ...visit, visitId: 'visit-2', communityId: 'community-2', status: 'IN_PROGRESS' as const },
       { ...visit, visitId: 'visit-3', status: 'COMPLETED' as const },
@@ -125,7 +143,7 @@ describe('ManagerHomeService', () => {
   it('reports the next window as upcoming when none is in progress', async () => {
     const source = overview();
     const today = source.days[0]!;
-    today.visits = [{ ...today.visits[0]!, window: { startTime: '16:00', endTime: '19:00' } }];
+    today?.visits = [{ ...today?.visits[0]!, window: { startTime: '16:00', endTime: '19:00' } }];
     const stub = client();
     (stub.readBooking as jest.Mock).mockResolvedValue(source);
     const result = await new ManagerHomeService(stub, () => now).get(actor);

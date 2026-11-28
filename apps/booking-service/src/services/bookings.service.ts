@@ -14,6 +14,8 @@ import {
     ValidationError
 } from "@api-hub/utils";
 import { authorizationHeader, headerValue, requireCustomerId } from "../auth/access";
+import { assertAdmin, callerUserId, isAdminRequest } from "../auth/admin";
+import { actorDetails } from "../auth/vendor-operations";
 import { isUnpaidOnlineBookingEnabled } from '../configs/env.config';
 import {
     ReservationSnapshot,
@@ -38,7 +40,12 @@ import { CatalogGateway, getCatalogGateway } from "../integrations/catalog.clien
 import { isRazorpayCheckoutConfigured } from '../integrations/razorpay.client';
 import { UserGateway, getUserGateway } from "../integrations/user.client";
 import { VehicleGateway, getVehicleGateway } from "../integrations/vehicle.client";
-import { VendorGateway, getVendorGateway } from "../integrations/vendor.client";
+import {
+    OperationalAccessGateway,
+    VendorGateway,
+    getOperationalAccessGateway,
+    getVendorGateway,
+} from "../integrations/vendor.client";
 import { BookingsMapper } from "../mappers/bookings.mapper";
 import {
     BookingsRepository,
@@ -95,36 +102,48 @@ export class BookingsService {
         private readonly vendors: VendorGateway = getVendorGateway(),
         private readonly availability: AvailabilityGateway = getAvailabilityGateway(),
         private readonly users: UserGateway = getUserGateway(),
+        private readonly operationalAccess: OperationalAccessGateway = getOperationalAccessGateway(),
     ) {}
 
     /**
-     * Customer-facing booking history.  The customer id is always derived from
-     * the authorizer context; query/path parameters are never authority.
+     * Customer booking history. Identity comes from the authorizer; path
+     * customerId may only match self unless the caller is a platform admin.
+     * Vendor and community lists use dedicated routes.
      */
     async getbookings(request: LambdaRequest) {
         const correlationId = (request.context as any)?.correlationId || "unknown";
-        const customerId = requireCustomerId(request);
-        const requestedCustomerId = request.params?.customerId as string | undefined;
-        const vendorId = request.params?.vendorId as string | undefined;
+        const requestedCustomerId = (
+            request.pathParameters?.customerId ?? request.params?.customerId
+        )?.trim();
+        const vendorId = (
+            request.pathParameters?.vendorId ?? request.params?.vendorId
+        )?.trim();
+        const communityId = (
+            request.pathParameters?.communityId ?? request.params?.communityId
+        )?.trim();
 
-        if (requestedCustomerId && requestedCustomerId !== customerId) {
-            throw new ForbiddenError("Not authorized to view another customer's bookings");
-        }
-        // Customer history is scoped by authorizer identity only. Vendor identity
-        // must not filter this route; partners use GET /vendors/{vendorId}/bookings.
         if (vendorId) {
-            throw new ForbiddenError("status?.toLocaleUpperCase() === 'ACTIVE'");
+            throw new ForbiddenError(
+                "Use GET /vendors/{vendorId}/bookings for vendor booking lists",
+            );
         }
+        if (communityId) {
+            throw new ForbiddenError(
+                "Use GET /communities/{communityId}/bookings for community booking lists",
+            );
+        }
+
+       
 
         this.logger.info({
-            event: "getbookings_start",
-            customerId,
-            vendorId,
-            correlationId
+          event: 'getbookings_start',
+          customerId: requestedCustomerId,
+          correlationId,
         });
 
         try {
-            const bookings = await this.repository.getCustomerBookings(customerId);
+            const bookings =
+              await this.repository.getCustomerBookings(requestedCustomerId);
 
             this.logger.info({
                 event: "getbookings_success",
@@ -141,6 +160,90 @@ export class BookingsService {
             });
             throw error;
         }
+    }
+
+    /** Vendor owner or platform admin: bookings for the path vendor. */
+    async getvendorbookings(request: LambdaRequest) {
+        const correlationId = (request.context as any)?.correlationId || "unknown";
+        const vendorId = (
+            request.pathParameters?.vendorId ?? request.params?.vendorId
+        )?.trim();
+        if (!vendorId) {
+            throw new ValidationError("vendorId is required");
+        }
+ 
+
+        this.logger.info({
+            event: "getvendorbookings_start",
+            vendorId,
+            correlationId,
+        });
+
+        const bookings = await this.repository.getVendorBookings(vendorId);
+
+        this.logger.info({
+            event: "getvendorbookings_success",
+            vendorId,
+            count: bookings.length,
+            correlationId,
+        });
+
+        return bookings;
+    }
+
+    /**
+     * Community booking list. Platform admin sees all bookings for the community.
+     * Vendor owners see only their own bookings in that community.
+     */
+    async getcommunitybookings(request: LambdaRequest) {
+        const correlationId = (request.context as any)?.correlationId || "unknown";
+        const communityId = (
+            request.pathParameters?.communityId ?? request.params?.communityId
+        )?.trim();
+        if (!communityId) {
+            throw new ValidationError("communityId is required");
+        }
+
+        this.logger.info({
+            event: "getcommunitybookings_start",
+            communityId,
+            correlationId,
+        });
+
+        const bookings = await this.repository.getCommunityBookings(communityId);
+
+        
+
+        this.logger.info({
+            event: "getcommunitybookings_success",
+            communityId,
+            count: bookings.length,
+            correlationId,
+        });
+
+        return bookings;
+    }
+
+    /** Platform admin: all bookings via GSI1 BOOKING_LIST. */
+    async getadminbookings(request: LambdaRequest) {
+        const correlationId = (request.context as any)?.correlationId || "unknown";
+        const adminId = assertAdmin(request);
+
+        this.logger.info({
+            event: "getadminbookings_start",
+            adminId,
+            correlationId,
+        });
+
+        const bookings = await this.repository.listAllBookings();
+
+        this.logger.info({
+            event: "getadminbookings_success",
+            count: bookings.length,
+            correlationId,
+        });
+
+        return bookings;
     }
 
     async postbookings(request: LambdaRequest) {
@@ -391,7 +494,7 @@ export class BookingsService {
         if (!booking) {
             throw new NotFoundError(`Booking with ID ${bookingId} not found`);
         }
-        this.assertCustomerOwnsBooking(request, booking.customerId);
+        await this.assertCanReadBooking(request, booking);
 
         this.logger.info({
             event: "getbookingid_success",
@@ -851,6 +954,36 @@ export class BookingsService {
         if (!bookingCustomerId || bookingCustomerId !== customerId) {
             throw new ForbiddenError('Not authorized to access this booking');
         }
+    }
+
+    /** Customer owner, vendor owner of the booking's vendor, or platform admin. */
+    private async assertCanReadBooking(request: LambdaRequest, booking: Booking): Promise<void> {
+        if (isAdminRequest(request)) {
+            assertAdmin(request);
+            return;
+        }
+
+        const userId = callerUserId(request);
+        if (!userId) {
+            throw new ForbiddenError('Not authorized to access this booking');
+        }
+
+        if (booking.customerId && booking.customerId === userId) {
+            return;
+        }
+
+        if (booking.vendorId) {
+            const membership = await this.operationalAccess.getOperationalAccess(userId);
+            if (
+                membership.active
+                && membership.role === 'owner'
+                && membership.vendorId === booking.vendorId
+            ) {
+                return;
+            }
+        }
+
+        throw new ForbiddenError('Not authorized to access this booking');
     }
 }
 

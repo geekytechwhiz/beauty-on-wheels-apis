@@ -25,8 +25,8 @@ import {
 import {
   CAPACITY_COMMITMENT_STATUS,
   CapacityCommitmentDdbItem,
+  DEFAULT_MAX_VISITS_PER_CREW_PER_DAY,
   assertCapacityAvailable,
-  dailyCapacity,
 } from '../domain/capacity-commitment';
 import {
   CapacityChangeRequestsRepository,
@@ -377,11 +377,13 @@ export class CapacityChangeRequestsService {
       this.capacity.listCommitments(commitment.vendorId),
       this.crews.listAllCrews(commitment.vendorId),
     ]);
+    const activeCrewCount = crews.filter((crew) => crew.status === 'ACTIVE').length;
     assertCapacityAvailable({
       commitments: commitments.filter((item) => item.commitmentId !== commitment.commitmentId),
       window: commitment.window,
       quantity: requestedQuantity,
-      capacityPerDay: dailyCapacity(crews.filter((crew) => crew.status === 'ACTIVE').length),
+      activeCrewCount,
+      maxVisitsPerCrewPerDay: DEFAULT_MAX_VISITS_PER_CREW_PER_DAY,
     });
   }
 }

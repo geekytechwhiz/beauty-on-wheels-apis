@@ -785,7 +785,10 @@ custom:
                     hasMore:
                       type: boolean
       - name: VendorSelfLookup
-        description: Whether the caller owns a vendor and what to do next
+        description: >
+          Whether the caller has a vendor relationship and what to do next.
+          Runtime resolves owner membership first, then ACTIVE staff membership.
+          Owners may receive detailsAcceptance and ACCEPT_VENDOR_DETAILS nextAction.
         content:
           application/json:
             schema:
@@ -819,6 +822,7 @@ custom:
                     - VIEW_APPLICATION_STATUS
                     - OPEN_VENDOR_DASHBOARD
                     - COMPLETE_VENDOR_SETUP
+                    - ACCEPT_VENDOR_DETAILS
                     - VIEW_ACCOUNT_STATUS
                     - CORRECT_APPLICATION
                 membership:
@@ -828,6 +832,25 @@ custom:
                       type: string
                       enum:
                         - owner
+                        - staff
+                    staffId:
+                      type: string
+                    permissions:
+                      type: array
+                      items:
+                        type: string
+                detailsAcceptance:
+                  type: object
+                  properties:
+                    accepted:
+                      type: boolean
+                    acceptedRevision:
+                      type: integer
+                    acceptedAt:
+                      type: string
+                      format: date-time
+                    profileRevision:
+                      type: integer
               required:
                 - hasVendor
                 - nextAction

@@ -23,7 +23,23 @@ export class BookingsController {
 
     }
 
+    async handleGetvendorbookings(
+        request: LambdaRequest
+    ) {
+        return this.service.getvendorbookings(request);
+    }
 
+    async handleGetcommunitybookings(
+        request: LambdaRequest
+    ) {
+        return this.service.getcommunitybookings(request);
+    }
+
+    async handleGetadminbookings(
+        request: LambdaRequest
+    ) {
+        return this.service.getadminbookings(request);
+    }
 
     async handlePostbookings(
         request: LambdaRequest

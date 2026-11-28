@@ -4,6 +4,7 @@ import { OperationalAccessGateway } from '../integrations/vendor.client';
 import { PackageVisitRecord } from '../types/package-visit.types';
 import { VendorIssueRecord } from '../types/vendor-issue.types';
 import { PartnerManagerReadService } from './partner-manager-read.service';
+import { VendorHomeSummaryService } from './vendor-home-summary.service';
 
 const visit: PackageVisitRecord = {
   visitId: 'visit-1', planId: 'plan-1', customerId: 'customer-1', vendorId: 'vendor-1', communityId: 'community-1', visitWindowId: 'window-1',
@@ -31,6 +32,7 @@ describe('PartnerManagerReadService', () => {
     plans = {
       listVendorVisitsForDate: jest.fn().mockResolvedValue([visit]),
       getPlan: jest.fn(),
+      sampleVendorVisitTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
     } as unknown as jest.Mocked<CustomerPlansRepository>;
     issues = { listVendorIssues: jest.fn().mockResolvedValue([{ issueId: 'issue-1', vendorId: 'vendor-1', visitId: 'visit-1', type: 'SAFETY_CONCERN', description: 'Unsafe access', status: 'ACTION_REQUIRED', blocksVisit: true, blockingStartedAt: '2026-11-13T01:00:00.000Z', attachments: [], createdBy: { userId: 'owner-1', role: 'VENDOR_OWNER' }, internalNotes: [], history: [], version: 1, createdAt: '2026-11-13T01:00:00.000Z', updatedAt: '2026-11-13T01:00:00.000Z' }]) } as unknown as jest.Mocked<VendorIssuesRepository>;
     vendors = { getOperationalAccess: jest.fn().mockResolvedValue({ role: 'owner', vendorId: 'vendor-1', active: true }) } as unknown as jest.Mocked<OperationalAccessGateway>;
@@ -38,12 +40,89 @@ describe('PartnerManagerReadService', () => {
   });
 
   it('revalidates delegated vendor scope and reads without mutation', async () => {
-    const result = await service.read(event()) as { summary: { blocked: number }; items: Array<{ visitId: string }>; issues: Array<{ issueId: string }> };
+    const result = await service.read(event()) as {
+      summary: { blocked: number };
+      items: Array<{ visitId: string }>;
+      issues: Array<{ issueId: string }>;
+      timezone: string;
+      timezoneSource: string;
+    };
     expect(result.summary.blocked).toBe(1);
+    expect(result.timezone).toBe('Asia/Kolkata');
+    expect(result.timezoneSource).toBe('SCHEDULE');
     expect(result.items).toEqual([{ visitId: 'visit-1', planId: 'plan-1', communityId: 'community-1', visitWindowId: 'window-1', date: '2026-11-13', startTime: '09:00', status: 'SCHEDULED', vehicle: {}, service: { serviceId: 'wash', name: 'Wash', estimatedMinutes: 30 } }]);
     expect(result.issues).toEqual([expect.objectContaining({ issueId: 'issue-1', blocksVisit: true, blockingStartedAt: '2026-11-13T01:00:00.000Z' })]);
     expect(vendors.getOperationalAccess).toHaveBeenCalledWith('owner-1');
     expect(Object.keys(plans).some((name) => /^save|^update|^delete/.test(name))).toBe(false);
+  });
+
+  it('defaults the overview window and timezone when no schedule timezone is stored', async () => {
+    plans.sampleVendorVisitTimezone.mockResolvedValue(undefined);
+    const result = await service.read(event({ action: 'overview', query: {} })) as {
+      timezone: string;
+      timezoneSource: string;
+      days: Array<{ date: string }>;
+    };
+    expect(result.timezone).toBe('Asia/Kolkata');
+    expect(result.timezoneSource).toBe('DEFAULT');
+    expect(result.days.map((day) => day.date)).toEqual([
+      '2026-11-13',
+      '2026-11-14',
+      '2026-11-15',
+      '2026-11-16',
+    ]);
+  });
+
+  it('routes homeSummary to the vendor home summary capability', async () => {
+    const homeSummary = {
+      summary: jest.fn().mockResolvedValue({
+        vendorId: 'vendor-1',
+        timezone: 'Asia/Kolkata',
+        date: '2026-11-13',
+        today: {
+          visits: {
+            total: 1,
+            completed: 0,
+            inProgress: 0,
+            notStarted: 1,
+            blocked: 0,
+            missed: 0,
+            cancelled: 0,
+          },
+          crew: { assigned: 0, unassigned: 1 },
+          completion: { completed: 0, total: 1, percentage: 0 },
+          needsAttention: [],
+        },
+        tomorrow: {
+          date: '2026-11-14',
+          totalVisits: 0,
+          assignedVisits: 0,
+          unassignedVisits: 0,
+        },
+        upcoming: {
+          fromDate: '2026-11-14',
+          toDate: '2026-11-16',
+          days: [],
+        },
+      }),
+    } as unknown as VendorHomeSummaryService;
+    service = new PartnerManagerReadService(
+      plans,
+      issues,
+      vendors,
+      () => new Date('2026-11-13T06:30:00.000Z'),
+      homeSummary,
+    );
+
+    const result = await service.read(event({
+      action: 'homeSummary',
+      query: { upcomingDays: 3 },
+    })) as { today: { visits: { total: number } }; date: string };
+
+    expect(result.date).toBe('2026-11-13');
+    expect(result.today.visits.total).toBe(1);
+    expect(homeSummary.summary).toHaveBeenCalled();
+    expect(vendors.getOperationalAccess).toHaveBeenCalledWith('owner-1');
   });
 
   it('rejects a delegated actor whose vendor differs from canonical membership', async () => {

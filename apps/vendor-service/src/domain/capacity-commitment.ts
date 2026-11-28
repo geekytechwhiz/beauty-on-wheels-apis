@@ -304,6 +304,11 @@ export interface CapacityLedgerDdbItem {
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DAY_MS = 86_400_000;
+/**
+ * Civil-date weekday for YYYY-MM-DD. Dates are interpreted as UTC calendar days so
+ * weekday is stable for the product timezone (Asia/Kolkata) and never shifts around
+ * local midnights. Do not parse with `new Date('YYYY-MM-DD')` in a local zone.
+ */
 const WEEKDAYS: DayOfWeek[] = [
   'SUNDAY',
   'MONDAY',
@@ -313,6 +318,9 @@ const WEEKDAYS: DayOfWeek[] = [
   'FRIDAY',
   'SATURDAY',
 ];
+
+/** Product / ops civil calendar. Capacity day-of-week uses UTC civil dates (see WEEKDAYS). */
+export const CAPACITY_BUSINESS_TIMEZONE = 'Asia/Kolkata';
 
 /** One commitment per proposal, by construction. */
 export function commitmentIdForProposal(proposalId: string): string {
@@ -409,9 +417,25 @@ export function windowServesDate(window: ServiceWindow, date: string): boolean {
   return window.daysOfWeek.includes(WEEKDAYS[new Date(parseDate(date)).getUTCDay()]);
 }
 
-function dailyWindowsOverlap(a: DailyWindow, b: DailyWindow): boolean {
+/** True when two daily HH:mm windows overlap (overnight unsupported). */
+export function dailyWindowsOverlap(a: DailyWindow, b: DailyWindow): boolean {
   return toMinutes(a.startTime) < toMinutes(b.endTime)
     && toMinutes(b.startTime) < toMinutes(a.endTime);
+}
+
+/**
+ * True when the commitment can serve at least one of the plan's preferred weekdays.
+ * Omitted/empty preferred days → any commitment day list is accepted.
+ * Omitted/empty commitment daysOfWeek → every civil day (API contract) → accepted.
+ */
+export function commitmentCoversPreferredDays(
+  window: Pick<ServiceWindow, 'daysOfWeek'>,
+  preferredDays: readonly DayOfWeek[] | undefined,
+): boolean {
+  if (!preferredDays?.length) return true;
+  if (!window.daysOfWeek?.length) return true;
+  const served = new Set(window.daysOfWeek);
+  return preferredDays.some((day) => served.has(day));
 }
 
 /**
@@ -479,26 +503,108 @@ export function peakCommittedQuantity(
   return { peak, date: peakDate };
 }
 
-/** Throws 409 when `quantity` would push any day of `window` past the vendor's daily capacity. */
+/**
+ * Crew shortage implied by peak overlapping load + requested quantity against the
+ * configured per-crew daily visit limit. Matches the accept-time capacity guard.
+ */
+export function crewShortageForCapacity(input: {
+  peakCommittedQuantity: number;
+  requestedQuantity: number;
+  activeCrewCount: number;
+  maxVisitsPerCrewPerDay: number;
+}): {
+  requiredCrewCount: number;
+  additionalCrewCount: number;
+  capacityPerDay: number;
+} {
+  const activeCrewCount = Math.max(0, input.activeCrewCount);
+  const maxVisitsPerCrewPerDay = Math.max(0, input.maxVisitsPerCrewPerDay);
+  const capacityPerDay = dailyCapacity(activeCrewCount, maxVisitsPerCrewPerDay);
+  const totalLoad = Math.max(0, input.peakCommittedQuantity) + Math.max(0, input.requestedQuantity);
+  const requiredCrewCount =
+    maxVisitsPerCrewPerDay > 0
+      ? Math.ceil(totalLoad / maxVisitsPerCrewPerDay)
+      : totalLoad > 0
+        ? activeCrewCount + 1
+        : 0;
+  return {
+    requiredCrewCount,
+    additionalCrewCount: Math.max(0, requiredCrewCount - activeCrewCount),
+    capacityPerDay,
+  };
+}
+
+function pluralCount(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/** Vendor-facing CAPACITY_EXCEEDED copy; singular/plural aware. */
+export function capacityExceededMessage(input: {
+  additionalCrewCount: number;
+  activeCrewCount: number;
+  requiredCrewCount: number;
+  requestedQuantity: number;
+  peakCommittedQuantity: number;
+}): string {
+  const need = `You need ${pluralCount(input.additionalCrewCount, 'more active crew', 'more active crews')} to accept this proposal.`;
+  const have = `You have ${pluralCount(input.activeCrewCount, 'active crew', 'active crews')}`;
+  const requiredVerb = input.requiredCrewCount === 1 ? 'is' : 'are';
+  if (input.peakCommittedQuantity > 0) {
+    return (
+      `${need} ${have}; ${input.requiredCrewCount} ${requiredVerb} required for `
+      + `${pluralCount(input.requestedQuantity, 'requested visit', 'requested visits')} plus `
+      + `${pluralCount(input.peakCommittedQuantity, 'already committed visit', 'already committed visits')} `
+      + 'on the busiest overlapping day.'
+    );
+  }
+  return (
+    `${need} ${have}; ${input.requiredCrewCount} ${requiredVerb} required for `
+    + `${pluralCount(input.requestedQuantity, 'visit', 'visits')} per service day.`
+  );
+}
+
+/**
+ * Throws 409 when `quantity` would push any day of `window` past the vendor's daily
+ * crew capacity (`activeCrewCount × maxVisitsPerCrewPerDay`).
+ */
 export function assertCapacityAvailable(input: {
   commitments: readonly CommittedLoad[];
   window: ServiceWindow;
   quantity: number;
-  capacityPerDay: number;
+  activeCrewCount: number;
+  maxVisitsPerCrewPerDay: number;
 }): void {
   const { peak, date } = peakCommittedQuantity(input.commitments, input.window);
-  if (peak + input.quantity > input.capacityPerDay) {
-    throw new ConflictError(
-      'Accepting this proposal would exceed the vendor crew capacity for the service window',
-      [
-        {
-          code: 'CAPACITY_EXCEEDED',
-          field: 'quantity',
-          message:
-            `Day ${date}: committed ${peak} + requested ${input.quantity}`
-            + ` exceeds daily capacity ${input.capacityPerDay}`,
-        },
-      ],
-    );
+  const activeCrewCount = Math.max(0, input.activeCrewCount);
+  const maxVisitsPerCrewPerDay = Math.max(0, input.maxVisitsPerCrewPerDay);
+  const { requiredCrewCount, additionalCrewCount, capacityPerDay } = crewShortageForCapacity({
+    peakCommittedQuantity: peak,
+    requestedQuantity: input.quantity,
+    activeCrewCount,
+    maxVisitsPerCrewPerDay,
+  });
+  if (peak + input.quantity > capacityPerDay) {
+    const message = capacityExceededMessage({
+      additionalCrewCount,
+      activeCrewCount,
+      requiredCrewCount,
+      requestedQuantity: input.quantity,
+      peakCommittedQuantity: peak,
+    });
+    throw new ConflictError(message, [
+      {
+        code: 'CAPACITY_EXCEEDED',
+        field: 'quantity',
+        message,
+        activeCrewCount,
+        requiredCrewCount,
+        additionalCrewCount,
+        maxVisitsPerCrewPerDay,
+        peakCommittedQuantity: peak,
+        requestedQuantity: input.quantity,
+        capacityPerDay,
+        peakDate: date,
+      },
+    ]);
   }
 }

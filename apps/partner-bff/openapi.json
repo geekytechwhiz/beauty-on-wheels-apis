@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "components": {
     "schemas": {
-      "PartnerManagerHomeResponse": {
+      "VendorHomeResponse": {
         "type": "object",
         "required": [
           "success",
@@ -16,55 +16,218 @@
           "data": {
             "type": "object",
             "required": [
-              "schemaVersion",
-              "asOf",
-              "timezone",
-              "appliedFilters",
-              "freshness",
-              "sections",
-              "data"
+              "vendor",
+              "home",
+              "capacity",
+              "meta"
             ],
             "properties": {
-              "schemaVersion": {
-                "type": "string",
-                "example": "1.0"
-              },
-              "asOf": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "timezone": {
-                "type": "string",
-                "example": "Asia/Kolkata"
-              },
-              "appliedFilters": {
-                "type": "object"
-              },
-              "freshness": {
-                "type": "object"
-              },
-              "sections": {
+              "vendor": {
                 "type": "object",
-                "description": "Each section declares available or unavailable rather than fabricating missing data."
-              },
-              "data": {
-                "type": "object",
+                "required": [
+                  "vendorId",
+                  "membership",
+                  "status",
+                  "nextAction"
+                ],
                 "properties": {
-                  "nextAction": {
+                  "vendorId": {
+                    "type": "string"
+                  },
+                  "membership": {
                     "type": "object",
-                    "nullable": true
+                    "required": [
+                      "role",
+                      "permissions"
+                    ],
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "owner",
+                          "staff"
+                        ]
+                      },
+                      "permissions": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "staffId": {
+                        "type": "string"
+                      }
+                    }
                   },
-                  "upcomingPlan": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "onboarding": {
                     "type": "object"
                   },
-                  "todayProgress": {
+                  "nextAction": {
+                    "type": "string"
+                  },
+                  "detailsAcceptance": {
+                    "type": "object"
+                  }
+                }
+              },
+              "home": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "timezone": {
+                    "type": "string"
+                  },
+                  "today": {
                     "type": "object"
                   },
-                  "planAhead": {
+                  "tomorrow": {
+                    "type": "object"
+                  },
+                  "upcoming": {
+                    "type": "object"
+                  }
+                }
+              },
+              "capacity": {
+                "type": "object",
+                "required": [
+                  "pendingProposals",
+                  "commitments"
+                ],
+                "properties": {
+                  "pendingProposals": {
                     "type": "array",
                     "items": {
-                      "type": "object"
+                      "type": "object",
+                      "required": [
+                        "proposalId",
+                        "communityId",
+                        "quantity",
+                        "status",
+                        "responseDeadline",
+                        "actionable",
+                        "isPastDeadline"
+                      ],
+                      "properties": {
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "communityId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SENT",
+                            "COUNTERED"
+                          ]
+                        },
+                        "responseDeadline": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "actionable": {
+                          "type": "boolean"
+                        },
+                        "isPastDeadline": {
+                          "type": "boolean"
+                        },
+                        "packageScope": {
+                          "type": "object"
+                        },
+                        "serviceWindow": {
+                          "type": "object"
+                        },
+                        "counter": {
+                          "type": "object"
+                        }
+                      }
                     }
+                  },
+                  "commitments": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "commitmentId",
+                        "communityId",
+                        "quantity",
+                        "status",
+                        "reservedSoldQuantity"
+                      ],
+                      "properties": {
+                        "commitmentId": {
+                          "type": "string"
+                        },
+                        "communityId": {
+                          "type": "string"
+                        },
+                        "scope": {
+                          "type": "object"
+                        },
+                        "window": {
+                          "type": "object"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "rate": {
+                          "type": "object"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "CHANGE_PENDING"
+                          ]
+                        },
+                        "reservedSoldQuantity": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "meta": {
+                "type": "object",
+                "required": [
+                  "generatedAt",
+                  "partialData",
+                  "unavailableSections",
+                  "dashboardEligible"
+                ],
+                "properties": {
+                  "generatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "partialData": {
+                    "type": "boolean"
+                  },
+                  "unavailableSections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "home",
+                        "capacity.pendingProposals",
+                        "capacity.commitments"
+                      ]
+                    }
+                  },
+                  "dashboardEligible": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -157,6 +320,7 @@
                   "totalAvailability": {
                     "type": "string",
                     "enum": [
+                      "available",
                       "unavailable"
                     ]
                   }
@@ -291,6 +455,19 @@
           }
         }
       },
+      "vendorId": {
+        "type": "string"
+      },
+      "date": {
+        "type": "string",
+        "format": "date"
+      },
+      "upcomingDays": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 7,
+        "default": 3
+      },
       "Access-Control-Allow-Origin": {
         "type": "string",
         "default": "*",
@@ -299,10 +476,6 @@
       "Access-Control-Allow-Credentials": {
         "type": "boolean",
         "default": true
-      },
-      "date": {
-        "type": "string",
-        "format": "date"
       },
       "communityId": {
         "type": "string"
@@ -345,7 +518,7 @@
   },
   "info": {
     "title": "Beauty on Wheels Partner BFF",
-    "description": "Partner manager read contracts. Requests use the platform access-token authorizer; downstream calls use Lambda execution-role IAM, never the user token.",
+    "description": "Partner BFF client-facing contracts. Requests use the platform access-token authorizer; downstream domain calls use the platform internal bearer from SSM, never the user token. GET /partner/{vendorId}/manager/home is the approved vendor-home dashboard composition surface (operationId getVendorHome). The previous sections-based manager-home payload is replaced by the stable vendor/home/capacity/meta contract documented below.\n",
     "version": "1.0.0"
   },
   "security": [
@@ -354,22 +527,51 @@
     }
   ],
   "paths": {
-    "/partner/manager/home": {
+    "/partner/{vendorId}/manager/home": {
       "get": {
-        "summary": "Read manager home",
-        "description": "Reads the active manager's home cards. Vendor context comes exclusively from verified membership; client vendor headers are ignored.",
-        "operationId": "managerHome",
-        "parameters": [],
+        "summary": "Get vendor home dashboard",
+        "description": "Approved vendor-home BFF operation (operationId getVendorHome). Composes vendor context, booking home-summary (owners/admins only), and capacity widgets. Membership is resolved via Vendor operational-access; unrelated callers receive 403. When nextAction is not OPEN_VENDOR_DASHBOARD, home and capacity operational data are omitted. Optional capacity dependency failures return 200 with meta.partialData and unavailableSections. Core identity/home-summary failures return 4xx/5xx. No /vendors/{vendorId}/home alias is exposed; this /partner/{vendorId}/manager/home path is the stable public route.\n",
+        "operationId": "getVendorHome",
+        "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "Target vendor selector; membership is re-checked server-side and must match the caller's active vendor membership (or platform admin).",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Optional civil date YYYY-MM-DD for the home summary; defaults to the vendor operations today.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/date"
+            }
+          },
+          {
+            "name": "upcomingDays",
+            "in": "query",
+            "description": "Upcoming day window for the home summary (1-7). Defaults to 3.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/upcomingDays"
+            }
+          }
+        ],
         "tags": [
+          "Vendor Home",
           "Partner Manager"
         ],
         "responses": {
           "200": {
-            "description": "Manager home response",
+            "description": "Vendor home BFF response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PartnerManagerHomeResponse"
+                  "$ref": "#/components/schemas/VendorHomeResponse"
                 }
               }
             },
@@ -389,7 +591,7 @@
             }
           },
           "400": {
-            "description": "Invalid request",
+            "description": "Invalid vendorId",
             "content": {
               "application/json": {
                 "schema": {
@@ -437,7 +639,55 @@
             }
           },
           "403": {
-            "description": "Caller lacks manager membership",
+            "description": "Caller lacks vendor membership or owner access for home-summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vendor not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Core dependency failure (vendor context or home summary)",
             "content": {
               "application/json": {
                 "schema": {
@@ -463,12 +713,21 @@
         }
       }
     },
-    "/partner/manager/work": {
+    "/partner/{vendorId}/manager/work": {
       "get": {
         "summary": "Read today's work",
         "description": "Returns a stable summary over the requested filter scope and a paginated list for the requested view. Changing view does not recalculate the summary.",
         "operationId": "managerWork",
         "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "Target vendor selector; membership is re-checked server-side and must match the caller's active owner vendor.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
           {
             "name": "date",
             "in": "query",
@@ -517,7 +776,7 @@
           {
             "name": "cursor",
             "in": "query",
-            "description": "Opaque cursor bound to the vendor and current filters.",
+            "description": "Opaque cursor bound to the vendor, current filters, and the snapshot instant of the first page. A walk never repeats or skips a visit that stays on the date.",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/cursor"
@@ -627,12 +886,21 @@
         }
       }
     },
-    "/partner/manager/planning": {
+    "/partner/{vendorId}/manager/planning": {
       "get": {
         "summary": "Read work planning",
-        "description": "Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported.",
+        "description": "Returns only the requested planning tab. Availability is explicitly unavailable when dated attendance data is not supported. Roster availabilityStatus and pointOfContact are projected on the availability tab when Vendor supplies them.",
         "operationId": "managerPlanning",
         "parameters": [
+          {
+            "name": "vendorId",
+            "in": "path",
+            "description": "Target vendor selector; membership is re-checked server-side and must match the caller's active owner vendor.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/vendorId"
+            }
+          },
           {
             "name": "date",
             "in": "query",
@@ -796,6 +1064,10 @@
     {
       "name": "Partner Manager",
       "description": "Read-only manager screen contracts composed from domain-owned services."
+    },
+    {
+      "name": "Vendor Home",
+      "description": "Approved vendor dashboard BFF composition (vendor context, home summary, capacity widgets)."
     }
   ]
 }

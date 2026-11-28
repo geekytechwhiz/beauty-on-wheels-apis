@@ -59,7 +59,7 @@ export class CrewAssignmentsService {
     return buildAssignmentSchedule({
       ...range,
       travelBufferMinutes: this.travelBufferMinutes,
-      visits: loaded.visits,
+      visits: loaded?.visits,
       intervals: loaded.intervals,
       crews: await this.crews.listCrews(vendorId),
     });
@@ -134,7 +134,7 @@ export class CrewAssignmentsService {
       addCalendarDays(command.scheduleEndDate, 1),
     );
     const moving = new Set(command.visitIds);
-    const staying = neighbors.visits.filter((visit) => !moving.has(visit.visitId));
+    const staying = neighbors?.visits?.filter((visit) => !moving.has(visit.visitId));
 
     const others = occupiedFromVisits(staying, neighbors.intervals, roster);
     const conflicts = assignmentConflicts({
@@ -298,8 +298,8 @@ export class CrewAssignmentsService {
       visitWindowId: input.command.visitWindowId,
       crewId: input.command.crewId,
       status: PACKAGE_VISIT_STATUS.SCHEDULED,
-      scheduledVisitCount: input.visits.length,
-      visits: input.visits.map((visit) => ({
+      scheduledVisitCount: input?.visits?.length,
+      visits: input?.visits?.map((visit) => ({
         visitId: visit.visitId,
         status: PACKAGE_VISIT_STATUS.SCHEDULED,
         crewId: input.command.crewId,

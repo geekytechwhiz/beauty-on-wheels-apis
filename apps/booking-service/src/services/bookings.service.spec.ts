@@ -3,8 +3,9 @@ import { BookingsRepository } from '../repositories/bookings.repository';
 import { Booking } from '../types/api-types';
 import { validateBooking } from '../schemas/bookings.schema';
 import { LambdaRequest } from '@api-hub/utils';
-import { NotFoundError, BusinessRuleError } from '@api-hub/utils';
+import { NotFoundError, BusinessRuleError, ForbiddenError } from '@api-hub/utils';
 import { AvailabilityGateway } from '../integrations/availability.client';
+import { OperationalAccessGateway } from '../integrations/vendor.client';
 
 function customerRequest(bookingId?: string, customerId = 'c1'): LambdaRequest {
     return {
@@ -13,9 +14,17 @@ function customerRequest(bookingId?: string, customerId = 'c1'): LambdaRequest {
     } as unknown as LambdaRequest;
 }
 
+function adminRequest(overrides: Partial<LambdaRequest> = {}): LambdaRequest {
+    return {
+        context: { authContext: { userId: 'admin-1', roles: ['admin'] } },
+        ...overrides,
+    } as unknown as LambdaRequest;
+}
+
 describe('BookingsService Unit Tests', () => {
     let mockRepo: jest.Mocked<BookingsRepository>;
     let availability: jest.Mocked<AvailabilityGateway>;
+    let operationalAccess: jest.Mocked<OperationalAccessGateway>;
     let service: BookingsService;
 
     beforeEach(() => {
@@ -25,6 +34,7 @@ describe('BookingsService Unit Tests', () => {
             createBooking: jest.fn(),
             getCustomerBookings: jest.fn(),
             getVendorBookings: jest.fn(),
+            getCommunityBookings: jest.fn(),
             listAllBookings: jest.fn(),
             updateBooking: jest.fn(),
             updateBookingStatus: jest.fn(),
@@ -37,7 +47,21 @@ describe('BookingsService Unit Tests', () => {
             consumeHold: jest.fn(),
             releaseAllocation: jest.fn().mockResolvedValue(undefined),
         };
-        service = new BookingsService(mockRepo, undefined, undefined, undefined, availability);
+        operationalAccess = {
+            getOperationalAccess: jest.fn().mockResolvedValue({
+                role: 'none',
+                active: false,
+            }),
+        };
+        service = new BookingsService(
+            mockRepo,
+            undefined,
+            undefined,
+            undefined,
+            availability,
+            undefined,
+            operationalAccess,
+        );
     });
 
     describe('getbookings', () => {
@@ -56,6 +80,102 @@ describe('BookingsService Unit Tests', () => {
                 params: { customerId: 'c2' },
             } as LambdaRequest)).rejects.toThrow();
             expect(mockRepo.getCustomerBookings).not.toHaveBeenCalled();
+        });
+
+        it('allows platform admin to list another customer', async () => {
+            const mockBookings: Booking[] = [{ id: 'b1', customerId: 'c2' }];
+            mockRepo.getCustomerBookings.mockResolvedValue(mockBookings);
+
+            const result = await service.getbookings(adminRequest({
+                pathParameters: { customerId: 'c2' },
+                params: { customerId: 'c2' },
+            }));
+            expect(result).toEqual(mockBookings);
+            expect(mockRepo.getCustomerBookings).toHaveBeenCalledWith('c2');
+        });
+    });
+
+    describe('getvendorbookings', () => {
+        it('lists bookings for a vendor owner', async () => {
+            operationalAccess.getOperationalAccess.mockResolvedValue({
+                role: 'owner',
+                vendorId: 'v1',
+                active: true,
+            });
+            const mockBookings: Booking[] = [{ id: 'b1', vendorId: 'v1' }];
+            mockRepo.getVendorBookings.mockResolvedValue(mockBookings);
+
+            const result = await service.getvendorbookings({
+                pathParameters: { vendorId: 'v1' },
+                context: { authContext: { userId: 'owner-1' } },
+            } as unknown as LambdaRequest);
+
+            expect(result).toEqual(mockBookings);
+            expect(mockRepo.getVendorBookings).toHaveBeenCalledWith('v1');
+        });
+
+        it('rejects a vendor owner for a different vendor', async () => {
+            operationalAccess.getOperationalAccess.mockResolvedValue({
+                role: 'owner',
+                vendorId: 'other',
+                active: true,
+            });
+
+            await expect(service.getvendorbookings({
+                pathParameters: { vendorId: 'v1' },
+                context: { authContext: { userId: 'owner-1' } },
+            } as unknown as LambdaRequest)).rejects.toThrow(ForbiddenError);
+            expect(mockRepo.getVendorBookings).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getcommunitybookings', () => {
+        it('returns all community bookings for admin', async () => {
+            const mockBookings: Booking[] = [
+                { id: 'b1', vendorId: 'v1' },
+                { id: 'b2', vendorId: 'v2' },
+            ];
+            mockRepo.getCommunityBookings.mockResolvedValue(mockBookings);
+
+            const result = await service.getcommunitybookings(adminRequest({
+                pathParameters: { communityId: 'co-1' },
+            }));
+            expect(result).toEqual(mockBookings);
+        });
+
+        it('filters community bookings to the vendor owner', async () => {
+            operationalAccess.getOperationalAccess.mockResolvedValue({
+                role: 'owner',
+                vendorId: 'v1',
+                active: true,
+            });
+            mockRepo.getCommunityBookings.mockResolvedValue([
+                { id: 'b1', vendorId: 'v1' },
+                { id: 'b2', vendorId: 'v2' },
+            ]);
+
+            const result = await service.getcommunitybookings({
+                pathParameters: { communityId: 'co-1' },
+                context: { authContext: { userId: 'owner-1' } },
+            } as unknown as LambdaRequest);
+
+            expect(result).toEqual([{ id: 'b1', vendorId: 'v1' }]);
+        });
+    });
+
+    describe('getadminbookings', () => {
+        it('lists all bookings for admin', async () => {
+            const mockBookings: Booking[] = [{ id: 'b1' }];
+            mockRepo.listAllBookings.mockResolvedValue(mockBookings);
+
+            const result = await service.getadminbookings(adminRequest());
+            expect(result).toEqual(mockBookings);
+            expect(mockRepo.listAllBookings).toHaveBeenCalled();
+        });
+
+        it('rejects non-admin callers', async () => {
+            await expect(service.getadminbookings(customerRequest())).rejects.toThrow(ForbiddenError);
+            expect(mockRepo.listAllBookings).not.toHaveBeenCalled();
         });
     });
 
@@ -90,6 +210,33 @@ describe('BookingsService Unit Tests', () => {
             const req = customerRequest('b1');
 
             await expect(service.getbookingid(req)).rejects.toThrow(NotFoundError);
+        });
+
+        it('allows vendor owner of the booking vendor', async () => {
+            const mockBooking: Booking = { id: 'b1', customerId: 'c9', vendorId: 'v1' };
+            mockRepo.getBookingById.mockResolvedValue(mockBooking);
+            operationalAccess.getOperationalAccess.mockResolvedValue({
+                role: 'owner',
+                vendorId: 'v1',
+                active: true,
+            });
+
+            const result = await service.getbookingid({
+                pathParameters: { bookingId: 'b1' },
+                context: { authContext: { userId: 'owner-1' } },
+            } as unknown as LambdaRequest);
+
+            expect(result).toEqual(mockBooking);
+        });
+
+        it('allows platform admin to read any booking', async () => {
+            const mockBooking: Booking = { id: 'b1', customerId: 'c9', vendorId: 'v1' };
+            mockRepo.getBookingById.mockResolvedValue(mockBooking);
+
+            const result = await service.getbookingid(adminRequest({
+                pathParameters: { bookingId: 'b1' },
+            }));
+            expect(result).toEqual(mockBooking);
         });
     });
 

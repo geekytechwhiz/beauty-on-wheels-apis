@@ -116,7 +116,7 @@ describe('vendor home summary domain', () => {
       visits,
     });
 
-    expect(result.today.visits).toEqual({
+    expect(result.today?.visits).toEqual({
       total: 7,
       completed: 2,
       inProgress: 1,
@@ -180,7 +180,7 @@ describe('vendor home summary domain', () => {
       upcomingDays: 1,
       visits: [visit({ status: PACKAGE_VISIT_STATUS.UNSCHEDULED, schedule: undefined })],
     });
-    expect(result.today.visits.total).toBe(0);
+    expect(result.today?.visits?.total).toBe(0);
   });
 
   it('includes one-time bookings and skips package-linked bookings', () => {
@@ -214,8 +214,8 @@ describe('vendor home summary domain', () => {
       bookings: [oneTime, linked],
     });
 
-    expect(result.today.visits.total).toBe(2);
-    expect(result.today.visits.notStarted).toBe(2);
+    expect(result.today?.visits?.total).toBe(2);
+    expect(result.today?.visits?.notStarted).toBe(2);
     // One-time booking is excluded from crew metrics.
     expect(result.today.crew).toEqual({ assigned: 0, unassigned: 1 });
   });

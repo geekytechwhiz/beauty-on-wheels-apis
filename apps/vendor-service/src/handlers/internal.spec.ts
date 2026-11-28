@@ -1,11 +1,16 @@
 import { getCheckoutEligibility, getPricingConfiguration, partnerManagerRead } from './internal';
 
 const mockResolveOperationalAccess = jest.fn();
+const mockGetMyVendor = jest.fn();
 const mockListSchedulingCrews = jest.fn();
 const mockListCommitments = jest.fn();
+const mockListProposals = jest.fn();
 
 jest.mock('../services/vendors.service', () => ({
-  getVendorsService: () => ({ resolveOperationalAccess: mockResolveOperationalAccess }),
+  getVendorsService: () => ({
+    resolveOperationalAccess: mockResolveOperationalAccess,
+    getMyVendor: mockGetMyVendor,
+  }),
 }));
 
 jest.mock('../services/scheduling-crews.service', () => ({
@@ -13,7 +18,10 @@ jest.mock('../services/scheduling-crews.service', () => ({
 }));
 
 jest.mock('../services/capacity-proposals.service', () => ({
-  getCapacityProposalsService: () => ({ listvendorcapacitycommitments: mockListCommitments }),
+  getCapacityProposalsService: () => ({
+    listvendorcapacitycommitments: mockListCommitments,
+    listvendorcapacityproposals: mockListProposals,
+  }),
 }));
 
 jest.mock('../services/checkout-eligibility.service', () => ({
@@ -95,8 +103,16 @@ describe('vendor internal handlers', () => {
 
     beforeEach(() => {
       mockResolveOperationalAccess.mockReset().mockResolvedValue({ role: 'owner', vendorId: 'vendor-1', active: true });
+      mockGetMyVendor.mockReset().mockResolvedValue({
+        hasVendor: true,
+        vendorId: 'vendor-1',
+        status: 'ACTIVE',
+        nextAction: 'OPEN_VENDOR_DASHBOARD',
+        membership: { role: 'owner', permissions: ['visits:view'] },
+      });
       mockListSchedulingCrews.mockReset().mockResolvedValue({ crews: [crew] });
       mockListCommitments.mockReset().mockResolvedValue({ data: { items: [{ commitmentId: 'commitment-1' }] } });
+      mockListProposals.mockReset().mockResolvedValue({ data: { items: [{ proposalId: 'cpr_1', status: 'SENT' }] } });
     });
 
     it('returns crews with their point of contact for the verified owner', async () => {
@@ -114,11 +130,36 @@ describe('vendor internal handlers', () => {
       expect(result.data).not.toHaveProperty('commitments');
     });
 
-    it('rejects an actor whose canonical membership is for another vendor or is not an owner', async () => {
+    it('rejects an actor whose canonical membership is for another vendor or is not an owner for crews', async () => {
       mockResolveOperationalAccess.mockResolvedValue({ role: 'owner', vendorId: 'vendor-2', active: true });
       await expect(partnerManagerRead({ actor, includeCrews: true })).resolves.toEqual({ error: expect.objectContaining({ statusCode: 403 }) });
       mockResolveOperationalAccess.mockResolvedValue({ role: 'staff', vendorId: 'vendor-1', staffId: 'staff-1', active: true });
       await expect(partnerManagerRead({ actor, includeCrews: true })).resolves.toEqual({ error: expect.objectContaining({ statusCode: 403 }) });
+      expect(mockListSchedulingCrews).not.toHaveBeenCalled();
+    });
+
+    it('allows active staff to read vendor context without crews', async () => {
+      mockResolveOperationalAccess.mockResolvedValue({
+        role: 'staff',
+        vendorId: 'vendor-1',
+        staffId: 'staff-1',
+        active: true,
+      });
+      mockGetMyVendor.mockResolvedValue({
+        hasVendor: true,
+        vendorId: 'vendor-1',
+        status: 'ACTIVE',
+        nextAction: 'OPEN_VENDOR_DASHBOARD',
+        membership: { role: 'staff', staffId: 'staff-1', permissions: ['visits:view'] },
+      });
+      const result = await partnerManagerRead({
+        actor: { ...actor, userId: 'staff-1', roles: ['buddy'], permissions: ['visits:view'] },
+        includeVendorContext: true,
+      }) as { data: Record<string, unknown> };
+      expect(result.data.vendorContext).toMatchObject({
+        vendorId: 'vendor-1',
+        membership: { role: 'staff' },
+      });
       expect(mockListSchedulingCrews).not.toHaveBeenCalled();
     });
 

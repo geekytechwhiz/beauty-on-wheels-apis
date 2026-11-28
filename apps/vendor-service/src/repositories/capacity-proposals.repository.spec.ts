@@ -33,7 +33,7 @@ describe('CapacityProposalsRepository.reserveSoldCapacity', () => {
                 SK: VendorKeyBuilder.capacityCommitmentSk('cmt_1'),
               },
               ConditionExpression: expect.stringContaining(
-                'if_not_exists(claimedPeriodQuantity, :zero) <= :maxClaimed',
+                'attribute_not_exists(claimedPeriodQuantity) OR claimedPeriodQuantity <= :maxClaimed',
               ),
               ExpressionAttributeValues: expect.objectContaining({
                 ':delta': 4,

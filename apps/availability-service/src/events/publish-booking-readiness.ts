@@ -55,7 +55,7 @@ export async function publishAvailabilityBookingReadiness(input: {
   if (!reader) reader = new AvailabilityReadinessReader();
   const [schedules, visits] = await Promise.all([
     reader.schedules(input.vendorId),
-    reader.visits(input.vendorId),
+    reader?.visits(input.vendorId),
   ]);
   const count = activeValidVisitScheduleCount(schedules, visits, input.now ?? new Date());
   ensureAvailabilityEventPlatform();

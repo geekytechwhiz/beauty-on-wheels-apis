@@ -21,6 +21,7 @@ import {
   assertSchedulePayload,
   assertVisitTransition,
   computeVisitProgress,
+  earliestConfirmedServiceDate,
   operationalSnapshot,
   toVisitResponse,
   validityEndsAt,
@@ -37,6 +38,11 @@ import { BookingError } from '../errors';
 import { AvailabilityGateway, getAvailabilityGateway } from '../integrations/availability.client';
 import { VendorGateway, getVendorGateway } from '../integrations/vendor.client';
 import { visitSlotUnits } from '../domain/ops-supply-demand';
+import { BookingsMapper } from '../mappers/bookings.mapper';
+import {
+  BookingsRepository,
+  getBookingsRepository,
+} from '../repositories/bookings.repository';
 import {
   CustomerPlansRepository,
   getCustomerPlansRepository,
@@ -73,6 +79,10 @@ export class PackageVisitsService {
     private readonly vendors: VendorGateway = getVendorGateway(),
     private readonly issues: Pick<VendorIssuesRepository, 'listBlockingVisitIssues'> = getVendorIssuesRepository(),
     private readonly evidence: () => EvidenceStorage = getEvidenceStorage,
+    private readonly bookings: Pick<
+      BookingsRepository,
+      'getBookingDetailsItem' | 'updateBooking'
+    > = getBookingsRepository(),
   ) {}
 
   async list(request: LambdaRequest): Promise<PackageVisitListPage> {
@@ -748,7 +758,7 @@ export class PackageVisitsService {
     this.assertPlanPaid(plan);
 
     const body = (request.body ?? {}) as { visits?: unknown };
-    if (!Array.isArray(body.visits) || body.visits.length === 0) {
+    if (!Array.isArray(body?.visits) || body?.visits?.length === 0) {
       throw new ValidationError('visits array is required');
     }
 
@@ -765,7 +775,7 @@ export class PackageVisitsService {
     const scheduled: PackageVisitResponse[] = [];
     const failed: Array<{ visitId: string; code: string; message: string }> = [];
 
-    for (const entry of body.visits) {
+    for (const entry of body?.visits) {
       const item = (entry ?? {}) as Record<string, unknown>;
       const visitId = typeof item.visitId === 'string' ? item.visitId.trim() : '';
       if (!visitId) {
@@ -882,7 +892,50 @@ export class PackageVisitsService {
     } catch {
       // Progress is denormalized; visit rows remain authoritative.
     }
+    await this.syncLinkedBookingServiceStartDate(plan, visits);
     return progress;
+  }
+
+  /**
+   * Keep the linked first-job Booking.bookingDate aligned with the earliest
+   * confirmed PackageVisit civil date. Does not invent a date when no slot exists,
+   * and does not write schedule onto the package booking (GSI1 stays UNSCHEDULED).
+   */
+  private async syncLinkedBookingServiceStartDate(
+    plan: CustomerPlanRecord,
+    visits: readonly PackageVisitRecord[],
+  ): Promise<void> {
+    const bookingId = plan.firstJobId?.trim();
+    if (!bookingId) return;
+    const serviceStartDate = earliestConfirmedServiceDate(visits);
+    try {
+      const original = await this.bookings.getBookingDetailsItem(bookingId);
+      if (!original) return;
+      const current = (original.bookingDate ?? '').trim();
+      const next = serviceStartDate ?? '';
+      if (current === next) return;
+      const booking = BookingsMapper.toDomain(original);
+      await this.bookings.updateBooking(
+        {
+          ...booking,
+          ...(next ? { bookingDate: next } : { bookingDate: '' }),
+        },
+        original,
+      );
+      this.logger.info({
+        event: 'package_booking_service_start_synced',
+        planId: plan.planId,
+        bookingId,
+        bookingDate: next || null,
+      });
+    } catch (error) {
+      this.logger.error({
+        event: 'package_booking_service_start_sync_failed',
+        planId: plan.planId,
+        bookingId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async requirePlanAccess(planId: string, actor: VisitActor): Promise<CustomerPlanRecord> {

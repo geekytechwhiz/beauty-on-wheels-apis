@@ -356,7 +356,7 @@ export function summarizeVendorVisits(input: {
   fromDate: string;
   toDate: string;
 }): VendorVisitSummary {
-  const inRange = uniqueByVisitId(datedVisits(input.visits, input.fromDate, input.toDate));
+  const inRange = uniqueByVisitId(datedVisits(input?.visits, input.fromDate, input.toDate));
   const todayVisits = inRange.filter((visit) => visitCoversDate(visit, input.today));
   const metrics = metricsFor(todayVisits);
   const groups = demandGroups(inRange, input.fromDate, input.toDate);

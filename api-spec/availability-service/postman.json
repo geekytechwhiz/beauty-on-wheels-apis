@@ -1,11 +1,11 @@
 {
   "item": [
     {
-      "id": "58ccbc01-6c88-41a6-82b8-dbf914e4d875",
+      "id": "691e20c6-82c7-43b7-8c0d-9fc7deb3c9b0",
       "name": "slot-holds",
       "item": [
         {
-          "id": "20c71ec9-daa9-4534-acd7-a6d6e79d7bf9",
+          "id": "ccaa91c3-72b5-445c-8b79-7a7f9e2da4fb",
           "name": "Create slot hold",
           "request": {
             "name": "Create slot hold",
@@ -60,7 +60,7 @@
           },
           "response": [
             {
-              "id": "9668476a-51a1-48ef-9e8c-175278f52ce1",
+              "id": "53e67511-8f4e-4b54-8928-c42831a7c86a",
               "name": "Hold created",
               "originalRequest": {
                 "url": {
@@ -136,7 +136,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a082e050-ef38-44aa-8201-d3aae9b87588",
+              "id": "ec305de1-f766-4a37-be34-6e0f37f09701",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -207,7 +207,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 2150,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 5391,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -218,11 +218,11 @@
           }
         },
         {
-          "id": "b4cb8266-715a-4c71-8084-f7183a4ed1bd",
+          "id": "0655f2f6-fcff-41d2-a75e-26e587fb264a",
           "name": "{holdId}",
           "item": [
             {
-              "id": "8a26f109-a576-42ff-8ff0-a932af8b8663",
+              "id": "f925ac62-f6b2-4171-8e11-db7b4fcf1936",
               "name": "Release slot hold",
               "request": {
                 "name": "Release slot hold",
@@ -272,7 +272,7 @@
               },
               "response": [
                 {
-                  "id": "6bde6039-f174-4728-9cac-8607da37be9f",
+                  "id": "2eb00ed2-737f-4cea-9e2f-6bf70d7e8bc9",
                   "name": "Hold released",
                   "originalRequest": {
                     "url": {
@@ -344,7 +344,7 @@
                   "_postman_previewlanguage": "text"
                 },
                 {
-                  "id": "6f2ac940-2a8a-4fdb-9ce2-93031166f4e7",
+                  "id": "9b975b44-9980-40d0-9e4e-5015c86025ac",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -415,7 +415,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -426,7 +426,7 @@
               }
             },
             {
-              "id": "00542760-a7ec-469e-bb1d-7db310691db0",
+              "id": "d282140d-2fba-4316-ba93-b4c2ae6bbf86",
               "name": "Get slot hold",
               "request": {
                 "name": "Get slot hold",
@@ -476,7 +476,7 @@
               },
               "response": [
                 {
-                  "id": "f712c496-31dd-4c0c-9215-c59fbc9ab750",
+                  "id": "2f0f214a-aed9-442d-9cb3-8413de348085",
                   "name": "Hold",
                   "originalRequest": {
                     "url": {
@@ -552,7 +552,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "819739ae-3e9e-4c9e-bce4-cdd935fd4d1a",
+                  "id": "e59c4120-bb98-462e-bac4-3f57218d98b4",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -623,7 +623,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -640,15 +640,15 @@
       "event": []
     },
     {
-      "id": "31c26707-ebf8-44c8-92f0-49f0c9a67875",
+      "id": "0ba507e2-4d13-432d-a953-a30ae1a429f4",
       "name": "vendors/{vendorId}",
       "item": [
         {
-          "id": "b2ef7c53-3d90-4bc1-b161-2800b4788e25",
+          "id": "b3ede3dd-6574-4dd8-922d-d77495de33fd",
           "name": "slots",
           "item": [
             {
-              "id": "fcdf2775-7f43-4c3c-89d4-530ed1b344d1",
+              "id": "cd326edb-22e2-4417-a41d-c0035bcb857f",
               "name": "List slots",
               "request": {
                 "name": "List slots",
@@ -699,7 +699,7 @@
               },
               "response": [
                 {
-                  "id": "02cc2777-19e7-4a5c-9829-dcdcff80d56b",
+                  "id": "d1ef2689-2e88-4357-83af-5dc227636b4d",
                   "name": "Slots",
                   "originalRequest": {
                     "url": {
@@ -771,12 +771,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1973-01-28\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 9142,\n      \"available\": 384,\n      \"status\": \"blocked\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"2018-07-07\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 6302,\n      \"available\": 6860,\n      \"status\": \"full\"\n    }\n  ]\n}",
+                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"2015-09-17\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 5982,\n      \"available\": 4415,\n      \"status\": \"available\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1952-08-18\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 4617,\n      \"available\": 5762,\n      \"status\": \"blocked\"\n    }\n  ]\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "8f071076-69f0-440f-9aa7-eedcaccbe5c0",
+                  "id": "4d37e367-1655-452e-a2d8-3545ee8ad5a6",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -848,7 +848,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -859,7 +859,7 @@
               }
             },
             {
-              "id": "7ef70c7f-f19f-45c5-b99e-77b13a3e0bb1",
+              "id": "fc5f1caf-68d5-48b5-8156-23faa991585e",
               "name": "Generate slots",
               "request": {
                 "name": "Generate slots",
@@ -910,7 +910,7 @@
               },
               "response": [
                 {
-                  "id": "f3f707b7-e49a-452e-b5bc-a9870fd19498",
+                  "id": "f8b27447-e883-4d14-a82b-0bd92876fa78",
                   "name": "Slots generated",
                   "originalRequest": {
                     "url": {
@@ -982,12 +982,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1997-06-15\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 354,\n      \"available\": 8884,\n      \"status\": \"blocked\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"2013-01-20\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 1498,\n      \"available\": 7174,\n      \"status\": \"blocked\"\n    }\n  ]\n}",
+                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1983-01-22\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 9784,\n      \"available\": 5359,\n      \"status\": \"blocked\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1960-04-09\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 6627,\n      \"available\": 4777,\n      \"status\": \"full\"\n    }\n  ]\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "2e49bc41-50ab-45ea-8001-b5235587d518",
+                  "id": "c668add5-9621-4794-a43e-6a4c33fe6da7",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1059,7 +1059,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1073,11 +1073,11 @@
           "event": []
         },
         {
-          "id": "26f26ef4-da4e-4076-9056-dc773372a879",
+          "id": "b2d8176a-720d-428a-8909-66bcc5788de3",
           "name": "holidays",
           "item": [
             {
-              "id": "db8bbbef-8123-49ce-a50f-0953f627fad4",
+              "id": "9c47bbdb-342b-4a83-8b17-03f696da7487",
               "name": "List holidays",
               "request": {
                 "name": "List holidays",
@@ -1128,7 +1128,7 @@
               },
               "response": [
                 {
-                  "id": "7d6e11f9-6049-4dd2-bf19-3af2a47065c2",
+                  "id": "8bed8fe7-f8e4-4276-b33a-0547a9fbd6dc",
                   "name": "Holiday list",
                   "originalRequest": {
                     "url": {
@@ -1200,12 +1200,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1971-08-05\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1949-01-09\"\n    }\n  ]\n}",
+                  "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1964-05-21\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1993-10-22\"\n    }\n  ]\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "421497b3-4763-461e-aaa8-76a8b0db2ef0",
+                  "id": "6a140d9c-12cc-4319-a59c-e6586ad99021",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1277,7 +1277,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1288,7 +1288,7 @@
               }
             },
             {
-              "id": "5c21a695-8c3a-442f-b0cd-7c2e3c6690d5",
+              "id": "525e626f-5532-4029-9cc7-e317e66a3bfd",
               "name": "Add holiday",
               "request": {
                 "name": "Add holiday",
@@ -1352,7 +1352,7 @@
               },
               "response": [
                 {
-                  "id": "a43766c6-9533-4538-8538-cae4fa53e7ae",
+                  "id": "e1bf62c4-26bf-4f60-b1de-3008c9385cd0",
                   "name": "Holiday added",
                   "originalRequest": {
                     "url": {
@@ -1437,7 +1437,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "0c15421a-58d8-4817-928e-7f107a978be8",
+                  "id": "9df11bcf-32be-427e-8b57-f7dbeef2b03b",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -1517,7 +1517,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -1528,11 +1528,11 @@
               }
             },
             {
-              "id": "a3dc4e1d-ad08-45ba-8b0e-3826777626cc",
+              "id": "ef76a681-ec02-438b-a511-ba6a0554092d",
               "name": "{holidayId}",
               "item": [
                 {
-                  "id": "a3036aed-e1cf-4960-a0a4-10505e9236df",
+                  "id": "7f552681-240b-46b9-a640-32f500a87409",
                   "name": "Update holiday",
                   "request": {
                     "name": "Update holiday",
@@ -1604,7 +1604,7 @@
                   },
                   "response": [
                     {
-                      "id": "a0caca4d-625a-4085-b5c2-2a87628e211c",
+                      "id": "642d8d30-654e-433a-af16-8502ad2fba69",
                       "name": "Holiday updated",
                       "originalRequest": {
                         "url": {
@@ -1697,7 +1697,7 @@
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "6df94ab7-0cc2-4f56-b654-f31b152b210e",
+                      "id": "6755189f-ba1b-4bd0-ba67-3b1cfe24f6cd",
                       "name": "Request failed",
                       "originalRequest": {
                         "url": {
@@ -1785,7 +1785,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -1796,7 +1796,7 @@
                   }
                 },
                 {
-                  "id": "fcb0ced7-cf19-40fa-a324-0514d71a8e62",
+                  "id": "c254abb6-68bf-4ff5-8129-87fdded94b2c",
                   "name": "Remove holiday",
                   "request": {
                     "name": "Remove holiday",
@@ -1855,7 +1855,7 @@
                   },
                   "response": [
                     {
-                      "id": "0008c592-b776-4853-bf43-7a6522c9a04a",
+                      "id": "926d72be-bdd5-4ce0-afff-a7fc286738a9",
                       "name": "Holiday removed",
                       "originalRequest": {
                         "url": {
@@ -1936,7 +1936,7 @@
                       "_postman_previewlanguage": "text"
                     },
                     {
-                      "id": "06594238-dee6-4e53-9a70-a46a6bfe6086",
+                      "id": "cc846a23-31ec-4aa8-b54b-73abf82c733b",
                       "name": "Request failed",
                       "originalRequest": {
                         "url": {
@@ -2016,7 +2016,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -2033,7 +2033,7 @@
           "event": []
         },
         {
-          "id": "f7ad54e3-89bc-4f80-be4a-aba53091cec7",
+          "id": "d9beb42d-e5c9-468b-a2c7-efb10ef1a146",
           "name": "List bookable community visit occurrences (communityId) or legacy branch slots (branchId)",
           "request": {
             "name": "List bookable community visit occurrences (communityId) or legacy branch slots (branchId)",
@@ -2135,7 +2135,7 @@
           },
           "response": [
             {
-              "id": "0c0bbc7c-fa07-4bb0-93cc-b93786a83e8b",
+              "id": "e4c85e24-a0b9-4fd8-9aa5-e23edce7fc99",
               "name": "Bookable visit occurrences or slots",
               "originalRequest": {
                 "url": {
@@ -2244,12 +2244,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1997-06-15\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 354,\n      \"available\": 8884,\n      \"status\": \"blocked\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"2013-01-20\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 1498,\n      \"available\": 7174,\n      \"status\": \"blocked\"\n    }\n  ]\n}",
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1983-01-22\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 9784,\n      \"available\": 5359,\n      \"status\": \"blocked\"\n    },\n    {\n      \"id\": \"string\",\n      \"vendorId\": \"string\",\n      \"date\": \"1960-04-09\",\n      \"startTime\": \"string\",\n      \"endTime\": \"string\",\n      \"capacity\": 6627,\n      \"available\": 4777,\n      \"status\": \"full\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "25c48ecd-62c0-41da-b59b-794fd9670015",
+              "id": "9d2f5148-38f1-4adb-981d-afcf57d2c569",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -2358,7 +2358,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2369,11 +2369,11 @@
           }
         },
         {
-          "id": "1d1a0a9f-9558-476a-8c3a-960d072f215a",
+          "id": "029441ea-ee05-439e-add5-0a8f80cdecc7",
           "name": "working-hours",
           "item": [
             {
-              "id": "c9485d80-65ec-41f8-97ba-f7a48de66ad9",
+              "id": "b76b8899-2bfd-4f9b-8ab5-459235af6c1f",
               "name": "Deprecated. Bookable time comes from service visits. This schedule remains for vendors that have not activated a visit.",
               "request": {
                 "name": "Deprecated. Bookable time comes from service visits. This schedule remains for vendors that have not activated a visit.",
@@ -2424,7 +2424,7 @@
               },
               "response": [
                 {
-                  "id": "2eabcbfd-d642-4deb-aca4-d14a5ccc6bf1",
+                  "id": "54039e07-3b7b-4d92-8b96-5d1638ea5fbd",
                   "name": "Working hours",
                   "originalRequest": {
                     "url": {
@@ -2496,12 +2496,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"vendorId\": \"string\",\n  \"dayOfWeek\": \"THU\",\n  \"openTime\": \"string\",\n  \"closeTime\": \"string\"\n}",
+                  "body": "{\n  \"vendorId\": \"string\",\n  \"dayOfWeek\": \"WED\",\n  \"openTime\": \"string\",\n  \"closeTime\": \"string\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "9a4ec72e-2b86-47e0-a187-92b81794dee6",
+                  "id": "ffe2715e-30d7-4c99-adac-224e3c7ebe23",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -2573,7 +2573,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -2584,7 +2584,7 @@
               }
             },
             {
-              "id": "8b6f3fa5-1ccb-4cd5-b2b4-368dd2fa2c6a",
+              "id": "e2462d6e-e3fd-49f4-bc72-5b4f82f86369",
               "name": "Update working hours",
               "request": {
                 "name": "Update working hours",
@@ -2648,7 +2648,7 @@
               },
               "response": [
                 {
-                  "id": "cbd9daaa-d257-4363-ae57-8a005e3c68c9",
+                  "id": "e78944ee-e004-4348-bbe0-870a7fe56a46",
                   "name": "Updated",
                   "originalRequest": {
                     "url": {
@@ -2733,7 +2733,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "ffb470ad-1c8f-4d6c-8945-7294a3f65097",
+                  "id": "295cd167-3ff4-44b2-8d8d-bfe5bef83ffd",
                   "name": "Request failed",
                   "originalRequest": {
                     "url": {
@@ -2813,7 +2813,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -2830,11 +2830,11 @@
       "event": []
     },
     {
-      "id": "a3f4d861-d1f7-4c79-a7fe-6ec7942ba725",
+      "id": "f089b0ba-50fc-403f-892e-a1d2aff163f6",
       "name": "slots/{slotId}",
       "item": [
         {
-          "id": "5b470208-f9a1-4a39-9a52-b8da131afc23",
+          "id": "36d66e43-e68b-4d0e-b484-7fae87c4066a",
           "name": "Get slot",
           "request": {
             "name": "Get slot",
@@ -2884,7 +2884,7 @@
           },
           "response": [
             {
-              "id": "867961c6-813c-4c04-bfc7-da298c35eff3",
+              "id": "ddaba7ef-0d78-42a0-8d14-924731649f76",
               "name": "Slot",
               "originalRequest": {
                 "url": {
@@ -2955,12 +2955,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1957-08-05\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 6667,\n  \"available\": 5427,\n  \"status\": \"available\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1980-07-20\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 8036,\n  \"available\": 4029,\n  \"status\": \"available\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "f04c9f89-6c19-4844-b188-328d6574c271",
+              "id": "ee8a908d-6405-4ddf-9940-aec5f8704e88",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -3031,7 +3031,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3042,7 +3042,7 @@
           }
         },
         {
-          "id": "b2e9fa1d-0487-4dac-84d3-426b0ec872c7",
+          "id": "fe83cb61-5f0a-4f8b-9568-558f4db09b21",
           "name": "Block slot",
           "request": {
             "name": "Block slot",
@@ -3093,7 +3093,7 @@
           },
           "response": [
             {
-              "id": "ae59a9a7-dd33-4646-890f-0f40c11fe356",
+              "id": "09939d91-e627-45d1-b1ce-c5a728f67326",
               "name": "Blocked",
               "originalRequest": {
                 "url": {
@@ -3165,12 +3165,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1957-08-05\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 6667,\n  \"available\": 5427,\n  \"status\": \"available\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1980-07-20\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 8036,\n  \"available\": 4029,\n  \"status\": \"available\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "bdbbd5a6-1fa6-419d-8270-0dedf0644c2b",
+              "id": "17476c83-eb85-42ea-90b0-d83bef2131cc",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -3242,7 +3242,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3253,7 +3253,7 @@
           }
         },
         {
-          "id": "4a9ea398-5945-404d-b99a-bf99145c933e",
+          "id": "21e36d6c-ca25-47b2-9750-de70bcc397cf",
           "name": "Unblock slot",
           "request": {
             "name": "Unblock slot",
@@ -3304,7 +3304,7 @@
           },
           "response": [
             {
-              "id": "5b9b1edb-13b2-48a8-9fdc-7e4b6a3d8888",
+              "id": "cbdc68c1-5e60-4f21-ad7f-d9e0153daf5d",
               "name": "Unblocked",
               "originalRequest": {
                 "url": {
@@ -3376,12 +3376,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1957-08-05\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 6667,\n  \"available\": 5427,\n  \"status\": \"available\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"vendorId\": \"string\",\n  \"date\": \"1980-07-20\",\n  \"startTime\": \"string\",\n  \"endTime\": \"string\",\n  \"capacity\": 8036,\n  \"available\": 4029,\n  \"status\": \"available\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1901cd5d-c57e-4432-88ac-dd374b93610a",
+              "id": "675d7247-fad2-4324-8116-c6e8b67dfafa",
               "name": "Request failed",
               "originalRequest": {
                 "url": {
@@ -3453,7 +3453,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3467,7 +3467,7 @@
       "event": []
     },
     {
-      "id": "21d436b1-a825-4768-8f44-f8b165c8e0f7",
+      "id": "fa5df133-3dfc-4931-982d-02c615c64ae3",
       "name": "Canonical customer availability by community and date range",
       "request": {
         "name": "Canonical customer availability by community and date range",
@@ -3560,7 +3560,7 @@
       },
       "response": [
         {
-          "id": "20a53cd5-7232-41e6-9d73-c04f4babc33d",
+          "id": "f826bfe6-345a-4fd4-8cef-d4656f925a66",
           "name": "Bookable community visit occurrences",
           "originalRequest": {
             "url": {
@@ -3666,7 +3666,7 @@
           "_postman_previewlanguage": "text"
         },
         {
-          "id": "3a7e0346-c273-40e9-9f52-28fbc4e78d05",
+          "id": "6bd0d342-2713-4bec-85c1-698cb1794b0d",
           "name": "Request failed",
           "originalRequest": {
             "url": {
@@ -3771,7 +3771,7 @@
               "value": "application/json"
             }
           ],
-          "body": "{\n  \"success\": true,\n  \"statusCode\": 7383,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+          "body": "{\n  \"success\": true,\n  \"statusCode\": 5905,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\"\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
           "cookie": [],
           "_postman_previewlanguage": "json"
         }
@@ -3818,7 +3818,7 @@
     ]
   },
   "info": {
-    "_postman_id": "f25da096-ebf8-496a-a759-c391eb4b2bf7",
+    "_postman_id": "45a03e7c-ad94-4cd6-ab8b-0b8edf868445",
     "name": "Carish availability-service API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

@@ -23,7 +23,7 @@ export async function actorDetails(
   const vendorId = pathVendorId.trim();
   const userId = userIdOf(request);
   if (!userId) throw new UnauthorizedError('Unauthorized');
-  if (isAdminRequest(request)) return { userId, vendorId };
-  
+  if (isAdminRequest(request)) return { userId, vendorId }; 
+   
   return { userId, vendorId };
 }

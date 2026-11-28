@@ -18,6 +18,7 @@ import {
   effectiveCrewCapacity,
   labelMap,
   members,
+  pointOfContactView,
   visitView,
   type SectionAvailability,
 } from '../manager-shared';
@@ -36,6 +37,7 @@ export interface ManagerPlanningResponse {
   schemaVersion: '1.0';
   asOf: string;
   timezone: string;
+  timezoneSource?: 'SCHEDULE' | 'DEFAULT';
   appliedFilters: ManagerPlanningQuery;
   freshness: { booking: string; vendor?: string };
   sections: Record<string, SectionAvailability>;
@@ -107,30 +109,38 @@ export class ManagerPlanningService {
             displayName: crew.name,
             vanLabel: crew.vanLabel,
             members: members(crew),
+            // Dated attendance confirmation is not a Vendor capability.
             datedAvailabilityConfirmation: {
               status: 'UNAVAILABLE',
               reason: 'DATED_CONFIRMATION_NOT_SUPPORTED',
             },
+            // Roster eligibility from Vendor (not dated confirmation).
+            availabilityStatus: crew.availabilityStatus,
+            pointOfContact: pointOfContactView(crew),
           }))
         : planning.items.map((visit) =>
             visitView(visit, communityLabels, crews),
           );
     const applicableCommitments = commitmentsAvailable
-      ? commitmentsForDate(vendor?.commitments, query.date, query.communityId)
+      ? commitmentsForDate(vendor?.commitments, planning.date, query.communityId)
       : null;
     const capacity = {
       acceptedCommitmentCapacity: applicableCommitments
-        ? commitmentQuantityForDate(applicableCommitments, query.date)
+        ? commitmentQuantityForDate(applicableCommitments, planning.date)
         : null,
       commitments: applicableCommitments,
       configuredCapacity,
       effectiveOperationalCapacity,
     };
+    const appliedFilters: ManagerPlanningQuery = { ...query, date: planning.date };
     return {
       schemaVersion: '1.0',
       asOf: this.now().toISOString(),
       timezone: planning.timezone,
-      appliedFilters: query,
+      ...(planning.timezoneSource
+        ? { timezoneSource: planning.timezoneSource }
+        : {}),
+      appliedFilters,
       freshness: {
         booking: planning.sourceAsOf,
         ...(vendor?.sourceAsOf ? { vendor: vendor.sourceAsOf } : {}),

@@ -9,6 +9,7 @@ const client = (membership: unknown): PartnerInternalClient => ({
   readBooking: jest.fn(),
   readVendor: jest.fn(),
   readCapacityCommitments: jest.fn(async () => []),
+  readHomeSummary: jest.fn(),
 });
 
 function request(
@@ -67,7 +68,7 @@ describe('resolvePartnerActor', () => {
           identityId: 'identity',
           userId: 'user-a',
           roles: ['VENDOR'],
-          permissions: [],
+          permissions: ['communities:manage'],
         },
         { 'x-vendor-id': 'vendor-spoofed', 'x-user-id': 'other-user' },
         'vendor-canonical',
@@ -77,30 +78,33 @@ describe('resolvePartnerActor', () => {
     expect(actor).toMatchObject({
       userId: 'user-a',
       vendorId: 'vendor-canonical',
-      permissions: [],
+      permissions: ['communities:manage'],
     });
     expect(access.resolveOperationalAccess).toHaveBeenCalledWith('user-a');
   });
 
-  it('rejects an actor when canonical membership is for a non-owner scope', async () => {
-    await expect(
-      resolvePartnerActor(
-        request(
-          {
-            identityId: 'identity',
-            userId: 'user-a',
-            roles: ['VENDOR'],
-            permissions: [],
-          },
-          undefined,
-          'vendor-a',
-        ),
-        client({ active: true, role: 'staff', vendorId: 'vendor-a' }),
+  it('allows an active staff membership for the path vendor', async () => {
+    const actor = await resolvePartnerActor(
+      request(
+        {
+          identityId: 'identity',
+          userId: 'staff-a',
+          roles: ['BUDDY'],
+          permissions: ['visits:view'],
+        },
+        undefined,
+        'vendor-a',
       ),
-    ).rejects.toMatchObject({ statusCode: 403 });
+      client({ active: true, role: 'staff', vendorId: 'vendor-a', staffId: 'staff-1' }),
+    );
+    expect(actor).toMatchObject({
+      userId: 'staff-a',
+      vendorId: 'vendor-a',
+      permissions: ['visits:view'],
+    });
   });
 
-  it('rejects a route vendor id that differs from canonical membership', async () => {
+  it('rejects an unrelated authenticated user for another vendor', async () => {
     await expect(
       resolvePartnerActor(
         request(
@@ -116,6 +120,25 @@ describe('resolvePartnerActor', () => {
         client({ active: true, role: 'owner', vendorId: 'vendor-a' }),
       ),
     ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('allows platform admins without vendor membership match', async () => {
+    const access = client({ active: false, role: 'none' });
+    const actor = await resolvePartnerActor(
+      request(
+        {
+          identityId: 'identity',
+          userId: 'admin-1',
+          roles: ['ADMIN'],
+          permissions: [],
+        },
+        undefined,
+        'vendor-any',
+      ),
+      access,
+    );
+    expect(actor.vendorId).toBe('vendor-any');
+    expect(access.resolveOperationalAccess).not.toHaveBeenCalled();
   });
 });
 

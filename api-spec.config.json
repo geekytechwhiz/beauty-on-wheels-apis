@@ -1,12 +1,12 @@
 {
   "services": [
     { "project": "apps/identity-v1-service", "name": "identity-service" },
-    { "project": "apps/vendor-service", "name": "vendor-service" }, 
+    { "project": "apps/vendor-service", "name": "vendor-service" },
     { "project": "apps/availability-service", "name": "availability-service" },
-    { "project": "apps/booking-service", "name": "booking-service" }, 
-    { "project": "apps/service-catalog-service", "name": "service-catalog-service" }, 
-    { "project": "apps/user-service", "name": "user-service" }, 
-    { "project": "apps/vehicle-service", "name": "vehicle-service" }
-
+    { "project": "apps/booking-service", "name": "booking-service" },
+    { "project": "apps/service-catalog-service", "name": "service-catalog-service" },
+    { "project": "apps/user-service", "name": "user-service" },
+    { "project": "apps/vehicle-service", "name": "vehicle-service" },
+    { "project": "apps/partner-bff", "name": "partner-bff" }
   ]
 }

@@ -76,6 +76,7 @@ const client: PartnerInternalClient = {
       }) as VendorManagerData,
   ),
   readCapacityCommitments: jest.fn(async () => []),
+  readHomeSummary: jest.fn(),
 };
 
 describe('ManagerPlanningService', () => {
@@ -99,6 +100,8 @@ describe('ManagerPlanningService', () => {
           status: 'UNAVAILABLE',
           reason: 'DATED_CONFIRMATION_NOT_SUPPORTED',
         },
+        availabilityStatus: 'AVAILABLE',
+        pointOfContact: { status: 'UNAVAILABLE', reason: 'NOT_SUPPORTED' },
       }),
     ]);
     expect(result.data.capacity).toMatchObject({

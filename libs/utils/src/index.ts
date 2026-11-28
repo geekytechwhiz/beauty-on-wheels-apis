@@ -41,6 +41,7 @@ export * from './helper/jwt.helpers';
 export * from './helper/http-header.helpers';
 export * from './helper/http-response.helpers';
 export * from './helper/message.helpers';
+export * from './configs/axios-client';
 export * from './types/core-types'; 
 export {
   EntityIdGenerator,

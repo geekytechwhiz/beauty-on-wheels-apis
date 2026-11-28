@@ -2,6 +2,7 @@ import { LambdaRequest } from '@api-hub/utils';
 
 import { AvailabilityGateway } from '../integrations/availability.client';
 import { VendorGateway } from '../integrations/vendor.client';
+import { BookingsRepository } from '../repositories/bookings.repository';
 import { CustomerPlansRepository } from '../repositories/customer-plans.repository';
 import { CustomerPlanRecord } from '../types/customer-plan.types';
 import { PackageVisitRecord } from '../types/package-visit.types';
@@ -105,6 +106,7 @@ describe('PackageVisitsService', () => {
   let vendors: jest.Mocked<VendorGateway>;
   let issues: { listBlockingVisitIssues: jest.Mock };
   let storage: jest.Mocked<EvidenceStorage>;
+  let bookings: jest.Mocked<Pick<BookingsRepository, 'getBookingDetailsItem' | 'updateBooking'>>;
   let service: PackageVisitsService;
 
   const inProgressVisit = (): PackageVisitRecord => ({
@@ -163,7 +165,11 @@ describe('PackageVisitsService', () => {
       createUploadUrl: jest.fn(),
       headObject: jest.fn().mockResolvedValue({ contentType: 'image/jpeg' }),
     } as unknown as jest.Mocked<EvidenceStorage>;
-    service = new PackageVisitsService(plans, availability, vendors, issues, () => storage);
+    bookings = {
+      getBookingDetailsItem: jest.fn().mockResolvedValue(null),
+      updateBooking: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new PackageVisitsService(plans, availability, vendors, issues, () => storage, bookings);
   });
 
   it('lets the customer list visits but not schedule or complete', async () => {
@@ -195,6 +201,69 @@ describe('PackageVisitsService', () => {
     expect(result.status).toBe('SCHEDULED');
     expect(plans.saveVisit).toHaveBeenCalled();
     expect(plans.saveVisit.mock.calls[0][0].visitWindowSnapshot).toBeUndefined();
+  });
+
+  it('syncs the linked booking service start date from the earliest confirmed slot civil date', async () => {
+    const linkedPlan = { ...plan, firstJobId: 'job-1' };
+    const laterVisit: PackageVisitRecord = {
+      ...visit,
+      visitId: 'visit-2',
+      sequence: 2,
+      ordinal: 2,
+      status: 'SCHEDULED',
+      schedule: {
+        date: '2026-01-17',
+        startTime: '10:00',
+        timezone: 'Asia/Kolkata',
+        branchId: 'branch-1',
+        durationMinutes: 30,
+      },
+    };
+    plans.getPlan.mockResolvedValue(linkedPlan);
+    plans.getVisit.mockResolvedValue(visit);
+    plans.listVisits.mockResolvedValue([
+      {
+        ...visit,
+        status: 'SCHEDULED',
+        schedule: {
+          date: '2026-01-10',
+          startTime: '09:00',
+          timezone: 'Asia/Kolkata',
+          branchId: 'branch-1',
+          durationMinutes: 30,
+        },
+      },
+      laterVisit,
+    ]);
+    bookings.getBookingDetailsItem.mockResolvedValue({
+      PK: 'BOOKING#job-1',
+      SK: 'BOOKING#job-1',
+      id: 'job-1',
+      customerId: 'customer-1',
+      vendorId: 'vendor-1',
+      planId: 'plan-1',
+      bookingDate: '',
+      slotId: '',
+      serviceIds: [],
+      totalAmount: 1999,
+      paymentStatus: 'PAID',
+      bookingStatus: 'CONFIRMED',
+      version: 1,
+      createdAt: '2026-01-01T12:00:00.000Z',
+      updatedAt: '2026-01-01T12:00:00.000Z',
+      entityType: 'Booking',
+    } as any);
+
+    await service.schedule(vendorRequest());
+
+    expect(bookings.updateBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'job-1',
+        bookingDate: '2026-01-10',
+        createdAt: '2026-01-01T12:00:00.000Z',
+      }),
+      expect.objectContaining({ id: 'job-1', version: 1 }),
+    );
   });
 
   it('persists a stored visit-window clock without copying the reserved slot time', async () => {

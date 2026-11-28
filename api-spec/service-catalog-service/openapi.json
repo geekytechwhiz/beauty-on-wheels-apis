@@ -2455,6 +2455,7 @@
               "enabled": false,
               "eligibility": "held",
               "reason": "Capacity gap of 10 visits. Hold checkout until the backup commitment is accepted.",
+              "vendorId": "vendor-1",
               "fulfilmentVendorIds": [
                 "vendor-1"
               ],
@@ -2552,7 +2553,7 @@
       "consistent": {
         "type": "boolean"
       },
-      "status-8359fa37-a99c-4b15-a2dd-810c2d888e90": {
+      "status-3a26aaf8-012b-497a-bb77-c83a1bd8c31e": {
         "type": "string",
         "enum": [
           "draft",
@@ -2567,7 +2568,7 @@
       "packageId": {
         "type": "string"
       },
-      "status-40db3708-2676-4448-89f2-04d87c4ee523": {
+      "status-a62883ad-e725-4d4d-b69d-32dd492d3753": {
         "type": "string",
         "enum": [
           "open",
@@ -2578,7 +2579,7 @@
           "disabled"
         ]
       },
-      "limit-0dca0120-a1af-4fc0-b6fc-60823434da7e": {
+      "limit-eaf0f115-779f-4926-bd45-384a044237be": {
         "type": "integer",
         "minimum": 1,
         "maximum": 100,
@@ -3551,7 +3552,7 @@
             "description": "Optional lifecycle filter (draft, published, paused, archived)",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-8359fa37-a99c-4b15-a2dd-810c2d888e90"
+              "$ref": "#/components/schemas/status-3a26aaf8-012b-497a-bb77-c83a1bd8c31e"
             }
           },
           {
@@ -4599,7 +4600,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-40db3708-2676-4448-89f2-04d87c4ee523"
+              "$ref": "#/components/schemas/status-a62883ad-e725-4d4d-b69d-32dd492d3753"
             }
           },
           {
@@ -4608,7 +4609,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-0dca0120-a1af-4fc0-b6fc-60823434da7e"
+              "$ref": "#/components/schemas/limit-eaf0f115-779f-4926-bd45-384a044237be"
             }
           },
           {
@@ -4811,15 +4812,34 @@
     "/packages": {
       "get": {
         "summary": "Discover sellable Carish packages for a community",
-        "description": "",
+        "description": "Reads enabled sales-control rows from GSI3 for the community. Each item includes vendorId (primary fulfilment vendor) alongside the published package payload.\n",
         "operationId": "discoverPlatformPackages",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/communityId"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/categoryId"
+            }
+          }
+        ],
         "tags": [
           "Platform packages"
         ],
         "responses": {
           "200": {
-            "description": "Customer package page",
+            "description": "Customer package page including vendorId",
             "headers": {
               "Access-Control-Allow-Origin": {
                 "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
@@ -4938,7 +4958,7 @@
   },
   "servers": [
     {
-      "url": "https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}",
+      "url": "https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}",
       "description": "Deployed API Gateway stage",
       "variables": {
         "apiId": {

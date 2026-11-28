@@ -8,8 +8,11 @@ import {
   CAPACITY_HOLDING_STATUSES,
   CAPACITY_RESERVATION_KIND,
   CapacityCommitmentDdbItem,
+  DailyWindow,
   claimedPeriodQuantityOf,
+  commitmentCoversPreferredDays,
   commitmentPeriodSupply,
+  dailyWindowsOverlap,
   isHoldExpired,
   packageScopeOfferingId,
   planReservationConsumesDailySlots,
@@ -21,6 +24,7 @@ import {
   CapacityProposalsRepository,
   getCapacityProposalsRepository,
 } from '../repositories/capacity-proposals.repository';
+import { DayOfWeek } from '../types/api-types';
 
 export interface ReservePlanCapacityInput {
   vendorId: string;
@@ -41,6 +45,16 @@ export interface ReservePlanCapacityInput {
    * sold = durable reservation after payment (confirm / legacy reserve).
    */
   kind?: 'hold' | 'sold';
+  /**
+   * Plan visit-window clock preference. When present, the commitment daily
+   * window must overlap this interval.
+   */
+  dailyWindow?: DailyWindow;
+  /**
+   * Plan preferred weekdays (full DayOfWeek names). When present, the
+   * commitment must be able to serve at least one of them.
+   */
+  preferredDays?: DayOfWeek[];
 }
 
 export interface ReservePlanCapacityResult {
@@ -373,6 +387,8 @@ export class SoldCapacityService {
       communityId,
       offeringId,
       demandQuantity,
+      dailyWindow: input.dailyWindow,
+      preferredDays: input.preferredDays,
     });
     if (!commitment) {
       throw new BaseError(
@@ -469,6 +485,8 @@ export class SoldCapacityService {
     communityId: string;
     offeringId: string;
     demandQuantity: number;
+    dailyWindow?: DailyWindow;
+    preferredDays?: DayOfWeek[];
   }): Promise<CapacityCommitmentDdbItem | null> {
     const commitments = await this.repository.listCommitments(input.vendorId);
     return (
@@ -476,6 +494,15 @@ export class SoldCapacityService {
         if (!CAPACITY_HOLDING_STATUSES.includes(item.status)) return false;
         if (item.communityId !== input.communityId) return false;
         if (packageScopeOfferingId(item.scope) !== input.offeringId) return false;
+        if (
+          input.dailyWindow
+          && !dailyWindowsOverlap(item.window.dailyWindow, input.dailyWindow)
+        ) {
+          return false;
+        }
+        if (!commitmentCoversPreferredDays(item.window, input.preferredDays)) {
+          return false;
+        }
         const periodSupply = commitmentPeriodSupply(item);
         return periodSupply - claimedPeriodQuantityOf(item) >= input.demandQuantity;
       }) ?? null
@@ -520,7 +547,8 @@ function toResult(commitment: CapacityCommitmentDdbItem) {
     commitmentId: commitment.commitmentId,
     quantity: commitment.quantity,
     reservedSoldQuantity: commitment.reservedSoldQuantity,
-    remainingSoldCapacity: commitment.quantity - commitment.reservedSoldQuantity,
+    /** Period remaining (periodSupply − claimed), not a single day's leftover. */
+    remainingSoldCapacity: periodSupply - claimed,
     claimedPeriodQuantity: claimed,
     periodSupply,
   };

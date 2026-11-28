@@ -549,7 +549,7 @@ export function buildAssignmentSchedule(input: {
 }): AssignmentSchedule {
   const crewById = new Map(input.crews.map((crew) => [crew.crewId, crew]));
   const days = eachDate(input.fromDate, input.toDate).map((date) => {
-    const dayVisits = input.visits.filter((visit) => (
+    const dayVisits = input?.visits?.filter((visit) => (
       SCHEDULE_STATUSES.includes(visit.status) && visitCoversDate(visit, date)
     ));
     const groups = groupVisits(dayVisits, input.intervals, crewById);

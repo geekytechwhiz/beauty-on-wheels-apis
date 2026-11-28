@@ -30,6 +30,7 @@ function clientWith(work: ManagerWorkPage, crews: () => Promise<VendorManagerDat
       ? { communities: [{ communityId: 'community-1', name: 'Green Acres' }], sourceAsOf }
       : crews()),
     readCapacityCommitments: jest.fn(async () => []),
+    readHomeSummary: jest.fn(),
   };
 }
 
@@ -44,7 +45,7 @@ describe('ManagerWorkService', () => {
     const result = await new ManagerWorkService(clientWith(page, async () => ({ crews: [crew], sourceAsOf })), () => new Date(sourceAsOf)).get(actor, query);
     expect(result.data.summary).toEqual(page.summary);
     expect(result.pagination).toEqual({ nextCursor: 'next', hasMore: true, total: null, totalAvailability: 'unavailable' });
-    expect(result.data.groups[0].visits[0]).toMatchObject({ visitId: 'visit-1', blockers: [{ issueId: 'issue-1' }] });
+    expect(result.data.groups[0]?.visits[0]).toMatchObject({ visitId: 'visit-1', blockers: [{ issueId: 'issue-1' }] });
   });
 
   it('validates the tab and page size', () => {
@@ -111,7 +112,7 @@ describe('ManagerWorkService', () => {
 
     it('returns only active blockers with their start time in groups and unassigned', async () => {
       const result = await read(work);
-      expect(result.data.groups[0].visits).toEqual([expect.objectContaining({
+      expect(result.data.groups[0]?.visits).toEqual([expect.objectContaining({
         visitId: 'visit-1',
         blockers: [{ issueId: 'open', type: 'ACCESS_PROBLEM', status: 'OPEN', blockingStartedAt: '2026-11-13T05:00:00.000Z' }],
       })]);
@@ -123,13 +124,13 @@ describe('ManagerWorkService', () => {
 
     it('omits blockingStartedAt for legacy blockers that never recorded it', async () => {
       const result = await read({ ...page, issues: [{ ...page.issues[0] }] });
-      expect((result.data.groups[0].visits as Array<Record<string, unknown>>)[0].blockers).toEqual([{ issueId: 'issue-1', type: 'SAFETY_CONCERN', status: 'ACTION_REQUIRED' }]);
+      expect((result.data.groups[0]?.visits as Array<Record<string, unknown>>)[0].blockers).toEqual([{ issueId: 'issue-1', type: 'SAFETY_CONCERN', status: 'ACTION_REQUIRED' }]);
     });
 
     it('reports blockers as unavailable when the issue dependency failed', async () => {
       const result = await read({ ...page, issuesAvailable: false, issues: [] });
       expect(result.sections.blockers).toEqual({ available: false, reason: 'DEPENDENCY_UNAVAILABLE' });
-      expect((result.data.groups[0].visits as Array<Record<string, unknown>>)[0].blockers).toEqual({ status: 'UNAVAILABLE', reason: 'DEPENDENCY_UNAVAILABLE' });
+      expect((result.data.groups[0]?.visits as Array<Record<string, unknown>>)[0].blockers).toBeNull();
     });
   });
 
@@ -139,11 +140,11 @@ describe('ManagerWorkService', () => {
         ...page,
         items: [{ ...page.items[1], statusAt: '2026-11-13T05:45:00.000Z', reviewStatus: 'PENDING_REVIEW', parkingBay: 'B2-14' }],
       });
-      expect(result.data.groups[0].visits[0]).toMatchObject({ statusAt: '2026-11-13T05:45:00.000Z', reviewStatus: 'PENDING_REVIEW', parkingBay: 'B2-14' });
+      expect(result.data.groups[0]?.visits[0]).toMatchObject({ statusAt: '2026-11-13T05:45:00.000Z', reviewStatus: 'PENDING_REVIEW', parkingBay: 'B2-14' });
     });
 
     it('omits them when Booking does not', async () => {
-      const visit = (await read()).data.groups[0].visits[0];
+      const visit = (await read()).data.groups[0]?.visits[0];
       expect(visit).not.toHaveProperty('statusAt');
       expect(visit).not.toHaveProperty('reviewStatus');
       expect(visit).not.toHaveProperty('parkingBay');

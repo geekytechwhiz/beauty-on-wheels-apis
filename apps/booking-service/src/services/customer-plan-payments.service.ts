@@ -250,9 +250,7 @@ export class CustomerPlanPaymentsService {
     /** Converts the payment-time hold to sold capacity. Legacy pending payments reacquire. */
     if (!alreadyPaid) {
       await this.vendors.confirmPlanCapacity({
-        vendorId: plan.vendorId,
-        communityId: this.capacityCommunityId(plan),
-        offeringId: plan.offeringId || plan.packageId,
+        ...this.capacityMatch(plan),
         demandQuantity: planVisitSlotDemand(plan),
         planId: plan.planId,
         paymentId: payment.paymentId,
@@ -350,14 +348,34 @@ export class CustomerPlanPaymentsService {
 
   private async holdCapacity(plan: CustomerPlanRecord, paymentId: string, expiresAt: string): Promise<void> {
     await this.vendors.holdPlanCapacity({
-      vendorId: plan.vendorId,
-      communityId: this.capacityCommunityId(plan),
-      offeringId: plan.offeringId || plan.packageId,
+      ...this.capacityMatch(plan),
       demandQuantity: planVisitSlotDemand(plan),
       planId: plan.planId,
       paymentId,
       expiresAt,
     });
+  }
+
+  /** Vendor/community/offering plus optional visit-window match for period eligibility. */
+  private capacityMatch(plan: CustomerPlanRecord): {
+    vendorId: string;
+    communityId: string;
+    offeringId: string;
+    dailyWindow?: { startTime: string; endTime: string };
+    preferredDays?: Array<
+      'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+    >;
+  } {
+    const startTime = plan.visitWindow.startTime?.trim();
+    const endTime = plan.visitWindow.endTime?.trim();
+    const preferredDays = mapPreferredDays(plan.visitWindow.preferredDays);
+    return {
+      vendorId: plan.vendorId,
+      communityId: this.capacityCommunityId(plan),
+      offeringId: plan.offeringId || plan.packageId,
+      ...(startTime && endTime ? { dailyWindow: { startTime, endTime } } : {}),
+      ...(preferredDays ? { preferredDays } : {}),
+    };
   }
 
   private capacityCommunityId(plan: CustomerPlanRecord): string {
@@ -412,10 +430,11 @@ function toResponse(record: PlanPaymentRecord): CustomerPlanPaymentResponse {
 }
 
 /**
- * First package job commerce linkage: paid/confirmed, no Availability slot.
- * bookingDate is the activation/order civil day — not a scheduled service date.
- * PackageVisit rows stay UNSCHEDULED until the vendor schedules them; GSI1 for
- * this booking uses BOOKING#UNSCHEDULED#{id} so operational date queries skip it.
+ * First package job commerce linkage: paid/confirmed, no Availability slot yet.
+ * bookingDate is the service start date (earliest confirmed slot). Leave it unset
+ * until PackageVisit rows are scheduled — do not invent one from payment/activation
+ * time. createdAt remains the confirmation instant. GSI1 uses BOOKING#UNSCHEDULED#{id}
+ * while planId is set and schedule is absent (see bookingWorkGsi1Sk).
  */
 function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: string): Booking {
   const offeringId = plan.offeringId || plan.packageId;
@@ -447,8 +466,6 @@ function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: 
           0,
         ) || 1),
     },
-    // Activation/order date only; not indexed as operational work (see bookingWorkGsi1Sk).
-    bookingDate: now.slice(0, 10),
     slotId: '',
     location: plan.location,
     notes: `Package plan first job (visit preference: ${plan.visitWindow.label})`,
@@ -470,6 +487,28 @@ function buildFirstJobBooking(plan: CustomerPlanRecord, bookingId: string, now: 
     createdAt: now,
     updatedAt: now,
   };
+}
+
+const VISIT_DAY_TO_DOW = {
+  MON: 'MONDAY',
+  TUE: 'TUESDAY',
+  WED: 'WEDNESDAY',
+  THU: 'THURSDAY',
+  FRI: 'FRIDAY',
+  SAT: 'SATURDAY',
+  SUN: 'SUNDAY',
+} as const;
+
+function mapPreferredDays(
+  days: CustomerPlanRecord['visitWindow']['preferredDays'],
+): Array<'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'> | undefined {
+  if (!days?.length) return undefined;
+  const mapped = [...new Set(
+    days
+      .map((day) => VISIT_DAY_TO_DOW[day])
+      .filter((day): day is typeof VISIT_DAY_TO_DOW[keyof typeof VISIT_DAY_TO_DOW] => Boolean(day)),
+  )];
+  return mapped.length ? mapped : undefined;
 }
 
 let service: CustomerPlanPaymentsService;

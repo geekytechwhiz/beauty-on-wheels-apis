@@ -546,7 +546,7 @@
                   "total": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "Same denominator as today.visits.total"
+                    "description": "Same denominator as today?.visits?.total"
                   },
                   "percentage": {
                     "type": "integer",
@@ -1589,7 +1589,7 @@
     "/vendors/{vendorId}/home-summary": {
       "get": {
         "summary": "Vendor home summary",
-        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today.visits.total. Does not include proposals or profile greetings.",
+        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today?.visits?.total. Does not include proposals or profile greetings.",
         "operationId": "getvendorhomesummary",
         "parameters": [
           {

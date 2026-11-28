@@ -10,12 +10,12 @@ class MemoryStore implements ServiceVisitStore {
   keys = new Map<string, string>();
 
   async find(vendorId: string, visitId: string) {
-    const visit = this.visits.get(`${vendorId}#${visitId}`);
+    const visit = this?.visits?.get(`${vendorId}#${visitId}`);
     return visit ? structuredClone(visit) : null;
   }
 
   async list(vendorId: string) {
-    return [...this.visits.values()].filter((visit) => visit.vendorId === vendorId).map((visit) => structuredClone(visit));
+    return [...this?.visits?.values()].filter((visit) => visit.vendorId === vendorId).map((visit) => structuredClone(visit));
   }
 
   async getByIdempotency(vendorId: string, key: string) {
@@ -26,16 +26,16 @@ class MemoryStore implements ServiceVisitStore {
     if (this.keys.has(`${record.vendorId}#${idempotencyKey}`)) {
       throw new ConditionalWriteConflictError(new Error('duplicate'));
     }
-    this.visits.set(`${record.vendorId}#${record.visitId}`, structuredClone(record));
+    this?.visits?.set(`${record.vendorId}#${record.visitId}`, structuredClone(record));
     this.keys.set(`${record.vendorId}#${idempotencyKey}`, record.visitId);
   }
 
   async replace(record: ServiceVisitRecord, expectedVersion: number) {
-    const current = this.visits.get(`${record.vendorId}#${record.visitId}`);
+    const current = this?.visits?.get(`${record.vendorId}#${record.visitId}`);
     if (!current || current.version !== expectedVersion || current.status === 'archived') {
       throw new ConditionalWriteConflictError(new Error('version'));
     }
-    this.visits.set(`${record.vendorId}#${record.visitId}`, structuredClone(record));
+    this?.visits?.set(`${record.vendorId}#${record.visitId}`, structuredClone(record));
   }
 }
 
@@ -96,7 +96,7 @@ describe('ServiceVisitsService', () => {
   const service = new ServiceVisitsService(store, access, services, () => new Date('2026-10-25T08:00:00.000Z'));
 
   beforeEach(() => {
-    store.visits.clear();
+    store?.visits?.clear();
     store.keys.clear();
     actor = owner;
   });
@@ -192,7 +192,7 @@ describe('ServiceVisitsService', () => {
       createdAt: '2026-10-25T08:00:00.000Z',
       updatedAt: '2026-10-25T08:00:00.000Z',
     };
-    store.visits.set('vendor_123#visit_legacy', legacy);
+    store?.visits?.set('vendor_123#visit_legacy', legacy);
     await expect(service.activate(request(owner, { expectedVersion: 1 }), 'vendor_123', legacy.visitId))
       .rejects.toBeInstanceOf(ValidationError);
     const stored = await store.find('vendor_123', legacy.visitId);

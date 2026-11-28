@@ -181,7 +181,7 @@ export class StaffAssignedWorkService {
   }
 
   private packageVisits(): PackageVisitsService {
-    return this.visits ?? getPackageVisitsService();
+    return this?.visits ?? getPackageVisitsService();
   }
 
   /**

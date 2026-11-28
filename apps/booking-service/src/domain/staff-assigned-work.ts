@@ -304,8 +304,8 @@ export function pageStaffWork(input: {
   reason?: typeof STAFF_WORK_REASON.NO_CREW;
 }): StaffAssignedWork {
   const filtered = input.query.status
-    ? input.visits.filter((visit) => visit.status === input.query.status)
-    : [...input.visits];
+    ? input?.visits?.filter((visit) => visit.status === input.query.status)
+    : [...input?.visits];
   const ordered = [...filtered].sort(compareAssignedVisits);
   const metrics = staffWorkMetrics(ordered);
   const page = ordered.slice(input.query.offset, input.query.offset + input.query.limit);

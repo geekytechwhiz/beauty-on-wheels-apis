@@ -224,7 +224,30 @@ describe('CapacityProposalsService', () => {
     it('409s when overlapping active commitments (any community) would exceed crew capacity', async () => {
       repository.listCommitments.mockResolvedValue([commitment(7)]);
       await expect(accept()).rejects.toThrow(ConflictError);
-      await expect(accept()).rejects.toThrow(/exceed the vendor crew capacity/);
+      await expect(accept()).rejects.toThrow(
+        /You need 1 more active crew to accept this proposal\. You have 3 active crews; 4 are required for 6 requested visits plus 7 already committed visits/,
+      );
+      expect(repository.acceptProposal).not.toHaveBeenCalled();
+    });
+
+    it('409s with additional ACTIVE crews required when quantity alone exceeds capacity', async () => {
+      repository.getProposal.mockResolvedValue(proposal({ quantity: 20 }));
+      crews.listAllCrews.mockResolvedValue([crew('a')]);
+      await expect(accept()).rejects.toMatchObject({
+        message:
+          'You need 4 more active crews to accept this proposal. You have 1 active crew; 5 are required for 20 visits per service day.',
+        details: [
+          expect.objectContaining({
+            code: 'CAPACITY_EXCEEDED',
+            additionalCrewCount: 4,
+            requiredCrewCount: 5,
+            activeCrewCount: 1,
+            maxVisitsPerCrewPerDay: 4,
+            peakCommittedQuantity: 0,
+            requestedQuantity: 20,
+          }),
+        ],
+      });
       expect(repository.acceptProposal).not.toHaveBeenCalled();
     });
 
@@ -530,6 +553,20 @@ describe('CapacityProposalsService', () => {
         ),
       ).rejects.toThrow(ForbiddenError);
       expect(repository.acceptProposal).not.toHaveBeenCalled();
+    });
+
+    it('never lets an unrelated authenticated user list another vendor proposals', async () => {
+      await expect(
+        service.listvendorcapacityproposals(request({ user: 'stranger', vendorId: 'vendor-1' })),
+      ).rejects.toThrow(ForbiddenError);
+      expect(repository.listProposals).not.toHaveBeenCalled();
+    });
+
+    it('never lets an unrelated authenticated user list another vendor commitments', async () => {
+      await expect(
+        service.listvendorcapacitycommitments(request({ user: 'stranger', vendorId: 'vendor-1' })),
+      ).rejects.toThrow(ForbiddenError);
+      expect(repository.listCommitments).not.toHaveBeenCalled();
     });
 
     it('does not let an admin answer as the vendor', async () => {

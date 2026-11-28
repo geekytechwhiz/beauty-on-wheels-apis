@@ -47,6 +47,72 @@ describe('HttpPartnerInternalClient', () => {
     expect(JSON.stringify(headers)).not.toContain('user-jwt');
   });
 
+  it('loads vendor home summary via Booking homeSummary (not the bookings list)', async () => {
+    const summary = {
+      vendorId: 'vendor-1',
+      timezone: 'Asia/Kolkata',
+      date: '2026-11-13',
+      today: {
+        visits: {
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          notStarted: 0,
+          blocked: 0,
+          missed: 0,
+          cancelled: 0,
+        },
+        crew: { assigned: 0, unassigned: 0 },
+        completion: { completed: 0, total: 0, percentage: 0 },
+        needsAttention: [],
+      },
+      tomorrow: {
+        date: '2026-11-14',
+        totalVisits: 0,
+        assignedVisits: 0,
+        unassignedVisits: 0,
+      },
+      upcoming: {
+        fromDate: '2026-11-14',
+        toDate: '2026-11-16',
+        days: [
+          {
+            date: '2026-11-14',
+            totalVisits: 0,
+            assignedVisits: 0,
+            unassignedVisits: 0,
+            communities: [],
+          },
+        ],
+      },
+    };
+    const fetchImpl = jest.fn(async () => jsonResponse({ success: true, data: summary }));
+    const client = new HttpPartnerInternalClient(
+      {
+        bookingBaseUrl: 'https://booking.example/dev',
+        vendorBaseUrl: 'https://vendor.example/dev',
+        internalServiceToken: 'platform-internal-token',
+      },
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    await expect(
+      client.readHomeSummary(actor, { upcomingDays: 3 }),
+    ).resolves.toEqual(summary);
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://booking.example/dev/internal/partner/manager/read',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          actor,
+          action: 'homeSummary',
+          query: { upcomingDays: 3 },
+        }),
+      }),
+    );
+  });
+
   it('maps a transport failure to a retryable dependency error', async () => {
     const client = new HttpPartnerInternalClient(
       {
@@ -131,6 +197,40 @@ describe('HttpPartnerInternalClient', () => {
     await expect(client.resolveOperationalAccess('user-1')).rejects.toMatchObject({
       code: 'DEPENDENCY_UNAVAILABLE',
       statusCode: 502,
+    });
+  });
+
+  it('surfaces the platform envelope description from a forbidden dependency response', async () => {
+    const fetchImpl = jest.fn(async () =>
+      jsonResponse(
+        {
+          success: false,
+          statusCode: 403,
+          message: {
+            title: 'Access denied',
+            description: 'Delegated actor is not authorized for this vendor',
+            severity: 'ERROR',
+          },
+          error: {
+            code: 'FORBIDDEN',
+            details: [{ message: 'Delegated actor is not authorized for this vendor' }],
+          },
+        },
+        403,
+      ),
+    );
+    const client = new HttpPartnerInternalClient(
+      {
+        bookingBaseUrl: 'https://booking.example/dev',
+        vendorBaseUrl: 'https://vendor.example/dev',
+        internalServiceToken: 'token',
+      },
+      fetchImpl as unknown as typeof fetch,
+    );
+    await expect(client.readVendor(actor, { includeVendorContext: true })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      statusCode: 403,
+      message: 'Delegated actor is not authorized for this vendor',
     });
   });
 });

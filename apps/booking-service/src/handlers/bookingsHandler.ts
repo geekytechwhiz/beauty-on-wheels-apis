@@ -22,6 +22,33 @@ export const handleGetbookings =
             controller.handleGetbookings(request)
     );
 
+export const handleGetvendorbookings =
+    withApiHandler(
+        {
+            operation: "getvendorbookings",
+        },
+        async (request: LambdaRequest) =>
+            controller.handleGetvendorbookings(request)
+    );
+
+export const handleGetcommunitybookings =
+    withApiHandler(
+        {
+            operation: "getcommunitybookings",
+        },
+        async (request: LambdaRequest) =>
+            controller.handleGetcommunitybookings(request)
+    );
+
+export const handleGetadminbookings =
+    withApiHandler(
+        {
+            operation: "getadminbookings",
+        },
+        async (request: LambdaRequest) =>
+            controller.handleGetadminbookings(request)
+    );
+
 export const handlePostbookings =
     withApiHandler(
         {

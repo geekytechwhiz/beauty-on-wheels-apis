@@ -1,5 +1,6 @@
 import {
   computeVisitProgress,
+  earliestConfirmedServiceDate,
   enrichVisitFromPlan,
   materializePackageVisits,
   operationalSnapshot,
@@ -128,6 +129,65 @@ describe('package visit domain', () => {
     expect(visitCoversDate(ranged, '2026-11-29')).toBe(true);
     expect(visitCoversDate(ranged, '2026-11-22')).toBe(false);
     expect(visitCoversDate(ranged, '2026-11-30')).toBe(false);
+  });
+
+  describe('earliestConfirmedServiceDate', () => {
+    it('returns undefined when no confirmed slots exist', () => {
+      const visits = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
+      expect(earliestConfirmedServiceDate(visits)).toBeUndefined();
+    });
+
+    it('uses the earliest exact slot civil date, not confirmation order', () => {
+      const [a, b, c] = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
+      expect(earliestConfirmedServiceDate([
+        {
+          ...a,
+          status: 'SCHEDULED',
+          schedule: {
+            date: '2026-11-29',
+            startTime: '10:00',
+            timezone: 'Asia/Kolkata',
+            branchId: 'b1',
+            durationMinutes: 30,
+          },
+        },
+        {
+          ...b,
+          status: 'SCHEDULED',
+          schedule: {
+            date: '2026-11-28',
+            startTime: '09:00',
+            timezone: 'Asia/Kolkata',
+            branchId: 'b1',
+            durationMinutes: 30,
+          },
+        },
+        { ...c, status: 'UNSCHEDULED' },
+      ])).toBe('2026-11-28');
+    });
+
+    it('prefers range commitment start and ignores cancelled visits', () => {
+      const [a, b] = materializePackageVisits({ plan, now: '2026-01-01T00:00:00.000Z' });
+      expect(earliestConfirmedServiceDate([
+        {
+          ...a,
+          status: 'CANCELLED',
+          schedule: {
+            date: '2026-11-20',
+            startTime: '09:00',
+            timezone: 'Asia/Kolkata',
+            branchId: 'b1',
+            durationMinutes: 30,
+          },
+        },
+        {
+          ...b,
+          status: 'SCHEDULED',
+          scheduleStartDate: '2026-11-28',
+          scheduleEndDate: '2026-11-30',
+        },
+      ])).toBe('2026-11-28');
+    });
   });
 
   describe('planVisitSlotDemand', () => {

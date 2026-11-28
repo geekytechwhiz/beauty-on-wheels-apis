@@ -449,6 +449,8 @@ importers:
         specifier: 13.9.0
         version: 13.9.0(serverless@3.40.0(@types/node@20.19.9))
 
+  apps/partner-bff: {}
+
   apps/service-catalog-service:
     devDependencies:
       serverless:

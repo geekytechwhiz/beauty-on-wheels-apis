@@ -109,8 +109,8 @@ export class VendorOperationsSummaryService {
     bookings: readonly Booking[],
   ): Promise<string> {
     const inRange = [
-      ...visits.map((visit) => visit.schedule?.timezone),
-      ...bookings.map((booking) => booking.schedule?.timezone),
+      ...visits?.map((visit) => visit.schedule?.timezone) ?? [],
+      ...bookings.map((booking) => booking.schedule?.timezone) ?? [],
     ];
     try {
       return resolveVendorTimezone(inRange);

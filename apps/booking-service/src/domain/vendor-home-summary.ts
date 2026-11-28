@@ -31,7 +31,7 @@ const MAX_UPCOMING_DAYS = 7;
  *   as `cancelled`. Bookings with `planId` are package-linked jobs and are
  *   excluded so the PackageVisit row remains the canonical work item.
  *
- * today.visits
+ * today?.visits
  *   total      = SCHEDULED + IN_PROGRESS + COMPLETED + BLOCKED + MISSED
  *                (+ booking CONFIRMED|CHECKED_IN|IN_PROGRESS|COMPLETED)
  *   completed  = COMPLETED (visit or booking)
@@ -48,7 +48,7 @@ const MAX_UPCOMING_DAYS = 7;
  *
  * today.completion
  *   completed / total / percentage = round(100 * completed / total), or 0 when
- *   total is 0. Denominator is today.visits.total (excludes CANCELLED).
+ *   total is 0. Denominator is today?.visits?.total (excludes CANCELLED).
  *
  * today.needsAttention
  *   Groups by communityId + visitWindowId for package visits that are BLOCKED
@@ -306,7 +306,7 @@ export function summarizeVendorHome(input: {
   const upcomingFrom = tomorrowDate;
   const upcomingTo = addCalendarDays(input.date, input.upcomingDays);
   const units = [
-    ...input.visits.map(packageVisitToHomeUnit),
+    ...input?.visits?.map(packageVisitToHomeUnit),
     ...(input.bookings ?? []).map(oneTimeBookingToHomeUnit),
   ].filter((unit): unit is HomeWorkUnit => Boolean(unit));
 

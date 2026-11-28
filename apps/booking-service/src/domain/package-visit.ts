@@ -323,6 +323,32 @@ export function visitIndexDate(visit: PackageVisitRecord): string | undefined {
   return visit.schedule?.date;
 }
 
+/**
+ * Booking service start date for a package plan: the earliest confirmed visit's
+ * local civil service date (exact `schedule.date` or range `scheduleStartDate`).
+ * Uses the slot's stored civil date as-is — never derived from confirmation time,
+ * cadence, or UTC conversion of a wall-clock instant.
+ * Returns undefined when no confirmed dated commitment exists.
+ */
+export function earliestConfirmedServiceDate(
+  visits: readonly PackageVisitRecord[],
+): string | undefined {
+  let earliest: string | undefined;
+  for (const visit of visits) {
+    if (
+      visit.status === PACKAGE_VISIT_STATUS.UNSCHEDULED
+      || visit.status === PACKAGE_VISIT_STATUS.CANCELLED
+    ) {
+      continue;
+    }
+    if (!visitHasDatedCommitment(visit)) continue;
+    const date = visitIndexDate(visit)?.trim();
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (!earliest || date < earliest) earliest = date;
+  }
+  return earliest;
+}
+
 export function commitmentSnapshot(visit: PackageVisitRecord): PackageVisitScheduleHistoryEntry['from'] {
   return {
     ...(visit.schedule ?? {}),

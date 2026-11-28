@@ -735,6 +735,7 @@
               "VIEW_APPLICATION_STATUS",
               "OPEN_VENDOR_DASHBOARD",
               "COMPLETE_VENDOR_SETUP",
+              "ACCEPT_VENDOR_DETAILS",
               "VIEW_ACCOUNT_STATUS",
               "CORRECT_APPLICATION"
             ]
@@ -745,8 +746,36 @@
               "role": {
                 "type": "string",
                 "enum": [
-                  "owner"
+                  "owner",
+                  "staff"
                 ]
+              },
+              "staffId": {
+                "type": "string"
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "detailsAcceptance": {
+            "type": "object",
+            "properties": {
+              "accepted": {
+                "type": "boolean"
+              },
+              "acceptedRevision": {
+                "type": "integer"
+              },
+              "acceptedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "profileRevision": {
+                "type": "integer"
               }
             }
           }
@@ -1643,13 +1672,22 @@
                 "type": "string"
               },
               "role": {
-                "type": "string"
+                "type": "string",
+                "description": "Application role label for partner team members (BUDDY)"
               },
               "status": {
                 "type": "string",
                 "enum": [
                   "ACTIVE",
                   "INACTIVE"
+                ]
+              },
+              "provisioningStatus": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "COMPLETED",
+                  "FAILED"
                 ]
               },
               "createdAt": {
@@ -1693,13 +1731,22 @@
                   "type": "string"
                 },
                 "role": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Application role label for partner team members (BUDDY)"
                 },
                 "status": {
                   "type": "string",
                   "enum": [
                     "ACTIVE",
                     "INACTIVE"
+                  ]
+                },
+                "provisioningStatus": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "COMPLETED",
+                    "FAILED"
                   ]
                 },
                 "createdAt": {
@@ -1773,11 +1820,6 @@
               "INACTIVE"
             ]
           },
-          "planningVisitLimit": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity."
-          },
           "revision": {
             "type": "integer"
           }
@@ -1835,11 +1877,6 @@
               "ACTIVE",
               "INACTIVE"
             ]
-          },
-          "planningVisitLimit": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Optional advisory ceiling for visits a manager plans for this crew. This does not change capacity commitments or assignment capacity."
           },
           "revision": {
             "type": "integer"
@@ -3467,6 +3504,12 @@
           "sendImmediately": {
             "type": "boolean",
             "description": "false creates a DRAFT. Default true."
+          },
+          "note": {
+            "type": "string",
+            "description": "Optional audit note stored on the CREATE history entry.",
+            "minLength": 1,
+            "maxLength": 500
           }
         }
       },
@@ -4193,7 +4236,7 @@
       "status": {
         "type": "string"
       },
-      "limit-2287f28e-f950-46ce-9ff8-d32df1a2da46": {
+      "limit-ad8b62f2-6860-42d1-9dbb-5748cd06af05": {
         "type": "string"
       },
       "fromDate": {
@@ -4208,13 +4251,13 @@
       "dailyWindowEnd": {
         "type": "string"
       },
-      "limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6": {
+      "limit-251f9684-2df8-432f-b453-c672d9ff5ecd": {
         "type": "string"
       },
       "commitmentId": {
         "type": "string"
       },
-      "limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d": {
+      "limit-9926d963-9bfd-4e42-a171-81408ad40d65": {
         "type": "string"
       },
       "serviceAreaId": {
@@ -4232,7 +4275,7 @@
       "documentId": {
         "type": "string"
       },
-      "status-240e447d-1922-4dad-b0fb-7cc971a1f432": {
+      "status-d637ba77-d7f2-42a5-944f-a2cad8538bcb": {
         "type": "string",
         "enum": [
           "PENDING",
@@ -4243,7 +4286,7 @@
       "requestId": {
         "type": "string"
       },
-      "status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e": {
+      "status-e4f03bef-17c7-47ff-a8b1-5174ea66eb4e": {
         "type": "string",
         "enum": [
           "PENDING_REVIEW",
@@ -8063,7 +8106,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-2287f28e-f950-46ce-9ff8-d32df1a2da46"
+              "$ref": "#/components/schemas/limit-ad8b62f2-6860-42d1-9dbb-5748cd06af05"
             }
           },
           {
@@ -9348,7 +9391,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-84e6e545-10f3-4cd3-98c8-936c6dce66c6"
+              "$ref": "#/components/schemas/limit-251f9684-2df8-432f-b453-c672d9ff5ecd"
             }
           },
           {
@@ -9635,7 +9678,7 @@
       "get": {
         "summary": "List vendor capacity proposals",
         "description": "Vendor owner or active staff with communities:manage. The vendor is the one the caller belongs to. DRAFT proposals are not shown.",
-        "operationId": "listvendorcapacityproposals",
+        "operationId": "list",
         "parameters": [
           {
             "name": "vendorId",
@@ -9670,7 +9713,7 @@
             "description": "Page size 1-100",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/limit-ae9b58f5-2ddb-4f2d-b006-7527d29ffa9d"
+              "$ref": "#/components/schemas/limit-9926d963-9bfd-4e42-a171-81408ad40d65"
             }
           },
           {
@@ -11705,7 +11748,7 @@
       "put": {
         "summary": "Replace vendor staff member",
         "description": "Replace vendor staff member",
-        "operationId": "updatevendorstaff-331530af-0e64-4cef-b0ba-d467435787c4",
+        "operationId": "updatevendorstaff-b6057f9f-e015-4a97-a1f0-773da11adf27",
         "parameters": [
           {
             "name": "vendorId",
@@ -14822,6 +14865,162 @@
         }
       }
     },
+    "/internal/operational-access": {
+      "post": {
+        "summary": "Internal operational access",
+        "description": "Partner BFF only. Body `{ userId }`. Returns owner/staff/none membership for that application user.",
+        "operationId": "getOperationalAccessHttp",
+        "parameters": [],
+        "tags": [
+          "Internal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Operational access",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid internal token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not the internal service principal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/partner/manager/read": {
+      "post": {
+        "summary": "Internal partner manager vendor read",
+        "description": "Partner BFF only. Body carries the delegated actor and optional includeCrews, includeCommitments, and communityIds. Membership is revalidated before data is returned.\n",
+        "operationId": "partnerManagerReadHttp",
+        "parameters": [],
+        "tags": [
+          "Internal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Vendor manager data",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid internal token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not the internal service principal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "description": "The Access-Control-Allow-Origin response header indicates whether the response can be shared with requesting code from the given [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin). - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Origin"
+                }
+              },
+              "Access-Control-Allow-Credentials": {
+                "description": "The Access-Control-Allow-Credentials response header tells browsers whether to expose the response to the frontend JavaScript code when the request's credentials mode ([Request.credentials](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials)) is include. - [MDN Link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials)",
+                "schema": {
+                  "$ref": "#/components/schemas/Access-Control-Allow-Credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vendors/{vendorId}/capacity-change-requests": {
       "post": {
         "summary": "Request a capacity change",
@@ -15129,7 +15328,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-240e447d-1922-4dad-b0fb-7cc971a1f432"
+              "$ref": "#/components/schemas/status-d637ba77-d7f2-42a5-944f-a2cad8538bcb"
             }
           }
         ],
@@ -15772,7 +15971,7 @@
             "description": "",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/status-304bbbc8-8f59-43c4-99d5-bce51d8ef43e"
+              "$ref": "#/components/schemas/status-e4f03bef-17c7-47ff-a8b1-5174ea66eb4e"
             }
           }
         ],
@@ -17019,7 +17218,7 @@
   },
   "servers": [
     {
-      "url": "https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}",
+      "url": "https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}",
       "description": "Deployed API Gateway stage",
       "variables": {
         "apiId": {

@@ -142,10 +142,10 @@ describe('VendorHomeSummaryService', () => {
     );
     expect(result.date).toBe('2026-11-20');
     expect(result.timezone).toBe('Asia/Kolkata');
-    expect(result.today.visits.completed).toBe(1);
-    expect(result.today.visits.blocked).toBe(1);
-    expect(result.today.visits.notStarted).toBe(1);
-    expect(result.today.visits.total).toBe(3);
+    expect(result.today?.visits?.completed).toBe(1);
+    expect(result.today?.visits?.blocked).toBe(1);
+    expect(result.today?.visits?.notStarted).toBe(1);
+    expect(result.today?.visits?.total).toBe(3);
     expect(result.tomorrow.totalVisits).toBe(1);
     expect(result.upcoming.days).toHaveLength(2);
     expect(VendorHomeSummarySchema.safeParse(result).success).toBe(true);

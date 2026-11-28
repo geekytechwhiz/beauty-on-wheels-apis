@@ -145,7 +145,7 @@ export interface BookingLookupDdbItem {
   bookingStatus: 'CREATED' | 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
-  entityType: 'CustomerBooking' | 'VendorBooking';
+  entityType: 'CustomerBooking' | 'VendorBooking' | 'CommunityBooking';
 }
 
 export interface BookingIdempotencyItem {

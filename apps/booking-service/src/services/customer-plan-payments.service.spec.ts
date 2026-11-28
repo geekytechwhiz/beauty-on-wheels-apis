@@ -125,6 +125,7 @@ describe('CustomerPlanPaymentsService', () => {
       planId: 'plan-1',
       paymentId: expect.any(String),
       expiresAt: expect.any(String),
+      dailyWindow: { startTime: '09:00', endTime: '12:00' },
     }));
   });
 
@@ -160,6 +161,7 @@ describe('CustomerPlanPaymentsService', () => {
       demandQuantity: 3,
       planId: 'plan-1',
       paymentId: 'pay-id-1',
+      dailyWindow: { startTime: '09:00', endTime: '12:00' },
     });
     expect(result.status).toBe('PAID');
     expect(plans.createVisitsIfAbsent).toHaveBeenCalled();
@@ -175,7 +177,9 @@ describe('CustomerPlanPaymentsService', () => {
     const linked = bookings.createPackageLinkedBooking.mock.calls[0][0];
     expect(linked).not.toHaveProperty('branchId');
     expect(linked).not.toHaveProperty('schedule');
-    expect(typeof linked.bookingDate).toBe('string');
+    // Service start date stays unset until the first PackageVisit slot is confirmed.
+    expect(linked).not.toHaveProperty('bookingDate');
+    expect(typeof linked.createdAt).toBe('string');
     expect(plans.savePlan).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'AWAITING_FIRST_JOB',

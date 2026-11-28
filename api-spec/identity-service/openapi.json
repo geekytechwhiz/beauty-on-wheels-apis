@@ -1436,7 +1436,7 @@
   },
   "servers": [
     {
-      "url": "https://{apiId}.execute-api.us-east-1.amazonaws.com/{stage}",
+      "url": "https://{apiId}.execute-api.ap-south-1.amazonaws.com/{stage}",
       "description": "Deployed API Gateway stage",
       "variables": {
         "apiId": {

@@ -8,8 +8,41 @@ import {
   BookingLookupDdbItem,
   HoldBookingItem,
 } from '../types/repository.types';
-import { BookingsMapper } from '../mappers/bookings.mapper';
+import { BookingsMapper, bookingCommunityId } from '../mappers/bookings.mapper';
 import type { BookingConfirmedPayload } from '@api-hub/event-platform';
+
+function communityLookupTransactItems(
+  tableName: string,
+  booking: Booking,
+  createdAt: string,
+  previousCommunityId?: string,
+): object[] {
+  const id = booking.id!;
+  const nextCommunityId = bookingCommunityId(booking);
+  const items: object[] = [];
+  if (previousCommunityId && previousCommunityId !== nextCommunityId) {
+    items.push({
+      Delete: {
+        TableName: tableName,
+        Key: {
+          PK: `COMMUNITY#${previousCommunityId}`,
+          SK: `BOOKING#${id}`,
+        },
+      },
+    });
+  }
+  if (nextCommunityId) {
+    const communityItem = BookingsMapper.toCommunityLookupDdb(booking, createdAt);
+    communityItem.updatedAt = new Date().toISOString();
+    items.push({
+      Put: {
+        TableName: tableName,
+        Item: communityItem,
+      },
+    });
+  }
+  return items;
+}
 
 type BookingConfirmedOutbox = {
   eventId: string;
@@ -113,6 +146,7 @@ export class BookingsRepository extends BaseRepository {
             ConditionExpression: 'attribute_not_exists(PK)',
           },
         },
+        ...communityLookupTransactItems(this.getTableName(), booking, timestamp),
         {
           Put: {
             TableName: this.getTableName(),
@@ -206,6 +240,7 @@ export class BookingsRepository extends BaseRepository {
             ConditionExpression: 'attribute_not_exists(PK)',
           },
         },
+        ...communityLookupTransactItems(this.getTableName(), booking, timestamp),
         {
           Put: {
             TableName: this.getTableName(),
@@ -235,15 +270,61 @@ export class BookingsRepository extends BaseRepository {
     return items.map((item) => BookingsMapper.toDomain(item));
   }
 
-  /** Access pattern: vendor bookings via GSI1 (GSI1PK = VENDOR#id, date-sorted GSI1SK). */
+  /**
+   * Vendor work list via GSI1.
+   *
+   * Package visits (canonical vendor demand) use GSI1SK = VISIT#{date|UNSCHEDULED}#...
+   * One-time VendorBooking lookups use GSI1SK = BOOKING#{date}#...
+   * Both share GSI1PK = VENDOR#{vendorId}; this list returns both prefixes so
+   * GET /vendors/{vendorId}/bookings matches what operators see in the console.
+   */
   async getVendorBookings(vendorId: string): Promise<Booking[]> {
+    const gsi1pk = `VENDOR#${vendorId}`;
+    const [visitItems, bookingItems] = await Promise.all([
+      this.queryVendorGsi1Prefix<Record<string, unknown>>(gsi1pk, 'VISIT#'),
+      this.queryVendorGsi1Prefix<BookingLookupDdbItem>(gsi1pk, 'BOOKING#'),
+    ]);
+
+    const fromVisits = visitItems.map((item) =>
+      BookingsMapper.packageVisitToBookingProjection(item),
+    );
+    const fromBookings = bookingItems.map((item) => BookingsMapper.toDomain(item));
+
+    // Newest-first: prefer updatedAt/createdAt when present.
+    return [...fromVisits, ...fromBookings].sort((a, b) => {
+      const aAt = a.updatedAt || a.createdAt || '';
+      const bAt = b.updatedAt || b.createdAt || '';
+      return bAt.localeCompare(aAt);
+    });
+  }
+
+  private async queryVendorGsi1Prefix<T>(
+    gsi1pk: string,
+    prefix: string,
+  ): Promise<T[]> {
     const params: QueryCommandInput = {
       TableName: this.getTableName(),
       IndexName: 'GSI1',
       KeyConditionExpression:
         'GSI1PK = :gsi1pk AND begins_with(GSI1SK, :gsi1skPrefix)',
       ExpressionAttributeValues: {
-        ':gsi1pk': `VENDOR#${vendorId}`,
+        ':gsi1pk': gsi1pk,
+        ':gsi1skPrefix': prefix,
+      },
+      ScanIndexForward: false,
+    };
+    return this.queryAll<T>(params);
+  }
+
+  /** Access pattern: community bookings via GSI1 (GSI1PK = COMMUNITY#id, date-sorted GSI1SK). */
+  async getCommunityBookings(communityId: string): Promise<Booking[]> {
+    const params: QueryCommandInput = {
+      TableName: this.getTableName(),
+      IndexName: 'GSI1',
+      KeyConditionExpression:
+        'GSI1PK = :gsi1pk AND begins_with(GSI1SK, :gsi1skPrefix)',
+      ExpressionAttributeValues: {
+        ':gsi1pk': `COMMUNITY#${communityId}`,
         ':gsi1skPrefix': 'BOOKING#',
       },
       ScanIndexForward: false,
@@ -256,7 +337,8 @@ export class BookingsRepository extends BaseRepository {
    * Inclusive civil-date range on vendor booking lookups for operational dashboards.
    * GSI1SK is BOOKING#{serviceDate}#{id} for one-time work.
    * Package-linked rows (planId) are excluded: PackageVisit on GSI3 is canonical,
-   * and legacy first-job projections may still carry activation bookingDate keys.
+   * and first-job projections stay on BOOKING#UNSCHEDULED even after bookingDate
+   * is synced to the earliest confirmed service civil date.
    */
   async listVendorBookingsForDateRange(
     vendorId: string,
@@ -370,6 +452,12 @@ export class BookingsRepository extends BaseRepository {
           Item: vendorItem,
         },
       },
+      ...communityLookupTransactItems(
+        this.getTableName(),
+        booking,
+        original.createdAt,
+        bookingCommunityId(BookingsMapper.toDomain(original)),
+      ),
       {
         Put: {
           TableName: this.getTableName(),
@@ -429,6 +517,7 @@ export class BookingsRepository extends BaseRepository {
     );
     vendorItem.updatedAt = timestamp;
 
+    const previousCommunityId = bookingCommunityId(BookingsMapper.toDomain(original));
     const transactItems: any[] = [
       {
         Put: {
@@ -452,6 +541,12 @@ export class BookingsRepository extends BaseRepository {
           Item: vendorItem,
         },
       },
+      ...communityLookupTransactItems(
+        this.getTableName(),
+        updatedBooking,
+        original.createdAt,
+        previousCommunityId,
+      ),
       {
         Put: {
           TableName: this.getTableName(),

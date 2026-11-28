@@ -16,14 +16,14 @@ export const handleReconcileServiceVisits = withApiHandler(
 
 export async function reconcileServiceVisits(request: LambdaRequest): Promise<{ applied: number; ignored: number }> {
   const body = (request.body ?? {}) as { visits?: ServiceVisitSnapshot[] };
-  if (!Array.isArray(body.visits)) {
+  if (!Array.isArray(body?.visits)) {
     throw new ValidationError('visits is required');
   }
   const vendorId = request.pathParameters?.vendorId ?? request.params?.vendorId;
   const repository = getVisitProjectionRepository();
   let applied = 0;
   let ignored = 0;
-  for (const visit of body.visits) {
+  for (const visit of body?.visits) {
     if (!visit || visit.vendorId !== vendorId) {
       throw new ValidationError('Every snapshot must belong to this vendor');
     }

@@ -4,13 +4,12 @@ import type {
   PartnerInternalClient,
   ManagerOverview,
   VendorManagerData,
-  CapacityCommitment,
 } from '../../clients/partner-internal.client';
 import {
   addDays,
   minutesUntil,
   remainingWindowMinutes,
-  todayInOperationsTimeZone,
+  todayInTimeZone,
 } from '../../shared/time';
 import {
   commitmentQuantityForDate,
@@ -27,11 +26,23 @@ const OPEN_STATUSES: ReadonlySet<string> = new Set([
   'IN_PROGRESS',
 ]);
 
+/** Explicit reason when dated attendance confirmation is not a Vendor capability. */
+const DATED_CONFIRMATION_UNSUPPORTED = {
+  status: 'UNAVAILABLE' as const,
+  reason: 'DATED_CONFIRMATION_NOT_SUPPORTED' as const,
+};
+
 export interface ManagerHomeResponse {
   schemaVersion: '1.0';
   asOf: string;
   timezone: string;
-  appliedFilters: Record<string, never>;
+  /** Present when Booking reports how the zone was chosen. */
+  timezoneSource?: 'SCHEDULE' | 'DEFAULT';
+  appliedFilters: {
+    date: string;
+    fromDate: string;
+    toDate: string;
+  };
   freshness: { booking: string; vendor?: string };
   sections: Record<string, SectionAvailability>;
   data: {
@@ -39,6 +50,8 @@ export interface ManagerHomeResponse {
     upcomingPlan: Record<string, unknown>;
     todayProgress: Record<string, unknown>;
     planAhead: Array<Record<string, unknown>>;
+    /** Display names for communities in Home data; empty when none were needed. */
+    communityLabels: Array<{ communityId: string; displayName: string }>;
   };
 }
 
@@ -48,31 +61,43 @@ export class ManagerHomeService {
     private readonly now: () => Date = () => new Date(),
   ) {}
   private readonly logger = createLogger({ name: 'ManagerHomeService' });
+
   async get(actor: PartnerActor): Promise<ManagerHomeResponse> {
     const now = this.now();
-    const today = todayInOperationsTimeZone(now);
-    const dates = [
-      today,
-      addDays(today, 1),
-      addDays(today, 2),
-      addDays(today, 3),
-    ];
-    const [overviewResult, vendorResult, capacityCommitmentsResult] = await Promise.allSettled([
-      this.client.readBooking(actor, 'overview', { dates: dates.join(',') }),
+    // Booking owns the vendor timezone and default date window; do not precompute
+    // Asia/Kolkata dates in the BFF.
+    const [overviewResult, vendorResult] = await Promise.allSettled([
+      this.client.readBooking(actor, 'overview', {}),
       this.client.readVendor(actor, {
         includeCrews: true,
         includeCommitments: true,
       }),
-      this.client.readCapacityCommitments(actor),
     ]);
     if (overviewResult.status === 'rejected') throw overviewResult.reason;
     const overview = overviewResult.value as ManagerOverview;
-    const vendor = vendorResult.status === 'fulfilled' ? (vendorResult.value as VendorManagerData) : undefined;
+    const vendor =
+      vendorResult.status === 'fulfilled'
+        ? (vendorResult.value as VendorManagerData)
+        : undefined;
+    if (vendorResult.status === 'rejected') {
+      this.logger.warn({
+        event: 'manager_home_vendor_enrichment_unavailable',
+        vendorId: actor.vendorId,
+        correlationId: actor.correlationId,
+      });
+    }
+
+    const timezone = overview.timezone;
+    const today =
+      overview.days[0]?.date ?? todayInTimeZone(now, timezone);
+    const planDates = overview.days.map((day) => day.date);
+    const toDate = planDates[planDates.length - 1] ?? today;
+
     const communityIds = [
       ...new Set(
-        overview.days.flatMap(
+        (overview.days ?? []).flatMap(
           (day) =>
-            day.visits
+            (day?.visits ?? [])
               .map((visit) => visit.communityId)
               .filter(Boolean) as string[],
         ),
@@ -80,39 +105,46 @@ export class ManagerHomeService {
     ];
     let labelsResult: VendorManagerData | undefined;
     try {
-      if (communityIds.length)
+      if (communityIds.length) {
         labelsResult = await this.client.readVendor(actor, { communityIds });
+      }
     } catch {
       // Names are optional enrichment. IDs remain authoritative and usable.
     }
     const labels = labelMap(labelsResult?.communities);
     const crews = crewMap(vendor?.crews);
-    const capacityCommitments = capacityCommitmentsResult.status === 'fulfilled' ? (capacityCommitmentsResult.value as CapacityCommitment[]) : undefined;
-    const capacityCommitmentsByCommunityId = new Map(capacityCommitments?.map((commitment) => [commitment.communityId, commitment]));
-    const capacityCommitmentsByDate = new Map(capacityCommitments?.map((commitment) => [commitment.window.startDate, commitment]));
-   this.logger.info('Capacity commitments', {
-     capacityCommitmentsByCommunityId,
-     capacityCommitmentsByDate,
-   });
     const days = new Map(overview.days.map((day) => [day.date, day]));
     const todayDay = days.get(today) ?? {
       date: today,
       visits: [],
-      progress: emptyProgress(),
+      progress: emptyProgress(overview.issuesAvailable),
     };
     const tomorrow = addDays(today, 1);
     const tomorrowDay = days.get(tomorrow) ?? {
       date: tomorrow,
       visits: [],
-      progress: emptyProgress(),
+      progress: emptyProgress(overview.issuesAvailable),
     };
     const hasVendor = Boolean(vendor);
+    const commitmentsAvailable =
+      Boolean(vendor?.commitments) &&
+      !vendor?.unavailableSections?.includes('commitments');
+    const communityLabelRows = [...labels.entries()].map(
+      ([communityId, displayName]) => ({ communityId, displayName }),
+    );
 
     return {
       schemaVersion: '1.0',
       asOf: now.toISOString(),
-      timezone: overview.timezone,
-      appliedFilters: {},
+      timezone,
+      ...(overview.timezoneSource
+        ? { timezoneSource: overview.timezoneSource }
+        : {}),
+      appliedFilters: {
+        date: today,
+        fromDate: today,
+        toDate,
+      },
       freshness: {
         booking: overview.sourceAsOf,
         ...(vendor?.sourceAsOf ? { vendor: vendor.sourceAsOf } : {}),
@@ -136,17 +168,21 @@ export class ManagerHomeService {
         crews: hasVendor
           ? { available: true, sourceAsOf: vendor!.sourceAsOf }
           : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
-        capacityCommitments:
-          vendor?.commitments &&
-          !vendor.unavailableSections?.includes('commitments')
-            ? { available: true, sourceAsOf: vendor.sourceAsOf }
-            : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
+        capacityCommitments: commitmentsAvailable
+          ? { available: true, sourceAsOf: vendor!.sourceAsOf }
+          : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
       },
       data: {
         nextAction: overview.issuesAvailable
-          ? nextAction(overview, todayDay.visits, labels, crews)
+          ? nextAction(overview, todayDay.visits ?? [], labels, crews)
           : null,
-        upcomingPlan: upcomingPlan(tomorrowDay.visits, tomorrow, labels, crews),
+        upcomingPlan: upcomingPlan(
+          tomorrowDay.visits ?? [],
+          tomorrow,
+          labels,
+          crews,
+          hasVendor,
+        ),
         todayProgress: {
           scope: 'PACKAGE_VISITS',
           date: today,
@@ -154,34 +190,49 @@ export class ManagerHomeService {
           issueData: overview.issuesAvailable
             ? { available: true, sourceAsOf: overview.sourceAsOf }
             : { available: false, reason: 'DEPENDENCY_UNAVAILABLE' },
-          windows: windowProgress(todayDay.visits, labels, now),
-          currentWindow: currentWindow(todayDay.visits, now),
+          windows: windowProgress(todayDay.visits ?? [], labels, now, timezone),
+          currentWindow: currentWindow(todayDay.visits ?? [], now, timezone),
         },
-        planAhead: dates.slice(1).map((date) => {
+        planAhead: planDates.slice(1).map((date) => {
           const day = days.get(date) ?? {
             date,
             visits: [],
-            progress: emptyProgress(),
+            progress: emptyProgress(overview.issuesAvailable),
           };
-          const capacity = crewDayCapacity(day.visits, crews);
+          const dayVisits = day.visits ?? [];
           return {
             date,
             scheduled: day.progress.expected,
-            assigned: day.visits.filter((visit) => Boolean(visit.crewId))
-              .length,
+            assigned: dayVisits.filter((visit) => Boolean(visit.crewId)).length,
             unassigned: day.progress.unassigned,
-            acceptedCommitmentCapacity: commitmentQuantityForDate(
-              vendor?.commitments,
-              date,
-            ),
-            capacityAvailability:
-              vendor?.commitments &&
-              !vendor.unavailableSections?.includes('commitments')
-                ? 'AVAILABLE'
-                : 'UNAVAILABLE',
-            crewCapacity: capacity,
+            /**
+             * Accepted community capacity commitments for this civil date, in
+             * Vendor commitment quantity units (not THIRTY_MINUTE_SLOT crew units).
+             * Null when the commitments section was unavailable — never invented as 0.
+             */
+            acceptedCommitmentCapacity: commitmentsAvailable
+              ? commitmentQuantityForDate(vendor?.commitments, date)
+              : null,
+            capacityAvailability: commitmentsAvailable
+              ? 'AVAILABLE'
+              : 'UNAVAILABLE',
+            /**
+             * Fleet crew capacity for the date in Vendor THIRTY_MINUTE_SLOT units.
+             * Independent of acceptedCommitmentCapacity — do not compare the two
+             * without converting units.
+             */
+            crewCapacity: hasVendor
+              ? crewDayCapacity(dayVisits, crews)
+              : {
+                  status: 'UNAVAILABLE',
+                  reason: 'DEPENDENCY_UNAVAILABLE',
+                  capacityPerDay: null,
+                  assignedCapacityUnits: null,
+                  availableCapacityUnits: null,
+                },
           };
         }),
+        communityLabels: communityLabelRows,
       },
     };
   }
@@ -251,18 +302,45 @@ function nextAction(
           }
         : {}),
       ...(visit?.date ? { date: visit.date } : {}),
+      ...(actionable.visitId ? { visitId: actionable.visitId } : {}),
+      ...(visit?.visitWindowId
+        ? { visitWindowId: visit.visitWindowId }
+        : {}),
     };
   }
   const unassigned = visits.filter(
     (visit) => visit.status === 'SCHEDULED' && !visit.crewId,
   );
-  return unassigned.length > 0
-    ? {
-        kind: 'UNASSIGNED_WORK',
-        date: visits[0]?.date,
-        affectedVisitCount: unassigned.length,
-      }
-    : null;
+  if (unassigned.length === 0) return null;
+  const communityIds = [
+    ...new Set(
+      unassigned
+        .map((visit) => visit.communityId)
+        .filter(Boolean) as string[],
+    ),
+  ];
+  const windowIds = [
+    ...new Set(
+      unassigned
+        .map((visit) => visit.visitWindowId)
+        .filter(Boolean) as string[],
+    ),
+  ];
+  return {
+    kind: 'UNASSIGNED_WORK',
+    blocking: false,
+    date: visits[0]?.date,
+    affectedVisitCount: unassigned.length,
+    ...(communityIds.length === 1
+      ? {
+          community: {
+            communityId: communityIds[0]!,
+            displayName: labels.get(communityIds[0]!),
+          },
+        }
+      : {}),
+    ...(windowIds.length === 1 ? { visitWindowId: windowIds[0] } : {}),
+  };
 }
 
 function upcomingPlan(
@@ -270,6 +348,7 @@ function upcomingPlan(
   date: string,
   labels: ReadonlyMap<string, string>,
   crews: ReadonlyMap<string, NonNullable<VendorManagerData['crews']>[number]>,
+  crewsAvailable: boolean,
 ) {
   const groups = new Map<string, typeof visits>();
   for (const visit of visits) {
@@ -304,7 +383,7 @@ function upcomingPlan(
           (visit) => visit.status === 'SCHEDULED' && !visit.crewId,
         ).length,
         crews: crewIds.map((crewId) =>
-          crewDayAvailability(crewId, date, visits, crews),
+          crewDayAvailability(crewId, date, visits, crews, crewsAvailable),
         ),
       };
     }),
@@ -312,24 +391,34 @@ function upcomingPlan(
 }
 
 /**
- * A dated availability result is composed from the authoritative crew roster
- * and the complete booking-day workload. Capacity is measured in the same
- * 30-minute slot-unit supplied by Vendor Service, never as a guessed visit
- * count. A crew must be active and have at least two active members to be
- * assignable, matching Booking's assignment guard.
+ * Dated operational availability is composed from the Vendor roster and the
+ * complete booking-day workload (THIRTY_MINUTE_SLOT units). Dated attendance
+ * confirmation is a separate capability and remains explicitly unsupported.
  */
 function crewDayAvailability(
   crewId: string,
   date: string,
   visits: ManagerOverview['days'][number]['visits'],
   crews: ReadonlyMap<string, NonNullable<VendorManagerData['crews']>[number]>,
+  crewsAvailable: boolean,
 ) {
+  if (!crewsAvailable) {
+    return {
+      crewId,
+      date,
+      members: [],
+      availabilityConfirmation: DATED_CONFIRMATION_UNSUPPORTED,
+      availability: { status: 'UNAVAILABLE', reason: 'DEPENDENCY_UNAVAILABLE' },
+      capacity: { status: 'UNAVAILABLE', reason: 'DEPENDENCY_UNAVAILABLE' },
+    };
+  }
   const crew = crews.get(crewId);
   if (!crew) {
     return {
       crewId,
       date,
       members: [],
+      availabilityConfirmation: DATED_CONFIRMATION_UNSUPPORTED,
       availability: { status: 'UNAVAILABLE', reason: 'CREW_NOT_FOUND' },
       capacity: { status: 'UNAVAILABLE', reason: 'CREW_NOT_FOUND' },
     };
@@ -354,6 +443,8 @@ function crewDayAvailability(
     vanLabel: crew.vanLabel,
     members: members(crew),
     date,
+    // Honest: dated confirmation is not a Vendor capability today.
+    availabilityConfirmation: DATED_CONFIRMATION_UNSUPPORTED,
     availability: unavailableReason
       ? { status: 'UNAVAILABLE', reason: unavailableReason }
       : { status: 'AVAILABLE' },
@@ -362,6 +453,7 @@ function crewDayAvailability(
       capacityPerDay,
       assignedCapacityUnits,
       availableCapacityUnits,
+      capacityUnit: 'THIRTY_MINUTE_SLOT',
     },
   };
 }
@@ -381,10 +473,11 @@ function crewDayCapacity(
     .filter((visit) => Boolean(visit.crewId) && visit.status !== 'CANCELLED')
     .reduce((total, visit) => total + workloadUnits(visit), 0);
   return {
-    status: 'AVAILABLE',
+    status: 'AVAILABLE' as const,
     capacityPerDay,
     assignedCapacityUnits,
     availableCapacityUnits: Math.max(0, capacityPerDay - assignedCapacityUnits),
+    capacityUnit: 'THIRTY_MINUTE_SLOT' as const,
   };
 }
 
@@ -398,6 +491,7 @@ function windowProgress(
   visits: ManagerOverview['days'][number]['visits'],
   labels: ReadonlyMap<string, string>,
   asOf: Date,
+  timeZone: string,
 ) {
   const groups = new Map<string, typeof visits>();
   for (const visit of visits) {
@@ -422,6 +516,7 @@ function windowProgress(
               first.date,
               first.window?.endTime,
               asOf,
+              timeZone,
             ),
           }
         : undefined,
@@ -445,6 +540,7 @@ function windowProgress(
 function currentWindow(
   visits: ManagerOverview['days'][number]['visits'],
   asOf: Date,
+  timeZone: string,
 ) {
   const groups = new Map<string, typeof visits>();
   for (const visit of visits) {
@@ -456,8 +552,18 @@ function currentWindow(
   }
   const timed = [...groups.values()].flatMap((items) => {
     const first = items[0]!;
-    const untilStart = minutesUntil(first.date, first.window?.startTime, asOf);
-    const untilEnd = minutesUntil(first.date, first.window?.endTime, asOf);
+    const untilStart = minutesUntil(
+      first.date,
+      first.window?.startTime,
+      asOf,
+      timeZone,
+    );
+    const untilEnd = minutesUntil(
+      first.date,
+      first.window?.endTime,
+      asOf,
+      timeZone,
+    );
     return untilStart === null || untilEnd === null || untilEnd <= 0
       ? []
       : [{ items, untilStart, untilEnd }];
@@ -491,13 +597,13 @@ function windowTimes(visit: ManagerOverview['days'][number]['visits'][number]) {
   };
 }
 
-function emptyProgress() {
+function emptyProgress(issuesAvailable: boolean) {
   return {
     expected: 0,
     completed: 0,
     inProgress: 0,
     notStarted: 0,
-    blocked: 0,
+    blocked: issuesAvailable ? 0 : null,
     unassigned: 0,
     missed: 0,
     cancelled: 0,

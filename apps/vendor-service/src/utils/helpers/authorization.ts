@@ -134,9 +134,24 @@ export function assertVendorAction(
   throw new ForbiddenError('Not authorized to perform this vendor action');
 }
 
-/** @deprecated Role-only auth. Always returns []. */
-export function getCallerPermissions(_request: LambdaRequest): string[] {
-  return [];
+/**
+ * Permissions from the verified authorizer context. Client headers are ignored.
+ * Used for staff workspace grants such as `communities:manage`.
+ */
+export function getCallerPermissions(request: LambdaRequest): string[] {
+  const auth = request.context.authContext;
+  const fromAuth = asStringArray(auth?.permissions)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (
+    auth &&
+    (auth.identityId || auth.userId || asStringArray(auth.roles).length > 0 || fromAuth.length > 0)
+  ) {
+    return fromAuth;
+  }
+  return asStringArray(request.context.userContext?.permissions)
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 /**

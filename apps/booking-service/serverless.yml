@@ -751,7 +751,7 @@
                           total:
                             type: integer
                             minimum: 0
-                            description: Same denominator as today.visits.total
+                            description: Same denominator as today?.visits?.total
                           percentage:
                             type: integer
                             minimum: 0
@@ -1628,7 +1628,7 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "List my bookings"
-            description: "Lists bookings owned by the authenticated customer. Customer and vendor identifiers in query parameters are not accepted."
+            description: "Lists bookings owned by the authenticated customer. Use /customers/{customerId}/bookings for admin cross-customer reads, /vendors/{vendorId}/bookings for vendor lists, /communities/{communityId}/bookings for community lists, and /admin/bookings for the global admin index."
             swaggerTags:
               - Bookings
             responseData:
@@ -1698,6 +1698,7 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "Get booking"
+            description: "Returns a booking by id. Allowed for the owning customer, the vendor owner of the booking vendor, or a platform admin."
             swaggerTags:
               - Bookings
             responseData:
@@ -1706,7 +1707,7 @@
                 bodyType: Booking
             documentation:
               summary: Get booking
-              description: Get booking
+              description: Returns a booking by id for the owning customer, vendor owner, or platform admin.
               tags:
                 - Bookings
               methodResponses:
@@ -1989,6 +1990,7 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "Customer booking history"
+            description: "Lists bookings for the path customer. The authenticated customer must match the path id, or the caller must be a platform admin."
             swaggerTags:
               - Bookings
             responseData:
@@ -1996,7 +1998,7 @@
                 description: "History"
             documentation:
               summary: Customer booking history
-              description: Customer booking history
+              description: Lists bookings for the path customer. Self-scoped for customers; platform admins may list any customer.
               tags:
                 - Bookings
               methodResponses:
@@ -2018,7 +2020,7 @@
 
 
     getvendorbookings:
-      handler: src/handlers/bookingsHandler.handleGetbookings
+      handler: src/handlers/bookingsHandler.handleGetvendorbookings
       events:
         - http:
             path: /vendors/{vendorId}/bookings
@@ -2026,6 +2028,7 @@
             cors: ${self:custom.httpCors}
             authorizer: ${self:custom.securedAuthorizer}
             summary: "Vendor bookings"
+            description: "Lists bookings for the path vendor. Vendor owners may list their own vendor; platform admins may list any vendor."
             swaggerTags:
               - Bookings
             responseData:
@@ -2033,7 +2036,7 @@
                 description: "Vendor bookings"
             documentation:
               summary: Vendor bookings
-              description: Vendor bookings
+              description: Lists bookings for the path vendor via GSI1 VENDOR#{vendorId}. Owner or platform admin only.
               tags:
                 - Bookings
               methodResponses:
@@ -2052,6 +2055,77 @@
                   description: vendorId
                   schema:
                     type: string
+
+
+    getcommunitybookings:
+      handler: src/handlers/bookingsHandler.handleGetcommunitybookings
+      events:
+        - http:
+            path: /communities/{communityId}/bookings
+            method: get
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Community bookings"
+            description: "Lists community-fulfilled bookings for the path community. Platform admins see all; vendor owners see only their own bookings in that community."
+            swaggerTags:
+              - Bookings
+            responseData:
+              200:
+                description: "Community bookings"
+            documentation:
+              summary: Community bookings
+              description: Lists community bookings via GSI1 COMMUNITY#{communityId}. Admin sees all; vendor owners are filtered to their vendorId.
+              tags:
+                - Bookings
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: Community bookings
+                  responseModels:
+                    application/json: BookingPage
+                - statusCode: "400"
+                  responseBody:
+                    description: Request failed
+                  responseModels:
+                    application/json: ErrorResponse
+              pathParams:
+                - name: communityId
+                  description: communityId
+                  schema:
+                    type: string
+
+
+    getadminbookings:
+      handler: src/handlers/bookingsHandler.handleGetadminbookings
+      events:
+        - http:
+            path: /admin/bookings
+            method: get
+            cors: ${self:custom.httpCors}
+            authorizer: ${self:custom.securedAuthorizer}
+            summary: "Admin list all bookings"
+            description: "Platform admin only. Lists all bookings via GSI1 BOOKING_LIST."
+            swaggerTags:
+              - Bookings
+            responseData:
+              200:
+                description: "All bookings"
+            documentation:
+              summary: Admin list all bookings
+              description: Platform admin only. Queries GSI1 BOOKING_LIST for the global booking index.
+              tags:
+                - Bookings
+              methodResponses:
+                - statusCode: "200"
+                  responseBody:
+                    description: All bookings
+                  responseModels:
+                    application/json: BookingPage
+                - statusCode: "403"
+                  responseBody:
+                    description: Administrator access required
+                  responseModels:
+                    application/json: ErrorResponse
 
 
     postbookingpayment:
@@ -3334,7 +3408,7 @@
               BOOKING#{date}# range with planId excluded. GSI2 is not used.
               date defaults to today in the vendor IANA timezone; upcomingDays
               default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total;
-              blocked is persisted BLOCKED only. Completion % uses today.visits.total.
+              blocked is persisted BLOCKED only. Completion % uses today?.visits?.total.
               Does not include proposals or profile greetings.
             swaggerTags:
               - Customer Plans
@@ -3364,7 +3438,7 @@
                 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1
                 BOOKING#{date}# range with planId excluded. GSI2 is not used.
                 UNSCHEDULED excluded; CANCELLED excluded from total; blocked is
-                persisted BLOCKED only. Completion % uses today.visits.total.
+                persisted BLOCKED only. Completion % uses today?.visits?.total.
               tags:
                 - Customer Plans
               queryParams:

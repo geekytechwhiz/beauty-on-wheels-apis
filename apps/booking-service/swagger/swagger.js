@@ -9,7 +9,7 @@
     "/bookings": {
       "get": {
         "summary": "List my bookings",
-        "description": "Lists bookings owned by the authenticated customer. Customer and vendor identifiers in query parameters are not accepted.",
+        "description": "Lists bookings owned by the authenticated customer. Use /customers/{customerId}/bookings for admin cross-customer reads, /vendors/{vendorId}/bookings for vendor lists, /communities/{communityId}/bookings for community lists, and /admin/bookings for the global admin index.",
         "tags": [
           "Bookings"
         ],
@@ -61,7 +61,7 @@
     "/bookings/{bookingId}": {
       "get": {
         "summary": "Get booking",
-        "description": "",
+        "description": "Returns a booking by id. Allowed for the owning customer, the vendor owner of the booking vendor, or a platform admin.",
         "tags": [
           "Bookings"
         ],
@@ -258,7 +258,7 @@
     "/customers/{customerId}/bookings": {
       "get": {
         "summary": "Customer booking history",
-        "description": "",
+        "description": "Lists bookings for the path customer. The authenticated customer must match the path id, or the caller must be a platform admin.",
         "tags": [
           "Bookings"
         ],
@@ -287,7 +287,7 @@
     "/vendors/{vendorId}/bookings": {
       "get": {
         "summary": "Vendor bookings",
-        "description": "",
+        "description": "Lists bookings for the path vendor. Vendor owners may list their own vendor; platform admins may list any vendor.",
         "tags": [
           "Bookings"
         ],
@@ -309,6 +309,57 @@
         "responses": {
           "200": {
             "description": "Vendor bookings"
+          }
+        }
+      }
+    },
+    "/communities/{communityId}/bookings": {
+      "get": {
+        "summary": "Community bookings",
+        "description": "Lists community-fulfilled bookings for the path community. Platform admins see all; vendor owners see only their own bookings in that community.",
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "getcommunitybookings.get./communities/{communityId}/bookings",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "communityId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community bookings"
+          }
+        }
+      }
+    },
+    "/admin/bookings": {
+      "get": {
+        "summary": "Admin list all bookings",
+        "description": "Platform admin only. Lists all bookings via GSI1 BOOKING_LIST.",
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "getadminbookings.get./admin/bookings",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All bookings"
           }
         }
       }
@@ -1378,7 +1429,7 @@
     "/vendors/{vendorId}/home-summary": {
       "get": {
         "summary": "Vendor home summary",
-        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today.visits.total. Does not include proposals or profile greetings.\n",
+        "description": "Read-only manager dashboard. Package visits from GSI3 (VENDOR#{vendorId}#DATE#{date}); one-time bookings from vendor GSI1 BOOKING#{date}# range with planId excluded. GSI2 is not used. date defaults to today in the vendor IANA timezone; upcomingDays default 3 (1-7). UNSCHEDULED excluded; CANCELLED excluded from total; blocked is persisted BLOCKED only. Completion % uses today?.visits?.total. Does not include proposals or profile greetings.\n",
         "tags": [
           "Customer Plans"
         ],
@@ -2713,6 +2764,7 @@
         },
         "bookingDate": {
           "title": "Booking.bookingDate",
+          "description": "Service start civil date (YYYY-MM-DD) in the slot's local timezone.\nOne-time: reserved slot date. Package: earliest confirmed PackageVisit date;\nunset until a slot exists. Not the confirmation/activation timestamp.",
           "type": "string"
         },
         "slotId": {

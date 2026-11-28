@@ -1,11 +1,11 @@
 {
   "item": [
     {
-      "id": "fc0d5e97-b606-43c1-b052-eb2e82fc9ebd",
+      "id": "b2d4d140-7ae6-48f5-b025-02cf975a2145",
       "name": "users",
       "item": [
         {
-          "id": "16259e4f-ffb0-4b6c-aa55-19da17cba641",
+          "id": "0bc7dd81-7584-485a-9a81-5aeac20c2170",
           "name": "Look up a user by phone",
           "request": {
             "name": "Look up a user by phone",
@@ -54,7 +54,7 @@
           },
           "response": [
             {
-              "id": "c9d050ec-3d73-49fe-b2f1-21a2af4e9e04",
+              "id": "25bf2a1f-1dc0-4423-b9ce-6d656ce6b68c",
               "name": "Matching user",
               "originalRequest": {
                 "url": {
@@ -122,12 +122,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"phone\": \"string\",\n  \"status\": \"suspended\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"phone\": \"string\",\n  \"status\": \"active\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8282432c-367f-40d9-b4da-aef17e022a1d",
+              "id": "6fe1cfeb-4331-41fb-a75a-2cb865c364a2",
               "name": "Phone is missing or not E.164",
               "originalRequest": {
                 "url": {
@@ -195,12 +195,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 2608,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 9067,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "970df9ac-a41d-4595-a796-0c9806328c87",
+              "id": "ce62dbc8-a038-43ba-87e7-9cb048278827",
               "name": "Caller is not a service principal or admin",
               "originalRequest": {
                 "url": {
@@ -268,12 +268,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "074829f1-ac6e-4493-a2fb-6084b3ef2091",
+              "id": "86b87a23-f1d4-4ab3-92e8-8057d196785b",
               "name": "No user for that phone",
               "originalRequest": {
                 "url": {
@@ -341,7 +341,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -352,11 +352,11 @@
           }
         },
         {
-          "id": "9c645868-b39a-41d6-bbed-c45e30d5e3de",
+          "id": "3accdc47-56cb-458f-a097-347c36bd3ccf",
           "name": "{userId}",
           "item": [
             {
-              "id": "63ae4f16-9c1b-4327-8fb4-b274832445bd",
+              "id": "8c380795-6a25-446e-ad61-327b4a0cc94b",
               "name": "Get user",
               "request": {
                 "name": "Get user",
@@ -406,7 +406,7 @@
               },
               "response": [
                 {
-                  "id": "ac05eae8-feb9-42ba-abdb-6d873cd0903b",
+                  "id": "a4ead61e-e8f4-4fc2-b73a-04aad7c23dd6",
                   "name": "User",
                   "originalRequest": {
                     "url": {
@@ -482,7 +482,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "a239f54d-79bb-4dd8-b0e2-62a4b8ddaa3f",
+                  "id": "6aafc486-e909-47bc-beb4-d0d69cf38042",
                   "name": "Caller cannot read this user",
                   "originalRequest": {
                     "url": {
@@ -553,12 +553,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "c2262f51-93fb-4222-90eb-711287a8d321",
+                  "id": "7b9046f1-69dc-4ff6-8850-0e8232516154",
                   "name": "User not found",
                   "originalRequest": {
                     "url": {
@@ -629,7 +629,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -640,11 +640,11 @@
               }
             },
             {
-              "id": "5ccb8a85-06c4-4db4-b7a9-a56a5063a39c",
+              "id": "05aa646d-377b-4bb2-a85e-d95b5cf7eddf",
               "name": "addresses",
               "item": [
                 {
-                  "id": "d2231558-278d-426b-b730-8842b24f83ee",
+                  "id": "a17b7bad-0d03-4cc0-b7dd-ef8e36b7efdc",
                   "name": "List addresses",
                   "request": {
                     "name": "List addresses",
@@ -695,7 +695,7 @@
                   },
                   "response": [
                     {
-                      "id": "9522bf95-1cc2-489d-9c9d-c74e6a7fa28a",
+                      "id": "034f471a-269c-4c50-9495-e16a9ab8aba8",
                       "name": "Address list",
                       "originalRequest": {
                         "url": {
@@ -767,12 +767,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"userId\": \"string\",\n      \"type\": \"home\",\n      \"line1\": \"string\",\n      \"city\": \"string\",\n      \"isDefault\": false\n    },\n    {\n      \"id\": \"string\",\n      \"userId\": \"string\",\n      \"type\": \"home\",\n      \"line1\": \"string\",\n      \"city\": \"string\",\n      \"isDefault\": false\n    }\n  ]\n}",
+                      "body": "{\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"userId\": \"string\",\n      \"type\": \"work\",\n      \"line1\": \"string\",\n      \"city\": \"string\",\n      \"isDefault\": false\n    },\n    {\n      \"id\": \"string\",\n      \"userId\": \"string\",\n      \"type\": \"business\",\n      \"line1\": \"string\",\n      \"city\": \"string\",\n      \"isDefault\": false\n    }\n  ]\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "813e4579-d5db-4703-a895-7c1ebe533fa1",
+                      "id": "6241b79c-d34f-4664-add6-c999dbd4b184",
                       "name": "Caller cannot read these addresses",
                       "originalRequest": {
                         "url": {
@@ -844,12 +844,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "85c02bae-18fe-49f8-a0b5-56c0f3254a2b",
+                      "id": "45a8b8fc-77a1-4f27-86db-5861eb841a9e",
                       "name": "Customer profile not found",
                       "originalRequest": {
                         "url": {
@@ -921,7 +921,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -932,7 +932,7 @@
                   }
                 },
                 {
-                  "id": "1b6b21c9-0d23-42f2-ba9c-fd99d7a23080",
+                  "id": "e0f15d18-2cd0-4a29-8ad4-8b97dfae40b8",
                   "name": "Add address",
                   "request": {
                     "name": "Add address",
@@ -996,7 +996,7 @@
                   },
                   "response": [
                     {
-                      "id": "d842906e-c756-4d61-832a-9c4b0d2a2e3f",
+                      "id": "28c49c8e-d426-42b1-884c-8a03d385ef37",
                       "name": "Created address",
                       "originalRequest": {
                         "url": {
@@ -1076,12 +1076,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": false,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 7238.350294636982,\n  \"longitude\": 9159.610603812853\n}",
+                      "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": true,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 4806.9913763633585,\n  \"longitude\": 6079.782264241402\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "fbd5c379-7861-4b78-81c1-9c540448bebf",
+                      "id": "3c3ff699-e35c-4e67-bf59-1c53af7bc02a",
                       "name": "Invalid address",
                       "originalRequest": {
                         "url": {
@@ -1161,12 +1161,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "f34edd1b-e8e6-4a52-aae1-2b62c30ee279",
+                      "id": "4e921198-f2d3-45e9-a0f2-aac3f1e89041",
                       "name": "Caller cannot add an address",
                       "originalRequest": {
                         "url": {
@@ -1246,12 +1246,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "18bf7296-087b-42b4-9ef9-1fd90fa55161",
+                      "id": "9f464221-68df-471e-a0fb-8e915b659741",
                       "name": "Customer profile not found",
                       "originalRequest": {
                         "url": {
@@ -1331,7 +1331,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -1342,11 +1342,11 @@
                   }
                 },
                 {
-                  "id": "5da75174-d0ec-485f-95eb-bf25a842641a",
+                  "id": "08b8c406-8ecb-4770-9187-6f2c6a376863",
                   "name": "{addressId}",
                   "item": [
                     {
-                      "id": "60c310a4-2047-4a32-bff8-3788c4bdcd34",
+                      "id": "28b21827-fd0f-46a5-ba35-36edeeaa64e8",
                       "name": "Get address",
                       "request": {
                         "name": "Get address",
@@ -1405,7 +1405,7 @@
                       },
                       "response": [
                         {
-                          "id": "a9417d8b-8c70-43ac-9648-f654facc9c07",
+                          "id": "f110c5a5-0ebb-41fb-a83c-53c6e68f1d4e",
                           "name": "Address",
                           "originalRequest": {
                             "url": {
@@ -1485,12 +1485,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": false,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 7238.350294636982,\n  \"longitude\": 9159.610603812853\n}",
+                          "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": true,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 4806.9913763633585,\n  \"longitude\": 6079.782264241402\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "aa2dd6ce-01a6-4fb5-9198-acb50cbdf392",
+                          "id": "203949dd-f9d4-4b17-b0de-d98f7ac1a1b0",
                           "name": "Caller cannot read this address",
                           "originalRequest": {
                             "url": {
@@ -1570,12 +1570,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "87daf4fe-755f-4ab9-a32a-f65489f57689",
+                          "id": "6fdbc67a-1294-4b8f-b3f2-a6323f9415ab",
                           "name": "Address or customer profile not found",
                           "originalRequest": {
                             "url": {
@@ -1655,7 +1655,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -1666,7 +1666,7 @@
                       }
                     },
                     {
-                      "id": "9cd83459-a011-486f-a83f-fab4ed2d2e8a",
+                      "id": "d8b2f635-5194-42d5-b308-1f2e4410c88b",
                       "name": "Update address",
                       "request": {
                         "name": "Update address",
@@ -1738,7 +1738,7 @@
                       },
                       "response": [
                         {
-                          "id": "7efb300c-61bc-48b4-84c2-391ef061ffa7",
+                          "id": "9bed7e65-8d7e-46aa-bf06-ae604b6ccc61",
                           "name": "Updated address",
                           "originalRequest": {
                             "url": {
@@ -1826,12 +1826,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": false,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 7238.350294636982,\n  \"longitude\": 9159.610603812853\n}",
+                          "body": "{\n  \"id\": \"string\",\n  \"userId\": \"string\",\n  \"type\": \"work\",\n  \"line1\": \"string\",\n  \"city\": \"string\",\n  \"isDefault\": true,\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"line2\": \"string\",\n  \"state\": \"string\",\n  \"postalCode\": \"string\",\n  \"country\": \"string\",\n  \"latitude\": 4806.9913763633585,\n  \"longitude\": 6079.782264241402\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "0e9ece4b-233f-4ab5-a7ca-91d074079a03",
+                          "id": "29b88a84-4f98-4d5f-9169-f76f1d9c2187",
                           "name": "Caller cannot update this address",
                           "originalRequest": {
                             "url": {
@@ -1919,12 +1919,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "5cb61d50-6539-4f91-8c2f-52046675d26f",
+                          "id": "293f5f0b-b9c1-46b4-bdb8-c7258b1a6dc4",
                           "name": "Address not found",
                           "originalRequest": {
                             "url": {
@@ -2012,7 +2012,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -2023,7 +2023,7 @@
                       }
                     },
                     {
-                      "id": "db059006-5b7a-4523-977e-4e57edfabc7e",
+                      "id": "cf2239d1-6483-417a-96e8-03346010cee2",
                       "name": "Delete address",
                       "request": {
                         "name": "Delete address",
@@ -2082,7 +2082,7 @@
                       },
                       "response": [
                         {
-                          "id": "ca53d0ad-a7d0-4036-86e1-d67c3a1aedb2",
+                          "id": "aabdc318-1bd8-4231-acd9-1163bac7c8c9",
                           "name": "Deleted",
                           "originalRequest": {
                             "url": {
@@ -2163,7 +2163,7 @@
                           "_postman_previewlanguage": "text"
                         },
                         {
-                          "id": "e06022e2-0444-4606-a7c3-0a63a46852a2",
+                          "id": "c7cc922d-d04c-4bc8-8999-8430e2dfb44d",
                           "name": "Caller cannot delete this address",
                           "originalRequest": {
                             "url": {
@@ -2243,12 +2243,12 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         },
                         {
-                          "id": "1d8334de-943a-4bab-9fb9-c28c12b3dbd7",
+                          "id": "268b9547-05ca-4f5c-a094-bc0a48861b7f",
                           "name": "Address not found",
                           "originalRequest": {
                             "url": {
@@ -2328,7 +2328,7 @@
                               "value": "application/json"
                             }
                           ],
-                          "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                          "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                           "cookie": [],
                           "_postman_previewlanguage": "json"
                         }
@@ -2345,11 +2345,11 @@
               "event": []
             },
             {
-              "id": "ed1fc4c8-59b2-4353-b558-19a1bf240bc5",
+              "id": "7131880d-1339-4eac-9f11-c17ddb6c7c6d",
               "name": "preferences",
               "item": [
                 {
-                  "id": "439e6f44-4053-4e35-9cfc-88f793c4eba8",
+                  "id": "e895fcfa-cdfb-4eaf-a945-0318e2133ead",
                   "name": "Get operational channel preferences",
                   "request": {
                     "name": "Get operational channel preferences",
@@ -2400,7 +2400,7 @@
                   },
                   "response": [
                     {
-                      "id": "05e159ac-0116-4ac3-96c9-8ccb017b61b7",
+                      "id": "df52f084-224e-4a95-988a-35e6571cbddf",
                       "name": "Operational preferences",
                       "originalRequest": {
                         "url": {
@@ -2472,12 +2472,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"userId\": \"string\",\n  \"whatsapp\": true,\n  \"sms\": false,\n  \"email\": true,\n  \"push\": false,\n  \"language\": \"string\",\n  \"timezone\": \"string\",\n  \"updatedAt\": \"string\"\n}",
+                      "body": "{\n  \"userId\": \"string\",\n  \"whatsapp\": false,\n  \"sms\": false,\n  \"email\": false,\n  \"push\": true,\n  \"language\": \"string\",\n  \"timezone\": \"string\",\n  \"updatedAt\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "544b63db-a089-4841-a805-592298723017",
+                      "id": "b01a7131-1462-49bf-8fdb-5cbafaa8be73",
                       "name": "Caller cannot read these preferences",
                       "originalRequest": {
                         "url": {
@@ -2549,7 +2549,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -2560,7 +2560,7 @@
                   }
                 },
                 {
-                  "id": "ac85e517-4987-448c-9c07-1c765bc2443b",
+                  "id": "565a6000-67dc-4a1f-9428-4af4037ea46a",
                   "name": "Replace operational channel preferences",
                   "request": {
                     "name": "Replace operational channel preferences",
@@ -2624,7 +2624,7 @@
                   },
                   "response": [
                     {
-                      "id": "cd399e55-d4bf-4ffe-b491-d51d19a7756f",
+                      "id": "1760ca18-805e-47ab-8db3-30a5342fc107",
                       "name": "Operational preferences",
                       "originalRequest": {
                         "url": {
@@ -2704,12 +2704,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"userId\": \"string\",\n  \"whatsapp\": true,\n  \"sms\": false,\n  \"email\": true,\n  \"push\": false,\n  \"language\": \"string\",\n  \"timezone\": \"string\",\n  \"updatedAt\": \"string\"\n}",
+                      "body": "{\n  \"userId\": \"string\",\n  \"whatsapp\": false,\n  \"sms\": false,\n  \"email\": false,\n  \"push\": true,\n  \"language\": \"string\",\n  \"timezone\": \"string\",\n  \"updatedAt\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "7398ae22-d72a-4cd7-ab33-17524b8e8fb8",
+                      "id": "85f2220c-1a6e-4670-bdcb-821db4edacdf",
                       "name": "Invalid preferences",
                       "originalRequest": {
                         "url": {
@@ -2789,12 +2789,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "85dee94d-45a8-4d11-8457-40d98b068089",
+                      "id": "6052001f-8706-4c0d-83f2-9d8b6c218d1d",
                       "name": "Caller cannot update these preferences",
                       "originalRequest": {
                         "url": {
@@ -2874,12 +2874,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "c6feddb5-1756-4be6-ac96-e1a5348f3140",
+                      "id": "033316c9-2da7-44a5-b786-2e88dd2aac1d",
                       "name": "Customer profile not found",
                       "originalRequest": {
                         "url": {
@@ -2959,7 +2959,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -2973,11 +2973,11 @@
               "event": []
             },
             {
-              "id": "729c6dbc-6b91-44cf-b601-88b19e42cebc",
+              "id": "2bd28ba5-fd06-4bc4-ae48-ee168218f5db",
               "name": "support-tickets",
               "item": [
                 {
-                  "id": "6d91a853-c6f9-4a97-9385-9144c506be76",
+                  "id": "f3d7621d-2412-477d-8564-a11957e5388e",
                   "name": "Submit support ticket",
                   "request": {
                     "name": "Submit support ticket",
@@ -3041,7 +3041,7 @@
                   },
                   "response": [
                     {
-                      "id": "1b8e5b8a-138b-4fa1-84a3-8b69254fb380",
+                      "id": "11ca80f0-ef65-49d0-a893-77e0aae4d0ce",
                       "name": "Submit support ticket",
                       "originalRequest": {
                         "url": {
@@ -3121,12 +3121,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"BOOKING\",\n  \"message\": \"string\",\n  \"submittedAt\": \"2000-06-10T13:26:26.295Z\",\n  \"bookingId\": \"string\"\n}",
+                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"PAYMENT\",\n  \"message\": \"string\",\n  \"submittedAt\": \"1952-06-30T07:53:40.717Z\",\n  \"bookingId\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "b1f237ee-948b-41dd-9cd4-d85ac089b8f0",
+                      "id": "70ec16e8-267d-494a-8c4a-ecebb9fbfe04",
                       "name": "Path userId does not match the authenticated user",
                       "originalRequest": {
                         "url": {
@@ -3206,7 +3206,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -3217,7 +3217,7 @@
                   }
                 },
                 {
-                  "id": "78e67698-bbb2-415e-b7b6-4217e73494be",
+                  "id": "697b0946-8cb2-4e7b-bd18-fd79868ba9f4",
                   "name": "List support tickets",
                   "request": {
                     "name": "List support tickets",
@@ -3268,7 +3268,7 @@
                   },
                   "response": [
                     {
-                      "id": "b4806e60-98b7-4471-9003-45f56a463009",
+                      "id": "1b6b092d-5eb1-4878-b663-a63ab400df7e",
                       "name": "List support tickets",
                       "originalRequest": {
                         "url": {
@@ -3340,12 +3340,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"BOOKING\",\n  \"message\": \"string\",\n  \"submittedAt\": \"2000-06-10T13:26:26.295Z\",\n  \"bookingId\": \"string\"\n}",
+                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"PAYMENT\",\n  \"message\": \"string\",\n  \"submittedAt\": \"1952-06-30T07:53:40.717Z\",\n  \"bookingId\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "ead412f7-274b-4e6a-a0ce-fed76f50b012",
+                      "id": "6525aa8b-15e3-4bf2-b2d3-9b545cae8e77",
                       "name": "Path userId does not match the authenticated user",
                       "originalRequest": {
                         "url": {
@@ -3417,7 +3417,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -3428,7 +3428,7 @@
                   }
                 },
                 {
-                  "id": "93339df9-4098-4ce5-9684-83b934cf3954",
+                  "id": "82b81760-6cdc-4e22-858c-a4c7d3ed2c1d",
                   "name": "Get support ticket",
                   "request": {
                     "name": "Get support ticket",
@@ -3487,7 +3487,7 @@
                   },
                   "response": [
                     {
-                      "id": "434e58ca-6a24-429a-9fd6-27df80f2f957",
+                      "id": "4ca41f93-0769-4e33-89eb-6ec24aa49bb5",
                       "name": "Get support ticket",
                       "originalRequest": {
                         "url": {
@@ -3567,12 +3567,12 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"BOOKING\",\n  \"message\": \"string\",\n  \"submittedAt\": \"2000-06-10T13:26:26.295Z\",\n  \"bookingId\": \"string\"\n}",
+                      "body": "{\n  \"ticketId\": \"string\",\n  \"userId\": \"string\",\n  \"status\": \"OPEN\",\n  \"category\": \"PAYMENT\",\n  \"message\": \"string\",\n  \"submittedAt\": \"1952-06-30T07:53:40.717Z\",\n  \"bookingId\": \"string\"\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     },
                     {
-                      "id": "1602f145-50f7-4d16-b5e2-dddb0471bae1",
+                      "id": "a951984a-d7f8-4123-be36-f84f4d2ad628",
                       "name": "Path userId does not match the authenticated user",
                       "originalRequest": {
                         "url": {
@@ -3652,7 +3652,7 @@
                           "value": "application/json"
                         }
                       ],
-                      "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                      "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                       "cookie": [],
                       "_postman_previewlanguage": "json"
                     }
@@ -3672,11 +3672,11 @@
       "event": []
     },
     {
-      "id": "eaa895de-cbe1-4fe8-8401-1024aafda20c",
+      "id": "a93112fd-4091-41ed-9145-30a19bcf594e",
       "name": "customers/{userId}",
       "item": [
         {
-          "id": "77468677-1eb2-4efb-aaa9-552959bdbf42",
+          "id": "f1d1f242-c487-4313-ab1f-5436976a0eae",
           "name": "Get customer profile",
           "request": {
             "name": "Get customer profile",
@@ -3726,7 +3726,7 @@
           },
           "response": [
             {
-              "id": "6d997ba4-f9c9-4569-926a-5145aa5b4ad6",
+              "id": "701dd864-0e63-41b7-bc76-6d2fd318e7b2",
               "name": "Customer profile",
               "originalRequest": {
                 "url": {
@@ -3797,12 +3797,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"userId\": \"string\",\n  \"status\": \"inactive\",\n  \"communityIds\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"email\": \"string\",\n  \"phone\": \"string\",\n  \"profileImage\": \"string\",\n  \"preferredLanguage\": \"string\",\n  \"loyaltyPoints\": 9627,\n  \"defaultAddressId\": \"string\"\n}",
+              "body": "{\n  \"userId\": \"string\",\n  \"status\": \"inactive\",\n  \"communityIds\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"email\": \"string\",\n  \"phone\": \"string\",\n  \"profileImage\": \"string\",\n  \"preferredLanguage\": \"string\",\n  \"loyaltyPoints\": 1862,\n  \"defaultAddressId\": \"string\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5be29179-7046-4676-9f6e-a0383bc60db2",
+              "id": "c5764d27-6a58-444d-b675-f78591afffcc",
               "name": "Caller cannot read this profile",
               "originalRequest": {
                 "url": {
@@ -3873,12 +3873,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b1be36a9-3d48-4d4f-aec1-61edbcac0ced",
+              "id": "d55067d2-cdc3-4171-b78e-8819a2697cce",
               "name": "Customer profile not found",
               "originalRequest": {
                 "url": {
@@ -3949,7 +3949,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3960,7 +3960,7 @@
           }
         },
         {
-          "id": "9b0f304a-b53a-4290-9b8f-723e8cf9905e",
+          "id": "033d1e25-3e0c-4fbb-b8b5-39a0a9b4290c",
           "name": "Create or update customer profile",
           "request": {
             "name": "Create or update customer profile",
@@ -4023,7 +4023,7 @@
           },
           "response": [
             {
-              "id": "106a38a1-a240-4a88-a965-993982e503e1",
+              "id": "82c35a00-3896-49e9-aef6-8747d7ceeda3",
               "name": "Customer profile",
               "originalRequest": {
                 "url": {
@@ -4102,12 +4102,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"userId\": \"string\",\n  \"status\": \"active\",\n  \"communityIds\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"email\": \"string\",\n  \"phone\": \"string\",\n  \"profileImage\": \"string\",\n  \"preferredLanguage\": \"string\",\n  \"loyaltyPoints\": 541,\n  \"defaultAddressId\": \"string\"\n}",
+              "body": "{\n  \"userId\": \"string\",\n  \"status\": \"suspended\",\n  \"communityIds\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"firstName\": \"string\",\n  \"lastName\": \"string\",\n  \"email\": \"string\",\n  \"phone\": \"string\",\n  \"profileImage\": \"string\",\n  \"preferredLanguage\": \"string\",\n  \"loyaltyPoints\": 8465,\n  \"defaultAddressId\": \"string\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b161e606-8cb7-43dc-a02c-0a54fc4edf4f",
+              "id": "2b0925c0-4711-4d95-bc0a-b26879e8060f",
               "name": "Invalid profile",
               "originalRequest": {
                 "url": {
@@ -4186,12 +4186,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "26093f6c-4020-4f47-ae2c-1c585bbaaaa4",
+              "id": "03717e33-77e8-42a0-bf49-08c1102e28e5",
               "name": "Caller cannot update this profile",
               "originalRequest": {
                 "url": {
@@ -4270,12 +4270,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "fd07ffba-55ea-43b8-88eb-21adad28dcbf",
+              "id": "a174c473-b88a-4485-9d92-e95b296ceb56",
               "name": "Phone number is already in use",
               "originalRequest": {
                 "url": {
@@ -4354,7 +4354,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -4365,11 +4365,11 @@
           }
         },
         {
-          "id": "41048c67-6e2b-4e5d-b0d8-cf4207acef85",
+          "id": "cf51601f-c79a-4c89-aeb9-602f40d3a827",
           "name": "communities",
           "item": [
             {
-              "id": "c740d96f-63a7-44b8-a0a8-2a927d0a6f59",
+              "id": "382114ec-6e33-42f0-99ba-dce05c128b13",
               "name": "Get customer community membership",
               "request": {
                 "name": "Get customer community membership",
@@ -4420,7 +4420,7 @@
               },
               "response": [
                 {
-                  "id": "2b885fda-ba63-482c-93b9-29588ba56efa",
+                  "id": "94a5bf29-890c-4600-9d98-7a1b10e768fe",
                   "name": "Membership",
                   "originalRequest": {
                     "url": {
@@ -4497,7 +4497,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "cabe8e77-a91c-43f1-a574-b9c42897334e",
+                  "id": "33cfb93e-5e18-4470-be7f-b3922b0148c3",
                   "name": "Caller cannot read this membership",
                   "originalRequest": {
                     "url": {
@@ -4569,12 +4569,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "88d7003e-74ce-4333-8116-89f13ca603e5",
+                  "id": "0585d656-4461-44aa-aabd-79f95cebca5f",
                   "name": "Customer profile not found",
                   "originalRequest": {
                     "url": {
@@ -4646,7 +4646,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -4657,7 +4657,7 @@
               }
             },
             {
-              "id": "362d28c6-179e-4011-88dd-4d1ee62b3c62",
+              "id": "fe57362e-4e56-4a16-ade1-00bc21f648b6",
               "name": "Replace customer community membership",
               "request": {
                 "name": "Replace customer community membership",
@@ -4721,7 +4721,7 @@
               },
               "response": [
                 {
-                  "id": "0eaef5af-7244-402c-b338-be41153ae8ea",
+                  "id": "99451cd7-6954-4b61-ad70-c4e37098611c",
                   "name": "Membership",
                   "originalRequest": {
                     "url": {
@@ -4806,7 +4806,7 @@
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "21bd1d02-49c0-4ba6-a3e0-213e10d27fc3",
+                  "id": "3853d66a-99d1-4039-81e5-9428ada9d2d3",
                   "name": "Community is not active",
                   "originalRequest": {
                     "url": {
@@ -4886,12 +4886,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "2bfcc670-c1dd-492b-95de-4a6514512a9b",
+                  "id": "6b1fc891-56a2-4f48-8b76-7e6290481143",
                   "name": "Caller cannot update this membership",
                   "originalRequest": {
                     "url": {
@@ -4971,12 +4971,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "191fe08c-484b-457e-879d-86c6c9984f15",
+                  "id": "0b576756-66a1-4027-85d5-76481f09cde2",
                   "name": "Customer profile or community not found",
                   "originalRequest": {
                     "url": {
@@ -5056,7 +5056,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -5073,11 +5073,11 @@
       "event": []
     },
     {
-      "id": "559832f2-99a1-4b91-9b5f-19b9153bbdeb",
+      "id": "c547a1ec-175e-4062-88be-641ba57313e8",
       "name": "communities",
       "item": [
         {
-          "id": "a47fef1d-3fca-42f5-b808-6380f5dbaf59",
+          "id": "c71d4401-b7f2-4549-9c9f-d64225abc916",
           "name": "Create community",
           "request": {
             "name": "Create community",
@@ -5132,7 +5132,7 @@
           },
           "response": [
             {
-              "id": "dc735b87-f4eb-4b2d-9409-789f87a1b4db",
+              "id": "116d099c-ff9a-4a30-a441-fb214e298b23",
               "name": "Community",
               "originalRequest": {
                 "url": {
@@ -5203,12 +5203,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"active\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"MIXED_RESIDENTIAL\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"DzWWKP6cgbOzaPo@M.jgnl\",\n  \"totalResidentialUnits\": 4298,\n  \"estimatedVehicleCount\": 7621,\n  \"leadSource\": \"INBOUND_ENQUIRY\",\n  \"intakeNotes\": \"string\"\n}",
+              "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"inactive\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"INDEPENDENT_HOUSES\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"1NrAI1ySGxdq@yZntCFPXfvCm.en\",\n  \"totalResidentialUnits\": 4763,\n  \"estimatedVehicleCount\": 454,\n  \"leadSource\": \"ASSOCIATION_OUTREACH\",\n  \"intakeNotes\": \"string\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6fe90238-253b-477d-8b0e-24d4e6c7efde",
+              "id": "965dd9c4-56e7-4fa6-bde9-a1b03ab56c7f",
               "name": "Administrator access is required",
               "originalRequest": {
                 "url": {
@@ -5279,7 +5279,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5290,7 +5290,7 @@
           }
         },
         {
-          "id": "6ba66a0f-5af6-4793-9f80-810969e69b5d",
+          "id": "7b197f42-e46e-4cce-a3bd-38407eb51911",
           "name": "List communities",
           "request": {
             "name": "List communities",
@@ -5370,7 +5370,7 @@
           },
           "response": [
             {
-              "id": "cb01d3ab-b5e0-4597-93d0-27aa8961315c",
+              "id": "32b1bd58-0cbc-4514-9a45-64d72e961806",
               "name": "Community list",
               "originalRequest": {
                 "url": {
@@ -5462,12 +5462,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"communityId\": \"string\",\n      \"name\": \"string\",\n      \"code\": \"string\",\n      \"status\": \"inactive\",\n      \"city\": \"string\",\n      \"cityId\": \"string\",\n      \"locality\": \"string\",\n      \"localityId\": \"string\",\n      \"postalCode\": \"string\",\n      \"accessType\": \"APARTMENT_COMPLEX\",\n      \"streetAddress\": \"string\",\n      \"contactPersonName\": \"string\",\n      \"contactPersonTitle\": \"string\",\n      \"contactPhone\": \"string\",\n      \"contactEmail\": \"t3Y8n@XHDTZZEAjjkrijziFyhyC.sa\",\n      \"totalResidentialUnits\": 6049,\n      \"estimatedVehicleCount\": 6729,\n      \"leadSource\": \"REFERRAL\",\n      \"intakeNotes\": \"string\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"name\": \"string\",\n      \"code\": \"string\",\n      \"status\": \"active\",\n      \"city\": \"string\",\n      \"cityId\": \"string\",\n      \"locality\": \"string\",\n      \"localityId\": \"string\",\n      \"postalCode\": \"string\",\n      \"accessType\": \"GATED_COMMUNITY\",\n      \"streetAddress\": \"string\",\n      \"contactPersonName\": \"string\",\n      \"contactPersonTitle\": \"string\",\n      \"contactPhone\": \"string\",\n      \"contactEmail\": \"Xm2K@TiJrvx.bh\",\n      \"totalResidentialUnits\": 6124,\n      \"estimatedVehicleCount\": 199,\n      \"leadSource\": \"OTHER\",\n      \"intakeNotes\": \"string\"\n    }\n  ],\n  \"pagination\": {\n    \"nextCursor\": \"string\",\n    \"hasMore\": false,\n    \"total\": 3769,\n    \"totalAvailability\": \"unavailable\",\n    \"totalReason\": \"items.length is this page only. Exhaust nextCursor before counting active communities.\"\n  }\n}",
+              "body": "{\n  \"items\": [\n    {\n      \"communityId\": \"string\",\n      \"name\": \"string\",\n      \"code\": \"string\",\n      \"status\": \"inactive\",\n      \"city\": \"string\",\n      \"cityId\": \"string\",\n      \"locality\": \"string\",\n      \"localityId\": \"string\",\n      \"postalCode\": \"string\",\n      \"accessType\": \"MIXED_RESIDENTIAL\",\n      \"streetAddress\": \"string\",\n      \"contactPersonName\": \"string\",\n      \"contactPersonTitle\": \"string\",\n      \"contactPhone\": \"string\",\n      \"contactEmail\": \"R-fPE1D7EOJ@QiSVxNonfOIXtsCZjrZEhSx.eft\",\n      \"totalResidentialUnits\": 1017,\n      \"estimatedVehicleCount\": 1686,\n      \"leadSource\": \"FIELD_SCOUTING\",\n      \"intakeNotes\": \"string\"\n    },\n    {\n      \"communityId\": \"string\",\n      \"name\": \"string\",\n      \"code\": \"string\",\n      \"status\": \"active\",\n      \"city\": \"string\",\n      \"cityId\": \"string\",\n      \"locality\": \"string\",\n      \"localityId\": \"string\",\n      \"postalCode\": \"string\",\n      \"accessType\": \"APARTMENT_COMPLEX\",\n      \"streetAddress\": \"string\",\n      \"contactPersonName\": \"string\",\n      \"contactPersonTitle\": \"string\",\n      \"contactPhone\": \"string\",\n      \"contactEmail\": \"3vKT3iHQJusuaB@HZCDlMlVHNkukllFqkJdwVVA.yzao\",\n      \"totalResidentialUnits\": 2001,\n      \"estimatedVehicleCount\": 501,\n      \"leadSource\": \"REFERRAL\",\n      \"intakeNotes\": \"string\"\n    }\n  ],\n  \"pagination\": {\n    \"nextCursor\": \"string\",\n    \"hasMore\": false,\n    \"total\": 6433,\n    \"totalAvailability\": \"unavailable\",\n    \"totalReason\": \"items.length is this page only. Exhaust nextCursor before counting active communities.\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b3e5c15d-04e6-4685-beb5-ba9f3e2bacb3",
+              "id": "16ebaa03-69c1-4155-b961-91320a95927c",
               "name": "Authentication is required",
               "originalRequest": {
                 "url": {
@@ -5559,7 +5559,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5570,11 +5570,11 @@
           }
         },
         {
-          "id": "c4b27640-b2b5-4ace-a7e6-17f809ba2419",
+          "id": "f5d3e42c-7581-4a18-955d-88a0c2c49371",
           "name": "{communityId}",
           "item": [
             {
-              "id": "724e4832-adaa-4436-ba9e-1bc23380a50c",
+              "id": "8ca64bd7-aa7a-4ed3-870d-1df5e19b9d49",
               "name": "Get community",
               "request": {
                 "name": "Get community",
@@ -5624,7 +5624,7 @@
               },
               "response": [
                 {
-                  "id": "c01c1169-481d-4e34-9d07-19777b3e9f0a",
+                  "id": "cafd29b4-d9c9-4327-b42b-441b2b339181",
                   "name": "Community",
                   "originalRequest": {
                     "url": {
@@ -5695,12 +5695,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"active\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"MIXED_RESIDENTIAL\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"DzWWKP6cgbOzaPo@M.jgnl\",\n  \"totalResidentialUnits\": 4298,\n  \"estimatedVehicleCount\": 7621,\n  \"leadSource\": \"INBOUND_ENQUIRY\",\n  \"intakeNotes\": \"string\"\n}",
+                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"inactive\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"INDEPENDENT_HOUSES\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"1NrAI1ySGxdq@yZntCFPXfvCm.en\",\n  \"totalResidentialUnits\": 4763,\n  \"estimatedVehicleCount\": 454,\n  \"leadSource\": \"ASSOCIATION_OUTREACH\",\n  \"intakeNotes\": \"string\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "14717304-5140-4766-9c73-2af7e996cedd",
+                  "id": "68aaa7ab-4c40-4001-a33a-69d721d11ed1",
                   "name": "Authentication is required",
                   "originalRequest": {
                     "url": {
@@ -5771,12 +5771,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "76729252-7ac4-48df-9667-e6e1c9232e4f",
+                  "id": "262aaa37-37db-4b3c-ba0e-6028b90f3305",
                   "name": "Community not found",
                   "originalRequest": {
                     "url": {
@@ -5847,7 +5847,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -5858,7 +5858,7 @@
               }
             },
             {
-              "id": "f114b3fd-5def-44f3-92d5-5651eeefa75b",
+              "id": "ed466c5a-13bb-4725-b046-c56089ed6b83",
               "name": "Update community",
               "request": {
                 "name": "Update community",
@@ -5921,7 +5921,7 @@
               },
               "response": [
                 {
-                  "id": "70d36447-c963-4e1e-b5c3-44405a41e25c",
+                  "id": "a60a5457-1a45-4ba3-96a3-d44ef2fdf596",
                   "name": "Community",
                   "originalRequest": {
                     "url": {
@@ -6000,12 +6000,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"active\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"MIXED_RESIDENTIAL\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"DzWWKP6cgbOzaPo@M.jgnl\",\n  \"totalResidentialUnits\": 4298,\n  \"estimatedVehicleCount\": 7621,\n  \"leadSource\": \"INBOUND_ENQUIRY\",\n  \"intakeNotes\": \"string\"\n}",
+                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"inactive\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"INDEPENDENT_HOUSES\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"1NrAI1ySGxdq@yZntCFPXfvCm.en\",\n  \"totalResidentialUnits\": 4763,\n  \"estimatedVehicleCount\": 454,\n  \"leadSource\": \"ASSOCIATION_OUTREACH\",\n  \"intakeNotes\": \"string\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "a1877531-47c1-49a7-b6b5-8e37458d6a30",
+                  "id": "7149000c-812b-4e3e-b27d-b1682a8eb523",
                   "name": "Administrator access is required",
                   "originalRequest": {
                     "url": {
@@ -6084,12 +6084,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "e99af51f-1040-4ebd-98ad-872de5dab7b8",
+                  "id": "4af512e7-d375-46ab-85cf-6eb4dcb0e9b5",
                   "name": "Community not found",
                   "originalRequest": {
                     "url": {
@@ -6168,7 +6168,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -6179,7 +6179,7 @@
               }
             },
             {
-              "id": "acb90702-7e61-4e0b-8193-8bc77a368867",
+              "id": "4d92cbcb-995a-4ab2-8e32-034c4f9b46c5",
               "name": "Deactivate community",
               "request": {
                 "name": "Deactivate community",
@@ -6229,7 +6229,7 @@
               },
               "response": [
                 {
-                  "id": "ad5aec3d-f036-4cc5-a7c2-a2de029b0736",
+                  "id": "242fc8b3-fc3e-4361-b332-6864cd9cf13d",
                   "name": "Inactive community",
                   "originalRequest": {
                     "url": {
@@ -6300,12 +6300,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"active\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"MIXED_RESIDENTIAL\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"DzWWKP6cgbOzaPo@M.jgnl\",\n  \"totalResidentialUnits\": 4298,\n  \"estimatedVehicleCount\": 7621,\n  \"leadSource\": \"INBOUND_ENQUIRY\",\n  \"intakeNotes\": \"string\"\n}",
+                  "body": "{\n  \"communityId\": \"string\",\n  \"name\": \"string\",\n  \"status\": \"inactive\",\n  \"createdAt\": \"string\",\n  \"updatedAt\": \"string\",\n  \"code\": \"string\",\n  \"city\": \"string\",\n  \"cityId\": \"string\",\n  \"locality\": \"string\",\n  \"localityId\": \"string\",\n  \"postalCode\": \"string\",\n  \"accessType\": \"INDEPENDENT_HOUSES\",\n  \"streetAddress\": \"string\",\n  \"contactPersonName\": \"string\",\n  \"contactPersonTitle\": \"string\",\n  \"contactPhone\": \"string\",\n  \"contactEmail\": \"1NrAI1ySGxdq@yZntCFPXfvCm.en\",\n  \"totalResidentialUnits\": 4763,\n  \"estimatedVehicleCount\": 454,\n  \"leadSource\": \"ASSOCIATION_OUTREACH\",\n  \"intakeNotes\": \"string\"\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "977c8e76-7713-4182-aba1-6d91c90bda86",
+                  "id": "6507c43d-32ff-4d88-8b40-428c9c50f41f",
                   "name": "Administrator access is required",
                   "originalRequest": {
                     "url": {
@@ -6376,12 +6376,12 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 },
                 {
-                  "id": "ac5ce021-b839-4961-8f33-c55861dd28d2",
+                  "id": "a07481da-986e-45db-950f-23f6bb4bd5e8",
                   "name": "Community not found",
                   "originalRequest": {
                     "url": {
@@ -6452,7 +6452,7 @@
                       "value": "application/json"
                     }
                   ],
-                  "body": "{\n  \"success\": true,\n  \"statusCode\": 5362,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 8929,\n  \"message\": {\n    \"title\": \"string\",\n    \"description\": \"string\",\n    \"severity\": \"string\"\n  },\n  \"data\": {},\n  \"error\": {\n    \"code\": \"string\",\n    \"details\": [\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      },\n      {\n        \"field\": \"string\",\n        \"message\": \"string\"\n      }\n    ]\n  },\n  \"meta\": {\n    \"correlationId\": \"string\",\n    \"timestamp\": \"string\",\n    \"version\": \"string\"\n  }\n}",
                   "cookie": [],
                   "_postman_previewlanguage": "json"
                 }
@@ -6505,7 +6505,7 @@
     ]
   },
   "info": {
-    "_postman_id": "5de7bd07-ebe8-4a89-8153-eb1ce4b90558",
+    "_postman_id": "94db9337-136f-4cf5-8f46-be773a67ab57",
     "name": "Carish user-service API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

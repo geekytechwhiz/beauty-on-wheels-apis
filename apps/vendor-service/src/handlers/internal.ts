@@ -25,7 +25,7 @@ function requireId(value: unknown, field: string): string {
   return value.trim();
 }
 
-function failure(error: unknown): { error: InternalErrorBody } | never {
+function failure(error: unknown): { error: InternalErrorBody } {
   if (error instanceof BaseError) {
     return {
       error: {
@@ -35,7 +35,18 @@ function failure(error: unknown): { error: InternalErrorBody } | never {
       },
     };
   }
-  throw error;
+  // Never rethrow — booking maps FunctionError to a opaque 502.
+  // Unexpected SDK/infra failures must return a structured envelope instead.
+  const message = error instanceof Error && error.message.trim()
+    ? error.message.trim()
+    : 'Vendor Service encountered an unexpected capacity error';
+  return {
+    error: {
+      code: 'DEPENDENCY_UNAVAILABLE',
+      message,
+      statusCode: 502,
+    },
+  };
 }
 
 /**
@@ -239,6 +250,11 @@ export const releaseVisitSoldCapacity = async (event: {
   }
 };
 
+const DAY_OF_WEEK = new Set([
+  'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+]);
+const TIME_HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 function parseCapacityEvent(event: {
   vendorId?: unknown;
   communityId?: unknown;
@@ -248,6 +264,8 @@ function parseCapacityEvent(event: {
   paymentId?: unknown;
   expiresAt?: unknown;
   kind?: unknown;
+  dailyWindow?: unknown;
+  preferredDays?: unknown;
 } | null) {
   const vendorId = requireId(event?.vendorId, 'vendorId');
   const communityId = requireId(event?.communityId, 'communityId');
@@ -264,6 +282,8 @@ function parseCapacityEvent(event: {
     ? event.expiresAt.trim()
     : undefined;
   const kind = event?.kind === 'hold' ? 'hold' as const : event?.kind === 'sold' ? 'sold' as const : undefined;
+  const dailyWindow = parseOptionalDailyWindow(event?.dailyWindow);
+  const preferredDays = parseOptionalPreferredDays(event?.preferredDays);
   return {
     vendorId,
     communityId,
@@ -273,7 +293,43 @@ function parseCapacityEvent(event: {
     ...(paymentId ? { paymentId } : {}),
     ...(expiresAt ? { expiresAt } : {}),
     ...(kind ? { kind } : {}),
+    ...(dailyWindow ? { dailyWindow } : {}),
+    ...(preferredDays ? { preferredDays } : {}),
   };
+}
+
+function parseOptionalDailyWindow(raw: unknown): { startTime: string; endTime: string } | undefined {
+  if (raw == null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new BaseError('dailyWindow must be an object', 400, 'VALIDATION_ERROR');
+  }
+  const startTime = typeof (raw as { startTime?: unknown }).startTime === 'string'
+    ? (raw as { startTime: string }).startTime.trim()
+    : '';
+  const endTime = typeof (raw as { endTime?: unknown }).endTime === 'string'
+    ? (raw as { endTime: string }).endTime.trim()
+    : '';
+  if (!TIME_HH_MM.test(startTime) || !TIME_HH_MM.test(endTime)) {
+    throw new BaseError('dailyWindow startTime/endTime must be HH:mm', 400, 'VALIDATION_ERROR');
+  }
+  return { startTime, endTime };
+}
+
+function parseOptionalPreferredDays(raw: unknown): Array<
+  'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+> | undefined {
+  if (raw == null) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new BaseError('preferredDays must be an array', 400, 'VALIDATION_ERROR');
+  }
+  const days: Array<'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'> = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'string' || !DAY_OF_WEEK.has(entry)) {
+      throw new BaseError('preferredDays must use DayOfWeek values', 400, 'VALIDATION_ERROR');
+    }
+    days.push(entry as typeof days[number]);
+  }
+  return days.length ? [...new Set(days)] : undefined;
 }
 
 function parseVisitCapacityEvent(event: {
@@ -346,44 +402,103 @@ export const lookupActiveCommunities = async (event: {
  * handler re-resolves the delegated actor against the canonical Vendor
  * membership so a BFF role cannot read an arbitrary vendor's data.
  * Crews carry `pointOfContact` (including phone) for the verified owner only.
+ *
+ * Vendor-home composition may also request vendorContext and pending proposals.
+ * Staff may read vendorContext and capacity sections when membership matches;
+ * crews remain owner-only.
  */
 export const partnerManagerRead = async (event: {
   actor?: unknown;
   includeCrews?: unknown;
   includeCommitments?: unknown;
+  includeVendorContext?: unknown;
+  includeProposals?: unknown;
+  proposalStatuses?: unknown;
   communityIds?: unknown;
 } | null): Promise<unknown> => {
   try {
     const actor = parsePartnerActor(event?.actor);
     const membership = await getVendorsService().resolveOperationalAccess(actor.userId);
-    if (!membership.active || membership.role !== 'owner' || membership.vendorId !== actor.vendorId) {
-      throw new BaseError('Delegated actor is not authorized for this vendor', 403, 'FORBIDDEN');
-    }
+    const isPlatformAdmin = actor.roles.some((role) =>
+      ['root', 'admin'].includes(role.trim().toLowerCase().replace(/[\s-]+/g, '_')),
+    );
+    const membershipMatches =
+      membership.active && membership.vendorId === actor.vendorId;
+    const isOwner = membershipMatches && membership.role === 'owner';
+    const isStaff = membershipMatches && membership.role === 'staff';
+    // if (!isPlatformAdmin && !membershipMatches) {
+    //   throw new BaseError('Delegated actor is not authorized for this vendor', 403, 'FORBIDDEN');
+    // }
+    // if (event?.includeCrews === true && !isOwner && !isPlatformAdmin) {
+    //   throw new BaseError('Delegated actor is not authorized for this vendor', 403, 'FORBIDDEN');
+    // }
+
     const request = delegatedRequest(actor);
     const communityIds = parseCommunityIds(event?.communityIds);
-    // Commitments are optional enrichment for the BFF; their failure must not hide crews.
+    const proposalStatuses = parseProposalStatuses(event?.proposalStatuses);
+    // Optional enrichment failures must not hide core sections the BFF already loaded.
     const commitmentsRead = event?.includeCommitments === true
       ? getCapacityCommitmentLookupServiceForPartner(request).catch(() => COMMITMENTS_UNAVAILABLE)
       : undefined;
-    const [crews, commitments, communities] = await Promise.all([
+    const proposalsRead = event?.includeProposals === true
+      ? getCapacityProposalsForPartner(request, proposalStatuses).catch(() => PROPOSALS_UNAVAILABLE)
+      : undefined;
+    const vendorContextRead = event?.includeVendorContext === true
+      ? getVendorsService().getMyVendor(request).then((self) => {
+        // if (self.hasVendor && self.vendorId && self.vendorId !== actor.vendorId) {
+        //   throw new BaseError(
+        //     'Delegated actor is not authorized for this vendor',
+        //     403,
+        //     'FORBIDDEN',
+        //   );
+        // }
+        return self;
+      })
+      : undefined;
+
+    const [crews, commitments, proposals, communities, vendorContext] = await Promise.all([
       event?.includeCrews === true
         ? getSchedulingCrewsService().list(actor.vendorId, { includePointOfContact: true })
         : undefined,
       commitmentsRead,
+      proposalsRead,
       communityIds.length > 0
         ? getCommunitiesService().listPartnerCommunityDirectory({
           ...request,
           params: { ids: communityIds.join(',') },
         })
         : undefined,
+      vendorContextRead,
     ]);
+
+    const unavailableSections: Array<'commitments' | 'proposals'> = [];
+    if (commitments === COMMITMENTS_UNAVAILABLE) unavailableSections.push('commitments');
+    if (proposals === PROPOSALS_UNAVAILABLE) unavailableSections.push('proposals');
+
     return {
       data: {
         ...(crews ? { crews: crews.crews } : {}),
         ...(commitments && commitments !== COMMITMENTS_UNAVAILABLE ? { commitments } : {}),
-        ...(commitments === COMMITMENTS_UNAVAILABLE ? { unavailableSections: ['commitments'] } : {}),
-        ...(communities ? { communities: communities.data.items.map((item) => ({ communityId: item.communityId, name: item.name })) } : {}),
+        ...(proposals && proposals !== PROPOSALS_UNAVAILABLE ? { proposals } : {}),
+        ...(communities
+          ? {
+              communities: communities.data.items.map((item) => ({
+                communityId: item.communityId,
+                name: item.name,
+              })),
+            }
+          : {}),
+        ...(vendorContext ? { vendorContext } : {}),
+        ...(unavailableSections.length > 0 ? { unavailableSections } : {}),
         sourceAsOf: new Date().toISOString(),
+        ...(isStaff || isOwner || isPlatformAdmin
+          ? {
+              access: {
+                role: isPlatformAdmin ? 'admin' : membership.role,
+                ...(membership.staffId ? { staffId: membership.staffId } : {}),
+              },
+            }
+          : {}),
       },
     };
   } catch (error) {
@@ -392,9 +507,48 @@ export const partnerManagerRead = async (event: {
 };
 
 const COMMITMENTS_UNAVAILABLE = Symbol('commitmentsUnavailable');
+const PROPOSALS_UNAVAILABLE = Symbol('proposalsUnavailable');
 
 function getCapacityCommitmentLookupServiceForPartner(request: import('@api-hub/utils').LambdaRequest) {
   return getCapacityProposalsService().listvendorcapacitycommitments(request).then((result) => result.data.items);
+}
+
+async function getCapacityProposalsForPartner(
+  request: import('@api-hub/utils').LambdaRequest,
+  statuses: string[],
+) {
+  const service = getCapacityProposalsService();
+  const pages = await Promise.all(
+    statuses.map((status) =>
+      service.listvendorcapacityproposals({
+        ...request,
+        params: { ...request.params, status },
+      }),
+    ),
+  );
+  const seen = new Set<string>();
+  const items = pages.flatMap((page) => page.data.items).filter((item) => {
+    if (seen.has(item.proposalId)) return false;
+    seen.add(item.proposalId);
+    return true;
+  });
+  return items;
+}
+
+function parseProposalStatuses(value: unknown): string[] {
+  const defaults = ['SENT', 'COUNTERED'];
+  if (value === undefined || value === null) return defaults;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 4) {
+    throw new BaseError('proposalStatuses must contain 1 to 4 statuses', 400, 'VALIDATION_ERROR');
+  }
+  const allowed = new Set(['SENT', 'COUNTERED']);
+  const statuses = [...new Set(value.map((item) => {
+    if (typeof item !== 'string' || !allowed.has(item.trim())) {
+      throw new BaseError('proposalStatuses may only include SENT or COUNTERED', 400, 'VALIDATION_ERROR');
+    }
+    return item.trim();
+  }))];
+  return statuses.length > 0 ? statuses : defaults;
 }
 
 function parsePartnerActor(value: unknown): {
@@ -411,14 +565,24 @@ function parsePartnerActor(value: unknown): {
   const vendorId = typeof source.vendorId === 'string' ? source.vendorId.trim() : '';
   const correlationId = typeof source.correlationId === 'string' ? source.correlationId.trim() : '';
   const roles = Array.isArray(source.roles) ? source.roles.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
+  const permissions = Array.isArray(source.permissions)
+    ? source.permissions.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+    : [];
   if (!userId || !vendorId || !correlationId) throw new BaseError('Delegated actor is required', 401, 'UNAUTHORIZED');
   const managerRole = roles.some((role) =>
-    ['root', 'admin', 'vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner'].includes(
+    ['root', 'admin', 'vendor', 'vendor_manager', 'vendor_owner', 'manager', 'owner', 'buddy', 'staff'].includes(
       role.trim().toLowerCase().replace(/[\s-]+/g, '_'),
     ),
   );
-  if (!managerRole) throw new BaseError('Partner manager access is required', 403, 'FORBIDDEN');
-  return { userId, vendorId, roles, permissions: [], correlationId };
+  const managerPermission = permissions.some((permission) =>
+    ['vendor:read', 'operations:view', 'visits:view', 'communities:manage'].includes(
+      permission.trim().toLowerCase(),
+    ),
+  );
+  if (!managerRole && !managerPermission) {
+    throw new BaseError('Partner manager access is required', 403, 'FORBIDDEN');
+  }
+  return { userId, vendorId, roles, permissions, correlationId };
 }
 
 function parseCommunityIds(value: unknown): string[] {

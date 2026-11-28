@@ -15,6 +15,12 @@ export interface ReservePlanCapacityInput {
   offeringId: string;
   demandQuantity: number;
   planId: string;
+  /** Plan visit-window clock preference; commitment daily window must overlap. */
+  dailyWindow?: { startTime: string; endTime: string };
+  /** Full weekday names (MONDAY…SUNDAY) from the plan preference. */
+  preferredDays?: Array<
+    'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+  >;
 }
 
 export interface HoldPlanCapacityInput extends ReservePlanCapacityInput {

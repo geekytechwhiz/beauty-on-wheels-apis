@@ -27,8 +27,10 @@ function snapshotFields(booking: Booking) {
  * Vendor/customer/list GSI1 sort key for bookings.
  *
  * Prefer schedule.date (true service date). Package-linked first jobs (planId set,
- * no schedule) must not index activation/order bookingDate under a civil day —
- * PackageVisit on GSI3 is the operational work record once scheduled.
+ * no schedule) stay BOOKING#UNSCHEDULED even when bookingDate later mirrors the
+ * earliest confirmed PackageVisit civil date — PackageVisit on GSI3 is the
+ * operational work record. bookingDate itself is the service start date when set
+ * (earliest confirmed slot), not the confirmation/activation timestamp.
  */
 export function bookingWorkGsi1Sk(booking: Booking, id: string): string {
   const serviceDate = booking.schedule?.date?.trim();
@@ -37,6 +39,34 @@ export function bookingWorkGsi1Sk(booking: Booking, id: string): string {
   const bookingDate = booking.bookingDate?.trim();
   if (bookingDate) return `BOOKING#${bookingDate}#${id}`;
   return `BOOKING#UNSCHEDULED#${id}`;
+}
+
+/** Community partition id when the booking is fulfilled at a community. */
+export function bookingCommunityId(booking: Booking): string | undefined {
+  if (booking.location?.fulfilmentType !== 'community') return undefined;
+  const communityId = booking.location.communityId?.trim();
+  return communityId || undefined;
+}
+
+/** Map package-visit status onto the Booking status union for list projections. */
+function visitStatusToBookingStatus(
+  status: unknown,
+): Booking['bookingStatus'] {
+  switch (status) {
+    case 'IN_PROGRESS':
+      return 'IN_PROGRESS';
+    case 'COMPLETED':
+      return 'COMPLETED';
+    case 'CANCELLED':
+      return 'CANCELLED';
+    case 'SCHEDULED':
+    case 'BLOCKED':
+    case 'MISSED':
+    case 'UNSCHEDULED':
+      return 'CONFIRMED';
+    default:
+      return 'CREATED';
+  }
 }
 
 export class BookingsMapper {
@@ -74,6 +104,86 @@ export class BookingsMapper {
       bookingStatus: item.bookingStatus,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+    };
+  }
+
+  /**
+   * Project a PackageVisit GSI1 row onto Booking so vendor list endpoints can
+   * surface VISIT# work without a second client call. Canonical visit APIs
+   * remain GET /vendors/{vendorId}/package-visits.
+   */
+  static packageVisitToBookingProjection(item: Record<string, unknown>): Booking {
+    const visitId = typeof item.visitId === 'string' ? item.visitId : undefined;
+    const rawSchedule =
+      item.schedule && typeof item.schedule === 'object'
+        ? (item.schedule as Record<string, unknown>)
+        : undefined;
+    const scheduleDate =
+      typeof rawSchedule?.date === 'string' ? rawSchedule.date : undefined;
+    const bookingDate =
+      scheduleDate ||
+      (typeof item.scheduleStartDate === 'string' ? item.scheduleStartDate : undefined);
+    const serviceId = typeof item.serviceId === 'string' ? item.serviceId : undefined;
+    const serviceName =
+      typeof item.serviceName === 'string' ? item.serviceName : undefined;
+    const durationMinutes =
+      typeof item.durationMinutes === 'number'
+        ? item.durationMinutes
+        : typeof rawSchedule?.durationMinutes === 'number'
+          ? rawSchedule.durationMinutes
+          : undefined;
+
+    return {
+      id: visitId,
+      customerId: typeof item.customerId === 'string' ? item.customerId : undefined,
+      vendorId: typeof item.vendorId === 'string' ? item.vendorId : undefined,
+      vehicleId: typeof item.vehicleId === 'string' ? item.vehicleId : undefined,
+      serviceIds: serviceId ? [serviceId] : [],
+      planId: typeof item.planId === 'string' ? item.planId : undefined,
+      ...(serviceId && serviceName && durationMinutes !== undefined
+        ? {
+            service: {
+              serviceId,
+              name: serviceName,
+              offeringId: serviceId,
+              durationMinutes,
+            },
+          }
+        : {}),
+      ...(scheduleDate &&
+      typeof rawSchedule?.startTime === 'string' &&
+      typeof rawSchedule?.timezone === 'string'
+        ? {
+            schedule: {
+              date: scheduleDate,
+              startTime: rawSchedule.startTime,
+              endTime:
+                typeof rawSchedule.endTime === 'string'
+                  ? rawSchedule.endTime
+                  : rawSchedule.startTime,
+              durationMinutes: durationMinutes ?? 0,
+              timezone: rawSchedule.timezone,
+              startAtUtc: '',
+              endAtUtc: '',
+            },
+          }
+        : {}),
+      bookingDate,
+      slotId:
+        typeof rawSchedule?.slotId === 'string' ? rawSchedule.slotId : '',
+      ...(typeof item.communityId === 'string'
+        ? {
+            location: {
+              fulfilmentType: 'community' as const,
+              communityId: item.communityId,
+            },
+          }
+        : {}),
+      bookingStatus: visitStatusToBookingStatus(item.status),
+      paymentStatus: 'PAID',
+      totalAmount: 0,
+      createdAt: typeof item.createdAt === 'string' ? item.createdAt : undefined,
+      updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : undefined,
     };
   }
 
@@ -167,6 +277,44 @@ export class BookingsMapper {
       createdAt: createdAt || timestamp,
       updatedAt: timestamp,
       entityType: 'VendorBooking',
+    };
+  }
+
+  /**
+   * Community booking lookup for GSI1 list-by-community.
+   * Only call when bookingCommunityId(booking) is defined.
+   */
+  static toCommunityLookupDdb(booking: Booking, createdAt?: string): BookingLookupDdbItem {
+    const timestamp = new Date().toISOString();
+    const id = booking.id!;
+    const communityId = bookingCommunityId(booking);
+    if (!communityId) {
+      throw new Error('toCommunityLookupDdb requires location.communityId');
+    }
+    return {
+      PK: `COMMUNITY#${communityId}`,
+      SK: `BOOKING#${id}`,
+      GSI1PK: `COMMUNITY#${communityId}`,
+      GSI1SK: bookingWorkGsi1Sk(booking, id),
+      id,
+      ...(booking.reference ? { reference: booking.reference } : {}),
+      customerId: booking.customerId!,
+      vendorId: booking.vendorId!,
+      ...(booking.vendorName ? { vendorName: booking.vendorName } : {}),
+      vehicleId: booking.vehicleId,
+      vehicleDetails: booking.vehicleDetails,
+      serviceIds: booking.serviceIds || [],
+      ...snapshotFields(booking),
+      bookingDate: booking.bookingDate || booking.schedule?.date || '',
+      slotId: booking.slotId || '',
+      totalAmount: booking.pricingSnapshot?.totalAmount ?? booking.totalAmount ?? 0,
+      paymentMethod: booking.paymentMethod,
+      paymentStatus: booking.paymentStatus || 'PENDING',
+      ...(booking.slotReserved === undefined ? {} : { slotReserved: booking.slotReserved }),
+      bookingStatus: booking.bookingStatus || 'CREATED',
+      createdAt: createdAt || timestamp,
+      updatedAt: timestamp,
+      entityType: 'CommunityBooking',
     };
   }
 }

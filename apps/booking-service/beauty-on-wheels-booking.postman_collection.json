@@ -465,7 +465,7 @@
                 }
               ]
             },
-            "description": "Owner or platform admin. Read-only dashboard for package visits and one-time bookings for one day plus upcomingDays. Package-linked bookings (planId) are excluded. total excludes CANCELLED and UNSCHEDULED. blocked is the persisted BLOCKED status. Completion percentage denominator is today.visits.total (0 when empty). Does not include proposals."
+            "description": "Owner or platform admin. Read-only dashboard for package visits and one-time bookings for one day plus upcomingDays. Package-linked bookings (planId) are excluded. total excludes CANCELLED and UNSCHEDULED. blocked is the persisted BLOCKED status. Completion percentage denominator is today?.visits?.total (0 when empty). Does not include proposals."
           },
           "event": [
             {
@@ -481,7 +481,7 @@
                   "  const data = body.data || body;",
                   "  pm.test('home summary shape', function () {",
                   "    pm.expect(data).to.include.keys('vendorId', 'timezone', 'date', 'today', 'tomorrow', 'upcoming');",
-                  "    pm.expect(data.today.visits).to.include.keys('total', 'completed', 'inProgress', 'notStarted', 'blocked', 'missed', 'cancelled');",
+                  "    pm.expect(data.today?.visits).to.include.keys('total', 'completed', 'inProgress', 'notStarted', 'blocked', 'missed', 'cancelled');",
                   "    pm.expect(data.today.crew).to.have.keys('assigned', 'unassigned');",
                   "    pm.expect(data.today.completion).to.have.keys('completed', 'total', 'percentage');",
                   "    pm.expect(data.upcoming.days).to.be.an('array');",

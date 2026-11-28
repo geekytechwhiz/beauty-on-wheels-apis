@@ -631,4 +631,289 @@ describe('SoldCapacityService', () => {
       });
     });
   });
+
+  describe('verification scenarios (weekend commitment)', () => {
+    /** May 2026: 10 Sat/Sun days. quantity 20 → periodSupply 200. */
+    const weekendCommitment = commitment({
+      commitmentId: 'cmt_weekend',
+      quantity: 20,
+      window: {
+        startDate: '2026-05-01',
+        endDate: '2026-05-31',
+        dailyWindow: { startTime: '09:00', endTime: '13:00' },
+        daysOfWeek: ['SATURDAY', 'SUNDAY'],
+      },
+    });
+
+    it('1/2: 20×10=200 period supply; demand 200 succeeds and 201 fails', async () => {
+      repository.listCommitments.mockResolvedValue([weekendCommitment]);
+      repository.getCommitment.mockResolvedValue({
+        ...weekendCommitment,
+        claimedPeriodQuantity: 200,
+      });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 200,
+          planId: 'plan_200',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).resolves.toMatchObject({
+        commitmentId: 'cmt_weekend',
+        periodSupply: 200,
+        remainingSoldCapacity: 0,
+      });
+
+      repository.listCommitments.mockResolvedValue([
+        { ...weekendCommitment, claimedPeriodQuantity: 200 },
+      ]);
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 1,
+          planId: 'plan_201',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+    });
+
+    it('3: a single day cannot exceed quantity 20 while other days remain free', async () => {
+      repository.listCommitments.mockResolvedValue([weekendCommitment]);
+      repository.getCommitmentDaySold.mockResolvedValue({
+        PK: 'VENDOR#vendor-1',
+        SK: 'CAPACITY_DAY_SOLD#cmt_weekend#2026-05-02',
+        vendorId: 'vendor-1',
+        commitmentId: 'cmt_weekend',
+        date: '2026-05-02',
+        reservedSoldQuantity: 20,
+        updatedAt: '2026-05-02T00:00:00.000Z',
+        entityType: 'CommitmentDaySold',
+      });
+
+      await expect(
+        service.reserveVisitCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          planId: 'plan_day',
+          visitId: 'visit_day_full',
+          date: '2026-05-02',
+          startTime: '09:00',
+          endTime: '09:30',
+          demandQuantity: 1,
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+
+      repository.getCommitmentDaySold.mockResolvedValue(null);
+      repository.getCommitment.mockResolvedValue(weekendCommitment);
+      await expect(
+        service.reserveVisitCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          planId: 'plan_day',
+          visitId: 'visit_other_day',
+          date: '2026-05-03',
+          startTime: '09:00',
+          endTime: '09:30',
+          demandQuantity: 1,
+        }),
+      ).resolves.toMatchObject({ commitmentId: 'cmt_weekend', date: '2026-05-03' });
+    });
+
+    it('4: Saturday/Sunday-only commitment rejects a weekday visit', async () => {
+      repository.listCommitments.mockResolvedValue([weekendCommitment]);
+
+      await expect(
+        service.reserveVisitCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          planId: 'plan_wd',
+          visitId: 'visit_monday',
+          date: '2026-05-04',
+          startTime: '09:00',
+          endTime: '09:30',
+          demandQuantity: 1,
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+    });
+
+    it('6: incompatible community, offering, or daily window is rejected at period claim', async () => {
+      repository.listCommitments.mockResolvedValue([weekendCommitment]);
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-other',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 1,
+          planId: 'plan_com',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_other',
+          demandQuantity: 1,
+          planId: 'plan_off',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 1,
+          planId: 'plan_win',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+          dailyWindow: { startTime: '14:00', endTime: '18:00' },
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 1,
+          planId: 'plan_days',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+          preferredDays: ['MONDAY'],
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+    });
+
+    it('7: existing claimed period quantity is subtracted from period supply', async () => {
+      repository.listCommitments.mockResolvedValue([
+        { ...weekendCommitment, claimedPeriodQuantity: 37 },
+      ]);
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 164,
+          planId: 'plan_over',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+
+      repository.getCommitment.mockResolvedValue({
+        ...weekendCommitment,
+        claimedPeriodQuantity: 200,
+      });
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 163,
+          planId: 'plan_ok',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).resolves.toMatchObject({ periodSupply: 200, remainingSoldCapacity: 0 });
+    });
+
+    it('8: multi-visit package demand consumes many period slots', async () => {
+      repository.listCommitments.mockResolvedValue([weekendCommitment]);
+      repository.getCommitment.mockResolvedValue({
+        ...weekendCommitment,
+        claimedPeriodQuantity: 100,
+      });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 100,
+          planId: 'plan_multi',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+          dailyWindow: { startTime: '09:00', endTime: '12:00' },
+          preferredDays: ['SATURDAY', 'SUNDAY'],
+        }),
+      ).resolves.toMatchObject({ commitmentId: 'cmt_weekend' });
+
+      expect(repository.reserveSoldCapacity).toHaveBeenCalledWith(
+        expect.objectContaining({ quantity: 100, periodSupply: 200, consumesDailySlots: false }),
+      );
+    });
+
+    it('9: duplicate hold for the same planId does not reserve twice', async () => {
+      repository.getSoldCapacityReservation.mockResolvedValue({
+        PK: 'PLAN_SOLD_CAPACITY#plan_dup',
+        SK: 'RESERVE',
+        planId: 'plan_dup',
+        vendorId: 'vendor-1',
+        commitmentId: 'cmt_weekend',
+        quantity: 5,
+        idempotencyKey: 'plan_dup',
+        kind: 'hold',
+        consumesDailySlots: false,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+        createdAt: '2026-05-01T00:00:00.000Z',
+        entityType: 'PlanSoldCapacityReservation',
+      });
+      repository.getCommitment.mockResolvedValue({
+        ...weekendCommitment,
+        claimedPeriodQuantity: 5,
+      });
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 5,
+          planId: 'plan_dup',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+        }),
+      ).resolves.toMatchObject({ commitmentId: 'cmt_weekend', kind: 'hold' });
+
+      expect(repository.reserveSoldCapacity).not.toHaveBeenCalled();
+    });
+
+    it('10: concurrent final-slot race surfaces CAPACITY_UNAVAILABLE when pointer missing', async () => {
+      const { ConditionalWriteConflictError } = await import('@api-hub/utils');
+      repository.listCommitments.mockResolvedValue([
+        { ...weekendCommitment, claimedPeriodQuantity: 199 },
+      ]);
+      repository.reserveSoldCapacity.mockRejectedValue(
+        new ConditionalWriteConflictError(new Error('race')),
+      );
+      repository.getSoldCapacityReservation
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.holdPlanCapacity({
+          vendorId: 'vendor-1',
+          communityId: 'com-1',
+          offeringId: 'pkg_car_wash',
+          demandQuantity: 1,
+          planId: 'plan_race',
+          expiresAt: '2026-05-01T01:00:00.000Z',
+        }),
+      ).rejects.toMatchObject({ code: 'CAPACITY_UNAVAILABLE' });
+    });
+
+    it('11: release is a no-op when the plan pointer is already gone (no double release)', async () => {
+      repository.getSoldCapacityReservation.mockResolvedValue(null);
+
+      await expect(service.releasePlanCapacity({ planId: 'plan_gone' })).resolves.toBeUndefined();
+      expect(repository.releaseSoldCapacity).not.toHaveBeenCalled();
+    });
+  });
 });

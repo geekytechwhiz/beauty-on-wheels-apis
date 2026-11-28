@@ -26,6 +26,7 @@ export interface ManagerWorkResponse {
   schemaVersion: '1.0';
   asOf: string;
   timezone: string;
+  timezoneSource?: 'SCHEDULE' | 'DEFAULT';
   appliedFilters: ManagerWorkQuery;
   freshness: { booking: string; vendor?: string };
   sections: Record<string, SectionAvailability>;
@@ -76,11 +77,14 @@ export class ManagerWorkService {
         assigned.set(visit.crewId, [...(assigned.get(visit.crewId) ?? []), visit]);
       }
     }
+    // Prefer Booking's resolved service date when the client omitted `date`.
+    const appliedFilters: ManagerWorkQuery = { ...query, date: work.date };
     return {
       schemaVersion: '1.0',
       asOf: this.now().toISOString(),
       timezone: work.timezone,
-      appliedFilters: query,
+      ...(work.timezoneSource ? { timezoneSource: work.timezoneSource } : {}),
+      appliedFilters,
       freshness: { booking: work.sourceAsOf, ...(vendor?.sourceAsOf ? { vendor: vendor.sourceAsOf } : {}) },
       sections: {
         work: { available: true, sourceAsOf: work.sourceAsOf },
@@ -124,7 +128,10 @@ export class ManagerWorkService {
 }
 
 export function parseManagerWorkQuery(raw: Record<string, string | undefined>, now: Date): ManagerWorkQuery {
-  const date = raw.date?.trim() ? requireManagerDate(raw.date, 'date', now) : todayInOperationsTimeZone(now);
+  // When date is omitted, Booking resolves today in the vendor timezone.
+  const date = raw.date?.trim()
+    ? requireManagerDate(raw.date, 'date', now)
+    : todayInOperationsTimeZone(now);
   const view = raw.view?.trim() || 'all';
   if (view !== 'all' && view !== 'active' && view !== 'completed') {
     throw new ValidationError('view must be all, active, or completed');
@@ -183,8 +190,7 @@ function visitWithBlockers(
     }));
   return {
     ...view,
-    blockers: work.issuesAvailable
-      ? blockers
-      : { status: 'UNAVAILABLE', reason: 'DEPENDENCY_UNAVAILABLE' },
+    // Null means issue data was unavailable; never invent an empty blocker list.
+    blockers: work.issuesAvailable ? blockers : null,
   };
 }

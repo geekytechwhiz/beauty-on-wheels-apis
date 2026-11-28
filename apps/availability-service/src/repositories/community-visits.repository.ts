@@ -147,7 +147,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
   }
 
   async listVisits(vendorId: string, options: { fromDate?: string; toDate?: string } = {}) {
-    return [...this.visits.values()].filter((item) => {
+    return [...this?.visits?.values()].filter((item) => {
       if (item.vendorId !== vendorId) return false;
       if (options.fromDate && item.date < options.fromDate) return false;
       if (options.toDate && item.date > options.toDate) return false;
@@ -160,7 +160,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
     toDate: string;
     vendorId?: string;
   }) {
-    return [...this.visits.values()].filter((item) => {
+    return [...this?.visits?.values()].filter((item) => {
       if (item.communityId !== communityId) return false;
       if (options.vendorId && item.vendorId !== options.vendorId) return false;
       if (item.date < options.fromDate || item.date > options.toDate) return false;
@@ -169,13 +169,13 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
   }
 
   async getVisit(vendorId: string, visitId: string) {
-    return this.visits.get(this.key(vendorId, visitId)) ?? null;
+    return this?.visits?.get(this.key(vendorId, visitId)) ?? null;
   }
 
   async saveVisit(record: DatedCommunityVisitRecord) {
     const key = this.key(record.vendorId, record.visitId);
-    if (this.visits.has(key)) return 'exists' as const;
-    this.visits.set(key, { ...record, assignedStaffIds: [...record.assignedStaffIds] });
+    if (this?.visits?.has(key)) return 'exists' as const;
+    this?.visits?.set(key, { ...record, assignedStaffIds: [...record.assignedStaffIds] });
     return 'created' as const;
   }
 
@@ -184,7 +184,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
     if (!current || current.version !== expectedVersion) {
       throw new ConflictError('This visit was updated. Refresh and try again.');
     }
-    this.visits.set(this.key(record.vendorId, record.visitId), { ...record, assignedStaffIds: [...record.assignedStaffIds] });
+    this?.visits?.set(this.key(record.vendorId, record.visitId), { ...record, assignedStaffIds: [...record.assignedStaffIds] });
   }
 
   async getReservation(vendorId: string, visitId: string, bookingId: string) {
@@ -203,7 +203,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
       throw new ConflictError('Visit capacity has been exceeded');
     }
     const next = { ...current, bookedCount: current.bookedCount + input.units, version: current.version + 1, updatedAt: new Date().toISOString() };
-    this.visits.set(this.key(next.vendorId, next.visitId), next);
+    this?.visits?.set(this.key(next.vendorId, next.visitId), next);
     this.reservations.set(this.reservationKey(next.vendorId, next.visitId, input.bookingId), {
       visitId: next.visitId,
       bookingId: input.bookingId,
@@ -225,7 +225,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.visits.set(this.key(next.vendorId, next.visitId), next);
+    this?.visits?.set(this.key(next.vendorId, next.visitId), next);
     this.reservations.set(this.reservationKey(next.vendorId, next.visitId, input.bookingId), { ...existing, status: 'released' });
     return next;
   }
@@ -251,7 +251,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.visits.set(this.key(next.vendorId, next.visitId), next);
+    this?.visits?.set(this.key(next.vendorId, next.visitId), next);
     this.holds.set(input.hold.holdId, { ...input.hold });
     this.holdIdempotency.set(idemKey, input.hold.holdId);
     return input.hold;
@@ -281,7 +281,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.visits.set(this.key(next.vendorId, next.visitId), next);
+    this?.visits?.set(this.key(next.vendorId, next.visitId), next);
     const released = { ...currentHold, status: input.nextStatus === 'expired' ? HOLD_STATUS.EXPIRED : HOLD_STATUS.RELEASED, updatedAt: next.updatedAt };
     this.holds.set(released.holdId, released);
     return released;
@@ -308,7 +308,7 @@ export class MemoryCommunityVisitStore implements CommunityVisitStore {
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.visits.set(this.key(next.vendorId, next.visitId), next);
+    this?.visits?.set(this.key(next.vendorId, next.visitId), next);
     this.reservations.set(this.reservationKey(next.vendorId, next.visitId, input.bookingId), {
       visitId: next.visitId,
       bookingId: input.bookingId,

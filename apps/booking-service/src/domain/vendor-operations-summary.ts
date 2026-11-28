@@ -274,7 +274,7 @@ export function summarizeVendorOperations(input: {
 }): VendorOperationsSummary {
   const timezone = assertIanaTimezone(input.timezone);
   const units = [
-    ...input.visits.map(packageVisitToWorkUnit),
+    ...input?.visits?.map(packageVisitToWorkUnit),
     ...input.bookings.map(oneTimeBookingToWorkUnit),
   ].filter((unit): unit is OperationsWorkUnit => Boolean(unit))
     .filter((unit) => unit.date >= input.fromDate && unit.date <= input.toDate);

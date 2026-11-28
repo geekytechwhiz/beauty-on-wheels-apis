@@ -4,6 +4,15 @@ import { actorDetails } from '../auth/vendor-operations';
 import { enrichVisitFromPlan } from '../domain/package-visit';
 import { isActiveVisitBlocker } from '../domain/vendor-issue';
 import {
+  resolveVendorTimezone,
+} from '../domain/vendor-operations-summary';
+import {
+  OPERATIONS_TIMEZONE,
+  addCalendarDays,
+  calendarDateInTimeZone,
+} from '../domain/vendor-package-visits';
+import { BookingError } from '../errors';
+import {
   PACKAGE_VISIT_STATUS,
   PackageVisitRecord,
   PackageVisitSchedule,
@@ -16,6 +25,13 @@ import { VendorIssueRecord } from '../types/vendor-issue.types';
 import { CustomerPlansRepository, getCustomerPlansRepository } from '../repositories/customer-plans.repository';
 import { VendorIssuesRepository, getVendorIssuesRepository } from '../repositories/vendor-issues.repository';
 import { OperationalAccessGateway, getOperationalAccessGateway } from '../integrations/vendor.client';
+import {
+  VendorHomeSummaryService,
+  getVendorHomeSummaryService,
+} from './vendor-home-summary.service';
+
+/** How the vendor operations timezone was chosen for this read. */
+type TimezoneSource = 'SCHEDULE' | 'DEFAULT';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_DAYS = 4;
@@ -50,7 +66,7 @@ export interface PartnerManagerReadEvent {
   query?: unknown;
 }
 
-type ReadAction = 'overview' | 'work' | 'planning';
+type ReadAction = 'overview' | 'work' | 'planning' | 'homeSummary';
 type WorkView = 'all' | 'active' | 'completed';
 type PlanningTab = 'unassigned' | 'assigned' | 'availability';
 
@@ -63,6 +79,7 @@ interface Query {
   tab?: PlanningTab;
   pageSize?: number;
   cursor?: string;
+  upcomingDays?: number;
 }
 
 interface ProjectedVisit {
@@ -171,6 +188,7 @@ export class PartnerManagerReadService {
     private readonly issues: VendorIssuesRepository = getVendorIssuesRepository(),
     private readonly vendors: OperationalAccessGateway = getOperationalAccessGateway(),
     private readonly now: () => Date = () => new Date(),
+    private readonly homeSummary: VendorHomeSummaryService = getVendorHomeSummaryService(),
   ) {}
 
   async read(event: PartnerManagerReadEvent | null): Promise<unknown> {
@@ -180,11 +198,28 @@ export class PartnerManagerReadService {
     await this.authorize(actor);
     if (action === 'overview') return this.overview(actor, query);
     if (action === 'work') return this.work(actor, query);
+    if (action === 'homeSummary') return this.homeSummaryRead(actor, query);
     return this.planning(actor, query);
   }
 
+  /**
+   * Delegates to the public home-summary capability with the end-user actor.
+   * Authorization remains owner-or-admin (via actorDetails); staff are denied.
+   */
+  private async homeSummaryRead(actor: DelegatedPartnerActor, query: Query) {
+    return this.homeSummary.summary(delegatedRequest(actor, {
+      ...(query.date ? { date: query.date } : {}),
+      ...(query.upcomingDays !== undefined
+        ? { upcomingDays: String(query.upcomingDays) }
+        : {}),
+    }));
+  }
+
   private async overview(actor: DelegatedPartnerActor, query: Query) {
-    const dates = parseDates(query.dates);
+    const { timezone, timezoneSource } = await this.resolveTimezone(actor.vendorId);
+    const dates = query.dates
+      ? parseDates(query.dates)
+      : defaultOverviewDates(this.now(), timezone);
     const [days, issueResult] = await Promise.all([
       Promise.all(dates.map(async (date) => ({ date, visits: await this.loadDate(actor.vendorId, date) }))),
       this.loadIssues(actor.vendorId)
@@ -192,11 +227,12 @@ export class PartnerManagerReadService {
         .catch(() => ({ available: false as const, issues: [] as VendorIssueRecord[] })),
     ]);
     return {
-      timezone: 'Asia/Kolkata',
+      timezone,
+      timezoneSource,
       days: days.map((day) => ({
         date: day.date,
-        visits: day.visits.map(project),
-        progress: progress(day.visits, issueResult.issues, issueResult.available),
+        visits: (day.visits ?? []).map(project),
+        progress: progress(day.visits ?? [], issueResult.issues, issueResult.available),
       })),
       issues: issueResult.issues.map(projectIssue),
       issuesAvailable: issueResult.available,
@@ -205,7 +241,10 @@ export class PartnerManagerReadService {
   }
 
   private async work(actor: DelegatedPartnerActor, query: Query) {
-    const date = requireDate(query.date, 'date');
+    const { timezone, timezoneSource } = await this.resolveTimezone(actor.vendorId);
+    const date = query.date
+      ? requireDate(query.date, 'date')
+      : calendarDateInTimeZone(this.now(), timezone);
     const visits = filter(await this.loadDate(actor.vendorId, date), query);
     const issueResult = await this.loadIssues(actor.vendorId)
       .then((issues) => ({ available: true as const, issues }))
@@ -220,7 +259,8 @@ export class PartnerManagerReadService {
     );
     const visitIds = new Set(visits.map((visit) => visit.visitId));
     return {
-      timezone: 'Asia/Kolkata',
+      timezone,
+      timezoneSource,
       date,
       summary: progress(visits, issueResult.issues, issueResult.available),
       crewSummaries: crewSummaries(visits, issueResult.issues, issueResult.available),
@@ -237,7 +277,10 @@ export class PartnerManagerReadService {
   }
 
   private async planning(actor: DelegatedPartnerActor, query: Query) {
-    const date = requireDate(query.date, 'date');
+    const { timezone, timezoneSource } = await this.resolveTimezone(actor.vendorId);
+    const date = query.date
+      ? requireDate(query.date, 'date')
+      : calendarDateInTimeZone(this.now(), timezone);
     const visits = filter(await this.loadDate(actor.vendorId, date), query);
     const tab = query.tab ?? 'unassigned';
     const scheduled = visits.filter(isScheduledWork);
@@ -251,7 +294,8 @@ export class PartnerManagerReadService {
       this.now(),
     );
     return {
-      timezone: 'Asia/Kolkata',
+      timezone,
+      timezoneSource,
       date,
       tab,
       counts: {
@@ -266,6 +310,27 @@ export class PartnerManagerReadService {
       hasMore: Boolean(page.nextCursor),
       sourceAsOf: this.now().toISOString(),
     };
+  }
+
+  /**
+   * Prefer a timezone already stored on this vendor's scheduled visits.
+   * Falls back to the documented Kochi MVP operations zone when none exists.
+   */
+  private async resolveTimezone(
+    vendorId: string,
+  ): Promise<{ timezone: string; timezoneSource: TimezoneSource }> {
+    try {
+      const sampled = await this.plans.sampleVendorVisitTimezone(vendorId);
+      return {
+        timezone: resolveVendorTimezone([sampled]),
+        timezoneSource: 'SCHEDULE',
+      };
+    } catch (error) {
+      if (error instanceof BookingError && error.code === 'VENDOR_TIMEZONE_UNRESOLVED') {
+        return { timezone: OPERATIONS_TIMEZONE, timezoneSource: 'DEFAULT' };
+      }
+      throw error;
+    }
   }
 
   private async authorize(actor: DelegatedPartnerActor): Promise<void> {
@@ -329,9 +394,13 @@ function parseActor(value: unknown): DelegatedPartnerActor {
   return { userId, vendorId, correlationId, roles, permissions };
 }
 
+ 
+
 function parseAction(value: unknown): ReadAction {
-  if (value === 'overview' || value === 'work' || value === 'planning') return value;
-  throw new ValidationError('action must be overview, work, or planning');
+  if (value === 'overview' || value === 'work' || value === 'planning' || value === 'homeSummary') {
+    return value;
+  }
+  throw new ValidationError('action must be overview, work, planning, or homeSummary');
 }
 
 function parseQuery(value: unknown): Query {
@@ -344,6 +413,17 @@ function parseQuery(value: unknown): Query {
   if (pageSize !== undefined && (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_PAGE_SIZE)) {
     throw new ValidationError(`pageSize must be an integer from 1 to ${MAX_PAGE_SIZE}`);
   }
+  const upcomingDaysRaw = input.upcomingDays;
+  const upcomingDays =
+    upcomingDaysRaw === undefined || upcomingDaysRaw === null || upcomingDaysRaw === ''
+      ? undefined
+      : Number(upcomingDaysRaw);
+  if (
+    upcomingDays !== undefined &&
+    (!Number.isInteger(upcomingDays) || upcomingDays < 1 || upcomingDays > 7)
+  ) {
+    throw new ValidationError('upcomingDays must be an integer from 1 to 7');
+  }
   return {
     ...(text(input.date) ? { date: text(input.date) } : {}),
     ...(text(input.dates) ? { dates: text(input.dates) } : {}),
@@ -353,6 +433,7 @@ function parseQuery(value: unknown): Query {
     ...(tab ? { tab: tab as PlanningTab } : {}),
     ...(pageSize ? { pageSize } : {}),
     ...(text(input.cursor) ? { cursor: text(input.cursor) } : {}),
+    ...(upcomingDays !== undefined ? { upcomingDays } : {}),
   };
 }
 
@@ -362,6 +443,12 @@ function parseDates(value: string | undefined): string[] {
   const unique = [...new Set(dates.map((date) => requireDate(date, 'dates')))];
   if (unique.length !== dates.length) throw new ValidationError('dates must not contain duplicates');
   return unique;
+}
+
+/** Today through the next three civil days in the vendor operations timezone. */
+function defaultOverviewDates(now: Date, timezone: string): string[] {
+  const today = calendarDateInTimeZone(now, timezone);
+  return Array.from({ length: MAX_DAYS }, (_, index) => addCalendarDays(today, index));
 }
 
 function filter(visits: readonly PackageVisitRecord[], query: Query): PackageVisitRecord[] {
@@ -660,10 +747,13 @@ function projectIssue(issue: VendorIssueRecord): ProjectedIssue {
   };
 }
 
-function delegatedRequest(actor: DelegatedPartnerActor): LambdaRequest {
+function delegatedRequest(
+  actor: DelegatedPartnerActor,
+  params: Record<string, string> = {},
+): LambdaRequest {
   return {
     pathParameters: { vendorId: actor.vendorId },
-    params: {},
+    params: { vendorId: actor.vendorId, ...params },
     event: {} as LambdaRequest['event'],
     context: {
       correlationId: actor.correlationId,

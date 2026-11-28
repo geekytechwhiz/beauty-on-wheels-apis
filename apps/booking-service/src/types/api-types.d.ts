@@ -87,6 +87,11 @@ export interface Booking {
   service?: BookingServiceSnapshot;
   addOns?: BookingAddOnSnapshot[];
   schedule?: BookingSchedule;
+  /**
+   * Service start civil date (YYYY-MM-DD) in the slot's local timezone.
+   * One-time: reserved slot date. Package: earliest confirmed PackageVisit date;
+   * unset until a slot exists. Not the confirmation/activation timestamp.
+   */
   bookingDate?: string;
   slotId?: string;
   holdId?: string;
